@@ -12,7 +12,7 @@
       "author": {
         "name": "Justin Choi"
       },
-      "source": ".",
+      "source": "./",
       "category": "productivity",
       "keywords": ["planning", "specification", "multi-agent", "review", "multilingual"]
     }
