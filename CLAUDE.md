@@ -5,7 +5,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 ## Architecture
 
 - **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (en→ko/vi)
-- **Skills**: `/planning-plugin:spec`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:status`
+- **Skills**: `/planning-plugin:spec`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`
 - **Output language**: English is the source of truth. Korean (ko) and Vietnamese (vi) translations are always generated alongside.
 
 ## Workflow
@@ -30,7 +30,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ```
 agents/          - Agent definitions (analyst, planner, tester, translator)
-skills/          - Skill entry points (spec, review, translate, status, design)
+skills/          - Skill entry points (spec, review, translate, progress, design)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts
 templates/       - Spec templates

@@ -83,7 +83,7 @@ You see a combined summary with scores, critical/major issues, and proposed test
 For each issue, choose: **Accept** / **Reject** / **Modify** / **Defer**. Translations sync automatically after changes. When both reviewers score >= 8/10, the plugin suggests finalization.
 
 ```
-/planning-plugin:status social-login
+/planning-plugin:progress social-login
 ```
 
 Use this anytime to check progress.
@@ -154,9 +154,9 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 ---
 
-### `/planning-plugin:status`
+### `/planning-plugin:progress`
 
-**Syntax**: `/planning-plugin:status [feature-name]`
+**Syntax**: `/planning-plugin:progress [feature-name]`
 
 **When to use**: To check the progress of one or all specifications.
 
@@ -389,9 +389,9 @@ docs/specs/{feature}/
 
 - **Use `--section` for targeted translation** — If you only changed one section, use `/planning-plugin:translate feature-name --section=3` instead of re-translating the entire spec.
 
-- **Check status regularly** — Use `/planning-plugin:status` (no arguments) to see all specs at a glance, especially when working on multiple features.
+- **Check status regularly** — Use `/planning-plugin:progress` (no arguments) to see all specs at a glance, especially when working on multiple features.
 
-- **Session resumption** — If you close Claude Code mid-workflow, the plugin automatically detects in-progress specs on restart and notifies you. Use `/planning-plugin:status` to see where you left off, then `/planning-plugin:spec` to resume.
+- **Session resumption** — If you close Claude Code mid-workflow, the plugin automatically detects in-progress specs on restart and notifies you. Use `/planning-plugin:progress` to see where you left off, then `/planning-plugin:spec` to resume.
 
 - **Don't chase perfect scores** — If scores plateau after 3 rounds, the plugin suggests finalizing with open questions. This is often the right call — a finalized spec with documented open questions is more useful than an endlessly reviewed draft.
 
@@ -401,7 +401,7 @@ docs/specs/{feature}/
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, figma-designer)
-skills/          Skill entry points (spec, review, translate, status, design)
+skills/          Skill entry points (spec, review, translate, progress, design)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
 templates/       Spec templates

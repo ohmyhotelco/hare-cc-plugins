@@ -1,5 +1,5 @@
 ---
-name: status
+name: progress
 description: Show the current status of all functional specifications including review scores, open issues, and translation sync state.
 argument-hint: "[feature-name]"
 user-invocable: true

@@ -87,7 +87,7 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 각 이슈에 대해 **Accept** / **Reject** / **Modify** / **Defer** 중 하나를 선택합니다. 변경 후 번역은 자동으로 동기화됩니다. 두 리뷰어의 점수가 모두 8/10 이상이 되면 플러그인이 최종화를 제안합니다.
 
 ```
-/planning-plugin:status social-login
+/planning-plugin:progress social-login
 ```
 
 언제든지 이 명령어로 진행 상황을 확인하실 수 있습니다.
@@ -158,9 +158,9 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 
 ---
 
-### `/planning-plugin:status`
+### `/planning-plugin:progress`
 
-**구문**: `/planning-plugin:status [feature-name]`
+**구문**: `/planning-plugin:progress [feature-name]`
 
 **사용 시점**: 하나 또는 모든 명세서의 진행 상황을 확인할 때 사용합니다.
 
@@ -393,9 +393,9 @@ docs/specs/{feature}/
 
 - **타겟 번역을 위해 `--section`을 사용하십시오** — 하나의 섹션만 변경한 경우, 전체 명세서를 재번역하는 대신 `/planning-plugin:translate feature-name --section=3`을 사용하십시오.
 
-- **정기적으로 상태를 확인하십시오** — `/planning-plugin:status` (인수 없이)를 사용하여 모든 명세서를 한눈에 확인하십시오. 특히 여러 기능을 동시에 작업할 때 유용합니다.
+- **정기적으로 상태를 확인하십시오** — `/planning-plugin:progress` (인수 없이)를 사용하여 모든 명세서를 한눈에 확인하십시오. 특히 여러 기능을 동시에 작업할 때 유용합니다.
 
-- **세션 재개** — 워크플로우 진행 중에 Claude Code를 종료하면, 플러그인이 재시작 시 진행 중인 명세서를 자동으로 감지하여 알려줍니다. `/planning-plugin:status`로 중단 지점을 확인한 후 `/planning-plugin:spec`으로 재개하십시오.
+- **세션 재개** — 워크플로우 진행 중에 Claude Code를 종료하면, 플러그인이 재시작 시 진행 중인 명세서를 자동으로 감지하여 알려줍니다. `/planning-plugin:progress`로 중단 지점을 확인한 후 `/planning-plugin:spec`으로 재개하십시오.
 
 - **완벽한 점수를 쫓지 마십시오** — 3라운드 후 점수가 정체되면, 플러그인이 미결 사항과 함께 최종화를 제안합니다. 이것이 올바른 선택인 경우가 많습니다 — 미결 사항이 문서화된 최종 명세서가 끝없이 리뷰되는 초안보다 유용합니다.
 
@@ -405,7 +405,7 @@ docs/specs/{feature}/
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, figma-designer)
-skills/          Skill entry points (spec, review, translate, status, design)
+skills/          Skill entry points (spec, review, translate, progress, design)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
 templates/       Spec templates

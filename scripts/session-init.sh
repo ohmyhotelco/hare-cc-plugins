@@ -43,7 +43,7 @@ if [ -n "$IN_PROGRESS" ]; then
   echo ""
   echo "[Planning Plugin] In-progress specifications found:"
   echo -e "$IN_PROGRESS"
-  echo "Use /planning-plugin:status to see details, or /planning-plugin:spec to resume."
+  echo "Use /planning-plugin:progress to see details, or /planning-plugin:spec to resume."
 fi
 
 exit 0
