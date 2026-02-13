@@ -9,10 +9,10 @@ This Claude Code plugin automates the creation of functional specifications thro
 - **Analyst** gathers requirements through structured questions (8 categories)
 - **Planner** reviews UX flows and business logic
 - **Tester** evaluates edge cases and testability
-- **Translator** generates Korean (ko) and Vietnamese (vi) translations
+- **Translator** generates translations to other supported languages
 - **Figma Designer** supports design system integration (Phase 2)
 
-All specs are generated in English as the source of truth, with Korean and Vietnamese translations created automatically.
+All specs are generated in the configured working language as the source of truth, with translations to the other supported languages created automatically.
 
 ## Installation
 
@@ -71,7 +71,7 @@ After each round, the analyst scores completeness per category. When the average
 
 ### 4. Review the generated spec
 
-Once the draft is generated (English) and translated (Korean + Vietnamese), two reviewers examine it sequentially:
+Once the draft is generated in the working language and translated to the other supported languages, two reviewers examine it sequentially:
 
 - **Planner** scores user journeys, business logic, error UX, integration, and scope (5 dimensions)
 - **Tester** scores testability, edge cases, state transitions, error handling, and acceptance criteria (5 dimensions)
@@ -99,8 +99,8 @@ Use this anytime to check progress.
 **What happens**:
 1. Creates directory structure under `docs/specs/{feature}/`
 2. Analyst agent scans your project and asks structured questions
-3. English spec draft is generated from the 11-section template
-4. Korean and Vietnamese translations are created in parallel
+3. Spec draft is generated in the working language from the 11-section template
+4. Translations to other supported languages are created in parallel
 5. Planner and tester run sequential reviews with scoring
 6. You resolve feedback, translations sync, and repeat or finalize
 
@@ -117,10 +117,10 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 **Syntax**: `/planning-plugin:review feature-name`
 
-**When to use**: After manually editing an English spec, to re-check quality with fresh planner and tester reviews.
+**When to use**: After manually editing a spec, to re-check quality with fresh planner and tester reviews.
 
 **What happens**:
-1. Locates the spec at `docs/specs/{feature}/en/{feature}-spec.md`
+1. Locates the spec at `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`
 2. If the spec is already finalized, warns you (reviewing changes its status back to `reviewing`)
 3. Runs planner review, then tester review (tester sees planner's feedback)
 4. Presents combined feedback with score trends compared to previous rounds
@@ -137,11 +137,11 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 **Syntax**: `/planning-plugin:translate feature-name [--section=N]`
 
-**When to use**: After directly editing the English spec to sync Korean and Vietnamese translations.
+**When to use**: After directly editing the working language spec to sync translations to the other supported languages.
 
 **What happens**:
-1. Reads the English source spec
-2. Launches two translator agents in parallel (Korean + Vietnamese)
+1. Reads the source spec in the working language
+2. Launches translator agents in parallel for each target language
 3. If `--section=N` is provided, only that section is re-translated (existing translations for other sections are preserved)
 4. Updates sync timestamps in the progress file
 5. Reports any `<!-- NEEDS_REVIEW -->` markers left by the translator for ambiguous content
@@ -193,6 +193,26 @@ Specifications Overview:
 │ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ ko✓ vi✓    │
 │ notifications    │ drafting   │   0   │   —     │   —     │ ko✗ vi✗    │
 └──────────────────┴────────────┴───────┴─────────┴─────────┴────────────┘
+```
+
+---
+
+### `/planning-plugin:migrate-language`
+
+**Syntax**: `/planning-plugin:migrate-language feature-name --to=vi`
+
+**When to use**: When transferring a project to a team member who works in a different language, or when changing the working language of an existing spec.
+
+**What happens**:
+1. Validates that a translation in the target language already exists
+2. Updates the progress file to set the new working language
+3. Removes the sync header from the new source file
+4. Marks all translations as out of sync
+5. Reports next steps (edit the new source, re-translate when ready)
+
+**Example**:
+```
+/planning-plugin:migrate-language social-login --to=vi
 ```
 
 ---
@@ -249,11 +269,11 @@ The plugin fills in the 11-section template using your answers:
 10. **Open Questions** — Unresolved items with context and status
 11. **Review History** — Scores and decisions per round
 
-Sections with insufficient information get TBD markers. The draft is saved to `docs/specs/{feature}/en/{feature}-spec.md` with status `DRAFT`.
+Sections with insufficient information get TBD markers. The draft is saved to `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md` with status `DRAFT`.
 
 ### Step 3: Translation
 
-Two translator agents run in parallel, producing Korean and Vietnamese versions. Translation rules:
+Translator agents run in parallel, producing versions in the other supported languages. Translation rules:
 
 - **Translated**: Section headings, descriptions, user stories, business rules, error messages
 - **Kept in English**: Technical terms (API, endpoint, schema, CRUD, JWT, OAuth, REST, GraphQL, etc.), code blocks, field names, IDs (US-001, FR-001, etc.), status values (DRAFT, FINALIZED, TBD)
@@ -302,7 +322,7 @@ For each issue raised by the reviewers, you choose one of four actions:
 | **Modify** | A modified version of the suggestion is applied |
 | **Defer** | The issue is moved to the Open Questions section |
 
-After changes are applied, translator agents sync the Korean and Vietnamese versions automatically (partial translation — only changed sections are re-translated).
+After changes are applied, translator agents sync the other language versions automatically (partial translation — only changed sections are re-translated).
 
 ### Step 6: Convergence & Finalization
 
@@ -314,13 +334,13 @@ The plugin applies these convergence rules after each review round:
 
 You always have the final say. When you finalize:
 
-1. Spec status changes to `FINALIZED` in all three language versions
+1. Spec status changes to `FINALIZED` in all language versions
 2. Progress file status updates to `finalized`
 3. You get a summary: total rounds, final scores, key decisions, remaining open questions
 4. Suggested next steps:
    - `/planning-plugin:design {feature}` to generate Figma screens (Phase 2)
    - `/planning-plugin:review {feature}` anytime to re-review
-   - Edit the English spec directly and run `/planning-plugin:translate {feature}` to sync
+   - Edit the working language spec directly and run `/planning-plugin:translate {feature}` to sync
 
 ## Agents
 
@@ -344,7 +364,7 @@ Evaluates 5 dimensions: testability of requirements, edge cases and boundary con
 
 ### Translator
 
-**Role**: English to Korean/Vietnamese translation.
+**Role**: Translation between supported languages (en/ko/vi).
 
 Translates specs while preserving markdown structure, technical terms, code blocks, and IDs. Uses the Sonnet model. Supports full translation (new specs) and partial translation (section-level updates after review changes). Adds a sync timestamp comment and marks ambiguous translations with `<!-- NEEDS_REVIEW -->`.
 
@@ -354,15 +374,33 @@ Translates specs while preserving markdown structure, technical terms, code bloc
 
 Not yet implemented. Will use Figma MCP integration to create screens based on the Screen Definitions section of the spec.
 
+## Configuration
+
+The plugin uses `config.json` at the plugin root to configure the working language:
+
+```json
+{
+  "workingLanguage": "en",
+  "supportedLanguages": ["en", "ko", "vi"]
+}
+```
+
+| Field | Description | Default |
+|-------|-------------|---------|
+| `workingLanguage` | Language for spec authoring and reviews (`en`, `ko`, or `vi`) | `"en"` |
+| `supportedLanguages` | All languages to maintain translations for | `["en", "ko", "vi"]` |
+
+To change the working language, edit `config.json` before creating a new spec. Existing specs retain their original working language (stored in the progress file).
+
 ## Output Structure
 
 ```
 docs/specs/{feature}/
-├── en/{feature}-spec.md       ← Source of truth
-├── ko/{feature}-spec.md       ← Korean translation
-├── vi/{feature}-spec.md       ← Vietnamese translation
+├── {workingLanguage}/{feature}-spec.md   ← Source of truth (working language)
+├── {target_lang_1}/{feature}-spec.md     ← Translation
+├── {target_lang_2}/{feature}-spec.md     ← Translation
 └── .progress/
-    └── {feature}.json         ← Workflow state
+    └── {feature}.json                    ← Workflow state
 ```
 
 ## Spec Template Sections
@@ -385,7 +423,7 @@ docs/specs/{feature}/
 
 - **Don't skip TBD items forever** — TBD markers let you move forward, but come back to them before finalization. The planner and tester will flag unresolved TBDs as issues.
 
-- **Manual edits are welcome** — You can edit the English spec directly at any time. After editing, run `/planning-plugin:translate feature-name` to sync translations, and `/planning-plugin:review feature-name` to re-check quality.
+- **Manual edits are welcome** — You can edit the working language spec directly at any time. After editing, run `/planning-plugin:translate feature-name` to sync translations, and `/planning-plugin:review feature-name` to re-check quality.
 
 - **Use `--section` for targeted translation** — If you only changed one section, use `/planning-plugin:translate feature-name --section=3` instead of re-translating the entire spec.
 
@@ -396,6 +434,10 @@ docs/specs/{feature}/
 - **Don't chase perfect scores** — If scores plateau after 3 rounds, the plugin suggests finalizing with open questions. This is often the right call — a finalized spec with documented open questions is more useful than an endlessly reviewed draft.
 
 - **Review after major changes** — Even after finalization, you can re-review anytime with `/planning-plugin:review`. This changes the status back to `reviewing` so you can iterate further.
+
+- **Changing the working language** — There are two scenarios:
+  - *For new specs*: Edit `config.json` and set `workingLanguage` to the desired language (e.g., `"vi"`). All future specs will be authored in that language.
+  - *For an existing spec*: Run `/planning-plugin:migrate-language feature-name --to=vi`. This switches the source of truth to the target language translation, marks all other translations as out of sync, and preserves the spec's status. The target language translation must already exist — run `/planning-plugin:translate` first if needed.
 
 ## Directory Structure
 
@@ -411,7 +453,7 @@ docs/specs/      Generated specifications (runtime output)
 ## Conventions
 
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
-- All agent reviews target the English spec only
+- All agent reviews target the working language spec only
 - Specs follow the template in `templates/functional-spec.md`
 
 ## Author

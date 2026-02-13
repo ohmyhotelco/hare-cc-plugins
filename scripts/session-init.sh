@@ -12,6 +12,14 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
 SPECS_DIR="$CWD/docs/specs"
 
+# Read working language from config.json
+PLUGIN_DIR="$(dirname "$(dirname "$0")")"
+CONFIG_FILE="$PLUGIN_DIR/config.json"
+WORKING_LANG="en"
+if [ -f "$CONFIG_FILE" ]; then
+  WORKING_LANG=$(jq -r '.workingLanguage // "en"' "$CONFIG_FILE" 2>/dev/null || echo "en")
+fi
+
 # If no specs directory exists, nothing to report
 if [ ! -d "$SPECS_DIR" ]; then
   exit 0
@@ -41,6 +49,7 @@ done <<< "$PROGRESS_FILES"
 # Output notification if there are in-progress specs
 if [ -n "$IN_PROGRESS" ]; then
   echo ""
+  echo "[Planning Plugin] Working language: $WORKING_LANG"
   echo "[Planning Plugin] In-progress specifications found:"
   echo -e "$IN_PROGRESS"
   echo "Use /planning-plugin:progress to see details, or /planning-plugin:spec to resume."

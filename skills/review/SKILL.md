@@ -12,11 +12,19 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 
 ## Instructions
 
+### Step 0: Read Configuration
+
+1. Read `config.json` from the plugin root directory
+2. Extract `workingLanguage` (default: `"en"` if file is missing or field is absent)
+3. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
 ### Step 1: Locate the Specification
 
-1. Look for the spec at `docs/specs/$ARGUMENTS/en/$ARGUMENTS-spec.md`
-2. If not found, search `docs/specs/` for a matching feature directory
-3. If still not found, list available specs and ask the user to choose
+1. Read the progress file at `docs/specs/$ARGUMENTS/.progress/$ARGUMENTS.json`
+2. If the progress file exists and contains `workingLanguage`, use that value (ignore `config.json` for existing specs)
+3. Look for the spec at `docs/specs/$ARGUMENTS/{workingLanguage}/$ARGUMENTS-spec.md`
+4. If not found, search `docs/specs/` for a matching feature directory
+5. If still not found, list available specs and ask the user to choose
 
 ### Step 2: Load Progress
 
@@ -29,12 +37,12 @@ If the status is `finalized`, warn the user:
 
 **Planner review:**
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. Return structured JSON review.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Return structured JSON review.")
 ```
 
 **Tester review** (with planner context):
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
 ```
 
 ### Step 4: Present Feedback
@@ -47,7 +55,7 @@ Show combined feedback with:
 ### Step 5: Apply Changes
 
 For each issue the user wants to address:
-1. Update the English spec
+1. Update the {workingLanguage} spec
 2. Record the decision in the progress file
 
 ### Step 6: Next Steps

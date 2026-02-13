@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Generate a functional specification through multi-agent collaboration. Analyzes project context, gathers requirements, creates spec draft with translations (en/ko/vi), and runs sequential planner→tester review cycles.
+description: Generate a functional specification through multi-agent collaboration. Analyzes project context, gathers requirements, creates spec draft in the configured working language, and runs sequential planner→tester review cycles with translation to other supported languages.
 argument-hint: "[feature description]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
@@ -14,26 +14,38 @@ Generate a comprehensive functional specification for: **$ARGUMENTS**
 
 Follow these steps in order. After each major step, update the progress file.
 
+### Step 0: Read Configuration
+
+1. Read `config.json` from the plugin root directory
+2. Extract `workingLanguage` (default: `"en"` if file is missing or field is absent)
+3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
+4. Determine target languages: `supportedLanguages` minus `workingLanguage`
+5. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
 ### Step 1: Initialize
 
 1. Derive a kebab-case feature name from the user's description (e.g., "social login" → `social-login`)
-2. Create the output directory structure:
+2. **If the feature directory already exists**, read the progress file and use its `workingLanguage` value (ignore `config.json` for existing specs). Ask the user whether to resume or start fresh.
+3. Create the output directory structure:
    ```
-   docs/specs/{feature}/en/
-   docs/specs/{feature}/ko/
-   docs/specs/{feature}/vi/
+   docs/specs/{feature}/{workingLanguage}/
    docs/specs/{feature}/.progress/
    ```
-3. Create the initial progress file at `docs/specs/{feature}/.progress/{feature}.json`:
+   Also create directories for each target language:
+   ```
+   docs/specs/{feature}/{target_lang}/
+   ```
+4. Create the initial progress file at `docs/specs/{feature}/.progress/{feature}.json`:
    ```json
    {
      "feature": "{feature}",
      "status": "analyzing",
+     "workingLanguage": "{workingLanguage}",
      "currentRound": 0,
      "rounds": [],
      "translations": {
-       "ko": { "synced": false, "lastSyncedAt": null },
-       "vi": { "synced": false, "lastSyncedAt": null }
+       "{target_lang_1}": { "synced": false, "lastSyncedAt": null },
+       "{target_lang_2}": { "synced": false, "lastSyncedAt": null }
      }
    }
    ```
@@ -43,7 +55,7 @@ Follow these steps in order. After each major step, update the progress file.
 Launch the **analyst** agent using the Task tool:
 
 ```
-Task(subagent_type: "analyst", prompt: "Analyze the project at {cwd} and gather requirements for the feature: {feature description}. Follow your two-phase process: first analyze the project context, then ask structured questions across all 8 categories.")
+Task(subagent_type: "analyst", prompt: "Analyze the project at {cwd} and gather requirements for the feature: {feature description}. Follow your two-phase process: first analyze the project context, then ask structured questions across all 8 categories. Communicate with the user in {workingLanguage_name}.")
 ```
 
 **Important interaction pattern:**
@@ -55,15 +67,16 @@ Task(subagent_type: "analyst", prompt: "Analyze the project at {cwd} and gather 
 
 Update progress status to `"drafting"` when requirements gathering is complete.
 
-### Step 3: Generate English Draft
+### Step 3: Generate Draft
 
 Using the analyst's collected requirements and the template at `templates/functional-spec.md`:
 
 1. Read the template
 2. Fill in all sections with the gathered requirements
-3. For sections with insufficient information, add TBD markers with context
-4. Write the spec to `docs/specs/{feature}/en/{feature}-spec.md`
-5. Set the document status to `DRAFT`
+3. Write all spec content in {workingLanguage_name}. Keep section heading labels in English (## 1. Overview etc.) as structural markers.
+4. For sections with insufficient information, add TBD markers with context
+5. Write the spec to `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`
+6. Set the document status to `DRAFT`
 
 ### Step 4: Sequential Review Cycle
 
@@ -73,14 +86,14 @@ Update progress status to `"reviewing"` and increment `currentRound`.
 
 Launch the **planner** agent:
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
 ```
 
 **4b. Tester Review:**
 
 Launch the **tester** agent, including the planner's feedback:
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
 ```
 
 **4c. Present Combined Feedback:**
@@ -107,7 +120,7 @@ Ask the user what to do with each issue:
 - **Modify**: Apply a modified version of the suggestion
 - **Defer**: Move to Open Questions section
 
-Apply accepted changes to the English spec.
+Apply accepted changes to the {workingLanguage} spec.
 
 Update progress file with round results.
 
@@ -119,23 +132,17 @@ Based on convergence check and user decision, either:
 
 ### Step 5: Generate Translations
 
-Launch **two translator agents in parallel** using the Task tool:
+For each target language, launch a **translator** agent in parallel using the Task tool:
 
-**Korean translation:**
 ```
-Task(subagent_type: "translator", prompt: "Translate the English spec at docs/specs/{feature}/en/{feature}-spec.md to Korean. Write output to docs/specs/{feature}/ko/{feature}-spec.md. This is a full translation of a new spec.")
-```
-
-**Vietnamese translation:**
-```
-Task(subagent_type: "translator", prompt: "Translate the English spec at docs/specs/{feature}/en/{feature}-spec.md to Vietnamese. Write output to docs/specs/{feature}/vi/{feature}-spec.md. This is a full translation of a new spec.")
+Task(subagent_type: "translator", prompt: "Translate the {workingLanguage_name} spec at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md to {target_language_name}. Write output to docs/specs/{feature}/{target_lang}/{feature}-spec.md. Source language: {workingLanguage}. Full translation.")
 ```
 
-After both complete, update the progress file's translation status with `synced: true` and timestamps.
+After all complete, update the progress file's translation status with `synced: true` and timestamps.
 
 ### Step 6: Finalize
 
-1. Update the spec status header to `FINALIZED` in all three language versions (en/ko/vi)
+1. Update the spec status header to `FINALIZED` in all language versions ({workingLanguage} + target languages)
 2. Update the progress file:
    ```json
    { "status": "finalized" }
@@ -148,7 +155,7 @@ After both complete, update the progress file's translation status with `synced:
 4. Suggest next steps:
    - "Run `/planning-plugin:design {feature}` to generate Figma screens (Phase 2)"
    - "Run `/planning-plugin:review {feature}` anytime to re-review"
-   - "Edit the English spec directly and run `/planning-plugin:translate {feature}` to sync translations"
+   - "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
 
 ## Error Handling
 

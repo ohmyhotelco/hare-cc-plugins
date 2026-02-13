@@ -14,7 +14,7 @@ Generate Figma designs for: **$ARGUMENTS**
 
 ## Planned Workflow
 
-1. Read the finalized spec at `docs/specs/{feature}/en/{feature}-spec.md`
+1. Read the finalized spec at `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`
 2. Extract the Screen Definitions section
 3. Generate a screen design brief using `templates/screen-design-brief.md`
 4. Launch the `figma-designer` agent to create screens in Figma via MCP

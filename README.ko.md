@@ -13,10 +13,10 @@
 - **Analyst** — 구조화된 질문(8개 카테고리)을 통해 요구사항을 수집합니다
 - **Planner** — UX 흐름과 비즈니스 로직을 검토합니다
 - **Tester** — 엣지 케이스와 테스트 가능성을 평가합니다
-- **Translator** — 한국어(ko) 및 베트남어(vi) 번역을 생성합니다
+- **Translator** — 지원 언어 간 번역을 생성합니다
 - **Figma Designer** — 디자인 시스템 연동을 지원합니다 (Phase 2)
 
-모든 명세서는 영어를 원본(Source of Truth)으로 작성되며, 한국어 및 베트남어 번역은 자동으로 생성됩니다.
+모든 명세서는 설정된 작업 언어(Working Language)를 원본(Source of Truth)으로 작성되며, 나머지 지원 언어 번역은 자동으로 생성됩니다.
 
 ## 설치
 
@@ -75,7 +75,7 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 
 ### 4. 생성된 명세서 검토
 
-초안이 생성(영어)되고 번역(한국어 + 베트남어)이 완료되면, 두 명의 리뷰어가 순차적으로 검토합니다:
+초안이 작업 언어로 생성되고 나머지 언어로 번역이 완료되면, 두 명의 리뷰어가 순차적으로 검토합니다:
 
 - **Planner** — 사용자 여정, 비즈니스 로직, 오류 UX, 연동, 범위의 5개 차원을 평가합니다
 - **Tester** — 테스트 가능성, 엣지 케이스, 상태 전이, 오류 처리, 인수 기준(Acceptance Criteria)의 5개 차원을 평가합니다
@@ -103,8 +103,8 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 **동작 과정**:
 1. `docs/specs/{feature}/` 하위에 디렉토리 구조를 생성합니다
 2. Analyst 에이전트가 프로젝트를 스캔하고 구조화된 질문을 합니다
-3. 11개 섹션 템플릿을 기반으로 영어 명세서 초안이 생성됩니다
-4. 한국어 및 베트남어 번역이 병렬로 생성됩니다
+3. 11개 섹션 템플릿을 기반으로 작업 언어 명세서 초안이 생성됩니다
+4. 나머지 지원 언어 번역이 병렬로 생성됩니다
 5. Planner와 Tester가 순차적으로 검토 및 점수를 매깁니다
 6. 피드백을 반영하고, 번역이 동기화되며, 반복하거나 최종화합니다
 
@@ -121,10 +121,10 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 
 **구문**: `/planning-plugin:review feature-name`
 
-**사용 시점**: 영어 명세서를 수동으로 편집한 후, Planner와 Tester의 새로운 리뷰로 품질을 재확인할 때 사용합니다.
+**사용 시점**: 작업 언어 명세서를 수동으로 편집한 후, Planner와 Tester의 새로운 리뷰로 품질을 재확인할 때 사용합니다.
 
 **동작 과정**:
-1. `docs/specs/{feature}/en/{feature}-spec.md`에서 명세서를 찾습니다
+1. `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`에서 명세서를 찾습니다
 2. 이미 최종화된 명세서인 경우 경고합니다 (리뷰 시 상태가 `reviewing`으로 변경됩니다)
 3. Planner 리뷰 후 Tester 리뷰가 순차적으로 진행됩니다 (Tester는 Planner의 피드백을 참조합니다)
 4. 이전 라운드 대비 점수 추이가 포함된 통합 피드백을 제시합니다
@@ -141,11 +141,11 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 
 **구문**: `/planning-plugin:translate feature-name [--section=N]`
 
-**사용 시점**: 영어 명세서를 직접 편집한 후 한국어 및 베트남어 번역을 동기화할 때 사용합니다.
+**사용 시점**: 작업 언어 명세서를 직접 편집한 후 나머지 지원 언어 번역을 동기화할 때 사용합니다.
 
 **동작 과정**:
-1. 영어 원본 명세서를 읽습니다
-2. 두 개의 Translator 에이전트를 병렬로 실행합니다 (한국어 + 베트남어)
+1. 작업 언어 원본 명세서를 읽습니다
+2. 각 대상 언어에 대해 Translator 에이전트를 병렬로 실행합니다
 3. `--section=N`이 지정된 경우 해당 섹션만 재번역합니다 (다른 섹션의 기존 번역은 유지됩니다)
 4. 진행 파일의 동기화 타임스탬프를 업데이트합니다
 5. Translator가 모호한 내용에 남긴 `<!-- NEEDS_REVIEW -->` 마커가 있으면 보고합니다
@@ -197,6 +197,26 @@ Specifications Overview:
 │ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ ko✓ vi✓    │
 │ notifications    │ drafting   │   0   │   —     │   —     │ ko✗ vi✗    │
 └──────────────────┴────────────┴───────┴─────────┴─────────┴────────────┘
+```
+
+---
+
+### `/planning-plugin:migrate-language`
+
+**구문**: `/planning-plugin:migrate-language feature-name --to=vi`
+
+**사용 시점**: 프로젝트를 다른 언어로 작업하는 팀원에게 이관하거나, 기존 명세서의 작업 언어를 변경할 때 사용합니다.
+
+**동작 과정**:
+1. 대상 언어의 번역 파일이 이미 존재하는지 검증합니다
+2. 진행 파일을 업데이트하여 새 작업 언어를 설정합니다
+3. 새 source 파일에서 동기화 헤더를 제거합니다
+4. 모든 번역을 동기화 필요(out of sync) 상태로 표시합니다
+5. 다음 단계를 안내합니다 (새 source 편집, 준비 시 재번역)
+
+**예시**:
+```
+/planning-plugin:migrate-language social-login --to=vi
 ```
 
 ---
@@ -253,11 +273,11 @@ Specifications Overview:
 10. **미결 사항(Open Questions)** — 컨텍스트 및 상태가 포함된 미해결 항목
 11. **리뷰 이력(Review History)** — 라운드별 점수 및 결정 사항
 
-정보가 불충분한 섹션에는 TBD 마커가 표시됩니다. 초안은 `docs/specs/{feature}/en/{feature}-spec.md`에 저장되며 상태는 `DRAFT`로 설정됩니다.
+정보가 불충분한 섹션에는 TBD 마커가 표시됩니다. 초안은 `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`에 저장되며 상태는 `DRAFT`로 설정됩니다.
 
 ### 단계 3: 번역
 
-두 개의 Translator 에이전트가 병렬로 실행되어 한국어 및 베트남어 버전을 생성합니다. 번역 규칙:
+Translator 에이전트가 병렬로 실행되어 나머지 지원 언어 버전을 생성합니다. 번역 규칙:
 
 - **번역 대상**: 섹션 제목, 설명, 사용자 스토리, 비즈니스 규칙, 오류 메시지
 - **영어 유지**: 기술 용어 (API, endpoint, schema, CRUD, JWT, OAuth, REST, GraphQL 등), 코드 블록, 필드명, ID (US-001, FR-001 등), 상태 값 (DRAFT, FINALIZED, TBD)
@@ -301,12 +321,12 @@ Tester는 발견된 모든 Critical 및 Major 이슈에 대해 구체적인 테�
 
 | 액션 | 동작 |
 |------|------|
-| **Accept** | 제안이 영어 명세서에 그대로 반영됩니다 |
+| **Accept** | 제안이 작업 언어 명세서에 그대로 반영됩니다 |
 | **Reject** | 사유를 기재하고 이슈를 기각합니다 |
 | **Modify** | 제안을 수정하여 반영합니다 |
 | **Defer** | 이슈를 미결 사항(Open Questions) 섹션으로 이동합니다 |
 
-변경 사항이 반영된 후, Translator 에이전트가 한국어 및 베트남어 버전을 자동으로 동기화합니다 (부분 번역 — 변경된 섹션만 재번역됩니다).
+변경 사항이 반영된 후, Translator 에이전트가 나머지 언어 버전을 자동으로 동기화합니다 (부분 번역 — 변경된 섹션만 재번역됩니다).
 
 ### 단계 6: 수렴 및 최종화
 
@@ -318,13 +338,13 @@ Tester는 발견된 모든 Critical 및 Major 이슈에 대해 구체적인 테�
 
 최종 결정은 항상 사용자에게 있습니다. 최종화 시:
 
-1. 세 개 언어 버전 모두에서 명세서 상태가 `FINALIZED`로 변경됩니다
+1. 모든 언어 버전에서 명세서 상태가 `FINALIZED`로 변경됩니다
 2. 진행 파일의 상태가 `finalized`로 업데이트됩니다
 3. 요약이 제공됩니다: 총 라운드 수, 최종 점수, 주요 결정 사항, 남은 미결 사항
 4. 다음 단계가 제안됩니다:
    - `/planning-plugin:design {feature}` — Figma 화면 생성 (Phase 2)
    - `/planning-plugin:review {feature}` — 언제든지 재검토
-   - 영어 명세서를 직접 편집 후 `/planning-plugin:translate {feature}`로 동기화
+   - 작업 언어 명세서를 직접 편집 후 `/planning-plugin:translate {feature}`로 동기화
 
 ## 에이전트
 
@@ -348,7 +368,7 @@ Tester는 발견된 모든 Critical 및 Major 이슈에 대해 구체적인 테�
 
 ### Translator
 
-**역할**: 영어에서 한국어/베트남어로의 번역
+**역할**: 지원 언어(en/ko/vi) 간 번역
 
 markdown 구조, 기술 용어, 코드 블록, ID를 보존하면서 명세서를 번역합니다. Sonnet 모델을 사용합니다. 전체 번역(새 명세서)과 부분 번역(리뷰 변경 후 섹션 단위 업데이트)을 지원합니다. 동기화 타임스탬프 주석을 추가하고 모호한 번역에는 `<!-- NEEDS_REVIEW -->` 마커를 표시합니다.
 
@@ -358,15 +378,33 @@ markdown 구조, 기술 용어, 코드 블록, ID를 보존하면서 명세서�
 
 아직 구현되지 않았습니다. Figma MCP 연동을 사용하여 명세서의 화면 정의(Screen Definitions) 섹션을 기반으로 화면을 생성할 예정입니다.
 
+## 설정
+
+플러그인은 플러그인 루트의 `config.json`을 사용하여 작업 언어를 설정합니다:
+
+```json
+{
+  "workingLanguage": "en",
+  "supportedLanguages": ["en", "ko", "vi"]
+}
+```
+
+| 필드 | 설명 | 기본값 |
+|------|------|--------|
+| `workingLanguage` | 명세서 작성 및 리뷰에 사용할 언어 (`en`, `ko`, 또는 `vi`) | `"en"` |
+| `supportedLanguages` | 번역을 유지할 모든 언어 | `["en", "ko", "vi"]` |
+
+작업 언어를 변경하려면 새 명세서를 생성하기 전에 `config.json`을 편집하십시오. 기존 명세서는 원래의 작업 언어를 유지합니다 (진행 파일에 저장됨).
+
 ## 출력 구조
 
 ```
 docs/specs/{feature}/
-├── en/{feature}-spec.md       ← Source of truth
-├── ko/{feature}-spec.md       ← Korean translation
-├── vi/{feature}-spec.md       ← Vietnamese translation
+├── {workingLanguage}/{feature}-spec.md   ← Source of truth (작업 언어)
+├── {target_lang_1}/{feature}-spec.md     ← 번역
+├── {target_lang_2}/{feature}-spec.md     ← 번역
 └── .progress/
-    └── {feature}.json         ← Workflow state
+    └── {feature}.json                    ← Workflow state
 ```
 
 ## 스펙 템플릿 섹션
@@ -389,7 +427,7 @@ docs/specs/{feature}/
 
 - **TBD 항목을 영원히 방치하지 마십시오** — TBD 마커는 진행을 가능하게 하지만, 최종화 전에 반드시 돌아와서 해결하십시오. Planner와 Tester가 미해결 TBD를 이슈로 지적합니다.
 
-- **수동 편집을 환영합니다** — 언제든지 영어 명세서를 직접 편집하실 수 있습니다. 편집 후 `/planning-plugin:translate feature-name`으로 번역을 동기화하고, `/planning-plugin:review feature-name`으로 품질을 재확인하십시오.
+- **수동 편집을 환영합니다** — 언제든지 작업 언어 명세서를 직접 편집하실 수 있습니다. 편집 후 `/planning-plugin:translate feature-name`으로 번역을 동기화하고, `/planning-plugin:review feature-name`으로 품질을 재확인하십시오.
 
 - **타겟 번역을 위해 `--section`을 사용하십시오** — 하나의 섹션만 변경한 경우, 전체 명세서를 재번역하는 대신 `/planning-plugin:translate feature-name --section=3`을 사용하십시오.
 
@@ -400,6 +438,10 @@ docs/specs/{feature}/
 - **완벽한 점수를 쫓지 마십시오** — 3라운드 후 점수가 정체되면, 플러그인이 미결 사항과 함께 최종화를 제안합니다. 이것이 올바른 선택인 경우가 많습니다 — 미결 사항이 문서화된 최종 명세서가 끝없이 리뷰되는 초안보다 유용합니다.
 
 - **주요 변경 후 리뷰하십시오** — 최종화 이후에도 `/planning-plugin:review`로 언제든지 재검토할 수 있습니다. 이 경우 상태가 `reviewing`으로 변경되어 추가 반복이 가능합니다.
+
+- **작업 언어를 변경하려면** — 두 가지 시나리오가 있습니다:
+  - *새 명세서의 경우*: `config.json`에서 `workingLanguage`를 원하는 언어로 설정하십시오 (예: `"vi"`). 이후 생성되는 모든 명세서가 해당 언어로 작성됩니다.
+  - *기존 명세서의 경우*: `/planning-plugin:migrate-language feature-name --to=vi`를 실행하십시오. 대상 언어 번역을 새 source of truth로 전환하고, 나머지 번역을 동기화 필요 상태로 표시하며, 명세서의 상태(status)는 유지됩니다. 대상 언어의 번역 파일이 먼저 존재해야 합니다 — 필요한 경우 `/planning-plugin:translate`를 먼저 실행하십시오.
 
 ## 디렉토리 구조
 
@@ -415,7 +457,7 @@ docs/specs/      Generated specifications (runtime output)
 ## 규칙
 
 - 기술 용어 (API, endpoint, schema, CRUD)는 모든 번역에서 영어로 유지됩니다
-- 모든 에이전트 리뷰는 영어 명세서만을 대상으로 합니다
+- 모든 에이전트 리뷰는 작업 언어 명세서만을 대상으로 합니다
 - 명세서는 `templates/functional-spec.md`의 템플릿을 따릅니다
 
 ## 작성자
