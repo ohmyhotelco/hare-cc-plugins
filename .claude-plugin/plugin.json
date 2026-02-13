@@ -5,6 +5,5 @@
   "author": {
     "name": "Justin Choi"
   },
-  "keywords": ["planning", "specification", "multi-agent", "review", "multilingual"],
-  "hooks": "./hooks/hooks.json"
+  "keywords": ["planning", "specification", "multi-agent", "review", "multilingual"]
 }
