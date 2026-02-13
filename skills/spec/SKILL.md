@@ -65,7 +65,59 @@ Using the analyst's collected requirements and the template at `templates/functi
 4. Write the spec to `docs/specs/{feature}/en/{feature}-spec.md`
 5. Set the document status to `DRAFT`
 
-### Step 4: Generate Translations
+### Step 4: Sequential Review Cycle
+
+Update progress status to `"reviewing"` and increment `currentRound`.
+
+**4a. Planner Review:**
+
+Launch the **planner** agent:
+```
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+```
+
+**4b. Tester Review:**
+
+Launch the **tester** agent, including the planner's feedback:
+```
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+```
+
+**4c. Present Combined Feedback:**
+
+Show the user a summary of both reviews:
+- Overall scores (planner: X/10, tester: Y/10)
+- Critical and major issues from both agents
+- Proposed test cases from the tester
+- Approved sections
+
+**4d. Convergence Check:**
+
+Apply these rules:
+- **Both scores >= 8**: Suggest finalization — "Both reviewers are satisfied. Ready to finalize?"
+- **Scores improving round over round**: Suggest another review — "Scores are improving. Want to do another round?"
+- **3 rounds completed with no improvement**: Suggest finalization with caveats — "After 3 rounds, here are the remaining open questions. Ready to finalize as-is?"
+- **Always give the user the final say**
+
+**4e. User Decision:**
+
+Ask the user what to do with each issue:
+- **Accept**: Apply the suggestion to the spec
+- **Reject**: Dismiss the issue with a note
+- **Modify**: Apply a modified version of the suggestion
+- **Defer**: Move to Open Questions section
+
+Apply accepted changes to the English spec.
+
+Update progress file with round results.
+
+**4f. Repeat or Finalize:**
+
+Based on convergence check and user decision, either:
+- Go back to Step 4a for another round
+- Proceed to Step 5
+
+### Step 5: Generate Translations
 
 Launch **two translator agents in parallel** using the Task tool:
 
@@ -80,62 +132,6 @@ Task(subagent_type: "translator", prompt: "Translate the English spec at docs/sp
 ```
 
 After both complete, update the progress file's translation status with `synced: true` and timestamps.
-
-### Step 5: Sequential Review Cycle
-
-Update progress status to `"reviewing"` and increment `currentRound`.
-
-**5a. Planner Review:**
-
-Launch the **planner** agent:
-```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
-```
-
-**5b. Tester Review:**
-
-Launch the **tester** agent, including the planner's feedback:
-```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/en/{feature}-spec.md. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
-```
-
-**5c. Present Combined Feedback:**
-
-Show the user a summary of both reviews:
-- Overall scores (planner: X/10, tester: Y/10)
-- Critical and major issues from both agents
-- Proposed test cases from the tester
-- Approved sections
-
-**5d. Convergence Check:**
-
-Apply these rules:
-- **Both scores >= 8**: Suggest finalization — "Both reviewers are satisfied. Ready to finalize?"
-- **Scores improving round over round**: Suggest another review — "Scores are improving. Want to do another round?"
-- **3 rounds completed with no improvement**: Suggest finalization with caveats — "After 3 rounds, here are the remaining open questions. Ready to finalize as-is?"
-- **Always give the user the final say**
-
-**5e. User Decision:**
-
-Ask the user what to do with each issue:
-- **Accept**: Apply the suggestion to the spec
-- **Reject**: Dismiss the issue with a note
-- **Modify**: Apply a modified version of the suggestion
-- **Defer**: Move to Open Questions section
-
-Apply accepted changes to the English spec, then:
-
-**5f. Sync Translations:**
-
-Launch translator agents in parallel to sync the ko/vi versions with the updated English spec. Tell them which sections changed so they can do a partial translation.
-
-Update progress file with round results and translation sync status.
-
-**5g. Repeat or Finalize:**
-
-Based on convergence check and user decision, either:
-- Go back to Step 5a for another round
-- Proceed to Step 6
 
 ### Step 6: Finalize
 

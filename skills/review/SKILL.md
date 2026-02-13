@@ -50,12 +50,9 @@ For each issue the user wants to address:
 1. Update the English spec
 2. Record the decision in the progress file
 
-### Step 6: Sync Translations
-
-After changes are applied, launch translator agents in parallel to update ko/vi versions.
-
-Update the progress file with the new round data and translation sync timestamps.
-
-### Step 7: Next Steps
+### Step 6: Next Steps
 
 Ask: "Would you like to run another review round, or finalize the spec?"
+
+If the user is done with reviews, remind them:
+> "Run `/planning-plugin:translate {feature}` to sync translations."

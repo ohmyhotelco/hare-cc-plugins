@@ -13,10 +13,10 @@ A Claude Code plugin that generates functional specifications through multi-agen
 1. `/planning-plugin:spec "feature description"` triggers the full workflow
 2. Analyst agent analyzes project context and asks structured questions (8 categories)
 3. Draft spec is generated in English from template
-4. Translator agent creates ko/vi versions
-5. Sequential review: planner → tester (tester sees planner's feedback)
-6. User decides on feedback → spec updated → translations synced
-7. Repeat or finalize
+4. Sequential review: planner → tester (tester sees planner's feedback)
+5. User decides on feedback → spec updated
+6. Repeat or finalize
+7. Translator agent creates ko/vi versions (once, after finalization)
 
 ## Conventions
 
