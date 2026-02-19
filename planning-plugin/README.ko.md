@@ -25,14 +25,14 @@
 
 이 플러그인은 private GitHub 저장소를 통해 배포됩니다. 설치 전 해당 저장소에 대한 git 접근 권한이 필요합니다.
 
-**사전 요구사항**: `ohmyhotelco-planning/planning-cc-plugin`에 대한 git 접근 권한 (SSH key 또는 `gh auth login`)
+**사전 요구사항**: `ohmyhotelco/hare-cc-plugins`에 대한 git 접근 권한 (SSH key 또는 `gh auth login`)
 
 ```
 # 1. Register the private repo as a marketplace source
-/plugin marketplace add ohmyhotelco-planning/planning-cc-plugin
+/plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)
-/plugin install planning-plugin@ohmyhotelco-planning --scope project
+/plugin install planning-plugin@ohmyhotelco --scope project
 ```
 
 설치 확인:
@@ -49,8 +49,8 @@
 ### 1. 플러그인 설치
 
 ```
-/plugin marketplace add ohmyhotelco-planning/planning-cc-plugin
-/plugin install planning-plugin@ohmyhotelco-planning --scope project
+/plugin marketplace add ohmyhotelco/hare-cc-plugins
+/plugin install planning-plugin@ohmyhotelco --scope project
 ```
 
 ### 2. 프로젝트 설정 초기화

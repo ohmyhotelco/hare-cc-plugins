@@ -160,7 +160,7 @@ After all complete, update the progress file's translation status with `synced: 
    - Key decisions made
    - Any remaining open questions
 4. Suggest next steps:
-   - "Run `/planning-plugin:design {feature}` to generate Figma screens (Phase 2)"
+   - "Run `/planning-plugin:design {feature}` to generate UI DSL, React prototype, and Figma designs"
    - "Run `/planning-plugin:review {feature}` anytime to re-review"
    - "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
    - "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"

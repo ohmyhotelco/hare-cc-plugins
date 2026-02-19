@@ -1,0 +1,273 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "planning-plugin/ui-dsl",
+  "title": "UI DSL Schema",
+  "description": "JSON Schema for the Planning Plugin UI DSL — defines manifest and per-screen formats used by the dsl-generator agent.",
+
+  "$defs": {
+    "componentType": {
+      "type": "string",
+      "enum": [
+        "Card", "Tabs", "Separator", "Sheet", "ScrollArea",
+        "Form", "Input", "Textarea", "Select", "Checkbox", "RadioGroup", "Switch", "DatePicker",
+        "Table", "Badge", "Avatar", "Skeleton", "Progress",
+        "Alert", "Toast", "AlertDialog", "Dialog",
+        "Button", "DropdownMenu", "Command",
+        "Breadcrumb", "NavigationMenu", "Pagination",
+        "div", "text", "span"
+      ],
+      "description": "shadcn/ui component vocabulary plus HTML primitives."
+    },
+
+    "action": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["navigate", "dialog", "submit", "toggle", "dismiss", "custom"],
+          "description": "The kind of action triggered."
+        },
+        "target": {
+          "type": "string",
+          "description": "Route path, dialog ID, or custom action identifier."
+        }
+      },
+      "required": ["type", "target"]
+    },
+
+    "component": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique component identifier within the screen." },
+        "type": { "$ref": "#/$defs/componentType" },
+        "props": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Component-specific props (className, variant, etc.)."
+        },
+        "text": { "type": "string", "description": "Display text for buttons and similar components." },
+        "content": { "type": "string", "description": "Text content for text/span elements." },
+        "element": { "type": "string", "description": "HTML element override for text nodes (h1, h2, p, etc.)." },
+        "icon": { "type": "string", "description": "Lucide icon name." },
+        "action": { "$ref": "#/$defs/action" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" },
+          "description": "Nested child components."
+        },
+        "dataBinding": { "type": "string", "description": "Key in dataShape this component binds to." },
+        "columns": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/tableColumn" },
+          "description": "Column definitions for Table components."
+        },
+        "pagination": { "$ref": "#/$defs/pagination" },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/menuItem" },
+          "description": "Menu items for DropdownMenu/Command components."
+        }
+      },
+      "required": ["type"]
+    },
+
+    "tableColumn": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "header": { "type": "string" },
+        "sortable": { "type": "boolean" },
+        "cell": { "$ref": "#/$defs/component" }
+      },
+      "required": ["key", "header"]
+    },
+
+    "menuItem": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "action": { "$ref": "#/$defs/action" },
+        "variant": { "type": "string" },
+        "icon": { "type": "string" }
+      },
+      "required": ["label"]
+    },
+
+    "pagination": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "pageSize": { "type": "integer" }
+      },
+      "required": ["enabled"]
+    },
+
+    "state": {
+      "type": "object",
+      "properties": {
+        "components": {
+          "oneOf": [
+            { "type": "array", "items": { "$ref": "#/$defs/component" } },
+            { "type": "string", "pattern": "^\\$ref:" }
+          ],
+          "description": "Component tree for this state, or a $ref pointer (e.g. '$ref:componentTree')."
+        }
+      },
+      "required": ["components"]
+    },
+
+    "interaction": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "trigger": {
+          "type": "object",
+          "properties": {
+            "component": { "type": "string" },
+            "event": { "type": "string" }
+          },
+          "required": ["component", "event"]
+        },
+        "behavior": {
+          "type": "string",
+          "enum": ["dialog", "toast", "navigate", "toggle", "submit", "custom"]
+        },
+        "dialog": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["AlertDialog", "Dialog", "Sheet"] },
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "confirmVariant": { "type": "string" },
+            "content": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/component" }
+            }
+          },
+          "required": ["type", "title"]
+        },
+        "toast": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "description": { "type": "string" },
+            "variant": { "type": "string" }
+          },
+          "required": ["title"]
+        }
+      },
+      "required": ["id", "trigger", "behavior"]
+    },
+
+    "dataShapeField": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "description": "Field type descriptor (string, number, boolean, enum(...), ISO-8601, etc.)."
+      },
+      "description": "Object mapping field names to type descriptors."
+    },
+
+    "dataShapeEntry": {
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["object", "array"] },
+        "item": { "$ref": "#/$defs/dataShapeField" },
+        "fields": { "$ref": "#/$defs/dataShapeField" }
+      },
+      "required": ["type"]
+    },
+
+    "navigationEdge": {
+      "type": "object",
+      "properties": {
+        "from": { "type": "string", "description": "Source screen ID." },
+        "to": { "type": "string", "description": "Target screen ID." },
+        "trigger": { "type": "string", "description": "User action that triggers navigation." }
+      },
+      "required": ["from", "to", "trigger"]
+    },
+
+    "screenEntry": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "file": { "type": "string", "pattern": "^screen-.+\\.json$" },
+        "title": { "type": "string" },
+        "entryPoint": { "type": "boolean" }
+      },
+      "required": ["id", "file", "title"]
+    },
+
+    "manifest": {
+      "type": "object",
+      "properties": {
+        "feature": { "type": "string", "description": "Kebab-case feature name." },
+        "schemaVersion": { "const": "1.0" },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "sourceSpec": { "type": "string", "description": "Path to the working language spec directory." },
+        "screens": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/screenEntry" },
+          "minItems": 1
+        },
+        "navigation": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/navigationEdge" }
+        },
+        "dataEntities": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Entity names referenced from data-model.md."
+        }
+      },
+      "required": ["feature", "schemaVersion", "generatedAt", "sourceSpec", "screens", "navigation", "dataEntities"]
+    },
+
+    "screen": {
+      "type": "object",
+      "properties": {
+        "screen": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "title": { "type": "string" },
+            "purpose": { "type": "string" },
+            "route": { "type": "string" }
+          },
+          "required": ["id", "title", "purpose", "route"]
+        },
+        "states": {
+          "type": "object",
+          "properties": {
+            "loading": { "$ref": "#/$defs/state" },
+            "empty": { "$ref": "#/$defs/state" },
+            "error": { "$ref": "#/$defs/state" },
+            "success": { "$ref": "#/$defs/state" }
+          },
+          "required": ["loading", "empty", "error", "success"]
+        },
+        "componentTree": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/component" },
+          "description": "Main component tree (success state)."
+        },
+        "interactions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/interaction" }
+        },
+        "dataShape": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/dataShapeEntry" },
+          "description": "Data shapes required by this screen."
+        }
+      },
+      "required": ["screen", "states", "componentTree", "interactions", "dataShape"]
+    }
+  },
+
+  "oneOf": [
+    { "$ref": "#/$defs/manifest" },
+    { "$ref": "#/$defs/screen" }
+  ]
+}

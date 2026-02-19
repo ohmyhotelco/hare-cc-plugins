@@ -25,14 +25,14 @@ Tất cả đặc tả được tạo bằng ngôn ngữ làm việc (Working La
 
 Plugin này được phân phối qua kho GitHub private. Bạn cần quyền truy cập git vào kho trước khi cài đặt.
 
-**Điều kiện tiên quyết**: Quyền truy cập git vào `ohmyhotelco-planning/planning-cc-plugin` (SSH key hoặc `gh auth login`)
+**Điều kiện tiên quyết**: Quyền truy cập git vào `ohmyhotelco/hare-cc-plugins` (SSH key hoặc `gh auth login`)
 
 ```
 # 1. Register the private repo as a marketplace source
-/plugin marketplace add ohmyhotelco-planning/planning-cc-plugin
+/plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)
-/plugin install planning-plugin@ohmyhotelco-planning --scope project
+/plugin install planning-plugin@ohmyhotelco --scope project
 ```
 
 Xác minh cài đặt:
@@ -49,8 +49,8 @@ Tạo đặc tả đầu tiên chỉ trong 6 bước:
 ### 1. Cài đặt plugin
 
 ```
-/plugin marketplace add ohmyhotelco-planning/planning-cc-plugin
-/plugin install planning-plugin@ohmyhotelco-planning --scope project
+/plugin marketplace add ohmyhotelco/hare-cc-plugins
+/plugin install planning-plugin@ohmyhotelco --scope project
 ```
 
 ### 2. Khởi tạo cấu hình dự án

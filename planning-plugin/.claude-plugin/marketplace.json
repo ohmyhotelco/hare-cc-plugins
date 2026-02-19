@@ -1,5 +1,5 @@
 {
-  "name": "ohmyhotelco-planning",
+  "name": "ohmyhotelco",
   "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
   "owner": {
     "name": "Justin Choi"
@@ -12,7 +12,7 @@
       "author": {
         "name": "Justin Choi"
       },
-      "source": "./",
+      "source": "./planning-plugin/",
       "category": "productivity",
       "keywords": ["planning", "specification", "multi-agent", "review", "multilingual"]
     }

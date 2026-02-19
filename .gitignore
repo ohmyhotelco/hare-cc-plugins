@@ -10,10 +10,17 @@
 .claude/settings.local.json
 
 # Generated specs (runtime output)
-docs/specs/**/en/
-docs/specs/**/ko/
-docs/specs/**/vi/
-docs/specs/**/.progress/
+planning-plugin/docs/specs/**/en/
+planning-plugin/docs/specs/**/ko/
+planning-plugin/docs/specs/**/vi/
+planning-plugin/docs/specs/**/.progress/
+
+# Prototypes (generated output)
+planning-plugin/src/prototypes/*/node_modules/
+planning-plugin/src/prototypes/*/dist/
+
+# Generated UI DSL (runtime output)
+planning-plugin/docs/specs/**/ui-dsl/
 
 # Runtime
 *.log
