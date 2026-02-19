@@ -99,7 +99,7 @@ Use this anytime to check progress.
 **What happens**:
 1. Creates directory structure under `docs/specs/{feature}/`
 2. Analyst agent scans your project and asks structured questions
-3. Spec draft is generated in the working language from the 10-section template
+3. Spec is generated as 5 files in the working language from templates
 4. Translations to other supported languages are created in parallel
 5. Planner and tester run sequential reviews with scoring
 6. You resolve feedback, translations sync, and repeat or finalize
@@ -120,7 +120,7 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 **When to use**: After manually editing a spec, to re-check quality with fresh planner and tester reviews.
 
 **What happens**:
-1. Locates the spec at `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`
+1. Locates the spec directory at `docs/specs/{feature}/{workingLanguage}/`
 2. If the spec is already finalized, warns you (reviewing changes its status back to `reviewing`)
 3. Runs planner review, then tester review (tester sees planner's feedback)
 4. Presents combined feedback with score trends compared to previous rounds
@@ -135,21 +135,21 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 ### `/planning-plugin:translate`
 
-**Syntax**: `/planning-plugin:translate feature-name [--section=N]`
+**Syntax**: `/planning-plugin:translate feature-name [--file=<name>]`
 
 **When to use**: After directly editing the working language spec to sync translations to the other supported languages.
 
 **What happens**:
-1. Reads the source spec in the working language
+1. Reads the source spec directory in the working language
 2. Launches translator agents in parallel for each target language
-3. If `--section=N` is provided, only that section is re-translated (existing translations for other sections are preserved)
+3. If `--file=<name>` is provided, only that file is re-translated (e.g., `--file=requirements` for `requirements.md`)
 4. Updates sync timestamps in the progress file
 5. Reports any `<!-- NEEDS_REVIEW -->` markers left by the translator for ambiguous content
 
 **Examples**:
 ```
-/planning-plugin:translate social-login              # full sync
-/planning-plugin:translate social-login --section=3  # sync only section 3 (Functional Requirements)
+/planning-plugin:translate social-login                    # full sync (all files)
+/planning-plugin:translate social-login --file=requirements  # sync only requirements.md
 ```
 
 ---
@@ -255,7 +255,7 @@ It then produces a context summary and asks you questions across 8 categories, 2
 
 ### Step 2: Spec Draft Generation
 
-The plugin fills in the 10-section template using your answers:
+The plugin fills in 5 template files using your answers (split for selective reading):
 
 1. **Overview** — Purpose, target users, success metrics (KPIs)
 2. **User Stories** — ID, role, goal, priority (P0/P1/P2)
@@ -268,7 +268,12 @@ The plugin fills in the 10-section template using your answers:
 9. **Open Questions** — Unresolved items with context and status
 10. **Review History** — Scores and decisions per round
 
-Sections with insufficient information get TBD markers. The draft is saved to `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md` with status `DRAFT`.
+Sections with insufficient information get TBD markers. The draft is saved as 5 files in `docs/specs/{feature}/{workingLanguage}/` with status `DRAFT`:
+- `{feature}-spec.md` — Overview, User Stories, Spec File Index, Open Questions, Review History
+- `requirements.md` — Functional Requirements
+- `screens.md` — Screen Definitions
+- `data-model.md` — Data Model, Error Handling
+- `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 ### Step 3: Translation
 
@@ -375,12 +380,13 @@ Not yet implemented. Will use Figma MCP integration to create screens based on t
 
 ## Configuration
 
-The plugin uses `config.json` at the plugin root to configure the working language:
+The plugin uses `.claude/planning-plugin.json` in the user's project directory (created by `/planning-plugin:init`):
 
 ```json
 {
   "workingLanguage": "en",
-  "supportedLanguages": ["en", "ko", "vi"]
+  "supportedLanguages": ["en", "ko", "vi"],
+  "notionParentPageUrl": ""
 }
 ```
 
@@ -388,18 +394,30 @@ The plugin uses `config.json` at the plugin root to configure the working langua
 |-------|-------------|---------|
 | `workingLanguage` | Language for spec authoring and reviews (`en`, `ko`, or `vi`) | `"en"` |
 | `supportedLanguages` | All languages to maintain translations for | `["en", "ko", "vi"]` |
+| `notionParentPageUrl` | Notion parent page URL for automatic sync | `""` |
 
-To change the working language, edit `config.json` before creating a new spec. Existing specs retain their original working language (stored in the progress file).
+To change the working language, edit `.claude/planning-plugin.json` before creating a new spec. Existing specs retain their original working language (stored in the progress file).
 
 ## Output Structure
 
 ```
 docs/specs/{feature}/
-├── {workingLanguage}/{feature}-spec.md   ← Source of truth (working language)
-├── {target_lang_1}/{feature}-spec.md     ← Translation
-├── {target_lang_2}/{feature}-spec.md     ← Translation
+├── {workingLanguage}/                     ← Source of truth (working language)
+│   ├── {feature}-spec.md                  ← Index: Overview, User Stories, Open Questions, Review History
+│   ├── requirements.md                    ← Functional Requirements
+│   ├── screens.md                         ← Screen Definitions
+│   ├── data-model.md                      ← Data Model, Error Handling
+│   └── test-scenarios.md                  ← Non-Functional Requirements, Test Scenarios
+├── {target_lang_1}/                       ← Translation (same file structure)
+│   ├── {feature}-spec.md
+│   ├── requirements.md
+│   ├── screens.md
+│   ├── data-model.md
+│   └── test-scenarios.md
+├── {target_lang_2}/                       ← Translation (same file structure)
+│   └── ...
 └── .progress/
-    └── {feature}.json                    ← Workflow state
+    └── {feature}.json                     ← Workflow state
 ```
 
 ## Spec Template Sections
@@ -423,7 +441,7 @@ docs/specs/{feature}/
 
 - **Manual edits are welcome** — You can edit the working language spec directly at any time. After editing, run `/planning-plugin:translate feature-name` to sync translations, and `/planning-plugin:review feature-name` to re-check quality.
 
-- **Use `--section` for targeted translation** — If you only changed one section, use `/planning-plugin:translate feature-name --section=3` instead of re-translating the entire spec.
+- **Use `--file` for targeted translation** — If you only changed one file, use `/planning-plugin:translate feature-name --file=requirements` instead of re-translating the entire spec.
 
 - **Check status regularly** — Use `/planning-plugin:progress` (no arguments) to see all specs at a glance, especially when working on multiple features.
 
@@ -434,25 +452,25 @@ docs/specs/{feature}/
 - **Review after major changes** — Even after finalization, you can re-review anytime with `/planning-plugin:review`. This changes the status back to `reviewing` so you can iterate further.
 
 - **Changing the working language** — There are two scenarios:
-  - *For new specs*: Edit `config.json` and set `workingLanguage` to the desired language (e.g., `"vi"`). All future specs will be authored in that language.
+  - *For new specs*: Edit `.claude/planning-plugin.json` and set `workingLanguage` to the desired language (e.g., `"vi"`). All future specs will be authored in that language.
   - *For an existing spec*: Run `/planning-plugin:migrate-language feature-name --to=vi`. This switches the source of truth to the target language translation, marks all other translations as out of sync, and preserves the spec's status. The target language translation must already exist — run `/planning-plugin:translate` first if needed.
 
 ## Directory Structure
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, figma-designer)
-skills/          Skill entry points (spec, review, translate, progress, design)
+agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, figma-designer)
+skills/          Skill entry points (spec, review, translate, progress, design, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
-templates/       Spec templates
-docs/specs/      Generated specifications (runtime output)
+templates/       Spec templates (spec-overview.md, requirements.md, screens.md, data-model.md, test-scenarios.md)
+docs/specs/      Generated specifications (5 files per language directory)
 ```
 
 ## Conventions
 
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
-- All agent reviews target the working language spec only
-- Specs follow the template in `templates/functional-spec.md`
+- All agent reviews target the working language spec directory only
+- Specs are split into 5 files per language — `{feature}-spec.md` is the index file; detail files (`requirements.md`, `screens.md`, `data-model.md`, `test-scenarios.md`) hold the rest
 
 ## Author
 

@@ -24,7 +24,7 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 
 1. Read the progress file at `docs/specs/$ARGUMENTS/.progress/$ARGUMENTS.json`
 2. If the progress file exists and contains `workingLanguage`, use that value (ignore `config.json` for existing specs)
-3. Look for the spec at `docs/specs/$ARGUMENTS/{workingLanguage}/$ARGUMENTS-spec.md`
+3. Look for the spec directory at `docs/specs/$ARGUMENTS/{workingLanguage}/` — verify that `$ARGUMENTS-spec.md` exists inside it
 4. If not found, search `docs/specs/` for a matching feature directory
 5. If still not found, list available specs and ask the user to choose
 
@@ -39,12 +39,12 @@ If the status is `finalized`, warn the user:
 
 **Planner review:**
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Return structured JSON review.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Return structured JSON review.")
 ```
 
 **Tester review** (with planner context):
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
 ```
 
 ### Step 4: Present Feedback
@@ -57,7 +57,7 @@ Show combined feedback with:
 ### Step 5: Apply Changes
 
 For each issue the user wants to address:
-1. Update the {workingLanguage} spec
+1. Update the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `requirements.md`, screen issues → `screens.md`, open questions → `{feature}-spec.md`)
 2. Record the decision in the progress file
 
 ### Step 6: Next Steps

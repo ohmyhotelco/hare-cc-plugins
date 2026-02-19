@@ -37,8 +37,8 @@ Sync specification to Notion for: **$ARGUMENTS**
 3. Determine sync target languages:
    - If `--lang=xx` specified: only that language
    - Otherwise: working language + all target languages that have spec files
-4. Verify spec files exist for each target language at `docs/specs/{feature}/{lang}/{feature}-spec.md`
-5. Skip languages without spec files (report them in the final summary)
+4. Verify spec directories exist for each target language at `docs/specs/{feature}/{lang}/` (check that `{feature}-spec.md` exists inside)
+5. Skip languages without spec directories (report them in the final summary)
 
 ### Step 3: Check Existing Notion Pages
 
@@ -49,7 +49,7 @@ Read the `notion` field from the progress file (if it exists) to find existing p
 For each target language, launch a **notion-syncer** agent:
 
 ```
-Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specPath: docs/specs/{feature}/{lang}/{feature}-spec.md, feature: {feature}, lang: {lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
+Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specDir: docs/specs/{feature}/{lang}/, feature: {feature}, lang: {lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
 ```
 
 If multiple languages are being synced, launch agents in parallel where possible.

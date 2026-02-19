@@ -49,7 +49,7 @@ Notion Sync: (only display this section if a `notion` field exists in the progre
   {lang_name} ({lang}): {pageUrl} — Last synced: {lastSyncedAt}
   {lang_name} ({lang}): {pageUrl} — Last synced: {lastSyncedAt}
 
-Open Questions: {count from spec's Open Questions section}
+Open Questions: {count from {feature}-spec.md's Open Questions section}
 ```
 
 5. If there are unresolved issues from the latest review round, list them

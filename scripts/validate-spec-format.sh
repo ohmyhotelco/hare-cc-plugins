@@ -10,8 +10,8 @@ INPUT=$(cat)
 # Get the file path that was written/edited
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.filePath // ""')
 
-# Only validate spec files
-if [[ ! "$FILE_PATH" =~ docs/specs/.*-spec\.md$ ]]; then
+# Only validate spec files under docs/specs/
+if [[ ! "$FILE_PATH" =~ docs/specs/ ]]; then
   exit 0
 fi
 
@@ -20,16 +20,30 @@ if [ ! -f "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Define required sections
-REQUIRED_SECTIONS=(
-  "## 1. Overview"
-  "## 2. User Stories"
-  "## 3. Functional Requirements"
-  "## 7. Error Handling"
-  "## 9. Test Scenarios"
-)
-
+BASENAME=$(basename "$FILE_PATH")
 MISSING=()
+
+# Validate based on which file was edited
+if [[ "$BASENAME" =~ -spec\.md$ ]]; then
+  # Overview/index file
+  REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 9. Open Questions" "## 10. Review History")
+  TEMPLATE="templates/spec-overview.md"
+elif [[ "$BASENAME" == "requirements.md" ]]; then
+  REQUIRED_SECTIONS=("## 3. Functional Requirements")
+  TEMPLATE="templates/requirements.md"
+elif [[ "$BASENAME" == "screens.md" ]]; then
+  REQUIRED_SECTIONS=("## 4. Screen Definitions")
+  TEMPLATE="templates/screens.md"
+elif [[ "$BASENAME" == "data-model.md" ]]; then
+  REQUIRED_SECTIONS=("## 5. Data Model" "## 6. Error Handling")
+  TEMPLATE="templates/data-model.md"
+elif [[ "$BASENAME" == "test-scenarios.md" ]]; then
+  REQUIRED_SECTIONS=("## 7. Non-Functional Requirements" "## 8. Test Scenarios")
+  TEMPLATE="templates/test-scenarios.md"
+else
+  # Not a recognized spec file
+  exit 0
+fi
 
 for section in "${REQUIRED_SECTIONS[@]}"; do
   if ! grep -q "$section" "$FILE_PATH"; then
@@ -44,7 +58,7 @@ if [ ${#MISSING[@]} -gt 0 ]; then
     echo "  - $m"
   done
   echo ""
-  echo "Reference template: templates/functional-spec.md"
+  echo "Reference template: $TEMPLATE"
   # Exit 0 (warning only, don't block)
   exit 0
 fi

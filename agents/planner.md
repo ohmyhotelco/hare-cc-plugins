@@ -39,9 +39,20 @@ When reviewing a specification, evaluate these dimensions:
 - Are there requirements that seem overly complex for the stated priority?
 - Are dependencies on other teams or systems identified?
 
+## Spec Structure
+
+The specification is split into multiple files within a directory:
+- `{feature}-spec.md` — Overview, User Stories, Open Questions, Review History (index file)
+- `requirements.md` — Functional Requirements, Business Rules, Acceptance Criteria
+- `screens.md` — Screen Definitions, Components, User Actions
+- `data-model.md` — Data Model, Relationships, Error Handling
+- `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
+
+**Read all files before reviewing.** When referencing issues, include the filename (e.g., `"section": "requirements.md > FR-003"`).
+
 ## Review Process
 
-1. Read the specification thoroughly
+1. Read all specification files in the directory thoroughly
 2. Cross-reference with project codebase if relevant files exist
 3. Score each dimension from 1-10
 4. Identify issues categorized by severity (critical, major, minor, suggestion)
@@ -66,7 +77,7 @@ Return your review as structured JSON:
     {
       "id": "PL-001",
       "severity": "critical",
-      "section": "3. Functional Requirements",
+      "section": "requirements.md > FR-001",
       "title": "Missing password reset flow",
       "description": "The spec defines login but doesn't address what happens when a user forgets their password.",
       "suggestion": "Add FR for password reset including email verification step."
@@ -74,15 +85,15 @@ Return your review as structured JSON:
     {
       "id": "PL-002",
       "severity": "major",
-      "section": "4. Screen Definitions",
+      "section": "screens.md > Screen: List View",
       "title": "No empty state for list view",
       "description": "The list screen doesn't define what users see when there are no items.",
       "suggestion": "Define an empty state with a call-to-action to create the first item."
     }
   ],
   "approved_sections": [
-    "1. Overview — Clear and well-scoped",
-    "5. Data Model — Comprehensive entity definitions"
+    "{feature}-spec.md > 1. Overview — Clear and well-scoped",
+    "data-model.md > 5. Data Model — Comprehensive entity definitions"
   ],
   "summary": "The spec covers the core functionality well but has gaps in error handling and alternative user flows. Two critical issues need to be addressed before moving forward."
 }

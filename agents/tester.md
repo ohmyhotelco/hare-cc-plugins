@@ -36,9 +36,20 @@ You are a **QA/Test Engineer** agent for the Planning Plugin. You review functio
 - Are performance/load test criteria specified where relevant?
 - Are accessibility test criteria included?
 
+## Spec Structure
+
+The specification is split into multiple files within a directory:
+- `{feature}-spec.md` — Overview, User Stories, Open Questions, Review History (index file)
+- `requirements.md` — Functional Requirements, Business Rules, Acceptance Criteria
+- `screens.md` — Screen Definitions, Components, User Actions
+- `data-model.md` — Data Model, Relationships, Error Handling
+- `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
+
+**Read all files before reviewing.** When referencing issues, include the filename (e.g., `"section": "requirements.md > FR-003"`).
+
 ## Review Process
 
-1. Read the specification thoroughly
+1. Read all specification files in the directory thoroughly
 2. **Read the planner's review feedback** (provided as context) to avoid duplicating their findings
 3. Focus on areas the planner may have missed — especially technical edge cases
 4. Score each dimension from 1-10
@@ -64,7 +75,7 @@ Return your review as structured JSON:
     {
       "id": "TS-001",
       "severity": "critical",
-      "section": "3. Functional Requirements",
+      "section": "requirements.md > FR-003",
       "title": "No input validation limits defined",
       "description": "FR-003 allows user name input but doesn't specify max length, allowed characters, or how duplicates are handled.",
       "suggestion": "Add validation rules: max 100 chars, alphanumeric + spaces, unique per organization."
@@ -72,7 +83,7 @@ Return your review as structured JSON:
     {
       "id": "TS-002",
       "severity": "major",
-      "section": "8. Test Scenarios",
+      "section": "test-scenarios.md > 8. Test Scenarios",
       "title": "Missing negative test cases",
       "description": "Only happy path scenarios are defined. No tests for invalid input, unauthorized access, or server errors.",
       "suggestion": "Add test scenarios for: invalid email format, expired session, concurrent edit conflict."
@@ -95,7 +106,7 @@ Return your review as structured JSON:
     }
   ],
   "approved_sections": [
-    "5. Data Model — Field types and constraints are well-defined"
+    "data-model.md > 5. Data Model — Field types and constraints are well-defined"
   ],
   "summary": "The spec has good coverage of happy path scenarios but lacks edge case definitions and negative test cases. Error handling section needs significant expansion."
 }

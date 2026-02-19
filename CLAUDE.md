@@ -23,9 +23,15 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Conventions
 
-- Specs live in `docs/specs/{feature}/{lang}/{feature}-spec.md`
+- Specs are split into multiple files per language directory:
+  - `docs/specs/{feature}/{lang}/{feature}-spec.md` — index file (overview, user stories, open questions, review history)
+  - `docs/specs/{feature}/{lang}/requirements.md` — functional requirements
+  - `docs/specs/{feature}/{lang}/screens.md` — screen definitions
+  - `docs/specs/{feature}/{lang}/data-model.md` — data model + error handling
+  - `docs/specs/{feature}/{lang}/test-scenarios.md` — NFR + test scenarios
+- `{feature}-spec.md` is the index file; Claude reads this first to understand the feature, then reads detail files as needed
 - Progress state in `docs/specs/{feature}/.progress/{feature}.json`
-- All agent reviews target the working language spec only
+- All agent reviews target the working language spec directory only
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
 - Convergence: both agents score >= 8/10 → suggest finalization; 3 rounds stalled → suggest finalization with open questions
 - Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; page title format: `[{feature}] {lang} - Functional Specification`; progress file stores page URLs in `notion` field
@@ -38,8 +44,8 @@ agents/          - Agent definitions (analyst, planner, tester, translator, noti
 skills/          - Skill entry points (init, spec, review, translate, progress, design, sync-notion)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts
-templates/       - Spec templates
-docs/specs/      - Generated specifications
+templates/       - Spec templates (spec-overview.md, requirements.md, screens.md, data-model.md, test-scenarios.md)
+docs/specs/      - Generated specifications (5 files per language directory)
 ```
 
 ## Project-Level Configuration

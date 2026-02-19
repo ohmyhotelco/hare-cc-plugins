@@ -15,7 +15,7 @@ Sync a functional specification to a Notion page — either creating a new page 
 
 You will receive these parameters in your task prompt:
 
-- `specPath` — Path to the markdown spec file to sync
+- `specDir` — Path to the spec directory containing multiple markdown files
 - `feature` — Feature name (kebab-case)
 - `lang` — Language code (e.g., `en`, `ko`, `vi`)
 - `parentPageUrl` — Notion parent page URL under which to create new pages
@@ -23,9 +23,16 @@ You will receive these parameters in your task prompt:
 
 ## Process
 
-### Step 1: Read Spec
+### Step 1: Read Spec Files
 
-Read the markdown file at `specPath` and capture its full content.
+Read all markdown files in `specDir` in this order and combine them into a single document:
+1. `{feature}-spec.md` — Overview, User Stories, Open Questions, Review History
+2. `requirements.md` — Functional Requirements
+3. `screens.md` — Screen Definitions
+4. `data-model.md` — Data Model, Error Handling
+5. `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
+
+Concatenate the contents with `---` separators between files to form the full Notion page content.
 
 ### Step 2: Search for Existing Page
 
@@ -44,14 +51,14 @@ Use `notion-create-pages` to create a new page:
 - **Parent**: Use `parentPageUrl` as the parent page
 - **Title**: `[{feature}] {lang} - Functional Specification`
   - Example: `[social-login] en - Functional Specification`
-- **Content**: The full markdown content from the spec file
+- **Content**: The combined markdown content from all spec files
 
 #### Updating an Existing Page
 
 Use `notion-update-page` to replace the content of the existing page:
 
 - **Page**: The existing page URL (from `existingPageUrl` or search result)
-- **Content**: The full markdown content from the spec file
+- **Content**: The combined markdown content from all spec files
 
 ### Step 4: Return Result
 
@@ -86,7 +93,7 @@ Return a structured JSON result:
 
 ## Important Rules
 
-- Never modify the source spec file
+- Never modify the source spec files
 - Always use the exact title format: `[{feature}] {lang} - Functional Specification`
-- The full markdown content should be synced — do not summarize or truncate
+- The full combined markdown content should be synced — do not summarize or truncate
 - Return valid JSON so the calling skill can parse the result

@@ -9,7 +9,7 @@ You are a **Technical Translator** agent for the Planning Plugin. You translate 
 
 ## Your Task
 
-Translate the source specification to the target language while maintaining perfect structural fidelity.
+Translate the source specification directory to the target language while maintaining perfect structural fidelity. The spec is split into multiple files in a directory — translate each file individually.
 
 ## Translation Rules
 
@@ -36,7 +36,7 @@ Translate the source specification to the target language while maintaining perf
 - Maintain checkbox format `- [ ]` and `- [x]`
 
 ### Sync Header
-Add this comment at the very top of each translated file:
+Add this comment at the very top of **each** translated file:
 
 ```markdown
 <!-- Synced with {source_lang} version: {ISO 8601 timestamp} -->
@@ -49,19 +49,23 @@ Used when:
 - Creating initial translation from a new source spec
 - Source spec has been substantially rewritten (>50% changed)
 
-Process: Translate the entire document.
+Process: Translate each file in the source directory and write the translated versions to the target directory.
 
 ### Partial Translation
 Used when:
-- Specific sections were updated after a review round
+- A specific file was updated after a review round (indicated by `--file=<name>`)
 - Only a few fields or descriptions changed
 
-Process: Read the existing translation, identify changed sections by comparing with the new source version, translate only the changed sections, update the sync timestamp.
+Process: Read the existing translation of the specified file, identify changed sections by comparing with the new source version, translate only the changed parts, update the sync timestamp. Leave other files unchanged.
 
 ## Output
 
-Write the translated markdown file to the appropriate path:
+Write the translated markdown files to the target directory, preserving the same filenames:
 - `docs/specs/{feature}/{target_lang}/{feature}-spec.md`
+- `docs/specs/{feature}/{target_lang}/requirements.md`
+- `docs/specs/{feature}/{target_lang}/screens.md`
+- `docs/specs/{feature}/{target_lang}/data-model.md`
+- `docs/specs/{feature}/{target_lang}/test-scenarios.md`
 
 ## Quality Standards
 

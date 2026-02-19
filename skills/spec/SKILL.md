@@ -71,14 +71,19 @@ Update progress status to `"drafting"` when requirements gathering is complete.
 
 ### Step 3: Generate Draft
 
-Using the analyst's collected requirements and the template at `templates/functional-spec.md`:
+Using the analyst's collected requirements and the 5 templates in `templates/`:
 
-1. Read the template
+1. Read all 5 templates: `spec-overview.md`, `requirements.md`, `screens.md`, `data-model.md`, `test-scenarios.md`
 2. Fill in all sections with the gathered requirements
 3. Write all spec content in {workingLanguage_name}. Keep section heading labels in English (## 1. Overview etc.) as structural markers.
 4. For sections with insufficient information, add TBD markers with context
-5. Write the spec to `docs/specs/{feature}/{workingLanguage}/{feature}-spec.md`
-6. Set the document status to `DRAFT`
+5. Write 5 files to `docs/specs/{feature}/{workingLanguage}/`:
+   - `{feature}-spec.md` — from `spec-overview.md` template (overview, user stories, spec file index, open questions, review history)
+   - `requirements.md` — from `requirements.md` template (functional requirements)
+   - `screens.md` — from `screens.md` template (screen definitions)
+   - `data-model.md` — from `data-model.md` template (data model + error handling)
+   - `test-scenarios.md` — from `test-scenarios.md` template (NFR + test scenarios)
+6. Set the document status to `DRAFT` in `{feature}-spec.md`
 
 ### Step 4: Sequential Review Cycle
 
@@ -88,14 +93,14 @@ Update progress status to `"reviewing"` and increment `currentRound`.
 
 Launch the **planner** agent:
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
 ```
 
 **4b. Tester Review:**
 
 Launch the **tester** agent, including the planner's feedback:
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
 ```
 
 **4c. Present Combined Feedback:**
@@ -122,7 +127,7 @@ Ask the user what to do with each issue:
 - **Modify**: Apply a modified version of the suggestion
 - **Defer**: Move to Open Questions section
 
-Apply accepted changes to the {workingLanguage} spec.
+Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `requirements.md`, screen issues → `screens.md`).
 
 Update progress file with round results.
 
@@ -137,14 +142,14 @@ Based on convergence check and user decision, either:
 For each target language, launch a **translator** agent in parallel using the Task tool:
 
 ```
-Task(subagent_type: "translator", prompt: "Translate the {workingLanguage_name} spec at docs/specs/{feature}/{workingLanguage}/{feature}-spec.md to {target_language_name}. Write output to docs/specs/{feature}/{target_lang}/{feature}-spec.md. Source language: {workingLanguage}. Full translation.")
+Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, requirements.md, screens.md, data-model.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
 ```
 
 After all complete, update the progress file's translation status with `synced: true` and timestamps.
 
 ### Step 6: Finalize
 
-1. Update the spec status header to `FINALIZED` in all language versions ({workingLanguage} + target languages)
+1. Update the spec status header to `FINALIZED` in `{feature}-spec.md` across all language versions ({workingLanguage} + target languages)
 2. Update the progress file:
    ```json
    { "status": "finalized" }
@@ -166,11 +171,11 @@ After all complete, update the progress file's translation status with `synced: 
 2. Read the progress file to check for existing Notion page URLs in the `notion` field
 3. Launch a **notion-syncer** agent for the working language spec:
    ```
-   Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specPath: docs/specs/{feature}/{workingLanguage}/{feature}-spec.md, feature: {feature}, lang: {workingLanguage}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
+   Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specDir: docs/specs/{feature}/{workingLanguage}/, feature: {feature}, lang: {workingLanguage}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
    ```
-4. For each target language that has a translated spec file, launch a **notion-syncer** agent:
+4. For each target language that has a translated spec directory, launch a **notion-syncer** agent:
    ```
-   Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specPath: docs/specs/{feature}/{target_lang}/{feature}-spec.md, feature: {feature}, lang: {target_lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
+   Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specDir: docs/specs/{feature}/{target_lang}/, feature: {feature}, lang: {target_lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
    ```
 5. Update the progress file's `notion` field with each agent's result:
    ```json
