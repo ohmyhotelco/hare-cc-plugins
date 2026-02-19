@@ -3,7 +3,7 @@ name: sync-notion
 description: Sync functional specification(s) to Notion pages. Creates new pages or updates existing ones.
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
 ---
 
 # Sync to Notion

@@ -3,7 +3,7 @@ name: translate
 description: Manually sync translations from the working language to other supported languages. Use after directly editing the working language spec.
 argument-hint: "[feature-name] [--file=<name>]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Task
+allowed-tools: Read, Write, Edit, Glob, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
 ---
 
 # Manual Translation Sync

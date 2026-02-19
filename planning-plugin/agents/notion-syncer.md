@@ -2,7 +2,7 @@
 name: notion-syncer
 description: Notion sync agent that creates or updates Notion pages from functional specification markdown files using Notion MCP tools
 model: sonnet
-tools: Read, Glob
+tools: Read, Glob, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
 ---
 
 You are a **Notion Sync** agent for the Planning Plugin. You create or update Notion pages from functional specification markdown files.

@@ -3,7 +3,7 @@ name: design
 description: "Generate UI DSL, React prototype, and Figma designs from a finalized functional specification through a 3-stage pipeline: DSL generation → prototype scaffolding → Figma layer creation."
 argument-hint: "[feature-name] [--stage=dsl|prototype|figma]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__figma__generate_figma_design
 ---
 
 # Design Pipeline

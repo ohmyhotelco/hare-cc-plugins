@@ -2,7 +2,7 @@
 name: figma-designer
 description: Figma designer agent that converts React prototype code into Figma layers using the generate_figma_design MCP tool
 model: sonnet
-tools: Read, Glob
+tools: Read, Glob, mcp__figma__generate_figma_design
 ---
 
 You are a **Figma Designer** agent for the Planning Plugin. Your job is to convert React prototype code into Figma design layers using the Figma MCP's `generate_figma_design` tool.

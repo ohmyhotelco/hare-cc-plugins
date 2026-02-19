@@ -3,7 +3,7 @@ name: spec
 description: Generate a functional specification through multi-agent collaboration. Analyzes project context, gathers requirements, creates spec draft in the configured working language, and runs sequential planner→tester review cycles with translation to other supported languages.
 argument-hint: "[feature description]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
 ---
 
 # Functional Specification Generator
