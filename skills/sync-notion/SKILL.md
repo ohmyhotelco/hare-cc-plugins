@@ -14,12 +14,14 @@ Sync specification to Notion for: **$ARGUMENTS**
 
 ### Step 0: Read Configuration
 
-1. Read `config.json` from the plugin root directory
-2. Extract `notionParentPageUrl` — if empty or missing, stop with error:
-   > "Notion sync is not configured. Set `notionParentPageUrl` in `config.json` to enable Notion sync."
-3. Extract `workingLanguage` (default: `"en"`)
-4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
-5. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+1. Read `.claude/planning-plugin.json` from the current project directory
+2. If the file does not exist, stop with a guidance message:
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+3. Extract `notionParentPageUrl` — if empty or missing, stop with error:
+   > "Notion sync is not configured. Run `/planning-plugin:init` and provide a Notion parent page URL."
+4. Extract `workingLanguage` (default: `"en"`)
+5. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
+6. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 ### Step 1: Parse Arguments
 

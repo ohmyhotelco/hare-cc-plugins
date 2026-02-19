@@ -14,9 +14,11 @@ Migrate working language for: **$ARGUMENTS**
 
 ### Step 0: Read Configuration
 
-1. Read `config.json` from the plugin root directory
-2. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
-3. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+1. Read `.claude/planning-plugin.json` from the current project directory
+2. If the file does not exist, stop with a guidance message:
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 ### Step 1: Parse Arguments
 
@@ -85,5 +87,5 @@ Changes:
 Next steps:
 1. Edit the {new_lang_name} spec at docs/specs/{feature}/{to}/{feature}-spec.md
 2. Run /planning-plugin:translate {feature} to re-sync translations from the new source
-3. To also change the default language for new specs, update config.json
+3. To also change the default language for new specs, update .claude/planning-plugin.json
 ```

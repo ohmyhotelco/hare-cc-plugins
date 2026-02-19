@@ -16,11 +16,13 @@ Follow these steps in order. After each major step, update the progress file.
 
 ### Step 0: Read Configuration
 
-1. Read `config.json` from the plugin root directory
-2. Extract `workingLanguage` (default: `"en"` if file is missing or field is absent)
-3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
-4. Determine target languages: `supportedLanguages` minus `workingLanguage`
-5. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+1. Read `.claude/planning-plugin.json` from the current project directory
+2. If the file does not exist, stop with a guidance message:
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+3. Extract `workingLanguage` (default: `"en"` if field is absent)
+4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
+5. Determine target languages: `supportedLanguages` minus `workingLanguage`
+6. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 ### Step 1: Initialize
 
@@ -160,7 +162,7 @@ After all complete, update the progress file's translation status with `synced: 
 
 ### Step 7: Sync to Notion (if configured)
 
-1. Read `config.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
+1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. Read the progress file to check for existing Notion page URLs in the `notion` field
 3. Launch a **notion-syncer** agent for the working language spec:
    ```

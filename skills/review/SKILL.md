@@ -14,9 +14,11 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 
 ### Step 0: Read Configuration
 
-1. Read `config.json` from the plugin root directory
-2. Extract `workingLanguage` (default: `"en"` if file is missing or field is absent)
-3. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+1. Read `.claude/planning-plugin.json` from the current project directory
+2. If the file does not exist, stop with a guidance message:
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+3. Extract `workingLanguage` (default: `"en"` if field is absent)
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 ### Step 1: Locate the Specification
 
@@ -65,6 +67,6 @@ Ask: "Would you like to run another review round, or finalize the spec?"
 If the user is done with reviews, remind them:
 > "Run `/planning-plugin:translate {feature}` to sync translations."
 
-If `notionParentPageUrl` is configured in `config.json`, also remind:
+If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also remind:
 > "Run `/planning-plugin:sync-notion {feature} --lang={workingLanguage}` to update the Notion page.
 >  Note: translations are now out of sync — run `/planning-plugin:translate {feature}` first if you want to sync all languages."

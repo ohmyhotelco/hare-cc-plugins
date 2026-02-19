@@ -12,12 +12,19 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
 SPECS_DIR="$CWD/docs/specs"
 
-# Read working language from config.json
-PLUGIN_DIR="$(dirname "$(dirname "$0")")"
-CONFIG_FILE="$PLUGIN_DIR/config.json"
+# Read working language from project-level config
+CONFIG_FILE="$CWD/.claude/planning-plugin.json"
 WORKING_LANG="en"
 if [ -f "$CONFIG_FILE" ]; then
   WORKING_LANG=$(jq -r '.workingLanguage // "en"' "$CONFIG_FILE" 2>/dev/null || echo "en")
+fi
+
+# If config file does not exist, suggest init
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo ""
+  echo "[Planning Plugin] No configuration found."
+  echo "Run /planning-plugin:init to set up the plugin for this project."
+  exit 0
 fi
 
 # If no specs directory exists, nothing to report
