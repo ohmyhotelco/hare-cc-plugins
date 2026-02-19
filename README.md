@@ -20,4 +20,4 @@
 
 ## License
 
-Private repository. Internal use only.
+MIT License

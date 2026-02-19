@@ -23,12 +23,10 @@
 
 ## 설치
 
-이 플러그인은 private GitHub 저장소를 통해 배포됩니다. 설치 전 해당 저장소에 대한 git 접근 권한이 필요합니다.
-
-**사전 요구사항**: `ohmyhotelco/hare-cc-plugins`에 대한 git 접근 권한 (SSH key 또는 `gh auth login`)
+이 플러그인은 GitHub 저장소를 통해 배포됩니다.
 
 ```
-# 1. Register the private repo as a marketplace source
+# 1. Register the repo as a marketplace source
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)

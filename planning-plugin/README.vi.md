@@ -23,12 +23,10 @@ Tất cả đặc tả được tạo bằng ngôn ngữ làm việc (Working La
 
 ## Cài đặt
 
-Plugin này được phân phối qua kho GitHub private. Bạn cần quyền truy cập git vào kho trước khi cài đặt.
-
-**Điều kiện tiên quyết**: Quyền truy cập git vào `ohmyhotelco/hare-cc-plugins` (SSH key hoặc `gh auth login`)
+Plugin này được phân phối qua kho GitHub.
 
 ```
-# 1. Register the private repo as a marketplace source
+# 1. Register the repo as a marketplace source
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)

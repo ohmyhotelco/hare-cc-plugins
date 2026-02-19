@@ -19,12 +19,10 @@ All specs are generated in the configured working language as the source of trut
 
 ## Installation
 
-This plugin is distributed via a private GitHub repository. You need git access to the repo before installing.
-
-**Prerequisites**: Git access to `ohmyhotelco/hare-cc-plugins` (SSH key or `gh auth login`)
+This plugin is distributed via a GitHub repository.
 
 ```
-# 1. Register the private repo as a marketplace source
+# 1. Register the repo as a marketplace source
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)
