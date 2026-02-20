@@ -28,13 +28,25 @@
 
 ---
 
+## 3. Functional Requirements
+
+### FR-001: {Requirement Title}
+
+**Description**: {Detailed description}
+
+**Business Rules**:
+- BR-001: {rule}
+
+**Acceptance Criteria**:
+- [ ] AC-001: {criterion}
+
+---
+
 ## Spec Files
 
 | File | Contents |
 |------|----------|
-| `requirements.md` | Functional Requirements, Business Rules, Acceptance Criteria |
-| `screens.md` | Screen Definitions, Components, User Actions |
-| `data-model.md` | Data Model, Relationships, Error Handling |
+| `screens.md` | Screen Definitions, Data Model, Error Handling |
 | `test-scenarios.md` | Non-Functional Requirements, Test Scenarios |
 
 ---

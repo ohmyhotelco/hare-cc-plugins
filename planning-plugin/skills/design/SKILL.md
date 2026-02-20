@@ -80,7 +80,7 @@ If the `design` field already exists, preserve existing stage statuses for stage
 2. Launch the **dsl-generator** agent:
 
 ```
-Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/{workingLanguage}/. feature: {feature}. Read screens.md, data-model.md, and requirements.md from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
+Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/{workingLanguage}/. feature: {feature}. Read screens.md (screen definitions, data model, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
 ```
 
 3. On success, update progress:

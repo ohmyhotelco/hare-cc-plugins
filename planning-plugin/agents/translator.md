@@ -62,9 +62,7 @@ Process: Read the existing translation of the specified file, identify changed s
 
 Write the translated markdown files to the target directory, preserving the same filenames:
 - `docs/specs/{feature}/{target_lang}/{feature}-spec.md`
-- `docs/specs/{feature}/{target_lang}/requirements.md`
 - `docs/specs/{feature}/{target_lang}/screens.md`
-- `docs/specs/{feature}/{target_lang}/data-model.md`
 - `docs/specs/{feature}/{target_lang}/test-scenarios.md`
 
 ## Quality Standards

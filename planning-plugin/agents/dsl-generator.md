@@ -14,9 +14,8 @@ You will be given:
 - `feature` — kebab-case feature name
 
 Read these files from `specDir`:
-1. `screens.md` — Screen Definitions (primary input)
-2. `data-model.md` — Data Model + Error Handling
-3. `requirements.md` — Functional Requirements (for cross-referencing user actions)
+1. `screens.md` — Screen Definitions + Data Model + Error Handling (primary input)
+2. `{feature}-spec.md` — Functional Requirements (for cross-referencing user actions)
 
 Also read the schema reference:
 - `templates/ui-dsl-schema.json` — structural reference for output format
@@ -42,7 +41,7 @@ Write files to `docs/specs/{feature}/ui-dsl/`:
 
 ### Step 2: Analyze Data Model
 
-1. Read `data-model.md` and extract:
+1. Read `## 5. Data Model` and `## 6. Error Handling` sections from `screens.md` and extract:
    - Entity names and their fields (with types)
    - Relationships between entities
    - Error conditions and codes
@@ -50,7 +49,7 @@ Write files to `docs/specs/{feature}/ui-dsl/`:
 
 ### Step 3: Cross-Reference Requirements
 
-1. Read `requirements.md` to understand:
+1. Read `## 3. Functional Requirements` from `{feature}-spec.md` to understand:
    - Business rules (BR-xxx) that affect component behavior
    - Acceptance criteria (AC-xxx) that imply specific states or interactions
    - Validation rules that need to be reflected in form components
@@ -135,7 +134,7 @@ Create `manifest.json`:
 2. **navigation**: Build from User Actions across all screens
    - For each action that navigates to another screen, create a navigation edge
    - Derive `trigger` from the action description (e.g., "Click edit button" → `click-edit-button`)
-3. **dataEntities**: List all entity names found in data-model.md
+3. **dataEntities**: List all entity names found in the Data Model section of screens.md
 4. **metadata**: Set `feature`, `schemaVersion: "1.0"`, `generatedAt` (ISO-8601), `sourceSpec`
 
 ### Step 6: Write Output

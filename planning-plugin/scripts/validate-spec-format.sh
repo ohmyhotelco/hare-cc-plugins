@@ -25,18 +25,12 @@ MISSING=()
 
 # Validate based on which file was edited
 if [[ "$BASENAME" =~ -spec\.md$ ]]; then
-  # Overview/index file
-  REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 9. Open Questions" "## 10. Review History")
+  # Overview/index file (includes Functional Requirements)
+  REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 3. Functional Requirements" "## 9. Open Questions" "## 10. Review History")
   TEMPLATE="templates/spec-overview.md"
-elif [[ "$BASENAME" == "requirements.md" ]]; then
-  REQUIRED_SECTIONS=("## 3. Functional Requirements")
-  TEMPLATE="templates/requirements.md"
 elif [[ "$BASENAME" == "screens.md" ]]; then
-  REQUIRED_SECTIONS=("## 4. Screen Definitions")
+  REQUIRED_SECTIONS=("## 4. Screen Definitions" "## 5. Data Model" "## 6. Error Handling")
   TEMPLATE="templates/screens.md"
-elif [[ "$BASENAME" == "data-model.md" ]]; then
-  REQUIRED_SECTIONS=("## 5. Data Model" "## 6. Error Handling")
-  TEMPLATE="templates/data-model.md"
 elif [[ "$BASENAME" == "test-scenarios.md" ]]; then
   REQUIRED_SECTIONS=("## 7. Non-Functional Requirements" "## 8. Test Scenarios")
   TEMPLATE="templates/test-scenarios.md"

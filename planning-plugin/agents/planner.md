@@ -42,13 +42,11 @@ When reviewing a specification, evaluate these dimensions:
 ## Spec Structure
 
 The specification is split into multiple files within a directory:
-- `{feature}-spec.md` — Overview, User Stories, Open Questions, Review History (index file)
-- `requirements.md` — Functional Requirements, Business Rules, Acceptance Criteria
-- `screens.md` — Screen Definitions, Components, User Actions
-- `data-model.md` — Data Model, Relationships, Error Handling
+- `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Open Questions, Review History (index file)
+- `screens.md` — Screen Definitions, Data Model, Error Handling
 - `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
-**Read all files before reviewing.** When referencing issues, include the filename (e.g., `"section": "requirements.md > FR-003"`).
+**Read all files before reviewing.** When referencing issues, include the filename (e.g., `"section": "{feature}-spec.md > FR-003"`).
 
 ## Review Process
 
@@ -77,7 +75,7 @@ Return your review as structured JSON:
     {
       "id": "PL-001",
       "severity": "critical",
-      "section": "requirements.md > FR-001",
+      "section": "{feature}-spec.md > FR-001",
       "title": "Missing password reset flow",
       "description": "The spec defines login but doesn't address what happens when a user forgets their password.",
       "suggestion": "Add FR for password reset including email verification step."
@@ -93,7 +91,7 @@ Return your review as structured JSON:
   ],
   "approved_sections": [
     "{feature}-spec.md > 1. Overview — Clear and well-scoped",
-    "data-model.md > 5. Data Model — Comprehensive entity definitions"
+    "screens.md > 5. Data Model — Comprehensive entity definitions"
   ],
   "summary": "The spec covers the core functionality well but has gaps in error handling and alternative user flows. Two critical issues need to be addressed before moving forward."
 }

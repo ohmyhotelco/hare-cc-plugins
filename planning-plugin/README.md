@@ -127,7 +127,7 @@ Use this anytime to check progress.
 **What happens**:
 1. Creates directory structure under `docs/specs/{feature}/`
 2. Analyst agent scans your project and asks structured questions
-3. Spec is generated as 5 files in the working language from templates
+3. Spec is generated as 3 files in the working language from templates
 4. Translations to other supported languages are created in parallel
 5. Planner and tester run sequential reviews with scoring
 6. You resolve feedback, translations sync, and repeat or finalize
@@ -170,14 +170,14 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 **What happens**:
 1. Reads the source spec directory in the working language
 2. Launches translator agents in parallel for each target language
-3. If `--file=<name>` is provided, only that file is re-translated (e.g., `--file=requirements` for `requirements.md`)
+3. If `--file=<name>` is provided, only that file is re-translated (e.g., `--file=screens` for `screens.md`)
 4. Updates sync timestamps in the progress file
 5. Reports any `<!-- NEEDS_REVIEW -->` markers left by the translator for ambiguous content
 
 **Examples**:
 ```
 /planning-plugin:translate social-login                    # full sync (all files)
-/planning-plugin:translate social-login --file=requirements  # sync only requirements.md
+/planning-plugin:translate social-login --file=screens       # sync only screens.md
 ```
 
 ---
@@ -274,7 +274,7 @@ Specifications Overview:
 **When to use**: After finalizing a spec, to generate UI DSL, React prototypes, and optionally Figma designs.
 
 **What happens** (full pipeline):
-1. **Stage 1 — DSL Generation**: The DSL Generator agent reads `screens.md`, `data-model.md`, and `requirements.md`, then produces structured UI DSL JSON files in `docs/specs/{feature}/ui-dsl/` (a `manifest.json` with screen index + navigation map, and one `screen-{id}.json` per screen)
+1. **Stage 1 — DSL Generation**: The DSL Generator agent reads `screens.md` and `{feature}-spec.md`, then produces structured UI DSL JSON files in `docs/specs/{feature}/ui-dsl/` (a `manifest.json` with screen index + navigation map, and one `screen-{id}.json` per screen)
 2. **Stage 2 — Prototype Generation**: The Prototype Generator agent reads the UI DSL and scaffolds a standalone Vite + React + TypeScript + TailwindCSS + shadcn/ui project in `src/prototypes/{feature}/`
 3. **Stage 3 — Figma Generation** (optional): The Figma Designer agent reads the React prototype code and converts it to Figma layers via the `generate_figma_design` MCP tool
 
@@ -322,7 +322,7 @@ It then produces a context summary and asks you questions across 8 categories, 2
 
 ### Step 2: Spec Draft Generation
 
-The plugin fills in 5 template files using your answers (split for selective reading):
+The plugin fills in 3 template files using your answers (split for selective reading):
 
 1. **Overview** — Purpose, target users, success metrics (KPIs)
 2. **User Stories** — ID, role, goal, priority (P0/P1/P2)
@@ -335,11 +335,9 @@ The plugin fills in 5 template files using your answers (split for selective rea
 9. **Open Questions** — Unresolved items with context and status
 10. **Review History** — Scores and decisions per round
 
-Sections with insufficient information get TBD markers. The draft is saved as 5 files in `docs/specs/{feature}/{workingLanguage}/` with status `DRAFT`:
-- `{feature}-spec.md` — Overview, User Stories, Spec File Index, Open Questions, Review History
-- `requirements.md` — Functional Requirements
-- `screens.md` — Screen Definitions
-- `data-model.md` — Data Model, Error Handling
+Sections with insufficient information get TBD markers. The draft is saved as 3 files in `docs/specs/{feature}/{workingLanguage}/` with status `DRAFT`:
+- `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Spec File Index, Open Questions, Review History
+- `screens.md` — Screen Definitions, Data Model, Error Handling
 - `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 ### Step 3: Translation
@@ -449,7 +447,7 @@ Creates or updates Notion pages under the configured parent page URL. Converts s
 
 **Role**: Convert screen definitions into structured UI DSL JSON.
 
-Reads `screens.md`, `data-model.md`, and `requirements.md` from the finalized spec, then produces structured JSON files in `docs/specs/{feature}/ui-dsl/`. Output includes a `manifest.json` (screen index + navigation map) and one `screen-{id}.json` per screen. Uses shadcn/ui component vocabulary exclusively. Uses the Opus model.
+Reads `screens.md` and `{feature}-spec.md` from the finalized spec, then produces structured JSON files in `docs/specs/{feature}/ui-dsl/`. Output includes a `manifest.json` (screen index + navigation map) and one `screen-{id}.json` per screen. Uses shadcn/ui component vocabulary exclusively. Uses the Opus model.
 
 ### Prototype Generator
 
@@ -488,16 +486,12 @@ To change the working language, edit `.claude/planning-plugin.json` before creat
 ```
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (working language)
-│   ├── {feature}-spec.md                  ← Index: Overview, User Stories, Open Questions, Review History
-│   ├── requirements.md                    ← Functional Requirements
-│   ├── screens.md                         ← Screen Definitions
-│   ├── data-model.md                      ← Data Model, Error Handling
+│   ├── {feature}-spec.md                  ← Index: Overview, User Stories, Functional Requirements, Open Questions, Review History
+│   ├── screens.md                         ← Screen Definitions, Data Model, Error Handling
 │   └── test-scenarios.md                  ← Non-Functional Requirements, Test Scenarios
 ├── {target_lang_1}/                       ← Translation (same file structure)
 │   ├── {feature}-spec.md
-│   ├── requirements.md
 │   ├── screens.md
-│   ├── data-model.md
 │   └── test-scenarios.md
 ├── {target_lang_2}/                       ← Translation (same file structure)
 │   └── ...
@@ -537,7 +531,7 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 
 - **Manual edits are welcome** — You can edit the working language spec directly at any time. After editing, run `/planning-plugin:translate feature-name` to sync translations, and `/planning-plugin:review feature-name` to re-check quality.
 
-- **Use `--file` for targeted translation** — If you only changed one file, use `/planning-plugin:translate feature-name --file=requirements` instead of re-translating the entire spec.
+- **Use `--file` for targeted translation** — If you only changed one file, use `/planning-plugin:translate feature-name --file=screens` instead of re-translating the entire spec.
 
 - **Check status regularly** — Use `/planning-plugin:progress` (no arguments) to see all specs at a glance, especially when working on multiple features.
 
@@ -558,8 +552,8 @@ agents/          Agent definitions (analyst, planner, tester, translator, notion
 skills/          Skill entry points (init, spec, review, translate, progress, design, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
-templates/       Spec templates + UI DSL schema (spec-overview.md, requirements.md, screens.md, data-model.md, test-scenarios.md, ui-dsl-schema.json)
-docs/specs/      Generated specifications (5 files per lang dir + ui-dsl/)
+templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
+docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/)
 src/prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
 
@@ -567,7 +561,7 @@ src/prototypes/  Generated React prototypes (standalone Vite projects per featur
 
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
 - All agent reviews target the working language spec directory only
-- Specs are split into 5 files per language — `{feature}-spec.md` is the index file; detail files (`requirements.md`, `screens.md`, `data-model.md`, `test-scenarios.md`) hold the rest
+- Specs are split into 3 files per language — `{feature}-spec.md` is the index file; detail files (`screens.md`, `test-scenarios.md`) hold the rest
 - UI DSL and prototypes use shadcn/ui component vocabulary exclusively (Card, Table, Button, Dialog, Alert, Badge, Form, Input, Select, etc.)
 - Prototypes are standalone Vite projects with no dependency on the main project
 - Figma generation is optional and requires Figma MCP configuration

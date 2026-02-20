@@ -218,7 +218,7 @@
         "dataEntities": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Entity names referenced from data-model.md."
+          "description": "Entity names referenced from the Data Model section of screens.md."
         }
       },
       "required": ["feature", "schemaVersion", "generatedAt", "sourceSpec", "screens", "navigation", "dataEntities"]

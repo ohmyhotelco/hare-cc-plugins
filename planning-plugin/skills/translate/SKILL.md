@@ -25,8 +25,8 @@ Sync translations for: **$ARGUMENTS**
 ### Step 1: Parse Arguments
 
 - First argument: feature name (required)
-- Optional `--file=<name>` flag: only translate a specific file (e.g., `--file=requirements` for `requirements.md`)
-  - Valid values: `requirements`, `screens`, `data-model`, `test-scenarios`, or the feature name for the overview file
+- Optional `--file=<name>` flag: only translate a specific file (e.g., `--file=screens` for `screens.md`)
+  - Valid values: `screens`, `test-scenarios`, or the feature name for the overview/index file
 - If no `--file` specified, do a full translation sync of all files
 
 ### Step 2: Locate the Source Spec

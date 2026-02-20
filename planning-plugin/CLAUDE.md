@@ -26,7 +26,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 3 stages:
 
-1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `data-model.md` + `requirements.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`)
+1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`)
 2. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL → scaffolds standalone Vite + React + TypeScript + TailwindCSS + shadcn/ui project (`src/prototypes/{feature}/`)
 3. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
 
@@ -35,10 +35,8 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 ## Conventions
 
 - Specs are split into multiple files per language directory:
-  - `docs/specs/{feature}/{lang}/{feature}-spec.md` — index file (overview, user stories, open questions, review history)
-  - `docs/specs/{feature}/{lang}/requirements.md` — functional requirements
-  - `docs/specs/{feature}/{lang}/screens.md` — screen definitions
-  - `docs/specs/{feature}/{lang}/data-model.md` — data model + error handling
+  - `docs/specs/{feature}/{lang}/{feature}-spec.md` — index file (overview, user stories, functional requirements, open questions, review history)
+  - `docs/specs/{feature}/{lang}/screens.md` — screen definitions, data model, error handling
   - `docs/specs/{feature}/{lang}/test-scenarios.md` — NFR + test scenarios
 - `{feature}-spec.md` is the index file; Claude reads this first to understand the feature, then reads detail files as needed
 - Progress state in `docs/specs/{feature}/.progress/{feature}.json`
@@ -59,8 +57,8 @@ agents/          - Agent definitions (analyst, planner, tester, translator, noti
 skills/          - Skill entry points (init, spec, review, translate, progress, design, sync-notion)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts
-templates/       - Spec templates + UI DSL schema (spec-overview.md, requirements.md, screens.md, data-model.md, test-scenarios.md, ui-dsl-schema.json)
-docs/specs/      - Generated specifications (5 files per language directory + ui-dsl/ per feature)
+templates/       - Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
+docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
 src/prototypes/  - Generated React prototypes (standalone Vite projects per feature)
 ```
 

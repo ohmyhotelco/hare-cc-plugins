@@ -26,11 +26,9 @@ You will receive these parameters in your task prompt:
 ### Step 1: Read Spec Files
 
 Read all markdown files in `specDir` in this order and combine them into a single document:
-1. `{feature}-spec.md` — Overview, User Stories, Open Questions, Review History
-2. `requirements.md` — Functional Requirements
-3. `screens.md` — Screen Definitions
-4. `data-model.md` — Data Model, Error Handling
-5. `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
+1. `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Open Questions, Review History
+2. `screens.md` — Screen Definitions, Data Model, Error Handling
+3. `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 Concatenate the contents with `---` separators between files to form the full Notion page content.
 

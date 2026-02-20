@@ -131,7 +131,7 @@ Sử dụng lệnh này bất cứ lúc nào để kiểm tra tiến độ.
 **Quy trình thực hiện**:
 1. Tạo cấu trúc thư mục dưới `docs/specs/{feature}/`
 2. Tác tử Analyst quét dự án và đặt các câu hỏi có cấu trúc
-3. Đặc tả được tạo thành 5 tệp bằng ngôn ngữ làm việc từ các template
+3. Đặc tả được tạo thành 3 tệp bằng ngôn ngữ làm việc từ các template
 4. Bản dịch sang các ngôn ngữ được hỗ trợ khác được tạo song song
 5. Planner và Tester thực hiện đánh giá tuần tự với chấm điểm
 6. Bạn xử lý phản hồi, bản dịch được đồng bộ, lặp lại hoặc hoàn thiện
@@ -174,14 +174,14 @@ Nếu thư mục đặc tả cho tính năng đó đã tồn tại, plugin sẽ 
 **Quy trình thực hiện**:
 1. Đọc thư mục đặc tả nguồn bằng ngôn ngữ làm việc
 2. Khởi chạy tác tử Translator song song cho mỗi ngôn ngữ đích
-3. Nếu `--file=<name>` được chỉ định, chỉ dịch lại tệp đó (ví dụ: `--file=requirements` cho `requirements.md`)
+3. Nếu `--file=<name>` được chỉ định, chỉ dịch lại tệp đó (ví dụ: `--file=screens` cho `screens.md`)
 4. Cập nhật timestamp đồng bộ trong tệp tiến độ
 5. Báo cáo các đánh dấu `<!-- NEEDS_REVIEW -->` mà Translator để lại cho nội dung không rõ ràng
 
 **Ví dụ**:
 ```
 /planning-plugin:translate social-login                    # đồng bộ toàn bộ (tất cả tệp)
-/planning-plugin:translate social-login --file=requirements  # chỉ đồng bộ requirements.md
+/planning-plugin:translate social-login --file=screens       # chỉ đồng bộ screens.md
 ```
 
 ---
@@ -278,7 +278,7 @@ Specifications Overview:
 **Khi nào sử dụng**: Sau khi hoàn thiện đặc tả, để tạo UI DSL, prototype React và tùy chọn thiết kế Figma.
 
 **Quy trình thực hiện** (toàn bộ pipeline):
-1. **Stage 1 — Tạo DSL**: Tác tử DSL Generator đọc `screens.md`, `data-model.md` và `requirements.md`, sau đó tạo các tệp UI DSL JSON có cấu trúc trong `docs/specs/{feature}/ui-dsl/` (một `manifest.json` với chỉ mục màn hình + bản đồ điều hướng, và một `screen-{id}.json` cho mỗi màn hình)
+1. **Stage 1 — Tạo DSL**: Tác tử DSL Generator đọc `screens.md` và `{feature}-spec.md`, sau đó tạo các tệp UI DSL JSON có cấu trúc trong `docs/specs/{feature}/ui-dsl/` (một `manifest.json` với chỉ mục màn hình + bản đồ điều hướng, và một `screen-{id}.json` cho mỗi màn hình)
 2. **Stage 2 — Tạo Prototype**: Tác tử Prototype Generator đọc UI DSL và tạo dự án Vite + React + TypeScript + TailwindCSS + shadcn/ui độc lập trong `src/prototypes/{feature}/`
 3. **Stage 3 — Tạo Figma** (tùy chọn): Tác tử Figma Designer đọc mã prototype React và chuyển đổi thành các layer Figma qua công cụ MCP `generate_figma_design`
 
@@ -326,7 +326,7 @@ Sau đó tạo bản tóm tắt ngữ cảnh và đặt câu hỏi theo 8 danh m
 
 ### Bước 2: Tạo bản nháp đặc tả
 
-Plugin điền vào 5 tệp template bằng câu trả lời của bạn (tách ra để đọc chọn lọc):
+Plugin điền vào 3 tệp template bằng câu trả lời của bạn (tách ra để đọc chọn lọc):
 
 1. **Tổng quan (Overview)** — Mục đích, đối tượng người dùng, chỉ số thành công (KPI)
 2. **Câu chuyện người dùng (User Stories)** — ID, vai trò, mục tiêu, ưu tiên (P0/P1/P2)
@@ -339,11 +339,9 @@ Plugin điền vào 5 tệp template bằng câu trả lời của bạn (tách 
 9. **Câu hỏi mở (Open Questions)** — Các mục chưa giải quyết với ngữ cảnh và trạng thái
 10. **Lịch sử đánh giá (Review History)** — Điểm số và quyết định theo từng vòng
 
-Các phần thiếu thông tin sẽ được đánh dấu TBD. Bản nháp được lưu thành 5 tệp trong `docs/specs/{feature}/{workingLanguage}/` với trạng thái `DRAFT`:
-- `{feature}-spec.md` — Tổng quan, Câu chuyện người dùng, Chỉ mục tệp đặc tả, Câu hỏi mở, Lịch sử đánh giá
-- `requirements.md` — Yêu cầu chức năng
-- `screens.md` — Định nghĩa màn hình
-- `data-model.md` — Mô hình dữ liệu, Xử lý lỗi
+Các phần thiếu thông tin sẽ được đánh dấu TBD. Bản nháp được lưu thành 3 tệp trong `docs/specs/{feature}/{workingLanguage}/` với trạng thái `DRAFT`:
+- `{feature}-spec.md` — Tổng quan, Câu chuyện người dùng, Yêu cầu chức năng, Chỉ mục tệp đặc tả, Câu hỏi mở, Lịch sử đánh giá
+- `screens.md` — Định nghĩa màn hình, Mô hình dữ liệu, Xử lý lỗi
 - `test-scenarios.md` — Yêu cầu phi chức năng, Kịch bản kiểm thử
 
 ### Bước 3: Dịch thuật
@@ -453,7 +451,7 @@ Tạo hoặc cập nhật các trang Notion dưới URL trang cha đã cấu hì
 
 **Vai trò**: Chuyển đổi định nghĩa màn hình thành UI DSL JSON có cấu trúc
 
-Đọc `screens.md`, `data-model.md` và `requirements.md` từ đặc tả đã hoàn thiện, sau đó tạo các tệp JSON có cấu trúc trong `docs/specs/{feature}/ui-dsl/`. Đầu ra bao gồm `manifest.json` (chỉ mục màn hình + bản đồ điều hướng) và một `screen-{id}.json` cho mỗi màn hình. Sử dụng từ vựng thành phần shadcn/ui độc quyền. Sử dụng mô hình Opus.
+Đọc `screens.md` và `{feature}-spec.md` từ đặc tả đã hoàn thiện, sau đó tạo các tệp JSON có cấu trúc trong `docs/specs/{feature}/ui-dsl/`. Đầu ra bao gồm `manifest.json` (chỉ mục màn hình + bản đồ điều hướng) và một `screen-{id}.json` cho mỗi màn hình. Sử dụng từ vựng thành phần shadcn/ui độc quyền. Sử dụng mô hình Opus.
 
 ### Prototype Generator
 
@@ -492,16 +490,12 @@ Plugin sử dụng `.claude/planning-plugin.json` trong thư mục dự án củ
 ```
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (ngôn ngữ làm việc)
-│   ├── {feature}-spec.md                  ← Chỉ mục: Tổng quan, Câu chuyện người dùng, Câu hỏi mở, Lịch sử đánh giá
-│   ├── requirements.md                    ← Yêu cầu chức năng
-│   ├── screens.md                         ← Định nghĩa màn hình
-│   ├── data-model.md                      ← Mô hình dữ liệu, Xử lý lỗi
+│   ├── {feature}-spec.md                  ← Chỉ mục: Tổng quan, Câu chuyện người dùng, Yêu cầu chức năng, Câu hỏi mở, Lịch sử đánh giá
+│   ├── screens.md                         ← Định nghĩa màn hình, Mô hình dữ liệu, Xử lý lỗi
 │   └── test-scenarios.md                  ← Yêu cầu phi chức năng, Kịch bản kiểm thử
 ├── {target_lang_1}/                       ← Bản dịch (cùng cấu trúc tệp)
 │   ├── {feature}-spec.md
-│   ├── requirements.md
 │   ├── screens.md
-│   ├── data-model.md
 │   └── test-scenarios.md
 ├── {target_lang_2}/                       ← Bản dịch (cùng cấu trúc tệp)
 │   └── ...
@@ -541,7 +535,7 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 
 - **Chỉnh sửa thủ công được hoan nghênh** — Bạn có thể chỉnh sửa trực tiếp đặc tả ngôn ngữ làm việc bất cứ lúc nào. Sau khi chỉnh sửa, chạy `/planning-plugin:translate feature-name` để đồng bộ bản dịch, và `/planning-plugin:review feature-name` để kiểm tra lại chất lượng.
 
-- **Sử dụng `--file` cho dịch có mục tiêu** — Nếu bạn chỉ thay đổi một tệp, sử dụng `/planning-plugin:translate feature-name --file=requirements` thay vì dịch lại toàn bộ đặc tả.
+- **Sử dụng `--file` cho dịch có mục tiêu** — Nếu bạn chỉ thay đổi một tệp, sử dụng `/planning-plugin:translate feature-name --file=screens` thay vì dịch lại toàn bộ đặc tả.
 
 - **Kiểm tra trạng thái thường xuyên** — Sử dụng `/planning-plugin:progress` (không tham số) để xem tổng quan tất cả đặc tả, đặc biệt khi làm việc trên nhiều tính năng cùng lúc.
 
@@ -562,8 +556,8 @@ agents/          Agent definitions (analyst, planner, tester, translator, notion
 skills/          Skill entry points (init, spec, review, translate, progress, design, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
-templates/       Spec templates + UI DSL schema (spec-overview.md, requirements.md, screens.md, data-model.md, test-scenarios.md, ui-dsl-schema.json)
-docs/specs/      Generated specifications (5 tệp mỗi thư mục ngôn ngữ + ui-dsl/)
+templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
+docs/specs/      Generated specifications (3 tệp mỗi thư mục ngôn ngữ + ui-dsl/)
 src/prototypes/  Generated React prototypes (dự án Vite độc lập theo tính năng)
 ```
 
@@ -571,7 +565,7 @@ src/prototypes/  Generated React prototypes (dự án Vite độc lập theo tí
 
 - Thuật ngữ kỹ thuật (API, endpoint, schema, CRUD) được giữ nguyên tiếng Anh trong tất cả bản dịch
 - Tất cả đánh giá của tác tử chỉ nhắm vào thư mục đặc tả ngôn ngữ làm việc
-- Đặc tả được tách thành 5 tệp mỗi ngôn ngữ — `{feature}-spec.md` là tệp chỉ mục; các tệp chi tiết (`requirements.md`, `screens.md`, `data-model.md`, `test-scenarios.md`) chứa phần còn lại
+- Đặc tả được tách thành 3 tệp mỗi ngôn ngữ — `{feature}-spec.md` là tệp chỉ mục; các tệp chi tiết (`screens.md`, `test-scenarios.md`) chứa phần còn lại
 - UI DSL và prototype sử dụng từ vựng thành phần shadcn/ui độc quyền (Card, Table, Button, Dialog, Alert, Badge, Form, Input, Select, v.v.)
 - Prototype là dự án Vite độc lập, không phụ thuộc vào dự án chính
 - Tạo Figma là tùy chọn và yêu cầu cấu hình Figma MCP

@@ -71,17 +71,15 @@ Update progress status to `"drafting"` when requirements gathering is complete.
 
 ### Step 3: Generate Draft
 
-Using the analyst's collected requirements and the 5 templates in `templates/`:
+Using the analyst's collected requirements and the 3 templates in `templates/`:
 
-1. Read all 5 templates: `spec-overview.md`, `requirements.md`, `screens.md`, `data-model.md`, `test-scenarios.md`
+1. Read all 3 templates: `spec-overview.md`, `screens.md`, `test-scenarios.md`
 2. Fill in all sections with the gathered requirements
 3. Write all spec content in {workingLanguage_name}. Keep section heading labels in English (## 1. Overview etc.) as structural markers.
 4. For sections with insufficient information, add TBD markers with context
-5. Write 5 files to `docs/specs/{feature}/{workingLanguage}/`:
-   - `{feature}-spec.md` — from `spec-overview.md` template (overview, user stories, spec file index, open questions, review history)
-   - `requirements.md` — from `requirements.md` template (functional requirements)
-   - `screens.md` — from `screens.md` template (screen definitions)
-   - `data-model.md` — from `data-model.md` template (data model + error handling)
+5. Write 3 files to `docs/specs/{feature}/{workingLanguage}/`:
+   - `{feature}-spec.md` — from `spec-overview.md` template (overview, user stories, functional requirements, spec file index, open questions, review history)
+   - `screens.md` — from `screens.md` template (screen definitions, data model, error handling)
    - `test-scenarios.md` — from `test-scenarios.md` template (NFR + test scenarios)
 6. Set the document status to `DRAFT` in `{feature}-spec.md`
 
@@ -93,14 +91,14 @@ Update progress status to `"reviewing"` and increment `currentRound`.
 
 Launch the **planner** agent:
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, data model, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
 ```
 
 **4b. Tester Review:**
 
 Launch the **tester** agent, including the planner's feedback:
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, open questions), requirements.md, screens.md, data-model.md, test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, data model, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
 ```
 
 **4c. Present Combined Feedback:**
@@ -127,7 +125,7 @@ Ask the user what to do with each issue:
 - **Modify**: Apply a modified version of the suggestion
 - **Defer**: Move to Open Questions section
 
-Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `requirements.md`, screen issues → `screens.md`).
+Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/data model issues → `screens.md`).
 
 Update progress file with round results.
 
@@ -142,7 +140,7 @@ Based on convergence check and user decision, either:
 For each target language, launch a **translator** agent in parallel using the Task tool:
 
 ```
-Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, requirements.md, screens.md, data-model.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
+Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
 ```
 
 After all complete, update the progress file's translation status with `synced: true` and timestamps.
