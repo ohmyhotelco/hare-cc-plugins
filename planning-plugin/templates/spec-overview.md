@@ -46,12 +46,12 @@
 
 | File | Contents |
 |------|----------|
-| `screens.md` | Screen Definitions, Data Model, Error Handling |
+| `screens.md` | Screen Definitions, Error Handling |
 | `test-scenarios.md` | Non-Functional Requirements, Test Scenarios |
 
 ---
 
-## 9. Open Questions
+## 8. Open Questions
 
 | ID | Question | Context | Status |
 |----|----------|---------|--------|
@@ -59,7 +59,7 @@
 
 ---
 
-## 10. Review History
+## 9. Review History
 
 | Round | Planner Score | Tester Score | Key Decisions | Date |
 |-------|---------------|--------------|---------------|------|

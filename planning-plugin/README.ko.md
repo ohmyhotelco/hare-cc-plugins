@@ -1,4 +1,4 @@
-<!-- Synced with en version: 2026-02-11T12:00:00Z -->
+<!-- Synced with en version: 2026-02-20T12:00:00Z -->
 
 [English version](README.md)
 
@@ -40,6 +40,50 @@
 
 > **참고**: 비대화형 환경(CI 등)에서 자동 업데이트가 필요한 경우, `GITHUB_TOKEN` 환경 변수를 설정하십시오.
 
+## 업데이트 및 관리
+
+**마켓플레이스 업데이트**로 최신 플러그인 버전을 가져옵니다:
+```
+/plugin marketplace update ohmyhotelco
+```
+
+**자동 업데이트**: `/plugin` → Marketplaces 탭 → `ohmyhotelco` 선택 → 자동 업데이트 활성화/비활성화로 마켓플레이스별 설정을 전환할 수 있습니다. 서드파티 마켓플레이스는 기본적으로 자동 업데이트가 비활성화되어 있습니다.
+
+플러그인을 제거하지 않고 **비활성화 / 활성화**:
+```
+/plugin disable planning-plugin@ohmyhotelco
+/plugin enable planning-plugin@ohmyhotelco
+```
+
+**제거**:
+```
+/plugin uninstall planning-plugin@ohmyhotelco --scope project
+```
+
+**플러그인 관리 UI**: `/plugin`을 실행하여 탭 인터페이스(Discover, Installed, Marketplaces, Errors)를 열 수 있습니다.
+
+## MCP 설정 (Figma & Notion)
+
+이 플러그인은 두 개의 HTTP MCP 서버를 번들로 포함합니다 (`plugin.json`에 정의됨):
+
+| 서버 | URL | 사용처 |
+|------|-----|--------|
+| `figma` | `https://mcp.figma.com/mcp` | Figma Designer 에이전트 (`/planning-plugin:design`의 Stage 3) |
+| `notion` | `https://mcp.notion.com/mcp` | Notion Syncer 에이전트 (`/planning-plugin:sync-notion`) |
+
+설치 시 이 서버들이 자동으로 등록되므로 수동으로 `claude mcp add`를 실행할 필요가 없습니다.
+
+**OAuth를 통한 인증**:
+1. Claude Code에서 `/mcp`를 실행합니다
+2. 서버(`figma` 또는 `notion`)를 선택합니다
+3. 브라우저 기반 OAuth 로그인 흐름을 따릅니다
+
+> **팁**:
+> - 인증 토큰은 안전하게 저장되며 자동으로 갱신됩니다.
+> - 접근 권한을 취소하려면 `/mcp` 메뉴에서 "Clear authentication"을 사용하십시오.
+> - 브라우저가 자동으로 열리지 않는 경우, 제공된 URL을 수동으로 복사하십시오.
+> - Notion 인증은 `/planning-plugin:sync-notion`에 필요합니다. Figma 인증은 `/planning-plugin:design`의 Stage 3에서만 필요합니다.
+
 ## 빠른 시작
 
 6단계로 첫 번째 명세서를 작성하실 수 있습니다:
@@ -75,7 +119,7 @@ Analyst 에이전트는 먼저 프로젝트(package.json, 소스 코드, 기존 
 | 대상 사용자(Target Users) | 사용자 역할, 권한 수준 |
 | 사용자 흐름(User Flow) | 주요 사용 시나리오의 단계별 흐름 |
 | 비즈니스 규칙(Business Rules) | 제약 조건, 유효성 검증 로직 |
-| 데이터 및 상태(Data & State) | CRUD 작업, 상태 전이 |
+| 상태 전이(State Transitions) | 주요 상태 전이 |
 | 시스템 연동(System Integration) | 기존 모듈과의 연결 방식 |
 | 비기능 요구사항(Non-Functional) | 성능, 보안, 접근성 |
 | 범위 및 우선순위(Scope & Priority) | MVP 범위, 후순위 항목 |
@@ -332,16 +376,15 @@ Specifications Overview:
 2. **사용자 스토리(User Stories)** — ID, 역할, 목표, 우선순위 (P0/P1/P2)
 3. **기능 요구사항(Functional Requirements)** — 각 항목의 비즈니스 규칙(BR-xxx) 및 인수 기준(AC-xxx)
 4. **화면 정의(Screen Definitions)** — 레이아웃, 컴포넌트, 화면별 사용자 액션
-5. **데이터 모델(Data Model)** — 엔티티, 필드, 타입, 관계
-6. **오류 처리(Error Handling)** — 오류 코드, 조건, 사용자 메시지, 해결 방법
-7. **비기능 요구사항(Non-Functional Requirements)** — 성능, 보안, 접근성, 국제화(i18n)
-8. **테스트 시나리오(Test Scenarios)** — Given/When/Then 형식
-9. **미결 사항(Open Questions)** — 컨텍스트 및 상태가 포함된 미해결 항목
-10. **리뷰 이력(Review History)** — 라운드별 점수 및 결정 사항
+5. **오류 처리(Error Handling)** — 오류 코드, 조건, 사용자 메시지, 해결 방법
+6. **비기능 요구사항(Non-Functional Requirements)** — 성능, 보안, 접근성, 국제화(i18n)
+7. **테스트 시나리오(Test Scenarios)** — Given/When/Then 형식
+8. **미결 사항(Open Questions)** — 컨텍스트 및 상태가 포함된 미해결 항목
+9. **리뷰 이력(Review History)** — 라운드별 점수 및 결정 사항
 
 정보가 불충분한 섹션에는 TBD 마커가 표시됩니다. 초안은 `docs/specs/{feature}/{workingLanguage}/`에 3개 파일로 저장되며 상태는 `DRAFT`로 설정됩니다:
 - `{feature}-spec.md` — 개요, 사용자 스토리, 기능 요구사항, 스펙 파일 인덱스, 미결 사항, 리뷰 이력
-- `screens.md` — 화면 정의, 데이터 모델, 오류 처리
+- `screens.md` — 화면 정의, 오류 처리
 - `test-scenarios.md` — 비기능 요구사항, 테스트 시나리오
 
 ### 단계 3: 번역
@@ -491,7 +534,7 @@ React 프로토타입 코드를 읽고, `generate_figma_design` MCP 도구를 �
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (작업 언어)
 │   ├── {feature}-spec.md                  ← 인덱스: 개요, 사용자 스토리, 기능 요구사항, 미결 사항, 리뷰 이력
-│   ├── screens.md                         ← 화면 정의, 데이터 모델, 오류 처리
+│   ├── screens.md                         ← 화면 정의, 오류 처리
 │   └── test-scenarios.md                  ← 비기능 요구사항, 테스트 시나리오
 ├── {target_lang_1}/                       ← 번역 (동일 파일 구조)
 │   ├── {feature}-spec.md
@@ -520,12 +563,11 @@ src/prototypes/{feature}/                  ← React 프로토타입 (독립형 
 2. 사용자 스토리(User Stories)
 3. 기능 요구사항(Functional Requirements)
 4. 화면 정의(Screen Definitions)
-5. 데이터 모델(Data Model)
-6. 오류 처리(Error Handling)
-7. 비기능 요구사항(Non-Functional Requirements)
-8. 테스트 시나리오(Test Scenarios)
-9. 미결 사항(Open Questions)
-10. 리뷰 이력(Review History)
+5. 오류 처리(Error Handling)
+6. 비기능 요구사항(Non-Functional Requirements)
+7. 테스트 시나리오(Test Scenarios)
+8. 미결 사항(Open Questions)
+9. 리뷰 이력(Review History)
 
 ## 팁 및 모범 사례
 

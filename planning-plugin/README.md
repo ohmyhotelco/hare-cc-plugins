@@ -36,6 +36,50 @@ Verify the installation:
 
 > **Note**: For non-interactive environments (CI, etc.) that need automatic updates, set the `GITHUB_TOKEN` environment variable.
 
+## Update & Management
+
+**Update marketplace** to pull the latest plugin versions:
+```
+/plugin marketplace update ohmyhotelco
+```
+
+**Auto-update**: Toggle per marketplace via `/plugin` → Marketplaces tab → select `ohmyhotelco` → Enable/Disable auto-update. Third-party marketplaces have auto-update disabled by default.
+
+**Disable / Enable** a plugin without uninstalling:
+```
+/plugin disable planning-plugin@ohmyhotelco
+/plugin enable planning-plugin@ohmyhotelco
+```
+
+**Uninstall**:
+```
+/plugin uninstall planning-plugin@ohmyhotelco --scope project
+```
+
+**Plugin manager UI**: Run `/plugin` to open the tabbed interface (Discover, Installed, Marketplaces, Errors).
+
+## MCP Setup (Figma & Notion)
+
+This plugin bundles two HTTP MCP servers (defined in `plugin.json`):
+
+| Server | URL | Used by |
+|--------|-----|---------|
+| `figma` | `https://mcp.figma.com/mcp` | Figma Designer agent (Stage 3 of `/planning-plugin:design`) |
+| `notion` | `https://mcp.notion.com/mcp` | Notion Syncer agent (`/planning-plugin:sync-notion`) |
+
+Installation automatically registers these servers — no manual `claude mcp add` is needed.
+
+**Authenticate via OAuth**:
+1. Run `/mcp` inside Claude Code
+2. Select the server (`figma` or `notion`)
+3. Follow the browser-based OAuth login flow
+
+> **Tips**:
+> - Authentication tokens are stored securely and refreshed automatically.
+> - To revoke access, use "Clear authentication" in the `/mcp` menu.
+> - If your browser does not open automatically, copy the provided URL manually.
+> - Notion authentication is required for `/planning-plugin:sync-notion`. Figma authentication is only needed for Stage 3 of `/planning-plugin:design`.
+
 ## Quick Start
 
 Get from zero to your first spec in 6 steps:
@@ -71,7 +115,7 @@ The analyst agent first scans your project (package.json, source code, existing 
 | Target Users | User roles, permission levels |
 | User Flow | Step-by-step main usage scenario |
 | Business Rules | Constraints, validation logic |
-| Data & State | CRUD operations, state transitions |
+| State Transitions | Key state transitions |
 | System Integration | How it connects to existing modules |
 | Non-Functional | Performance, security, accessibility |
 | Scope & Priority | MVP scope, what to defer |
@@ -328,16 +372,15 @@ The plugin fills in 3 template files using your answers (split for selective rea
 2. **User Stories** — ID, role, goal, priority (P0/P1/P2)
 3. **Functional Requirements** — Each with business rules (BR-xxx) and acceptance criteria (AC-xxx)
 4. **Screen Definitions** — Layout, components, user actions per screen
-5. **Data Model** — Entities, fields, types, relationships
-6. **Error Handling** — Error code, condition, user message, resolution
-7. **Non-Functional Requirements** — Performance, security, accessibility, i18n
-8. **Test Scenarios** — Given/When/Then format
-9. **Open Questions** — Unresolved items with context and status
-10. **Review History** — Scores and decisions per round
+5. **Error Handling** — Error code, condition, user message, resolution
+6. **Non-Functional Requirements** — Performance, security, accessibility, i18n
+7. **Test Scenarios** — Given/When/Then format
+8. **Open Questions** — Unresolved items with context and status
+9. **Review History** — Scores and decisions per round
 
 Sections with insufficient information get TBD markers. The draft is saved as 3 files in `docs/specs/{feature}/{workingLanguage}/` with status `DRAFT`:
 - `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Spec File Index, Open Questions, Review History
-- `screens.md` — Screen Definitions, Data Model, Error Handling
+- `screens.md` — Screen Definitions, Error Handling
 - `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 ### Step 3: Translation
@@ -487,7 +530,7 @@ To change the working language, edit `.claude/planning-plugin.json` before creat
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (working language)
 │   ├── {feature}-spec.md                  ← Index: Overview, User Stories, Functional Requirements, Open Questions, Review History
-│   ├── screens.md                         ← Screen Definitions, Data Model, Error Handling
+│   ├── screens.md                         ← Screen Definitions, Error Handling
 │   └── test-scenarios.md                  ← Non-Functional Requirements, Test Scenarios
 ├── {target_lang_1}/                       ← Translation (same file structure)
 │   ├── {feature}-spec.md
@@ -516,12 +559,11 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 2. User Stories
 3. Functional Requirements
 4. Screen Definitions
-5. Data Model
-6. Error Handling
-7. Non-Functional Requirements
-8. Test Scenarios
-9. Open Questions
-10. Review History
+5. Error Handling
+6. Non-Functional Requirements
+7. Test Scenarios
+8. Open Questions
+9. Review History
 
 ## Tips & Best Practices
 

@@ -75,13 +75,14 @@ Using the analyst's collected requirements and the 3 templates in `templates/`:
 
 1. Read all 3 templates: `spec-overview.md`, `screens.md`, `test-scenarios.md`
 2. Fill in all sections with the gathered requirements
-3. Write all spec content in {workingLanguage_name}. Keep section heading labels in English (## 1. Overview etc.) as structural markers.
-4. For sections with insufficient information, add TBD markers with context
-5. Write 3 files to `docs/specs/{feature}/{workingLanguage}/`:
+3. For each screen definition in `screens.md`, generate an **ASCII layout diagram** in the Layout section using the format shown in the template: named regions in `[ brackets ]` inside box-drawn containers, with components listed as `- ComponentName`. The diagram must be consistent with the Components table — every component in the table should appear in the diagram, and vice versa.
+4. Write all spec content in {workingLanguage_name}. Keep section heading labels in English (## 1. Overview etc.) as structural markers.
+5. For sections with insufficient information, add TBD markers with context
+6. Write 3 files to `docs/specs/{feature}/{workingLanguage}/`:
    - `{feature}-spec.md` — from `spec-overview.md` template (overview, user stories, functional requirements, spec file index, open questions, review history)
-   - `screens.md` — from `screens.md` template (screen definitions, data model, error handling)
+   - `screens.md` — from `screens.md` template (screen definitions, error handling)
    - `test-scenarios.md` — from `test-scenarios.md` template (NFR + test scenarios)
-6. Set the document status to `DRAFT` in `{feature}-spec.md`
+7. Set the document status to `DRAFT` in `{feature}-spec.md`
 
 ### Step 4: Sequential Review Cycle
 
@@ -91,14 +92,14 @@ Update progress status to `"reviewing"` and increment `currentRound`.
 
 Launch the **planner** agent:
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, data model, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
 ```
 
 **4b. Tester Review:**
 
 Launch the **tester** agent, including the planner's feedback:
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, data model, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
 ```
 
 **4c. Present Combined Feedback:**
@@ -125,7 +126,7 @@ Ask the user what to do with each issue:
 - **Modify**: Apply a modified version of the suggestion
 - **Defer**: Move to Open Questions section
 
-Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/data model issues → `screens.md`).
+Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/error handling issues → `screens.md`).
 
 Update progress file with round results.
 

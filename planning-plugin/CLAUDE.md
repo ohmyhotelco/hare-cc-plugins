@@ -36,7 +36,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 
 - Specs are split into multiple files per language directory:
   - `docs/specs/{feature}/{lang}/{feature}-spec.md` — index file (overview, user stories, functional requirements, open questions, review history)
-  - `docs/specs/{feature}/{lang}/screens.md` — screen definitions, data model, error handling
+  - `docs/specs/{feature}/{lang}/screens.md` — screen definitions, error handling
   - `docs/specs/{feature}/{lang}/test-scenarios.md` — NFR + test scenarios
 - `{feature}-spec.md` is the index file; Claude reads this first to understand the feature, then reads detail files as needed
 - Progress state in `docs/specs/{feature}/.progress/{feature}.json`

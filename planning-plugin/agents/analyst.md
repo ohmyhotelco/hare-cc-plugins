@@ -37,8 +37,9 @@ Ask questions across 8 categories. Be specific — reference findings from Phase
 1. **Purpose** — What is the core problem this feature solves? Why is it needed now?
 2. **Target Users** — Who are the primary users? Are there distinct roles or permission levels?
 3. **User Flow** — Walk through the main usage scenario step by step. What does the user see and do?
+   - For each key screen, ask about the **layout structure**: What are the main visual regions (header, sidebar, content area, footer)? How are components arranged within those regions? Are there side-by-side columns or stacked sections?
 4. **Business Rules** — What are the core business rules and constraints? Any validation logic?
-5. **Data & State** — What data is involved? Which CRUD operations are needed? What are the state transitions?
+5. **State Transitions** — What are the key state transitions? (e.g., order: pending → confirmed → shipped → delivered)
 6. **System Integration** — (Based on context analysis) How does this connect to existing modules like {found modules}?
 7. **Non-Functional Requirements** — Any performance targets, security concerns, accessibility needs?
 8. **Scope & Priority** — What is the MVP scope? What can be deferred to a later phase?
@@ -82,7 +83,7 @@ Return your analysis as structured JSON:
     ],
     "user_flow": [],
     "business_rules": [],
-    "data": [],
+    "state_transitions": [],
     "integration": [],
     "non_functional": [],
     "scope": []
@@ -92,7 +93,7 @@ Return your analysis as structured JSON:
     "users": 7,
     "user_flow": 5,
     "business_rules": 3,
-    "data": 6,
+    "state_transitions": 6,
     "integration": 8,
     "non_functional": 4,
     "scope": 7

@@ -1,4 +1,4 @@
-<!-- Synced with en version: 2026-02-19T00:00:00Z -->
+<!-- Synced with en version: 2026-02-20T12:00:00Z -->
 
 [English version](README.md)
 
@@ -40,6 +40,50 @@ Xác minh cài đặt:
 
 > **Lưu ý**: Đối với môi trường không tương tác (CI, v.v.) cần cập nhật tự động, hãy thiết lập biến môi trường `GITHUB_TOKEN`.
 
+## Cập nhật và Quản lý
+
+**Cập nhật marketplace** để lấy phiên bản plugin mới nhất:
+```
+/plugin marketplace update ohmyhotelco
+```
+
+**Tự động cập nhật**: Chuyển đổi theo từng marketplace qua `/plugin` → tab Marketplaces → chọn `ohmyhotelco` → Bật/Tắt tự động cập nhật. Các marketplace bên thứ ba mặc định tắt tự động cập nhật.
+
+**Vô hiệu hóa / Kích hoạt** plugin mà không cần gỡ cài đặt:
+```
+/plugin disable planning-plugin@ohmyhotelco
+/plugin enable planning-plugin@ohmyhotelco
+```
+
+**Gỡ cài đặt**:
+```
+/plugin uninstall planning-plugin@ohmyhotelco --scope project
+```
+
+**Giao diện quản lý plugin**: Chạy `/plugin` để mở giao diện tab (Discover, Installed, Marketplaces, Errors).
+
+## Thiết lập MCP (Figma & Notion)
+
+Plugin này đi kèm hai máy chủ HTTP MCP (được định nghĩa trong `plugin.json`):
+
+| Máy chủ | URL | Sử dụng bởi |
+|----------|-----|-------------|
+| `figma` | `https://mcp.figma.com/mcp` | Tác tử Figma Designer (Stage 3 của `/planning-plugin:design`) |
+| `notion` | `https://mcp.notion.com/mcp` | Tác tử Notion Syncer (`/planning-plugin:sync-notion`) |
+
+Quá trình cài đặt tự động đăng ký các máy chủ này — không cần chạy `claude mcp add` thủ công.
+
+**Xác thực qua OAuth**:
+1. Chạy `/mcp` trong Claude Code
+2. Chọn máy chủ (`figma` hoặc `notion`)
+3. Thực hiện theo luồng đăng nhập OAuth trên trình duyệt
+
+> **Mẹo**:
+> - Token xác thực được lưu trữ an toàn và tự động làm mới.
+> - Để thu hồi quyền truy cập, sử dụng "Clear authentication" trong menu `/mcp`.
+> - Nếu trình duyệt không tự động mở, hãy sao chép URL được cung cấp thủ công.
+> - Xác thực Notion là bắt buộc cho `/planning-plugin:sync-notion`. Xác thực Figma chỉ cần cho Stage 3 của `/planning-plugin:design`.
+
 ## Bắt đầu nhanh
 
 Tạo đặc tả đầu tiên chỉ trong 6 bước:
@@ -75,7 +119,7 @@ Tác tử Analyst trước tiên quét dự án của bạn (package.json, mã n
 | Đối tượng người dùng (Target Users) | Vai trò người dùng, mức độ quyền hạn |
 | Luồng người dùng (User Flow) | Kịch bản sử dụng chính theo từng bước |
 | Quy tắc nghiệp vụ (Business Rules) | Ràng buộc, logic xác thực |
-| Dữ liệu và trạng thái (Data & State) | Thao tác CRUD, chuyển đổi trạng thái |
+| Chuyển đổi trạng thái (State Transitions) | Các chuyển đổi trạng thái chính |
 | Tích hợp hệ thống (System Integration) | Cách kết nối với các module hiện có |
 | Yêu cầu phi chức năng (Non-Functional) | Hiệu suất, bảo mật, khả năng tiếp cận |
 | Phạm vi và ưu tiên (Scope & Priority) | Phạm vi MVP, những gì hoãn lại |
@@ -332,16 +376,15 @@ Plugin điền vào 3 tệp template bằng câu trả lời của bạn (tách 
 2. **Câu chuyện người dùng (User Stories)** — ID, vai trò, mục tiêu, ưu tiên (P0/P1/P2)
 3. **Yêu cầu chức năng (Functional Requirements)** — Mỗi mục có quy tắc nghiệp vụ (BR-xxx) và tiêu chí chấp nhận (AC-xxx)
 4. **Định nghĩa màn hình (Screen Definitions)** — Bố cục, thành phần, hành động người dùng theo màn hình
-5. **Mô hình dữ liệu (Data Model)** — Entity, trường, kiểu dữ liệu, quan hệ
-6. **Xử lý lỗi (Error Handling)** — Mã lỗi, điều kiện, thông báo người dùng, cách giải quyết
-7. **Yêu cầu phi chức năng (Non-Functional Requirements)** — Hiệu suất, bảo mật, khả năng tiếp cận, quốc tế hóa (i18n)
-8. **Kịch bản kiểm thử (Test Scenarios)** — Định dạng Given/When/Then
-9. **Câu hỏi mở (Open Questions)** — Các mục chưa giải quyết với ngữ cảnh và trạng thái
-10. **Lịch sử đánh giá (Review History)** — Điểm số và quyết định theo từng vòng
+5. **Xử lý lỗi (Error Handling)** — Mã lỗi, điều kiện, thông báo người dùng, cách giải quyết
+6. **Yêu cầu phi chức năng (Non-Functional Requirements)** — Hiệu suất, bảo mật, khả năng tiếp cận, quốc tế hóa (i18n)
+7. **Kịch bản kiểm thử (Test Scenarios)** — Định dạng Given/When/Then
+8. **Câu hỏi mở (Open Questions)** — Các mục chưa giải quyết với ngữ cảnh và trạng thái
+9. **Lịch sử đánh giá (Review History)** — Điểm số và quyết định theo từng vòng
 
 Các phần thiếu thông tin sẽ được đánh dấu TBD. Bản nháp được lưu thành 3 tệp trong `docs/specs/{feature}/{workingLanguage}/` với trạng thái `DRAFT`:
 - `{feature}-spec.md` — Tổng quan, Câu chuyện người dùng, Yêu cầu chức năng, Chỉ mục tệp đặc tả, Câu hỏi mở, Lịch sử đánh giá
-- `screens.md` — Định nghĩa màn hình, Mô hình dữ liệu, Xử lý lỗi
+- `screens.md` — Định nghĩa màn hình, Xử lý lỗi
 - `test-scenarios.md` — Yêu cầu phi chức năng, Kịch bản kiểm thử
 
 ### Bước 3: Dịch thuật
@@ -491,7 +534,7 @@ Plugin sử dụng `.claude/planning-plugin.json` trong thư mục dự án củ
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (ngôn ngữ làm việc)
 │   ├── {feature}-spec.md                  ← Chỉ mục: Tổng quan, Câu chuyện người dùng, Yêu cầu chức năng, Câu hỏi mở, Lịch sử đánh giá
-│   ├── screens.md                         ← Định nghĩa màn hình, Mô hình dữ liệu, Xử lý lỗi
+│   ├── screens.md                         ← Định nghĩa màn hình, Xử lý lỗi
 │   └── test-scenarios.md                  ← Yêu cầu phi chức năng, Kịch bản kiểm thử
 ├── {target_lang_1}/                       ← Bản dịch (cùng cấu trúc tệp)
 │   ├── {feature}-spec.md
@@ -520,12 +563,11 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 2. Câu chuyện người dùng (User Stories)
 3. Yêu cầu chức năng (Functional Requirements)
 4. Định nghĩa màn hình (Screen Definitions)
-5. Mô hình dữ liệu (Data Model)
-6. Xử lý lỗi (Error Handling)
-7. Yêu cầu phi chức năng (Non-Functional Requirements)
-8. Kịch bản kiểm thử (Test Scenarios)
-9. Câu hỏi mở (Open Questions)
-10. Lịch sử đánh giá (Review History)
+5. Xử lý lỗi (Error Handling)
+6. Yêu cầu phi chức năng (Non-Functional Requirements)
+7. Kịch bản kiểm thử (Test Scenarios)
+8. Câu hỏi mở (Open Questions)
+9. Lịch sử đánh giá (Review History)
 
 ## Mẹo và thực hành tốt nhất
 

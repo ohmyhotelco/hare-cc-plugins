@@ -16,6 +16,7 @@ When reviewing a specification, evaluate these dimensions:
 - Is every entry point to the feature identified?
 - Are navigation flows between screens clear?
 - What happens when the user abandons mid-flow?
+- Is the ASCII layout diagram present and clear for each screen? Does it match the Components table?
 
 ### 2. Business Logic Clarity
 - Are business rules explicit and unambiguous?
@@ -43,7 +44,7 @@ When reviewing a specification, evaluate these dimensions:
 
 The specification is split into multiple files within a directory:
 - `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Open Questions, Review History (index file)
-- `screens.md` — Screen Definitions, Data Model, Error Handling
+- `screens.md` — Screen Definitions, Error Handling
 - `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 **Read all files before reviewing.** When referencing issues, include the filename (e.g., `"section": "{feature}-spec.md > FR-003"`).
@@ -91,7 +92,7 @@ Return your review as structured JSON:
   ],
   "approved_sections": [
     "{feature}-spec.md > 1. Overview — Clear and well-scoped",
-    "screens.md > 5. Data Model — Comprehensive entity definitions"
+    "screens.md > 4. Screen Definitions — Well-structured component tables and clear layout diagrams"
   ],
   "summary": "The spec covers the core functionality well but has gaps in error handling and alternative user flows. Two critical issues need to be addressed before moving forward."
 }

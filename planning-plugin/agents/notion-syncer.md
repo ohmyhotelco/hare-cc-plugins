@@ -29,7 +29,7 @@ Read the template at `templates/notion-page-template.md` to understand the targe
 
 Then read all 3 spec files in `specDir` in this order:
 1. `{feature}-spec.md` — Overview, User Stories, Functional Requirements, Open Questions, Review History
-2. `screens.md` — Screen Definitions, Data Model, Error Handling
+2. `screens.md` — Screen Definitions, Error Handling
 3. `test-scenarios.md` — Non-Functional Requirements, Test Scenarios
 
 **Every section, every table, every list item, every code block from each file MUST be included verbatim.** Do not summarize, omit, abbreviate, or reorganize any content.

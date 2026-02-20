@@ -1,6 +1,6 @@
 ---
 name: dsl-generator
-description: DSL generator agent that converts screen definitions and data models from functional specifications into structured UI DSL JSON files
+description: DSL generator agent that converts screen definitions from functional specifications into structured UI DSL JSON files, inferring data models from component analysis
 model: opus
 tools: Read, Write, Grep, Glob
 ---
@@ -14,7 +14,7 @@ You will be given:
 - `feature` — kebab-case feature name
 
 Read these files from `specDir`:
-1. `screens.md` — Screen Definitions + Data Model + Error Handling (primary input)
+1. `screens.md` — Screen Definitions + Error Handling (primary input)
 2. `{feature}-spec.md` — Functional Requirements (for cross-referencing user actions)
 
 Also read the schema reference:
@@ -39,13 +39,28 @@ Write files to `docs/specs/{feature}/ui-dsl/`:
    - User Actions table (Action | Trigger | Result)
 3. Derive a kebab-case `id` from the screen name (e.g., "User Management - List View" → `user-list`)
 
-### Step 2: Analyze Data Model
+### Step 2: Infer Data Model
 
-1. Read `## 5. Data Model` and `## 6. Error Handling` sections from `screens.md` and extract:
-   - Entity names and their fields (with types)
+Since the spec does not include a data model, infer one from the screen definitions and functional requirements:
+
+1. **Check for legacy Data Model section**: If `screens.md` contains a `## 5. Data Model` section (from older spec versions), use it directly and skip inference.
+2. **Infer from components**: For each screen, examine the Components table:
+   - Table components with column names → infer entity fields
+   - Form components with input fields → infer entity fields and types
+   - Badge/status fields → infer enum types
+3. **Infer from User Actions**: Actions like "Create", "Edit", "Delete" → infer CRUD entities
+4. **Infer from Functional Requirements**: Read BR-xxx and AC-xxx rules from `{feature}-spec.md` to identify:
+   - Validation rules → field constraints and types
+   - Business rules → entity relationships
+   - State transitions → status enum fields
+5. **Build entity definitions**: Consolidate inferred fields into entity definitions with:
+   - Entity names (PascalCase)
+   - Field names, types (`string`, `number`, `boolean`, `enum`, `UUID`, `ISO-8601`)
+   - Required/optional flags
    - Relationships between entities
-   - Error conditions and codes
-2. Build a mapping of entity names to field definitions for use in `dataShape`
+6. Build a mapping of entity names to field definitions for use in `dataShape`
+
+Also read the `## 5. Error Handling` section from `screens.md` to extract error conditions and codes.
 
 ### Step 3: Cross-Reference Requirements
 
@@ -79,7 +94,12 @@ Infer the route from:
 
 Convert the flat Components table into a nested tree:
 
-1. Identify layout containers from the Layout description (e.g., "header with search bar and action buttons" → parent div with children)
+1. **Parse the ASCII layout diagram** in the Layout section:
+   - Each named region `[ RegionName ]` becomes a container component (`div` by default, or `Card`/`Form`/`Tabs` if the region name or contents suggest it)
+   - Nesting: a box drawn inside another box → inner region is a child of the outer
+   - Side-by-side regions (separated by `||`) → sibling children wrapped in a flex-row `div`
+   - Components listed as `- ComponentName` → children of that region's container
+   - If no ASCII diagram is present, fall back to inferring containers from the Layout prose description
 2. Map each component from the table to the closest matching shadcn/ui component type:
    - "Text input" / "Search bar" → `Input`
    - "Button" → `Button`
@@ -120,7 +140,7 @@ Convert User Actions that trigger dialogs, toasts, or other overlays into `inter
 **4e. Data shape:**
 
 For each data entity displayed on the screen:
-1. Look up the entity in the data model
+1. Look up the entity in the inferred data model (from Step 2)
 2. Create a `dataShape` entry with the fields relevant to this screen
 3. Use type descriptors: `string`, `number`, `boolean`, `enum(Value1,Value2)`, `ISO-8601`, `UUID`
 4. If the screen shows a list, use `"type": "array"` with an `item` sub-object
@@ -134,7 +154,7 @@ Create `manifest.json`:
 2. **navigation**: Build from User Actions across all screens
    - For each action that navigates to another screen, create a navigation edge
    - Derive `trigger` from the action description (e.g., "Click edit button" → `click-edit-button`)
-3. **dataEntities**: List all entity names found in the Data Model section of screens.md
+3. **dataEntities**: List all entity names inferred during Step 2 (or read from legacy Data Model section)
 4. **metadata**: Set `feature`, `schemaVersion: "1.0"`, `generatedAt` (ISO-8601), `sourceSpec`
 
 ### Step 6: Write Output
@@ -182,6 +202,6 @@ Return a summary when complete:
 - Every screen MUST have all 4 states (loading, empty, error, success)
 - Component IDs must be unique within each screen
 - Routes should follow RESTful conventions where applicable
-- Data shapes should match the spec's data model exactly — do not invent fields
+- Data shapes should be consistent with the screen definitions and functional requirements — infer realistically but do not add fields that have no basis in the spec
 - Navigation edges must only reference screens that exist in the manifest
 - Keep JSON files clean and well-formatted (2-space indentation)

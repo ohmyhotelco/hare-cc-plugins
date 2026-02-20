@@ -1,20 +1,20 @@
-## 7. Non-Functional Requirements
+## 6. Non-Functional Requirements
 
-### 7.1 Performance
+### 6.1 Performance
 - {requirement}
 
-### 7.2 Security
+### 6.2 Security
 - {requirement}
 
-### 7.3 Accessibility
+### 6.3 Accessibility
 - {requirement}
 
-### 7.4 Internationalization
+### 6.4 Internationalization
 - {requirement}
 
 ---
 
-## 8. Test Scenarios
+## 7. Test Scenarios
 
 ### TS-001: {Test Scenario Title}
 

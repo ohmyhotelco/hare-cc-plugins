@@ -7,7 +7,26 @@
 **Entry Points**: {How does the user reach this screen?}
 
 **Layout**:
-<!-- Describe the layout structure -->
+```
++----------------------------------------+
+| [ Header ]                             |
+| - Breadcrumb                           |
+| - SearchInput            - ActionButton|
++----------------------------------------+
+| [ Content ]                            |
+| - DataTable                            |
++----------------------------------------+
+| [ Footer ]                             |
+| - Pagination                           |
++----------------------------------------+
+```
+<!-- ASCII layout rules:
+     - Draw regions with +---, |, + characters
+     - Label each region with [ Name ] on first line
+     - List components as "- ComponentName" inside regions
+     - Use || to separate side-by-side columns
+     - Nest boxes inside boxes for hierarchy
+-->
 
 **Components**:
 | Component | Type | Behavior |
@@ -21,20 +40,7 @@
 
 ---
 
-## 5. Data Model
-
-### Entity: {Entity Name}
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| id | UUID | Yes | Primary key |
-
-**Relationships**:
-- {Entity A} → {Entity B}: {relationship type and description}
-
----
-
-## 6. Error Handling
+## 5. Error Handling
 
 | Error Code | Condition | User Message | Resolution |
 |------------|-----------|--------------|------------|
