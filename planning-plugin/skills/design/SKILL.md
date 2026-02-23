@@ -103,7 +103,7 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
 2. Launch the **prototype-generator** agent:
 
 ```
-Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons.")
+Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.")
 ```
 
 3. On success, update progress:
@@ -112,6 +112,7 @@ Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype f
      "design.stages.prototype": {
        "status": "completed",
        "path": "src/prototypes/{feature}/",
+       "artifact": "src/prototypes/{feature}/bundle.html",
        "generatedAt": "ISO-8601"
      }
    }
@@ -169,7 +170,8 @@ Design Pipeline Results for '{feature}':
   Stage 3 — Figma:               {status} — {url or reason for skip}
 
 Next Steps:
-  - Run `cd src/prototypes/{feature} && npm run dev` to preview the prototype
+  - Open `src/prototypes/{feature}/bundle.html` in a browser to preview the prototype
+  - Run `cd src/prototypes/{feature} && npm run dev` for live development (Vite dev server)
   - Run `/planning-plugin:design {feature} --stage=figma` to generate Figma designs (requires Figma MCP)
   - Edit prototype files directly to refine the UI before Figma generation
   - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md

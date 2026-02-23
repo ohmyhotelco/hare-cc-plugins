@@ -27,7 +27,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 3 stages:
 
 1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`)
-2. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL → scaffolds standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project (`src/prototypes/{feature}/`)
+2. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
 3. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
 
 Stages run sequentially (1→2→3). Each stage can be run independently with `--stage=dsl|prototype|figma`. Stage 3 is optional and requires Figma MCP configuration.
@@ -45,7 +45,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - Convergence: both agents score >= 8/10 → suggest finalization; 3 rounds stalled → suggest finalization with open questions
 - Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; page title format: `[{feature}] {lang} - Functional Specification`; progress file stores page URLs in `notion` field
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
-- Prototype output: `src/prototypes/{feature}/` is a standalone Vite + React 19 project with React Router v7, shadcn/ui components, and Lucide icons
+- Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
 - Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `prototype`, `figma`)
 
@@ -56,7 +56,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 agents/          - Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, sync-notion)
 hooks/           - Lifecycle hook configuration
-scripts/         - Hook handler scripts
+scripts/         - Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
 templates/       - Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
 src/prototypes/  - Generated React prototypes (standalone Vite projects per feature)

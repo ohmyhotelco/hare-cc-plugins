@@ -59,6 +59,9 @@ npx shadcn@latest init -d
 
 # Add required shadcn components (based on component catalog from Step 1)
 npx shadcn@latest add {component1} {component2} ...
+
+# Bundling dependencies (for single HTML output)
+cd src/prototypes/{feature} && npm install -D parcel parcel-resolver-tspaths html-inline
 ```
 
 Map component types to shadcn/ui packages:
@@ -316,31 +319,31 @@ For each screen in the manifest:
 Create/update `src/App.tsx` with React Router:
 
 ```tsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router";
+import { HashRouter, Routes, Route, Navigate } from "react-router";
 // import all page components
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         {/* Route per screen, using routes from DSL */}
         <Route path="/screen-route" element={<ScreenPage />} />
         {/* Redirect root to entry point */}
         <Route path="/" element={<Navigate to="/entry-point-route" />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 ```
 
-Use the routes defined in each screen's `screen.route` field. Set the default redirect to the screen marked as `entryPoint: true` in the manifest.
+Use the routes defined in each screen's `screen.route` field. Set the default redirect to the screen marked as `entryPoint: true` in the manifest. **Use `HashRouter` instead of `BrowserRouter`** to ensure routing works when opening `bundle.html` via `file://` protocol.
 
 If any screen has `visibility` rules, wrap the entire router in `<AuthProvider>`:
 ```tsx
 <AuthProvider roles={["Admin", "Manager", "User"]}>
-  <BrowserRouter>
+  <HashRouter>
     <Routes>...</Routes>
-  </BrowserRouter>
+  </HashRouter>
 </AuthProvider>
 ```
 The `roles` array is the deduplicated union of all roles from `visibility.roles` across all screens.
@@ -356,14 +359,21 @@ The `roles` array is the deduplicated union of all roles from `visibility.roles`
    cd src/prototypes/{feature} && npm run build
    ```
 6. If there are build errors, fix them
-7. Verify form validation works: required fields show `*`, blur triggers validation, error messages match DSL `validation.rules[].message` exactly
-8. Verify error handling works: each `errorHandling` entry shows the spec's error message and resolution action (navigate link, retry button, or dismiss button)
-9. Verify visibility works: role switcher dropdown changes `currentRole`, and components with `visibility.roles` appear/disappear accordingly
+7. Run the bundling script to produce a single standalone HTML file:
+   ```bash
+   ${CLAUDE_PLUGIN_ROOT}/scripts/bundle-artifact.sh src/prototypes/{feature}
+   ```
+8. Verify `bundle.html` was created and report its file size
+9. Verify form validation works: required fields show `*`, blur triggers validation, error messages match DSL `validation.rules[].message` exactly
+10. Verify error handling works: each `errorHandling` entry shows the spec's error message and resolution action (navigate link, retry button, or dismiss button)
+11. Verify visibility works: role switcher dropdown changes `currentRole`, and components with `visibility.roles` appear/disappear accordingly
 
 ## File Structure Output
 
 ```
 src/prototypes/{feature}/
+├── bundle.html                   ← Final artifact: single standalone HTML
+├── .parcelrc                     ← Parcel config (path alias resolution)
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts
@@ -399,6 +409,8 @@ Return a summary when complete:
   "status": "completed",
   "feature": "{feature}",
   "outputDir": "src/prototypes/{feature}/",
+  "artifact": "src/prototypes/{feature}/bundle.html",
+  "artifactSizeKB": 320,
   "pages": [
     { "screen": "user-list", "file": "src/pages/UserListPage.tsx", "route": "/admin/users" }
   ],
@@ -418,7 +430,9 @@ Return a summary when complete:
 - Every page must implement all 4 states (loading, empty, error, success)
 - Include the state switcher toolbar on every page for demo/review purposes
 - Routes must match the DSL screen definitions exactly
-- The prototype should build and run with `npm run dev` without errors
+- The prototype must build without errors; the final `bundle.html` can be opened directly in a browser via `file://`
+- Use `HashRouter` (not `BrowserRouter`) for `file://` protocol compatibility
+- `bundle.html` should be under 500 KB; warn if it exceeds this threshold
 - Use 2-space indentation in all generated files
 - Prefer functional components with hooks
 - Type all props and data with TypeScript interfaces
