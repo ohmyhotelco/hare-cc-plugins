@@ -7,6 +7,7 @@
 | Plugin | Description |
 |--------|-------------|
 | [planning-plugin](./planning-plugin/) | Multi-agent functional specification generation with automated review cycles and multilingual output (en/ko/vi) |
+| [frontend-react-plugin](./frontend-react-plugin/) | Frontend React development plugin for Claude Code |
 
 ## Installation
 

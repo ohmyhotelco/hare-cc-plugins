@@ -15,6 +15,17 @@
       "source": "./planning-plugin/",
       "category": "productivity",
       "keywords": ["planning", "specification", "multi-agent", "review", "multilingual"]
+    },
+    {
+      "name": "frontend-react-plugin",
+      "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
+      "version": "0.1.0",
+      "author": {
+        "name": "Justin Choi"
+      },
+      "source": "./frontend-react-plugin/",
+      "category": "development",
+      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next"]
     }
   ]
 }
