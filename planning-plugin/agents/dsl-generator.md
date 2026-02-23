@@ -120,6 +120,18 @@ Convert the flat Components table into a nested tree:
 3. Nest children based on layout relationships
 4. Add `action` properties based on the User Actions table
 5. Assign unique `id` values to each component
+6. Assign `icon` properties to components where contextually appropriate:
+   - Search inputs → "Search"
+   - Add/Create buttons → "Plus"
+   - Edit buttons → "Pencil"
+   - Delete buttons → "Trash2"
+   - Settings → "Settings"
+   - User/Profile → "User"
+   - Filter → "Filter"
+   - Download/Export → "Download"
+   - Close/Dismiss → "X"
+   - Refresh → "RefreshCw"
+   Use Lucide icon names (PascalCase).
 
 **4c. States:**
 

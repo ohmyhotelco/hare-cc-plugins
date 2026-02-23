@@ -103,7 +103,7 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
 2. Launch the **prototype-generator** agent:
 
 ```
-Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/. Generate page components, mock data, and router setup.")
+Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons.")
 ```
 
 3. On success, update progress:

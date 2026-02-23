@@ -1,6 +1,6 @@
 ---
 name: prototype-generator
-description: Prototype generator agent that scaffolds a standalone React prototype from UI DSL JSON files using Vite, TypeScript, TailwindCSS, and shadcn/ui
+description: Prototype generator agent that scaffolds a standalone React 19 prototype from UI DSL JSON files using Vite, TypeScript, TailwindCSS, shadcn/ui, React Router v7, and Lucide icons
 model: opus
 tools: Read, Write, Glob, Bash
 ---
@@ -41,6 +41,15 @@ npm create vite@latest src/prototypes/{feature} -- --template react-ts
 # Install dependencies
 cd src/prototypes/{feature} && npm install
 
+# React 19 보장
+cd src/prototypes/{feature} && npm install react@^19 react-dom@^19
+
+# React Router v7 (패키지명: react-router)
+cd src/prototypes/{feature} && npm install react-router
+
+# Lucide icons 명시 설치
+cd src/prototypes/{feature} && npm install lucide-react
+
 # Initialize shadcn/ui
 npx shadcn@latest init -d
 
@@ -77,10 +86,6 @@ Map component types to shadcn/ui packages:
 - `Pagination` → `pagination`
 - `Toast` → `sonner` (shadcn uses sonner for toasts)
 
-Also install React Router:
-```bash
-cd src/prototypes/{feature} && npm install react-router-dom
-```
 
 ### Step 3: Generate Mock Data
 
@@ -155,13 +160,18 @@ For each screen in the manifest:
    - `dialog` behavior → render the dialog component, controlled by state
    - `toast` behavior → call toast function
    - `navigate` behavior → use React Router's `useNavigate`
+6. Import Lucide icons by referencing the DSL component `icon` field:
+   ```tsx
+   import { Search, Plus, Pencil, Trash2 } from "lucide-react";
+   ```
+   Render icons inline: `<Search className="h-4 w-4" />`
 
 ### Step 6: Generate Router Setup
 
 Create/update `src/App.tsx` with React Router:
 
 ```tsx
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 // import all page components
 
 function App() {
@@ -238,7 +248,9 @@ Return a summary when complete:
 ## Important Rules
 
 - The prototype must be fully standalone — no dependencies on the main project
-- Use ONLY shadcn/ui components — do not import from other UI libraries
+- Use shadcn/ui for UI components and `lucide-react` for icons
+- Use `react-router` (v7) for all router imports — not `react-router-dom`
+- Import Lucide icons explicitly by referencing the DSL component `icon` field
 - Mock data must be hardcoded — no faker, no random generation, no external APIs
 - Every page must implement all 4 states (loading, empty, error, success)
 - Include the state switcher toolbar on every page for demo/review purposes
