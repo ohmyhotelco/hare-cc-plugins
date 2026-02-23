@@ -59,6 +59,10 @@ Since the spec does not include a data model, infer one from the screen definiti
    - Required/optional flags
    - Relationships between entities
 6. Build a mapping of entity names to field definitions for use in `dataShape`
+7. **Infer entity relationships**: Identify foreign-key references:
+   - Field names ending with `_id` or matching `{entity}Id` pattern → add `ref` (e.g., `"Role.id"`)
+   - BR-xxx rules mentioning "belongs to", "has many", "references" → create `ref` entries
+   - Format: `"EntityName.fieldName"` (e.g., `"role_id": { "type": "UUID", "ref": "Role.id" }`)
 
 Also read the `## 5. Error Handling` section from `screens.md` to extract error conditions and codes.
 
@@ -68,6 +72,21 @@ Also read the `## 5. Error Handling` section from `screens.md` to extract error 
    - Business rules (BR-xxx) that affect component behavior
    - Acceptance criteria (AC-xxx) that imply specific states or interactions
    - Validation rules that need to be reflected in form components
+
+2. **Extract validation rules**: For each BR-xxx/AC-xxx that defines an input constraint:
+   - Create a `validation` object with appropriate rule `type` (required, email, minLength, maxLength, min, max, pattern, url, unique, custom)
+   - Preserve the spec's error message wording exactly in `message`
+   - Set `required: true` when the spec mandates a field
+   - Map each rule to the form component that accepts the input
+
+3. **Extract error handling**: Read `## 5. Error Handling` from `screens.md`:
+   - For each row in the error table, create an `errorEntry` with all 4 columns: `code`, `condition`, `message`, `resolution`
+   - Parse resolution into `{ type, target, label }` — type is one of: navigate, retry, dismiss, custom
+   - Map `triggerComponent` to the component ID most likely to trigger the error (e.g., a submit button for form validation errors)
+
+4. **Extract visibility rules**: For each BR-xxx that states "only {role} can {action}" or "{role} cannot see/access {element}":
+   - Create a `visibility` object with `roles` listing the permitted roles
+   - Only extract rules explicitly stated in the spec — do not infer visibility
 
 ### Step 4: Generate Per-Screen JSON
 
@@ -156,6 +175,39 @@ For each data entity displayed on the screen:
 2. Create a `dataShape` entry with the fields relevant to this screen
 3. Use type descriptors: `string`, `number`, `boolean`, `enum(Value1,Value2)`, `ISO-8601`, `UUID`
 4. If the screen shows a list, use `"type": "array"` with an `item` sub-object
+5. For fields with entity relationships (from Step 2.7), use the object form with `ref`:
+   ```json
+   "role_id": { "type": "UUID", "ref": "Role.id" }
+   ```
+
+**4f. Attach validation, errorHandling, and visibility:**
+
+1. **Validation**: For each form component (Input, Select, Textarea, Checkbox, RadioGroup, Switch, DatePicker) that has extracted validation rules (from Step 3.2), attach a `validation` object:
+   ```json
+   "validation": {
+     "required": true,
+     "rules": [
+       { "type": "email", "message": "Please enter a valid email address" },
+       { "type": "maxLength", "value": 255, "message": "Email must not exceed 255 characters" }
+     ]
+   }
+   ```
+2. **Error handling**: For each screen, populate the `errorHandling` array with error entries that can be triggered by components on that screen (from Step 3.3):
+   ```json
+   "errorHandling": [
+     {
+       "code": "E001",
+       "condition": "Duplicate email on registration",
+       "message": "This email is already registered.",
+       "resolution": { "type": "navigate", "target": "/login", "label": "Go to Login" },
+       "triggerComponent": "submit-btn"
+     }
+   ]
+   ```
+3. **Visibility**: For each component with role restrictions (from Step 3.4), attach a `visibility` object:
+   ```json
+   "visibility": { "roles": ["Admin", "Manager"] }
+   ```
 
 ### Step 5: Generate Manifest
 

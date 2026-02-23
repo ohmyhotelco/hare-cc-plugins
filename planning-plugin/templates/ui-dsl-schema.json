@@ -66,7 +66,9 @@
           "type": "array",
           "items": { "$ref": "#/$defs/menuItem" },
           "description": "Menu items for DropdownMenu/Command components."
-        }
+        },
+        "validation": { "$ref": "#/$defs/validation" },
+        "visibility": { "$ref": "#/$defs/visibility" }
       },
       "required": ["type"]
     },
@@ -100,6 +102,90 @@
         "pageSize": { "type": "integer" }
       },
       "required": ["enabled"]
+    },
+
+    "validationRule": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["required", "email", "url", "minLength", "maxLength", "min", "max", "pattern", "unique", "custom"],
+          "description": "Validation rule type."
+        },
+        "value": {
+          "description": "Rule parameter (e.g., min length number, regex pattern string)."
+        },
+        "entity": { "type": "string", "description": "Entity this rule applies to (for cross-field or unique checks)." },
+        "field": { "type": "string", "description": "Field name this rule targets." },
+        "message": { "type": "string", "description": "Error message shown when validation fails — preserve spec wording." }
+      },
+      "required": ["type", "message"]
+    },
+
+    "validation": {
+      "type": "object",
+      "properties": {
+        "required": { "type": "boolean", "description": "Whether the field is required." },
+        "rules": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/validationRule" },
+          "description": "Ordered list of validation rules to apply."
+        }
+      },
+      "description": "Validation container for a form component."
+    },
+
+    "errorEntry": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "description": "Error code (e.g., E001)." },
+        "condition": { "type": "string", "description": "Condition that triggers this error." },
+        "message": { "type": "string", "description": "User-facing error message — preserve spec wording." },
+        "resolution": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["navigate", "retry", "dismiss", "custom"],
+              "description": "How the user can resolve this error."
+            },
+            "target": { "type": "string", "description": "Navigation target or custom action identifier." },
+            "label": { "type": "string", "description": "Button/link label for the resolution action." }
+          },
+          "required": ["type"]
+        },
+        "triggerComponent": { "type": "string", "description": "Component ID that can trigger this error." }
+      },
+      "required": ["code", "condition", "message"],
+      "description": "Per-screen error handling entry from the spec's Error Handling section."
+    },
+
+    "visibility": {
+      "type": "object",
+      "properties": {
+        "roles": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Roles that can see this component."
+        },
+        "condition": { "type": "string", "description": "Additional visibility condition expression." }
+      },
+      "description": "Role-based or conditional visibility for a component."
+    },
+
+    "dataShapeFieldTyped": {
+      "oneOf": [
+        { "type": "string", "description": "Simple type descriptor (string, number, boolean, etc.)." },
+        {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "description": "Field type descriptor." },
+            "ref": { "type": "string", "description": "Reference to another entity field (e.g., 'Role.id')." }
+          },
+          "required": ["type", "ref"]
+        }
+      ],
+      "description": "Field type: either a plain string or an object with type + ref for relationships."
     },
 
     "state": {
@@ -162,10 +248,9 @@
     "dataShapeField": {
       "type": "object",
       "additionalProperties": {
-        "type": "string",
-        "description": "Field type descriptor (string, number, boolean, enum(...), ISO-8601, etc.)."
+        "$ref": "#/$defs/dataShapeFieldTyped"
       },
-      "description": "Object mapping field names to type descriptors."
+      "description": "Object mapping field names to type descriptors (plain string or {type, ref} for relationships)."
     },
 
     "dataShapeEntry": {
@@ -260,6 +345,11 @@
           "type": "object",
           "additionalProperties": { "$ref": "#/$defs/dataShapeEntry" },
           "description": "Data shapes required by this screen."
+        },
+        "errorHandling": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/errorEntry" },
+          "description": "Error handling entries relevant to this screen."
         }
       },
       "required": ["screen", "states", "componentTree", "interactions", "dataShape"]

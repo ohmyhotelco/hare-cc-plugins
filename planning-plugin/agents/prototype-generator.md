@@ -29,6 +29,10 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 2. Read each `screen-{id}.json` referenced in the manifest
 3. Catalog all unique component types used across screens
 4. Catalog all data entities and their shapes
+5. Collect all `validation` rules across all screens' component trees
+6. Collect all `errorHandling` entries from all screens
+7. Collect all `visibility` rules across all screens' component trees
+8. Collect `ref` fields from `dataShape` entries (for relationship-aware mock data)
 
 ### Step 2: Scaffold Vite Project
 
@@ -112,6 +116,11 @@ export const users: User[] = [
 ];
 ```
 
+**Relationship-aware mock data**: When a `dataShape` field has a `ref` (e.g., `"role_id": { "type": "UUID", "ref": "Role.id" }`):
+1. Generate the referenced entity's mock data first
+2. Use actual IDs from the referenced entity in FK fields (e.g., `role_id: "role-001"` where `"role-001"` exists in `roles` array)
+3. Export lookup helper functions (e.g., `getUserRole(user: User)` that finds the Role by `user.role_id`)
+
 **Do NOT use faker or any external mock data library.** All mock data must be hardcoded.
 
 ### Step 4: Generate Screen State Hook
@@ -131,6 +140,118 @@ export function useScreenState(initialState: ScreenState = "loading") {
 
 This hook is used by every page to manage the 4 screen states.
 
+### Step 4b: Generate Form Validation Hook (if validation rules exist)
+
+If any screen has components with `validation`, create `src/hooks/useFormValidation.ts`:
+
+```typescript
+import { useState, useCallback } from "react";
+
+interface ValidationRule {
+  type: string;
+  value?: unknown;
+  message: string;
+}
+
+interface Validation {
+  required?: boolean;
+  rules?: ValidationRule[];
+}
+
+export function validateField(value: string, validation: Validation): string | null {
+  if (validation.required && !value.trim()) {
+    return validation.rules?.find(r => r.type === "required")?.message ?? "This field is required";
+  }
+  for (const rule of validation.rules ?? []) {
+    switch (rule.type) {
+      case "email":
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return rule.message;
+        break;
+      case "url":
+        if (value && !/^https?:\/\/.+/.test(value)) return rule.message;
+        break;
+      case "minLength":
+        if (value.length < Number(rule.value)) return rule.message;
+        break;
+      case "maxLength":
+        if (value.length > Number(rule.value)) return rule.message;
+        break;
+      case "min":
+        if (Number(value) < Number(rule.value)) return rule.message;
+        break;
+      case "max":
+        if (Number(value) > Number(rule.value)) return rule.message;
+        break;
+      case "pattern":
+        if (value && !new RegExp(String(rule.value)).test(value)) return rule.message;
+        break;
+    }
+  }
+  return null;
+}
+
+export function useFormValidation() {
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
+
+  const validate = useCallback((field: string, value: string, validation: Validation) => {
+    const error = validateField(value, validation);
+    setErrors(prev => ({ ...prev, [field]: error }));
+    return error;
+  }, []);
+
+  const clearError = useCallback((field: string) => {
+    setErrors(prev => ({ ...prev, [field]: null }));
+  }, []);
+
+  return { errors, validate, clearError };
+}
+```
+
+The `message` values must come directly from the DSL `validation.rules[].message` — never generate messages at runtime.
+
+### Step 4c: Generate Auth Context (if visibility rules exist)
+
+If any screen has components with `visibility`, create `src/contexts/AuthContext.tsx`:
+
+```tsx
+import { createContext, useContext, useState, type ReactNode } from "react";
+
+interface AuthContextType {
+  currentRole: string;
+  setCurrentRole: (role: string) => void;
+  hasRole: (allowedRoles: string[]) => boolean;
+}
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children, roles }: { children: ReactNode; roles: string[] }) {
+  const [currentRole, setCurrentRole] = useState(roles[0]);
+
+  const hasRole = (allowedRoles: string[]) => allowedRoles.includes(currentRole);
+
+  return (
+    <AuthContext.Provider value={{ currentRole, setCurrentRole, hasRole }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+}
+```
+
+The role list is derived from all unique roles found in `visibility.roles` across all screens.
+
+Add a **role switcher dropdown** to the state switcher toolbar on every page:
+```tsx
+<select value={currentRole} onChange={e => setCurrentRole(e.target.value)} className="text-sm border rounded px-1">
+  {roles.map(r => <option key={r} value={r}>{r}</option>)}
+</select>
+```
+
 ### Step 5: Generate Page Components
 
 For each screen in the manifest:
@@ -141,12 +262,17 @@ For each screen in the manifest:
    - Nest children according to the tree structure
    - Bind `dataBinding` fields to mock data imports
    - Implement actions as console.log + navigation (for navigate actions)
-3. Implement all 4 states using the `useScreenState` hook:
+3. Use semantic HTML structure:
+   - Wrap page content in `<main>`
+   - Render screen title as `<h1>`, section headings as `<h2>` → `<h3>`
+   - Use `<thead>` and `<tbody>` for tables (shadcn Table provides this by default)
+   - Use `<button>` for actions and `<a>`/`Link` for navigation — never `<div onClick>`
+4. Implement all 4 states using the `useScreenState` hook:
    - `loading` → render skeleton components
    - `empty` → render empty state card
    - `error` → render error alert with retry
    - `success` → render the main component tree
-4. Add a state switcher toolbar at the top of each page for demo purposes:
+5. Add a state switcher toolbar at the top of each page for demo purposes:
    ```tsx
    <div className="fixed top-0 right-0 p-2 bg-muted rounded-bl-lg z-50 flex gap-1">
      {(["loading", "empty", "error", "success"] as const).map(s => (
@@ -156,15 +282,34 @@ For each screen in the manifest:
      ))}
    </div>
    ```
-5. Implement interactions from the screen JSON:
+6. Implement interactions from the screen JSON:
    - `dialog` behavior → render the dialog component, controlled by state
    - `toast` behavior → call toast function
    - `navigate` behavior → use React Router's `useNavigate`
-6. Import Lucide icons by referencing the DSL component `icon` field:
+   - Destructive actions (delete, deactivate) must go through `AlertDialog` with `variant="destructive"` confirm button
+7. Import Lucide icons by referencing the DSL component `icon` field:
    ```tsx
    import { Search, Plus, Pencil, Trash2 } from "lucide-react";
    ```
    Render icons inline: `<Search className="h-4 w-4" />`
+8. **Form validation**: For each component with a `validation` object:
+   - Call `useFormValidation()` hook at the page level
+   - On `blur` and form `submit`, call `validate(fieldId, value, validation)` with the DSL validation rules
+   - Display error messages below the input using `<p className="text-sm text-destructive mt-1">{error}</p>`
+   - Show `*` next to the label for `required: true` fields
+   - Error messages must be the exact `message` strings from the DSL — never generate them
+9. **Error handling**: For each entry in the screen's `errorHandling` array:
+   - Display an inline error message area (initially hidden) that shows `message` when triggered
+   - Implement `resolution.type` actions:
+     - `navigate` → render a `<Link>` to `resolution.target` with `resolution.label`
+     - `retry` → render a retry `<Button>` with `resolution.label`
+     - `dismiss` → render a dismiss `<Button>` with `resolution.label`
+     - `custom` → render a `<Button>` with `resolution.label` and `console.log`
+   - Connect demo triggers: e.g., on form submit with specific mock conditions, show the error by `triggerComponent`
+10. **Visibility**: For each component with a `visibility` object:
+    - Import and use `useAuth()` to get `hasRole`
+    - Wrap the component in a conditional: `{hasRole(visibility.roles) && <Component />}`
+    - Visibility changes must reflect immediately when the role is switched via the toolbar dropdown
 
 ### Step 6: Generate Router Setup
 
@@ -190,15 +335,30 @@ function App() {
 
 Use the routes defined in each screen's `screen.route` field. Set the default redirect to the screen marked as `entryPoint: true` in the manifest.
 
+If any screen has `visibility` rules, wrap the entire router in `<AuthProvider>`:
+```tsx
+<AuthProvider roles={["Admin", "Manager", "User"]}>
+  <BrowserRouter>
+    <Routes>...</Routes>
+  </BrowserRouter>
+</AuthProvider>
+```
+The `roles` array is the deduplicated union of all roles from `visibility.roles` across all screens.
+
 ### Step 7: Clean Up and Verify
 
 1. Remove the default Vite boilerplate files (`App.css`, `assets/react.svg`, etc.)
 2. Update `index.css` to include Tailwind directives if not already present
-3. Verify the project builds without errors:
+3. Verify layout height chain: `html` → `body` → `#root` all have `h-full`; flex scroll children have `min-h-0`; fixed elements use `shrink-0`
+4. Enable dark mode toggle: add a sun/moon button to the state switcher toolbar that toggles `dark` class on `<html>`. Ensure shadcn CSS variable theming works in both modes.
+5. Verify the project builds without errors:
    ```bash
    cd src/prototypes/{feature} && npm run build
    ```
-4. If there are build errors, fix them
+6. If there are build errors, fix them
+7. Verify form validation works: required fields show `*`, blur triggers validation, error messages match DSL `validation.rules[].message` exactly
+8. Verify error handling works: each `errorHandling` entry shows the spec's error message and resolution action (navigate link, retry button, or dismiss button)
+9. Verify visibility works: role switcher dropdown changes `currentRole`, and components with `visibility.roles` appear/disappear accordingly
 
 ## File Structure Output
 
@@ -213,7 +373,10 @@ src/prototypes/{feature}/
 │   ├── App.tsx                    ← Router setup
 │   ├── index.css                  ← Tailwind + shadcn styles
 │   ├── hooks/
-│   │   └── useScreenState.ts      ← Screen state management hook
+│   │   ├── useScreenState.ts      ← Screen state management hook
+│   │   └── useFormValidation.ts   ← Form validation hook (when validation rules exist)
+│   ├── contexts/
+│   │   └── AuthContext.tsx         ← Auth context + role switcher (when visibility rules exist)
 │   ├── mocks/
 │   │   ├── users.ts               ← Mock data per entity
 │   │   └── ...
@@ -259,3 +422,12 @@ Return a summary when complete:
 - Use 2-space indentation in all generated files
 - Prefer functional components with hooks
 - Type all props and data with TypeScript interfaces
+- Icon-only buttons must have `aria-label`; decorative icons must have `aria-hidden="true"`
+- Form controls must have associated `<label>` elements (via `htmlFor` or wrapping)
+- Apply `truncate` or `line-clamp-*` to variable-length text in table cells and card titles; add `min-w-0` to flex children that need text truncation
+- Ensure the full height chain (`html` → `body` → `#root` → layout) is set for full-page layouts; flex scroll children need `min-h-0`
+- Validation error messages must use the exact `validation.rules[].message` text from the DSL — never generate or rephrase messages
+- Error handling must preserve the full chain: `code` → `condition` → `message` → `resolution` from the DSL `errorHandling` entries
+- If any screen has `visibility` rules, the role switcher dropdown is mandatory in the state toolbar
+- Mock data FK fields must reference actual IDs from the target entity's mock data (e.g., `role_id: "role-001"` must match an existing Role record)
+- New DSL fields (`validation`, `errorHandling`, `visibility`, `ref`) are all optional — gracefully skip when absent for backward compatibility
