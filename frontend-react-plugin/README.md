@@ -55,13 +55,33 @@ Verify the installation:
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| React Router | `/frontend-react-plugin:react-router` | React Router v7 Declarative 모드 라우팅 패턴, 네비게이션, URL 값, 인증/RBAC 라우트 가드 |
+| Init | `/frontend-react-plugin:init` | 플러그인 설정 및 외부 스킬 일괄 설치 |
+| Plan | `/frontend-react-plugin:plan` | 기능 명세 분석 → 구현 계획서 생성 |
+| Gen | `/frontend-react-plugin:gen` | 구현 계획서 기반 → 프로덕션 코드 생성 |
+
+### External Skills (installed by init)
+
+| Skill | Source | Description |
+|-------|--------|-------------|
+| React Router v7 | `remix-run/agent-skills` | 라우팅 패턴 (모드별) |
+| Vitest | `supabase/supabase` | 테스트 패턴 |
+| React Best Practices | `vercel-labs/agent-skills` | React 성능 최적화 (57 rules) |
+| Composition Patterns | `vercel-labs/agent-skills` | 컴포넌트 구성 패턴 (10 rules) |
+| Web Design Guidelines | `vercel-labs/agent-skills` | 접근성/디자인 감사 (100+ rules) |
+
+## Code Generation Workflow
+
+1. planning-plugin으로 기능 명세 작성 → `docs/specs/{feature}/`
+2. (권장) `/planning-plugin:design {feature}` → UI DSL + 프로토타입 생성
+3. `/frontend-react-plugin:plan {feature}` → 구현 계획서 생성 + 검토
+4. `/frontend-react-plugin:gen {feature}` → 프로덕션 코드 생성
 
 ## Roadmap
 
 - [x] Tech stack specification
 - [x] React Router routing skill
-- [ ] Code generation agent
+- [x] External skills integration (vercel-labs/agent-skills)
+- [x] Code generation agent
 - [ ] Component template library
 - [ ] i18n setup skill
 - [ ] Auth/RBAC pattern templates

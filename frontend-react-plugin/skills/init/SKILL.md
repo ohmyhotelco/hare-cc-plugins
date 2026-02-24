@@ -47,29 +47,29 @@ Note: The router mode determines which React Router patterns and constraints the
 }
 ```
 
-### Step 4: Install React Router Skill
+### Step 4: Install External Skills
 
-1. If this is a reconfiguration and the mode changed (previousMode exists and differs from selected mode), remove the previous mode's skill:
-   ```bash
-   rm -rf .claude/skills/react-router-{previousMode}-mode
-   ```
-2. Check if `.claude/skills/react-router-{selected_mode}-mode/SKILL.md` already exists
-3. If it does not exist, install the external skill:
-   ```bash
-   npx skills add remix-run/agent-skills --skill react-router-{selected_mode}-mode -a claude-code -y --copy
-   ```
-4. Verify installation by checking that `.claude/skills/react-router-{selected_mode}-mode/SKILL.md` now exists
+Install the following external skills. For each skill, check if it already exists; install only if missing.
 
-### Step 5: Install Vitest Skill
+**React Router special handling**: If this is a reconfiguration and the mode changed (previousMode exists and differs from selected mode), remove the previous mode's skill first:
+```bash
+rm -rf .claude/skills/react-router-{previousMode}-mode
+```
 
-1. Check if `.claude/skills/vitest/SKILL.md` already exists
-2. If it does not exist, install the external skill:
-   ```bash
-   npx playbooks add skill supabase/supabase --skill vitest -y
-   ```
-3. Verify installation by checking that `.claude/skills/vitest/SKILL.md` now exists
+| Skill | Check Path | Install Command |
+|-------|-----------|-----------------|
+| React Router | `.claude/skills/react-router-{routerMode}-mode/SKILL.md` | `npx skills add remix-run/agent-skills --skill react-router-{routerMode}-mode -a claude-code -y --copy` |
+| Vitest | `.claude/skills/vitest/SKILL.md` | `npx playbooks add skill supabase/supabase --skill vitest -y` |
+| React Best Practices | `.claude/skills/vercel-react-best-practices/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill react-best-practices -a claude-code -y --copy` |
+| Composition Patterns | `.claude/skills/vercel-composition-patterns/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill composition-patterns -a claude-code -y --copy` |
+| Web Design Guidelines | `.claude/skills/web-design-guidelines/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill web-design-guidelines -a claude-code -y --copy` |
 
-### Step 6: Confirm
+For each row:
+1. Check if the Check Path file exists
+2. If missing, run the Install Command
+3. Verify installation succeeded
+
+### Step 5: Confirm
 
 Display:
 
@@ -77,13 +77,13 @@ Display:
 Frontend React Plugin configured successfully!
 
   Router mode: {routerMode}
-  React Router skill: .claude/skills/react-router-{routerMode}-mode (installed)
-  Vitest skill: .claude/skills/vitest (installed)
+
+  External skills installed:
+    - .claude/skills/react-router-{routerMode}-mode (React Router v7)
+    - .claude/skills/vitest (Vitest testing)
+    - .claude/skills/vercel-react-best-practices (React performance)
+    - .claude/skills/vercel-composition-patterns (Composition patterns)
+    - .claude/skills/web-design-guidelines (Web UI audit)
 
   Config file: .claude/frontend-react-plugin.json
-
-Next steps:
-  - The plugin will enforce conventions based on this setting
-  - Edit .claude/frontend-react-plugin.json anytime to change settings
-  - Run /frontend-react-plugin:init to reconfigure interactively
 ```

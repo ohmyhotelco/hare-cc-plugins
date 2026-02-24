@@ -57,6 +57,12 @@
 - variable-length text: truncate / line-clamp-* 적용
 - full-page layout: html → body → #root → layout 전체 height chain 설정
 
+### Performance & Composition
+- React 성능 패턴: `.claude/skills/vercel-react-best-practices` 참조 (waterfall 제거, bundle 최적화, re-render 최소화)
+  - Note: server-side (RSC/SSR) 규칙은 Vite SPA에 해당 없음 — 에이전트가 자동 스킵
+- Component 구성 패턴: `.claude/skills/vercel-composition-patterns` 참조 (boolean prop 금지, compound component, React 19 API)
+- Web UI 접근성/디자인 감사: `.claude/skills/web-design-guidelines` 참조 (review 시 최신 가이드라인 WebFetch)
+
 ### Routing Conventions
 - 인증 필요 라우트: `<ProtectedRoute>`로 감싸기 → 미인증 시 /login 리다이렉트 (return destination을 location.state.from으로 전달)
 - 권한 필요 라우트: `<RoleRoute permissions={[...]}>` → 미권한 시 /forbidden 리다이렉트
@@ -66,11 +72,18 @@
 - 내부 네비게이션: react-router `<Link>`, `<NavLink>`, `useNavigate` 사용 (`<a>`, `window.location` 금지)
 
 ## Architecture
-- **Agents**: (없음 — 추후 추가)
-- **Skills**: `/frontend-react-plugin:init`
-- **External Skills**: `react-router-declarative-mode` | `react-router-data-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`) — installed by init
+- **Agents**: `implementation-planner` (spec 분석 → 구현 계획), `code-generator` (계획 기반 프로덕션 코드 생성)
+- **Skills**: `/frontend-react-plugin:init`, `/frontend-react-plugin:plan`, `/frontend-react-plugin:gen`
+- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`)
-- **Templates**: (없음 — 추후 추가)
+- **Templates**: `feature-module.md` (feature 모듈 구조 레퍼런스)
+
+### Code Generation
+- 기능 명세 원천: `docs/specs/{feature}/` (planning-plugin 산출물)
+- 구현 계획서: `docs/specs/{feature}/.implementation/plan.json`
+- UI DSL 우선: `ui-dsl/` 있으면 구조화 데이터 활용, 없으면 spec markdown 추론
+- feature-based 구조: `src/features/{feature}/` (types, api, stores, components, pages)
+- 프로토타입은 참조용: `src/prototypes/{feature}/`의 코드를 프로덕션 코드에 복사하지 않음
 
 ## File Structure
 
