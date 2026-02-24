@@ -5,7 +5,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 ## Architecture
 
 - **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), notion-syncer (Notion page sync), dsl-generator (screens.md → UI DSL JSON), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
-- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`
+- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
 
@@ -21,6 +21,16 @@ A Claude Code plugin that generates functional specifications through multi-agen
 8. Translator agent creates versions in other supported languages (once, after finalization)
 9. Notion sync: if `notionParentPageUrl` is configured, pages are created/updated in Notion automatically after finalization and translation
 10. `/planning-plugin:design "feature"` triggers the design pipeline (Stage 1→2→3)
+
+## Design System
+
+`/planning-plugin:design-system` generates a domain-specific design system by reading curated CSV databases with domain filtering and industry reasoning rules.
+
+- **Domains**: `b2b-admin` (admin panels, dashboards, data management) or `hotel-travel` (hotel booking, travel platforms, hospitality)
+- **Data**: 7 curated CSV databases in `data/design-system/` — styles, colors, typography, components, patterns, industry-rules, icons
+- **Engine**: CSV data read by Claude with domain filtering + industry reasoning rules
+- **Output**: `design-system/MASTER.md` + `design-system/pages/*.md` (colors, typography, spacing-layout, components, patterns, icons)
+- **Integration**: The `dsl-generator` agent reads `design-system/pages/components.md` to inform component selection; the `prototype-generator` agent reads `design-system/pages/colors.md` and `typography.md` to configure Tailwind theme
 
 ## Design Workflow
 
@@ -54,9 +64,10 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
 agents/          - Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
-skills/          - Skill entry points (init, spec, review, translate, progress, design, sync-notion)
+skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
+data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       - Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
 src/prototypes/  - Generated React prototypes (standalone Vite projects per feature)

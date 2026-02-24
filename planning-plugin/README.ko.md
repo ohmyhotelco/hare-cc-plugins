@@ -1,4 +1,4 @@
-<!-- Synced with en version: 2026-02-20T12:00:00Z -->
+<!-- Synced with en version: 2026-02-24T12:00:00Z -->
 
 [English version](README.md)
 
@@ -338,6 +338,39 @@ Specifications Overview:
 
 > **참고**: Stage 3 (Figma)은 선택 사항이며 Figma MCP 설정이 필요합니다.
 
+---
+
+### `/planning-plugin:design-system`
+
+**구문**: `/planning-plugin:design-system [--domain=b2b-admin|hotel-travel] [--query="context"]`
+
+**사용 시점**: 디자인 파이프라인을 실행하기 전에, 도메인별 디자인 시스템(색상, 타이포그래피, 컴포넌트, UX 패턴)을 구축할 때 사용합니다.
+
+**동작 과정**:
+1. 플러그인의 `data/design-system/` 디렉토리에서 7개의 큐레이션된 CSV 데이터베이스를 읽습니다
+2. 선택한 도메인으로 데이터를 필터링합니다 (해당 도메인 + `general` 행 매칭)
+3. `industry-rules.csv`의 산업 추론 규칙을 적용합니다 (critical/recommended/optional)
+4. `design-system/MASTER.md` + `design-system/pages/`에 6개 페이지 파일을 생성합니다
+
+**도메인**:
+- `b2b-admin` — 관리자 패널, 대시보드, 데이터 관리, 내부 도구
+- `hotel-travel` — 호텔 예약, 여행 플랫폼, 호스피탈리티 관리
+
+**출력 파일**:
+- `design-system/MASTER.md` — 개요, 디자인 원칙, 페이지 인덱스, 통합 가이드
+- `design-system/pages/colors.md` — 색상 팔레트, CSS custom properties, Tailwind 매핑
+- `design-system/pages/typography.md` — 타입 스케일, 폰트 패밀리, CSS properties
+- `design-system/pages/spacing-layout.md` — 간격 스케일, 레이아웃 패턴
+- `design-system/pages/components.md` — 컴포넌트 인벤토리(props 및 variants 포함)
+- `design-system/pages/patterns.md` — UX 패턴, 페이지 템플릿, 사용자 흐름
+- `design-system/pages/icons.md` — Lucide 아이콘 매핑, 사용 가이드라인
+
+**예시**:
+```
+/planning-plugin:design-system --domain=b2b-admin
+/planning-plugin:design-system --domain=hotel-travel --query="booking CRM"
+```
+
 ## 전체 워크플로우 가이드
 
 ### 단계 1: 요구사항 수집
@@ -454,6 +487,7 @@ Tester는 발견된 모든 Critical 및 Major 이슈에 대해 구체적인 테�
 2. 진행 파일의 상태가 `finalized`로 업데이트됩니다
 3. 요약이 제공됩니다: 총 라운드 수, 최종 점수, 주요 결정 사항, 남은 미결 사항
 4. 다음 단계가 제안됩니다:
+   - `/planning-plugin:design-system --domain=...` — 도메인별 디자인 시스템 구축 (디자인 파이프라인 실행 전 권장)
    - `/planning-plugin:design {feature}` — UI DSL, React 프로토타입, Figma 디자인 생성
    - `/planning-plugin:review {feature}` — 언제든지 재검토
    - 작업 언어 명세서를 직접 편집 후 `/planning-plugin:translate {feature}`로 동기화
@@ -595,9 +629,10 @@ src/prototypes/{feature}/                  ← React 프로토타입 (독립형 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, migrate-language, sync-notion)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
+data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (언어 디렉토리당 3개 파일 + ui-dsl/)
 src/prototypes/  Generated React prototypes (기능별 독립형 Vite 프로젝트)

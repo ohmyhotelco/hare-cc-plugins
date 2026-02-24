@@ -28,6 +28,13 @@ Write files to `docs/specs/{feature}/ui-dsl/`:
 
 ## Process
 
+### Step 0: Check Design System (Optional)
+
+Before analyzing screens, check if a design system exists at `design-system/pages/components.md` (relative to project root). If it exists:
+1. Read it to understand the recommended component inventory for this domain
+2. Use it to inform component type selection in Step 4 — prefer components listed in the design system over generic mappings
+3. This is optional — if the file doesn't exist, proceed normally
+
 ### Step 1: Analyze Screens
 
 1. Read `screens.md` and identify all screen definitions (marked by `### Screen: {Name}`)

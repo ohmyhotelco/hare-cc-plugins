@@ -1,4 +1,4 @@
-<!-- Synced with en version: 2026-02-20T12:00:00Z -->
+<!-- Synced with en version: 2026-02-24T12:00:00Z -->
 
 [English version](README.md)
 
@@ -338,6 +338,39 @@ Các stage chạy tuần tự (1→2→3). Sử dụng `--stage` để chạy t�
 
 > **Lưu ý**: Stage 3 (Figma) là tùy chọn và yêu cầu cấu hình Figma MCP.
 
+---
+
+### `/planning-plugin:design-system`
+
+**Cú pháp**: `/planning-plugin:design-system [--domain=b2b-admin|hotel-travel] [--query="context"]`
+
+**Khi nào sử dụng**: Trước khi chạy design pipeline, để xây dựng hệ thống thiết kế theo domain với màu sắc, typography, component và UX pattern.
+
+**Quy trình thực hiện**:
+1. Đọc 7 cơ sở dữ liệu CSV đã được tuyển chọn từ thư mục `data/design-system/` của plugin
+2. Lọc dữ liệu theo domain đã chọn (các hàng khớp với domain + các hàng `general`)
+3. Áp dụng quy tắc suy luận ngành từ `industry-rules.csv` (critical/recommended/optional)
+4. Tạo `design-system/MASTER.md` + 6 tệp trang trong `design-system/pages/`
+
+**Domain**:
+- `b2b-admin` — Bảng quản trị, dashboard, quản lý dữ liệu, công cụ nội bộ
+- `hotel-travel` — Đặt phòng khách sạn, nền tảng du lịch, quản lý khách sạn
+
+**Tệp đầu ra**:
+- `design-system/MASTER.md` — Tổng quan, nguyên tắc thiết kế, chỉ mục trang, hướng dẫn tích hợp
+- `design-system/pages/colors.md` — Bảng màu, CSS custom properties, Tailwind mapping
+- `design-system/pages/typography.md` — Thang kiểu chữ, font family, CSS properties
+- `design-system/pages/spacing-layout.md` — Thang khoảng cách, pattern bố cục
+- `design-system/pages/components.md` — Danh mục component với props và variants
+- `design-system/pages/patterns.md` — UX pattern, template trang, luồng người dùng
+- `design-system/pages/icons.md` — Ánh xạ icon Lucide, hướng dẫn sử dụng
+
+**Ví dụ**:
+```
+/planning-plugin:design-system --domain=b2b-admin
+/planning-plugin:design-system --domain=hotel-travel --query="booking CRM"
+```
+
 ## Hướng dẫn quy trình đầy đủ
 
 ### Bước 1: Thu thập yêu cầu
@@ -454,6 +487,7 @@ Quyết định cuối cùng luôn thuộc về bạn. Khi hoàn thiện:
 2. Trạng thái tệp tiến độ cập nhật thành `finalized`
 3. Bạn nhận được bản tóm tắt: tổng số vòng, điểm cuối cùng, quyết định quan trọng, câu hỏi mở còn lại
 4. Các bước tiếp theo được đề xuất:
+   - `/planning-plugin:design-system --domain=...` — Xây dựng hệ thống thiết kế theo domain (khuyến nghị trước khi chạy design pipeline)
    - `/planning-plugin:design {feature}` — Tạo UI DSL, prototype React và thiết kế Figma
    - `/planning-plugin:review {feature}` — Đánh giá lại bất cứ lúc nào
    - Chỉnh sửa trực tiếp đặc tả ngôn ngữ làm việc và chạy `/planning-plugin:translate {feature}` để đồng bộ
@@ -595,9 +629,10 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, migrate-language, sync-notion)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
+data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (3 tệp mỗi thư mục ngôn ngữ + ui-dsl/)
 src/prototypes/  Generated React prototypes (dự án Vite độc lập theo tính năng)

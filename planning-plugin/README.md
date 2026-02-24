@@ -334,6 +334,39 @@ Stages run sequentially (1→2→3). Use `--stage` to run a single stage indepen
 
 > **Note**: Stage 3 (Figma) is optional and requires Figma MCP configuration.
 
+---
+
+### `/planning-plugin:design-system`
+
+**Syntax**: `/planning-plugin:design-system [--domain=b2b-admin|hotel-travel] [--query="context"]`
+
+**When to use**: Before running the design pipeline, to establish a domain-specific design system with colors, typography, components, and UX patterns.
+
+**What happens**:
+1. Reads 7 curated CSV databases from the plugin's `data/design-system/` directory
+2. Filters data by the selected domain (rows matching the domain + `general` rows)
+3. Applies industry reasoning rules from `industry-rules.csv` (critical/recommended/optional)
+4. Generates `design-system/MASTER.md` + 6 page files in `design-system/pages/`
+
+**Domains**:
+- `b2b-admin` — Admin panels, dashboards, data management, internal tools
+- `hotel-travel` — Hotel booking, travel platforms, hospitality management
+
+**Output files**:
+- `design-system/MASTER.md` — Overview, design principles, page index, integration guide
+- `design-system/pages/colors.md` — Color palette, CSS custom properties, Tailwind mapping
+- `design-system/pages/typography.md` — Type scale, font families, CSS properties
+- `design-system/pages/spacing-layout.md` — Spacing scale, layout patterns
+- `design-system/pages/components.md` — Component inventory with props and variants
+- `design-system/pages/patterns.md` — UX patterns, page templates, user flows
+- `design-system/pages/icons.md` — Lucide icon mapping, usage guidelines
+
+**Examples**:
+```
+/planning-plugin:design-system --domain=b2b-admin
+/planning-plugin:design-system --domain=hotel-travel --query="booking CRM"
+```
+
 ## Full Workflow Guide
 
 ### Step 1: Requirements Gathering
@@ -450,6 +483,7 @@ You always have the final say. When you finalize:
 2. Progress file status updates to `finalized`
 3. You get a summary: total rounds, final scores, key decisions, remaining open questions
 4. Suggested next steps:
+   - `/planning-plugin:design-system --domain=...` to establish a domain-specific design system (recommended before running the design pipeline)
    - `/planning-plugin:design {feature}` to generate UI DSL, React prototypes, and Figma designs
    - `/planning-plugin:review {feature}` anytime to re-review
    - Edit the working language spec directly and run `/planning-plugin:translate {feature}` to sync
@@ -591,9 +625,10 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, migrate-language, sync-notion)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts
+data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/)
 src/prototypes/  Generated React prototypes (standalone Vite projects per feature)

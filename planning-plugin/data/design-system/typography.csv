@@ -1,0 +1,31 @@
+id,domain,scale_name,element,font_family,font_size,line_height,font_weight,letter_spacing,tailwind_class,description,tags
+t-b2b-001,b2b-admin,admin-scale,h1,"Inter, system-ui, sans-serif",28px,36px,700,-0.02em,text-3xl font-bold tracking-tight,Page title for admin dashboard sections,heading h1 page title large
+t-b2b-002,b2b-admin,admin-scale,h2,"Inter, system-ui, sans-serif",22px,28px,600,-0.01em,text-xl font-semibold tracking-tight,Section heading within admin pages,heading h2 section subtitle
+t-b2b-003,b2b-admin,admin-scale,h3,"Inter, system-ui, sans-serif",18px,24px,600,0,text-lg font-semibold,Card titles and subsection headings,heading h3 card title subsection
+t-b2b-004,b2b-admin,admin-scale,h4,"Inter, system-ui, sans-serif",15px,20px,600,0,text-sm font-semibold,Widget labels and minor headings,heading h4 widget label minor
+t-b2b-005,b2b-admin,admin-scale,body,"Inter, system-ui, sans-serif",14px,20px,400,0,text-sm,Default body text for admin interfaces (compact),body text default compact
+t-b2b-006,b2b-admin,admin-scale,caption,"Inter, system-ui, sans-serif",12px,16px,400,0.01em,text-xs,Table cell text, metadata, timestamps,caption small meta timestamp table
+t-b2b-007,b2b-admin,admin-scale,label,"Inter, system-ui, sans-serif",13px,16px,500,0.01em,text-xs font-medium,Form labels and field descriptions,label form field description input
+t-b2b-008,b2b-admin,admin-scale,overline,"Inter, system-ui, sans-serif",11px,16px,600,0.08em,text-[11px] font-semibold uppercase tracking-widest,Category headers and section dividers,overline category uppercase divider
+t-b2b-009,b2b-admin,admin-scale,button,"Inter, system-ui, sans-serif",13px,16px,500,0.01em,text-xs font-medium,Button text (compact for admin context),button action cta compact
+t-b2b-010,b2b-admin,admin-scale,stat-value,"Inter, system-ui, sans-serif",32px,40px,700,-0.02em,text-3xl font-bold tracking-tight,Large numeric values in stat widgets,stat number metric kpi large
+t-ht-001,hotel-travel,hospitality-scale,h1,"DM Serif Display, Georgia, serif",36px,44px,400,-0.01em,text-4xl font-normal tracking-tight,Hero headings and hotel name displays,heading h1 hero hotel name serif
+t-ht-002,hotel-travel,hospitality-scale,h2,"DM Serif Display, Georgia, serif",28px,36px,400,0,text-3xl font-normal,Section headings for room details and features,heading h2 section room details serif
+t-ht-003,hotel-travel,hospitality-scale,h3,"Inter, system-ui, sans-serif",20px,28px,600,-0.01em,text-xl font-semibold tracking-tight,Card titles and room type names,heading h3 card room type
+t-ht-004,hotel-travel,hospitality-scale,h4,"Inter, system-ui, sans-serif",16px,24px,600,0,text-base font-semibold,Subsection labels and feature group titles,heading h4 feature group subsection
+t-ht-005,hotel-travel,hospitality-scale,body,"Inter, system-ui, sans-serif",16px,24px,400,0,text-base,Default body text for guest-facing content,body text default comfortable
+t-ht-006,hotel-travel,hospitality-scale,caption,"Inter, system-ui, sans-serif",13px,18px,400,0.01em,text-sm,Photo captions, review dates, small details,caption small date photo detail
+t-ht-007,hotel-travel,hospitality-scale,label,"Inter, system-ui, sans-serif",14px,20px,500,0,text-sm font-medium,Form labels and field titles in booking forms,label form booking field
+t-ht-008,hotel-travel,hospitality-scale,overline,"Inter, system-ui, sans-serif",12px,16px,600,0.06em,text-xs font-semibold uppercase tracking-wider,Category tags and room type badges,overline category badge tag uppercase
+t-ht-009,hotel-travel,hospitality-scale,button,"Inter, system-ui, sans-serif",15px,20px,600,0.01em,text-sm font-semibold,Button text (generous for touch targets),button action cta booking touch
+t-ht-010,hotel-travel,hospitality-scale,price,"Inter, system-ui, sans-serif",24px,32px,700,-0.01em,text-2xl font-bold tracking-tight,Price display values,price amount rate display large
+t-g-001,general,base-scale,h1,"Inter, system-ui, sans-serif",30px,36px,700,-0.02em,text-3xl font-bold tracking-tight,Primary page heading,heading h1 page main
+t-g-002,general,base-scale,h2,"Inter, system-ui, sans-serif",24px,32px,600,-0.01em,text-2xl font-semibold tracking-tight,Secondary section heading,heading h2 section
+t-g-003,general,base-scale,h3,"Inter, system-ui, sans-serif",20px,28px,600,0,text-xl font-semibold,Tertiary heading for cards and groups,heading h3 card group
+t-g-004,general,base-scale,h4,"Inter, system-ui, sans-serif",16px,24px,600,0,text-base font-semibold,Minor heading for subsections,heading h4 subsection minor
+t-g-005,general,base-scale,body,"Inter, system-ui, sans-serif",15px,22px,400,0,text-base,Default body text,body text default
+t-g-006,general,base-scale,body-sm,"Inter, system-ui, sans-serif",14px,20px,400,0,text-sm,Smaller body text for secondary content,body small secondary
+t-g-007,general,base-scale,caption,"Inter, system-ui, sans-serif",12px,16px,400,0.01em,text-xs,Captions and metadata text,caption small meta
+t-g-008,general,base-scale,label,"Inter, system-ui, sans-serif",14px,20px,500,0,text-sm font-medium,Form labels,label form field
+t-g-009,general,base-scale,overline,"Inter, system-ui, sans-serif",11px,16px,600,0.08em,text-[11px] font-semibold uppercase tracking-widest,Category labels and overline text,overline category uppercase
+t-g-010,general,base-scale,button,"Inter, system-ui, sans-serif",14px,20px,500,0.01em,text-sm font-medium,Default button text,button action cta

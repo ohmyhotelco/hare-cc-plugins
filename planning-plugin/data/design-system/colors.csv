@@ -1,0 +1,51 @@
+id,domain,palette_name,role,hex,hsl,tailwind_name,contrast_ratio,description,tags
+c-b2b-001,b2b-admin,professional-blue,primary,#2563EB,"hsl(217, 91%, 53%)",blue-600,4.6:1,Primary action and navigation color for admin interfaces,primary action button nav
+c-b2b-002,b2b-admin,professional-blue,primary-hover,#1D4ED8,"hsl(221, 83%, 48%)",blue-700,5.8:1,Hover state for primary elements,primary hover interactive
+c-b2b-003,b2b-admin,professional-blue,primary-light,#DBEAFE,"hsl(214, 95%, 93%)",blue-100,1.1:1,Light background for selected items and active states,primary light selected active
+c-b2b-004,b2b-admin,neutral-gray,neutral,#6B7280,"hsl(220, 9%, 46%)",gray-500,4.6:1,Secondary text and less prominent UI elements,neutral text secondary muted
+c-b2b-005,b2b-admin,neutral-gray,neutral-dark,#374151,"hsl(218, 20%, 27%)",gray-700,9.1:1,Primary text and headings in admin panels,neutral dark text heading
+c-b2b-006,b2b-admin,neutral-gray,neutral-light,#F3F4F6,"hsl(220, 14%, 96%)",gray-100,1.1:1,Page backgrounds and table alternate rows,neutral light background zebra
+c-b2b-007,b2b-admin,status,success,#059669,"hsl(160, 84%, 39%)",emerald-600,4.5:1,Success states and positive indicators (active, approved),success positive active approved
+c-b2b-008,b2b-admin,status,warning,#D97706,"hsl(38, 92%, 44%)",amber-600,3.2:1,Warning states and attention-required indicators,warning attention caution pending
+c-b2b-009,b2b-admin,status,error,#DC2626,"hsl(0, 72%, 51%)",red-600,4.5:1,Error states and destructive action indicators,error danger destructive delete
+c-b2b-010,b2b-admin,status,info,#2563EB,"hsl(217, 91%, 53%)",blue-600,4.6:1,Informational states and helper indicators,info informational helper
+c-b2b-011,b2b-admin,data-severity,critical,#991B1B,"hsl(0, 63%, 35%)",red-800,7.5:1,Critical severity level in data displays,critical severity high alert
+c-b2b-012,b2b-admin,data-severity,high,#DC2626,"hsl(0, 72%, 51%)",red-600,4.5:1,High severity level in data displays,high severity elevated risk
+c-b2b-013,b2b-admin,data-severity,medium,#D97706,"hsl(38, 92%, 44%)",amber-600,3.2:1,Medium severity level in data displays,medium severity moderate
+c-b2b-014,b2b-admin,data-severity,low,#059669,"hsl(160, 84%, 39%)",emerald-600,4.5:1,Low severity level in data displays,low severity minor
+c-b2b-015,b2b-admin,surface,surface,#FFFFFF,"hsl(0, 0%, 100%)",white,21:1,Card and panel surfaces,surface card panel white
+c-b2b-016,b2b-admin,surface,background,#F9FAFB,"hsl(210, 20%, 98%)",gray-50,19.5:1,Page-level background,background page base
+c-b2b-017,b2b-admin,surface,sidebar,#1F2937,"hsl(215, 28%, 17%)",gray-800,12.6:1,Dark sidebar background for admin navigation,sidebar dark nav background
+c-b2b-018,b2b-admin,surface,border,#E5E7EB,"hsl(220, 13%, 91%)",gray-200,1.3:1,Default border color for cards and dividers,border divider separator
+c-b2b-019,b2b-admin,accent,accent,#7C3AED,"hsl(263, 83%, 58%)",violet-600,4.5:1,Accent color for badges and highlights,accent highlight badge special
+c-b2b-020,b2b-admin,accent,focus-ring,#3B82F6,"hsl(217, 91%, 60%)",blue-500,3.4:1,Focus ring color for keyboard navigation,focus ring keyboard accessibility
+c-ht-001,hotel-travel,warm-tone,primary,#EA580C,"hsl(21, 90%, 48%)",orange-600,4.6:1,Primary action color for booking CTAs and key interactions,primary action booking cta warm
+c-ht-002,hotel-travel,warm-tone,primary-hover,#C2410C,"hsl(17, 88%, 40%)",orange-700,5.8:1,Hover state for primary booking elements,primary hover booking
+c-ht-003,hotel-travel,warm-tone,primary-light,#FFF7ED,"hsl(33, 100%, 96%)",orange-50,1.0:1,Light background for selected dates and active states,primary light warm selected
+c-ht-004,hotel-travel,luxury-gold,secondary,#B45309,"hsl(32, 95%, 37%)",amber-700,4.8:1,Luxury and premium tier indicators,luxury premium gold tier
+c-ht-005,hotel-travel,luxury-gold,secondary-light,#FEF3C7,"hsl(48, 96%, 89%)",amber-100,1.1:1,Premium tier background highlights,luxury light premium highlight
+c-ht-006,hotel-travel,nature-green,accent,#15803D,"hsl(142, 72%, 29%)",green-700,5.6:1,Availability and eco-friendly indicators,nature green available eco
+c-ht-007,hotel-travel,nature-green,accent-light,#DCFCE7,"hsl(139, 76%, 92%)",green-100,1.1:1,Available date backgrounds and positive highlights,nature light available positive
+c-ht-008,hotel-travel,ocean-blue,tertiary,#0369A1,"hsl(201, 96%, 32%)",sky-700,5.6:1,Navigation and secondary actions in travel context,ocean blue nav secondary travel
+c-ht-009,hotel-travel,ocean-blue,tertiary-light,#E0F2FE,"hsl(204, 94%, 94%)",sky-100,1.1:1,Information backgrounds and feature highlights,ocean light info feature
+c-ht-010,hotel-travel,seasonal,spring,#65A30D,"hsl(85, 85%, 35%)",lime-600,3.4:1,Spring season theme accent,seasonal spring fresh
+c-ht-011,hotel-travel,seasonal,summer,#EA580C,"hsl(21, 90%, 48%)",orange-600,4.6:1,Summer season theme accent,seasonal summer hot
+c-ht-012,hotel-travel,seasonal,autumn,#B45309,"hsl(32, 95%, 37%)",amber-700,4.8:1,Autumn season theme accent,seasonal autumn warm
+c-ht-013,hotel-travel,seasonal,winter,#0284C7,"hsl(200, 98%, 39%)",sky-600,4.5:1,Winter season theme accent,seasonal winter cool
+c-ht-014,hotel-travel,status,success,#16A34A,"hsl(142, 71%, 45%)",green-600,4.5:1,Booking confirmed and available status,success confirmed available booked
+c-ht-015,hotel-travel,status,warning,#CA8A04,"hsl(46, 97%, 40%)",yellow-600,3.1:1,Limited availability and expiring deals,warning limited almost-full expiring
+c-ht-016,hotel-travel,status,error,#DC2626,"hsl(0, 72%, 51%)",red-600,4.5:1,Booking failed and unavailable status,error unavailable failed cancelled
+c-ht-017,hotel-travel,status,info,#0284C7,"hsl(200, 98%, 39%)",sky-600,4.5:1,Travel tips and informational notices,info travel tip notice
+c-ht-018,hotel-travel,surface,surface,#FFFFFF,"hsl(0, 0%, 100%)",white,21:1,Card and content surfaces,surface card white clean
+c-ht-019,hotel-travel,surface,background,#FFFBEB,"hsl(48, 100%, 96%)",amber-50,19:1,Warm page background for hospitality feel,background warm hospitality
+c-ht-020,hotel-travel,surface,border,#FED7AA,"hsl(27, 98%, 83%)",orange-200,1.5:1,Warm border color for cards,border warm soft
+c-g-001,general,semantic,success,#16A34A,"hsl(142, 71%, 45%)",green-600,4.5:1,Universal success state color,success positive pass
+c-g-002,general,semantic,warning,#CA8A04,"hsl(46, 97%, 40%)",yellow-600,3.1:1,Universal warning state color,warning caution attention
+c-g-003,general,semantic,error,#DC2626,"hsl(0, 72%, 51%)",red-600,4.5:1,Universal error state color,error danger fail
+c-g-004,general,semantic,info,#2563EB,"hsl(217, 91%, 53%)",blue-600,4.6:1,Universal informational color,info informational notice
+c-g-005,general,dark-mode,dark-bg,#0F172A,"hsl(222, 47%, 11%)",slate-900,15.4:1,Dark mode page background,dark mode background page
+c-g-006,general,dark-mode,dark-surface,#1E293B,"hsl(217, 33%, 17%)",slate-800,12.6:1,Dark mode card and panel surfaces,dark mode surface card
+c-g-007,general,dark-mode,dark-border,#334155,"hsl(215, 25%, 27%)",slate-700,8.6:1,Dark mode border color,dark mode border divider
+c-g-008,general,dark-mode,dark-text,#F1F5F9,"hsl(210, 40%, 96%)",slate-100,1.1:1,Dark mode primary text,dark mode text primary
+c-g-009,general,dark-mode,dark-muted,#94A3B8,"hsl(215, 20%, 65%)",slate-400,3.0:1,Dark mode secondary/muted text,dark mode text muted secondary
+c-g-010,general,dark-mode,dark-primary,#60A5FA,"hsl(213, 94%, 68%)",blue-400,3.0:1,Dark mode primary action color (lighter for contrast),dark mode primary action bright

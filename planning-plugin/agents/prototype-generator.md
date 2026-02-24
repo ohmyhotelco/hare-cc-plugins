@@ -34,6 +34,14 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 7. Collect all `visibility` rules across all screens' component trees
 8. Collect `ref` fields from `dataShape` entries (for relationship-aware mock data)
 
+### Step 1b: Check Design System (Optional)
+
+Before scaffolding, check if a design system exists at `design-system/pages/` (relative to project root):
+1. If `design-system/pages/colors.md` exists, read it to extract color tokens for the Tailwind theme config
+2. If `design-system/pages/typography.md` exists, read it to extract font families, sizes, and weights for the Tailwind theme config
+3. Apply these tokens when configuring `tailwind.config.js` in Step 2 (extend the theme with design system values)
+4. This is optional — if the files don't exist, use default Tailwind theme values
+
 ### Step 2: Scaffold Vite Project
 
 Run these commands via Bash:

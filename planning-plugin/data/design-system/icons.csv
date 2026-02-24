@@ -1,0 +1,61 @@
+id,domain,context,concept,lucide_name,alternatives,description,tags
+i-b2b-001,b2b-admin,navigation,dashboard,LayoutDashboard,"Grid3X3, BarChart3",Dashboard home page navigation icon,dashboard home overview nav
+i-b2b-002,b2b-admin,navigation,users,Users,"UserCog, UsersRound",User management section navigation,users people accounts admin
+i-b2b-003,b2b-admin,navigation,settings,Settings,"Cog, Wrench",System settings and configuration,settings config preferences gear
+i-b2b-004,b2b-admin,navigation,reports,BarChart3,"LineChart, PieChart, TrendingUp",Analytics and reports section,reports analytics charts data
+i-b2b-005,b2b-admin,navigation,notifications,Bell,"BellRing, BellDot",Notification center indicator,notification alert bell inbox
+i-b2b-006,b2b-admin,action,create,Plus,"PlusCircle, FilePlus",Add new item or record,create add new plus
+i-b2b-007,b2b-admin,action,edit,Pencil,"PenLine, Edit3",Edit existing record,edit modify pencil update
+i-b2b-008,b2b-admin,action,delete,Trash2,"X, XCircle",Delete record or item,delete remove trash destroy
+i-b2b-009,b2b-admin,action,search,Search,"SearchCode, Filter",Search and filter data,search find filter magnify
+i-b2b-010,b2b-admin,action,export,Download,"FileDown, Share2",Export or download data,export download file save
+i-b2b-011,b2b-admin,action,filter,Filter,"SlidersHorizontal, ListFilter",Advanced filtering controls,filter refine narrow sort
+i-b2b-012,b2b-admin,action,refresh,RefreshCw,"RotateCw, RefreshCcw",Refresh data or retry action,refresh reload retry update
+i-b2b-013,b2b-admin,status,success,CheckCircle,"Check, CircleCheckBig",Success or active status indicator,success active approved check
+i-b2b-014,b2b-admin,status,warning,AlertTriangle,"TriangleAlert, AlertOctagon",Warning or attention needed indicator,warning caution attention alert
+i-b2b-015,b2b-admin,status,error,XCircle,"AlertCircle, Ban",Error or failed status indicator,error failed denied blocked
+i-b2b-016,b2b-admin,status,info,Info,"HelpCircle, MessageCircle",Information or help indicator,info help information about
+i-b2b-017,b2b-admin,data,table,Table2,"Grid3X3, LayoutList",Data table representation,table data grid list
+i-b2b-018,b2b-admin,data,chart,BarChart3,"LineChart, PieChart, AreaChart",Chart or graph representation,chart graph visualization data
+i-b2b-019,b2b-admin,navigation,menu,Menu,"PanelLeftOpen, AlignJustify",Sidebar menu toggle,menu hamburger sidebar toggle
+i-b2b-020,b2b-admin,action,close,X,"XCircle, Minimize2",Close dialog or panel,close dismiss exit cancel
+i-ht-001,hotel-travel,booking,calendar,Calendar,"CalendarDays, CalendarRange",Date selection and availability calendar,calendar date booking schedule
+i-ht-002,hotel-travel,booking,bed,Bed,"BedDouble, Hotel",Room or accommodation type,bed room hotel accommodation
+i-ht-003,hotel-travel,booking,guests,UserPlus,"Users, UserRound",Guest count or add guest,guest people occupancy add
+i-ht-004,hotel-travel,booking,payment,CreditCard,"Wallet, Banknote",Payment and billing,payment credit card billing checkout
+i-ht-005,hotel-travel,amenity,wifi,Wifi,"Signal, Globe",WiFi availability indicator,wifi internet wireless connectivity
+i-ht-006,hotel-travel,amenity,parking,ParkingCircle,"Car, CircleParking",Parking facility availability,parking car vehicle facility
+i-ht-007,hotel-travel,amenity,pool,Waves,"Droplets, Umbrella",Swimming pool amenity,pool swimming water leisure
+i-ht-008,hotel-travel,amenity,restaurant,UtensilsCrossed,"ChefHat, Coffee",Restaurant or dining facility,restaurant dining food eating
+i-ht-009,hotel-travel,amenity,spa,Flower2,"Heart, Sparkles",Spa and wellness facility,spa wellness relaxation beauty
+i-ht-010,hotel-travel,amenity,gym,Dumbbell,"Activity, Bike",Fitness center amenity,gym fitness exercise workout
+i-ht-011,hotel-travel,navigation,location,MapPin,"Map, Navigation",Hotel location or map indicator,location map pin address
+i-ht-012,hotel-travel,data,rating,Star,"Stars, Award",Rating and review indicator,rating star review quality
+i-ht-013,hotel-travel,data,price,DollarSign,"Banknote, Tag",Price and pricing information,price cost rate dollar
+i-ht-014,hotel-travel,action,book,CalendarCheck,"CalendarPlus, BookOpen",Booking action or confirmation,book reserve confirm action
+i-ht-015,hotel-travel,action,cancel,CalendarX,"XCircle, Ban",Cancellation action,cancel booking remove undo
+i-ht-016,hotel-travel,data,photo,Camera,"Image, ImagePlus",Photo gallery indicator,photo image gallery camera
+i-ht-017,hotel-travel,navigation,explore,Compass,"Globe, Map",Explore destinations,explore discover destination travel
+i-ht-018,hotel-travel,amenity,ac,Snowflake,"Wind, Thermometer",Air conditioning amenity,ac air-conditioning cooling climate
+i-ht-019,hotel-travel,amenity,laundry,WashingMachine,"Shirt, Iron",Laundry service amenity,laundry cleaning washing service
+i-ht-020,hotel-travel,data,checkin,LogIn,"ArrowRightToLine, DoorOpen",Check-in action or status,checkin arrival entrance login
+i-g-001,general,action,save,Save,"Check, Download",Save action for forms and documents,save store persist commit
+i-g-002,general,action,copy,Copy,"Clipboard, ClipboardCopy",Copy to clipboard action,copy clipboard duplicate
+i-g-003,general,action,share,Share2,"ExternalLink, Forward",Share or external link action,share external link forward
+i-g-004,general,action,upload,Upload,"FileUp, CloudUpload",File upload action,upload file cloud import
+i-g-005,general,action,print,Printer,"FileText, Receipt",Print document action,print document receipt paper
+i-g-006,general,navigation,back,ArrowLeft,"ChevronLeft, Undo2",Back navigation action,back previous return navigate
+i-g-007,general,navigation,forward,ArrowRight,"ChevronRight, Redo2",Forward navigation action,forward next proceed navigate
+i-g-008,general,navigation,home,Home,"House, LayoutDashboard",Home or main page navigation,home main landing start
+i-g-009,general,navigation,external,ExternalLink,"ArrowUpRight, Link",External link indicator,external link open new-tab
+i-g-010,general,ui,dark-mode,Moon,"Sun, SunMoon",Dark/light mode toggle,dark-mode theme toggle appearance
+i-g-011,general,ui,expand,Maximize2,"Expand, ArrowsMaximize",Expand or fullscreen action,expand fullscreen maximize enlarge
+i-g-012,general,ui,collapse,Minimize2,"Shrink, ArrowsMinimize",Collapse or minimize action,collapse minimize shrink reduce
+i-g-013,general,ui,more,MoreHorizontal,"MoreVertical, Ellipsis",More options menu trigger,more options menu ellipsis
+i-g-014,general,ui,drag,GripVertical,"GripHorizontal, Move",Drag handle for reorderable items,drag handle move reorder grip
+i-g-015,general,status,loading,Loader2,"RefreshCw, Hourglass",Loading spinner indicator,loading spinner progress wait
+i-g-016,general,ui,sort-asc,ArrowUp,"ChevronUp, ArrowUpNarrow",Sort ascending indicator,sort ascending up order
+i-g-017,general,ui,sort-desc,ArrowDown,"ChevronDown, ArrowDownNarrow",Sort descending indicator,sort descending down order
+i-g-018,general,action,logout,LogOut,"Power, DoorClosed",Logout or sign out action,logout signout exit session
+i-g-019,general,ui,eye,Eye,"EyeOff, View",View or visibility toggle,view visibility eye show
+i-g-020,general,action,lock,Lock,"Unlock, ShieldCheck",Security or locked state indicator,lock security protected locked
