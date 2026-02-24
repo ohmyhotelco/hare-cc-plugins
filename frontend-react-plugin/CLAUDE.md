@@ -6,17 +6,17 @@
 
 ### Runtime & Build
 - Node.js 22.x LTS (>= 22.12)
-- Package Manager: npm 또는 pnpm (팀 표준)
+- Package Manager: pnpm
 - Build: Vite
 - Language: TypeScript (strict)
 
 ### Core Framework
 - React 19.x
-- Routing: React Router v7 — Declarative 모드
-  - `<BrowserRouter>`, `<Routes>`, `<Route>` 사용
-  - `createBrowserRouter`, `RouterProvider`, loader/action/fetcher 사용 금지
+- Routing: React Router v7 — 모드는 `.claude/frontend-react-plugin.json`의 `routerMode` 설정에 따름 (default: declarative)
+  - declarative: `<BrowserRouter>`, `<Routes>`, `<Route>` 사용
+  - data: `createBrowserRouter`, `RouterProvider`, loader/action 사용
   - import: `react-router` (not `react-router-dom`)
-  - 자세한 라우팅 패턴: `/frontend-react-plugin:react-router` 스킬 참조
+  - 자세한 라우팅 패턴: `.claude/skills/react-router-{routerMode}-mode` 참조 (installed by `/frontend-react-plugin:init`)
 
 ### UI Layer
 - Tailwind CSS
@@ -44,7 +44,7 @@
 - 프론트에서 권한 로직 구현 금지 (UX 가드 수준만)
 
 ### Testing
-- Unit/Component: Vitest
+- Unit/Component: Vitest — 자세한 테스트 패턴: `.claude/skills/vitest` 참조 (installed by `/frontend-react-plugin:init`)
 - E2E: Playwright
 
 ## Conventions
@@ -57,9 +57,19 @@
 - variable-length text: truncate / line-clamp-* 적용
 - full-page layout: html → body → #root → layout 전체 height chain 설정
 
+### Routing Conventions
+- 인증 필요 라우트: `<ProtectedRoute>`로 감싸기 → 미인증 시 /login 리다이렉트 (return destination을 location.state.from으로 전달)
+- 권한 필요 라우트: `<RoleRoute permissions={[...]}>` → 미권한 시 /forbidden 리다이렉트
+- NavLink active state: shadcn/ui `cn()` + `isActive` callback 사용
+- Axios 401 interceptor → /login 리다이렉트: navigate ref 패턴 사용 (useNavigate 직접 import 금지)
+- URL searchParams ↔ Zustand: useEffect + store subscription으로 양방향 동기화
+- 내부 네비게이션: react-router `<Link>`, `<NavLink>`, `useNavigate` 사용 (`<a>`, `window.location` 금지)
+
 ## Architecture
 - **Agents**: (없음 — 추후 추가)
-- **Skills**: `/frontend-react-plugin:react-router` — React Router v7 Declarative 모드 패턴
+- **Skills**: `/frontend-react-plugin:init`
+- **External Skills**: `react-router-declarative-mode` | `react-router-data-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`) — installed by init
+- **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`)
 - **Templates**: (없음 — 추후 추가)
 
 ## File Structure
@@ -73,3 +83,14 @@ scripts/         - Hook handler scripts
 templates/       - Template files
 docs/            - Documentation
 ```
+
+## Project-Level Configuration
+
+`.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`):
+```json
+{
+  "routerMode": "declarative"
+}
+```
+
+- `routerMode`: `"declarative"` (default) | `"data"` — React Router v7 모드 결정
