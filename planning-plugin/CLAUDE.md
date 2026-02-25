@@ -30,7 +30,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 - **Data**: 7 curated CSV databases in `data/design-system/` — styles, colors, typography, components, patterns, industry-rules, icons
 - **Engine**: CSV data read by Claude with domain filtering + industry reasoning rules
 - **Output**: `design-system/MASTER.md` + `design-system/pages/*.md` (colors, typography, spacing-layout, components, patterns, icons)
-- **Integration**: The `dsl-generator` agent reads `design-system/pages/components.md` to inform component selection; the `prototype-generator` agent reads `design-system/pages/colors.md` and `typography.md` to configure Tailwind theme
+- **Integration**: The `dsl-generator` agent reads `design-system/pages/components.md`, `icons.md`, `patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints; the `prototype-generator` agent reads `design-system/pages/colors.md`, `typography.md`, and `spacing-layout.md` to configure Tailwind theme
 
 ## Design Workflow
 

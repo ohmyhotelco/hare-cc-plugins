@@ -30,10 +30,14 @@ Write files to `docs/specs/{feature}/ui-dsl/`:
 
 ### Step 0: Check Design System (Optional)
 
-Before analyzing screens, check if a design system exists at `design-system/pages/components.md` (relative to project root). If it exists:
-1. Read it to understand the recommended component inventory for this domain
-2. Use it to inform component type selection in Step 4 — prefer components listed in the design system over generic mappings
-3. This is optional — if the file doesn't exist, proceed normally
+Before analyzing screens, check if a design system exists at `design-system/pages/` (relative to project root). Read available files:
+
+1. **`components.md`** — recommended component inventory for this domain. Use to inform component type selection in Step 4 — prefer components listed in the design system over generic mappings
+2. **`icons.md`** — domain-specific icon mappings (concept → Lucide icon name). Use to override the default icon mappings in Step 4b with domain-appropriate icons
+3. **`patterns.md`** — UX patterns with `page_layout` and `components_used`. Use to validate layout structure in Step 4b — ensure screens matching a known pattern include the expected component combinations
+4. **`MASTER.md`** — design principles (Critical/Recommended rules). Apply as constraints during DSL generation (e.g., "destructive actions require confirmation dialog" → auto-add AlertDialog interaction for delete buttons)
+
+This is optional — if the files don't exist, proceed normally with default mappings
 
 ### Step 1: Analyze Screens
 
@@ -146,7 +150,8 @@ Convert the flat Components table into a nested tree:
 3. Nest children based on layout relationships
 4. Add `action` properties based on the User Actions table
 5. Assign unique `id` values to each component
-6. Assign `icon` properties to components where contextually appropriate:
+6. Assign `icon` properties to components where contextually appropriate.
+   If design-system `icons.md` was loaded in Step 0, match each component's concept/context against the icon mapping table and use the domain-specific Lucide icon name. Fall back to the defaults below when no design-system match is found:
    - Search inputs → "Search"
    - Add/Create buttons → "Plus"
    - Edit buttons → "Pencil"

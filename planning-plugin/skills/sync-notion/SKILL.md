@@ -71,6 +71,11 @@ The other 2 files (`screens.md`, `test-scenarios.md`) are used **as-is** with no
 
 HTML comments (`<!-- ... -->`) may be removed from all files as Notion does not render them.
 
+**Content preservation rules** (apply to ALL files):
+
+- **No table conversion**: Do NOT convert pipe tables (`| ... |`) to HTML `<table>` tags or any other format. Pass them through as-is — Notion MCP handles markdown → block conversion internally.
+- **No content omission**: Do NOT abbreviate, summarize, or omit any part of the file content. Every row of every table, every section, and every line must be passed to Notion MCP exactly as read from the file.
+
 ### Step 6: Create or Update Notion Pages
 
 For each target language, create a **parent page + 3 child pages** structure:

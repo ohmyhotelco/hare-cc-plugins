@@ -39,8 +39,9 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 Before scaffolding, check if a design system exists at `design-system/pages/` (relative to project root):
 1. If `design-system/pages/colors.md` exists, read it to extract color tokens for the Tailwind theme config
 2. If `design-system/pages/typography.md` exists, read it to extract font families, sizes, and weights for the Tailwind theme config
-3. Apply these tokens when configuring `tailwind.config.js` in Step 2 (extend the theme with design system values)
-4. This is optional — if the files don't exist, use default Tailwind theme values
+3. If `design-system/pages/spacing-layout.md` exists, read it to extract layout pattern CSS values (grid templates, gap, border-radius) for the Tailwind theme config. Apply domain-specific density settings (e.g., b2b-admin: compact `gap-3` layouts, hotel-travel: rounded `border-radius: 12px` card styles)
+4. Apply these tokens when configuring `tailwind.config.js` in Step 2 (extend the theme with design system values)
+5. This is optional — if the files don't exist, use default Tailwind theme values
 
 ### Step 2: Scaffold Vite Project
 

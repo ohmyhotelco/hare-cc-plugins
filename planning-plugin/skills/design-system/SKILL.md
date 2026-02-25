@@ -118,7 +118,7 @@ Use an ISO-8601 UTC timestamp for generation time.
 
 This design system is intended to be used with:
 
-- **`/planning-plugin:design`** — The DSL generator (`dsl-generator` agent) reads `pages/components.md` to inform component selection
+- **`/planning-plugin:design`** — The `dsl-generator` agent reads `pages/components.md`, `pages/icons.md`, `pages/patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints. The `prototype-generator` agent reads `pages/colors.md`, `pages/typography.md`, and `pages/spacing-layout.md` to configure Tailwind theme.
 - **`/frontend-react-plugin:gen`** — The code generator reads `pages/colors.md` and `pages/typography.md` to configure Tailwind theme
 
 ### Tailwind Theme Config

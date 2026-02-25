@@ -22,6 +22,24 @@ Follow these steps in order.
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+### Step 0b: Design System Integration
+
+The design pipeline produces better results when a design system exists. Run `/planning-plugin:design-system` before `/planning-plugin:design` for best results.
+
+**Agent-to-file reference map** (`design-system/pages/`):
+
+| Design System File | dsl-generator | prototype-generator | Purpose |
+|--------------------|:---:|:---:|---------|
+| `components.md` | O | - | Component inventory for type selection |
+| `icons.md` | O | - | Domain-specific icon mappings |
+| `patterns.md` | O | - | Layout validation via `page_layout` + `components_used` |
+| `MASTER.md` | O | - | Design principles as DSL constraints |
+| `colors.md` | - | O | Color tokens for Tailwind theme |
+| `typography.md` | - | O | Font families/sizes for Tailwind theme |
+| `spacing-layout.md` | - | O | Layout density + spacing for Tailwind theme |
+
+All references are optional — agents fall back to defaults when design-system files are absent.
+
 ### Step 1: Parse Arguments & Validate
 
 1. Parse the arguments to extract:
@@ -175,6 +193,11 @@ Next Steps:
   - Run `/planning-plugin:design {feature} --stage=figma` to generate Figma designs (requires Figma MCP)
   - Edit prototype files directly to refine the UI before Figma generation
   - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md
+```
+
+If `design-system/MASTER.md` does not exist, prepend this to the Next Steps:
+```
+  - Run `/planning-plugin:design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
 ```
 
 Adjust the "Next Steps" based on which stages were completed or skipped.
