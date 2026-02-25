@@ -14,7 +14,6 @@ Plugin Claude Code này tự động hóa việc tạo đặc tả chức năng 
 - **Planner** — Đánh giá luồng UX và logic nghiệp vụ
 - **Tester** — Đánh giá các trường hợp biên và khả năng kiểm thử
 - **Translator** — Tạo bản dịch sang các ngôn ngữ được hỗ trợ
-- **Notion Syncer** — Đồng bộ đặc tả đã hoàn thiện lên các trang Notion
 - **DSL Generator** — Chuyển đổi định nghĩa màn hình thành UI DSL JSON có cấu trúc
 - **Prototype Generator** — Tạo prototype React độc lập từ UI DSL
 - **Figma Designer** — Chuyển đổi prototype React thành các layer Figma qua MCP
@@ -300,10 +299,12 @@ Specifications Overview:
 **Khi nào sử dụng**: Để đồng bộ thủ công đặc tả đã hoàn thiện lên Notion, hoặc đồng bộ lại sau khi chỉnh sửa. Đồng bộ tự động chạy sau khi hoàn thiện và dịch, nhưng bạn có thể kích hoạt thủ công bất cứ lúc nào.
 
 **Quy trình thực hiện**:
-1. Đọc các tệp đặc tả cho tính năng và ngôn ngữ được chỉ định (mặc định: ngôn ngữ làm việc)
-2. Tạo hoặc cập nhật trang Notion dưới `notionParentPageUrl` đã cấu hình
-3. Định dạng tiêu đề trang: `[{feature}] {lang} - Functional Specification`
-4. Lưu URL trang Notion vào trường `notion` của tệp tiến độ
+1. Đọc trực tiếp 3 tệp đặc tả cho tính năng và ngôn ngữ được chỉ định (mặc định: ngôn ngữ làm việc)
+2. Tạo trang cha + 3 trang con (Overview, Screens, Test Scenarios) dưới `notionParentPageUrl` đã cấu hình
+3. Định dạng tiêu đề trang cha: `[{feature}] {lang_name}` (ví dụ: `[social-login] English`)
+4. Lưu URL `parentPageUrl` + `childPages` vào trường `notion` của tệp tiến độ
+5. Khi chạy lại, cập nhật các trang hiện có thay vì tạo trùng lặp
+6. Tự động chuyển đổi định dạng trang đơn cũ sang cấu trúc cha+con mới
 
 **Ví dụ**:
 ```
@@ -518,11 +519,11 @@ Hoạt động theo hai giai đoạn: (A) phân tích ngữ cảnh dự án tự
 
 Dịch đặc tả trong khi bảo toàn cấu trúc markdown, thuật ngữ kỹ thuật, khối mã và ID. Sử dụng mô hình Sonnet. Hỗ trợ dịch toàn bộ (đặc tả mới) và dịch một phần (cập nhật cấp tệp sau khi đánh giá). Thêm chú thích timestamp đồng bộ và đánh dấu các bản dịch không rõ ràng bằng `<!-- NEEDS_REVIEW -->`.
 
-### Notion Syncer
+### Notion Sync
 
 **Vai trò**: Đồng bộ đặc tả đã hoàn thiện lên các trang Notion
 
-Tạo hoặc cập nhật các trang Notion dưới URL trang cha đã cấu hình. Chuyển đổi markdown đặc tả thành các khối Notion, bảo toàn cấu trúc và định dạng. Lưu URL trang vào tệp tiến độ để cập nhật trong tương lai. Sử dụng mô hình Sonnet. Được kích hoạt tự động sau khi hoàn thiện và dịch, hoặc thủ công qua `/planning-plugin:sync-notion`.
+Skill `sync-notion` đọc trực tiếp các tệp đặc tả và tạo trang cha + 3 trang con (Overview, Screens, Test Scenarios) cho mỗi ngôn ngữ dưới URL trang cha đã cấu hình. Mỗi trang con chứa nội dung của một tệp đặc tả, tránh giới hạn token đầu ra LLM với đặc tả lớn. Lưu URL trang vào tệp tiến độ để cập nhật trong tương lai. Được kích hoạt tự động sau khi hoàn thiện và dịch, hoặc thủ công qua `/planning-plugin:sync-notion`.
 
 ### DSL Generator
 
@@ -628,7 +629,7 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 ## Cấu trúc thư mục
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts

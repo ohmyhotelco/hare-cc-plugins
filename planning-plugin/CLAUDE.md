@@ -4,7 +4,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Architecture
 
-- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), notion-syncer (Notion page sync), dsl-generator (screens.md → UI DSL JSON), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
+- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
 - **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
@@ -53,7 +53,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - All agent reviews target the working language spec directory only
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
 - Convergence: both agents score >= 8/10 → suggest finalization; 3 rounds stalled → suggest finalization with open questions
-- Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; page title format: `[{feature}] {lang} - Functional Specification`; progress file stores page URLs in `notion` field
+- Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; file-per-page structure — each language gets a parent page (`[{feature}] {lang_name}`) with 3 child pages (Overview, Screens, Test Scenarios); the `sync-notion` skill reads spec files directly with Read tool and calls Notion MCP per file (no subagent); progress file stores `parentPageUrl` + `childPages` in the `notion` field; legacy `pageUrl` format is auto-migrated on next sync
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
 - Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
@@ -63,7 +63,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
-agents/          - Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
+agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)

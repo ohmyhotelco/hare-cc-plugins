@@ -10,7 +10,6 @@ This Claude Code plugin automates the creation of functional specifications thro
 - **Planner** reviews UX flows and business logic
 - **Tester** evaluates edge cases and testability
 - **Translator** generates translations to other supported languages
-- **Notion Syncer** syncs finalized specs to Notion pages
 - **DSL Generator** converts screen definitions into structured UI DSL JSON
 - **Prototype Generator** scaffolds standalone React prototypes from UI DSL
 - **Figma Designer** converts React prototypes to Figma layers via MCP
@@ -296,10 +295,12 @@ Specifications Overview:
 **When to use**: To manually sync a finalized spec to Notion, or to re-sync after editing. Automatic sync runs after finalization and translation, but you can trigger it manually anytime.
 
 **What happens**:
-1. Reads the spec files for the specified feature and language (defaults to working language)
-2. Creates or updates a Notion page under the configured `notionParentPageUrl`
-3. Page title format: `[{feature}] {lang} - Functional Specification`
-4. Stores the Notion page URL in the progress file's `notion` field
+1. Reads the 3 spec files directly for the specified feature and language (defaults to working language)
+2. Creates a parent page + 3 child pages (Overview, Screens, Test Scenarios) under the configured `notionParentPageUrl`
+3. Parent page title format: `[{feature}] {lang_name}` (e.g., `[social-login] English`)
+4. Stores `parentPageUrl` + `childPages` URLs in the progress file's `notion` field
+5. On re-run, updates existing pages instead of creating duplicates
+6. Auto-migrates legacy single-page format to the new parent+children structure
 
 **Example**:
 ```
@@ -514,11 +515,11 @@ Evaluates 5 dimensions: testability of requirements, edge cases and boundary con
 
 Translates specs while preserving markdown structure, technical terms, code blocks, and IDs. Uses the Sonnet model. Supports full translation (new specs) and partial translation (section-level updates after review changes). Adds a sync timestamp comment and marks ambiguous translations with `<!-- NEEDS_REVIEW -->`.
 
-### Notion Syncer
+### Notion Sync
 
 **Role**: Sync finalized specs to Notion pages.
 
-Creates or updates Notion pages under the configured parent page URL. Converts spec markdown into Notion blocks, preserving structure and formatting. Stores page URLs in the progress file for future updates. Uses the Sonnet model. Triggered automatically after finalization and translation, or manually via `/planning-plugin:sync-notion`.
+The `sync-notion` skill reads spec files directly and creates a parent page + 3 child pages (Overview, Screens, Test Scenarios) per language under the configured parent page URL. Each child page carries one spec file's content, avoiding LLM output token limits on large specs. Stores page URLs in the progress file for future updates. Triggered automatically after finalization and translation, or manually via `/planning-plugin:sync-notion`.
 
 ### DSL Generator
 
@@ -624,7 +625,7 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 ## Directory Structure
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts

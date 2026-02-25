@@ -14,7 +14,6 @@
 - **Planner** — UX 흐름과 비즈니스 로직을 검토합니다
 - **Tester** — 엣지 케이스와 테스트 가능성을 평가합니다
 - **Translator** — 지원 언어 간 번역을 생성합니다
-- **Notion Syncer** — 최종화된 명세서를 Notion 페이지에 동기화합니다
 - **DSL Generator** — 화면 정의를 구조화된 UI DSL JSON으로 변환합니다
 - **Prototype Generator** — UI DSL에서 독립형 React 프로토타입을 생성합니다
 - **Figma Designer** — React 프로토타입을 MCP를 통해 Figma 레이어로 변환합니다
@@ -300,10 +299,12 @@ Specifications Overview:
 **사용 시점**: 최종화된 명세서를 Notion에 수동으로 동기화하거나, 편집 후 재동기화할 때 사용합니다. 최종화 및 번역 후 자동 동기화가 실행되지만, 언제든지 수동으로 트리거할 수 있습니다.
 
 **동작 과정**:
-1. 지정된 기능 및 언어의 명세서 파일을 읽습니다 (기본값: 작업 언어)
-2. 설정된 `notionParentPageUrl` 하위에 Notion 페이지를 생성하거나 업데이트합니다
-3. 페이지 제목 형식: `[{feature}] {lang} - Functional Specification`
-4. Notion 페이지 URL을 진행 파일의 `notion` 필드에 저장합니다
+1. 지정된 기능 및 언어의 3개 명세서 파일을 직접 읽습니다 (기본값: 작업 언어)
+2. 설정된 `notionParentPageUrl` 하위에 부모 페이지 + 자식 페이지 3개(Overview, Screens, Test Scenarios)를 생성합니다
+3. 부모 페이지 제목 형식: `[{feature}] {lang_name}` (예: `[social-login] English`)
+4. `parentPageUrl` + `childPages` URL을 진행 파일의 `notion` 필드에 저장합니다
+5. 재실행 시 기존 페이지를 업데이트합니다 (중복 생성 방지)
+6. 레거시 단일 페이지 형식을 새 부모+자식 구조로 자동 마이그레이션합니다
 
 **예시**:
 ```
@@ -518,11 +519,11 @@ Tester는 발견된 모든 Critical 및 Major 이슈에 대해 구체적인 테�
 
 markdown 구조, 기술 용어, 코드 블록, ID를 보존하면서 명세서를 번역합니다. Sonnet 모델을 사용합니다. 전체 번역(새 명세서)과 부분 번역(리뷰 변경 후 섹션 단위 업데이트)을 지원합니다. 동기화 타임스탬프 주석을 추가하고 모호한 번역에는 `<!-- NEEDS_REVIEW -->` 마커를 표시합니다.
 
-### Notion Syncer
+### Notion Sync
 
 **역할**: 최종화된 명세서를 Notion 페이지에 동기화
 
-설정된 상위 페이지 URL 하위에 Notion 페이지를 생성하거나 업데이트합니다. 명세서 markdown을 Notion 블록으로 변환하며, 구조와 서식을 보존합니다. 향후 업데이트를 위해 페이지 URL을 진행 파일에 저장합니다. Sonnet 모델을 사용합니다. 최종화 및 번역 후 자동으로 트리거되거나, `/planning-plugin:sync-notion`을 통해 수동으로 실행할 수 있습니다.
+`sync-notion` 스킬이 명세서 파일을 직접 읽고 언어당 부모 페이지 + 자식 페이지 3개(Overview, Screens, Test Scenarios)를 설정된 상위 페이지 URL 하위에 생성합니다. 각 자식 페이지가 하나의 명세서 파일 내용을 담으므로 대용량 스펙에서 LLM 출력 토큰 한계를 회피합니다. 향후 업데이트를 위해 페이지 URL을 진행 파일에 저장합니다. 최종화 및 번역 후 자동으로 트리거되거나, `/planning-plugin:sync-notion`을 통해 수동으로 실행할 수 있습니다.
 
 ### DSL Generator
 
@@ -628,7 +629,7 @@ src/prototypes/{feature}/                  ← React 프로토타입 (독립형 
 ## 디렉토리 구조
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, notion-syncer, dsl-generator, prototype-generator, figma-designer)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts

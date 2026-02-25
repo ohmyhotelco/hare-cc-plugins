@@ -1,6 +1,6 @@
 ---
 name: sync-notion
-description: Sync functional specification(s) to Notion pages. Creates new pages or updates existing ones.
+description: Sync functional specification(s) to Notion pages. Creates a parent page with 3 child pages per language (file-per-page).
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
@@ -42,28 +42,91 @@ Sync specification to Notion for: **$ARGUMENTS**
 
 ### Step 3: Check Existing Notion Pages
 
-Read the `notion` field from the progress file (if it exists) to find existing page URLs for each language.
+Read the `notion` field from the progress file (if it exists) to find existing page URLs for each language. Detect whether the format is **legacy** (`pageUrl` only) or **current** (`parentPageUrl` + `childPages`).
 
-### Step 4: Run Notion Sync
+### Step 4: Read Spec Files Directly
 
-For each target language, launch a **notion-syncer** agent:
+For each target language, read the 3 spec files using the Read tool:
 
-```
-Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specDir: docs/specs/{feature}/{lang}/, feature: {feature}, lang: {lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
-```
+1. `docs/specs/{feature}/{lang}/{feature}-spec.md` — Overview file
+2. `docs/specs/{feature}/{lang}/screens.md` — Screens file
+3. `docs/specs/{feature}/{lang}/test-scenarios.md` — Test Scenarios file
 
-If multiple languages are being synced, launch agents in parallel where possible.
+If any file is missing, record an error and skip Notion sync for that language.
 
-### Step 5: Update Progress
+### Step 5: Prepare Content
 
-Update the progress file's `notion` field with results from each agent:
+Apply minimal transformations to the **overview file only** (`{feature}-spec.md`):
+
+1. **Extract page title**: Take the first line (the `# {Feature Name} — Functional Specification` heading). Strip the `# ` prefix — this becomes the parent page title. Remove this line from the content.
+2. **Convert metadata blockquote to callout**: Find the `> **Status**: ...` blockquote at the top. Convert it to a Notion callout block:
+   ```
+   <callout icon="📋" color="blue_background">
+   **Status**: {status} · **Author**: Planning Plugin · **Created**: {created} · **Updated**: {updated}
+   </callout>
+   ```
+   Remove the original blockquote lines from the content.
+
+The other 2 files (`screens.md`, `test-scenarios.md`) are used **as-is** with no transformation.
+
+HTML comments (`<!-- ... -->`) may be removed from all files as Notion does not render them.
+
+### Step 6: Create or Update Notion Pages
+
+For each target language, create a **parent page + 3 child pages** structure:
+
+#### 6a: Detect Existing Pages
+
+- Read the progress file's `notion.{lang}` field
+- **Current format** (`parentPageUrl` + `childPages`): Use existing URLs for update
+- **Legacy format** (`pageUrl` only): Migrate — the existing page becomes the parent (its content will be replaced with metadata only), and 3 new child pages will be created
+- **No existing pages**: Create everything new
+
+#### 6b: Create or Update Parent Page
+
+- **Title**: `[{feature}] {lang_name}` (e.g., `[social-login] English`)
+- **Content**: Only the metadata callout from Step 5:
+  ```
+  <callout icon="📋" color="blue_background">
+  **Status**: {status} · **Author**: Planning Plugin · **Created**: {created} · **Updated**: {updated}
+  </callout>
+  ```
+- **Parent**: Use `notionParentPageUrl` as the parent page
+- If updating, use `mcp__notion__notion-update-page` with the existing parent page URL
+- If creating, use `mcp__notion__notion-create-pages`
+
+#### 6c: Create or Update Child Pages
+
+Create/update 3 child pages under the parent page. **Process the parent first**, then the children sequentially:
+
+| Child | Title | Source File |
+|-------|-------|-------------|
+| 1 | `Overview` | `{feature}-spec.md` (with title/blockquote removed per Step 5) |
+| 2 | `Screens` | `screens.md` (as-is) |
+| 3 | `Test Scenarios` | `test-scenarios.md` (as-is) |
+
+- **Parent of each child**: The parent page created/updated in Step 6b
+- If updating existing child pages (URLs found in `childPages`), use `mcp__notion__notion-update-page`
+- If creating new child pages, use `mcp__notion__notion-create-pages`
+- Do NOT include the page title in the content body
+
+Record the action (`created` or `updated`) and the resulting page URL for each page.
+
+### Step 7: Update Progress
+
+Update the progress file's `notion` field with the new structure:
 
 ```json
 {
   "notion": {
     "{lang}": {
-      "pageUrl": "{notion page URL from agent result}",
-      "lastSyncedAt": "{timestamp from agent result}"
+      "parentPageUrl": "{parent page URL}",
+      "childPages": {
+        "overview": "{child page 1 URL}",
+        "screens": "{child page 2 URL}",
+        "test-scenarios": "{child page 3 URL}"
+      },
+      "lastSyncedAt": "{timestamp}"
     }
   }
 }
@@ -71,13 +134,16 @@ Update the progress file's `notion` field with results from each agent:
 
 Create the `notion` field if it doesn't exist yet.
 
-### Step 6: Report Results
+### Step 8: Report Results
 
 Display a summary:
 
 ```
 Notion Sync Results for "{feature}":
-  {lang_name} ({lang}): {Created|Updated} — {pageUrl}
+  {lang_name} ({lang}): {Created|Updated} — Parent: {parentPageUrl}
+    Overview: {childPages.overview}
+    Screens: {childPages.screens}
+    Test Scenarios: {childPages.test-scenarios}
   {lang_name} ({lang}): Skipped — no spec file found
   {lang_name} ({lang}): Failed — {error message}
 ```

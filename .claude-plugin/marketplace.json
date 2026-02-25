@@ -8,7 +8,7 @@
     {
       "name": "planning-plugin",
       "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "author": {
         "name": "Justin Choi"
       },

@@ -66,19 +66,11 @@ Update the progress file's translation status for each target language:
 ### Step 6: Sync Translations to Notion (if configured)
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
-2. Read the progress file to check for existing Notion page URLs in the `notion` field
-3. For each translated target language, launch a **notion-syncer** agent:
-   ```
-   Task(subagent_type: "notion-syncer", prompt: "Sync the spec to Notion. specDir: docs/specs/{feature}/{target_lang}/, feature: {feature}, lang: {target_lang}, parentPageUrl: {notionParentPageUrl}, existingPageUrl: {existing_url_or_empty}")
-   ```
-4. Update the progress file's `notion` field with each agent's result:
-   ```json
-   {
-     "notion": {
-       "{lang}": { "pageUrl": "{url}", "lastSyncedAt": "{timestamp}" }
-     }
-   }
-   ```
+2. For each translated target language, follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
+   - Read the 3 spec files directly with Read tool (Step 4)
+   - Apply minimal content transformation to the overview file (Step 5)
+   - Create/update parent page + 3 child pages per language (Step 6)
+   - Update the progress file's `notion` field with `parentPageUrl` + `childPages` structure (Step 7)
 
 ### Step 7: Confirm
 
