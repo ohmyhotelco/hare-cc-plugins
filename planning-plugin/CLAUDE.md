@@ -58,6 +58,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
 - Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `prototype`, `figma`)
+- UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
 
 ## File Structure
 

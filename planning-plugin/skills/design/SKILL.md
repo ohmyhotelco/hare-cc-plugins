@@ -53,8 +53,10 @@ All references are optional — agents fall back to defaults when design-system 
    - Verify status is `reviewing` or `finalized`. If `drafting` or `analyzing`, stop with:
      > "The specification for '{feature}' is still in '{status}' status. Complete the spec review process first."
 
-3. Validate `screens.md` exists at `docs/specs/{feature}/{workingLanguage}/screens.md`:
-   - If not found, stop with:
+3. Validate `screens.md` exists at `docs/specs/{feature}/en/screens.md`:
+   - If `docs/specs/{feature}/en/` directory does not exist, stop with:
+     > "English spec not found. Run `/planning-plugin:translate {feature}` first to generate the English version."
+   - If `screens.md` is missing inside the `en/` directory, stop with:
      > "No screen definitions found. The spec must include screens.md."
 
 4. Stage-specific prerequisite checks:
@@ -98,7 +100,7 @@ If the `design` field already exists, preserve existing stage statuses for stage
 2. Launch the **dsl-generator** agent:
 
 ```
-Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/{workingLanguage}/. feature: {feature}. Read screens.md (screen definitions, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
+Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/en/. feature: {feature}. Read screens.md (screen definitions, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
 ```
 
 3. On success, update progress:

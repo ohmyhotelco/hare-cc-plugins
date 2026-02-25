@@ -281,3 +281,4 @@ Return a summary when complete:
 - Data shapes should be consistent with the screen definitions and functional requirements — infer realistically but do not add fields that have no basis in the spec
 - Navigation edges must only reference screens that exist in the manifest
 - Keep JSON files clean and well-formatted (2-space indentation)
+- DSL output must always be in English — screen titles, component labels, validation messages, error messages, and all other text content must be in English regardless of the source spec language
