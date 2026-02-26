@@ -3,7 +3,7 @@ name: review
 description: Run a single review round on an existing functional specification. Use after manual edits to re-check spec quality.
 argument-hint: "[feature-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__notion__*
 ---
 
 # Manual Review
@@ -68,11 +68,15 @@ After all changes are applied, update the `Last Updated` field in the metadata b
 
 ### Step 6: Next Steps
 
-Ask: "Would you like to run another review round, or are you done for now?"
+Ask: "Would you like to run another review round, finalize the spec, or stop for now?"
+
+Present 3 options:
 
 **If another round**: Go back to Step 3.
 
-**If done**:
+**If finalize**: Run Steps 6a → 6b → 6c below to translate, finalize, and optionally sync to Notion.
+
+**If done for now**:
 Remind the user:
 > "The spec is in REVIEWING status. To finalize, run `/planning-plugin:spec {feature}` — it will resume at the finalization step."
 > "Run `/planning-plugin:translate {feature}` to sync translations."
@@ -80,3 +84,44 @@ Remind the user:
 If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also remind:
 > "Run `/planning-plugin:sync-notion {feature} --lang={workingLanguage}` to update the Notion page.
 >  Note: translations may be out of sync — run `/planning-plugin:translate {feature}` first if you want to sync all languages."
+
+---
+
+#### Step 6a: Translate (Finalize path)
+
+1. Read `.claude/planning-plugin.json` and extract `supportedLanguages` and `workingLanguage`
+2. Determine target languages: `supportedLanguages` minus `workingLanguage`
+3. For each target language, launch a **translator** agent in parallel:
+   ```
+   Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
+   ```
+4. After all translators complete, update the progress file's `translations` field: set `synced: true` and `lastSyncedAt` to the current timestamp for each target language
+
+#### Step 6b: Finalize (Finalize path)
+
+1. Update the metadata blockquote in `{feature}-spec.md` across **all language versions** ({workingLanguage} + each target language):
+   - Change `Status` to `FINALIZED`
+   - Change `Last Updated` to the current date (YYYY-MM-DD format)
+2. Update the progress file: set `status` to `"finalized"`
+3. Present a summary:
+   - Total review rounds completed
+   - Final scores from the last round
+   - Key decisions made during review
+   - Any remaining open questions
+
+#### Step 6c: Notion Sync (Finalize path)
+
+1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
+2. If configured, for each language (working language + all target languages with translated spec directories), follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
+   - Read the 3 spec files directly with Read tool (Step 4)
+   - Apply minimal content transformation to the overview file (Step 5)
+   - Create/update parent page + 3 child pages per language (Step 6)
+   - Update the progress file's `notion` field with `parentPageUrl` + `childPages` structure (Step 7)
+   - Display sync results summary (Step 8)
+3. Include Notion page URLs in the finalization summary
+
+After completing Steps 6a–6c, suggest next steps:
+> "Run `/planning-plugin:design {feature}` to generate UI DSL, React prototype, and Figma designs"
+> "Run `/planning-plugin:review {feature}` anytime to re-review"
+> "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
+> "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"
