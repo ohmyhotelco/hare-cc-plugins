@@ -35,6 +35,10 @@ Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`.
 If the status is `finalized`, warn the user:
 > "This spec is already finalized. Running a review will change its status back to 'reviewing'. Continue?"
 
+If the user confirms (or the status is not `finalized`), update the progress status to `"reviewing"` and increment `currentRound`. Also update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
+- Change `Status` to `REVIEWING`
+- Change `Last Updated` to the current date (YYYY-MM-DD format)
+
 ### Step 3: Run Sequential Review
 
 **Planner review:**
@@ -60,13 +64,19 @@ For each issue the user wants to address:
 1. Update the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/error handling issues → `screens.md`, open questions → `{feature}-spec.md`)
 2. Record the decision in the progress file
 
+After all changes are applied, update the `Last Updated` field in the metadata blockquote of `{feature}-spec.md` (in the {workingLanguage} directory) to the current date (YYYY-MM-DD format).
+
 ### Step 6: Next Steps
 
-Ask: "Would you like to run another review round, or finalize the spec?"
+Ask: "Would you like to run another review round, or are you done for now?"
 
-If the user is done with reviews, remind them:
+**If another round**: Go back to Step 3.
+
+**If done**:
+Remind the user:
+> "The spec is in REVIEWING status. To finalize, run `/planning-plugin:spec {feature}` — it will resume at the finalization step."
 > "Run `/planning-plugin:translate {feature}` to sync translations."
 
 If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also remind:
 > "Run `/planning-plugin:sync-notion {feature} --lang={workingLanguage}` to update the Notion page.
->  Note: translations are now out of sync — run `/planning-plugin:translate {feature}` first if you want to sync all languages."
+>  Note: translations may be out of sync — run `/planning-plugin:translate {feature}` first if you want to sync all languages."

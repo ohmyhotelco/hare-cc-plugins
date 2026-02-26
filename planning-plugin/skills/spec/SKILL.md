@@ -88,6 +88,10 @@ Using the analyst's collected requirements and the 3 templates in `templates/`:
 
 Update progress status to `"reviewing"` and increment `currentRound`.
 
+Update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
+- Change `Status` to `REVIEWING`
+- Change `Last Updated` to the current date (YYYY-MM-DD format)
+
 **4a. Planner Review:**
 
 Launch the **planner** agent:
@@ -148,7 +152,9 @@ After all complete, update the progress file's translation status with `synced: 
 
 ### Step 6: Finalize
 
-1. Update the spec status header to `FINALIZED` in `{feature}-spec.md` across all language versions ({workingLanguage} + target languages)
+1. Update the metadata blockquote in `{feature}-spec.md` across all language versions ({workingLanguage} + target languages):
+   - Change `Status` to `FINALIZED`
+   - Change `Last Updated` to the current date (YYYY-MM-DD format)
 2. Update the progress file:
    ```json
    { "status": "finalized" }
