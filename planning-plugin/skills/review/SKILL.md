@@ -68,13 +68,21 @@ After all changes are applied, update the `Last Updated` field in the metadata b
 
 ### Step 6: Next Steps
 
-Ask: "Would you like to run another review round, finalize the spec, or stop for now?"
+**Convergence check** — apply in strict priority order (first matching rule wins):
 
-Present 3 options:
+1. **Both planner AND tester scores >= 8**: Present 3 options: another round / finalize / stop for now
+2. **Either score < 8 AND fewer than 3 rounds completed**: Present 2 options only: another round / stop for now. Do NOT offer finalization.
+   — "Tester score is below 8 (planner: X/10, tester: Y/10, round N/3). Finalization is not available yet."
+3. **3 rounds completed with either score still < 8**: Present 3 options: another round / finalize with caveats / stop for now
+   — "After 3 rounds, scores are (planner: X/10, tester: Y/10). Remaining issues: ..."
+
+**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed. This rule cannot be overridden by score trends or other factors.
+
+---
 
 **If another round**: Go back to Step 3.
 
-**If finalize**: Run Steps 6a → 6b → 6c below to translate, finalize, and optionally sync to Notion.
+**If finalize** (only when available per convergence check above): Run Steps 6a → 6b → 6c below to translate, finalize, and optionally sync to Notion.
 
 **If done for now**:
 Remind the user:

@@ -116,11 +116,12 @@ Show the user a summary of both reviews:
 
 **4d. Convergence Check:**
 
-Apply these rules:
-- **Both scores >= 8**: Suggest finalization — "Both reviewers are satisfied. Ready to finalize?"
-- **Scores improving round over round**: Suggest another review — "Scores are improving. Want to do another round?"
-- **3 rounds completed with no improvement**: Suggest finalization with caveats — "After 3 rounds, here are the remaining open questions. Ready to finalize as-is?"
-- **Always give the user the final say**
+Apply these rules **in strict priority order** (first matching rule wins):
+1. **Both planner AND tester scores >= 8**: Suggest finalization — "Both reviewers are satisfied (planner: X/10, tester: Y/10). Ready to finalize?"
+2. **Either score < 8 AND fewer than 3 rounds completed**: Do NOT suggest finalization. Suggest another review round — "Tester score is below 8 (planner: X/10, tester: Y/10, round N/3). Another review round is recommended."
+3. **3 rounds completed with either score still < 8**: Suggest finalization with caveats — "After 3 rounds, scores are (planner: X/10, tester: Y/10). Here are the remaining open questions. Ready to finalize as-is?"
+
+**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed. This rule cannot be overridden by score trends or other factors.
 
 **4e. User Decision:**
 
