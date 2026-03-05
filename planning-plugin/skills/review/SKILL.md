@@ -37,7 +37,7 @@ If the status is `finalized`, warn the user:
 
 If the user confirms (or the status is not `finalized`), update the progress status to `"reviewing"` and increment `currentRound`. Also update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
 - Change `Status` to `REVIEWING`
-- Change `Last Updated` to the current date (YYYY-MM-DD format)
+- Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 
 ### Step 3: Run Sequential Review
 
@@ -64,7 +64,7 @@ For each issue the user wants to address:
 1. Update the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/error handling issues → `screens.md`, open questions → `{feature}-spec.md`)
 2. Record the decision in the progress file
 
-After all changes are applied, update the `Last Updated` field in the metadata blockquote of `{feature}-spec.md` (in the {workingLanguage} directory) to the current date (YYYY-MM-DD format).
+After all changes are applied, update the `Last Updated` field in the metadata blockquote of `{feature}-spec.md` (in the {workingLanguage} directory) to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z).
 
 ### Step 6: Next Steps
 
@@ -109,7 +109,7 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 
 1. Update the metadata blockquote in `{feature}-spec.md` across **all language versions** ({workingLanguage} + each target language):
    - Change `Status` to `FINALIZED`
-   - Change `Last Updated` to the current date (YYYY-MM-DD format)
+   - Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 2. Update the progress file: set `status` to `"finalized"`
 3. Present a summary:
    - Total review rounds completed
@@ -121,10 +121,11 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. If configured, for each language (working language + all target languages with translated spec directories), follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
+   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
    - Read the 3 spec files directly with Read tool (Step 4)
    - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6)
-   - Update the progress file's `notion` field with `parentPageUrl` + `childPages` structure (Step 7)
+   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
+   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
    - Display sync results summary (Step 8)
 3. Include Notion page URLs in the finalization summary
 

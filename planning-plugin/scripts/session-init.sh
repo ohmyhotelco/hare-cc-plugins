@@ -62,4 +62,29 @@ if [ -n "$IN_PROGRESS" ]; then
   echo "Use /planning-plugin:progress to see details, or /planning-plugin:spec to resume."
 fi
 
+# Check Notion sync status across all progress files
+NOTION_WARNINGS=""
+while IFS= read -r pfile; do
+  if [ -f "$pfile" ]; then
+    FEATURE=$(jq -r '.feature // "unknown"' "$pfile" 2>/dev/null || echo "unknown")
+    # Iterate over all language keys under .notion
+    LANGS=$(jq -r '.notion // {} | keys[]' "$pfile" 2>/dev/null || true)
+    for lang in $LANGS; do
+      SYNC_STATUS=$(jq -r ".notion.\"$lang\".syncStatus // \"\"" "$pfile" 2>/dev/null || echo "")
+      if [ "$SYNC_STATUS" = "syncing" ]; then
+        NOTION_WARNINGS="${NOTION_WARNINGS}  - ${FEATURE} (${lang}): Interrupted sync detected — sync was in progress when session ended\n"
+      elif [ "$SYNC_STATUS" = "stale" ]; then
+        NOTION_WARNINGS="${NOTION_WARNINGS}  - ${FEATURE} (${lang}): Notion pages out of sync — spec was edited after last sync\n"
+      fi
+    done
+  fi
+done <<< "$PROGRESS_FILES"
+
+if [ -n "$NOTION_WARNINGS" ]; then
+  echo ""
+  echo "[Planning Plugin] Notion sync issues:"
+  echo -e "$NOTION_WARNINGS"
+  echo "  Run: /planning-plugin:sync-notion {feature} [--lang=xx]"
+fi
+
 exit 0

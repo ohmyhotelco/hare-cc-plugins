@@ -90,7 +90,7 @@ Update progress status to `"reviewing"` and increment `currentRound`.
 
 Update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
 - Change `Status` to `REVIEWING`
-- Change `Last Updated` to the current date (YYYY-MM-DD format)
+- Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 
 **4a. Planner Review:**
 
@@ -155,7 +155,7 @@ After all complete, update the progress file's translation status with `synced: 
 
 1. Update the metadata blockquote in `{feature}-spec.md` across all language versions ({workingLanguage} + target languages):
    - Change `Status` to `FINALIZED`
-   - Change `Last Updated` to the current date (YYYY-MM-DD format)
+   - Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 2. Update the progress file:
    ```json
    { "status": "finalized" }
@@ -175,10 +175,11 @@ After all complete, update the progress file's translation status with `synced: 
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. For each language (working language + all target languages with translated spec directories), follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
+   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
    - Read the 3 spec files directly with Read tool (Step 4)
    - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6)
-   - Update the progress file's `notion` field with `parentPageUrl` + `childPages` structure (Step 7)
+   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
+   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
 3. Include Notion page URLs in the finalization summary
 
 ## Error Handling

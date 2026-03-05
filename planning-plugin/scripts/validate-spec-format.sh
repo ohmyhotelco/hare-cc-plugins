@@ -72,4 +72,28 @@ if [ ${#MISSING[@]} -gt 0 ]; then
   exit 0
 fi
 
+# --- Notion sync stale detection ---
+# Extract feature and lang from the file path: docs/specs/{feature}/{lang}/...
+if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]]; then
+  FEATURE="${BASH_REMATCH[1]}"
+  LANG="${BASH_REMATCH[2]}"
+
+  # Derive project root from the spec path
+  PROJECT_ROOT="${FILE_PATH%%/docs/specs/*}"
+  PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
+
+  if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then
+    SYNC_STATUS=$(jq -r ".notion.\"$LANG\".syncStatus // \"\"" "$PROGRESS_FILE" 2>/dev/null || echo "")
+    if [ "$SYNC_STATUS" = "synced" ]; then
+      # Mark as stale
+      UPDATED=$(jq ".notion.\"$LANG\".syncStatus = \"stale\"" "$PROGRESS_FILE" 2>/dev/null) && \
+        echo "$UPDATED" > "$PROGRESS_FILE"
+      echo ""
+      echo "[Planning Plugin] Notion sync is now STALE for $FEATURE ($LANG)."
+      echo "  The spec file was edited after the last Notion sync."
+      echo "  Run: /planning-plugin:sync-notion $FEATURE --lang=$LANG"
+    fi
+  fi
+fi
+
 exit 0

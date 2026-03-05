@@ -2,8 +2,8 @@
 
 > **Status**: {DRAFT | REVIEWING | FINALIZED}
 > **Author**: Planning Plugin (Auto-generated)
-> **Created**: {date}
-> **Last Updated**: {date}
+> **Created**: {ISO 8601 timestamp}
+> **Last Updated**: {ISO 8601 timestamp}
 
 ---
 

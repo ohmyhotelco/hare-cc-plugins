@@ -51,8 +51,11 @@ Design Status: (only display this section if a `design` field exists in the prog
   Figma:     {status} — {figmaFileUrl or "skipped"} — {generatedAt}
 
 Notion Sync: (only display this section if a `notion` field exists in the progress file)
-  {lang_name} ({lang}): {pageUrl} — Last synced: {lastSyncedAt}
-  {lang_name} ({lang}): {pageUrl} — Last synced: {lastSyncedAt}
+  {lang_name} ({lang}): {syncStatus_display} — {pageUrl} — Last synced: {lastSyncedAt}
+  syncStatus display mapping:
+    "synced"  → "✓ Synced"
+    "syncing" → "⚠ INTERRUPTED"
+    "stale"   → "⚠ STALE"
 
 Open Questions: {count from {feature}-spec.md's Open Questions section}
 ```
@@ -72,10 +75,15 @@ Specifications Overview:
 │ Feature          │ Status     │ Round │ Planner │ Tester  │ Translated         │ Design    │ Notion    │
 ├──────────────────┼────────────┼───────┼─────────┼─────────┼────────────────────┼───────────┼───────────┤
 │ social-login     │ reviewing  │   2   │  7/10   │  6/10   │ ko✓ vi✓            │ —         │ en✓ ko✓   │
-│ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ en✓ vi✓            │ ✓ DSL+Pro │ —         │
+│ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ en✓ vi✓            │ ✓ DSL+Pro │ en⚠ ko✓  │
 │ notifications    │ drafting   │   0   │   —     │   —     │ ko✗ vi✗            │ —         │ —         │
 └──────────────────┴────────────┴───────┴─────────┴─────────┴────────────────────┴───────────┴───────────┘
 ```
+
+Notion column uses per-language status symbols:
+- `✓` = synced
+- `⚠` = stale or interrupted (needs re-sync)
+- `—` = no Notion sync configured
 
 5. If no specs exist yet, display:
    > No specifications found. Run `/planning-plugin:spec "feature description"` to create one.

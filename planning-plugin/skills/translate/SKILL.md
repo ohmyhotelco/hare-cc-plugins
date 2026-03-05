@@ -67,10 +67,11 @@ Update the progress file's translation status for each target language:
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. For each translated target language, follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
+   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
    - Read the 3 spec files directly with Read tool (Step 4)
    - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6)
-   - Update the progress file's `notion` field with `parentPageUrl` + `childPages` structure (Step 7)
+   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
+   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
 
 ### Step 7: Confirm
 

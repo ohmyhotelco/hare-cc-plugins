@@ -78,7 +78,9 @@ HTML comments (`<!-- ... -->`) may be removed from all files as Notion does not 
 
 ### Step 6: Create or Update Notion Pages
 
-For each target language, create a **parent page + 3 child pages** structure:
+For each target language, create a **parent page + 3 child pages** structure.
+
+**Before any MCP calls**, set `notion.{lang}.syncStatus = "syncing"` in the progress file. This acts as a WAL (Write-Ahead Log) — if the session is interrupted mid-sync, the `"syncing"` status will remain, allowing `session-init.sh` to detect the incomplete sync on restart.
 
 #### 6a: Detect Existing Pages
 
@@ -99,6 +101,7 @@ For each target language, create a **parent page + 3 child pages** structure:
 - **Parent**: Use `notionParentPageUrl` as the parent page
 - If updating, use `mcp__notion__notion-update-page` with the existing parent page URL
 - If creating, use `mcp__notion__notion-create-pages`
+- **Immediately after** the parent page is created/updated, record `notion.{lang}.parentPageUrl` in the progress file
 
 #### 6c: Create or Update Child Pages
 
@@ -114,17 +117,26 @@ Create/update 3 child pages under the parent page. **Process the parent first**,
 - If updating existing child pages (URLs found in `childPages`), use `mcp__notion__notion-update-page`
 - If creating new child pages, use `mcp__notion__notion-create-pages`
 - Do NOT include the page title in the content body
+- **Immediately after each** child page is created/updated, record `notion.{lang}.childPages.{key}` in the progress file (e.g., after Overview → write `childPages.overview`, after Screens → write `childPages.screens`). This incremental recording ensures that if the session is interrupted, already-processed pages have their URLs saved and won't be duplicated on retry.
 
 Record the action (`created` or `updated`) and the resulting page URL for each page.
 
 ### Step 7: Update Progress
 
-Update the progress file's `notion` field with the new structure:
+Set the final sync status in the progress file:
+
+1. Set `notion.{lang}.syncStatus = "synced"`
+2. Set `notion.{lang}.lastSyncedAt` to the current timestamp
+
+The `parentPageUrl` and `childPages` URLs are already recorded incrementally during Step 6.
+
+The resulting structure in the progress file:
 
 ```json
 {
   "notion": {
     "{lang}": {
+      "syncStatus": "synced",
       "parentPageUrl": "{parent page URL}",
       "childPages": {
         "overview": "{child page 1 URL}",
