@@ -5,7 +5,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 ## Architecture
 
 - **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
-- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`
+- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:bundle`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
 
@@ -57,6 +57,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - Notion sync reliability: uses a WAL (Write-Ahead Log) pattern — `syncStatus` is set to `"syncing"` before MCP calls, each page URL is recorded incrementally after creation/update, and `syncStatus` is set to `"synced"` only after all pages complete. Values: `"syncing"` (in progress or interrupted), `"synced"` (complete), `"stale"` (spec edited after sync). `session-init.sh` warns on `"syncing"` (interrupted) and `"stale"` states. `validate-spec-format.sh` auto-transitions `"synced"` → `"stale"` when spec files are edited
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
 - Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
+- Bundle staleness: `validate-spec-format.sh` auto-transitions `bundleStatus` from `"current"` → `"stale"` when prototype source files (`src/prototypes/{feature}/src/`) are edited. `session-init.sh` warns on stale bundles. `/planning-plugin:bundle {feature}` rebuilds and restores `"current"`
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
 - Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `prototype`, `figma`)
 - UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
@@ -67,7 +68,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
 agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
-skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion)
+skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
 data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)

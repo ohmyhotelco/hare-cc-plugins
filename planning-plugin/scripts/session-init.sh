@@ -87,4 +87,23 @@ if [ -n "$NOTION_WARNINGS" ]; then
   echo "  Run: /planning-plugin:sync-notion {feature} [--lang=xx]"
 fi
 
+# Check prototype bundle stale status across all progress files
+BUNDLE_WARNINGS=""
+while IFS= read -r pfile; do
+  if [ -f "$pfile" ]; then
+    FEATURE=$(jq -r '.feature // "unknown"' "$pfile" 2>/dev/null || echo "unknown")
+    BUNDLE_STATUS=$(jq -r '.design.stages.prototype.bundleStatus // ""' "$pfile" 2>/dev/null || echo "")
+    if [ "$BUNDLE_STATUS" = "stale" ]; then
+      BUNDLE_WARNINGS="${BUNDLE_WARNINGS}  - ${FEATURE}\n"
+    fi
+  fi
+done <<< "$PROGRESS_FILES"
+
+if [ -n "$BUNDLE_WARNINGS" ]; then
+  echo ""
+  echo "[Planning Plugin] Stale prototype bundles:"
+  echo -e "$BUNDLE_WARNINGS"
+  echo "  Run: /planning-plugin:bundle {feature}"
+fi
+
 exit 0

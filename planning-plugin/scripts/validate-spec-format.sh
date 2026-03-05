@@ -96,4 +96,26 @@ if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]]; then
   fi
 fi
 
+# --- Prototype bundle stale detection ---
+# If a file under src/prototypes/{feature}/src/ is edited, mark bundle as stale
+if [[ "$FILE_PATH" =~ src/prototypes/([^/]+)/src/ ]]; then
+  FEATURE="${BASH_REMATCH[1]}"
+
+  # Derive project root from the prototype path
+  PROJECT_ROOT="${FILE_PATH%%/src/prototypes/*}"
+  PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
+
+  if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then
+    BUNDLE_STATUS=$(jq -r '.design.stages.prototype.bundleStatus // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+    if [ "$BUNDLE_STATUS" = "current" ]; then
+      UPDATED=$(jq '.design.stages.prototype.bundleStatus = "stale"' "$PROGRESS_FILE" 2>/dev/null) && \
+        echo "$UPDATED" > "$PROGRESS_FILE"
+      echo ""
+      echo "[Planning Plugin] Prototype bundle is now STALE for $FEATURE."
+      echo "  The source was edited after the last bundle build."
+      echo "  Run: /planning-plugin:bundle $FEATURE"
+    fi
+  fi
+fi
+
 exit 0

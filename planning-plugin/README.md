@@ -320,7 +320,7 @@ Specifications Overview:
 
 **What happens** (full pipeline):
 1. **Stage 1 — DSL Generation**: The DSL Generator agent reads `screens.md` and `{feature}-spec.md`, then produces structured UI DSL JSON files in `docs/specs/{feature}/ui-dsl/` (a `manifest.json` with screen index + navigation map, and one `screen-{id}.json` per screen)
-2. **Stage 2 — Prototype Generation**: The Prototype Generator agent reads the UI DSL and scaffolds a standalone Vite + React + TypeScript + TailwindCSS + shadcn/ui project in `src/prototypes/{feature}/`
+2. **Stage 2 — Prototype Generation**: The Prototype Generator agent reads the UI DSL and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html`
 3. **Stage 3 — Figma Generation** (optional): The Figma Designer agent reads the React prototype code and converts it to Figma layers via the `generate_figma_design` MCP tool
 
 Stages run sequentially (1→2→3). Use `--stage` to run a single stage independently.
@@ -334,6 +334,24 @@ Stages run sequentially (1→2→3). Use `--stage` to run a single stage indepen
 ```
 
 > **Note**: Stage 3 (Figma) is optional and requires Figma MCP configuration.
+
+---
+
+### `/planning-plugin:bundle`
+
+**Syntax**: `/planning-plugin:bundle feature-name`
+
+**When to use**: When `bundleStatus` is `"stale"` (prototype source files were edited after the last bundle), or after manually modifying prototype source files.
+
+**What happens**:
+1. Validates that a prototype exists at `src/prototypes/{feature}/`
+2. Runs the bundle script to rebuild `bundle.html` from current source files
+3. Updates `bundleStatus` to `"current"` in the progress file on success
+
+**Example**:
+```
+/planning-plugin:bundle social-login
+```
 
 ---
 
@@ -531,7 +549,7 @@ Reads `screens.md` and `{feature}-spec.md` from the finalized spec, then produce
 
 **Role**: Scaffold standalone React prototypes from UI DSL.
 
-Reads the UI DSL JSON and generates a complete Vite + React + TypeScript + TailwindCSS + shadcn/ui project in `src/prototypes/{feature}/`. Includes mock data, page routing, and all referenced shadcn/ui components. The prototype is standalone — no dependency on the main project. Uses the Opus model.
+Reads the UI DSL JSON and generates a complete Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html` (openable via `file://`). Includes mock data, page routing, and all referenced shadcn/ui components. The prototype is standalone — no dependency on the main project. Uses the Opus model.
 
 ### Figma Designer
 
@@ -580,6 +598,7 @@ docs/specs/{feature}/
     └── {feature}.json                     ← Workflow state
 
 src/prototypes/{feature}/                  ← React prototype (standalone Vite project)
+├── bundle.html                            ← Final artifact (single standalone HTML, openable via file://)
 ├── package.json
 ├── src/
 │   ├── App.tsx
@@ -626,9 +645,9 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts
+scripts/         Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/)

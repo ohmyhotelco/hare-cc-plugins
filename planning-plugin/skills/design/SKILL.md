@@ -133,6 +133,7 @@ Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype f
        "status": "completed",
        "path": "src/prototypes/{feature}/",
        "artifact": "src/prototypes/{feature}/bundle.html",
+       "bundleStatus": "current",
        "generatedAt": "ISO-8601"
      }
    }
