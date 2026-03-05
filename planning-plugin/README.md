@@ -16,6 +16,35 @@ This Claude Code plugin automates the creation of functional specifications thro
 
 All specs are generated in the configured working language as the source of truth, with translations to the other supported languages created automatically.
 
+## Architecture Overview
+
+```
+/planning-plugin:init → .claude/planning-plugin.json
+        │
+        ▼
+/planning-plugin:spec "feature"
+        │
+        ├── analyst agent → requirements gathering (8 categories)
+        │
+        ├── draft generation → {feature}-spec.md, screens.md, test-scenarios.md
+        │
+        ├── review cycle (repeats)
+        │   ├── planner agent → UX/business review
+        │   └── tester agent → testability/edge case review
+        │         (sees planner's feedback)
+        │
+        ├── translator agents (parallel) → multilingual translations
+        │
+        └── Notion sync (optional) → parent + 3 child pages per language
+        │
+        ▼
+/planning-plugin:design "feature"
+        │
+        ├── Stage 1: dsl-generator → UI DSL JSON
+        ├── Stage 2: prototype-generator → React + bundle.html
+        └── Stage 3: figma-designer → Figma layers (optional)
+```
+
 ## Installation
 
 This plugin is distributed via a GitHub repository.
@@ -324,6 +353,17 @@ Specifications Overview:
 3. **Stage 3 — Figma Generation** (optional): The Figma Designer agent reads the React prototype code and converts it to Figma layers via the `generate_figma_design` MCP tool
 
 Stages run sequentially (1→2→3). Use `--stage` to run a single stage independently.
+
+```
+┌──────────────────┐     ┌───────────────────────┐     ┌──────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Prototype  │     │  Stage 3 — Figma     │
+│                  │     │                       │     │                      │
+│  screens.md      │     │  UI DSL JSON          │     │  React components    │
+│  + spec.md       │ ──▶ │  → Vite + React 19    │ ──▶ │  → Figma MCP         │
+│  → manifest.json │     │  → bundle.html        │     │  → Figma layers      │
+│  + screen-*.json │     │                       │     │  (optional)          │
+└──────────────────┘     └───────────────────────┘     └──────────────────────┘
+```
 
 **Examples**:
 ```
@@ -647,12 +687,33 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
+scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/)
 src/prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
+
+## Hooks
+
+The plugin registers two lifecycle hooks that run automatically:
+
+### SessionStart — `session-init.sh`
+
+Runs when a Claude Code session starts. Checks for:
+
+- **In-progress specs**: Lists features in `analyzing`, `drafting`, or `reviewing` status with their current round
+- **Interrupted Notion sync**: Warns if any language has `syncStatus: "syncing"` (session ended mid-sync)
+- **Stale Notion pages**: Warns if spec files were edited after the last Notion sync (`syncStatus: "stale"`)
+- **Stale prototype bundles**: Warns if prototype source files were edited after the last bundle build (`bundleStatus: "stale"`)
+
+### PostToolUse — `validate-spec-format.sh`
+
+Runs after every `Write` or `Edit` tool call. Only activates on files under `docs/specs/` or `src/prototypes/`:
+
+- **Format validation**: Checks that required sections exist in each spec file (warning only, does not block)
+- **Notion stale detection**: If a spec file is edited and its Notion sync status is `"synced"`, automatically transitions to `"stale"`
+- **Bundle stale detection**: If a prototype source file under `src/prototypes/{feature}/src/` is edited and `bundleStatus` is `"current"`, automatically transitions to `"stale"`
 
 ## Conventions
 

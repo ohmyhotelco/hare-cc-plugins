@@ -70,7 +70,18 @@ npx shadcn@latest init -d
 npx shadcn@latest add {component1} {component2} ...
 
 # Bundling dependencies (for single HTML output)
-cd src/prototypes/{feature} && npm install -D parcel parcel-resolver-tspaths html-inline
+cd src/prototypes/{feature} && npm install -D vite-plugin-singlefile
+```
+
+After installing dependencies, update `vite.config.ts` to include the `viteSingleFile` plugin:
+```ts
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import { viteSingleFile } from "vite-plugin-singlefile"
+
+export default defineConfig({
+  plugins: [react(), viteSingleFile()],
+})
 ```
 
 Map component types to shadcn/ui packages:
@@ -382,7 +393,6 @@ The `roles` array is the deduplicated union of all roles from `visibility.roles`
 ```
 src/prototypes/{feature}/
 ├── bundle.html                   ← Final artifact: single standalone HTML
-├── .parcelrc                     ← Parcel config (path alias resolution)
 ├── package.json
 ├── tsconfig.json
 ├── vite.config.ts

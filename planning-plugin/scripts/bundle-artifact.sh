@@ -26,28 +26,35 @@ if [[ ! -f "$PROJECT_DIR/index.html" ]]; then
   exit 1
 fi
 
-# 2. Install bundling dependencies
-echo "==> Installing bundling dependencies..."
+# 2. Install vite-plugin-singlefile if not already installed
 cd "$PROJECT_DIR"
-npm install -D parcel parcel-resolver-tspaths html-inline
+if ! grep -q '"vite-plugin-singlefile"' package.json; then
+  echo "==> Installing vite-plugin-singlefile..."
+  npm install -D vite-plugin-singlefile
+fi
 
-# 3. Create .parcelrc (enable path alias resolution via tsconfig)
-echo "==> Writing .parcelrc..."
-cat > "$PROJECT_DIR/.parcelrc" <<'PARCELRC'
-{
-  "extends": "@parcel/config-default",
-  "resolvers": ["parcel-resolver-tspaths", "..."]
-}
-PARCELRC
+# 3. Ensure vite.config.ts includes viteSingleFile plugin
+if [[ -f "$PROJECT_DIR/vite.config.ts" ]] && ! grep -q 'viteSingleFile' "$PROJECT_DIR/vite.config.ts"; then
+  echo "==> Injecting viteSingleFile into vite.config.ts..."
+  cat > "$PROJECT_DIR/vite.config.ts" <<'VITECONFIG'
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import { viteSingleFile } from "vite-plugin-singlefile"
 
-# 4. Parcel build
-echo "==> Running Parcel build..."
+export default defineConfig({
+  plugins: [react(), viteSingleFile()],
+})
+VITECONFIG
+fi
+
+# 4. Vite build
+echo "==> Running Vite build..."
 cd "$PROJECT_DIR"
-npx parcel build index.html --dist-dir dist --no-source-maps --no-cache
+npx vite build
 
-# 5. Inline all assets into a single HTML file
-echo "==> Inlining assets into single HTML..."
-npx html-inline -i dist/index.html -o "$OUTPUT_FILE" -b dist/
+# 5. Copy dist/index.html to output file
+echo "==> Copying single-file bundle..."
+cp dist/index.html "$OUTPUT_FILE"
 
 # 6. Report result
 if [[ -f "$OUTPUT_FILE" ]]; then

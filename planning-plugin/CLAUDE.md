@@ -70,7 +70,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion, bundle)
 hooks/           - Lifecycle hook configuration
-scripts/         - Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
+scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       - Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
