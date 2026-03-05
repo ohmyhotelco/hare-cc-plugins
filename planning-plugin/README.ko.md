@@ -20,6 +20,35 @@
 
 모든 명세서는 설정된 작업 언어(Working Language)를 원본(Source of Truth)으로 작성되며, 나머지 지원 언어 번역은 자동으로 생성됩니다.
 
+## 아키텍처 개요
+
+```
+/planning-plugin:init → .claude/planning-plugin.json
+        │
+        ▼
+/planning-plugin:spec "feature"
+        │
+        ├── analyst agent → requirements gathering (8 categories)
+        │
+        ├── draft generation → {feature}-spec.md, screens.md, test-scenarios.md
+        │
+        ├── review cycle (repeats)
+        │   ├── planner agent → UX/business review
+        │   └── tester agent → testability/edge case review
+        │         (sees planner's feedback)
+        │
+        ├── translator agents (parallel) → multilingual translations
+        │
+        └── Notion sync (optional) → parent + 3 child pages per language
+        │
+        ▼
+/planning-plugin:design "feature"
+        │
+        ├── Stage 1: dsl-generator → UI DSL JSON
+        ├── Stage 2: prototype-generator → React + bundle.html
+        └── Stage 3: figma-designer → Figma layers (optional)
+```
+
 ## 설치
 
 이 플러그인은 GitHub 저장소를 통해 배포됩니다.
@@ -328,6 +357,17 @@ Specifications Overview:
 3. **Stage 3 — Figma 생성** (선택): Figma Designer 에이전트가 React 프로토타입 코드를 읽고, `generate_figma_design` MCP 도구를 통해 Figma 레이어로 변환합니다
 
 단계는 순차적으로 실행됩니다 (1→2→3). `--stage`를 사용하여 개별 단계를 독립적으로 실행할 수 있습니다.
+
+```
+┌──────────────────┐     ┌───────────────────────┐     ┌──────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Prototype  │     │  Stage 3 — Figma     │
+│                  │     │                       │     │                      │
+│  screens.md      │     │  UI DSL JSON          │     │  React components    │
+│  + spec.md       │ ──▶ │  → Vite + React 19    │ ──▶ │  → Figma MCP         │
+│  → manifest.json │     │  → bundle.html        │     │  → Figma layers      │
+│  + screen-*.json │     │                       │     │  (optional)          │
+└──────────────────┘     └───────────────────────┘     └──────────────────────┘
+```
 
 **예시**:
 ```
@@ -651,12 +691,33 @@ src/prototypes/{feature}/                  ← React 프로토타입 (독립형 
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
+scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (언어 디렉토리당 3개 파일 + ui-dsl/)
 src/prototypes/  Generated React prototypes (기능별 독립형 Vite 프로젝트)
 ```
+
+## 훅(Hooks)
+
+플러그인은 자동으로 실행되는 두 개의 라이프사이클 훅을 등록합니다:
+
+### SessionStart — `session-init.sh`
+
+Claude Code 세션이 시작될 때 실행됩니다. 다음 항목을 확인합니다:
+
+- **진행 중인 명세서**: `analyzing`, `drafting`, 또는 `reviewing` 상태의 기능 목록과 현재 라운드를 표시합니다
+- **중단된 Notion 동기화**: 특정 언어의 `syncStatus`가 `"syncing"`인 경우 경고합니다 (세션이 동기화 중 종료됨)
+- **오래된 Notion 페이지**: 마지막 Notion 동기화 이후 명세서 파일이 편집된 경우 경고합니다 (`syncStatus: "stale"`)
+- **오래된 프로토타입 번들**: 마지막 번들 빌드 이후 프로토타입 소스 파일이 편집된 경우 경고합니다 (`bundleStatus: "stale"`)
+
+### PostToolUse — `validate-spec-format.sh`
+
+모든 `Write` 또는 `Edit` 도구 호출 이후 실행됩니다. `docs/specs/` 또는 `src/prototypes/` 하위 파일에서만 활성화됩니다:
+
+- **형식 검증**: 각 명세서 파일에 필수 섹션이 존재하는지 확인합니다 (경고만, 차단하지 않음)
+- **Notion 오래된 상태 감지**: 명세서 파일이 편집되고 Notion 동기화 상태가 `"synced"`인 경우, 자동으로 `"stale"`로 전환합니다
+- **번들 오래된 상태 감지**: `src/prototypes/{feature}/src/` 하위의 프로토타입 소스 파일이 편집되고 `bundleStatus`가 `"current"`인 경우, 자동으로 `"stale"`로 전환합니다
 
 ## 규칙
 

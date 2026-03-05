@@ -20,6 +20,35 @@ Plugin Claude Code này tự động hóa việc tạo đặc tả chức năng 
 
 Tất cả đặc tả được tạo bằng ngôn ngữ làm việc (Working Language) đã cấu hình làm nguồn chính (Source of Truth), các bản dịch sang ngôn ngữ được hỗ trợ khác được tạo tự động.
 
+## Tổng quan kiến trúc
+
+```
+/planning-plugin:init → .claude/planning-plugin.json
+        │
+        ▼
+/planning-plugin:spec "feature"
+        │
+        ├── analyst agent → requirements gathering (8 categories)
+        │
+        ├── draft generation → {feature}-spec.md, screens.md, test-scenarios.md
+        │
+        ├── review cycle (repeats)
+        │   ├── planner agent → UX/business review
+        │   └── tester agent → testability/edge case review
+        │         (sees planner's feedback)
+        │
+        ├── translator agents (parallel) → multilingual translations
+        │
+        └── Notion sync (optional) → parent + 3 child pages per language
+        │
+        ▼
+/planning-plugin:design "feature"
+        │
+        ├── Stage 1: dsl-generator → UI DSL JSON
+        ├── Stage 2: prototype-generator → React + bundle.html
+        └── Stage 3: figma-designer → Figma layers (optional)
+```
+
 ## Cài đặt
 
 Plugin này được phân phối qua kho GitHub.
@@ -328,6 +357,17 @@ Specifications Overview:
 3. **Stage 3 — Tạo Figma** (tùy chọn): Tác tử Figma Designer đọc mã prototype React và chuyển đổi thành các layer Figma qua công cụ MCP `generate_figma_design`
 
 Các stage chạy tuần tự (1→2→3). Sử dụng `--stage` để chạy từng stage độc lập.
+
+```
+┌──────────────────┐     ┌───────────────────────┐     ┌──────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Prototype  │     │  Stage 3 — Figma     │
+│                  │     │                       │     │                      │
+│  screens.md      │     │  UI DSL JSON          │     │  React components    │
+│  + spec.md       │ ──▶ │  → Vite + React 19    │ ──▶ │  → Figma MCP         │
+│  → manifest.json │     │  → bundle.html        │     │  → Figma layers      │
+│  + screen-*.json │     │                       │     │  (optional)          │
+└──────────────────┘     └───────────────────────┘     └──────────────────────┘
+```
 
 **Ví dụ**:
 ```
@@ -651,12 +691,33 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts + bundle-artifact.sh (Parcel → single HTML bundler)
+scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
 docs/specs/      Generated specifications (3 tệp mỗi thư mục ngôn ngữ + ui-dsl/)
 src/prototypes/  Generated React prototypes (dự án Vite độc lập theo tính năng)
 ```
+
+## Hook
+
+Plugin đăng ký hai hook vòng đời chạy tự động:
+
+### SessionStart — `session-init.sh`
+
+Chạy khi phiên Claude Code bắt đầu. Kiểm tra:
+
+- **Đặc tả đang xử lý**: Liệt kê các tính năng ở trạng thái `analyzing`, `drafting`, hoặc `reviewing` cùng với vòng hiện tại
+- **Đồng bộ Notion bị gián đoạn**: Cảnh báo nếu ngôn ngữ nào có `syncStatus: "syncing"` (phiên kết thúc giữa chừng đồng bộ)
+- **Trang Notion lỗi thời**: Cảnh báo nếu tệp đặc tả được chỉnh sửa sau lần đồng bộ Notion cuối cùng (`syncStatus: "stale"`)
+- **Bundle prototype lỗi thời**: Cảnh báo nếu tệp nguồn prototype được chỉnh sửa sau lần build bundle cuối cùng (`bundleStatus: "stale"`)
+
+### PostToolUse — `validate-spec-format.sh`
+
+Chạy sau mỗi lệnh gọi công cụ `Write` hoặc `Edit`. Chỉ kích hoạt trên các tệp trong `docs/specs/` hoặc `src/prototypes/`:
+
+- **Xác thực định dạng**: Kiểm tra rằng các phần bắt buộc tồn tại trong mỗi tệp đặc tả (chỉ cảnh báo, không chặn)
+- **Phát hiện Notion lỗi thời**: Nếu tệp đặc tả được chỉnh sửa và trạng thái đồng bộ Notion là `"synced"`, tự động chuyển sang `"stale"`
+- **Phát hiện bundle lỗi thời**: Nếu tệp nguồn prototype trong `src/prototypes/{feature}/src/` được chỉnh sửa và `bundleStatus` là `"current"`, tự động chuyển sang `"stale"`
 
 ## Quy tắc
 
