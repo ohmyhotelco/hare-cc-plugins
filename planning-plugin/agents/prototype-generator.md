@@ -268,8 +268,9 @@ export function useAuth() {
 
 The role list is derived from all unique roles found in `visibility.roles` across all screens.
 
-Add a **role switcher dropdown** to the state switcher toolbar on every page:
+Add a **role switcher dropdown** to the state switcher toolbar on every page, preceded by a visual separator:
 ```tsx
+<Separator orientation="vertical" className="h-6" />
 <select value={currentRole} onChange={e => setCurrentRole(e.target.value)} className="text-sm border rounded px-1">
   {roles.map(r => <option key={r} value={r}>{r}</option>)}
 </select>
@@ -295,9 +296,9 @@ For each screen in the manifest:
    - `empty` → render empty state card
    - `error` → render error alert with retry
    - `success` → render the main component tree
-5. Add a state switcher toolbar at the top of each page for demo purposes:
+5. Add a state switcher toolbar at the bottom center of each page for demo purposes:
    ```tsx
-   <div className="fixed top-0 right-0 p-2 bg-muted rounded-bl-lg z-50 flex gap-1">
+   <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-muted border rounded-full px-3 py-1.5 shadow-lg flex items-center gap-2">
      {(["loading", "empty", "error", "success"] as const).map(s => (
        <Button key={s} size="sm" variant={state === s ? "default" : "outline"} onClick={() => setState(s)}>
          {s}
@@ -373,7 +374,7 @@ The `roles` array is the deduplicated union of all roles from `visibility.roles`
 1. Remove the default Vite boilerplate files (`App.css`, `assets/react.svg`, etc.)
 2. Update `index.css` to include Tailwind directives if not already present
 3. Verify layout height chain: `html` → `body` → `#root` all have `h-full`; flex scroll children have `min-h-0`; fixed elements use `shrink-0`
-4. Enable dark mode toggle: add a sun/moon button to the state switcher toolbar that toggles `dark` class on `<html>`. Ensure shadcn CSS variable theming works in both modes.
+4. Enable dark mode toggle: add a sun/moon button to the bottom-center floating dock that toggles `dark` class on `<html>`. Ensure shadcn CSS variable theming works in both modes.
 5. Verify the project builds without errors:
    ```bash
    cd src/prototypes/{feature} && npm run build
@@ -447,7 +448,7 @@ Return a summary when complete:
 - Import Lucide icons explicitly by referencing the DSL component `icon` field
 - Mock data must be hardcoded — no faker, no random generation, no external APIs
 - Every page must implement all 4 states (loading, empty, error, success)
-- Include the state switcher toolbar on every page for demo/review purposes
+- Include the state switcher toolbar (bottom-center floating dock) on every page for demo/review purposes
 - Routes must match the DSL screen definitions exactly
 - The prototype must build without errors; the final `bundle.html` can be opened directly in a browser via `file://`
 - Use `HashRouter` (not `BrowserRouter`) for `file://` protocol compatibility

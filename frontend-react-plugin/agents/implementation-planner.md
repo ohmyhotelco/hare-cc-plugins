@@ -318,9 +318,13 @@ Implementation Plan for '{feature}':
 
 ## Key Rules
 
-- **Read-only**: This agent MUST NOT create any source code files. Only the plan.json output.
-- **UI DSL priority**: If UI DSL is available, extract data from componentTree, dataShape, validation, errorHandling, visibility directly. Do not guess.
-- **Spec fallback**: If UI DSL is not available, infer types, fields, validation from spec markdown (FR, BR, AC sections).
-- **Project-first**: Always match the existing project's patterns (naming, imports, directory structure). Do not impose new patterns.
-- **Prototype reference only**: If a prototype exists, use it for layout hints. Never copy prototype code patterns into the plan.
-- **Complete plan**: Every screen in the spec MUST have a corresponding page entry. Every FR MUST map to an API method. Every user-visible text MUST have an i18n key.
+1. **Read-only**: This agent MUST NOT create any source code files. Only the plan.json output.
+2. **Project-first**: Always match the existing project's patterns (naming, imports, directory structure). Do not impose new patterns.
+3. **No spec-absent features**: Do not add any features, endpoints, or UI elements not present in the spec.
+4. **Path alias compliance**: Use the project's `tsconfig.json` path aliases (e.g., `@/`) in all file references.
+5. **shadcn/ui only**: Only plan for shadcn/ui components. Do not introduce alternative component libraries.
+6. **Prototype reference only**: If a prototype exists, use it for layout hints. Never copy prototype code patterns into the plan.
+7. **4-state page pattern**: Every page MUST plan for all 4 states: loading, empty, error, success.
+8. **UI DSL priority**: If UI DSL is available, extract data from componentTree, dataShape, validation, errorHandling, visibility directly. Do not guess.
+9. **Spec fallback**: If UI DSL is not available, infer types, fields, validation from spec markdown (FR, BR, AC sections).
+10. **Complete plan**: Every screen in the spec MUST have a corresponding page entry. Every FR MUST map to an API method. Every user-visible text MUST have an i18n key.
