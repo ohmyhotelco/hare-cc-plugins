@@ -40,6 +40,15 @@ The design pipeline produces better results when a design system exists. Run `/p
 
 All references are optional — agents fall back to defaults when design-system files are absent.
 
+**Stitch output cross-references** (`stitch-wireframes/`):
+
+| Stitch Output File | prototype-generator | Purpose |
+|--------------------|:---:|---------|
+| `design-tokens.json` | O | Extracted color/font/spacing tokens for Tailwind theme |
+| `DESIGN.md` | O | Natural-language design document for styling decisions |
+| `shadcn-mapping.json` | O | Stitch HTML → shadcn/ui component mapping hints |
+| `{screen-id}.html` | O | Visual layout reference (flex, grid, spacing) |
+
 ### Step 1: Parse Arguments & Validate
 
 1. Parse the arguments to extract:
@@ -147,10 +156,12 @@ Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for 
        "projectId": "{stitch project ID from agent result}",
        "screenCount": "{count from agent result}",
        "outputDir": "docs/specs/{feature}/stitch-wireframes/",
+       "designDoc": "docs/specs/{feature}/stitch-wireframes/DESIGN.md",
        "generatedAt": "ISO-8601"
      }
    }
    ```
+   Stage 1.5 outputs now include `DESIGN.md` — a natural-language design document with 5 dimensions (Visual Theme, Color Palette, Typography, Component Styling, Layout Principles). This document is consumed by the prototype generator in Step 1c for Tailwind theming and component styling decisions.
 5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` and continue to the next stage
 
 ### Step 5: Stage 2 — Prototype Generation

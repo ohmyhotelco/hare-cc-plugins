@@ -49,9 +49,14 @@ Before scaffolding, check if Stitch wireframe outputs exist at `docs/specs/{feat
 
 1. If `stitch-manifest.json` exists, read the screen mapping to understand which DSL screens have wireframes
 2. If `design-tokens.json` exists, use the extracted tokens for the Tailwind theme configuration (priority: Stitch tokens > design-system tokens > default Tailwind)
-3. If `shadcn-mapping.json` exists, reference it when deciding component types and layout patterns
-4. For each screen, if `{screen-id}.html` exists, read it as a visual layout reference (flex directions, grid patterns, spacing ratios)
-5. If none of these files exist, proceed with the existing behavior (backward compatible)
+3. If `DESIGN.md` exists, read it and use the natural-language design descriptions to inform:
+   - Tailwind theme extension (color palette, typography, border-radius values)
+   - Component styling decisions (shadow depth, corner rounding, button variants)
+   - Layout principles (spacing density, content width, visual hierarchy)
+   - DESIGN.md provides design intent in human-readable form — translate its descriptions back to Tailwind utilities and shadcn/ui variants
+4. If `shadcn-mapping.json` exists, reference it when deciding component types and layout patterns
+5. For each screen, if `{screen-id}.html` exists, read it as a visual layout reference (flex directions, grid patterns, spacing ratios)
+6. If none of these files exist, proceed with the existing behavior (backward compatible)
 
 ### Step 2: Scaffold Vite Project
 

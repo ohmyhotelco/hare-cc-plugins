@@ -21,8 +21,9 @@ Read these files from `dslDir`:
 
 Write all outputs to `docs/specs/{feature}/stitch-wireframes/`:
 ```
-├── stitch-manifest.json     ← Screen mapping + Stitch project metadata
+├── stitch-manifest.json     ← Screen mapping + Stitch project metadata + designTheme
 ├── design-tokens.json       ← Extracted color/font/spacing tokens
+├── DESIGN.md                ← Natural-language design document (5 dimensions)
 ├── shadcn-mapping.json      ← Stitch HTML → shadcn/ui component mapping hints
 ├── {screen-id}.html         ← Per-screen HTML/CSS code
 └── {screen-id}.png          ← Per-screen PNG screenshots
@@ -72,6 +73,8 @@ Compose a `<design_system>` context block from the available data. If no design 
 1. Call `list_projects` to check for existing project named `"{feature} Wireframes"`
 2. If found, reuse the existing project (record project ID)
 3. If not found, call `create_project` with name `"{feature} Wireframes"` and a description derived from the spec overview
+4. Call `get_project` on the project ID to retrieve the full project metadata
+5. Store the `designTheme` object from the project metadata (contains `colorMode`, `font`, `roundness`, `customColor`, `saturation`)
 
 ### Step 4: Convert DSL to Stitch Prompts (enhance-prompt logic)
 
@@ -93,16 +96,46 @@ For each screen in the manifest, convert the DSL JSON into a natural-language St
 | `Badge` + variant | "a status badge ({variant})" |
 | `Select` + options | "a dropdown select with options: {option labels}" |
 
-**Design context injection**: If the design system context block was assembled in Step 2, prepend it to each prompt wrapped in `<design_system>` tags.
+**Design context injection**: The Design System section in the prompt template is REQUIRED (non-optional). Populate it using one of these sources in priority order:
+1. If `DESIGN.md` exists from a previous run (in `stitch-wireframes/`), use its content
+2. If `extract_design_context` result exists from a previous first-screen generation, synthesize from it
+3. If design system files exist (`design-system/pages/`), compose from colors.md + typography.md
+4. If none of the above, use a domain-based minimal default: *"Professional {domain} application with clean lines, generous whitespace, and accessible contrast. Primary blue (#2563EB), neutral grays, sans-serif typography."*
+
+For subsequent screens (after the first), inject the design system text in **dual-channel**:
+- In the prompt text itself (the Design System section)
+- In the `designContext` API parameter (passed to `generate_screen_from_text`)
+
+**Domain context**: Read `design-system/MASTER.md` if it exists to extract the domain (e.g., "B2B Admin", "Hotel & Travel"). If no design system exists, infer the domain from the spec overview (`{feature}-spec.md` section 1). Use this value to replace `{domain}` in the Style Constraints section of the prompt template.
+
+**Enhance-prompt pass** (after DSL-to-prompt conversion): Read `templates/stitch-keywords.md` and apply these refinements to each generated prompt:
+1. **Component term substitution**: Replace generic component names with specific descriptive phrases from the Component Keywords table (e.g., "table" → "data grid with column headers, alternating row shading, and inline action icons")
+2. **Domain mood adjectives**: Select 2-3 adjectives from the Domain Adjective Palette matching the inferred domain. Insert them into the prompt's opening line
+3. **Color format unification**: Ensure all color references follow the "Descriptive Name (#hex) for role" format from the Color Role Terminology section
+4. **Shape/geometry translation**: Convert any remaining CSS values to natural design language using the Shape & Geometry Translation table
 
 ### Step 5: Generate Screens
 
 For each screen:
 
-1. Call `generate_screen_from_text` with the converted prompt
-2. After the **first** screen is generated, call `extract_design_context` on it to capture the design DNA (colors, fonts, spacing patterns)
-3. Inject the extracted design context into subsequent screen prompts to ensure visual consistency across all screens
-4. Track screen IDs returned by Stitch for later retrieval
+1. Call `generate_screen_from_text` with:
+   - `projectId`: the project ID obtained in Step 3
+   - `prompt`: the converted prompt from Step 4
+2. After the **first** screen is generated:
+   a. Call `extract_design_context` with the first screen's ID to capture the Design DNA (fonts, colors, layouts)
+   b. Store the returned design context object — this contains structured design tokens (color palette, font families, spacing, border radius) that Stitch extracted from the generated screen
+   c. Synthesize a design system text block from the `extract_design_context` result for dual-channel injection into subsequent prompts
+3. For subsequent screens, call `generate_screen_from_text` with:
+   - `projectId`: same project ID
+   - `prompt`: the converted prompt (with design system text block injected into the Design System section)
+   - `designContext`: the design context object from step 2b (pass as-is — dual-channel: both prompt text AND API parameter)
+4. After **each** screen is generated (including the first), call `get_screen` with the screen ID to retrieve full metadata:
+   - Store `sourceScreen` resource path (format: `projects/{pid}/screens/{sid}`)
+   - Store `width` and `height` dimensions
+5. Track screen IDs returned by Stitch for later retrieval
+6. Also store the `extract_design_context` result for use in Step 7 (design token extraction) and Step 7b (DESIGN.md generation)
+
+> **Note on `list_screens`**: Available for error recovery. If `fetch_screen_code` or `fetch_screen_image` fails for a screen, use `list_screens` to re-enumerate screens in the project before retrying.
 
 ### Step 6: Download Outputs
 
@@ -110,17 +143,37 @@ For each generated screen:
 
 1. Call `fetch_screen_code` to get the HTML/CSS code
 2. Write the code to `docs/specs/{feature}/stitch-wireframes/{screen-id}.html`
-3. Call `fetch_screen_image` to get the PNG screenshot
-4. Write the image to `docs/specs/{feature}/stitch-wireframes/{screen-id}.png`
+3. Call `fetch_screen_image` to get the PNG screenshot (returned as base64-encoded string or URL)
+4. **Screenshot resolution guarantee**: If `fetch_screen_image` returns a URL (Google CDN):
+   - Append `=w{width}` to the URL using the screen's `width` from `get_screen` in Step 5 (e.g., `=w1440`)
+   - Download the high-resolution image via Bash: `curl -sL "{url}=w{width}" -o docs/specs/{feature}/stitch-wireframes/{screen-id}.png`
+5. If `fetch_screen_image` returns base64 data directly:
+   - Decode and write the image using Bash:
+     ```bash
+     echo "{base64_data}" | base64 -d > docs/specs/{feature}/stitch-wireframes/{screen-id}.png
+     ```
+   - Do NOT use the Write tool for PNG files — it handles text only and will corrupt binary data
+6. **File size validation**: After writing each PNG, check its file size:
+   ```bash
+   stat -f%z docs/specs/{feature}/stitch-wireframes/{screen-id}.png
+   ```
+   If a desktop-width screen (width >= 1440) produces a PNG under 100KB, log a warning: the image may be a low-resolution thumbnail. Consider re-downloading with an explicit `=w{width}` suffix.
 
 ### Step 7: Extract Design Tokens (design-md logic)
 
-Parse the generated HTML/CSS from all screens to extract design tokens:
+Use the `extract_design_context` result from Step 5 as the primary source for design tokens. Supplement with HTML/CSS parsing only for values not covered by the design context.
 
-1. **Colors**: Extract all color values (hex, rgb, hsl) from CSS. Categorize as primary, secondary, accent, background, text, border, destructive
-2. **Typography**: Extract font-family, font-size, font-weight, line-height values. Map to heading (h1-h4), body, caption, label scales
-3. **Spacing**: Extract margin, padding, gap values. Identify the spacing scale (e.g., 4px, 8px, 12px, 16px, 24px, 32px)
-4. **Border radius**: Extract border-radius values and categorize (none, sm, md, lg, full)
+1. **From `extract_design_context` (primary)**: Map the Design DNA fields to the token structure:
+   - Colors → `colors.primary`, `colors.secondary`, etc. (map by semantic role from the design context)
+   - Fonts → `typography.fontFamily`, `typography.fontSize`, `typography.fontWeight`
+   - Layouts → `spacing` scale values, `borderRadius` values
+
+2. **From HTML/CSS (supplementary)**: Only parse HTML/CSS for tokens that the design context did not provide:
+   - If `colors.destructive` is missing, scan for red-toned colors in CSS
+   - If `spacing` scale is incomplete, extract unique margin/padding/gap values
+   - If `borderRadius` is missing, extract border-radius values from CSS
+
+3. **Merge and deduplicate**: Design context values take priority over HTML-parsed values
 
 Write tokens to `docs/specs/{feature}/stitch-wireframes/design-tokens.json`:
 
@@ -145,6 +198,60 @@ Write tokens to `docs/specs/{feature}/stitch-wireframes/design-tokens.json`:
   "borderRadius": { "sm": "...", "md": "...", "lg": "..." }
 }
 ```
+
+### Step 7b: Generate DESIGN.md (design-md logic)
+
+Generate a natural-language design document that captures the visual identity of the wireframes. This document enables visual consistency across subsequent screens and informs the prototype generator.
+
+**Sources**: Synthesize from `extract_design_context` result (Step 5) + first screen HTML analysis.
+
+Write to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
+
+```markdown
+# {Feature} Design Language
+
+## Visual Theme & Atmosphere
+{2-3 sentences describing the overall mood, visual style, and design philosophy.
+Use design language, not technical terms. Example: "A clean, professional interface with a calm blue-toned palette that conveys trust and efficiency. The design favors generous whitespace and clear visual hierarchy to reduce cognitive load."}
+
+## Color Palette
+{List each color with descriptive name, hex code, and functional role. Example:
+- **Ocean Blue** (#2563EB) — Primary actions, interactive elements, active states
+- **Slate** (#64748B) — Secondary text, subtle borders, inactive icons
+- **Snow** (#FFFFFF) — Page backgrounds, card surfaces
+- **Charcoal** (#1E293B) — Headings, high-emphasis text
+- **Emerald** (#10B981) — Success confirmations, positive indicators
+- **Rose** (#EF4444) — Error states, destructive actions}
+
+## Typography
+{Describe font choices in design terms. Example:
+- **Headings**: Inter, semi-bold weight, creating clear content hierarchy
+- **Body text**: Inter, regular weight, optimized for comfortable reading at small sizes
+- **Monospace**: JetBrains Mono for code snippets and technical identifiers
+- **Scale**: Large section titles step down through subheadings to compact body text}
+
+## Component Styling
+{Describe the visual character of UI elements in natural language. Example:
+- **Cards**: Subtly rounded corners with a gentle shadow lift, creating layered depth
+- **Buttons**: Moderately rounded with solid fills for primary actions, ghost style for secondary
+- **Inputs**: Rounded borders with a soft gray outline, expanding focus ring in primary blue
+- **Tables**: Clean horizontal dividers, no outer border, hover-highlighted rows
+- **Badges**: Fully rounded pill shape with tinted backgrounds matching status semantics}
+
+## Layout Principles
+{Describe spatial organization in design terms. Example:
+- Comfortable spacing between major sections with tighter grouping within related elements
+- Content centered with a maximum width, generous side margins on wide screens
+- Consistent vertical rhythm: section gaps are 2x the intra-section element gaps
+- Fixed navigation at the top, scrollable content area below
+- Actions positioned at the right end of header rows, aligned with content boundaries}
+```
+
+**Rules**:
+- Use descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`)
+- Reference `templates/stitch-keywords.md` Shape & Geometry Translation table for terminology
+- Every color entry must include descriptive name + hex + functional role
+- Base content on actual `extract_design_context` data and first-screen HTML — do not fabricate values
 
 ### Step 8: Generate shadcn/ui Mapping Hints
 
@@ -189,22 +296,38 @@ Write `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
 ```json
 {
   "feature": "{feature}",
-  "stitchProjectId": "{project-id}",
-  "stitchProjectName": "{feature} Wireframes",
+  "stitchProject": {
+    "name": "projects/{project-id}",
+    "projectId": "{project-id}",
+    "title": "{feature} Wireframes",
+    "designTheme": {
+      "colorMode": "{from get_project}",
+      "font": "{from get_project}",
+      "roundness": "{from get_project}",
+      "customColor": "{from get_project}",
+      "saturation": "{from get_project}"
+    }
+  },
   "generatedAt": "ISO-8601",
   "screens": [
     {
       "dslScreenId": "user-list",
       "stitchScreenId": "{stitch-screen-id}",
+      "sourceScreen": "projects/{project-id}/screens/{stitch-screen-id}",
       "title": "User Management - List View",
+      "width": 1440,
+      "height": 900,
       "htmlFile": "user-list.html",
       "pngFile": "user-list.png"
     }
   ],
   "designTokensFile": "design-tokens.json",
+  "designDocFile": "DESIGN.md",
   "shadcnMappingFile": "shadcn-mapping.json"
 }
 ```
+
+> **Backward compatibility**: The flat `stitchProjectId` and `stitchProjectName` fields are replaced by the nested `stitchProject` object. Each screen now includes `sourceScreen` (full resource path), `width`, and `height` from `get_screen`. The `designDocFile` field points to the generated DESIGN.md.
 
 Return a summary:
 
@@ -219,6 +342,7 @@ Return a summary:
   "files": {
     "manifest": "stitch-manifest.json",
     "designTokens": "design-tokens.json",
+    "designDoc": "DESIGN.md",
     "shadcnMapping": "shadcn-mapping.json",
     "htmlFiles": ["user-list.html", "user-edit.html"],
     "pngFiles": ["user-list.png", "user-edit.png"]
@@ -232,7 +356,13 @@ Return a summary:
 - This agent is **optional** — it only runs when Stitch MCP is configured
 - Always check MCP availability before attempting any Stitch operations
 - If any individual screen fails to generate, continue with remaining screens and report partial results
-- Extract design context from the first screen and inject into subsequent screens for visual consistency
+- Extract design context from the first screen and inject into subsequent screens via **dual-channel** (prompt text + API parameter)
+- The Design System section in prompts is **non-optional** — always populate it from design context, design system files, or domain defaults
+- Apply the enhance-prompt pass (keyword substitution, mood adjectives, color format, shape translation) to every prompt before sending to Stitch
+- Call `get_project` after project creation/reuse to capture `designTheme` metadata
+- Call `get_screen` after each screen generation to capture resource path, width, and height
+- Append `=w{width}` to Google CDN screenshot URLs for high-resolution downloads
+- Generate `DESIGN.md` using design language, not CSS values — reference `stitch-keywords.md` for terminology
 - Design tokens must reflect actual values from the generated HTML/CSS, not assumptions
 - shadcn/ui mapping hints are advisory — the prototype generator makes final component decisions
 - Do not modify DSL files or any existing spec files — this agent only writes to `stitch-wireframes/`
