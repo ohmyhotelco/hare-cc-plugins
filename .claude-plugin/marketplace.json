@@ -8,13 +8,13 @@
     {
       "name": "planning-plugin",
       "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
-      "version": "1.0.7",
+      "version": "1.0.8",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./planning-plugin/",
       "category": "productivity",
-      "keywords": ["planning", "specification", "multi-agent", "review", "multilingual", "design-system"]
+      "keywords": ["planning", "specification", "multi-agent", "review", "multilingual", "design-system", "stitch", "wireframe"]
     },
     {
       "name": "frontend-react-plugin",

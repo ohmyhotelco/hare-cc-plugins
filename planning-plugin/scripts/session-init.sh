@@ -106,4 +106,23 @@ if [ -n "$BUNDLE_WARNINGS" ]; then
   echo "  Run: /planning-plugin:bundle {feature}"
 fi
 
+# Check stitch wireframe stale status across all progress files
+STITCH_WARNINGS=""
+while IFS= read -r pfile; do
+  if [ -f "$pfile" ]; then
+    FEATURE=$(jq -r '.feature // "unknown"' "$pfile" 2>/dev/null || echo "unknown")
+    STITCH_STATUS=$(jq -r '.design.stages.stitch.status // ""' "$pfile" 2>/dev/null || echo "")
+    if [ "$STITCH_STATUS" = "stale" ]; then
+      STITCH_WARNINGS="${STITCH_WARNINGS}  - ${FEATURE}\n"
+    fi
+  fi
+done <<< "$PROGRESS_FILES"
+
+if [ -n "$STITCH_WARNINGS" ]; then
+  echo ""
+  echo "[Planning Plugin] Stale Stitch wireframes:"
+  echo -e "$STITCH_WARNINGS"
+  echo "  Run: /planning-plugin:design {feature} --stage=stitch"
+fi
+
 exit 0

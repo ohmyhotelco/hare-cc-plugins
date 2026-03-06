@@ -1,9 +1,9 @@
 ---
 name: design
-description: "Generate UI DSL, React prototype, and Figma designs from a finalized functional specification through a 3-stage pipeline: DSL generation → prototype scaffolding → Figma layer creation."
-argument-hint: "[feature-name] [--stage=dsl|prototype|figma]"
+description: "Generate UI DSL, Stitch wireframes, React prototype, and Figma designs from a finalized functional specification through a 4-stage pipeline: DSL generation → Stitch wireframes → prototype scaffolding → Figma layer creation."
+argument-hint: "[feature-name] [--stage=dsl|stitch|prototype|figma]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__figma__generate_figma_design
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__figma__generate_figma_design, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__extract_design_context, mcp__stitch__fetch_screen_code, mcp__stitch__fetch_screen_image, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
 ---
 
 # Design Pipeline
@@ -28,15 +28,15 @@ The design pipeline produces better results when a design system exists. Run `/p
 
 **Agent-to-file reference map** (`design-system/pages/`):
 
-| Design System File | dsl-generator | prototype-generator | Purpose |
-|--------------------|:---:|:---:|---------|
-| `components.md` | O | - | Component inventory for type selection |
-| `icons.md` | O | - | Domain-specific icon mappings |
-| `patterns.md` | O | - | Layout validation via `page_layout` + `components_used` |
-| `MASTER.md` | O | - | Design principles as DSL constraints |
-| `colors.md` | - | O | Color tokens for Tailwind theme |
-| `typography.md` | - | O | Font families/sizes for Tailwind theme |
-| `spacing-layout.md` | - | O | Layout density + spacing for Tailwind theme |
+| Design System File | dsl-generator | stitch-wireframe | prototype-generator | Purpose |
+|--------------------|:---:|:---:|:---:|---------|
+| `components.md` | O | - | - | Component inventory for type selection |
+| `icons.md` | O | - | - | Domain-specific icon mappings |
+| `patterns.md` | O | O | - | Layout validation via `page_layout` + `components_used` |
+| `MASTER.md` | O | O | - | Design principles as DSL/wireframe constraints |
+| `colors.md` | - | O | O | Color tokens for wireframe context + Tailwind theme |
+| `typography.md` | - | O | O | Font families/sizes for wireframe context + Tailwind theme |
+| `spacing-layout.md` | - | - | O | Layout density + spacing for Tailwind theme |
 
 All references are optional — agents fall back to defaults when design-system files are absent.
 
@@ -44,7 +44,7 @@ All references are optional — agents fall back to defaults when design-system 
 
 1. Parse the arguments to extract:
    - `feature` — kebab-case feature name (required)
-   - `--stage` — optional stage filter: `dsl`, `prototype`, or `figma` (default: run all 3 stages sequentially)
+   - `--stage` — optional stage filter: `dsl`, `stitch`, `prototype`, or `figma` (default: run all 4 stages sequentially)
 
 2. Validate the spec exists:
    - Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
@@ -60,6 +60,8 @@ All references are optional — agents fall back to defaults when design-system 
      > "No screen definitions found. The spec must include screens.md."
 
 4. Stage-specific prerequisite checks:
+   - If `--stage=stitch`: verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not:
+     > "UI DSL not found. Run `/planning-plugin:design {feature} --stage=dsl` first."
    - If `--stage=prototype`: verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not:
      > "UI DSL not found. Run `/planning-plugin:design {feature} --stage=dsl` first."
    - If `--stage=figma`: verify `src/prototypes/{feature}/package.json` exists. If not:
@@ -68,8 +70,9 @@ All references are optional — agents fall back to defaults when design-system 
 ### Step 2: Determine Stages
 
 Based on the `--stage` argument:
-- No flag → run all 3 stages: `dsl` → `prototype` → `figma`
+- No flag → run all 4 stages: `dsl` → `stitch` → `prototype` → `figma`
 - `--stage=dsl` → run Stage 1 only
+- `--stage=stitch` → run Stage 1.5 only
 - `--stage=prototype` → run Stage 2 only
 - `--stage=figma` → run Stage 3 only
 
@@ -83,6 +86,7 @@ Read the progress file and initialize the `design` field if not present:
     "status": "pending",
     "stages": {
       "dsl": { "status": "pending" },
+      "stitch": { "status": "pending" },
       "prototype": { "status": "pending" },
       "figma": { "status": "pending" }
     }
@@ -115,15 +119,49 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
    ```
 4. On failure, update `status: "error"`, report error, and ask user whether to retry or skip
 
+### Step 4.5: Stage 1.5 — Stitch Wireframe Generation
+
+**Skip if not in the determined stages.**
+
+1. Check if any Stitch MCP tool is available (e.g., `mcp__stitch__list_projects`)
+   - If not available, update progress and inform the user:
+     ```json
+     { "design.stages.stitch": { "status": "skipped", "generatedAt": "ISO-8601" } }
+     ```
+     > "Stitch MCP is not configured. Skipping wireframe generation.
+     >  Run: `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`"
+   - Skip to Step 5
+
+2. Update progress: `design.stages.stitch.status = "in_progress"`
+3. Launch the **stitch-wireframe** agent:
+
+```
+Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Generate visual wireframes using Google Stitch MCP, extract design tokens and shadcn/ui mapping hints. Write outputs to docs/specs/{feature}/stitch-wireframes/.")
+```
+
+4. On success, update progress:
+   ```json
+   {
+     "design.stages.stitch": {
+       "status": "completed",
+       "projectId": "{stitch project ID from agent result}",
+       "screenCount": "{count from agent result}",
+       "outputDir": "docs/specs/{feature}/stitch-wireframes/",
+       "generatedAt": "ISO-8601"
+     }
+   }
+   ```
+5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` and continue to the next stage
+
 ### Step 5: Stage 2 — Prototype Generation
 
 **Skip if not in the determined stages.**
 
 1. Update progress: `design.stages.prototype.status = "in_progress"`
-2. Launch the **prototype-generator** agent:
+2. Build the prototype prompt. If `design.stages.stitch.status` is `"completed"`, append Stitch reference instructions:
 
 ```
-Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.")
+Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
 ```
 
 3. On success, update progress:
@@ -186,13 +224,15 @@ Task(subagent_type: "figma-designer", prompt: "Generate Figma designs from the R
 ```
 Design Pipeline Results for '{feature}':
 
-  Stage 1 — DSL Generation:      {status} — {screenCount} screens
-  Stage 2 — Prototype:           {status} — {path}
-  Stage 3 — Figma:               {status} — {url or reason for skip}
+  Stage 1   — DSL Generation:      {status} — {screenCount} screens
+  Stage 1.5 — Stitch Wireframes:   {status} — {screenCount} screens / {reason for skip}
+  Stage 2   — Prototype:           {status} — {path}
+  Stage 3   — Figma:               {status} — {url or reason for skip}
 
 Next Steps:
   - Open `src/prototypes/{feature}/bundle.html` in a browser to preview the prototype
   - Run `cd src/prototypes/{feature} && npm run dev` for live development (Vite dev server)
+  - Run `/planning-plugin:design {feature} --stage=stitch` to generate Stitch wireframes (requires Stitch MCP)
   - Run `/planning-plugin:design {feature} --stage=figma` to generate Figma designs (requires Figma MCP)
   - Edit prototype files directly to refine the UI before Figma generation
   - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md

@@ -118,4 +118,26 @@ if [[ "$FILE_PATH" =~ src/prototypes/([^/]+)/src/ ]]; then
   fi
 fi
 
+# --- Stitch wireframe stale detection ---
+# If a UI DSL file is edited, mark stitch stage as stale
+if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/ui-dsl/ ]]; then
+  FEATURE="${BASH_REMATCH[1]}"
+
+  # Derive project root from the spec path
+  PROJECT_ROOT="${FILE_PATH%%/docs/specs/*}"
+  PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
+
+  if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then
+    STITCH_STATUS=$(jq -r '.design.stages.stitch.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+    if [ "$STITCH_STATUS" = "completed" ]; then
+      UPDATED=$(jq '.design.stages.stitch.status = "stale"' "$PROGRESS_FILE" 2>/dev/null) && \
+        echo "$UPDATED" > "$PROGRESS_FILE"
+      echo ""
+      echo "[Planning Plugin] Stitch wireframes are now STALE for $FEATURE."
+      echo "  The UI DSL was edited after the last Stitch wireframe generation."
+      echo "  Run: /planning-plugin:design $FEATURE --stage=stitch"
+    fi
+  fi
+fi
+
 exit 0

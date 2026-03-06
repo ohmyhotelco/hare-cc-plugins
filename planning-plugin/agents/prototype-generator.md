@@ -43,6 +43,16 @@ Before scaffolding, check if a design system exists at `design-system/pages/` (r
 4. Apply these tokens when configuring `tailwind.config.js` in Step 2 (extend the theme with design system values)
 5. This is optional — if the files don't exist, use default Tailwind theme values
 
+### Step 1c: Check Stitch Wireframes (Optional)
+
+Before scaffolding, check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/`:
+
+1. If `stitch-manifest.json` exists, read the screen mapping to understand which DSL screens have wireframes
+2. If `design-tokens.json` exists, use the extracted tokens for the Tailwind theme configuration (priority: Stitch tokens > design-system tokens > default Tailwind)
+3. If `shadcn-mapping.json` exists, reference it when deciding component types and layout patterns
+4. For each screen, if `{screen-id}.html` exists, read it as a visual layout reference (flex directions, grid patterns, spacing ratios)
+5. If none of these files exist, proceed with the existing behavior (backward compatible)
+
 ### Step 2: Scaffold Vite Project
 
 Run these commands via Bash:
@@ -330,7 +340,14 @@ For each screen in the manifest:
      - `dismiss` → render a dismiss `<Button>` with `resolution.label`
      - `custom` → render a `<Button>` with `resolution.label` and `console.log`
    - Connect demo triggers: e.g., on form submit with specific mock conditions, show the error by `triggerComponent`
-10. **Visibility**: For each component with a `visibility` object:
+10. **Stitch wireframe reference**: When Stitch wireframe HTML exists for the current screen (from Step 1c):
+    - Match the visual layout structure from the wireframe (flex directions, grid patterns, spacing ratios)
+    - Reflect color patterns from the wireframe into Tailwind classes
+    - Preserve the visual hierarchy (heading sizes, section whitespace proportions)
+    - Reference `shadcn-mapping.json` for component type decisions
+    - Do NOT copy Stitch HTML directly — always use shadcn/ui components
+    - The wireframe is a visual guide, not a code template
+11. **Visibility**: For each component with a `visibility` object:
     - Import and use `useAuth()` to get `hasRole`
     - Wrap the component in a conditional: `{hasRole(visibility.roles) && <Component />}`
     - Visibility changes must reflect immediately when the role is switched via the toolbar dropdown

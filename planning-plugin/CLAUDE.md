@@ -4,7 +4,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Architecture
 
-- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
+- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
 - **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:bundle`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
@@ -34,13 +34,14 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Design Workflow
 
-The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 3 stages:
+The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 4 stages:
 
 1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`)
-2. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
-3. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
+2. **Stage 1.5 — Stitch Wireframes** (`stitch-wireframe` agent, optional): Reads UI DSL → generates visual wireframes via Google Stitch MCP, extracts design tokens and shadcn/ui mapping hints (`docs/specs/{feature}/stitch-wireframes/`)
+3. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL (+ Stitch outputs if available) → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
+4. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
 
-Stages run sequentially (1→2→3). Each stage can be run independently with `--stage=dsl|prototype|figma`. Stage 3 is optional and requires Figma MCP configuration.
+Stages run sequentially (1→1.5→2→3). Each stage can be run independently with `--stage=dsl|stitch|prototype|figma`. Stages 1.5 and 3 are optional and require their respective MCP configurations (Stitch MCP, Figma MCP).
 
 ## Conventions
 
@@ -55,11 +56,12 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - Convergence (strict priority): both scores >= 8 → suggest finalization; any score < 8 AND < 3 rounds → do NOT offer finalization; 3 rounds with any score < 8 → suggest finalization with caveats
 - Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; file-per-page structure — each language gets a parent page (`[{feature}] {lang_name}`) with 3 child pages (Overview, Screens, Test Scenarios); the `sync-notion` skill reads spec files directly with Read tool and calls Notion MCP per file (no subagent); progress file stores `syncStatus` + `parentPageUrl` + `childPages` in the `notion` field; legacy `pageUrl` format is auto-migrated on next sync
 - Notion sync reliability: uses a WAL (Write-Ahead Log) pattern — `syncStatus` is set to `"syncing"` before MCP calls, each page URL is recorded incrementally after creation/update, and `syncStatus` is set to `"synced"` only after all pages complete. Values: `"syncing"` (in progress or interrupted), `"synced"` (complete), `"stale"` (spec edited after sync). `session-init.sh` warns on `"syncing"` (interrupted) and `"stale"` states. `validate-spec-format.sh` auto-transitions `"synced"` → `"stale"` when spec files are edited
+- Stitch wireframe output: `docs/specs/{feature}/stitch-wireframes/` contains `stitch-manifest.json`, `design-tokens.json`, `shadcn-mapping.json`, per-screen HTML/PNG files. Optional — only generated when Stitch MCP is configured
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
 - Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
 - Bundle staleness: `validate-spec-format.sh` auto-transitions `bundleStatus` from `"current"` → `"stale"` when prototype source files (`src/prototypes/{feature}/src/`) are edited. `session-init.sh` warns on stale bundles. `/planning-plugin:bundle {feature}` rebuilds and restores `"current"`
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
-- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `prototype`, `figma`)
+- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`, `figma`)
 - UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
 - Timestamps: all dates use ISO 8601 UTC format (`YYYY-MM-DDTHH:mm:ssZ`) — spec metadata, progress files, sync headers, design pipeline
 
@@ -67,12 +69,12 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
-agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, prototype-generator, figma-designer)
+agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, figma-designer)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       - Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
+templates/       - Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
 docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
 src/prototypes/  - Generated React prototypes (standalone Vite projects per feature)
 ```
