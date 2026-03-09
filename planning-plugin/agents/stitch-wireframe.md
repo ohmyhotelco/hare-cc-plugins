@@ -52,10 +52,11 @@ Attempt to call `list_projects` to verify Stitch MCP connectivity. If the tool i
 
 ### Step 1: Read DSL Input
 
-1. Read `manifest.json` to get the screen list, navigation map, and data entities
+1. Read `manifest.json` to get the screen list, navigation map, data entities, and **layouts**
 2. Read each `screen-{id}.json` referenced in the manifest
 3. Read the spec overview (`docs/specs/{feature}/en/{feature}-spec.md`) for domain context
 4. Catalog all unique component types, data entities, and interactions
+5. **Identify layout relationships**: Read the `layouts` array from `manifest.json`. For each layout entry, record the layout screen ID and its child screen IDs. Read the layout screen's `screen-{id}.json` and locate the `Slot` component in its componentTree — this marks the content insertion point. Extract the shell structure (all components except the Slot) as the reusable shell context for child screen prompts
 
 ### Step 2: Assemble Design System Context (Optional)
 
@@ -79,6 +80,30 @@ Compose a `<design_system>` context block from the available data. If no design 
 ### Step 4: Convert DSL to Stitch Prompts (enhance-prompt logic)
 
 For each screen in the manifest, convert the DSL JSON into a natural-language Stitch prompt. Read `templates/stitch-prompt-template.md` for the template structure.
+
+**Layout shell composition** — when a screen has a `layout` property (i.e., it is a child of a layout screen):
+
+1. **Build shell description once**: On the first child screen encountered for a given layout, convert the layout screen's componentTree (excluding the `Slot` component) into a natural-language shell description. Cache this description for reuse across all child screens of the same layout.
+2. **Compose the child prompt**: Combine the shell description with the child screen's own componentTree description. Use this structure:
+   ```
+   {screenTitle} — {purpose}. {domain adjectives} application screen.
+
+   ## Page Structure
+   This screen uses a shared application shell:
+   - {shell structure description, e.g., "A fixed left sidebar (240px wide) with the company logo at the top, vertical navigation menu items (Dashboard, Leave Request, Approvals, My Leave, Settings), and a user profile avatar at the bottom"}
+   - {header structure description, e.g., "A top header bar spanning the content area with breadcrumb navigation on the left and a notification bell icon on the right"}
+
+   The main content area (to the right of the sidebar, below the header) contains:
+   1. {first section of the child screen's componentTree}
+   2. {second section of the child screen's componentTree}
+   ...
+   ```
+3. **Navigation menu active state**: In the shell description, indicate which navigation item corresponds to the current child screen (e.g., "Dashboard menu item is highlighted/active").
+4. **Branding consistency**: The shell description must use the exact same application name, logo text, and menu labels across all child prompts — never allow Stitch to fabricate different branding per screen.
+
+**Layout screens themselves**: Generate the layout screen prompt normally. Describe the `Slot` area as a generic content placeholder (e.g., "The main content area displays a placeholder with sample dashboard widgets or a welcome message").
+
+**Standalone screens** (no `layout` property, not a layout provider): Generate prompts using the existing independent-screen logic below.
 
 **Component tree flattening rules** — recursively convert `componentTree` to natural language:
 
@@ -116,12 +141,19 @@ For subsequent screens (after the first), inject the design system text in **dua
 
 ### Step 5: Generate Screens
 
+**Generation order**: Layout screens must be generated before their child screens. Process screens in this order:
+1. Layout screens (screens that appear as `id` in the `layouts` array)
+2. Child screens (screens with a `layout` property), grouped by their parent layout
+3. Standalone screens (no `layout` property and not a layout provider)
+
+This ensures `extract_design_context` from the layout screen is available for all child screens, and the shell description is cached before child prompts are composed.
+
 For each screen:
 
 1. Call `generate_screen_from_text` with:
    - `projectId`: the project ID obtained in Step 3
    - `prompt`: the converted prompt from Step 4
-2. After the **first** screen is generated:
+2. After the **first** screen is generated (which should be a layout screen if layouts exist):
    a. Call `extract_design_context` with the first screen's ID to capture the Design DNA (fonts, colors, layouts)
    b. Store the returned design context object — this contains structured design tokens (color palette, font families, spacing, border radius) that Stitch extracted from the generated screen
    c. Synthesize a design system text block from the `extract_design_context` result for dual-channel injection into subsequent prompts
@@ -367,3 +399,8 @@ Return a summary:
 - shadcn/ui mapping hints are advisory — the prototype generator makes final component decisions
 - Do not modify DSL files or any existing spec files — this agent only writes to `stitch-wireframes/`
 - All timestamps use ISO 8601 UTC format
+- Child screens with a `layout` property must include the parent shell structure (sidebar, header) in their Stitch prompts — Stitch generates each screen as a standalone image, so the shell must be described in every child prompt
+- Cache the layout shell's natural-language description and reuse it verbatim across all child screen prompts to guarantee visual consistency and identical branding
+- Generate layout screens before their children to ensure design context extraction happens first
+- The layout screen's own wireframe should show a generic placeholder in the content area (e.g., "Content area with sample dashboard widgets")
+- Never allow Stitch to fabricate different branding or navigation structures for child screens — the shell description must enforce a single consistent application name, logo, and menu labels

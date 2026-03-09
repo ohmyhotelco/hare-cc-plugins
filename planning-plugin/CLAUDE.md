@@ -36,7 +36,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 4 stages:
 
-1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`)
+1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`). Detects layout shell patterns and emits `layout`/`Slot`/`layouts` for parent-child screen containment
 2. **Stage 1.5 — Stitch Wireframes** (`stitch-wireframe` agent, optional): Reads UI DSL → generates visual wireframes via Google Stitch MCP, extracts design tokens and shadcn/ui mapping hints (`docs/specs/{feature}/stitch-wireframes/`)
 3. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL (+ Stitch outputs if available) → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
 4. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
@@ -60,7 +60,8 @@ Stages run sequentially (1→1.5→2→3). Each stage can be run independently w
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
 - Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
 - Bundle staleness: `validate-spec-format.sh` auto-transitions `bundleStatus` from `"current"` → `"stale"` when prototype source files (`src/prototypes/{feature}/src/`) are edited. `session-init.sh` warns on stale bundles. `/planning-plugin:bundle {feature}` rebuilds and restores `"current"`
-- Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons
+- Layout containment: screens with shared shells (sidebar + header) use a `layout` property pointing to the layout screen ID. Layout screens contain a `Slot` component marking the content insertion point. `manifest.json` includes a `layouts` summary array mapping each layout to its child screen IDs. The `Slot` type maps to React Router's `<Outlet />` in prototypes. The `dsl-generator` detects shell patterns from spec ASCII diagrams and entry-point cross-references. The `stitch-wireframe` agent injects the shell description into every child screen prompt for visual consistency. The `prototype-generator` uses nested `<Route>` elements for layout containment instead of LLM-inferred nesting
+- Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons (plus `Slot` for layout content insertion points)
 - Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`, `figma`)
 - UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
 - Timestamps: all dates use ISO 8601 UTC format (`YYYY-MM-DDTHH:mm:ssZ`) — spec metadata, progress files, sync headers, design pipeline

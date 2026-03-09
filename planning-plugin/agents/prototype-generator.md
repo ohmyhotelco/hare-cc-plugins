@@ -25,7 +25,7 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 
 ### Step 1: Read UI DSL
 
-1. Read `manifest.json` to get the screen list, navigation map, and data entities
+1. Read `manifest.json` to get the screen list, navigation map, data entities, and **layouts**
 2. Read each `screen-{id}.json` referenced in the manifest
 3. Catalog all unique component types used across screens
 4. Catalog all data entities and their shapes
@@ -33,6 +33,7 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 6. Collect all `errorHandling` entries from all screens
 7. Collect all `visibility` rules across all screens' component trees
 8. Collect `ref` fields from `dataShape` entries (for relationship-aware mock data)
+9. **Identify layout relationships**: Read the `layouts` array from `manifest.json`. For each layout entry, record the layout screen ID and its child screen IDs. Read the layout screen's `screen-{id}.json` and locate the `Slot` component in its componentTree — this maps to `<Outlet />` from react-router
 
 ### Step 1b: Check Design System (Optional)
 
@@ -297,7 +298,7 @@ For each screen in the manifest:
 
 1. Create `src/pages/{PascalCaseScreenId}Page.tsx`
 2. Convert the component tree from JSON to JSX:
-   - Map each DSL component to its shadcn/ui import
+   - Map each DSL component to its shadcn/ui import (map `Slot` to `<Outlet />` from react-router)
    - Nest children according to the tree structure
    - Bind `dataBinding` fields to mock data imports
    - Implement actions as console.log + navigation (for navigate actions)
@@ -356,10 +357,58 @@ For each screen in the manifest:
     - Import and use `useAuth()` to get `hasRole`
     - Wrap the component in a conditional: `{hasRole(visibility.roles) && <Component />}`
     - Visibility changes must reflect immediately when the role is switched via the toolbar dropdown
+12. **Layout screens**: For screens that appear as `id` in the `layouts` array:
+    - Generate as `src/pages/{PascalCaseScreenId}Layout.tsx` (use `Layout` suffix, not `Page`)
+    - Convert the componentTree to JSX, rendering the `Slot` component as `<Outlet />` from react-router
+    - Import: `import { Outlet } from "react-router";`
+    - Do NOT include the state switcher toolbar in layout components — child pages manage their own toolbar
+    - Layout components do NOT use `useScreenState` — they are always rendered (no loading/empty/error states)
+    - Layout components should include navigation highlighting: use `useLocation()` to determine the active route and highlight the corresponding menu item
 
 ### Step 6: Generate Router Setup
 
-Create/update `src/App.tsx` with React Router:
+Create/update `src/App.tsx` with React Router. **Use `HashRouter` instead of `BrowserRouter`** to ensure routing works when opening `bundle.html` via `file://` protocol.
+
+**When `layouts` array is non-empty** — use nested routes:
+
+```tsx
+import { HashRouter, Routes, Route, Navigate, Outlet } from "react-router";
+import MainLayout from "./pages/MainLayout";
+import DashboardPage from "./pages/DashboardPage";
+import LeaveRequestPage from "./pages/LeaveRequestPage";
+import LoginPage from "./pages/LoginPage";
+// ... import all page and layout components
+
+function App() {
+  return (
+    <HashRouter>
+      <Routes>
+        {/* Layout route — renders shell with <Outlet /> for child content */}
+        <Route path="/app" element={<MainLayout />}>
+          {/* index route redirects to the default child */}
+          <Route index element={<Navigate to="dashboard" />} />
+          {/* Child routes — render inside the layout's <Outlet /> */}
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="leave-request" element={<LeaveRequestPage />} />
+          {/* ... more child routes */}
+        </Route>
+        {/* Standalone screens (no layout) — top-level routes */}
+        <Route path="/login" element={<LoginPage />} />
+        {/* Default redirect to entry point */}
+        <Route path="/" element={<Navigate to="/app" />} />
+      </Routes>
+    </HashRouter>
+  );
+}
+```
+
+Route mapping rules for nested layouts:
+- The layout screen's `route` becomes the parent `<Route path>` (e.g., `/app`)
+- Each child screen's `route` is expressed **relative to the layout route** (e.g., if full route is `/app/dashboard`, the nested `<Route path>` is just `"dashboard"`)
+- The `entryPoint` child becomes the `index` redirect target
+- Standalone screens (no `layout` property) remain as top-level sibling routes
+
+**When `layouts` array is empty** — use flat routes (no nesting):
 
 ```tsx
 import { HashRouter, Routes, Route, Navigate } from "react-router";
@@ -369,17 +418,13 @@ function App() {
   return (
     <HashRouter>
       <Routes>
-        {/* Route per screen, using routes from DSL */}
         <Route path="/screen-route" element={<ScreenPage />} />
-        {/* Redirect root to entry point */}
         <Route path="/" element={<Navigate to="/entry-point-route" />} />
       </Routes>
     </HashRouter>
   );
 }
 ```
-
-Use the routes defined in each screen's `screen.route` field. Set the default redirect to the screen marked as `entryPoint: true` in the manifest. **Use `HashRouter` instead of `BrowserRouter`** to ensure routing works when opening `bundle.html` via `file://` protocol.
 
 If any screen has `visibility` rules, wrap the entire router in `<AuthProvider>`:
 ```tsx
@@ -433,6 +478,8 @@ src/prototypes/{feature}/
 │   │   ├── users.ts               ← Mock data per entity
 │   │   └── ...
 │   ├── pages/
+│   │   ├── MainLayout.tsx          ← Layout component (when layouts exist, renders shell + Outlet)
+│   │   ├── DashboardPage.tsx       ← Child page (renders inside layout's Outlet)
 │   │   ├── UserListPage.tsx        ← One per screen
 │   │   └── ...
 │   ├── components/
@@ -486,4 +533,11 @@ Return a summary when complete:
 - Error handling must preserve the full chain: `code` → `condition` → `message` → `resolution` from the DSL `errorHandling` entries
 - If any screen has `visibility` rules, the role switcher dropdown is mandatory in the state toolbar
 - Mock data FK fields must reference actual IDs from the target entity's mock data (e.g., `role_id: "role-001"` must match an existing Role record)
-- New DSL fields (`validation`, `errorHandling`, `visibility`, `ref`) are all optional — gracefully skip when absent for backward compatibility
+- When the manifest contains a non-empty `layouts` array, use React Router nested routes — layout screens wrap child screens via `<Outlet />`
+- Layout components use `Layout` suffix (e.g., `MainLayout.tsx`), not `Page` suffix
+- Layout components render the `Slot` DSL component as `<Outlet />` from react-router
+- Layout components do NOT use `useScreenState` and do NOT include the state switcher toolbar — only child pages manage screen states
+- Layout components should highlight the active navigation item using `useLocation()` from react-router
+- The state switcher toolbar goes on child pages only, not on layout components
+- Standalone screens (no `layout` property in DSL) remain as top-level routes outside any layout nesting
+- Do NOT infer nested layout relationships from purpose text or LLM reasoning — use the structured `layout` property from DSL exclusively

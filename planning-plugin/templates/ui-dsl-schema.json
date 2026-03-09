@@ -14,9 +14,10 @@
         "Alert", "Toast", "AlertDialog", "Dialog",
         "Button", "DropdownMenu", "Command",
         "Breadcrumb", "NavigationMenu", "Pagination",
+        "Slot",
         "div", "text", "span"
       ],
-      "description": "shadcn/ui component vocabulary plus HTML primitives."
+      "description": "shadcn/ui component vocabulary plus HTML primitives. Slot marks the content insertion point in layout screens (maps to React Router Outlet)."
     },
 
     "action": {
@@ -279,7 +280,11 @@
         "id": { "type": "string" },
         "file": { "type": "string", "pattern": "^screen-.+\\.json$" },
         "title": { "type": "string" },
-        "entryPoint": { "type": "boolean" }
+        "entryPoint": { "type": "boolean" },
+        "layout": {
+          "type": "string",
+          "description": "ID of the layout screen this screen renders inside."
+        }
       },
       "required": ["id", "file", "title"]
     },
@@ -304,9 +309,25 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "Entity names inferred by the dsl-generator from screen definitions and functional requirements."
+        },
+        "layouts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "description": "Layout screen ID." },
+              "children": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "IDs of screens that render inside this layout."
+              }
+            },
+            "required": ["id", "children"]
+          },
+          "description": "Layout containment relationships. Each entry maps a layout screen to the child screens that render inside it."
         }
       },
-      "required": ["feature", "schemaVersion", "generatedAt", "sourceSpec", "screens", "navigation", "dataEntities"]
+      "required": ["feature", "schemaVersion", "generatedAt", "sourceSpec", "screens", "navigation", "dataEntities", "layouts"]
     },
 
     "screen": {
@@ -318,7 +339,11 @@
             "id": { "type": "string" },
             "title": { "type": "string" },
             "purpose": { "type": "string" },
-            "route": { "type": "string" }
+            "route": { "type": "string" },
+            "layout": {
+              "type": "string",
+              "description": "ID of the layout screen this screen renders inside. The layout screen must contain a Slot component marking the content insertion point. Omit for layout screens themselves and standalone screens."
+            }
           },
           "required": ["id", "title", "purpose", "route"]
         },

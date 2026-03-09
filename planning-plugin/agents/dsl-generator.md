@@ -50,6 +50,33 @@ This is optional — if the files don't exist, proceed normally with default map
    - User Actions table (Action | Trigger | Result)
 3. Derive a kebab-case `id` from the screen name (e.g., "User Management - List View" → `user-list`)
 
+### Step 1b: Detect Layout Shells
+
+Detect layout shell patterns in `screens.md` and establish parent-child containment relationships between screens.
+
+**Layout screen detection criteria** — a screen is a layout screen if ANY of the following apply:
+1. Its ASCII diagram contains a content insertion area such as `[ Content Area ]`, `[ Main Content ]`, `(renders in this area)`, or `(Each screen renders here)`
+2. Its Purpose or Layout mentions "frame", "shell", "layout wrapper", "scaffold", or "content area where child screens render"
+3. Its componentTree contains a NavigationMenu or sidebar structure alongside a clearly empty content region
+4. Multiple other screens reference this screen's navigation elements in their Entry Points (e.g., "Click 'Dashboard' in the left menu")
+
+**Layout screen processing**:
+- Add a `{ "type": "Slot", "id": "content-slot" }` component in the componentTree at the exact position where child content should be inserted
+- Do NOT set a `layout` property on the layout screen itself — it is the layout provider, not a consumer
+- The layout screen's route serves as the base path prefix for all child routes (e.g., `/app`)
+
+**Child screen detection criteria** — a screen is a child of a layout screen if ANY of the following apply:
+1. Its Entry Points reference navigation elements belonging to the layout screen (e.g., "Click 'Dashboard' in the left menu" where the left menu is defined in the layout screen)
+2. The spec text states it "renders inside", "within the layout", "in the content area", or similar containment language
+3. It shares the same navigation shell (sidebar, header) context as the layout screen and does not define its own top-level navigation
+
+**Child screen processing**:
+- Set `screen.layout` to the layout screen's ID (e.g., `"layout": "main-layout"`)
+- The componentTree must contain ONLY the content-area components — do NOT duplicate the shell structure (sidebar, header, footer) from the layout screen
+- The route must use the layout screen's route as a prefix (e.g., if layout route is `/app`, child route is `/app/dashboard`)
+
+**Standalone screens**: Screens that are neither layout screens nor children of a layout (e.g., login, 404) have no `layout` property and no `Slot` component. They render as full independent pages.
+
 ### Step 2: Infer Data Model
 
 Since the spec does not include a data model, infer one from the screen definitions and functional requirements:
@@ -225,13 +252,17 @@ For each data entity displayed on the screen:
 
 Create `manifest.json`:
 
-1. **screens**: List all generated screen files with id, filename, title, and entryPoint flag
+1. **screens**: List all generated screen files with id, filename, title, entryPoint flag, and `layout` (if the screen is a child of a layout screen)
    - Mark the first screen (or the one with the broadest entry point) as `entryPoint: true`
+   - For each child screen, include `"layout": "{layout-screen-id}"` in the screen entry
 2. **navigation**: Build from User Actions across all screens
    - For each action that navigates to another screen, create a navigation edge
    - Derive `trigger` from the action description (e.g., "Click edit button" → `click-edit-button`)
 3. **dataEntities**: List all entity names inferred during Step 2 (or read from legacy Data Model section)
-4. **metadata**: Set `feature`, `schemaVersion: "1.0"`, `generatedAt` (ISO-8601), `sourceSpec`
+4. **layouts**: Build from the layout shell detection in Step 1b
+   - For each layout screen, create an entry: `{ "id": "{layout-id}", "children": ["{child-id-1}", "{child-id-2}", ...] }`
+   - If no layout shells were detected, set to an empty array `[]`
+5. **metadata**: Set `feature`, `schemaVersion: "1.0"`, `generatedAt` (ISO-8601), `sourceSpec`
 
 ### Step 6: Write Output
 
@@ -249,6 +280,7 @@ Use ONLY these component types:
 - **Feedback**: `Alert`, `Toast`, `AlertDialog`, `Dialog`
 - **Actions**: `Button`, `DropdownMenu`, `Command`
 - **Navigation**: `Breadcrumb`, `NavigationMenu`, `Pagination`
+- **Layout Shell**: `Slot` (content insertion point in layout screens — maps to React Router `<Outlet />`)
 - **Primitives**: `div`, `text`, `span`
 
 If a spec component doesn't map to any of these, use the closest match and add a note in `props.note`.
@@ -282,3 +314,8 @@ Return a summary when complete:
 - Navigation edges must only reference screens that exist in the manifest
 - Keep JSON files clean and well-formatted (2-space indentation)
 - DSL output must always be in English — screen titles, component labels, validation messages, error messages, and all other text content must be in English regardless of the source spec language
+- Layout screens with a `Slot` component must NOT have a `layout` property — they are layout providers, not consumers
+- Child screens must NOT duplicate shell structure (sidebar, header, footer) from their parent layout screen — their componentTree contains only the content-area components
+- Every child screen's `layout` value must reference an existing layout screen ID in the manifest
+- Child screen routes must use the layout screen's route as a prefix
+- The `layouts` array in manifest.json is required — set to `[]` if no layout shells are detected
