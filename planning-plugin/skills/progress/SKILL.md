@@ -47,8 +47,16 @@ Translation Status:
 
 Design Status: (only display this section if a `design` field exists in the progress file)
   DSL:       {status} — {screenCount} screens — {generatedAt}
+  Stitch:    {status} — {screenCount} screens (if screenCount exists) — {generatedAt}
   Prototype: {status} — {path} — Bundle: {bundleStatus: "current" → "up to date", "stale" → "STALE", absent → omit} — {generatedAt}
   Figma:     {status} — {figmaFileUrl or "skipped"} — {generatedAt}
+
+Stitch status display mapping:
+  "completed"   → "completed"
+  "stale"       → "STALE (run /planning-plugin:sync-stitch or /planning-plugin:design --stage=stitch)"
+  "skipped"     → "skipped"
+  "pending"     → omit entire Stitch line
+  "in_progress" → "in progress"
 
 Notion Sync: (only display this section if a `notion` field exists in the progress file)
   {lang_name} ({lang}): {syncStatus_display} — {pageUrl} — Last synced: {lastSyncedAt}

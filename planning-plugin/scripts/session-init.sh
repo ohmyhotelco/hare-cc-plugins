@@ -122,7 +122,8 @@ if [ -n "$STITCH_WARNINGS" ]; then
   echo ""
   echo "[Planning Plugin] Stale Stitch wireframes:"
   echo -e "$STITCH_WARNINGS"
-  echo "  Run: /planning-plugin:design {feature} --stage=stitch"
+  echo "  Run: /planning-plugin:sync-stitch {feature}  (if edited on Stitch website)"
+  echo "    or /planning-plugin:design {feature} --stage=stitch  (if DSL was changed)"
 fi
 
 exit 0

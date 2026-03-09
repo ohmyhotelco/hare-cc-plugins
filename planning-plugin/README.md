@@ -396,6 +396,34 @@ Stages run sequentially (1→1.5→2→3). Use `--stage` to run a single stage i
 
 ---
 
+### `/planning-plugin:sync-stitch`
+
+**Syntax**: `/planning-plugin:sync-stitch feature-name [--screen=screen-id]`
+
+**When to use**: After editing wireframes on the Stitch website, to pull updated HTML/PNG/design tokens back to your local project. Unlike `design --stage=stitch` which regenerates wireframes from DSL, `sync-stitch` re-fetches content from existing Stitch screens.
+
+**What happens**:
+1. Reads the existing `stitch-manifest.json` to find the Stitch project and screen mappings
+2. Compares Stitch screens with the local manifest (reports new/deleted screens)
+3. Re-fetches HTML code and PNG screenshots for each matched screen
+4. Regenerates `design-tokens.json`, `DESIGN.md`, and `shadcn-mapping.json` from the updated content
+5. Marks the prototype bundle as `"stale"` if a prototype exists
+
+**When to use which**:
+| Scenario | Command |
+|----------|---------|
+| Edited wireframes on Stitch website | `/planning-plugin:sync-stitch {feature}` |
+| Changed the UI DSL (spec screens changed) | `/planning-plugin:design {feature} --stage=stitch` |
+| Only need to sync one screen | `/planning-plugin:sync-stitch {feature} --screen=screen-id` |
+
+**Example**:
+```
+/planning-plugin:sync-stitch social-login
+/planning-plugin:sync-stitch social-login --screen=user-list
+```
+
+---
+
 ### `/planning-plugin:bundle`
 
 **Syntax**: `/planning-plugin:bundle feature-name`
@@ -716,12 +744,12 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       Spec templates + UI DSL schema (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json)
-docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/)
+templates/       Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
+docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/ + stitch-wireframes/)
 src/prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
 

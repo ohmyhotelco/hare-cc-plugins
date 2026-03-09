@@ -400,6 +400,34 @@ Specifications Overview:
 
 ---
 
+### `/planning-plugin:sync-stitch`
+
+**구문**: `/planning-plugin:sync-stitch feature-name [--screen=screen-id]`
+
+**사용 시점**: Stitch 웹사이트에서 와이어프레임을 편집한 후, 업데이트된 HTML/PNG/디자인 토큰을 로컬 프로젝트에 가져올 때 사용합니다. DSL에서 와이어프레임을 재생성하는 `design --stage=stitch`와 달리, `sync-stitch`는 기존 Stitch 스크린에서 콘텐츠를 다시 가져옵니다.
+
+**동작 과정**:
+1. 기존 `stitch-manifest.json`을 읽어 Stitch 프로젝트와 스크린 매핑을 확인합니다
+2. Stitch 스크린과 로컬 manifest를 비교합니다 (신규/삭제된 스크린 보고)
+3. 매칭된 각 스크린의 HTML 코드와 PNG 스크린샷을 다시 가져옵니다
+4. 업데이트된 콘텐츠로 `design-tokens.json`, `DESIGN.md`, `shadcn-mapping.json`을 재생성합니다
+5. 프로토타입이 존재하는 경우 번들을 `"stale"` 상태로 표시합니다
+
+**사용 구분**:
+| 시나리오 | 명령어 |
+|----------|--------|
+| Stitch 웹사이트에서 와이어프레임을 편집한 경우 | `/planning-plugin:sync-stitch {feature}` |
+| UI DSL이 변경된 경우 (스펙 화면 변경) | `/planning-plugin:design {feature} --stage=stitch` |
+| 특정 스크린만 동기화가 필요한 경우 | `/planning-plugin:sync-stitch {feature} --screen=screen-id` |
+
+**예시**:
+```
+/planning-plugin:sync-stitch social-login
+/planning-plugin:sync-stitch social-login --screen=user-list
+```
+
+---
+
 ### `/planning-plugin:bundle`
 
 **구문**: `/planning-plugin:bundle feature-name`
@@ -720,7 +748,7 @@ src/prototypes/{feature}/                  ← React 프로토타입 (독립형 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, figma-designer)
-skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, bundle)
+skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
