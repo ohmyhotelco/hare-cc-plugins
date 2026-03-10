@@ -130,7 +130,7 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 3. Include Notion page URLs in the finalization summary
 
 After completing Steps 6a–6c, suggest next steps:
-> "Run `/planning-plugin:design {feature}` to generate UI DSL, React prototype, and Figma designs"
+> "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"
 > "Run `/planning-plugin:review {feature}` anytime to re-review"
 > "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
 > "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"

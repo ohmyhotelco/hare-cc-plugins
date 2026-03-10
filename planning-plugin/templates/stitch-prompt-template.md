@@ -1,7 +1,7 @@
 {screenTitle} — {one-line purpose statement}. {2-3 domain mood adjectives} {domain} application screen.
 
 ## Design System (REQUIRED)
-{Design system block — MUST always be included. Use design-system files, DESIGN.md, or extract_design_context results. If none available, use domain-based minimal defaults.}
+{Design system block — MUST always be included. Use design-system files, DESIGN.md, or parsed HTML/CSS design tokens. If none available, use domain-based minimal defaults.}
 
 **Color Palette:**
 - {Descriptive Name} (#{hex}) for {functional role}

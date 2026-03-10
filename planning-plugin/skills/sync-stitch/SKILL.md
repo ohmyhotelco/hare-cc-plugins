@@ -5,8 +5,7 @@ argument-hint: "[feature-name] [--screen=screen-id]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash,
   mcp__stitch__list_screens, mcp__stitch__get_screen, mcp__stitch__get_project,
-  mcp__stitch__list_projects, mcp__stitch__extract_design_context,
-  mcp__stitch__fetch_screen_code, mcp__stitch__fetch_screen_image
+  mcp__stitch__list_projects
 ---
 
 # Sync Stitch Wireframes
@@ -60,19 +59,17 @@ For each screen to sync:
    - Update `width` and `height` from the response
    - Update `sourceScreen` resource path
 
-2. Call `fetch_screen_code` to get the updated HTML/CSS code
-   - Write the code to `docs/specs/{feature}/stitch-wireframes/{dslScreenId}.html`
-   - If `fetch_screen_code` fails, log a warning and skip this screen:
+2. Download HTML code from `get_screen` response's `htmlCode.downloadUrl`:
+   ```bash
+   curl -sL "{htmlCode.downloadUrl}" -o docs/specs/{feature}/stitch-wireframes/{dslScreenId}.html
+   ```
+   - If the download fails (empty file or curl error), log a warning and skip this screen:
      > "Warning: Failed to fetch code for screen '{dslScreenId}'. Skipping."
 
-3. Call `fetch_screen_image` to get the updated PNG screenshot
-   - **If URL returned** (Google CDN): Append `=w{width}` using the screen's width from `get_screen`, then download:
+3. Download PNG screenshot from `get_screen` response's `screenshot.downloadUrl`:
+   - Append `=w{width}` using the screen's width from `get_screen` for high-resolution download:
      ```bash
-     curl -sL "{url}=w{width}" -o docs/specs/{feature}/stitch-wireframes/{dslScreenId}.png
-     ```
-   - **If base64 returned**: Decode and write:
-     ```bash
-     echo "{base64_data}" | base64 -d > docs/specs/{feature}/stitch-wireframes/{dslScreenId}.png
+     curl -sL "{screenshot.downloadUrl}=w{width}" -o docs/specs/{feature}/stitch-wireframes/{dslScreenId}.png
      ```
    - Do NOT use the Write tool for PNG files — it handles text only and will corrupt binary data
    - **File size validation**: After writing each PNG, check file size:
@@ -80,7 +77,7 @@ For each screen to sync:
      stat -f%z docs/specs/{feature}/stitch-wireframes/{dslScreenId}.png
      ```
      If a desktop-width screen (width >= 1440) produces a PNG under 100KB, log a warning: the image may be a low-resolution thumbnail. Consider re-downloading with an explicit `=w{width}` suffix.
-   - If `fetch_screen_image` fails, log a warning and continue:
+   - If the download fails, log a warning and continue:
      > "Warning: Failed to fetch screenshot for screen '{dslScreenId}'. HTML was updated but PNG is stale."
 
 4. Track which screens were successfully synced
@@ -88,21 +85,13 @@ For each screen to sync:
 ### Step 5: Regenerate Design Tokens
 
 1. Pick a representative screen (first layout screen if available, otherwise first synced screen)
-2. Call `extract_design_context` with the representative screen's Stitch screen ID
-3. **If `extract_design_context` succeeds**: Map the Design DNA fields to the token structure:
-   - Colors → `colors.primary`, `colors.secondary`, etc. (map by semantic role)
-   - Fonts → `typography.fontFamily`, `typography.fontSize`, `typography.fontWeight`
-   - Layouts → `spacing` scale values, `borderRadius` values
-4. **Supplement from HTML/CSS** (for tokens not covered by the design context):
-   - If `colors.destructive` is missing, scan for red-toned colors in the updated HTML files
-   - If `spacing` scale is incomplete, extract unique margin/padding/gap values
-   - If `borderRadius` is missing, extract border-radius values from CSS
-5. **If `extract_design_context` fails** (fallback): Parse all updated HTML files directly to extract tokens:
-   - Scan CSS for color declarations → map to semantic roles
+2. Parse all updated HTML files directly to extract design tokens:
+   - Scan CSS for color declarations → map to semantic roles (`primary`, `secondary`, `accent`, `background`, `foreground`, `muted`, `border`, `destructive`)
    - Extract font-family, font-size, font-weight values
    - Extract spacing (margin, padding, gap) and border-radius values
-6. Merge and deduplicate — design context values take priority over HTML-parsed values
-7. Write `docs/specs/{feature}/stitch-wireframes/design-tokens.json` in this format:
+3. If a single screen lacks certain tokens (e.g., `destructive`), scan additional screens' HTML for red-toned colors
+4. Merge and deduplicate across all parsed HTML files
+5. Write `docs/specs/{feature}/stitch-wireframes/design-tokens.json` in this format:
 ```json
 {
   "colors": {
@@ -127,7 +116,7 @@ For each screen to sync:
 
 ### Step 6: Regenerate DESIGN.md
 
-Generate a natural-language design document from the updated wireframes. Synthesize from the `extract_design_context` result (Step 5) + representative screen HTML analysis.
+Generate a natural-language design document from the updated wireframes. Synthesize from HTML/CSS analysis of the representative and other synced screens.
 
 Write to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
 
@@ -154,7 +143,7 @@ Use design language, not technical terms.}
 **Rules**:
 - Use descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`)
 - Every color entry must include descriptive name + hex + functional role
-- Base content on actual `extract_design_context` data and HTML analysis — do not fabricate values
+- Base content on actual HTML/CSS analysis — do not fabricate values
 - If design system files exist at `design-system/pages/`, reference them for consistent terminology
 
 ### Step 7: Regenerate shadcn/ui Mapping

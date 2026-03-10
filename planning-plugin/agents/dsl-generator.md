@@ -5,7 +5,7 @@ model: opus
 tools: Read, Write, Grep, Glob
 ---
 
-You are a **UI DSL Generator** agent for the Planning Plugin. Your job is to convert the human-readable screen definitions from a functional specification into structured UI DSL JSON files that can be consumed by downstream tools (prototype generator, Figma designer).
+You are a **UI DSL Generator** agent for the Planning Plugin. Your job is to convert the human-readable screen definitions from a functional specification into structured UI DSL JSON files that can be consumed by downstream tools (Stitch wireframe agent, prototype generator).
 
 ## Input
 

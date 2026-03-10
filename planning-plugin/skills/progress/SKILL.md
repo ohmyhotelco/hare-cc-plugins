@@ -49,7 +49,6 @@ Design Status: (only display this section if a `design` field exists in the prog
   DSL:       {status} — {screenCount} screens — {generatedAt}
   Stitch:    {status} — {screenCount} screens (if screenCount exists) — {generatedAt}
   Prototype: {status} — {path} — Bundle: {bundleStatus: "current" → "up to date", "stale" → "STALE", absent → omit} — {generatedAt}
-  Figma:     {status} — {figmaFileUrl or "skipped"} — {generatedAt}
 
 Stitch status display mapping:
   "completed"   → "completed"

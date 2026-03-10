@@ -13,7 +13,6 @@ This Claude Code plugin automates the creation of functional specifications thro
 - **DSL Generator** converts screen definitions into structured UI DSL JSON
 - **Stitch Wireframe** generates visual wireframes from UI DSL via Google Stitch MCP
 - **Prototype Generator** scaffolds standalone React prototypes from UI DSL (+ Stitch wireframes)
-- **Figma Designer** converts React prototypes to Figma layers via MCP
 
 All specs are generated in the configured working language as the source of truth, with translations to the other supported languages created automatically.
 
@@ -42,9 +41,8 @@ All specs are generated in the configured working language as the source of trut
 /planning-plugin:design "feature"
         │
         ├── Stage 1:   dsl-generator → UI DSL JSON
-        ├── Stage 1.5: stitch-wireframe → visual wireframes (optional, requires Stitch MCP)
-        ├── Stage 2:   prototype-generator → React + bundle.html
-        └── Stage 3:   figma-designer → Figma layers (optional)
+        ├── Stage 2:   stitch-wireframe → visual wireframes (optional, requires Stitch MCP)
+        └── Stage 3:   prototype-generator → React + bundle.html
 ```
 
 ## Installation
@@ -88,15 +86,14 @@ Verify the installation:
 
 **Plugin manager UI**: Run `/plugin` to open the tabbed interface (Discover, Installed, Marketplaces, Errors).
 
-## MCP Setup (Figma, Notion & Stitch)
+## MCP Setup (Notion & Stitch)
 
-### Figma & Notion (bundled — OAuth)
+### Notion (bundled — OAuth)
 
-This plugin bundles two HTTP MCP servers (defined in `plugin.json`):
+This plugin bundles one HTTP MCP server (defined in `plugin.json`):
 
 | Server | URL | Used by |
 |--------|-----|---------|
-| `figma` | `https://mcp.figma.com/mcp` | Figma Designer agent (Stage 3 of `/planning-plugin:design`) |
 | `notion` | `https://mcp.notion.com/mcp` | Notion Syncer agent (`/planning-plugin:sync-notion`) |
 
 Installation automatically registers these servers — no manual `claude mcp add` is needed.
@@ -112,18 +109,17 @@ The Stitch MCP server is **not bundled** in `plugin.json` because it requires an
    ```
 3. Verify setup by running `/mcp` — `stitch` should appear in the server list
 
-> **Note**: Stitch MCP is only needed for Stage 1.5 of `/planning-plugin:design`. If not configured, the stage is automatically skipped and the pipeline continues without wireframes.
+> **Note**: Stitch MCP is only needed for Stage 2 of `/planning-plugin:design`. If not configured, the stage is automatically skipped and the pipeline continues without wireframes.
 
 **Authenticate via OAuth**:
 1. Run `/mcp` inside Claude Code
-2. Select the server (`figma` or `notion`)
+2. Select the `notion` server
 3. Follow the browser-based OAuth login flow
 
 > **Tips**:
 > - Authentication tokens are stored securely and refreshed automatically.
 > - To revoke access, use "Clear authentication" in the `/mcp` menu.
 > - If your browser does not open automatically, copy the provided URL manually.
-> - Notion authentication is required for `/planning-plugin:sync-notion`. Figma authentication is only needed for Stage 3 of `/planning-plugin:design`.
 
 ## Quick Start
 
@@ -360,39 +356,37 @@ Specifications Overview:
 
 ### `/planning-plugin:design`
 
-**Syntax**: `/planning-plugin:design feature-name [--stage=dsl|stitch|prototype|figma]`
+**Syntax**: `/planning-plugin:design feature-name [--stage=dsl|stitch|prototype]`
 
-**When to use**: After finalizing a spec, to generate UI DSL, visual wireframes, React prototypes, and optionally Figma designs.
+**When to use**: After finalizing a spec, to generate UI DSL, visual wireframes, and React prototypes.
 
 **What happens** (full pipeline):
 1. **Stage 1 — DSL Generation**: The DSL Generator agent reads `screens.md` and `{feature}-spec.md`, then produces structured UI DSL JSON files in `docs/specs/{feature}/ui-dsl/` (a `manifest.json` with screen index + navigation map, and one `screen-{id}.json` per screen)
-2. **Stage 1.5 — Stitch Wireframes** (optional): The Stitch Wireframe agent reads UI DSL and generates visual wireframes via Google Stitch MCP, extracting design tokens and shadcn/ui mapping hints to `docs/specs/{feature}/stitch-wireframes/`
-3. **Stage 2 — Prototype Generation**: The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html`
-4. **Stage 3 — Figma Generation** (optional): The Figma Designer agent reads the React prototype code and converts it to Figma layers via the `generate_figma_design` MCP tool
+2. **Stage 2 — Stitch Wireframes** (optional): The Stitch Wireframe agent reads UI DSL and generates visual wireframes via Google Stitch MCP, extracting design tokens and shadcn/ui mapping hints to `docs/specs/{feature}/stitch-wireframes/`
+3. **Stage 3 — Prototype Generation**: The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html`
 
-Stages run sequentially (1→1.5→2→3). Use `--stage` to run a single stage independently.
+Stages run sequentially (1→2→3). Use `--stage` to run a single stage independently.
 
 ```
-┌──────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐     ┌──────────────────────┐
-│  Stage 1 — DSL   │     │  Stage 1.5 — Stitch  │     │  Stage 2 — Prototype  │     │  Stage 3 — Figma     │
-│                  │     │                      │     │                       │     │                      │
-│  screens.md      │     │  UI DSL JSON         │     │  UI DSL + Stitch      │     │  React components    │
-│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶ │  → Vite + React 19    │ ──▶ │  → Figma MCP         │
-│  → manifest.json │     │  → wireframes        │     │  → bundle.html        │     │  → Figma layers      │
-│  + screen-*.json │     │  (optional)          │     │                       │     │  (optional)          │
-└──────────────────┘     └──────────────────────┘     └───────────────────────┘     └──────────────────────┘
+┌──────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Stitch    │     │  Stage 3 — Prototype  │
+│                  │     │                      │     │                       │
+│  screens.md      │     │  UI DSL JSON         │     │  UI DSL + Stitch      │
+│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶ │  → Vite + React 19    │
+│  → manifest.json │     │  → wireframes        │     │  → bundle.html        │
+│  + screen-*.json │     │  (optional)          │     │                       │
+└──────────────────┘     └──────────────────────┘     └───────────────────────┘
 ```
 
 **Examples**:
 ```
-/planning-plugin:design social-login                    # full pipeline (stages 1→1.5→2→3)
+/planning-plugin:design social-login                    # full pipeline (stages 1→2→3)
 /planning-plugin:design social-login --stage=dsl        # DSL generation only
 /planning-plugin:design social-login --stage=stitch     # Stitch wireframe generation only
 /planning-plugin:design social-login --stage=prototype  # prototype generation only
-/planning-plugin:design social-login --stage=figma      # Figma generation only
 ```
 
-> **Note**: Stage 1.5 (Stitch) and Stage 3 (Figma) are optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. Figma requires Figma MCP configuration.
+> **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`.
 
 ---
 
@@ -590,7 +584,7 @@ You always have the final say. When you finalize:
 3. You get a summary: total rounds, final scores, key decisions, remaining open questions
 4. Suggested next steps:
    - `/planning-plugin:design-system --domain=...` to establish a domain-specific design system (recommended before running the design pipeline)
-   - `/planning-plugin:design {feature}` to generate UI DSL, React prototypes, and Figma designs
+   - `/planning-plugin:design {feature}` to generate UI DSL and React prototypes
    - `/planning-plugin:review {feature}` anytime to re-review
    - Edit the working language spec directly and run `/planning-plugin:translate {feature}` to sync
 
@@ -643,12 +637,6 @@ Reads the UI DSL JSON and generates a complete Vite + React 19 + TypeScript + Ta
 **Role**: Generate visual wireframes from UI DSL via Google Stitch MCP.
 
 Reads UI DSL JSON and converts component trees into natural-language prompts for Stitch, generating visual wireframe designs. Extracts design tokens (colors, typography, spacing) and shadcn/ui component mapping hints from the generated HTML/CSS. Outputs are used by the Prototype Generator to improve visual fidelity. This stage is optional and requires Stitch MCP configuration (`claude mcp add stitch`). Uses the Opus model.
-
-### Figma Designer
-
-**Role**: Convert React prototypes to Figma layers via MCP.
-
-Reads the React prototype code and translates components, layouts, and styles into Figma layers using the `generate_figma_design` MCP tool. This stage is optional and requires Figma MCP configuration. Uses the Sonnet model.
 
 ## Configuration
 
@@ -743,7 +731,7 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 ## Directory Structure
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, figma-designer)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
 skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
@@ -784,7 +772,6 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 - UI DSL and prototypes use shadcn/ui component vocabulary exclusively (Card, Table, Button, Dialog, Alert, Badge, Form, Input, Select, etc.)
 - Prototypes are standalone Vite projects with no dependency on the main project
 - Stitch wireframe generation is optional and requires Google Stitch MCP configuration
-- Figma generation is optional and requires Figma MCP configuration
 
 ## Author
 

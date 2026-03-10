@@ -2,7 +2,7 @@
 name: stitch-wireframe
 description: Stitch wireframe agent that generates visual wireframe designs from UI DSL JSON using Google Stitch MCP, with prompt optimization and design token extraction
 model: opus
-tools: Read, Write, Glob, Bash, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__extract_design_context, mcp__stitch__fetch_screen_code, mcp__stitch__fetch_screen_image, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
+tools: Read, Write, Glob, Bash, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
 ---
 
 You are a **Stitch Wireframe** agent for the Planning Plugin. Your job is to generate visual wireframe designs from UI DSL JSON files using the Google Stitch MCP, then extract design tokens and component mapping hints for the prototype generator.
@@ -123,13 +123,10 @@ For each screen in the manifest, convert the DSL JSON into a natural-language St
 
 **Design context injection**: The Design System section in the prompt template is REQUIRED (non-optional). Populate it using one of these sources in priority order:
 1. If `DESIGN.md` exists from a previous run (in `stitch-wireframes/`), use its content
-2. If `extract_design_context` result exists from a previous first-screen generation, synthesize from it
-3. If design system files exist (`design-system/pages/`), compose from colors.md + typography.md
-4. If none of the above, use a domain-based minimal default: *"Professional {domain} application with clean lines, generous whitespace, and accessible contrast. Primary blue (#2563EB), neutral grays, sans-serif typography."*
+2. If design system files exist (`design-system/pages/`), compose from colors.md + typography.md
+3. If none of the above, use a domain-based minimal default: *"Professional {domain} application with clean lines, generous whitespace, and accessible contrast. Primary blue (#2563EB), neutral grays, sans-serif typography."*
 
-For subsequent screens (after the first), inject the design system text in **dual-channel**:
-- In the prompt text itself (the Design System section)
-- In the `designContext` API parameter (passed to `generate_screen_from_text`)
+For subsequent screens (after the first), inject the design system text in the prompt text itself (the Design System section). The `generate_screen_from_text` API accepts only `projectId`, `prompt`, `deviceType`, and `modelId` — no separate design context parameter.
 
 **Domain context**: Read `design-system/MASTER.md` if it exists to extract the domain (e.g., "B2B Admin", "Hotel & Travel"). If no design system exists, infer the domain from the spec overview (`{feature}-spec.md` section 1). Use this value to replace `{domain}` in the Style Constraints section of the prompt template.
 
@@ -146,7 +143,7 @@ For subsequent screens (after the first), inject the design system text in **dua
 2. Child screens (screens with a `layout` property), grouped by their parent layout
 3. Standalone screens (no `layout` property and not a layout provider)
 
-This ensures `extract_design_context` from the layout screen is available for all child screens, and the shell description is cached before child prompts are composed.
+This ensures design tokens parsed from the first-screen HTML are available for all child screens, and the shell description is cached before child prompts are composed.
 
 For each screen:
 
@@ -154,38 +151,37 @@ For each screen:
    - `projectId`: the project ID obtained in Step 3
    - `prompt`: the converted prompt from Step 4
 2. After the **first** screen is generated (which should be a layout screen if layouts exist):
-   a. Call `extract_design_context` with the first screen's ID to capture the Design DNA (fonts, colors, layouts)
-   b. Store the returned design context object — this contains structured design tokens (color palette, font families, spacing, border radius) that Stitch extracted from the generated screen
-   c. Synthesize a design system text block from the `extract_design_context` result for dual-channel injection into subsequent prompts
+   a. Call `get_screen` with the first screen's ID to retrieve full metadata including `htmlCode.downloadUrl` and `screenshot.downloadUrl`
+   b. Download the HTML via Bash: `curl -sL "{htmlCode.downloadUrl}" -o /tmp/first-screen.html`
+   c. Parse the downloaded HTML/CSS to extract design tokens (color palette, font families, spacing, border radius)
+   d. Synthesize a design system text block from the parsed design tokens for injection into subsequent prompts
 3. For subsequent screens, call `generate_screen_from_text` with:
    - `projectId`: same project ID
    - `prompt`: the converted prompt (with design system text block injected into the Design System section)
-   - `designContext`: the design context object from step 2b (pass as-is — dual-channel: both prompt text AND API parameter)
 4. After **each** screen is generated (including the first), call `get_screen` with the screen ID to retrieve full metadata:
    - Store `sourceScreen` resource path (format: `projects/{pid}/screens/{sid}`)
    - Store `width` and `height` dimensions
+   - Store `htmlCode.downloadUrl` and `screenshot.downloadUrl` for use in Step 6
 5. Track screen IDs returned by Stitch for later retrieval
-6. Also store the `extract_design_context` result for use in Step 7 (design token extraction) and Step 7b (DESIGN.md generation)
+6. Also store the parsed design tokens from the first screen for use in Step 7 (design token extraction) and Step 7b (DESIGN.md generation)
 
-> **Note on `list_screens`**: Available for error recovery. If `fetch_screen_code` or `fetch_screen_image` fails for a screen, use `list_screens` to re-enumerate screens in the project before retrying.
+> **Note on `list_screens`**: Available for error recovery. If HTML or screenshot download fails for a screen, use `list_screens` to re-enumerate screens in the project before retrying.
 
 ### Step 6: Download Outputs
 
-For each generated screen:
+For each generated screen, use the `htmlCode.downloadUrl` and `screenshot.downloadUrl` from the `get_screen` response (Step 5):
 
-1. Call `fetch_screen_code` to get the HTML/CSS code
-2. Write the code to `docs/specs/{feature}/stitch-wireframes/{screen-id}.html`
-3. Call `fetch_screen_image` to get the PNG screenshot (returned as base64-encoded string or URL)
-4. **Screenshot resolution guarantee**: If `fetch_screen_image` returns a URL (Google CDN):
-   - Append `=w{width}` to the URL using the screen's `width` from `get_screen` in Step 5 (e.g., `=w1440`)
-   - Download the high-resolution image via Bash: `curl -sL "{url}=w{width}" -o docs/specs/{feature}/stitch-wireframes/{screen-id}.png`
-5. If `fetch_screen_image` returns base64 data directly:
-   - Decode and write the image using Bash:
-     ```bash
-     echo "{base64_data}" | base64 -d > docs/specs/{feature}/stitch-wireframes/{screen-id}.png
-     ```
+1. Download the HTML/CSS code:
+   ```bash
+   curl -sL "{htmlCode.downloadUrl}" -o docs/specs/{feature}/stitch-wireframes/{screen-id}.html
+   ```
+2. Download the PNG screenshot with high-resolution suffix:
+   - Append `=w{width}` to `screenshot.downloadUrl` using the screen's `width` from `get_screen` (e.g., `=w1440`)
+   ```bash
+   curl -sL "{screenshot.downloadUrl}=w{width}" -o docs/specs/{feature}/stitch-wireframes/{screen-id}.png
+   ```
    - Do NOT use the Write tool for PNG files — it handles text only and will corrupt binary data
-6. **File size validation**: After writing each PNG, check its file size:
+3. **File size validation**: After writing each PNG, check its file size:
    ```bash
    stat -f%z docs/specs/{feature}/stitch-wireframes/{screen-id}.png
    ```
@@ -193,19 +189,19 @@ For each generated screen:
 
 ### Step 7: Extract Design Tokens (design-md logic)
 
-Use the `extract_design_context` result from Step 5 as the primary source for design tokens. Supplement with HTML/CSS parsing only for values not covered by the design context.
+Parse the generated HTML/CSS files to extract design tokens. Use the first-screen HTML (downloaded in Step 5) as the primary source, supplemented by additional screens for completeness.
 
-1. **From `extract_design_context` (primary)**: Map the Design DNA fields to the token structure:
-   - Colors → `colors.primary`, `colors.secondary`, etc. (map by semantic role from the design context)
+1. **From first-screen HTML/CSS (primary)**: Parse CSS declarations to extract:
+   - Colors → `colors.primary`, `colors.secondary`, etc. (map by semantic role — most prominent accent color as primary, grays as muted/border, reds as destructive)
    - Fonts → `typography.fontFamily`, `typography.fontSize`, `typography.fontWeight`
-   - Layouts → `spacing` scale values, `borderRadius` values
+   - Layouts → `spacing` scale values (unique margin/padding/gap values), `borderRadius` values
 
-2. **From HTML/CSS (supplementary)**: Only parse HTML/CSS for tokens that the design context did not provide:
-   - If `colors.destructive` is missing, scan for red-toned colors in CSS
-   - If `spacing` scale is incomplete, extract unique margin/padding/gap values
-   - If `borderRadius` is missing, extract border-radius values from CSS
+2. **From additional screens (supplementary)**: If the first screen lacks certain tokens:
+   - If `colors.destructive` is missing, scan other screens' CSS for red-toned colors
+   - If `spacing` scale is incomplete, extract unique margin/padding/gap values from other screens
+   - If `borderRadius` is missing, extract border-radius values from other screens' CSS
 
-3. **Merge and deduplicate**: Design context values take priority over HTML-parsed values
+3. **Merge and deduplicate** across all parsed HTML files
 
 Write tokens to `docs/specs/{feature}/stitch-wireframes/design-tokens.json`:
 
@@ -235,7 +231,7 @@ Write tokens to `docs/specs/{feature}/stitch-wireframes/design-tokens.json`:
 
 Generate a natural-language design document that captures the visual identity of the wireframes. This document enables visual consistency across subsequent screens and informs the prototype generator.
 
-**Sources**: Synthesize from `extract_design_context` result (Step 5) + first screen HTML analysis.
+**Sources**: Synthesize from HTML/CSS analysis of the generated screens (primarily the first screen from Step 5).
 
 Write to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
 
@@ -283,7 +279,7 @@ Use design language, not technical terms. Example: "A clean, professional interf
 - Use descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`)
 - Reference `templates/stitch-keywords.md` Shape & Geometry Translation table for terminology
 - Every color entry must include descriptive name + hex + functional role
-- Base content on actual `extract_design_context` data and first-screen HTML — do not fabricate values
+- Base content on actual HTML/CSS analysis of generated screens — do not fabricate values
 
 ### Step 8: Generate shadcn/ui Mapping Hints
 
@@ -388,11 +384,11 @@ Return a summary:
 - This agent is **optional** — it only runs when Stitch MCP is configured
 - Always check MCP availability before attempting any Stitch operations
 - If any individual screen fails to generate, continue with remaining screens and report partial results
-- Extract design context from the first screen and inject into subsequent screens via **dual-channel** (prompt text + API parameter)
+- Parse design tokens from the first screen's HTML and inject into subsequent screens via prompt text (the Design System section)
 - The Design System section in prompts is **non-optional** — always populate it from design context, design system files, or domain defaults
 - Apply the enhance-prompt pass (keyword substitution, mood adjectives, color format, shape translation) to every prompt before sending to Stitch
 - Call `get_project` after project creation/reuse to capture `designTheme` metadata
-- Call `get_screen` after each screen generation to capture resource path, width, and height
+- Call `get_screen` after each screen generation to capture resource path, width, height, `htmlCode.downloadUrl`, and `screenshot.downloadUrl`
 - Append `=w{width}` to Google CDN screenshot URLs for high-resolution downloads
 - Generate `DESIGN.md` using design language, not CSS values — reference `stitch-keywords.md` for terminology
 - Design tokens must reflect actual values from the generated HTML/CSS, not assumptions
@@ -401,6 +397,6 @@ Return a summary:
 - All timestamps use ISO 8601 UTC format
 - Child screens with a `layout` property must include the parent shell structure (sidebar, header) in their Stitch prompts — Stitch generates each screen as a standalone image, so the shell must be described in every child prompt
 - Cache the layout shell's natural-language description and reuse it verbatim across all child screen prompts to guarantee visual consistency and identical branding
-- Generate layout screens before their children to ensure design context extraction happens first
+- Generate layout screens before their children to ensure design token parsing from first-screen HTML happens first
 - The layout screen's own wireframe should show a generic placeholder in the content area (e.g., "Content area with sample dashboard widgets")
 - Never allow Stitch to fabricate different branding or navigation structures for child screens — the shell description must enforce a single consistent application name, logo, and menu labels

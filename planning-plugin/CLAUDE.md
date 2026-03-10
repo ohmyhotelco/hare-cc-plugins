@@ -4,7 +4,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Architecture
 
-- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype), figma-designer (React code → Figma layers)
+- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype)
 - **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:sync-stitch`, `/planning-plugin:bundle`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
@@ -34,14 +34,13 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Design Workflow
 
-The design pipeline converts spec screen definitions into runnable prototypes and Figma designs through 4 stages:
+The design pipeline converts spec screen definitions into runnable prototypes through 3 stages:
 
 1. **Stage 1 — DSL Generation** (`dsl-generator` agent): Reads `screens.md` + `{feature}-spec.md` → generates structured UI DSL JSON (`docs/specs/{feature}/ui-dsl/`). Detects layout shell patterns and emits `layout`/`Slot`/`layouts` for parent-child screen containment
-2. **Stage 1.5 — Stitch Wireframes** (`stitch-wireframe` agent, optional): Reads UI DSL → generates visual wireframes via Google Stitch MCP, extracts design tokens and shadcn/ui mapping hints (`docs/specs/{feature}/stitch-wireframes/`)
-3. **Stage 2 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL (+ Stitch outputs if available) → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
-4. **Stage 3 — Figma Generation** (`figma-designer` agent, optional): Reads React prototype code → converts to Figma layers via `generate_figma_design` MCP tool
+2. **Stage 2 — Stitch Wireframes** (`stitch-wireframe` agent, optional): Reads UI DSL → generates visual wireframes via Google Stitch MCP, extracts design tokens and shadcn/ui mapping hints (`docs/specs/{feature}/stitch-wireframes/`)
+3. **Stage 3 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL (+ Stitch outputs if available) → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
 
-Stages run sequentially (1→1.5→2→3). Each stage can be run independently with `--stage=dsl|stitch|prototype|figma`. Stages 1.5 and 3 are optional and require their respective MCP configurations (Stitch MCP, Figma MCP).
+Stages run sequentially (1→2→3). Each stage can be run independently with `--stage=dsl|stitch|prototype`. Stage 2 is optional and requires Stitch MCP configuration.
 
 ## Conventions
 
@@ -59,11 +58,11 @@ Stages run sequentially (1→1.5→2→3). Each stage can be run independently w
 - Stitch wireframe output: `docs/specs/{feature}/stitch-wireframes/` contains `stitch-manifest.json`, `design-tokens.json`, `shadcn-mapping.json`, per-screen HTML/PNG files. Optional — only generated when Stitch MCP is configured
 - Stitch sync: `/planning-plugin:sync-stitch {feature}` re-fetches wireframe content from Stitch after manual edits on the Stitch website. Use `sync-stitch` when wireframes were edited on Stitch website; use `design --stage=stitch` for full DSL-to-wireframe regeneration
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
-- Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging and Figma generation
+- Prototype output: `src/prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging
 - Bundle staleness: `validate-spec-format.sh` auto-transitions `bundleStatus` from `"current"` → `"stale"` when prototype source files (`src/prototypes/{feature}/src/`) are edited. `session-init.sh` warns on stale bundles. `/planning-plugin:bundle {feature}` rebuilds and restores `"current"`
 - Layout containment: screens with shared shells (sidebar + header) use a `layout` property pointing to the layout screen ID. Layout screens contain a `Slot` component marking the content insertion point. `manifest.json` includes a `layouts` summary array mapping each layout to its child screen IDs. The `Slot` type maps to React Router's `<Outlet />` in prototypes. The `dsl-generator` detects shell patterns from spec ASCII diagrams and entry-point cross-references. The `stitch-wireframe` agent injects the shell description into every child screen prompt for visual consistency. The `prototype-generator` uses nested `<Route>` elements for layout containment instead of LLM-inferred nesting
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons (plus `Slot` for layout content insertion points)
-- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`, `figma`)
+- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`)
 - UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
 - Timestamps: all dates use ISO 8601 UTC format (`YYYY-MM-DDTHH:mm:ssZ`) — spec metadata, progress files, sync headers, design pipeline
 
@@ -71,7 +70,7 @@ Stages run sequentially (1→1.5→2→3). Each stage can be run independently w
 
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
-agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, figma-designer)
+agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion, sync-stitch, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
