@@ -334,10 +334,10 @@ Updated artifacts:
 
 {If prototype exists and bundleStatus was set to stale:}
 Prototype bundle is now STALE. Next steps:
-  /planning-plugin:design {feature} --stage=prototype  (regenerate prototype with updated wireframes)
+  /planning-plugin:prototype {feature}                  (regenerate prototype with updated wireframes)
   /planning-plugin:bundle {feature}                    (rebuild bundle only, without regenerating prototype)
 
 {If no prototype:}
 Next steps:
-  /planning-plugin:design {feature} --stage=prototype  (generate prototype from updated wireframes)
+  /planning-plugin:prototype {feature}                  (generate prototype from updated wireframes)
 ```
