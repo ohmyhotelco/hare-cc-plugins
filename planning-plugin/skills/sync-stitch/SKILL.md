@@ -55,14 +55,8 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
       deleted screen matching that ID and its variant group. If the specified
       screen is not in the deleted list, skip variant adoption and proceed to
       item 7 (normal --screen sync of matched screens)
-   b. Ask the user:
-      > "Detected variant pattern: {n} original screens were replaced by {m}
-      > variant screens in Stitch. Would you like to adopt preferred variants?
-      > (y/n)"
-   c. If "yes" → proceed to **Step 3b: Variant Adoption**
-   d. If "no" → report as before and stop:
-      > "Run `/planning-plugin:design {feature} --stage=stitch` for full
-      > regeneration."
+   b. Log: "Detected variant pattern: {n} original screens → {m} variant screens."
+   c. Proceed to **Step 3b: Variant Adoption**
 6. If NOT a variant pattern (normal new/deleted only), keep existing behavior:
    > "Found {n} new screen(s) and {m} deleted screen(s) in Stitch. New: [{titles}]. Deleted: [{titles}]. These will be noted but not auto-synced. Run `/planning-plugin:design {feature} --stage=stitch` for a full regeneration."
 7. If `--screen=<screen-id>` was provided:
@@ -83,26 +77,56 @@ For each deleted manifest screen, process its matching variant group:
    b. Call `get_screen` to retrieve `width`, `height`
    c. Log: "Auto-adopted single variant for '{dslScreenId}': {variantTitle}"
 
-2. **Multiple variants (interactive selection)**:
-   If 2+ matching new screens exist:
-   a. For each candidate variant:
-      - Call `get_screen` to retrieve `screenshot.downloadUrl`, `width`, `height`
-      - Download preview PNG:
+2. **Multiple variants (batch interactive selection)**:
+   If any deleted manifest screens have 2+ matching new screen groups,
+   present a single batch selection prompt covering all multi-variant screens:
+
+   **Phase A — Text summary table** (no image downloads):
+   a. For each multi-variant screen, call `get_screen` for each candidate
+      to retrieve `width`, `height`, and `screenshot.downloadUrl`
+   b. Display a batch selection table:
+      ```
+      Variant Selection Required ({count} screens with multiple variants)
+
+      Screen 1: '{dslScreenId}' ({original title})
+        [1a] {variant-1-title} ({width}x{height})
+        [1b] {variant-2-title} ({width}x{height})
+        [1c] {variant-3-title} ({width}x{height})
+
+      Screen 2: '{dslScreenId}' ({original title})
+        [2a] {variant-1-title} ({width}x{height})
+        [2b] {variant-2-title} ({width}x{height})
+
+      Enter selections (e.g., "1a 2b") or:
+        'all-first' — adopt first variant for all
+        'preview 1' — show thumbnails for Screen 1
+        'preview all' — show thumbnails for all
+        'skip' — leave all unresolved
+      ```
+
+   **Phase B — User response handling**:
+   c. Parse user response:
+      - **Direct selection** (e.g., `"1a 2b"`): adopt selected variants.
+        Any screens not mentioned adopt their first variant automatically
+      - **`preview N`**: download `=w400` thumbnails for the specified
+        screen's variants, display using Read tool, then re-show the
+        selection prompt (allow up to 2 preview rounds total):
         ```bash
-        curl -sL "{screenshot.downloadUrl}=w800" \
+        curl -sL "{screenshot.downloadUrl}=w400" \
           -o /tmp/stitch-variant-{stitchScreenId}.png
         ```
-   b. Show all candidate PNGs to the user using the Read tool (Claude can
-      display images)
-   c. Present selection prompt:
-      > Variants for '{dslScreenId}' ({original title}):
-      >   1. {variant-1-title} ({width}x{height})
-      >   2. {variant-2-title} ({width}x{height})
-      >   3. {variant-3-title} ({width}x{height})
-      > Select variant (1-N) or 's' to skip:
-   d. If user selects a variant → update manifest screen entry in-memory
-   e. If user skips → exclude this screen from sync (leave manifest entry
-      unchanged with old, now-hidden stitchScreenId)
+        (Note: `=w400` is for lightweight preview only.
+        Step 4 uses `=w{width}` for full-resolution final download.)
+      - **`preview all`**: download `=w400` thumbnails for all
+        multi-variant screens, display using Read tool, then re-show
+        the selection prompt (allow up to 2 preview rounds total)
+      - **`all-first`**: adopt the first variant for every multi-variant
+        screen
+      - **`skip`**: leave all multi-variant screens unresolved (manifest
+        entries unchanged with old, now-hidden stitchScreenIds)
+   d. For each adopted variant, update the manifest screen entry in-memory:
+      - `stitchScreenId` → variant's screen ID
+      - `sourceScreen` → `projects/{projectId}/screens/{newScreenId}`
 
 3. **Unmatched new screens**:
    Report any new screens that don't match any deleted manifest screen:
@@ -124,6 +148,7 @@ For each deleted manifest screen, process its matching variant group:
    ```bash
    rm -f /tmp/stitch-variant-*.png
    ```
+   (Safe no-op if no previews were requested.)
 
 ### Step 4: Re-fetch Screen Content
 
