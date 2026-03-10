@@ -1,4 +1,4 @@
-<!-- Synced with en version: 2026-03-06T12:00:00Z -->
+<!-- Synced with en version: 2026-03-10T12:00:00Z -->
 
 [English version](README.md)
 
@@ -45,8 +45,14 @@ Tất cả đặc tả được tạo bằng ngôn ngữ làm việc (Working La
 /planning-plugin:design "feature"
         │
         ├── Stage 1:   dsl-generator → UI DSL JSON
-        ├── Stage 2:   stitch-wireframe → visual wireframes (optional, requires Stitch MCP)
-        └── Stage 3:   prototype-generator → React + bundle.html
+        └── Stage 2:   stitch-wireframe → visual wireframes (optional)
+              │
+              └── review gate — review wireframes on Stitch
+        │
+        ▼
+/planning-plugin:prototype "feature"
+        │
+        └── prototype-generator → React + bundle.html
 ```
 
 ## Cài đặt
@@ -360,37 +366,53 @@ Specifications Overview:
 
 ### `/planning-plugin:design`
 
-**Cú pháp**: `/planning-plugin:design feature-name [--stage=dsl|stitch|prototype]`
+**Cú pháp**: `/planning-plugin:design feature-name [--stage=dsl|stitch]`
 
-**Khi nào sử dụng**: Sau khi hoàn thiện đặc tả, để tạo UI DSL, wireframe trực quan và prototype React.
+**Khi nào sử dụng**: Sau khi hoàn thiện đặc tả, để tạo UI DSL và wireframe trực quan.
 
 **Quy trình thực hiện** (toàn bộ pipeline):
 1. **Stage 1 — Tạo DSL**: Tác tử DSL Generator đọc `screens.md` và `{feature}-spec.md`, sau đó tạo các tệp UI DSL JSON có cấu trúc trong `docs/specs/{feature}/ui-dsl/` (một `manifest.json` với chỉ mục màn hình + bản đồ điều hướng, và một `screen-{id}.json` cho mỗi màn hình)
 2. **Stage 2 — Wireframe Stitch** (tùy chọn): Tác tử Stitch Wireframe đọc UI DSL và tạo wireframe trực quan qua Google Stitch MCP, trích xuất design token và gợi ý ánh xạ shadcn/ui vào `docs/specs/{feature}/stitch-wireframes/`
-3. **Stage 3 — Tạo Prototype**: Tác tử Prototype Generator đọc UI DSL (và đầu ra wireframe Stitch nếu có) và tạo dự án Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide độc lập trong `src/prototypes/{feature}/`, sau đó đóng gói thành một tệp `bundle.html` độc lập duy nhất
 
-Các stage chạy tuần tự (1→2→3). Sử dụng `--stage` để chạy từng stage độc lập.
+Chạy mặc định thực hiện Stage 1→2 rồi dừng tại review gate — xem xét wireframe trên Stitch trước khi tạo prototype. Sử dụng `--stage` để chạy từng stage độc lập.
 
 ```
-┌──────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
-│  Stage 1 — DSL   │     │  Stage 2 — Stitch    │     │  Stage 3 — Prototype  │
-│                  │     │                      │     │                       │
-│  screens.md      │     │  UI DSL JSON         │     │  UI DSL + Stitch      │
-│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶ │  → Vite + React 19    │
-│  → manifest.json │     │  → wireframes        │     │  → bundle.html        │
-│  + screen-*.json │     │  (optional)          │     │                       │
-└──────────────────┘     └──────────────────────┘     └───────────────────────┘
+┌──────────────────┐     ┌──────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Stitch    │
+│                  │     │                      │
+│  screens.md      │     │  UI DSL JSON         │
+│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶  review gate
+│  → manifest.json │     │  → wireframes        │
+│  + screen-*.json │     │  (optional)          │
+└──────────────────┘     └──────────────────────┘
 ```
 
 **Ví dụ**:
 ```
-/planning-plugin:design social-login                    # toàn bộ pipeline (stage 1→2→3)
+/planning-plugin:design social-login                    # toàn bộ pipeline (stage 1→2 + review gate)
 /planning-plugin:design social-login --stage=dsl        # chỉ tạo DSL
 /planning-plugin:design social-login --stage=stitch     # chỉ tạo wireframe Stitch
-/planning-plugin:design social-login --stage=prototype  # chỉ tạo prototype
 ```
 
-> **Lưu ý**: Stage 2 (Stitch) là tùy chọn. Stitch yêu cầu `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`.
+> **Lưu ý**: Stage 2 (Stitch) là tùy chọn. Stitch yêu cầu `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. Để tạo prototype, chạy `/planning-plugin:prototype {feature}` sau khi xem xét wireframe.
+
+---
+
+### `/planning-plugin:prototype`
+
+**Cú pháp**: `/planning-plugin:prototype feature-name`
+
+**Khi nào sử dụng**: Sau khi xem xét wireframe Stitch (hoặc sau khi tạo DSL nếu bỏ qua Stitch), để tạo prototype React.
+
+**Quy trình thực hiện**:
+1. Nếu wireframe Stitch tồn tại, hỏi liệu có muốn đồng bộ các thay đổi mới nhất từ Stitch trước khi tạo
+2. Tác tử Prototype Generator đọc UI DSL (và đầu ra wireframe Stitch nếu có) và tạo dự án Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide độc lập trong `src/prototypes/{feature}/`
+3. Đóng gói thành một tệp `bundle.html` độc lập duy nhất (có thể mở qua `file://`)
+
+**Ví dụ**:
+```
+/planning-plugin:prototype social-login
+```
 
 ---
 
@@ -588,7 +610,7 @@ Quyết định cuối cùng luôn thuộc về bạn. Khi hoàn thiện:
 3. Bạn nhận được bản tóm tắt: tổng số vòng, điểm cuối cùng, quyết định quan trọng, câu hỏi mở còn lại
 4. Các bước tiếp theo được đề xuất:
    - `/planning-plugin:design-system --domain=...` — Xây dựng hệ thống thiết kế theo domain (khuyến nghị trước khi chạy design pipeline)
-   - `/planning-plugin:design {feature}` — Tạo UI DSL, wireframe trực quan và prototype React
+   - `/planning-plugin:design {feature}` — Tạo UI DSL và wireframe, sau đó `/planning-plugin:prototype {feature}` để tạo prototype React
    - `/planning-plugin:review {feature}` — Đánh giá lại bất cứ lúc nào
    - Chỉnh sửa trực tiếp đặc tả ngôn ngữ làm việc và chạy `/planning-plugin:translate {feature}` để đồng bộ
 
@@ -736,7 +758,7 @@ src/prototypes/{feature}/                  ← Prototype React (dự án Vite đ
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
-skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, sync-stitch, bundle)
+skills/          Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)

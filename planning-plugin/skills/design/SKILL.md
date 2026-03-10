@@ -1,7 +1,7 @@
 ---
 name: design
-description: "Generate UI DSL, Stitch wireframes, and React prototype from a finalized functional specification through a 3-stage pipeline: DSL generation → Stitch wireframes → prototype scaffolding."
-argument-hint: "[feature-name] [--stage=dsl|stitch|prototype]"
+description: "Generate UI DSL and Stitch wireframes from a finalized functional specification (DSL → Stitch → review gate)."
+argument-hint: "[feature-name] [--stage=dsl|stitch]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
 ---
@@ -53,7 +53,7 @@ All references are optional — agents fall back to defaults when design-system 
 
 1. Parse the arguments to extract:
    - `feature` — kebab-case feature name (required)
-   - `--stage` — optional stage filter: `dsl`, `stitch`, or `prototype` (default: run all 3 stages sequentially)
+   - `--stage` — optional stage filter: `dsl` or `stitch` (default: run dsl + stitch, then stop for review)
 
 2. Validate the spec exists:
    - Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
@@ -71,16 +71,13 @@ All references are optional — agents fall back to defaults when design-system 
 4. Stage-specific prerequisite checks:
    - If `--stage=stitch`: verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not:
      > "UI DSL not found. Run `/planning-plugin:design {feature} --stage=dsl` first."
-   - If `--stage=prototype`: verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not:
-     > "UI DSL not found. Run `/planning-plugin:design {feature} --stage=dsl` first."
 
 ### Step 2: Determine Stages
 
 Based on the `--stage` argument:
-- No flag → run all 3 stages: `dsl` → `stitch` → `prototype`
+- No flag → run 2 stages: `dsl` → `stitch`, then stop with review gate
 - `--stage=dsl` → run Stage 1 only
 - `--stage=stitch` → run Stage 2 only
-- `--stage=prototype` → run Stage 3 only
 
 ### Step 3: Initialize Progress
 
@@ -92,8 +89,7 @@ Read the progress file and initialize the `design` field if not present:
     "status": "pending",
     "stages": {
       "dsl": { "status": "pending" },
-      "stitch": { "status": "pending" },
-      "prototype": { "status": "pending" }
+      "stitch": { "status": "pending" }
     }
   }
 }
@@ -160,35 +156,26 @@ Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for 
    Stage 2 outputs now include `DESIGN.md` — a natural-language design document with 5 dimensions (Visual Theme, Color Palette, Typography, Component Styling, Layout Principles). This document is consumed by the prototype generator in Step 1c for Tailwind theming and component styling decisions.
 5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` and continue to Step 6
 
-### Step 6: Stage 3 — Prototype Generation
-
-**Skip if not in the determined stages.**
-
-1. Update progress: `design.stages.prototype.status = "in_progress"`
-2. Build the prototype prompt. If `design.stages.stitch.status` is `"completed"`, append Stitch reference instructions:
+6. **Review gate** (default run only): If no `--stage` flag was provided (i.e., this is a default dsl+stitch run) and stitch completed successfully, display the review gate message and stop:
 
 ```
-Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
+Stitch wireframes generated for '{feature}':
+  {screenCount} screens → docs/specs/{feature}/stitch-wireframes/
+
+Review your wireframes:
+  1. Open Stitch project to review and edit: https://labs.google/stitch/projects/{projectId}
+  2. If you made edits on Stitch, sync them:
+     /planning-plugin:sync-stitch {feature}
+  3. When satisfied, generate the prototype:
+     /planning-plugin:prototype {feature}
 ```
 
-3. On success, update progress:
-   ```json
-   {
-     "design.stages.prototype": {
-       "status": "completed",
-       "path": "src/prototypes/{feature}/",
-       "artifact": "src/prototypes/{feature}/bundle.html",
-       "bundleStatus": "current",
-       "generatedAt": "ISO-8601"
-     }
-   }
-   ```
-4. On failure, update `status: "error"`, report error, and ask user whether to retry or skip
+Then skip to Step 6 (Finalize).
 
-### Step 7: Finalize & Summary
+### Step 6: Finalize & Summary
 
 1. Determine overall design status:
-   - All completed stages succeeded → `design.status = "completed"`
+   - Default run (dsl + stitch completed) → `design.status = "reviewing"` (stitch complete, awaiting human review before prototype)
    - Some stages completed, some skipped → `design.status = "partial"`
    - Only pending stages remain → `design.status = "pending"`
 
@@ -201,22 +188,27 @@ Design Pipeline Results for '{feature}':
 
   Stage 1 — DSL Generation:      {status} — {screenCount} screens
   Stage 2 — Stitch Wireframes:   {status} — {screenCount} screens / {reason for skip}
-  Stage 3 — Prototype:           {status} — {path}
-
-Next Steps:
-  - Open `src/prototypes/{feature}/bundle.html` in a browser to preview the prototype
-  - Run `cd src/prototypes/{feature} && npm run dev` for live development (Vite dev server)
-  - Run `/planning-plugin:design {feature} --stage=stitch` to generate Stitch wireframes (requires Stitch MCP)
-  - Edit prototype files directly to refine the UI
-  - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md
 ```
+
+**Next Steps** vary based on how the pipeline terminated:
+
+**A) Default run (dsl + stitch, stopped at review gate):**
+```
+Next Steps:
+  1. Open Stitch project to review and edit: https://labs.google/stitch/projects/{projectId}
+  2. If you made edits on Stitch, sync them:
+     /planning-plugin:sync-stitch {feature}
+  3. When satisfied, generate the prototype:
+     /planning-plugin:prototype {feature}
+```
+
+**B) Single stage run (`--stage=dsl` or `--stage=stitch`):**
+Adjust Next Steps to guide the user to the next logical stage.
 
 If `design-system/MASTER.md` does not exist, prepend this to the Next Steps:
 ```
   - Run `/planning-plugin:design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
 ```
-
-Adjust the "Next Steps" based on which stages were completed or skipped.
 
 ## Error Handling
 

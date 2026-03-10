@@ -16,7 +16,7 @@ Rebuild bundle for: **$ARGUMENTS**
 
 1. Parse `feature` from arguments (required, kebab-case)
 2. Verify `src/prototypes/{feature}/package.json` exists. If not, stop with:
-   > "No prototype found for '{feature}'. Run `/planning-plugin:design {feature} --stage=prototype` first."
+   > "No prototype found for '{feature}'. Run `/planning-plugin:prototype {feature}` first."
 3. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`. If it does not exist, stop with:
    > "No progress file found for '{feature}'."
 

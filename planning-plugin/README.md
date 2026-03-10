@@ -41,8 +41,14 @@ All specs are generated in the configured working language as the source of trut
 /planning-plugin:design "feature"
         │
         ├── Stage 1:   dsl-generator → UI DSL JSON
-        ├── Stage 2:   stitch-wireframe → visual wireframes (optional, requires Stitch MCP)
-        └── Stage 3:   prototype-generator → React + bundle.html
+        └── Stage 2:   stitch-wireframe → visual wireframes (optional)
+              │
+              └── review gate — review wireframes on Stitch
+        │
+        ▼
+/planning-plugin:prototype "feature"
+        │
+        └── prototype-generator → React + bundle.html
 ```
 
 ## Installation
@@ -356,37 +362,53 @@ Specifications Overview:
 
 ### `/planning-plugin:design`
 
-**Syntax**: `/planning-plugin:design feature-name [--stage=dsl|stitch|prototype]`
+**Syntax**: `/planning-plugin:design feature-name [--stage=dsl|stitch]`
 
-**When to use**: After finalizing a spec, to generate UI DSL, visual wireframes, and React prototypes.
+**When to use**: After finalizing a spec, to generate UI DSL and visual wireframes.
 
 **What happens** (full pipeline):
 1. **Stage 1 — DSL Generation**: The DSL Generator agent reads `screens.md` and `{feature}-spec.md`, then produces structured UI DSL JSON files in `docs/specs/{feature}/ui-dsl/` (a `manifest.json` with screen index + navigation map, and one `screen-{id}.json` per screen)
 2. **Stage 2 — Stitch Wireframes** (optional): The Stitch Wireframe agent reads UI DSL and generates visual wireframes via Google Stitch MCP, extracting design tokens and shadcn/ui mapping hints to `docs/specs/{feature}/stitch-wireframes/`
-3. **Stage 3 — Prototype Generation**: The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html`
 
-Stages run sequentially (1→2→3). Use `--stage` to run a single stage independently.
+Default run executes Stage 1→2 then stops with a review gate — review wireframes on Stitch before generating the prototype. Use `--stage` to run a single stage independently.
 
 ```
-┌──────────────────┐     ┌──────────────────────┐     ┌───────────────────────┐
-│  Stage 1 — DSL   │     │  Stage 2 — Stitch    │     │  Stage 3 — Prototype  │
-│                  │     │                      │     │                       │
-│  screens.md      │     │  UI DSL JSON         │     │  UI DSL + Stitch      │
-│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶ │  → Vite + React 19    │
-│  → manifest.json │     │  → wireframes        │     │  → bundle.html        │
-│  + screen-*.json │     │  (optional)          │     │                       │
-└──────────────────┘     └──────────────────────┘     └───────────────────────┘
+┌──────────────────┐     ┌──────────────────────┐
+│  Stage 1 — DSL   │     │  Stage 2 — Stitch    │
+│                  │     │                      │
+│  screens.md      │     │  UI DSL JSON         │
+│  + spec.md       │ ──▶ │  → Stitch MCP        │ ──▶  review gate
+│  → manifest.json │     │  → wireframes        │
+│  + screen-*.json │     │  (optional)          │
+└──────────────────┘     └──────────────────────┘
 ```
 
 **Examples**:
 ```
-/planning-plugin:design social-login                    # full pipeline (stages 1→2→3)
+/planning-plugin:design social-login                    # full pipeline (stages 1→2 + review gate)
 /planning-plugin:design social-login --stage=dsl        # DSL generation only
 /planning-plugin:design social-login --stage=stitch     # Stitch wireframe generation only
-/planning-plugin:design social-login --stage=prototype  # prototype generation only
 ```
 
-> **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`.
+> **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. To generate the prototype, run `/planning-plugin:prototype {feature}` after reviewing wireframes.
+
+---
+
+### `/planning-plugin:prototype`
+
+**Syntax**: `/planning-plugin:prototype feature-name`
+
+**When to use**: After reviewing Stitch wireframes (or after DSL generation if Stitch is skipped), to generate the React prototype.
+
+**What happens**:
+1. If Stitch wireframes exist, prompts whether to sync latest changes from Stitch before generating
+2. The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`
+3. Bundles the project into a single standalone `bundle.html` (openable via `file://`)
+
+**Example**:
+```
+/planning-plugin:prototype social-login
+```
 
 ---
 
@@ -584,7 +606,7 @@ You always have the final say. When you finalize:
 3. You get a summary: total rounds, final scores, key decisions, remaining open questions
 4. Suggested next steps:
    - `/planning-plugin:design-system --domain=...` to establish a domain-specific design system (recommended before running the design pipeline)
-   - `/planning-plugin:design {feature}` to generate UI DSL and React prototypes
+   - `/planning-plugin:design {feature}` to generate UI DSL and wireframes, then `/planning-plugin:prototype {feature}` for the React prototype
    - `/planning-plugin:review {feature}` anytime to re-review
    - Edit the working language spec directly and run `/planning-plugin:translate {feature}` to sync
 
@@ -732,7 +754,7 @@ src/prototypes/{feature}/                  ← React prototype (standalone Vite 
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
-skills/          Skill entry points (init, spec, review, translate, progress, design, design-system, migrate-language, sync-notion, sync-stitch, bundle)
+skills/          Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)

@@ -5,7 +5,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 ## Architecture
 
 - **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype)
-- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:sync-stitch`, `/planning-plugin:bundle`
+- **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:prototype`, `/planning-plugin:design-system`, `/planning-plugin:review`, `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:sync-stitch`, `/planning-plugin:bundle`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
 
@@ -20,7 +20,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 7. Repeat or finalize
 8. Translator agent creates versions in other supported languages (once, after finalization)
 9. Notion sync: if `notionParentPageUrl` is configured, pages are created/updated in Notion automatically after finalization and translation
-10. `/planning-plugin:design "feature"` triggers the design pipeline (Stage 1→2→3)
+10. `/planning-plugin:design "feature"` triggers the design pipeline (Stage 1→2→review gate). After reviewing wireframes, run `/planning-plugin:prototype "feature"` to generate the prototype
 
 ## Design System
 
@@ -40,7 +40,7 @@ The design pipeline converts spec screen definitions into runnable prototypes th
 2. **Stage 2 — Stitch Wireframes** (`stitch-wireframe` agent, optional): Reads UI DSL → generates visual wireframes via Google Stitch MCP, extracts design tokens and shadcn/ui mapping hints (`docs/specs/{feature}/stitch-wireframes/`)
 3. **Stage 3 — Prototype Generation** (`prototype-generator` agent): Reads UI DSL (+ Stitch outputs if available) → scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project and bundles into a single standalone HTML file (`bundle.html`) at `src/prototypes/{feature}/`
 
-Stages run sequentially (1→2→3). Each stage can be run independently with `--stage=dsl|stitch|prototype`. Stage 2 is optional and requires Stitch MCP configuration.
+Default run executes Stage 1→2 then stops with a review gate — the user reviews wireframes on Stitch, optionally syncs edits, then generates the prototype separately via `/planning-plugin:prototype`. Each stage can also be run independently with `--stage=dsl|stitch`. Stage 2 is optional and requires Stitch MCP configuration.
 
 ## Conventions
 
@@ -62,7 +62,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 - Bundle staleness: `validate-spec-format.sh` auto-transitions `bundleStatus` from `"current"` → `"stale"` when prototype source files (`src/prototypes/{feature}/src/`) are edited. `session-init.sh` warns on stale bundles. `/planning-plugin:bundle {feature}` rebuilds and restores `"current"`
 - Layout containment: screens with shared shells (sidebar + header) use a `layout` property pointing to the layout screen ID. Layout screens contain a `Slot` component marking the content insertion point. `manifest.json` includes a `layouts` summary array mapping each layout to its child screen IDs. The `Slot` type maps to React Router's `<Outlet />` in prototypes. The `dsl-generator` detects shell patterns from spec ASCII diagrams and entry-point cross-references. The `stitch-wireframe` agent injects the shell description into every child screen prompt for visual consistency. The `prototype-generator` uses nested `<Route>` elements for layout containment instead of LLM-inferred nesting
 - Component vocabulary: UI DSL and prototypes use shadcn/ui components with lucide-react icons (plus `Slot` for layout content insertion points)
-- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`)
+- Design progress: tracked in `design` field of progress file with per-stage status (`dsl`, `stitch`, `prototype`). Overall `design.status` values: `"pending"`, `"reviewing"` (stitch complete, awaiting human review before prototype), `"partial"`, `"completed"` (set by `/planning-plugin:prototype` after successful prototype generation)
 - UI DSL output is always in English — the design skill reads from the `en/` spec directory regardless of `workingLanguage`
 - Timestamps: all dates use ISO 8601 UTC format (`YYYY-MM-DDTHH:mm:ssZ`) — spec metadata, progress files, sync headers, design pipeline
 
@@ -71,7 +71,7 @@ Stages run sequentially (1→2→3). Each stage can be run independently with `-
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
 agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
-skills/          - Skill entry points (init, spec, review, translate, progress, design, design-system, sync-notion, sync-stitch, bundle)
+skills/          - Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, sync-notion, sync-stitch, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
