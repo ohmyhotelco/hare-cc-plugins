@@ -43,13 +43,87 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
    - **Matched**: screens present in both manifest and Stitch (by `stitchScreenId`)
    - **New**: screens in Stitch but not in the manifest
    - **Deleted**: screens in the manifest but not in Stitch
-4. If there are **new** or **deleted** screens, report them to the user:
+4. **Variant pattern detection**: If there are both deleted AND new screens,
+   check if it's a variant scenario:
+   a. Group new screens by title: `{ normalizedTitle → [screenEntries] }`
+   b. For each deleted manifest screen, find new screen group(s) whose title
+      contains (or closely matches) the manifest screen's `title`
+   c. If >= 50% of deleted screens have at least one matching new screen group,
+      this is a variant pattern
+5. If variant pattern is detected:
+   a. If `--screen=<screen-id>` was provided, narrow scope: only consider the
+      deleted screen matching that ID and its variant group. If the specified
+      screen is not in the deleted list, skip variant adoption and proceed to
+      item 7 (normal --screen sync of matched screens)
+   b. Ask the user:
+      > "Detected variant pattern: {n} original screens were replaced by {m}
+      > variant screens in Stitch. Would you like to adopt preferred variants?
+      > (y/n)"
+   c. If "yes" → proceed to **Step 3b: Variant Adoption**
+   d. If "no" → report as before and stop:
+      > "Run `/planning-plugin:design {feature} --stage=stitch` for full
+      > regeneration."
+6. If NOT a variant pattern (normal new/deleted only), keep existing behavior:
    > "Found {n} new screen(s) and {m} deleted screen(s) in Stitch. New: [{titles}]. Deleted: [{titles}]. These will be noted but not auto-synced. Run `/planning-plugin:design {feature} --stage=stitch` for a full regeneration."
-5. If `--screen=<screen-id>` was provided:
+7. If `--screen=<screen-id>` was provided:
    - Find the matching screen in the manifest by `dslScreenId` or `stitchScreenId`
    - If not found, stop with: "Screen '{screen-id}' not found in the manifest."
    - Limit the sync to only this screen
-6. Otherwise, sync all **matched** screens
+8. Otherwise, sync all **matched** screens
+
+### Step 3b: Variant Adoption
+
+For each deleted manifest screen, process its matching variant group:
+
+1. **Single variant (auto-adopt)**:
+   If only 1 matching new screen exists:
+   a. Auto-adopt: update the manifest screen entry in-memory
+      - `stitchScreenId` → variant's screen ID
+      - `sourceScreen` → `projects/{projectId}/screens/{newScreenId}`
+   b. Call `get_screen` to retrieve `width`, `height`
+   c. Log: "Auto-adopted single variant for '{dslScreenId}': {variantTitle}"
+
+2. **Multiple variants (interactive selection)**:
+   If 2+ matching new screens exist:
+   a. For each candidate variant:
+      - Call `get_screen` to retrieve `screenshot.downloadUrl`, `width`, `height`
+      - Download preview PNG:
+        ```bash
+        curl -sL "{screenshot.downloadUrl}=w800" \
+          -o /tmp/stitch-variant-{stitchScreenId}.png
+        ```
+   b. Show all candidate PNGs to the user using the Read tool (Claude can
+      display images)
+   c. Present selection prompt:
+      > Variants for '{dslScreenId}' ({original title}):
+      >   1. {variant-1-title} ({width}x{height})
+      >   2. {variant-2-title} ({width}x{height})
+      >   3. {variant-3-title} ({width}x{height})
+      > Select variant (1-N) or 's' to skip:
+   d. If user selects a variant → update manifest screen entry in-memory
+   e. If user skips → exclude this screen from sync (leave manifest entry
+      unchanged with old, now-hidden stitchScreenId)
+
+3. **Unmatched new screens**:
+   Report any new screens that don't match any deleted manifest screen:
+   > "New screen '{title}' has no matching manifest entry. Skipping."
+   > "To add new screens, run `/planning-plugin:design {feature} --stage=stitch`"
+
+4. **Unmatched deleted screens**:
+   Report any deleted manifest screens that have no matching variants:
+   > "No variants found for '{dslScreenId}'. This screen will remain
+   > unsynced with a stale reference."
+
+5. Build the final sync list by combining:
+   - Adopted variants (auto + manually selected) from this step
+   - Matched screens from Step 3 (screens still present in both manifest and Stitch)
+   - If `--screen` was provided, filter this combined list to only that screen
+   → continue to Step 4 (Re-fetch Screen Content)
+
+6. **Cleanup**: After Step 4 completes, remove temp files:
+   ```bash
+   rm -f /tmp/stitch-variant-*.png
+   ```
 
 ### Step 4: Re-fetch Screen Content
 
@@ -211,7 +285,18 @@ Screens synced: {count}/{total}
 Screens skipped (fetch errors):
   {list of failed screen IDs with reasons}
 
-{If new/deleted screens detected:}
+{If variant adoption was performed:}
+Variant adoption:
+  Auto-adopted (single variant): {count}
+    {list of dslScreenIds}
+  Manually selected: {count}
+    {list of dslScreenIds with selected variant title}
+  Skipped: {count}
+    {list of skipped dslScreenIds}
+  Unmatched new screens: {count}
+    {list of titles}
+
+{If new/deleted screens detected (non-variant):}
 Note: {n} new and {m} deleted screens detected in Stitch.
   Run /planning-plugin:design {feature} --stage=stitch for full regeneration.
 
