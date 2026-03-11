@@ -119,7 +119,7 @@ Use an ISO-8601 UTC timestamp for generation time.
 This design system is intended to be used with:
 
 - **`/planning-plugin:design`** — The `dsl-generator` agent reads `pages/components.md`, `pages/icons.md`, `pages/patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints. The `prototype-generator` agent reads `pages/colors.md`, `pages/typography.md`, and `pages/spacing-layout.md` to configure Tailwind theme.
-- **`/frontend-react-plugin:gen`** — The code generator reads `pages/colors.md` and `pages/typography.md` to configure Tailwind theme
+
 
 ### Tailwind Theme Config
 
@@ -470,7 +470,6 @@ Present next steps to the user:
 >
 > 1. **Review**: Browse the generated pages in `design-system/` and customize as needed
 > 2. **Spec → Design**: Run `/planning-plugin:design {feature}` — the DSL generator will reference `design-system/pages/components.md` for component selection
-> 3. **Code Generation**: Run `/frontend-react-plugin:gen {feature}` — the code generator will apply colors and typography from the design system
 >
 > The design system files are plain Markdown — feel free to edit them directly.
 

@@ -64,6 +64,11 @@ Notion Sync: (only display this section if a `notion` field exists in the progre
     "syncing" → "⚠ INTERRUPTED"
     "stale"   → "⚠ STALE"
 
+Implementation: (only display this section if an `implementation` field exists in the progress file)
+  Status: {status}
+  Verification: {pass/fail/—}
+  Review: {pass/fail/—}
+
 Open Questions: {count from {feature}-spec.md's Open Questions section}
 ```
 

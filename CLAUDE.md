@@ -10,6 +10,10 @@ frontend-react-plugin/    - Frontend React development plugin (see frontend-reac
 .claude-plugin/            - Root marketplace manifest
 ```
 
+## Documentation Language
+
+All plugin instruction documents (CLAUDE.md, agents/*.md, skills/*/SKILL.md, templates/*.md) must be written in English.
+
 ## Version Sync Rule
 
 Each plugin's `plugin.json` and the root `.claude-plugin/marketplace.json` must always stay in sync.

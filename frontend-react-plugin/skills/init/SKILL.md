@@ -36,6 +36,18 @@ Default: `declarative`
 
 Note: The router mode determines which React Router patterns and constraints the plugin enforces.
 
+### Step 2b: Ask for Mock-First Development
+
+Ask the user whether to enable mock-first development with MSW v2.
+
+Present:
+- **yes** (default) — Enable network-level mocking with MSW v2. Develop without a backend. Toggle with `VITE_ENABLE_MOCKS=true`.
+- **no** — Use only real APIs without a mock layer
+
+Default: `yes` (mock-first enabled)
+
+Note: Mock-first does not modify production code (Axios services). MSW intercepts requests at the network level, so once the backend is ready, you only need to remove the environment variable.
+
 ### Step 3: Write Configuration
 
 1. Ensure the `.claude/` directory exists in the project root
@@ -43,7 +55,8 @@ Note: The router mode determines which React Router patterns and constraints the
 
 ```json
 {
-  "routerMode": "{selected mode}"
+  "routerMode": "{selected mode}",
+  "mockFirst": {true or false based on Step 2b}
 }
 ```
 
@@ -77,6 +90,7 @@ Display:
 Frontend React Plugin configured successfully!
 
   Router mode: {routerMode}
+  Mock-first: {enabled or disabled}
 
   External skills installed:
     - .claude/skills/react-router-{routerMode}-mode (React Router v7)
@@ -86,4 +100,7 @@ Frontend React Plugin configured successfully!
     - .claude/skills/web-design-guidelines (Web UI audit)
 
   Config file: .claude/frontend-react-plugin.json
+
+  Tip: Functional specifications are created using /planning-plugin:spec.
+       Run /planning-plugin:init first if you haven't already.
 ```

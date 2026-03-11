@@ -22,6 +22,7 @@ fi
 
 # Read configuration values
 ROUTER_MODE=$(jq -r '.routerMode // "declarative"' "$CONFIG_FILE" 2>/dev/null || echo "declarative")
+MOCK_FIRST=$(jq -r '.mockFirst // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
 
 # Skill installation checks
 SKILLS=(
@@ -45,12 +46,41 @@ done
 echo ""
 echo "[Frontend React Plugin] Configuration loaded:"
 echo "  Router mode: $ROUTER_MODE"
+if [ "$MOCK_FIRST" = "true" ]; then
+  echo "  Mock-first: enabled"
+else
+  echo "  Mock-first: disabled"
+fi
 if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
   echo "  Warning: Missing skills:"
   for skill in "${MISSING_SKILLS[@]}"; do
     echo "    - $skill"
   done
   echo "  Run /frontend-react-plugin:init to install them."
+fi
+
+# Scan progress files for implementation issues
+SPECS_DIR="$CWD/docs/specs"
+if [ -d "$SPECS_DIR" ]; then
+  for PROGRESS_FILE in "$SPECS_DIR"/*/.progress/*.json; do
+    [ -f "$PROGRESS_FILE" ] || continue
+    FEATURE=$(basename "$PROGRESS_FILE" .json)
+    IMPL_STATUS=$(jq -r '.implementation.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+    case "$IMPL_STATUS" in
+      gen-failed)
+        echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:gen $FEATURE to retry."
+        ;;
+      verify-failed)
+        echo "  Warning: [$FEATURE] Verification failed. Run /frontend-react-plugin:debug $FEATURE or review errors."
+        ;;
+      review-failed)
+        echo "  Warning: [$FEATURE] Code review failed. Fix issues and run /frontend-react-plugin:review-code $FEATURE."
+        ;;
+      escalated)
+        echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
+        ;;
+    esac
+  done
 fi
 
 exit 0

@@ -8,23 +8,24 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 
 # Code Generation Skill
 
-구현 계획서(plan.json) 기반으로 프로덕션 React 코드를 생성한다.
+Generate production React code based on the implementation plan (plan.json).
 
 ## Instructions
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → `routerMode` 추출
-2. 파일이 없으면:
-   > "Frontend React Plugin이 초기화되지 않았습니다. `/frontend-react-plugin:init`을 먼저 실행하세요."
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
+2. If `mockFirst` is missing, use default value `true`
+3. If the file does not exist:
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
    - Stop here.
 
 ### Step 1: Validate Plan
 
 1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
-   - 없으면:
-     > "구현 계획서를 찾을 수 없습니다."
-     > "`/frontend-react-plugin:plan {feature}`을 먼저 실행하세요."
+   - If not found:
+     > "Implementation plan not found."
+     > "Please run `/frontend-react-plugin:plan {feature}` first."
      - Stop here.
 
 2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`
@@ -47,10 +48,11 @@ Code Generation for '{feature}':
 
   Files to create ({totalFiles}):
     {file list grouped by category}
+    Tests: {test file count} test files ({test case count} test cases)
 
   shadcn/ui to install: {missing list or "none"}
 
-  Build order: types → api/stores → components → pages → routes/i18n
+  Build order: types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 ```
 
 Check for existing files that would be overwritten:
@@ -79,6 +81,7 @@ Task(subagent_type: "code-generator", prompt: "
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: src/prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
+  - mockFirst: {mockFirst}
   - projectRoot: {cwd}
 
   Follow the process defined in agents/code-generator.md.
@@ -88,18 +91,75 @@ Task(subagent_type: "code-generator", prompt: "
 
 ### Step 4: Post-Generation
 
-1. **Display results**:
+1. **Display results** — including test files:
 
 ```
 Code Generation Complete for '{feature}':
 
   Files created: {totalFiles}
     {file list}
+    Test files: {test file list or "no tests planned"}
 
   shadcn/ui installed: {installed list or "none needed"}
 ```
 
-2. **Manual integration steps** — display the steps the user needs to do manually:
+2. **Step 4a: Verification Gate** — automatically run tsc, ESLint, and build:
+
+   a. TypeScript verification:
+   ```bash
+   npx tsc --noEmit 2>&1
+   ```
+
+   b. ESLint verification (if config exists):
+   - Use Glob to check for `.eslintrc*`, `eslint.config.*`
+   - If found: `npx eslint {baseDir} --ext .ts,.tsx 2>&1`
+
+   c. Build verification:
+   ```bash
+   npx vite build 2>&1
+   ```
+
+   d. Test run (when plan has `tests[]`):
+   ```bash
+   npx vitest run {baseDir} 2>&1
+   ```
+   - exit code 0 → pass, else fail
+   - If no tests, skipped
+
+   Display results:
+   ```
+   Verification:
+     TypeScript: {pass/fail} ({error count} errors)
+     ESLint:     {pass/fail/skipped}
+     Build:      {pass/fail}
+     Tests:      {pass/fail/skipped}
+   ```
+
+   **On FAIL:**
+   > "Verification failed. Fix the errors and re-verify with `/frontend-react-plugin:verify {feature}`."
+
+3. **Step 4b: Code Review (optional)** — confirm with user:
+
+   > "Would you like to run a code review? (spec compliance + quality check)"
+
+   If the user says yes:
+   - Run the spec-reviewer agent → display results
+   - If spec-reviewer passes, run the quality-reviewer agent → display results
+   - Display combined report:
+     ```
+     Code Review:
+       Spec Review:    {pass/fail} (score: {score}/10)
+       Quality Review: {pass/fail} (score: {score}/10)
+     ```
+
+   If review result is `fail` or `pass_with_warnings`:
+   > "Fix the issues and re-review with `/frontend-react-plugin:review-code {feature}`."
+   > "Do not skip re-review after making fixes."
+
+   If the user says no, skip this step.
+   Standalone execution: `/frontend-react-plugin:review-code {feature}`
+
+4. **Manual integration steps** — display the steps the user needs to do manually:
 
 ```
   Manual integration steps:
@@ -113,15 +173,37 @@ Code Generation Complete for '{feature}':
     {additional steps if any}
 ```
 
-3. **Update progress** — Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `implementation` field:
+5. **Mock-first guidance** (if `mockFirst` is `true`):
+
+```
+  Mock-first development:
+    Start with mocks: VITE_ENABLE_MOCKS=true pnpm dev
+    Start without mocks: pnpm dev
+    Commit: public/mockServiceWorker.js (recommended)
+```
+
+6. **Step 4c: Test run guidance** — if test files were generated but tests were fail or skipped in Step 4a:
+
+   > "Re-run tests: `pnpm vitest run src/features/{feature}/`"
+   > "Auto-debug: `/frontend-react-plugin:debug {feature}`"
+
+7. **Update progress** — Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `implementation` field (including verification and review results):
 
 ```json
 {
   "implementation": {
-    "status": "generated",
+    "status": "generated | gen-failed",
     "planFile": "docs/specs/{feature}/.implementation/plan.json",
     "generatedAt": "{ISO timestamp}",
-    "filesCount": {totalFiles}
+    "filesCount": {totalFiles},
+    "verification": {
+      "status": "pass|fail",
+      "timestamp": "{ISO timestamp}"
+    },
+    "review": {
+      "status": "pass|fail|skipped",
+      "timestamp": "{ISO timestamp}"
+    }
   }
 }
 ```

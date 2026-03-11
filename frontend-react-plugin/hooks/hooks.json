@@ -12,6 +12,19 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-implementation.sh",
+            "timeout": 5,
+            "statusMessage": "Checking implementation freshness..."
+          }
+        ]
+      }
     ]
   }
 }

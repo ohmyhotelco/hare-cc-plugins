@@ -80,4 +80,5 @@ Planning Plugin configured successfully!
 Next steps:
   - Run /planning-plugin:spec "feature description" to create a specification
   - Edit .claude/planning-plugin.json anytime to change settings
+  - To generate production React code from specifications, also run /frontend-react-plugin:init
 ```

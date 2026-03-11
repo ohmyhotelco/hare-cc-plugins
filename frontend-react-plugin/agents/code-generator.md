@@ -7,67 +7,76 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 # Code Generator Agent
 
-구현 계획서(plan.json) 기반으로 프로덕션 React 코드를 생성한다. 기존 프로젝트에 자연스럽게 통합되는 코드를 생성하는 것이 핵심 목표.
+Generates production React code based on the implementation plan (plan.json). The core goal is to produce code that integrates naturally with the existing project.
 
 ## Input Parameters
 
 The skill will provide these parameters in the prompt:
 
-- `planFile` — 구현 계획서 경로 (e.g., `docs/specs/{feature}/.implementation/plan.json`)
-- `specDir` — spec markdown 경로 (e.g., `docs/specs/{feature}/{lang}/`)
-- `uiDslDir` — UI DSL 경로 (e.g., `docs/specs/{feature}/ui-dsl/`)
-- `prototypeDir` — 프로토타입 경로 (e.g., `src/prototypes/{feature}/`)
+- `planFile` — implementation plan path (e.g., `docs/specs/{feature}/.implementation/plan.json`)
+- `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
+- `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
+- `prototypeDir` — prototype path (e.g., `src/prototypes/{feature}/`)
 - `routerMode` — `"declarative"` | `"data"`
-- `projectRoot` — 프로젝트 루트 경로
-- `feature` — feature 이름
+- `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
+- `projectRoot` — project root path
+- `feature` — feature name
 
 ## Process
 
 ### Phase 0: Read Plan & Context
 
-1. **Plan** — `planFile` 읽기 → 전체 구현 계획 로드
-2. **Project context** — planner가 수집한 정보 확인:
+1. **Plan** — read `planFile` → load the full implementation plan
+2. **Project context** — review information collected by the planner:
    - `projectStructure` → feature-based vs type-based
-   - `baseDir` → 생성 대상 디렉터리
+   - `baseDir` → target directory for generation
    - `routerMode` → declarative vs data
-3. **External skills** (선택적 참조):
-   - `.claude/skills/vercel-react-best-practices/SKILL.md` → 성능 규칙
-   - `.claude/skills/vercel-composition-patterns/SKILL.md` → 구성 패턴
-   - `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → 라우터 패턴
-   - `.claude/skills/vitest/SKILL.md` → 테스트 패턴 (test 파일 생성 시)
-4. **Prototype** (optional) — `prototypeDir` 존재 시:
-   - `src/prototypes/{feature}/src/pages/` 읽기 → 레이아웃/컴포넌트 구조 힌트
-   - 프로토타입 코드를 복사하지 않음 — 구조적 힌트만 참조
-5. **Existing patterns** — 프로젝트 기존 코드에서 패턴 확인:
-   - Axios instance 위치 및 import 경로
-   - Zustand store 작성 패턴
-   - 기존 feature 모듈의 import 스타일, naming convention
-   - i18n 설정 파일 위치
+   - `mockFirst` → if true, generate mock code; if false, skip all mock generation
+3. **External skills** (reference):
+   - `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules
+   - `.claude/skills/vercel-composition-patterns/SKILL.md` → composition patterns
+   - `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router patterns
+   - `.claude/skills/vitest/SKILL.md` → test patterns (required reference if plan has `tests[]`)
+4. **Prototype** (optional) — if `prototypeDir` exists:
+   - Read `src/prototypes/{feature}/src/pages/` → layout/component structure hints
+   - Do not copy prototype code — only reference structural hints
+5. **Existing patterns** — check patterns in existing project code:
+   - Axios instance location and import path
+   - Zustand store authoring patterns
+   - Import style and naming conventions of existing feature modules
+   - i18n configuration file location
 
 ### Phase 1: Install Dependencies
 
-plan.json의 `shadcnDependencies.missing`에 따라 누락 컴포넌트 설치:
+Install missing components based on `shadcnDependencies.missing` in plan.json:
 
 ```bash
 npx shadcn@latest add {component1} {component2} ...
 ```
 
-빈 배열이면 이 단계 스킵.
+Skip this step if the array is empty.
 
-### Phase 2: Generate Code (buildOrder 순)
+**MSW installation** (if `mockFirst` is `true` and `mocks.globalSetupNeeded` is `true`):
 
-`buildOrder`의 phase 순서대로 파일 생성. 각 phase 내의 items는 병렬 생성 가능.
+```bash
+pnpm add -D msw
+npx msw init public/ --save
+```
+
+### Phase 2: Generate Code (in buildOrder sequence)
+
+Generate files in the order of `buildOrder` phases. Items within each phase can be generated in parallel.
 
 #### Phase 2.1 — Types
 
-plan의 `types[]` 항목 기반:
+Based on `types[]` entries in the plan:
 
-- 각 Entity → TypeScript interface (전체 필드)
-- CreateDto → Entity에서 id, createdAt, updatedAt 등 서버 생성 필드 제외
-- UpdateDto → Partial<CreateDto> 또는 별도 정의
-- enum 타입 → `export enum` 또는 `export const ... as const` + type 추론
-- FK 관계(`ref` 필드) → 해당 타입 import 추가
-- ListParams, ListResponse 제네릭 타입 (기존 프로젝트에 없으면 생성)
+- Each Entity → TypeScript interface (all fields)
+- CreateDto → Entity excluding server-generated fields like id, createdAt, updatedAt
+- UpdateDto → Partial<CreateDto> or separate definition
+- enum types → `export enum` or `export const ... as const` + type inference
+- FK relationships (`ref` fields) → add corresponding type imports
+- ListParams, ListResponse generic types (create if not present in existing project)
 
 ```typescript
 // Example: src/features/{feature}/types/{entity}.ts
@@ -90,11 +99,11 @@ export enum EntityStatus {
 
 #### Phase 2.2 — API Services + Stores
 
-**API Services** — plan의 `api[]` 기반:
+**API Services** — based on `api[]` in the plan:
 
-- 프로젝트 기존 Axios instance import (없으면 공용 instance 생성)
-- 각 method → typed request/response
-- `errorMapping` → 주석으로 에러 코드 문서화 (catch는 호출부에서)
+- Import the project's existing Axios instance (create a shared instance if none exists)
+- Each method → typed request/response
+- `errorMapping` → document error codes as comments (catch at call site)
 
 ```typescript
 // Example: src/features/{feature}/api/{entity}Api.ts
@@ -115,11 +124,11 @@ export const entityApi = {
 };
 ```
 
-**Stores** — plan의 `stores[]` 기반:
+**Stores** — based on `stores[]` in the plan:
 
-- 기존 Zustand store 패턴과 일치하는 구조
-- Thin state: API 호출은 store 밖, 결과만 store에 저장
-- devtools middleware (기존 프로젝트에서 사용 중이면)
+- Structure matching existing Zustand store patterns
+- Thin state: API calls outside the store, only results stored
+- devtools middleware (if used in the existing project)
 
 ```typescript
 // Example: src/features/{feature}/stores/{entity}Store.ts
@@ -156,38 +165,148 @@ export const useEntityStore = create<EntityState>((set) => ({
 }));
 ```
 
+#### Phase 2.2.5 — Mocks (only when `mockFirst` is `true`)
+
+Based on the `mocks` section of the plan. Skip this entire phase if `mockFirst` is `false`.
+
+**a) `factories.ts`** — based on `plan.mocks.factories[]`:
+
+- Import entity types (`../types/{entity}`)
+- `createEntity(overrides?)`: defaults + overrides pattern, auto-increment ID (`_nextId`)
+- `createEntityList(count, overrides?)`: array creation helper
+- `createEntityDto(overrides?)`: DTO factory (for form testing)
+- `resetFactories()`: reset ID counter (isolation between tests)
+- FK relationship fields: use default ID patterns from related factories
+
+```typescript
+// Example: src/features/{feature}/mocks/factories.ts
+import type { Entity, EntityStatus, CreateEntityDto } from '../types/{entity}';
+
+let _nextId = 1;
+
+const defaults: Entity = {
+  id: 'ent-001',
+  name: 'Sample Entity',
+  status: 'Active' as EntityStatus,
+  createdAt: '2024-01-15T09:00:00Z',
+  updatedAt: '2024-01-15T09:00:00Z',
+};
+
+export function createEntity(overrides?: Partial<Entity>): Entity {
+  const id = overrides?.id ?? `ent-${String(_nextId++).padStart(3, '0')}`;
+  return { ...defaults, id, name: `Entity ${id}`, ...overrides };
+}
+
+export function createEntityList(count: number, overrides?: Partial<Entity>): Entity[] {
+  return Array.from({ length: count }, () => createEntity(overrides));
+}
+
+export function createEntityDto(overrides?: Partial<CreateEntityDto>): CreateEntityDto {
+  return { name: 'New Entity', status: 'Active' as EntityStatus, ...overrides };
+}
+
+export function resetFactories() { _nextId = 1; }
+```
+
+**b) `fixtures.ts`** — based on `plan.mocks.fixtures[]`:
+
+- Import `createEntity`, `resetFactories` from factories.ts
+- Call `resetFactories()` then create records deterministically (5-10 records)
+- Each record in the form `createEntity({ id: 'ent-001', name: 'Realistic Name', ... })`
+- `mockEntityDb` helper: mutable copy + CRUD simulation (getAll, getById, create, update, delete, reset)
+- FK reference fields: use actual IDs from related fixtures
+- No external libraries like faker
+
+**c) `handlers.ts`** — based on `plan.mocks.handlers[]`:
+
+- MSW v2 syntax: `http.get()`, `http.post()`, `HttpResponse.json()`
+- Import `mockEntityDb` from fixtures.ts
+- Appropriate delay for each CRUD operation (200-500ms)
+- List queries: support pagination parameters (page, pageSize, search)
+- Error scenarios: based on spec's errorMapping (toggleable via comments)
+
+```typescript
+// Example: src/features/{feature}/mocks/handlers.ts
+import { http, HttpResponse, delay } from 'msw';
+import { mockEntityDb } from './fixtures';
+
+const BASE_URL = '/api/v1/entities';
+
+export const entityHandlers = [
+  http.get(BASE_URL, async ({ request }) => {
+    await delay(300);
+    const url = new URL(request.url);
+    const page = Number(url.searchParams.get('page') ?? '1');
+    const pageSize = Number(url.searchParams.get('pageSize') ?? '20');
+    const search = url.searchParams.get('search') ?? '';
+    let items = mockEntityDb.getAll();
+    if (search) {
+      items = items.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
+    }
+    const total = items.length;
+    const paged = items.slice((page - 1) * pageSize, page * pageSize);
+    return HttpResponse.json({ items: paged, total, page, pageSize });
+  }),
+  // ... getById, create, update, delete handlers
+];
+```
+
+#### Phase 2.2a — API/Store Tests (when plan has `tests[]`)
+
+Generate test files based on `type: "api"` and `type: "store"` entries in the plan's `tests[]`:
+
+- Location: `src/features/{feature}/__tests__/`
+- MSW server setup: `beforeAll(() => server.listen())`, `afterEach(() => server.resetHandlers())`, `afterAll(() => server.close())`
+- Factory import: `../mocks/factories` (use factories in tests regardless of mockFirst setting)
+- test name matches the test case name from plan.json
+- Source comment on each test (`// TS-001`)
+
+Skip this phase if plan has no `tests[]`. (backward compatible with existing plan.json)
+
 #### Phase 2.3 — Shared Components
 
-plan의 `components[]` 기반:
+Based on `components[]` in the plan:
 
 **Form Components** (`type: "shared-form"`):
-- `validation` 배열 → 검증 로직 생성
-- 모든 label, placeholder, error message → `t('namespace.key')`
-- `<label htmlFor>` 또는 `<Label>` 사용
-- shadcn/ui `<Input>`, `<Select>`, `<Textarea>` 등 사용
-- create + edit 양쪽에서 재사용 가능하도록 defaultValues prop 지원
+- `validation` array → generate validation logic
+- All labels, placeholders, error messages → `t('namespace.key')`
+- Use `<label htmlFor>` or `<Label>`
+- Use shadcn/ui `<Input>`, `<Select>`, `<Textarea>`, etc.
+- Support defaultValues prop for reuse in both create and edit
 
 **Table Components** (`type: "data-table"`):
-- 컬럼 정의 (plan의 `columns`)
-- 액션 버튼 (edit, delete 등)
-- Badge 렌더링 (status enum 등)
+- Column definitions (from plan's `columns`)
+- Action buttons (edit, delete, etc.)
+- Badge rendering (status enums, etc.)
 - aria-label on icon-only action buttons
 
 **Composition Rules**:
-- boolean prop 금지 → compound component 패턴 사용
-- 조건부 className → `cn()` 유틸리티 사용
-- shadcn/ui 컴포넌트만 사용 (다른 UI 라이브러리 금지)
+- No boolean props → use compound component pattern
+- Conditional className → use `cn()` utility
+- Use only shadcn/ui components (no other UI libraries)
+
+#### Phase 2.3a — Component Tests (when plan has `tests[]`)
+
+Generate test files based on `type: "component"` entries in the plan's `tests[]`:
+
+- Use `@testing-library/react` + `userEvent`
+- Component import: `../components/{ComponentName}`
+- Factory import: `../mocks/factories`
+- test name matches the test case name from plan.json
+- Source comment on each test (`// TS-nnn`)
+
+Skip this phase if plan has no `tests[]`.
 
 #### Phase 2.4 — Pages
 
-plan의 `pages[]` 기반:
+Based on `pages[]` in the plan:
 
-각 페이지는 반드시 4가지 상태를 구현:
+Each page must implement 4 states:
 
-1. **loading** — Skeleton 또는 Spinner
-2. **empty** — 데이터 없음 안내 메시지
-3. **error** — 에러 메시지 + 재시도 버튼
-4. **success** — 정상 데이터 표시
+1. **loading** — Skeleton or Spinner
+2. **empty** — no data message
+3. **error** — error message + retry button
+4. **success** — normal data display
 
 ```typescript
 // Example page structure
@@ -210,16 +329,34 @@ export default function EntityListPage() {
 ```
 
 Additional page rules:
-- `auth: true` → ProtectedRoute 래핑 (route 레벨에서)
-- `permissions` → RoleRoute 래핑 (route 레벨에서)
-- `errorHandling` → spec의 에러 코드별 토스트/다이얼로그 처리
-- `visibility` → role 기반 조건부 렌더링
-- `interactions` → Dialog, AlertDialog, Toast 구현
-- 모든 사용자 노출 텍스트 → `t()` 함수 사용 (hardcoded 문자열 금지)
+- `auth: true` → wrap with ProtectedRoute (at route level)
+- `permissions` → wrap with RoleRoute (at route level)
+- `errorHandling` → toast/dialog handling per spec's error codes
+- `visibility` → conditional rendering based on role
+- `interactions` → implement Dialog, AlertDialog, Toast
+- All user-facing text → use `t()` function (no hardcoded strings)
+
+#### Phase 2.4a — Page Tests (when plan has `tests[]`)
+
+Generate test files based on `type: "page"` entries in the plan's `tests[]`:
+
+- 4-state coverage: tests for each state — loading, empty, error, success
+- MSW server setup/teardown
+- Wrap with `MemoryRouter` to provide routing context
+- Factory import: `../mocks/factories`
+- test name matches the test case name from plan.json
+- Source comment on each test (`// TS-nnn`)
+
+Skip this phase if plan has no `tests[]`.
+
+**Test quality gate** — after generating all test files, review them against:
+- Each test tests one behavior (no compound assertions testing multiple features)
+- Assertions target component output or function return values, not mock call counts
+- MSW handlers return complete response shapes matching the API types
 
 #### Phase 2.5 — Routes + i18n + Barrel
 
-**Routes** — plan의 `routes` 기반:
+**Routes** — based on `routes` in the plan:
 
 declarative mode:
 ```tsx
@@ -235,15 +372,37 @@ data mode:
 }
 ```
 
-라우트 코드는 별도 파일로 생성하고, 기존 라우트 파일(`insertLocation`)에 삽입해야 할 위치를 안내.
+Generate route code as a separate file, and indicate where to insert it in the existing route file (`insertLocation`).
 
-**i18n** — plan의 `i18n` 기반:
+**MSW Global Setup** (when `mockFirst` is `true`):
 
-- 각 언어별 JSON 파일 생성
-- ko: 한국어 번역 (primary)
-- en: 영어 번역
-- ja: 일본어 번역 (key만 생성, 값은 `"[JA] {ko text}"` 형태로 placeholder)
-- vi: 베트남어 번역 (key만 생성, 값은 `"[VI] {ko text}"` 형태로 placeholder)
+If `mocks.globalSetupNeeded` is `true` (first feature):
+- `src/mocks/browser.ts` — `setupWorker(...handlers)`
+- `src/mocks/server.ts` — `setupServer(...handlers)`
+- `src/mocks/handlers.ts` — import/spread feature handlers
+- Modify `src/main.tsx` — conditional MSW bootstrap:
+
+```typescript
+async function bootstrap() {
+  if (import.meta.env.VITE_ENABLE_MOCKS === 'true') {
+    const { worker } = await import('./mocks/browser');
+    await worker.start({ onUnhandledRequest: 'bypass' });
+  }
+  // ... existing render logic
+}
+bootstrap();
+```
+
+If `mocks.globalSetupNeeded` is `false` (subsequent features):
+- Only **Edit** `src/mocks/handlers.ts` (aggregator) to add new feature handler import
+
+**i18n** — based on `i18n` in the plan:
+
+- Generate JSON files for each language
+- ko: Korean translation (primary)
+- en: English translation
+- ja: Japanese translation (keys only, values as `"[JA] {ko text}"` placeholder)
+- vi: Vietnamese translation (keys only, values as `"[VI] {ko text}"` placeholder)
 
 ```json
 // Example: src/locales/ko/{feature}.json
@@ -272,46 +431,72 @@ export { default as EntityCreatePage } from './pages/EntityCreatePage';
 
 ## Convention Checklist
 
-생성하는 모든 코드에 적용할 규칙:
+Rules to apply to all generated code:
 
 ### TypeScript
-- [ ] strict mode: `any` 사용 금지
-- [ ] 모든 props/data에 interface 정의
-- [ ] enum은 `export enum` 사용
+- [ ] strict mode: no `any` usage
+- [ ] interface definitions for all props/data
+- [ ] use `export enum` for enums
 
 ### Components
-- [ ] shadcn/ui 컴포넌트만 사용 (대체 UI 라이브러리 설치 금지)
-- [ ] 조건부 className: `cn()` 유틸리티 사용
-- [ ] boolean prop 금지 → compound component 또는 discriminated union
+- [ ] use only shadcn/ui components (do not install alternative UI libraries)
+- [ ] conditional className: use `cn()` utility
+- [ ] no boolean props → compound component or discriminated union
 - [ ] functional component + hooks
 - [ ] 2-space indent
 
 ### Accessibility
-- [ ] icon-only button: `aria-label` 필수
+- [ ] icon-only button: `aria-label` required
 - [ ] decorative icon: `aria-hidden="true"`
-- [ ] form control: `<label>` 연결 필수 (`htmlFor` 또는 wrapping)
-- [ ] variable-length text: `truncate` / `line-clamp-*` 적용
+- [ ] form control: `<label>` association required (`htmlFor` or wrapping)
+- [ ] variable-length text: apply `truncate` / `line-clamp-*`
 
 ### Routing
 - [ ] import from `react-router` (not `react-router-dom`)
-- [ ] 내부 네비게이션: `<Link>`, `<NavLink>`, `useNavigate` only
-- [ ] `<a>`, `window.location` 사용 금지
+- [ ] internal navigation: `<Link>`, `<NavLink>`, `useNavigate` only
+- [ ] no `<a>` or `window.location` usage
 
 ### i18n
-- [ ] 모든 사용자 노출 텍스트: `t()` 함수 사용
-- [ ] hardcoded 문자열 금지
-- [ ] namespace 분리
+- [ ] all user-facing text: use `t()` function
+- [ ] no hardcoded strings
+- [ ] namespace separation
 
 ### State
-- [ ] Zustand store: thin state (API 호출은 store 밖)
-- [ ] store에 비동기 로직 넣지 않음
+- [ ] Zustand store: thin state (API calls outside the store)
+- [ ] no async logic inside store
+
+### Mocks (when mockFirst is true)
+- [ ] factory: defaults + overrides pattern, auto-increment ID, provide resetFactories()
+- [ ] factory: also generate DTO factory (createEntityDto)
+- [ ] fixture: use factories.ts imports, no direct hardcoding
+- [ ] fixture: no external libraries like faker (define factory defaults directly)
+- [ ] fixture: FK fields — reference actual IDs from related fixtures
+- [ ] MSW handler: use v2 syntax (`http.*`, `HttpResponse`)
+- [ ] MSW handler: apply delay — simulate realistic response times (200-500ms)
+
+### Tests
+- [ ] test file location: `src/features/{feature}/__tests__/`
+- [ ] generate test data with factory imports (`../mocks/factories`)
+- [ ] MSW server setup/teardown (`beforeAll/afterEach/afterAll`)
+- [ ] source reference comments (`// TS-nnn`)
+- [ ] test name matches the test case name from plan.json
+- [ ] one behavior per test — if the test name contains "and", split it
+- [ ] clear names: describe the behavior being tested (not "test1", "works correctly")
+- [ ] test real behavior, not mock mechanics — assert on component output/state, not on whether a mock was called
+- [ ] mocks only when unavoidable — prefer real implementations; use MSW for network boundary only
+
+### Test Anti-Patterns (avoid)
+- [ ] Do not test mock behavior: assert on what the component renders or what the function returns, not on whether `http.get` was called
+- [ ] Do not add test-only methods to production code: if a test needs internal state access, use the public API or extract to a test helper
+- [ ] Do not create incomplete mocks: MSW handlers must mirror the full API response structure (all fields), not just the fields the immediate test uses
+- [ ] Do not mock without understanding: before mocking a dependency, identify what side effects it produces and whether the test depends on those effects
 
 ### RSC/SSR Skip
-- [ ] Vite SPA — server component, SSR 관련 규칙 무시
+- [ ] Vite SPA — ignore server component and SSR-related rules
 
 ## Output Format
 
-코드 생성 완료 후 아래 JSON 구조의 결과를 사용자에게 표시:
+After code generation is complete, display the following JSON structure to the user:
 
 ```json
 {
@@ -321,6 +506,9 @@ export { default as EntityCreatePage } from './pages/EntityCreatePage';
   "filesCreated": [
     "src/features/{feature}/types/{entity}.ts",
     "src/features/{feature}/api/{entity}Api.ts",
+    "src/features/{feature}/mocks/factories.ts",
+    "src/features/{feature}/mocks/fixtures.ts",
+    "src/features/{feature}/mocks/handlers.ts",
     "src/features/{feature}/stores/{entity}Store.ts",
     "src/features/{feature}/components/{Entity}Form.tsx",
     "src/features/{feature}/components/{Entity}Table.tsx",
@@ -331,6 +519,12 @@ export { default as EntityCreatePage } from './pages/EntityCreatePage';
     "src/features/{feature}/index.ts"
   ],
   "shadcnInstalled": ["pagination"],
+  "msw": {
+    "globalSetup": true,
+    "featureFactories": "src/features/{feature}/mocks/factories.ts",
+    "featureFixtures": "src/features/{feature}/mocks/fixtures.ts",
+    "featureHandlers": "src/features/{feature}/mocks/handlers.ts"
+  },
   "routeRegistration": {
     "mode": "declarative",
     "snippet": "<Route path=\"/path\" element={<EntityListPage />} />",
@@ -346,9 +540,20 @@ export { default as EntityCreatePage } from './pages/EntityCreatePage';
     ],
     "keyCount": 45
   },
+  "testsCreated": [
+    "src/features/{feature}/__tests__/entityApi.test.ts",
+    "src/features/{feature}/__tests__/entityStore.test.ts",
+    "src/features/{feature}/__tests__/EntityForm.test.tsx",
+    "src/features/{feature}/__tests__/EntityListPage.test.tsx"
+  ],
+  "testResults": {
+    "totalFiles": 4,
+    "totalCases": 10
+  },
   "manualSteps": [
     "Add route imports to src/App.tsx",
-    "Register i18n namespace in src/i18n/config.ts"
+    "Register i18n namespace in src/i18n/config.ts",
+    "Run tests: pnpm vitest run src/features/{feature}/"
   ]
 }
 ```
@@ -363,22 +568,32 @@ Code Generation Complete for '{feature}':
 
   shadcn/ui installed: {installed list or "none needed"}
 
+  Mock files (MSW v2):
+    {mock file list or "mock-first disabled"}
+
+  Test files:
+    {test file list or "no tests planned"}
+
   Manual integration steps:
     1. Route registration:
        Add to {insertLocation}:
        {route snippet}
     2. i18n namespace:
        Register '{namespace}' namespace in i18n config
+    3. Mock-first development:
+       Start with mocks: VITE_ENABLE_MOCKS=true pnpm dev
+       Commit: public/mockServiceWorker.js (recommended)
     {additional manual steps}
 ```
 
 ## Key Rules
 
-- **Plan-driven**: 반드시 plan.json의 내용을 따름. Plan에 없는 파일 생성 금지.
-- **Project patterns first**: 기존 프로젝트의 import 스타일, naming, 디렉터리 구조를 따름.
-- **No prototype copying**: 프로토타입 코드를 그대로 복사하지 않음. 구조적 힌트만 참조.
-- **Complete implementation**: 각 파일은 실행 가능한 완성된 코드여야 함. TODO, placeholder 금지.
-- **Convention compliance**: Convention Checklist의 모든 항목을 준수.
-- **i18n completeness**: 모든 사용자 노출 문자열에 t() 적용. 누락 없이.
-- **4-state pages**: 모든 페이지에 loading, empty, error, success 상태 구현.
-- **Existing file awareness**: 기존 파일을 덮어쓰기 전에 확인. 기존 코드가 있으면 Edit로 수정.
+- **Plan-driven**: strictly follow plan.json contents. Do not generate files not in the plan.
+- **Project patterns first**: follow the existing project's import style, naming, and directory structure.
+- **No prototype copying**: do not copy prototype code as-is. Only reference structural hints.
+- **Complete implementation**: each file must be fully functional, runnable code. No TODOs or placeholders.
+- **Convention compliance**: adhere to all items in the Convention Checklist.
+- **i18n completeness**: apply t() to all user-facing strings. No omissions.
+- **4-state pages**: implement loading, empty, error, and success states for every page.
+- **Existing file awareness**: check before overwriting existing files. If existing code is present, modify with Edit.
+- **Evidence before claims**: run `npx tsc --noEmit` after completing each buildOrder phase and check the output. No "should compile"/"probably fine".

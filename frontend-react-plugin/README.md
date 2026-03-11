@@ -55,26 +55,29 @@ Verify the installation:
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| Init | `/frontend-react-plugin:init` | 플러그인 설정 및 외부 스킬 일괄 설치 |
-| Plan | `/frontend-react-plugin:plan` | 기능 명세 분석 → 구현 계획서 생성 |
-| Gen | `/frontend-react-plugin:gen` | 구현 계획서 기반 → 프로덕션 코드 생성 |
+| Init | `/frontend-react-plugin:init` | Plugin setup and batch installation of external skills |
+| Plan | `/frontend-react-plugin:plan` | Analyze functional spec and generate implementation plan |
+| Gen | `/frontend-react-plugin:gen` | Generate production code based on implementation plan |
+| Verify | `/frontend-react-plugin:verify` | Run TypeScript, build, and test verification on generated code |
+| Review Code | `/frontend-react-plugin:review-code` | 2-stage code review (spec compliance + quality) |
+| Debug | `/frontend-react-plugin:debug` | Systematic debugging with hypothesis testing and escalation |
 
 ### External Skills (installed by init)
 
 | Skill | Source | Description |
 |-------|--------|-------------|
-| React Router v7 | `remix-run/agent-skills` | 라우팅 패턴 (모드별) |
-| Vitest | `supabase/supabase` | 테스트 패턴 |
-| React Best Practices | `vercel-labs/agent-skills` | React 성능 최적화 (57 rules) |
-| Composition Patterns | `vercel-labs/agent-skills` | 컴포넌트 구성 패턴 (10 rules) |
-| Web Design Guidelines | `vercel-labs/agent-skills` | 접근성/디자인 감사 (100+ rules) |
+| React Router v7 | `remix-run/agent-skills` | Routing patterns (per mode) |
+| Vitest | `supabase/supabase` | Testing patterns |
+| React Best Practices | `vercel-labs/agent-skills` | React performance optimization (57 rules) |
+| Composition Patterns | `vercel-labs/agent-skills` | Component composition patterns (10 rules) |
+| Web Design Guidelines | `vercel-labs/agent-skills` | Accessibility/design audit (100+ rules) |
 
 ## Code Generation Workflow
 
-1. planning-plugin으로 기능 명세 작성 → `docs/specs/{feature}/`
-2. (권장) `/planning-plugin:design {feature}` → UI DSL + 프로토타입 생성
-3. `/frontend-react-plugin:plan {feature}` → 구현 계획서 생성 + 검토
-4. `/frontend-react-plugin:gen {feature}` → 프로덕션 코드 생성
+1. Write functional spec using planning-plugin → `docs/specs/{feature}/`
+2. (Recommended) `/planning-plugin:design {feature}` → Generate UI DSL + prototype
+3. `/frontend-react-plugin:plan {feature}` → Generate implementation plan + review
+4. `/frontend-react-plugin:gen {feature}` → Generate production code
 
 ## Roadmap
 
@@ -82,6 +85,9 @@ Verify the installation:
 - [x] React Router routing skill
 - [x] External skills integration (vercel-labs/agent-skills)
 - [x] Code generation agent
+- [x] Verification skill
+- [x] Code review skill (spec compliance + quality)
+- [x] Debug skill (systematic debugging)
 - [ ] Component template library
 - [ ] i18n setup skill
 - [ ] Auth/RBAC pattern templates

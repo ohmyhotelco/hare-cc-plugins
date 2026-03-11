@@ -63,6 +63,8 @@ Before scaffolding, check if Stitch wireframe outputs exist at `docs/specs/{feat
 
 Run these commands via Bash:
 
+> **Note**: Prototypes are standalone Vite projects and use `npm` regardless of the main project's package manager (pnpm, yarn, etc.). This is intentional — prototypes are disposable artifacts that should not share the project's node_modules or lockfile.
+
 ```bash
 # Create Vite project (non-interactive)
 npm create vite@latest src/prototypes/{feature} -- --template react-ts
@@ -70,13 +72,13 @@ npm create vite@latest src/prototypes/{feature} -- --template react-ts
 # Install dependencies
 cd src/prototypes/{feature} && npm install
 
-# React 19 보장
+# Ensure React 19
 cd src/prototypes/{feature} && npm install react@^19 react-dom@^19
 
-# React Router v7 (패키지명: react-router)
+# React Router v7 (package name: react-router)
 cd src/prototypes/{feature} && npm install react-router
 
-# Lucide icons 명시 설치
+# Explicitly install Lucide icons
 cd src/prototypes/{feature} && npm install lucide-react
 
 # Initialize shadcn/ui
@@ -368,6 +370,8 @@ For each screen in the manifest:
 ### Step 6: Generate Router Setup
 
 Create/update `src/App.tsx` with React Router. **Use `HashRouter` instead of `BrowserRouter`** to ensure routing works when opening `bundle.html` via `file://` protocol.
+
+> **Note**: Prototypes use `HashRouter` for `file://` protocol compatibility (`bundle.html`). Production code uses `BrowserRouter` (declarative mode) or `createBrowserRouter` (data mode) — see frontend-react-plugin conventions.
 
 **When `layouts` array is non-empty** — use nested routes:
 

@@ -1,6 +1,6 @@
 # Frontend React Plugin
 
-프론트엔드 React 개발 시 기술 스택과 코딩 컨벤션을 적용하는 Claude Code 플러그인.
+A Claude Code plugin that applies tech stack and coding conventions for frontend React development.
 
 ## Tech Stack
 
@@ -12,78 +12,124 @@
 
 ### Core Framework
 - React 19.x
-- Routing: React Router v7 — 모드는 `.claude/frontend-react-plugin.json`의 `routerMode` 설정에 따름 (default: declarative)
-  - declarative: `<BrowserRouter>`, `<Routes>`, `<Route>` 사용
-  - data: `createBrowserRouter`, `RouterProvider`, loader/action 사용
+- Routing: React Router v7 — mode is determined by the `routerMode` setting in `.claude/frontend-react-plugin.json` (default: declarative)
+  - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>`
+  - data: uses `createBrowserRouter`, `RouterProvider`, loader/action
   - import: `react-router` (not `react-router-dom`)
-  - 자세한 라우팅 패턴: `.claude/skills/react-router-{routerMode}-mode` 참조 (installed by `/frontend-react-plugin:init`)
+  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:init`)
 
 ### UI Layer
 - Tailwind CSS
-- shadcn/ui (Radix 기반, 프로젝트에 코드 소유)
-- Icons: Lucide (`lucide-react`), 브랜드 로고 필요 시 Simple Icons 추가 고려
+- shadcn/ui (Radix-based, code owned by the project)
+- Icons: Lucide (`lucide-react`), consider adding Simple Icons when brand logos are needed
 
 ### State & Data
-- Client State: Zustand (auth token, user, permissions 등 얇게 유지)
+- Client State: Zustand (keep thin — auth token, user, permissions, etc.)
 - HTTP: Axios
-  - request interceptor: JWT Authorization 헤더 주입
-  - response interceptor: 401 → logout/재인증, 403 → 권한 동기화
-- (향후 고려) REST OpenAPI 제공 시 타입/클라이언트 자동생성
+  - request interceptor: inject JWT Authorization header
+  - response interceptor: 401 → logout/re-authenticate, 403 → sync permissions
+- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes
+- (Future consideration) Auto-generate types/client when REST OpenAPI is available
 
 ### Internationalization (i18n)
 - i18next + react-i18next
-- 언어: ko / en / ja / vi
-- 네임스페이스 분리 (common, menu, feature별)
-- Vite import.meta.glob 기반 lazy-load
-- 언어 선택: localStorage 저장
-- 날짜/시간: Intl.DateTimeFormat / Intl.RelativeTimeFormat (최신 Chrome 고정)
+- Languages: ko / en / ja / vi
+  > Note: planning-plugin supports 3 spec languages (en/ko/vi). The additional `ja` in the frontend i18n is for application UI only — Japanese specs are not supported by planning-plugin.
+- Namespace separation (common, menu, per-feature)
+- Lazy-load via Vite import.meta.glob
+- Language selection: stored in localStorage
+- Date/time: Intl.DateTimeFormat / Intl.RelativeTimeFormat (targeting latest Chrome)
 
 ### Auth / RBAC
-- 서버가 RBAC 최종 판정
-- 프론트 역할: 메뉴 필터링, 라우트 가드 (/forbidden), 401/403 서버 응답 동기화
-- 프론트에서 권한 로직 구현 금지 (UX 가드 수준만)
+- Server makes the final RBAC decision
+- Frontend role: menu filtering, route guard (/forbidden), syncing with 401/403 server responses
+- Do not implement permission logic on the frontend (UX guard level only)
 
 ### Testing
-- Unit/Component: Vitest — 자세한 테스트 패턴: `.claude/skills/vitest` 참조 (installed by `/frontend-react-plugin:init`)
+- Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:init`)
+- API mock with MSW server (Vitest integration) — reuse feature handlers in tests
 - E2E: Playwright
 
 ## Conventions
-- shadcn/ui 컴포넌트만 사용 (대체 컴포넌트 라이브러리 설치 금지)
-- 2-space 들여쓰기
+- Use only shadcn/ui components (do not install alternative component libraries)
+- 2-space indentation
 - functional component + hooks
-- 모든 props/data에 TypeScript interface 정의
-- icon-only button: aria-label 필수, decorative icon: aria-hidden="true"
-- form control: <label> 연결 필수 (htmlFor 또는 wrapping)
-- variable-length text: truncate / line-clamp-* 적용
-- full-page layout: html → body → #root → layout 전체 height chain 설정
+- Define TypeScript interface for all props/data
+- icon-only button: aria-label required, decorative icon: aria-hidden="true"
+- form control: must associate with <label> (htmlFor or wrapping)
+- variable-length text: apply truncate / line-clamp-*
+- full-page layout: set full height chain from html → body → #root → layout
+
+### Mock-First Development
+- `mockFirst: true` (default) — develop with MSW v2 without a backend
+- Feature-level mock: `src/features/{feature}/mocks/` (factories + fixtures + handlers)
+- Factory + Fixture separation: factory generates data for tests, fixture provides fixed data for MSW handlers
+- Hardcoded mock data — do not use external libraries like faker
+- Environment variable toggle: activate only in dev mode with `VITE_ENABLE_MOCKS=true`
+- Global MSW: `src/mocks/` (browser.ts, server.ts, handlers.ts aggregator)
 
 ### Performance & Composition
-- React 성능 패턴: `.claude/skills/vercel-react-best-practices` 참조 (waterfall 제거, bundle 최적화, re-render 최소화)
-  - Note: server-side (RSC/SSR) 규칙은 Vite SPA에 해당 없음 — 에이전트가 자동 스킵
-- Component 구성 패턴: `.claude/skills/vercel-composition-patterns` 참조 (boolean prop 금지, compound component, React 19 API)
-- Web UI 접근성/디자인 감사: `.claude/skills/web-design-guidelines` 참조 (review 시 최신 가이드라인 WebFetch)
+- React performance patterns: see `.claude/skills/vercel-react-best-practices` (waterfall elimination, bundle optimization, re-render minimization)
+  - Note: server-side (RSC/SSR) rules do not apply to Vite SPA — agent auto-skips
+- Component composition patterns: see `.claude/skills/vercel-composition-patterns` (no boolean props, compound component, React 19 API)
+- Web UI accessibility/design audit: see `.claude/skills/web-design-guidelines` (WebFetch latest guidelines during review)
 
 ### Routing Conventions
-- 인증 필요 라우트: `<ProtectedRoute>`로 감싸기 → 미인증 시 /login 리다이렉트 (return destination을 location.state.from으로 전달)
-- 권한 필요 라우트: `<RoleRoute permissions={[...]}>` → 미권한 시 /forbidden 리다이렉트
-- NavLink active state: shadcn/ui `cn()` + `isActive` callback 사용
-- Axios 401 interceptor → /login 리다이렉트: navigate ref 패턴 사용 (useNavigate 직접 import 금지)
-- URL searchParams ↔ Zustand: useEffect + store subscription으로 양방향 동기화
-- 내부 네비게이션: react-router `<Link>`, `<NavLink>`, `useNavigate` 사용 (`<a>`, `window.location` 금지)
+- Routes requiring authentication: wrap with `<ProtectedRoute>` → redirect to /login when unauthenticated (pass return destination via location.state.from)
+- Routes requiring permissions: `<RoleRoute permissions={[...]}>` → redirect to /forbidden when unauthorized
+- NavLink active state: use shadcn/ui `cn()` + `isActive` callback
+- Axios 401 interceptor → /login redirect: use navigate ref pattern (do not directly import useNavigate)
+- URL searchParams ↔ Zustand: bidirectional sync via useEffect + store subscription
+- Internal navigation: use react-router `<Link>`, `<NavLink>`, `useNavigate` (do not use `<a>`, `window.location`)
 
 ## Architecture
-- **Agents**: `implementation-planner` (spec 분석 → 구현 계획), `code-generator` (계획 기반 프로덕션 코드 생성)
-- **Skills**: `/frontend-react-plugin:init`, `/frontend-react-plugin:plan`, `/frontend-react-plugin:gen`
+- **Agents**: `implementation-planner` (spec analysis → implementation plan), `code-generator` (production code generation based on plan), `spec-reviewer` (spec compliance review), `quality-reviewer` (code quality review), `debugger` (systematic debugging)
+- **Skills**: `/frontend-react-plugin:init`, `/frontend-react-plugin:plan`, `/frontend-react-plugin:gen`, `/frontend-react-plugin:verify`, `/frontend-react-plugin:review-code` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:debug`
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`)
-- **Templates**: `feature-module.md` (feature 모듈 구조 레퍼런스)
+- **Templates**: `feature-module.md` (feature module structure reference)
+
+### Testing (TDD)
+- TDD workflow: plan.json `tests[]` → code-generator creates `__tests__/`
+- Test file location: `src/features/{feature}/__tests__/`
+- Test types: api (MSW server), component (@testing-library/react), page (4-state coverage), store (unit)
+- Factory usage: generate test data from `../mocks/factories`
+- MSW server: import from `@/mocks/server`, setup with `beforeAll/afterEach/afterAll`
+- Source tracking: reference spec test scenario with `// TS-nnn` comment in each test
+- Pipeline: `/frontend-react-plugin:gen` → `/frontend-react-plugin:verify` → `/frontend-react-plugin:review-code` → `/frontend-react-plugin:debug`
 
 ### Code Generation
-- 기능 명세 원천: `docs/specs/{feature}/` (planning-plugin 산출물)
-- 구현 계획서: `docs/specs/{feature}/.implementation/plan.json`
-- UI DSL 우선: `ui-dsl/` 있으면 구조화 데이터 활용, 없으면 spec markdown 추론
-- feature-based 구조: `src/features/{feature}/` (types, api, stores, components, pages)
-- 프로토타입은 참조용: `src/prototypes/{feature}/`의 코드를 프로덕션 코드에 복사하지 않음
+- Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
+- Implementation plan: `docs/specs/{feature}/.implementation/plan.json`
+- UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
+- Feature-based structure: `src/features/{feature}/` (types, api, stores, components, pages, __tests__)
+- Prototypes are for reference only: do not copy code from `src/prototypes/{feature}/` into production code
+- Debug report: `docs/specs/{feature}/.implementation/debug-report.json`
+- Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
+- Progress state machine:
+  ```
+  planned → generated → verified → reviewed → done
+               ↓            ↓           ↓
+           gen-failed   verify-failed review-failed
+                              ↓           ↓
+                          resolved | escalated
+  ```
+
+### Verification Philosophy
+
+A principle applied across all agents and skills: **"Evidence before claims, always"**
+
+5-Step Gate:
+1. IDENTIFY — identify the target to verify
+2. RUN — execute verification tools (tsc, build, vitest, etc.)
+3. READ — review the full output (exit code, error count)
+4. VERIFY — determine whether the output matches the claim
+5. CLAIM — report the result citing evidence
+
+Red Flags (all agents):
+- "should work" / "probably fine" / "seems correct" — do not use without running tools
+- Do not substitute a previous run's result for the current verification
+- Do not skip verification because "the change is small"
 
 ## File Structure
 
@@ -102,8 +148,10 @@ docs/            - Documentation
 `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`):
 ```json
 {
-  "routerMode": "declarative"
+  "routerMode": "declarative",
+  "mockFirst": true
 }
 ```
 
-- `routerMode`: `"declarative"` (default) | `"data"` — React Router v7 모드 결정
+- `routerMode`: `"declarative"` (default) | `"data"` — determines React Router v7 mode
+- `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
