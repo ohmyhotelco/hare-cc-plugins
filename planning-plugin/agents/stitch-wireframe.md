@@ -71,11 +71,14 @@ Compose a `<design_system>` context block from the available data. If no design 
 
 ### Step 3: Create Stitch Project
 
+> **CRITICAL — Single-Project Rule**: The entire execution of this agent must use **exactly one** Stitch project. `create_project` may be called **at most once**. Once a project ID is obtained (whether by reuse or creation), it becomes the **locked project ID** — every subsequent Stitch API call (`generate_screen_from_text`, `get_screen`, `list_screens`) must reference this ID exclusively. If screen generation fails, retry within the same project. **Never** create a second project for any reason (retry, error recovery, naming variation, or quality concerns).
+
 1. Call `list_projects` to check for existing project named `"{feature} Wireframes"`
-2. If found, reuse the existing project (record project ID)
-3. If not found, call `create_project` with name `"{feature} Wireframes"` and a description derived from the spec overview
-4. Call `get_project` on the project ID to retrieve the full project metadata
+2. If found, reuse the existing project — record the project ID as the **locked project ID**
+3. If not found, call `create_project` with name **exactly** `"{feature} Wireframes"` (no variations such as `"{feature} Matrix"`, `"{feature} Screen"`, or any other suffix) and a description derived from the spec overview — record the returned project ID as the **locked project ID**
+4. Call `get_project` on the locked project ID to retrieve the full project metadata
 5. Store the `designTheme` object from the project metadata (contains `colorMode`, `font`, `roundness`, `customColor`, `saturation`)
+6. From this point forward, use **only** the locked project ID for all Stitch operations — do not call `create_project` again under any circumstance
 
 ### Step 4: Convert DSL to Stitch Prompts (enhance-prompt logic)
 
@@ -148,7 +151,7 @@ This ensures design tokens parsed from the first-screen HTML are available for a
 For each screen:
 
 1. Call `generate_screen_from_text` with:
-   - `projectId`: the project ID obtained in Step 3
+   - `projectId`: the **locked project ID** from Step 3
    - `prompt`: the converted prompt from Step 4
 2. After the **first** screen is generated (which should be a layout screen if layouts exist):
    a. Call `get_screen` with the first screen's ID to retrieve full metadata including `htmlCode.downloadUrl` and `screenshot.downloadUrl`
@@ -156,7 +159,7 @@ For each screen:
    c. Parse the downloaded HTML/CSS to extract design tokens (color palette, font families, spacing, border radius)
    d. Synthesize a design system text block from the parsed design tokens for injection into subsequent prompts
 3. For subsequent screens, call `generate_screen_from_text` with:
-   - `projectId`: same project ID
+   - `projectId`: the same **locked project ID**
    - `prompt`: the converted prompt (with design system text block injected into the Design System section)
 4. After **each** screen is generated (including the first), call `get_screen` with the screen ID to retrieve full metadata:
    - Store `sourceScreen` resource path (format: `projects/{pid}/screens/{sid}`)
@@ -381,9 +384,16 @@ Return a summary:
 
 ## Important Rules
 
+### Single-Project Enforcement
+- **One project per execution**: The entire agent run must produce exactly **one** Stitch project. All screens must belong to the locked project ID established in Step 3
+- **No second `create_project` call**: `create_project` must not be called more than once — regardless of failures, retries, quality dissatisfaction, or any other reason
+- **No project name variations**: The project name must be exactly `"{feature} Wireframes"`. Counter-examples that are **forbidden**: `"{feature} Matrix"`, `"{feature} Screen"`, `"{feature} Team Matrix"`, `"{feature} Dashboard"`, or any other creative name
+- **Error recovery within existing project**: If `generate_screen_from_text` fails for a screen, retry the same call with the same locked project ID. If retries are exhausted, skip the screen and continue — never create a new project as a workaround
+- **Final self-check**: Before writing `stitch-manifest.json`, verify that every screen ID in the manifest belongs to the single locked project ID. If any screen references a different project, something has gone wrong — halt and report the inconsistency
+
 - This agent is **optional** — it only runs when Stitch MCP is configured
 - Always check MCP availability before attempting any Stitch operations
-- If any individual screen fails to generate, continue with remaining screens and report partial results
+- If any individual screen fails to generate, continue with remaining screens within the same project and report partial results
 - Parse design tokens from the first screen's HTML and inject into subsequent screens via prompt text (the Design System section)
 - The Design System section in prompts is **non-optional** — always populate it from design context, design system files, or domain defaults
 - Apply the enhance-prompt pass (keyword substitution, mood adjectives, color format, shape translation) to every prompt before sending to Stitch
