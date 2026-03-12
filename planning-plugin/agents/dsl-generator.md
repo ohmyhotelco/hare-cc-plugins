@@ -50,9 +50,26 @@ This is optional — if the files don't exist, proceed normally with default map
    - User Actions table (Action | Trigger | Result)
 3. Derive a kebab-case `id` from the screen name (e.g., "User Management - List View" → `user-list`)
 
+### Step 1a: Check for Shared Layouts
+
+Check `screens.md` for `@layout:` directives that reference shared layout screens from `_shared`.
+
+1. Scan `screens.md` for HTML comments matching `<!-- @layout: {source}/{layout-id} -->` (e.g., `<!-- @layout: _shared/main-layout -->`)
+2. If a `@layout:` directive is found:
+   a. Parse `source` (e.g., `_shared`) and `layout-id` (e.g., `main-layout`)
+   b. Read `docs/specs/{source}/ui-dsl/manifest.json` — extract the layout screen entry (route, id) and the `layouts` array entry for the referenced layout
+   c. Read `docs/specs/{source}/ui-dsl/screen-{layout-id}.json` — extract the componentTree (including the `Slot` component) and route
+   d. Mark all screens detected in Step 1 as children of this shared layout — set `screen.layout` to `"{layout-id}"` on each child screen
+   e. Skip local layout detection in Step 1b for any layout that was resolved via `@layout:` directive
+3. If `feature` is `_shared` (i.e., the agent is generating DSL for the `_shared` pseudo-feature itself):
+   a. Enter **layout-only mode**: only process screens that contain a `Slot` component (layout screens)
+   b. In the generated manifest, set `children: []` for all layout entries (children will be populated by referencing features)
+   c. Skip data model inference (Step 2) and cross-referencing (Step 3) — layout screens have no business logic
+4. If no `@layout:` directive is found, proceed to Step 1b normally
+
 ### Step 1b: Detect Layout Shells
 
-Detect layout shell patterns in `screens.md` and establish parent-child containment relationships between screens.
+Detect layout shell patterns in `screens.md` and establish parent-child containment relationships between screens. **Skip detection for any layout already resolved via `@layout:` directive in Step 1a.**
 
 **Layout screen detection criteria** — a screen is a layout screen if ANY of the following apply:
 1. Its ASCII diagram contains a content insertion area such as `[ Content Area ]`, `[ Main Content ]`, `(renders in this area)`, or `(Each screen renders here)`
@@ -252,15 +269,17 @@ For each data entity displayed on the screen:
 
 Create `manifest.json`:
 
-1. **screens**: List all generated screen files with id, filename, title, entryPoint flag, and `layout` (if the screen is a child of a layout screen)
+1. **screens**: List all generated screen files with id, filename, title, entryPoint flag, `layout` (if the screen is a child of a layout screen), and `source` (if the screen comes from a shared feature)
    - Mark the first screen (or the one with the broadest entry point) as `entryPoint: true`
    - For each child screen, include `"layout": "{layout-screen-id}"` in the screen entry
+   - For screens referencing a shared layout via `@layout:` directive: include `"source": "_shared"` in the screen entry. Do NOT generate a local `screen-{layout-id}.json` file — the DSL file lives in `docs/specs/_shared/ui-dsl/`
 2. **navigation**: Build from User Actions across all screens
    - For each action that navigates to another screen, create a navigation edge
    - Derive `trigger` from the action description (e.g., "Click edit button" → `click-edit-button`)
 3. **dataEntities**: List all entity names inferred during Step 2 (or read from legacy Data Model section)
-4. **layouts**: Build from the layout shell detection in Step 1b
+4. **layouts**: Build from the layout shell detection in Step 1a/1b
    - For each layout screen, create an entry: `{ "id": "{layout-id}", "children": ["{child-id-1}", "{child-id-2}", ...] }`
+   - For shared layouts resolved via `@layout:` directive, include `"source": "_shared"` in the layout entry
    - If no layout shells were detected, set to an empty array `[]`
 5. **metadata**: Set `feature`, `schemaVersion: "1.0"`, `generatedAt` (ISO-8601), `sourceSpec`
 
@@ -319,3 +338,5 @@ Return a summary when complete:
 - Every child screen's `layout` value must reference an existing layout screen ID in the manifest
 - Child screen routes must use the layout screen's route as a prefix
 - The `layouts` array in manifest.json is required — set to `[]` if no layout shells are detected
+- When a `@layout:` directive references `_shared`, do NOT generate a local `screen-{layout-id}.json` — the layout DSL file lives in `docs/specs/_shared/ui-dsl/`. Include `"source": "_shared"` in the manifest screen and layout entries
+- When `feature` is `_shared`, operate in layout-only mode: process only layout screens (with `Slot`), set `children: []`, skip data model inference and cross-referencing

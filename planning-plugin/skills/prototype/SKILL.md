@@ -35,7 +35,13 @@ Follow these steps in order.
 3. Verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not, stop with:
    > "UI DSL not found for '{feature}'. Run `/planning-plugin:design {feature} --stage=dsl` first."
 
-4. Check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`
+4. **Shared layout prerequisite check**: Read `docs/specs/{feature}/ui-dsl/manifest.json` and check if any screen or layout entry has `"source": "_shared"`:
+   - If found, verify `docs/specs/_shared/ui-dsl/manifest.json` exists. If not, stop with:
+     > "Shared layout DSL not found. Run `/planning-plugin:design _shared` first."
+   - If found, also check if `docs/specs/_shared/stitch-wireframes/` has wireframe outputs (optional — only a suggestion if missing):
+     > "Shared layout wireframes not found. Consider running `/planning-plugin:design _shared` to generate them for better visual consistency."
+
+5. Check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`
    - If not present → skip (no Stitch integration)
    - If present → ask the user:
      ```

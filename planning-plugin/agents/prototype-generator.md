@@ -26,7 +26,7 @@ Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to p
 ### Step 1: Read UI DSL
 
 1. Read `manifest.json` to get the screen list, navigation map, data entities, and **layouts**
-2. Read each `screen-{id}.json` referenced in the manifest
+2. Read each `screen-{id}.json` referenced in the manifest. For screens with `"source": "_shared"`, read from `docs/specs/_shared/ui-dsl/screen-{id}.json` instead of the local `dslDir`
 3. Catalog all unique component types used across screens
 4. Catalog all data entities and their shapes
 5. Collect all `validation` rules across all screens' component trees
@@ -48,9 +48,9 @@ Before scaffolding, check if a design system exists at `design-system/pages/` (r
 
 Before scaffolding, check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/`:
 
-1. If `stitch-manifest.json` exists, read the screen mapping to understand which DSL screens have wireframes
-2. If `design-tokens.json` exists, use the extracted tokens for the Tailwind theme configuration (priority: Stitch tokens > design-system tokens > default Tailwind)
-3. If `DESIGN.md` exists, read it and use the natural-language design descriptions to inform:
+1. If `stitch-manifest.json` exists, read the screen mapping to understand which DSL screens have wireframes. For screens with `"source": "_shared"`, also check `docs/specs/_shared/stitch-wireframes/` for shared wireframe outputs
+2. If `design-tokens.json` exists, use the extracted tokens for the Tailwind theme configuration. Also check `docs/specs/_shared/stitch-wireframes/design-tokens.json` for shared design tokens. Priority: feature Stitch tokens > shared Stitch tokens > design-system tokens > default Tailwind
+3. If `DESIGN.md` exists, read it and use the natural-language design descriptions to inform. Also check `docs/specs/_shared/stitch-wireframes/DESIGN.md` for shared design language. Priority: feature DESIGN.md > shared DESIGN.md > design-system > default:
    - Tailwind theme extension (color palette, typography, border-radius values)
    - Component styling decisions (shadow depth, corner rounding, button variants)
    - Layout principles (spacing density, content width, visual hierarchy)
@@ -545,3 +545,5 @@ Return a summary when complete:
 - The state switcher toolbar goes on child pages only, not on layout components
 - Standalone screens (no `layout` property in DSL) remain as top-level routes outside any layout nesting
 - Do NOT infer nested layout relationships from purpose text or LLM reasoning — use the structured `layout` property from DSL exclusively
+- For screens with `"source": "_shared"`, read DSL from `docs/specs/_shared/ui-dsl/` and Stitch wireframes from `docs/specs/_shared/stitch-wireframes/`. The generated `MainLayout.tsx` is based on the shared DSL but lives inside the feature prototype (copy-on-reference — standalone prototype)
+- Shared layout components are generated locally within the prototype even though their DSL source is `_shared` — prototypes must remain self-contained

@@ -56,11 +56,13 @@ All references are optional — agents fall back to defaults when design-system 
    - `--stage` — optional stage filter: `dsl` or `stitch` (default: run dsl + stitch, then stop for review)
 
 2. Validate the spec exists:
-   - Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
-   - If it does not exist, stop with:
-     > "No specification found for '{feature}'. Run `/planning-plugin:spec "{feature}"` first."
-   - Verify status is `reviewing` or `finalized`. If `drafting` or `analyzing`, stop with:
-     > "The specification for '{feature}' is still in '{status}' status. Complete the spec review process first."
+   - **If `feature` is `_shared`**: Skip progress file validation (shared layouts have no spec lifecycle). Instead, validate only that `docs/specs/_shared/en/screens.md` exists. If not, stop with:
+     > "No shared layout screens found. Create `docs/specs/_shared/en/screens.md` with layout screen definitions first."
+   - **Otherwise**: Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
+     - If it does not exist, stop with:
+       > "No specification found for '{feature}'. Run `/planning-plugin:spec "{feature}"` first."
+     - Verify status is `reviewing` or `finalized`. If `drafting` or `analyzing`, stop with:
+       > "The specification for '{feature}' is still in '{status}' status. Complete the spec review process first."
 
 3. Validate `screens.md` exists at `docs/specs/{feature}/en/screens.md`:
    - If `docs/specs/{feature}/en/` directory does not exist, stop with:
@@ -101,14 +103,20 @@ If the `design` field already exists, preserve existing stage statuses for stage
 
 **Skip if not in the determined stages.**
 
-1. Update progress: `design.stages.dsl.status = "in_progress"`
+1. Update progress: `design.stages.dsl.status = "in_progress"` (skip for `_shared` — no progress file)
 2. Launch the **dsl-generator** agent:
 
+**If `feature` is `_shared`** (layout-only mode):
+```
+Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the shared layout feature '_shared'. specDir: docs/specs/_shared/en/. feature: _shared. This is a SHARED LAYOUT feature — enter layout-only mode: only process screens with Slot components, set children=[] in layouts, skip data model inference and cross-referencing. Read screens.md from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/_shared/ui-dsl/.")
+```
+
+**Otherwise** (normal feature):
 ```
 Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/en/. feature: {feature}. Read screens.md (screen definitions, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
 ```
 
-3. On success, update progress:
+3. On success, update progress (skip for `_shared` — no progress file):
    ```json
    {
      "design.stages.dsl": {

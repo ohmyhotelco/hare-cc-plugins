@@ -1,5 +1,11 @@
 ## 4. Screen Definitions
 
+<!-- @layout: _shared/main-layout -->
+<!-- Optional directive: references a shared layout from docs/specs/_shared/ui-dsl/.
+     Format: @layout: {source}/{layout-id}
+     When present, dsl-generator skips local layout detection and uses the shared layout.
+     Remove this comment block if not using shared layouts. -->
+
 ### Screen: {Screen Name}
 
 **Purpose**: {What does this screen do?}

@@ -284,6 +284,10 @@
         "layout": {
           "type": "string",
           "description": "ID of the layout screen this screen renders inside."
+        },
+        "source": {
+          "type": "string",
+          "description": "Source feature for this screen. '_shared' means the DSL file lives in docs/specs/_shared/ui-dsl/. Omit for local screens."
         }
       },
       "required": ["id", "file", "title"]
@@ -320,6 +324,10 @@
                 "type": "array",
                 "items": { "type": "string" },
                 "description": "IDs of screens that render inside this layout."
+              },
+              "source": {
+                "type": "string",
+                "description": "Source feature for this layout. '_shared' means the layout screen DSL is in docs/specs/_shared/ui-dsl/."
               }
             },
             "required": ["id", "children"]

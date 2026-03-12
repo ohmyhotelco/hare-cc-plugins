@@ -53,10 +53,10 @@ Attempt to call `list_projects` to verify Stitch MCP connectivity. If the tool i
 ### Step 1: Read DSL Input
 
 1. Read `manifest.json` to get the screen list, navigation map, data entities, and **layouts**
-2. Read each `screen-{id}.json` referenced in the manifest
+2. Read each `screen-{id}.json` referenced in the manifest. For screens with `"source": "_shared"`, read from `docs/specs/_shared/ui-dsl/screen-{id}.json` instead of the local `dslDir`
 3. Read the spec overview (`docs/specs/{feature}/en/{feature}-spec.md`) for domain context
 4. Catalog all unique component types, data entities, and interactions
-5. **Identify layout relationships**: Read the `layouts` array from `manifest.json`. For each layout entry, record the layout screen ID and its child screen IDs. Read the layout screen's `screen-{id}.json` and locate the `Slot` component in its componentTree — this marks the content insertion point. Extract the shell structure (all components except the Slot) as the reusable shell context for child screen prompts
+5. **Identify layout relationships**: Read the `layouts` array from `manifest.json`. For each layout entry, record the layout screen ID and its child screen IDs. For layouts with `"source": "_shared"`, read the layout screen's DSL from `docs/specs/_shared/ui-dsl/screen-{id}.json`. Locate the `Slot` component in its componentTree — this marks the content insertion point. Extract the shell structure (all components except the Slot) as the reusable shell context for child screen prompts
 
 ### Step 2: Assemble Design System Context (Optional)
 
@@ -142,9 +142,14 @@ For subsequent screens (after the first), inject the design system text in the p
 ### Step 5: Generate Screens
 
 **Generation order**: Layout screens must be generated before their child screens. Process screens in this order:
-1. Layout screens (screens that appear as `id` in the `layouts` array)
+1. Layout screens (screens that appear as `id` in the `layouts` array) — **except** shared layouts (see below)
 2. Child screens (screens with a `layout` property), grouped by their parent layout
 3. Standalone screens (no `layout` property and not a layout provider)
+
+**Shared layout wireframe reuse**: For layout screens with `"source": "_shared"`:
+- Check if the wireframe already exists at `docs/specs/_shared/stitch-wireframes/{layout-id}.html`
+- If it exists: **skip generation** — do not call `generate_screen_from_text` for this screen. Instead, parse the existing HTML to extract design tokens for injection into child screen prompts
+- If it does not exist: generate it normally (this handles the case where `_shared` wireframes haven't been created yet, though the recommended flow is to run `/planning-plugin:design _shared` first)
 
 This ensures design tokens parsed from the first-screen HTML are available for all child screens, and the shell description is cached before child prompts are composed.
 
@@ -350,6 +355,14 @@ Write `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
       "height": 900,
       "htmlFile": "user-list.html",
       "pngFile": "user-list.png"
+    },
+    {
+      "dslScreenId": "main-layout",
+      "source": "_shared",
+      "stitchRef": "docs/specs/_shared/stitch-wireframes/main-layout.html",
+      "title": "Main Layout (shared)",
+      "htmlFile": null,
+      "pngFile": null
     }
   ],
   "designTokensFile": "design-tokens.json",
@@ -410,3 +423,6 @@ Return a summary:
 - Generate layout screens before their children to ensure design token parsing from first-screen HTML happens first
 - The layout screen's own wireframe should show a generic placeholder in the content area (e.g., "Content area with sample dashboard widgets")
 - Never allow Stitch to fabricate different branding or navigation structures for child screens — the shell description must enforce a single consistent application name, logo, and menu labels
+- For screens with `"source": "_shared"`, read DSL from `docs/specs/_shared/ui-dsl/` and check for existing wireframes in `docs/specs/_shared/stitch-wireframes/` before generating
+- Shared layout screens that already have wireframes in `_shared` are skipped — extract design tokens from the existing HTML instead of regenerating
+- In `stitch-manifest.json`, shared layout screens include `"source": "_shared"` and `"stitchRef"` pointing to the `_shared` wireframe path
