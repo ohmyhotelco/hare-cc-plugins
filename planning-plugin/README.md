@@ -219,9 +219,10 @@ Use this anytime to check progress.
 1. Creates directory structure under `docs/specs/{feature}/`
 2. Analyst agent scans your project and asks structured questions
 3. Spec is generated as 3 files in the working language from templates
-4. Translations to other supported languages are created in parallel
-5. Planner and tester run sequential reviews with scoring
-6. You resolve feedback, translations sync, and repeat or finalize
+4. If the feature's screens share a sidebar + header shell: detects the shared layout pattern and optionally creates `docs/specs/_shared/en/screens.md` (see [Shared Layouts](#shared-layouts-_shared))
+5. Translations to other supported languages are created in parallel
+6. Planner and tester run sequential reviews with scoring
+7. You resolve feedback, translations sync, and repeat or finalize
 
 **Example**:
 ```
@@ -392,6 +393,21 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 
 > **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. To generate the prototype, run `/planning-plugin:prototype {feature}` after reviewing wireframes.
 
+**Shared layouts (`_shared`)**: Use `_shared` as the feature name to generate DSL for app-wide layout screens (sidebar + header shells) shared across multiple features. Features reference shared layouts via `<!-- @layout: _shared/main-layout -->` directive in `screens.md`. Recommended workflow:
+
+```
+/planning-plugin:design _shared                         # generate shared layout DSL (+ optional Stitch)
+/planning-plugin:design social-login                    # feature DSL references shared layouts automatically
+/planning-plugin:prototype social-login                 # prototype copies shared layout components locally
+```
+
+> `_shared` skips spec lifecycle validation (no progress file required) — only `docs/specs/_shared/en/screens.md` must exist. Features without `@layout:` directive use local layout detection as before (backward compatible).
+
+**Automatic shared layout creation**: When running `/planning-plugin:spec`, the plugin automatically detects shared layout patterns from the analyst's user flow answers. If screens share a persistent sidebar + header shell:
+- If `_shared/en/screens.md` already exists: the `@layout:` directive is activated automatically, and shell components are removed from the feature's screen definitions.
+- If `_shared/en/screens.md` does not exist: you are asked whether to create it. If approved, a shared layout screen (with a `Slot` component) is generated and the feature's `@layout:` directive is activated. The finalization step then guides you to run `design _shared` before `design {feature}`.
+- If no pattern is detected or you decline: the feature uses local layout detection as before.
+
 ---
 
 ### `/planning-plugin:prototype`
@@ -401,9 +417,12 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 **When to use**: After reviewing Stitch wireframes (or after DSL generation if Stitch is skipped), to generate the React prototype.
 
 **What happens**:
-1. If Stitch wireframes exist, prompts whether to sync latest changes from Stitch before generating
-2. The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`
-3. Bundles the project into a single standalone `bundle.html` (openable via `file://`)
+1. If the feature's UI DSL references shared layouts (`source: "_shared"`), validates that `docs/specs/_shared/ui-dsl/manifest.json` exists
+2. If Stitch wireframes exist, prompts whether to sync latest changes from Stitch before generating
+3. The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`
+4. Bundles the project into a single standalone `bundle.html` (openable via `file://`)
+
+> Shared layout components are copied locally into the prototype (copy-on-reference) to keep prototypes self-contained.
 
 **Example**:
 ```
@@ -683,10 +702,19 @@ To change the working language, edit `.claude/planning-plugin.json` before creat
 ## Output Structure
 
 ```
+docs/specs/_shared/                        ← Shared layout screens (app-wide sidebar + header shells)
+├── en/
+│   └── screens.md                         ← Layout screen definitions (Slot components)
+├── ui-dsl/                                ← Shared layout DSL (referenced by features via @layout: directive)
+│   ├── manifest.json
+│   └── screen-{layout-id}.json
+└── stitch-wireframes/                     ← Shared layout wireframes (optional)
+    └── ...
+
 docs/specs/{feature}/
 ├── {workingLanguage}/                     ← Source of truth (working language)
 │   ├── {feature}-spec.md                  ← Index: Overview, User Stories, Functional Requirements, Open Questions, Review History
-│   ├── screens.md                         ← Screen Definitions, Error Handling
+│   ├── screens.md                         ← Screen Definitions, Error Handling (may include @layout: directive)
 │   └── test-scenarios.md                  ← Non-Functional Requirements, Test Scenarios
 ├── {target_lang_1}/                       ← Translation (same file structure)
 │   ├── {feature}-spec.md
@@ -695,7 +723,7 @@ docs/specs/{feature}/
 ├── {target_lang_2}/                       ← Translation (same file structure)
 │   └── ...
 ├── ui-dsl/                                ← UI DSL JSON (from design pipeline)
-│   ├── manifest.json                      ← Screen index + navigation map
+│   ├── manifest.json                      ← Screen index + navigation map (shared layouts have source: "_shared")
 │   └── screen-{id}.json                   ← Per-screen component definitions
 ├── stitch-wireframes/                     ← Stitch wireframe outputs (optional)
 │   ├── stitch-manifest.json               ← Screen mapping + Stitch project metadata
@@ -794,6 +822,8 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 - UI DSL and prototypes use shadcn/ui component vocabulary exclusively (Card, Table, Button, Dialog, Alert, Badge, Form, Input, Select, etc.)
 - Prototypes are standalone Vite projects with no dependency on the main project
 - Stitch wireframe generation is optional and requires Google Stitch MCP configuration
+- Shared layouts: `_shared` is a reserved pseudo-feature directory (`docs/specs/_shared/`) for app-wide layout screens shared across multiple features. Features reference shared layouts via `<!-- @layout: _shared/main-layout -->` directive in `screens.md`. Prototypes copy shared layout components locally (copy-on-reference) to remain standalone
+- Shared layout auto-generation: The `spec` skill automatically detects shared layout patterns and optionally creates `_shared/en/screens.md` during draft generation (Step 3.5). Always created under `en/` regardless of `workingLanguage`
 
 ## Author
 

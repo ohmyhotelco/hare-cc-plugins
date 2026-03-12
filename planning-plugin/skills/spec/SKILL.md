@@ -84,6 +84,40 @@ Using the analyst's collected requirements and the 3 templates in `templates/`:
    - `test-scenarios.md` — from `test-scenarios.md` template (NFR + test scenarios)
 7. Set the document status to `DRAFT` in `{feature}-spec.md`
 
+### Step 3.5: Shared Layout Detection & Creation
+
+After generating the 3 draft files, detect whether the feature uses a shared layout shell and optionally create `docs/specs/_shared/en/screens.md`.
+
+**3.5a. Detect shared layout pattern** — Analyze the analyst's `user_flow` category answers for:
+- A persistent shell (sidebar/navigation + header) that spans multiple screens
+- A content area where different screens render inside the shell
+- **Skip this step entirely** if the feature has only a single screen, consists of standalone screens (login, landing, error pages), or each screen has its own independent full layout
+
+**3.5b. No pattern detected** — Do nothing. Leave the `<!-- @layout: ... -->` comment block in `screens.md` as-is from the template. Proceed to Step 4.
+
+**3.5c. Pattern detected — `docs/specs/_shared/en/screens.md` already exists**:
+1. Inform the user: "A shared layout already exists. Referencing it via `@layout:` directive."
+2. Extract layout-id(s) from the existing file by parsing `### Screen:` headings → convert to kebab-case
+3. In the feature's `screens.md`, activate the `@layout:` directive (uncomment and set the correct `_shared/{layout-id}`)
+4. Remove shell components (sidebar, header, navigation) from the feature screens' ASCII diagrams and Components tables — only for screens that render inside the shell. Standalone screens (login, 404, etc.) retain their own layout.
+
+**3.5d. Pattern detected — `docs/specs/_shared/en/screens.md` does NOT exist**:
+1. Ask the user for confirmation: "The screens share a sidebar + header shell. Would you like to create a shared layout that other features can also reuse? (y/n)"
+2. **If declined**: Leave `@layout:` directive commented out. The feature will use local layout detection during DSL generation (existing behavior). Proceed to Step 4.
+3. **If approved**:
+   a. Create `docs/specs/_shared/en/` directory
+   b. Generate `docs/specs/_shared/en/screens.md` using the analyst's layout data. Generation rules:
+      - Follow the same format as `templates/screens.md`
+      - Define **exactly one layout screen**
+      - **Must include a `Slot` type component** (required by dsl-generator's layout-only mode)
+      - ASCII diagram must show the content insertion point (e.g., `(Each screen renders here)`)
+      - Component names and navigation items must be derived from the analyst's actual layout description (not hardcoded)
+      - No Error Handling section needed (layout screens have no business logic errors)
+      - **Always create under `en/` directory** regardless of `workingLanguage` (UI DSL always reads from English)
+   c. In the feature's `screens.md`, activate the `@layout:` directive with the generated layout-id
+   d. Remove shell components from the feature screens that render inside the shell
+   e. Inform the user: "After finalizing the spec, run `/planning-plugin:design _shared` first, then `/planning-plugin:design {feature}`."
+
 ### Step 4: Sequential Review Cycle
 
 Update progress status to `"reviewing"` and increment `currentRound`.
@@ -166,7 +200,10 @@ After all complete, update the progress file's translation status with `synced: 
    - Key decisions made
    - Any remaining open questions
 4. Suggest next steps:
-   - "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"
+   - If `docs/specs/_shared/en/screens.md` was created during this spec run (Step 3.5d):
+     > "Run `/planning-plugin:design _shared` first to generate the shared layout DSL, then `/planning-plugin:design {feature}` to generate the feature DSL."
+   - Otherwise:
+     > "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"
    - "Run `/planning-plugin:review {feature}` anytime to re-review"
    - "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
    - "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"
