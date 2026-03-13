@@ -23,6 +23,8 @@ Sync specification to Notion for: **$ARGUMENTS**
 5. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 6. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### Step 1: Parse Arguments
 
 - First argument: feature name (required). If missing, stop with error:

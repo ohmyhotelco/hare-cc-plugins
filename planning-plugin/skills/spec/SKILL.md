@@ -24,6 +24,8 @@ Follow these steps in order. After each major step, update the progress file.
 5. Determine target languages: `supportedLanguages` minus `workingLanguage`
 6. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### Step 1: Initialize
 
 1. Derive a kebab-case feature name from the user's description (e.g., "social login" → `social-login`)

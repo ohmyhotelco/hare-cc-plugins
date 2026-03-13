@@ -19,6 +19,10 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with:
    > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+3. Extract `workingLanguage` (default: `"en"` if field is absent)
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
 ### Step 1: Parse Arguments & Validate
 

@@ -20,6 +20,8 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### Step 1: Locate the Specification
 
 1. Read the progress file at `docs/specs/$ARGUMENTS/.progress/$ARGUMENTS.json`

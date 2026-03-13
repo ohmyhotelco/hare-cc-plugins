@@ -22,6 +22,8 @@ Follow these steps in order.
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### Step 0b: Design System Integration
 
 The design pipeline produces better results when a design system exists. Run `/planning-plugin:design-system` before `/planning-plugin:design` for best results.

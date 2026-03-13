@@ -20,6 +20,8 @@ Migrate working language for: **$ARGUMENTS**
 3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### Step 1: Parse Arguments
 
 - First argument: feature name (required)

@@ -21,6 +21,8 @@ Show status for: **$ARGUMENTS**
 4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 5. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
 ### If a feature name is provided:
 
 1. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
