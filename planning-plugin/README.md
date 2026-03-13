@@ -94,15 +94,18 @@ Verify the installation:
 
 ## MCP Setup (Notion & Stitch)
 
-### Notion (bundled — OAuth)
+### Notion (Claude built-in — OAuth)
 
-This plugin bundles one HTTP MCP server (defined in `plugin.json`):
+The Notion MCP server is built into Claude and available by default. You only need to authenticate via OAuth to start using it.
 
-| Server | URL | Used by |
-|--------|-----|---------|
-| `notion` | `https://mcp.notion.com/mcp` | Notion Syncer agent (`/planning-plugin:sync-notion`) |
+| Server | Used by |
+|--------|---------|
+| `notion` | Notion Syncer agent (`/planning-plugin:sync-notion`) |
 
-Installation automatically registers these servers — no manual `claude mcp add` is needed.
+If the Notion MCP server is not available in your environment, add it manually:
+```
+claude mcp add notion --transport http https://mcp.notion.com/mcp -s user
+```
 
 ### Stitch (Google Stitch MCP — optional)
 

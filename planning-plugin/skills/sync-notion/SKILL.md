@@ -25,6 +25,14 @@ Sync specification to Notion for: **$ARGUMENTS**
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
+7. Check if any Notion MCP tool is available (e.g., `mcp__notion__notion-search`)
+   - If not available, stop with error:
+     > "Notion MCP is not configured. Set up Notion MCP first:
+     >  1. Run `/mcp` inside Claude Code
+     >  2. Look for the `notion` server
+     >  3. If not present, add it manually: `claude mcp add notion --transport http https://mcp.notion.com/mcp -s user`
+     >  4. Authenticate via OAuth by selecting the `notion` server in `/mcp`"
+
 ### Step 1: Parse Arguments
 
 - First argument: feature name (required). If missing, stop with error:
