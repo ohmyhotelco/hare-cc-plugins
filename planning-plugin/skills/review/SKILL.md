@@ -3,7 +3,7 @@ name: review
 description: Run a single review round on an existing functional specification. Use after manual edits to re-check spec quality.
 argument-hint: "[feature-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__notion__*
+allowed-tools: Read, Write, Edit, Glob, Grep, Task
 ---
 
 # Manual Review
@@ -120,14 +120,18 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 #### Step 6c: Notion Sync (Finalize path)
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
-2. If configured, for each language (working language + all target languages with translated spec directories), follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
-   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
-   - Read the 3 spec files directly with Read tool (Step 4)
-   - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
-   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
-   - Display sync results summary (Step 8)
-3. Include Notion page URLs in the finalization summary
+2. Read progress file for existing Notion page data (`notion` field)
+3. For each language (working language + all target languages with spec directories), sequentially launch the **sync-notion** agent:
+   ```
+   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+     feature: {feature}. lang: {lang}. langName: {langName}.
+     specDir: docs/specs/{feature}/{lang}/.
+     progressFile: docs/specs/{feature}/.progress/{feature}.json.
+     notionParentPageUrl: {notionParentPageUrl}.
+     existingPages: {JSON of notion.{lang} from progress or null}.
+     Read the 3 spec files, prepare content, and create/update Notion pages.")
+   ```
+4. Include Notion page URLs from agent results in the finalization summary
 
 After completing Steps 6a–6c, suggest next steps:
 > "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"

@@ -4,7 +4,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 
 ## Architecture
 
-- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype)
+- **Agents**: analyst (requirements gathering), planner (UX/business review), tester (edge cases/testability review), translator (working language → other languages), dsl-generator (screens.md → UI DSL JSON), stitch-wireframe (UI DSL → Stitch visual wireframes), prototype-generator (UI DSL → React prototype), sync-notion (spec files → Notion pages via MCP)
 - **Skills**: `/planning-plugin:init`, `/planning-plugin:spec`, `/planning-plugin:design`, `/planning-plugin:prototype`, `/planning-plugin:design-system`, `/planning-plugin:review` (reviews the specification document — not to be confused with `/frontend-react-plugin:review-code` which reviews generated source code), `/planning-plugin:translate`, `/planning-plugin:progress`, `/planning-plugin:migrate-language`, `/planning-plugin:sync-notion`, `/planning-plugin:sync-stitch`, `/planning-plugin:bundle`
 - **Configuration**: Project-level config at `.claude/planning-plugin.json` (created by `/planning-plugin:init`)
 - **Output language**: The working language (configured in `.claude/planning-plugin.json`, default: `en`) is the source of truth. Translations to the other supported languages are generated alongside.
@@ -53,7 +53,7 @@ Default run executes Stage 1→2 then stops with a review gate — the user revi
 - All agent reviews target the working language spec directory only
 - Technical terms (API, endpoint, schema, CRUD) are kept in English across all translations
 - Convergence (strict priority): both scores >= 8 → suggest finalization; any score < 8 AND < 3 rounds → do NOT offer finalization; 3 rounds with any score < 8 → suggest finalization with caveats
-- Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; file-per-page structure — each language gets a parent page (`[{feature}] {lang_name}`) with 3 child pages (Overview, Screens, Test Scenarios); the `sync-notion` skill reads spec files directly with Read tool and calls Notion MCP per file (no subagent); progress file stores `syncStatus` + `parentPageUrl` + `childPages` in the `notion` field; legacy `pageUrl` format is auto-migrated on next sync
+- Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; file-per-page structure — each language gets a parent page (`[{feature}] {lang_name}`) with 3 child pages (Overview, Screens, Test Scenarios); the `sync-notion` skill orchestrates config/progress management, then launches the `sync-notion` agent (one per language) which reads spec files in a fresh context and calls Notion MCP for maximum content fidelity; progress file stores `syncStatus` + `parentPageUrl` + `childPages` in the `notion` field; legacy `pageUrl` format is auto-migrated on next sync
 - Notion sync reliability: uses a WAL (Write-Ahead Log) pattern — `syncStatus` is set to `"syncing"` before MCP calls, each page URL is recorded incrementally after creation/update, and `syncStatus` is set to `"synced"` only after all pages complete. Values: `"syncing"` (in progress or interrupted), `"synced"` (complete), `"stale"` (spec edited after sync). `session-init.sh` warns on `"syncing"` (interrupted) and `"stale"` states. `validate-spec-format.sh` auto-transitions `"synced"` → `"stale"` when spec files are edited
 - Stitch wireframe output: `docs/specs/{feature}/stitch-wireframes/` contains `stitch-manifest.json`, `design-tokens.json`, `shadcn-mapping.json`, per-screen HTML/PNG files. Optional — only generated when Stitch MCP is configured
 - Stitch sync: `/planning-plugin:sync-stitch {feature}` re-fetches wireframe content from Stitch after manual edits on the Stitch website. Use `sync-stitch` when wireframes were edited on Stitch website; use `design --stage=stitch` for full DSL-to-wireframe regeneration
@@ -72,7 +72,7 @@ Default run executes Stage 1→2 then stops with a review gate — the user revi
 
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
-agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
+agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, sync-notion)
 skills/          - Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, sync-notion, sync-stitch, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)

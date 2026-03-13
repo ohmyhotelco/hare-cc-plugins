@@ -3,7 +3,7 @@ name: spec
 description: Generate a functional specification through multi-agent collaboration. Analyzes project context, gathers requirements, creates spec draft in the configured working language, and runs sequential planner→tester review cycles with translation to other supported languages.
 argument-hint: "[feature description]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 ---
 
 # Functional Specification Generator
@@ -211,13 +211,18 @@ After all complete, update the progress file's translation status with `synced: 
 ### Step 7: Sync to Notion (if configured)
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
-2. For each language (working language + all target languages with translated spec directories), follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
-   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
-   - Read the 3 spec files directly with Read tool (Step 4)
-   - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
-   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
-3. Include Notion page URLs in the finalization summary
+2. Read progress file for existing Notion page data (`notion` field)
+3. For each language (working language + all target languages with spec directories), sequentially launch the **sync-notion** agent:
+   ```
+   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+     feature: {feature}. lang: {lang}. langName: {langName}.
+     specDir: docs/specs/{feature}/{lang}/.
+     progressFile: docs/specs/{feature}/.progress/{feature}.json.
+     notionParentPageUrl: {notionParentPageUrl}.
+     existingPages: {JSON of notion.{lang} from progress or null}.
+     Read the 3 spec files, prepare content, and create/update Notion pages.")
+   ```
+4. Include Notion page URLs from agent results in the finalization summary
 
 ## Error Handling
 

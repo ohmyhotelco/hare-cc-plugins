@@ -3,7 +3,7 @@ name: translate
 description: Manually sync translations from the working language to other supported languages. Use after directly editing the working language spec.
 argument-hint: "[feature-name] [--file=<name>]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Task, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
+allowed-tools: Read, Write, Edit, Glob, Task
 ---
 
 # Manual Translation Sync
@@ -66,12 +66,17 @@ Update the progress file's translation status for each target language:
 ### Step 6: Sync Translations to Notion (if configured)
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
-2. For each translated target language, follow the **sync-notion** skill's Steps 4–8 procedure directly in this skill context:
-   - Before any MCP calls, set `notion.{lang}.syncStatus = "syncing"` in the progress file (sync-notion Step 6 start)
-   - Read the 3 spec files directly with Read tool (Step 4)
-   - Apply minimal content transformation to the overview file (Step 5)
-   - Create/update parent page + 3 child pages per language (Step 6) — record each page URL to the progress file immediately after creation/update
-   - Set `notion.{lang}.syncStatus = "synced"` and `lastSyncedAt` in the progress file (sync-notion Step 7)
+2. Read progress file for existing Notion page data (`notion` field)
+3. For each translated target language (not the working language), sequentially launch the **sync-notion** agent:
+   ```
+   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+     feature: {feature}. lang: {lang}. langName: {langName}.
+     specDir: docs/specs/{feature}/{lang}/.
+     progressFile: docs/specs/{feature}/.progress/{feature}.json.
+     notionParentPageUrl: {notionParentPageUrl}.
+     existingPages: {JSON of notion.{lang} from progress or null}.
+     Read the 3 spec files, prepare content, and create/update Notion pages.")
+   ```
 
 ### Step 7: Confirm
 
