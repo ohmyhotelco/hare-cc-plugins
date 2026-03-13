@@ -45,6 +45,37 @@ The skill will provide these parameters in the prompt:
    - Zustand store authoring patterns
    - Import style and naming conventions of existing feature modules
    - i18n configuration file location
+6. **Shared layouts** — read `sharedLayouts[]` from plan:
+   - Record layout file paths and existence status
+   - If layout needs creation: read shared DSL file for structure reference
+   - If layout exists but needs nav items: prepare edit targets
+
+### Phase 0.5: Shared Layouts
+
+Skip this entire phase if `sharedLayouts[]` is empty or absent.
+
+For each entry in `sharedLayouts[]`:
+
+**If `exists: false`** (first feature):
+1. Read `dslFile` (shared DSL) → extract componentTree
+2. Optionally read Stitch wireframe for visual reference
+3. Generate `src/layouts/{Name}.tsx`:
+   - Import `<Outlet />` from `react-router`
+   - Import `NavLink`, `useLocation` from `react-router`
+   - Import `useTranslation` from `react-i18next`
+   - Build sidebar with `navigationItems` from plan
+   - Place `<Outlet />` in content area (where Slot was in DSL)
+   - Use shadcn/ui components, cn(), aria-labels
+4. Generate layout i18n: `src/locales/{lang}/layout.json`
+5. Run `npx tsc --noEmit` to verify
+
+**If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
+1. Read existing layout file
+2. Edit to add new navigation items (targeted Edit, not rewrite)
+3. Update `src/locales/{lang}/layout.json` with new keys
+
+**If `exists: true` AND `navItemsToAdd` is empty**:
+- Skip — layout is complete
 
 ### Phase 1: Install Dependencies
 
@@ -358,6 +389,32 @@ Skip this phase if plan has no `tests[]`.
 
 **Routes** — based on `routes` in the plan:
 
+**Nested layout routes** — when `routes.layoutRoute` is present:
+
+declarative mode:
+```tsx
+<Route path="{layoutRoute}" element={<LayoutComponent />}>
+  <Route path="{child-path}" element={<ProtectedRoute><Page /></ProtectedRoute>} />
+</Route>
+```
+
+data mode:
+```typescript
+{
+  path: "{layoutRoute}",
+  element: <LayoutComponent />,
+  children: [
+    { path: "{child-path}", element: <ProtectedRoute><Page /></ProtectedRoute> }
+  ]
+}
+```
+
+When inserting into existing route file:
+- If layout route already exists → add new child routes inside
+- If layout route doesn't exist → create wrapper + nest children
+
+**Standard routes** (no layout route):
+
 declarative mode:
 ```tsx
 <Route path="/path" element={<ProtectedRoute><EntityListPage /></ProtectedRoute>} />
@@ -491,6 +548,12 @@ Rules to apply to all generated code:
 - [ ] Do not create incomplete mocks: MSW handlers must mirror the full API response structure (all fields), not just the fields the immediate test uses
 - [ ] Do not mock without understanding: before mocking a dependency, identify what side effects it produces and whether the test depends on those effects
 
+### Layout
+- [ ] Layout uses `<Outlet />` from react-router (not custom slot/children)
+- [ ] Layout does NOT import from feature directories (no circular deps)
+- [ ] Feature pages do NOT import layout directly (router nesting only)
+- [ ] Layout i18n namespace is `"layout"` (separate from feature namespaces)
+
 ### RSC/SSR Skip
 - [ ] Vite SPA — ignore server component and SSR-related rules
 
@@ -503,6 +566,11 @@ After code generation is complete, display the following JSON structure to the u
   "agent": "code-generator",
   "feature": "{feature}",
   "status": "completed",
+  "sharedLayouts": {
+    "created": [],
+    "edited": [],
+    "i18n": []
+  },
   "filesCreated": [
     "src/features/{feature}/types/{entity}.ts",
     "src/features/{feature}/api/{entity}Api.ts",

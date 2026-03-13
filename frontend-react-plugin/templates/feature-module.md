@@ -425,6 +425,49 @@ import { createBrowserRouter } from 'react-router';
 },
 ```
 
+### Shared Layout Integration
+
+When a feature uses a shared layout (via `@layout:` directive):
+
+**Layout lives at app level (not inside feature):**
+```
+src/layouts/
+└── MainLayout.tsx          ← Uses <Outlet />, shared by all features
+```
+
+**Nested routes:**
+
+Declarative mode:
+```tsx
+<Route path="/app" element={<MainLayout />}>
+  <Route path="dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+  <Route path="leave-request" element={<ProtectedRoute><LeaveListPage /></ProtectedRoute>} />
+</Route>
+```
+
+Data mode:
+```typescript
+{
+  path: "/app",
+  element: <MainLayout />,
+  children: [
+    { path: "dashboard", element: <ProtectedRoute><DashboardPage /></ProtectedRoute> },
+    { path: "leave-request", element: <ProtectedRoute><LeaveListPage /></ProtectedRoute> },
+  ]
+}
+```
+
+**Feature pages render content only (no shell):**
+```tsx
+// CORRECT
+export default function DashboardPage() {
+  return <main>...</main>;
+}
+
+// WRONG — do not import layout in feature page
+import MainLayout from '@/layouts/MainLayout';
+```
+
 ### i18n JSON (`locales/{lang}/{feature}.json`)
 
 ```json

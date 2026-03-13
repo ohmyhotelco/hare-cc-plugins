@@ -47,12 +47,14 @@ Code Generation for '{feature}':
   Target: {baseDir}/
 
   Files to create ({totalFiles}):
+    Shared layouts: {layout list or "none"}
+      {created/existing + nav items to add}
     {file list grouped by category}
     Tests: {test file count} test files ({test case count} test cases)
 
   shadcn/ui to install: {missing list or "none"}
 
-  Build order: types → api/stores → mocks → components → pages → routes/i18n/msw-setup
+  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 ```
 
 Check for existing files that would be overwritten:
@@ -82,10 +84,11 @@ Task(subagent_type: "code-generator", prompt: "
   - prototypeDir: src/prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - sharedLayouts: {sharedLayouts from plan.json or "none"}
   - projectRoot: {cwd}
 
   Follow the process defined in agents/code-generator.md.
-  Generate all files according to the plan's buildOrder.
+  Generate all files according to the plan's buildOrder (starting with shared-layouts if present).
 ")
 ```
 
@@ -97,6 +100,8 @@ Task(subagent_type: "code-generator", prompt: "
 Code Generation Complete for '{feature}':
 
   Files created: {totalFiles}
+    Shared layouts:
+      {created/edited list or "none"}
     {file list}
     Test files: {test file list or "no tests planned"}
 
@@ -164,6 +169,12 @@ Code Generation Complete for '{feature}':
 ```
   Manual integration steps:
     1. Route registration:
+       {if layoutRoute present}
+       Wrap feature routes under layout route in {insertLocation}:
+       <Route path="{layoutRoute}" element={<LayoutComponent />}>
+         {route snippet}
+       </Route>
+       {else}
        Add to {insertLocation}:
        {route snippet}
 

@@ -49,6 +49,18 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 
 3. Check if `src/prototypes/{feature}/` exists → `prototypeAvailable`
 
+### Step 2.5: Detect Shared Layout
+
+1. If `uiDslAvailable` is true:
+   - Read `docs/specs/{feature}/ui-dsl/manifest.json`
+   - Check `layouts` array for entries with `"source": "_shared"`
+   - If found: `sharedLayoutIds` = list of layout IDs
+2. If `uiDslAvailable` is false:
+   - Read `docs/specs/{feature}/{workingLanguage}/screens.md`
+   - Check for `<!-- @layout: _shared/` directive
+   - If found: extract layout IDs
+3. If no shared layout references found: `sharedLayoutIds` = `"none"`
+
 ### Step 3: Launch Planner Agent
 
 Create the output directory if it doesn't exist:
@@ -69,6 +81,7 @@ Task(subagent_type: "implementation-planner", prompt: "
   - prototypeDir: src/prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
   - outputFile: docs/specs/{feature}/.implementation/plan.json
 
@@ -90,6 +103,7 @@ Implementation Plan for '{feature}':
   Router: {routerMode} mode
 
   Files to create ({totalFiles}):
+    Shared layouts: {layout names} ({new/existing})
     Types:       {type names} ({count} files)
     API:         {api names} — {endpoint count} endpoints ({count} files)
     Stores:      {store names} ({count} files)
@@ -101,7 +115,7 @@ Implementation Plan for '{feature}':
 
   shadcn/ui: {missing count} components need installation ({missing list})
 
-  Build order: types → api/stores → mocks → components → pages → routes/i18n/msw-setup
+  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 
   Plan saved to: docs/specs/{feature}/.implementation/plan.json
   Review and edit the plan, then run /frontend-react-plugin:gen {feature}

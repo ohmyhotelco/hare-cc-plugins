@@ -104,6 +104,16 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
 - Feature-based structure: `src/features/{feature}/` (types, api, stores, components, pages, __tests__)
 - Prototypes are for reference only: do not copy code from `src/prototypes/{feature}/` into production code
+
+### Shared Layouts
+- Shared layout location: `src/layouts/{PascalCaseLayoutId}.tsx`
+- Mapping: `@layout: _shared/{layout-id}` in spec → `src/layouts/{PascalCaseLayoutId}.tsx` in production
+- Slot component → `<Outlet />` from react-router
+- Features do NOT import layout directly — relationship expressed via React Router nested routes
+- First feature: generates layout + feature code
+- Subsequent features: reuses existing layout, optionally adds nav items
+
+### Debug & Progress
 - Debug report: `docs/specs/{feature}/.implementation/debug-report.json`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
 - Progress state machine:
@@ -141,6 +151,18 @@ hooks/           - Hook configuration
 scripts/         - Hook handler scripts
 templates/       - Template files
 docs/            - Documentation
+```
+
+### Generated Project Structure
+
+```
+src/
+├── layouts/           ← Shared layouts (cross-feature, uses <Outlet />)
+├── features/{feature}/ ← Feature modules
+├── components/ui/     ← shadcn/ui components
+├── mocks/             ← Global MSW setup
+├── locales/           ← i18n JSON files
+└── ...
 ```
 
 ## Project-Level Configuration

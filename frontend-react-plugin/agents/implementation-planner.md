@@ -46,6 +46,15 @@ The skill will provide these parameters in the prompt:
    - If available, reference for page structure/layout hints
    - Mock data reference: if `src/prototypes/{feature}/src/mocks/` exists, reference fixture format only (do not copy directly)
 
+5. **Shared layout reference** — Check for shared layout:
+   a. If `uiDslDir/manifest.json` exists:
+      - Read `layouts` array → find entries with `"source": "_shared"`
+      - For each: read `docs/specs/_shared/ui-dsl/screen-{layout-id}.json` → extract componentTree
+   b. If UI DSL not available:
+      - Read `specDir/screens.md` → grep for `<!-- @layout: _shared/`
+      - Extract layout-id from directive
+   c. Record `sharedLayoutRefs[]` (layout-id, source, componentTree)
+
 ### Phase 1: Analyze Existing Project
 
 Identify existing project patterns so that generated code integrates naturally.
@@ -63,6 +72,11 @@ Identify existing project patterns so that generated code integrates naturally.
 
 4. **Route file** — Identify existing route file location
    - `src/App.tsx` or `src/router.tsx` or `src/routes/index.tsx`
+
+4b. **Existing shared layouts** — Scan `src/layouts/*.tsx`
+    - For each file: read to identify component name, `<Outlet />` usage, navigation items
+    - Record as `existingLayouts[]` with import path
+    - Cross-reference with `sharedLayoutRefs`: if matching layout exists → mark `reuseExisting: true`
 
 5. **shadcn/ui components** — Scan `src/components/ui/` → list of installed components
 
@@ -88,6 +102,20 @@ Identify existing project patterns so that generated code integrates naturally.
 ### Phase 2: Produce Implementation Plan
 
 Synthesize spec and project analysis results to generate the implementation plan.
+
+#### 2.0 Shared Layouts
+
+If `sharedLayoutRefs[]` is non-empty:
+
+- **Layout doesn't exist** (`reuseExisting: false`):
+  - Plan layout component: `src/layouts/{PascalCaseLayoutId}.tsx`
+  - Extract navigation items, sidebar structure, header from shared DSL componentTree
+  - Plan layout i18n keys in `layout` namespace
+
+- **Layout exists** (`reuseExisting: true`):
+  - Read existing layout → extract current navigation items
+  - Compare with feature's navigation items → derive `navItemsToAdd[]`
+  - If no new items needed: no layout modification
 
 #### 2.1 Types
 
@@ -194,6 +222,7 @@ Map TS-nnn items from `test-scenarios.md` to test files.
 
 Generation order based on inter-file dependencies. Each phase specifies a `steps` array for the TDD workflow (test → implement → verify):
 
+0. shared-layouts (layout creation or edit) — only include when `sharedLayouts[]` is non-empty
 1. types
 2. api, stores (parallel) + tests
 2.5. mocks (factories → fixtures → handlers)
@@ -309,10 +338,30 @@ Save to the `outputFile` path in the following JSON structure.
       "source": "screen-entity-list.json"
     }
   ],
+  "sharedLayouts": [
+    {
+      "name": "MainLayout",
+      "file": "src/layouts/MainLayout.tsx",
+      "layoutId": "main-layout",
+      "source": "_shared",
+      "dslFile": "docs/specs/_shared/ui-dsl/screen-main-layout.json",
+      "exists": false,
+      "reuseExisting": false,
+      "navigationItems": [
+        { "label": "Dashboard", "route": "/app/dashboard", "icon": "LayoutDashboard" }
+      ],
+      "navItemsToAdd": [],
+      "i18nNamespace": "layout"
+    }
+  ],
   "routes": {
     "mode": "declarative",
+    "layoutRoute": "/app",
+    "layoutComponent": "MainLayout",
+    "layoutImport": "@/layouts/MainLayout",
     "parentRoute": "/path/to/entities",
     "entries": [
+      { "path": "dashboard", "page": "DashboardPage", "auth": true, "nestedUnder": "MainLayout" },
       { "path": "/path/to/entities", "page": "EntityListPage", "auth": true },
       { "path": "/path/to/entities/new", "page": "EntityCreatePage", "auth": true },
       { "path": "/path/to/entities/:id", "page": "EntityDetailPage", "auth": true },
@@ -417,6 +466,7 @@ Save to the `outputFile` path in the following JSON structure.
     }
   ],
   "buildOrder": [
+    { "phase": 0, "items": ["shared-layouts"] },   // omit when sharedLayouts[] is empty
     { "phase": 1, "items": ["types"] },
     {
       "phase": 2,
@@ -479,6 +529,7 @@ Implementation Plan for '{feature}':
   Router: {routerMode} mode
 
   Files to create ({totalFiles}):
+    Shared layouts: {layout names} ({new/existing})
     Types:       {type names} ({count} files)
     API:         {api names} — {endpoint count} endpoints ({count} files)
     Stores:      {store names} ({count} files)
@@ -491,7 +542,7 @@ Implementation Plan for '{feature}':
 
   shadcn/ui: {missing count} components need installation ({missing list})
 
-  Build order: types → api/stores → mocks → components → pages → routes/i18n/msw-setup
+  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
   TDD flow:    test → implement → verify (per phase)
 
   Plan saved to: {outputFile}
