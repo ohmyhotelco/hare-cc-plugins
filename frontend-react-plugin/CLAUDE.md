@@ -16,7 +16,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
   - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>`
   - data: uses `createBrowserRouter`, `RouterProvider`, loader/action
   - import: `react-router` (not `react-router-dom`)
-  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:init`)
+  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:fe-init`)
 
 ### UI Layer
 - Tailwind CSS
@@ -46,7 +46,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Do not implement permission logic on the frontend (UX guard level only)
 
 ### Testing
-- Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:init`)
+- Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:fe-init`)
 - API mock with MSW server (Vitest integration) — reuse feature handlers in tests
 - E2E: Playwright
 
@@ -84,9 +84,9 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 
 ## Architecture
 - **Agents**: `implementation-planner` (spec analysis → implementation plan), `code-generator` (production code generation based on plan), `spec-reviewer` (spec compliance review), `quality-reviewer` (code quality review), `debugger` (systematic debugging)
-- **Skills**: `/frontend-react-plugin:init`, `/frontend-react-plugin:plan`, `/frontend-react-plugin:gen`, `/frontend-react-plugin:verify`, `/frontend-react-plugin:review-code` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:debug`
+- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen`, `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-debug`
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
-- **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`)
+- **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
 - **Templates**: `feature-module.md` (feature module structure reference)
 
 ### Testing (TDD)
@@ -96,7 +96,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Factory usage: generate test data from `../mocks/factories`
 - MSW server: import from `@/mocks/server`, setup with `beforeAll/afterEach/afterAll`
 - Source tracking: reference spec test scenario with `// TS-nnn` comment in each test
-- Pipeline: `/frontend-react-plugin:gen` → `/frontend-react-plugin:verify` → `/frontend-react-plugin:review-code` → `/frontend-react-plugin:debug`
+- Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-debug`
 
 ### Code Generation
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
@@ -167,7 +167,7 @@ src/
 
 ## Project-Level Configuration
 
-`.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:init`):
+`.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`):
 ```json
 {
   "routerMode": "declarative",

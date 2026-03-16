@@ -16,7 +16,7 @@ CONFIG_FILE="$CWD/.claude/frontend-react-plugin.json"
 if [ ! -f "$CONFIG_FILE" ]; then
   echo ""
   echo "[Frontend React Plugin] No configuration found."
-  echo "Run /frontend-react-plugin:init to set up the plugin for this project."
+  echo "Run /frontend-react-plugin:fe-init to set up the plugin for this project."
   exit 0
 fi
 
@@ -56,7 +56,7 @@ if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
   for skill in "${MISSING_SKILLS[@]}"; do
     echo "    - $skill"
   done
-  echo "  Run /frontend-react-plugin:init to install them."
+  echo "  Run /frontend-react-plugin:fe-init to install them."
 fi
 
 # Scan progress files for implementation issues
@@ -68,13 +68,13 @@ if [ -d "$SPECS_DIR" ]; then
     IMPL_STATUS=$(jq -r '.implementation.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
     case "$IMPL_STATUS" in
       gen-failed)
-        echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:gen $FEATURE to retry."
+        echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:fe-gen $FEATURE to retry."
         ;;
       verify-failed)
-        echo "  Warning: [$FEATURE] Verification failed. Run /frontend-react-plugin:debug $FEATURE or review errors."
+        echo "  Warning: [$FEATURE] Verification failed. Run /frontend-react-plugin:fe-debug $FEATURE or review errors."
         ;;
       review-failed)
-        echo "  Warning: [$FEATURE] Code review failed. Fix issues and run /frontend-react-plugin:review-code $FEATURE."
+        echo "  Warning: [$FEATURE] Code review failed. Fix issues and run /frontend-react-plugin:fe-review $FEATURE."
         ;;
       escalated)
         echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."

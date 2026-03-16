@@ -58,7 +58,7 @@ if [ "$IS_SPEC" = true ] || [ "$IS_PLAN" = true ]; then
   echo "  Feature: $FEATURE"
   echo "  File: $FILE_PATH"
   echo "  The generated code may be out of sync with the specification."
-  echo "  Consider re-running /frontend-react-plugin:plan and /frontend-react-plugin:gen after changes are complete."
+  echo "  Consider re-running /frontend-react-plugin:fe-plan and /frontend-react-plugin:fe-gen after changes are complete."
 fi
 
 exit 0

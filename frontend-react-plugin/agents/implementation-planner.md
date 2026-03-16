@@ -546,7 +546,7 @@ Implementation Plan for '{feature}':
   TDD flow:    test → implement → verify (per phase)
 
   Plan saved to: {outputFile}
-  Review and edit the plan, then run /frontend-react-plugin:gen {feature}
+  Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}
 ```
 
 ## Key Rules

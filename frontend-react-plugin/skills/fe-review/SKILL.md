@@ -1,5 +1,5 @@
 ---
-name: review-code
+name: fe-review
 description: "Run 2-stage code review (spec compliance → quality) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
@@ -16,7 +16,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
 2. If the file does not exist:
-   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Files
@@ -24,7 +24,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
    - If not found:
      > "Implementation plan not found."
-     > "Please run `/frontend-react-plugin:plan {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
@@ -34,7 +34,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 4. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
-     > "Please run `/frontend-react-plugin:gen {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
 ### Step 2: Spec Review
@@ -61,7 +61,7 @@ Task(subagent_type: "spec-reviewer", prompt: "
 - `status: "fail"` → display the report and stop (do not proceed to quality review):
   > "Spec Review FAILED (score: {overallScore}/10, critical issues: {criticalIssues})"
   > {issue list}
-  > "After resolving the spec issues, run `/frontend-react-plugin:review-code {feature}` again."
+  > "After resolving the spec issues, run `/frontend-react-plugin:fe-review {feature}` again."
   - Skip to Step 5 (only record progress)
 
 ### Step 3: Quality Review (only when spec review passes)
@@ -137,7 +137,7 @@ Code Review Report for '{feature}':
 ### Step 5: Re-Review Guidance
 
 If the result is `fail` or `pass_with_warnings`:
-> "After fixing the issues, re-review with `/frontend-react-plugin:review-code {feature}`."
+> "After fixing the issues, re-review with `/frontend-react-plugin:fe-review {feature}`."
 > "Do not skip the re-review after making fixes."
 
 ### Step 6: Update Progress

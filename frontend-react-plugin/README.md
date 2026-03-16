@@ -55,12 +55,12 @@ Verify the installation:
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| Init | `/frontend-react-plugin:init` | Plugin setup and batch installation of external skills |
-| Plan | `/frontend-react-plugin:plan` | Analyze functional spec and generate implementation plan |
-| Gen | `/frontend-react-plugin:gen` | Generate production code based on implementation plan |
-| Verify | `/frontend-react-plugin:verify` | Run TypeScript, build, and test verification on generated code |
-| Review Code | `/frontend-react-plugin:review-code` | 2-stage code review (spec compliance + quality) |
-| Debug | `/frontend-react-plugin:debug` | Systematic debugging with hypothesis testing and escalation |
+| Init | `/frontend-react-plugin:fe-init` | Plugin setup and batch installation of external skills |
+| Plan | `/frontend-react-plugin:fe-plan` | Analyze functional spec and generate implementation plan |
+| Gen | `/frontend-react-plugin:fe-gen` | Generate production code based on implementation plan |
+| Verify | `/frontend-react-plugin:fe-verify` | Run TypeScript, build, and test verification on generated code |
+| Review Code | `/frontend-react-plugin:fe-review` | 2-stage code review (spec compliance + quality) |
+| Debug | `/frontend-react-plugin:fe-debug` | Systematic debugging with hypothesis testing and escalation |
 
 ### External Skills (installed by init)
 
@@ -76,8 +76,8 @@ Verify the installation:
 
 1. Write functional spec using planning-plugin → `docs/specs/{feature}/`
 2. (Recommended) `/planning-plugin:design {feature}` → Generate UI DSL + prototype
-3. `/frontend-react-plugin:plan {feature}` → Generate implementation plan + review
-4. `/frontend-react-plugin:gen {feature}` → Generate production code
+3. `/frontend-react-plugin:fe-plan {feature}` → Generate implementation plan + review
+4. `/frontend-react-plugin:fe-gen {feature}` → Generate production code
 
 ## Roadmap
 

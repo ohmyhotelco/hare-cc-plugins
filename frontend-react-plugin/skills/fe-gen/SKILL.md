@@ -1,6 +1,6 @@
 ---
-name: gen
-description: "Generate production React code from an implementation plan. Run /frontend-react-plugin:plan first."
+name: fe-gen
+description: "Generate production React code from an implementation plan. Run /frontend-react-plugin:fe-plan first."
 argument-hint: "<feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
@@ -17,7 +17,7 @@ Generate production React code based on the implementation plan (plan.json).
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
 2. If `mockFirst` is missing, use default value `true`
 3. If the file does not exist:
-   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Plan
@@ -25,7 +25,7 @@ Generate production React code based on the implementation plan (plan.json).
 1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
    - If not found:
      > "Implementation plan not found."
-     > "Please run `/frontend-react-plugin:plan {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
 2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`
@@ -141,7 +141,7 @@ Code Generation Complete for '{feature}':
    ```
 
    **On FAIL:**
-   > "Verification failed. Fix the errors and re-verify with `/frontend-react-plugin:verify {feature}`."
+   > "Verification failed. Fix the errors and re-verify with `/frontend-react-plugin:fe-verify {feature}`."
 
 3. **Step 4b: Code Review (optional)** — confirm with user:
 
@@ -158,11 +158,11 @@ Code Generation Complete for '{feature}':
      ```
 
    If review result is `fail` or `pass_with_warnings`:
-   > "Fix the issues and re-review with `/frontend-react-plugin:review-code {feature}`."
+   > "Fix the issues and re-review with `/frontend-react-plugin:fe-review {feature}`."
    > "Do not skip re-review after making fixes."
 
    If the user says no, skip this step.
-   Standalone execution: `/frontend-react-plugin:review-code {feature}`
+   Standalone execution: `/frontend-react-plugin:fe-review {feature}`
 
 4. **Manual integration steps** — display the steps the user needs to do manually:
 
@@ -196,7 +196,7 @@ Code Generation Complete for '{feature}':
 6. **Step 4c: Test run guidance** — if test files were generated but tests were fail or skipped in Step 4a:
 
    > "Re-run tests: `pnpm vitest run src/features/{feature}/`"
-   > "Auto-debug: `/frontend-react-plugin:debug {feature}`"
+   > "Auto-debug: `/frontend-react-plugin:fe-debug {feature}`"
 
 7. **Update progress** — Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `implementation` field (including verification and review results):
 

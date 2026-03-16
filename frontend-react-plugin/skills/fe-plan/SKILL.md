@@ -1,5 +1,5 @@
 ---
-name: plan
+name: fe-plan
 description: "Analyze a functional specification and produce an implementation plan for production React code generation."
 argument-hint: "<feature-name>"
 user-invocable: true
@@ -17,7 +17,7 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
 2. If `mockFirst` is missing, use default value `true`
 3. If the file does not exist:
-   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Spec
@@ -118,7 +118,7 @@ Implementation Plan for '{feature}':
   Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 
   Plan saved to: docs/specs/{feature}/.implementation/plan.json
-  Review and edit the plan, then run /frontend-react-plugin:gen {feature}
+  Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}
 ```
 
 ### Step 5: Update Progress

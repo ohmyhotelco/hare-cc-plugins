@@ -1,5 +1,5 @@
 ---
-name: verify
+name: fe-verify
 description: "Run verification gate (tsc, ESLint, build) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
@@ -16,7 +16,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
 2. If the file does not exist:
-   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Files
@@ -24,7 +24,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
    - If not found:
      > "Implementation plan not found."
-     > "Please run `/frontend-react-plugin:plan {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
 2. Read `plan.json` → extract `baseDir`, file list from all sections (types, api, stores, components, pages, tests)
@@ -101,8 +101,8 @@ Verification Report for '{feature}':
 **If FAIL:**
 - Display up to 10 error messages for each failed item
 - Suggest fixes:
-  > "After fixing the errors, re-verify with `/frontend-react-plugin:verify {feature}`."
-  > "Auto-debug: `/frontend-react-plugin:debug {feature}`"
+  > "After fixing the errors, re-verify with `/frontend-react-plugin:fe-verify {feature}`."
+  > "Auto-debug: `/frontend-react-plugin:fe-debug {feature}`"
 
 ### Step 4: Update Progress
 

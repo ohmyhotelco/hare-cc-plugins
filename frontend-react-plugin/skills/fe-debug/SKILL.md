@@ -1,5 +1,5 @@
 ---
-name: debug
+name: fe-debug
 description: "Systematic debugging of generated code using 4-phase methodology with escalation."
 argument-hint: "<feature-name>"
 user-invocable: true
@@ -16,7 +16,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
 2. If the file does not exist:
-   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:init` first."
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Files
@@ -24,7 +24,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
    - If not found:
      > "Implementation plan not found."
-     > "Please run `/frontend-react-plugin:plan {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
@@ -34,7 +34,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 4. **Generated files check** — verify that the `baseDir` directory exists:
    - If the directory does not exist:
      > "Generated code not found."
-     > "Please run `/frontend-react-plugin:gen {feature}` first."
+     > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
 ### Step 2: Collect Problem Description
@@ -121,7 +121,7 @@ Debug Report for '{feature}':
 
 Additional guidance on escalation:
 > "All 3 hypotheses failed — this may be a structural issue rather than a simple bug."
-> "Recommended: Consider re-reviewing the plan (`/frontend-react-plugin:plan {feature}`) or revising the spec."
+> "Recommended: Consider re-reviewing the plan (`/frontend-react-plugin:fe-plan {feature}`) or revising the spec."
 > "Refer to the evidence and structural analysis in the report."
 
 ### Step 5: Update Progress

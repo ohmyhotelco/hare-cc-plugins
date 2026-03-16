@@ -1,5 +1,5 @@
 ---
-name: init
+name: fe-init
 description: Initialize Frontend React Plugin configuration for the current project. Sets React Router mode.
 argument-hint: ""
 user-invocable: true
