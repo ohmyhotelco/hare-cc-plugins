@@ -67,7 +67,7 @@ Verify the installation:
 | Skill | Source | Description |
 |-------|--------|-------------|
 | React Router v7 | `remix-run/agent-skills` | Routing patterns (per mode) |
-| Vitest | `supabase/supabase` | Testing patterns |
+| Vitest | `antfu/skills` | Testing patterns |
 | React Best Practices | `vercel-labs/agent-skills` | React performance optimization (57 rules) |
 | Composition Patterns | `vercel-labs/agent-skills` | Component composition patterns (10 rules) |
 | Web Design Guidelines | `vercel-labs/agent-skills` | Accessibility/design audit (100+ rules) |

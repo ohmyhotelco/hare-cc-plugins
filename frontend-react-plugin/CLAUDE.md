@@ -85,7 +85,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 ## Architecture
 - **Agents**: `implementation-planner` (spec analysis → implementation plan), `code-generator` (production code generation based on plan), `spec-reviewer` (spec compliance review), `quality-reviewer` (code quality review), `debugger` (systematic debugging)
 - **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen`, `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-debug`
-- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `supabase/supabase`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
+- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
 - **Templates**: `feature-module.md` (feature module structure reference)
 
