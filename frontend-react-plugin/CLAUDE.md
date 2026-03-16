@@ -118,6 +118,14 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - First feature: generates layout + feature code
 - Subsequent features: reuses existing layout, optionally adds nav items
 
+### Route & i18n Auto-Integration
+- Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory
+- Code-generator auto-integrates by adding import + spread to the central route file and i18n config (same pattern as MSW handler aggregation)
+- Supports declarative mode (`<Route>` JSX fragments) and data mode (`RouteObject[]` arrays)
+- Layout route nesting: spreads feature routes under existing layout route's children when present
+- Graceful fallback: if the central file has unexpected structure, falls back to manual guidance
+- The implementation-planner detects aggregation patterns, insertion anchors, and existing imports in plan.json
+
 ### Debug & Progress
 - Debug report: `docs/specs/{feature}/.implementation/debug-report.json`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
@@ -163,7 +171,10 @@ docs/            - Documentation
 ```
 src/
 ├── layouts/           ← Shared layouts (cross-feature, uses <Outlet />)
-├── features/{feature}/ ← Feature modules
+├── features/{feature}/
+│   ├── routes.tsx     ← Feature route definitions (auto-integrated)
+│   ├── i18n.ts        ← Feature i18n registration (auto-integrated)
+│   └── ...            ← types, api, stores, components, pages, __tests__
 ├── components/ui/     ← shadcn/ui components
 ├── mocks/             ← Global MSW setup
 ├── locales/           ← i18n JSON files

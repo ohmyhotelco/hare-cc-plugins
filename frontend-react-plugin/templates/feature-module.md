@@ -6,6 +6,8 @@ Canonical structure for a feature module. Both the `implementation-planner` and 
 
 ```
 src/features/{feature}/
+├── routes.tsx                   ← Feature route definitions (exported for central aggregation)
+├── i18n.ts                      ← Feature i18n namespace registration (exported for central aggregation)
 ├── __tests__/
 │   ├── entityApi.test.ts          ← API service tests
 │   ├── entityStore.test.ts        ← Store tests
@@ -382,7 +384,65 @@ export default function EntityListPage() {
 }
 ```
 
-### Route Patterns
+### Feature Route File (`routes.tsx`)
+
+Each feature exports its own route definitions. The central route file imports and aggregates them.
+
+#### Declarative Mode
+
+```tsx
+import { Route } from 'react-router';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { EntityListPage } from './pages/EntityListPage';
+import { EntityCreatePage } from './pages/EntityCreatePage';
+import { EntityDetailPage } from './pages/EntityDetailPage';
+import { EntityEditPage } from './pages/EntityEditPage';
+
+export const entityManagementRoutes = (
+  <>
+    <Route path="entities" element={<ProtectedRoute><EntityListPage /></ProtectedRoute>} />
+    <Route path="entities/new" element={<ProtectedRoute><EntityCreatePage /></ProtectedRoute>} />
+    <Route path="entities/:id" element={<ProtectedRoute><EntityDetailPage /></ProtectedRoute>} />
+    <Route path="entities/:id/edit" element={<ProtectedRoute><EntityEditPage /></ProtectedRoute>} />
+  </>
+);
+```
+
+#### Data Mode
+
+```typescript
+import type { RouteObject } from 'react-router';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { EntityListPage } from './pages/EntityListPage';
+import { EntityCreatePage } from './pages/EntityCreatePage';
+import { EntityDetailPage } from './pages/EntityDetailPage';
+import { EntityEditPage } from './pages/EntityEditPage';
+
+export const entityManagementRoutes: RouteObject[] = [
+  { path: 'entities', element: <ProtectedRoute><EntityListPage /></ProtectedRoute> },
+  { path: 'entities/new', element: <ProtectedRoute><EntityCreatePage /></ProtectedRoute> },
+  { path: 'entities/:id', element: <ProtectedRoute><EntityDetailPage /></ProtectedRoute> },
+  { path: 'entities/:id/edit', element: <ProtectedRoute><EntityEditPage /></ProtectedRoute> },
+];
+```
+
+### Feature i18n Registration (`i18n.ts`)
+
+Each feature exports its i18n namespace configuration. The central i18n config imports and registers them.
+
+```typescript
+export const entityManagementI18n = {
+  namespace: 'entity-management',
+  resources: {
+    ko: () => import('@/locales/ko/entity-management.json'),
+    en: () => import('@/locales/en/entity-management.json'),
+    ja: () => import('@/locales/ja/entity-management.json'),
+    vi: () => import('@/locales/vi/entity-management.json'),
+  },
+};
+```
+
+### Route Patterns (Central File Aggregation)
 
 #### Declarative Mode
 

@@ -97,7 +97,7 @@ Task(subagent_type: "code-generator", prompt: "
 
 ### Step 4: Post-Generation
 
-1. **Display results** — including test files:
+1. **Display results** — including test files and integration outcomes:
 
 ```
 Code Generation Complete for '{feature}':
@@ -107,6 +107,9 @@ Code Generation Complete for '{feature}':
       {created/edited list or "none"}
     {file list}
     Test files: {test file list or "no tests planned"}
+
+  Files modified (auto-integration):
+    {central route file, central i18n config, or "none — see manual steps"}
 
   shadcn/ui installed: {installed list or "none needed"}
 ```
@@ -167,25 +170,23 @@ Code Generation Complete for '{feature}':
    If the user says no, skip this step.
    Standalone execution: `/frontend-react-plugin:fe-review {feature}`
 
-4. **Manual integration steps** — display the steps the user needs to do manually:
+4. **Integration results** — display route and i18n integration outcomes:
 
 ```
-  Manual integration steps:
-    1. Route registration:
-       {if layoutRoute present}
-       Wrap feature routes under layout route in {insertLocation}:
-       <Route path="{layoutRoute}" element={<LayoutComponent />}>
-         {route snippet}
-       </Route>
-       {else}
-       Add to {insertLocation}:
-       {route snippet}
-
-    2. i18n namespace:
-       Register '{namespace}' namespace in i18n config
-
-    {additional steps if any}
+  Integration:
+    Routes: {featureRouteFile} → {centralRouteFile}
+      {if auto-integrated} Auto-integrated: {routesExported} routes
+      {else} Manual: Import and register {featureExportName} from {featureImportPath}
+    i18n: {featureI18nFile} → {centralI18nFile}
+      {if auto-integrated} Auto-integrated: '{namespace}' namespace
+      {else} Manual: Import and register {featureExportName} from {featureImportPath}
 ```
+
+If all integrations succeeded:
+> "All integrations completed automatically."
+
+If any integration requires manual steps:
+> "Some integrations could not be automated. Please complete the manual steps above."
 
 5. **Mock-first guidance** (if `mockFirst` is `true`):
 

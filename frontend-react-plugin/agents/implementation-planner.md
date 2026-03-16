@@ -70,8 +70,20 @@ Identify existing project patterns so that generated code integrates naturally.
    - File structure, import style, naming conventions
    - If no existing modules, use the canonical structure from templates/feature-module.md
 
-4. **Route file** — Identify existing route file location
-   - `src/App.tsx` or `src/router.tsx` or `src/routes/index.tsx`
+4. **Route file** — Identify and analyze existing route file for auto-integration
+   - Locate: `src/App.tsx` or `src/router.tsx` or `src/routes/index.tsx`
+   - Read the route file content and identify:
+     - **Aggregation pattern**: Check if existing features export route arrays/fragments that are spread into the central file (e.g., `...dashboardRoutes`). If found, follow the same pattern.
+     - **Insertion anchor**: The line before which new route imports/spreads should be inserted
+       - Declarative: closing `</Routes>` or end of layout route children
+       - Data: end of `children` array or `createBrowserRouter` array
+     - **Existing layout route**: search for `<Route path="{layoutRoute}"` or `{ path: "{layoutRoute}" }` — if found, new feature routes nest inside its children
+     - **Existing feature route imports**: list already-imported feature route modules (to avoid duplicates)
+   - Set `autoIntegration` to `null` when:
+     - No central route file found
+     - Route file structure is unrecognizable (no `<Routes>`, no `createBrowserRouter`)
+     - Multiple route files exist and the correct one cannot be determined
+   - Record findings in plan as `routes.autoIntegration`
 
 4b. **Existing shared layouts** — Scan `src/layouts/*.tsx`
     - For each file: read to identify component name, `<Outlet />` usage, navigation items
@@ -80,7 +92,23 @@ Identify existing project patterns so that generated code integrates naturally.
 
 5. **shadcn/ui components** — Scan `src/components/ui/` → list of installed components
 
-6. **i18n directory** — Identify `src/locales/` or `public/locales/` structure
+6. **i18n directory & config** — Identify locales structure and registration config for auto-integration
+   - Identify `src/locales/` or `public/locales/` structure
+   - Locate i18n config file: Glob `src/**/i18n*`, `src/**/i18next*`
+   - Read the config file and identify:
+     - **Aggregation pattern**: Check if existing features export i18n registration objects that are imported into the central config (e.g., `import { dashboardI18n } from ...`). If found, follow the same pattern.
+     - **Registration mechanism**: How namespaces are registered:
+       - `resources`: inline resources object in i18next.init()
+       - `ns-array`: namespace list in `ns: [...]`
+       - `dynamic-import`: lazy-loading via `import()` or backend plugin
+       - `unknown`: cannot determine — will use manual fallback
+     - **Insertion anchor**: The line where new i18n imports/registrations should be added
+     - **Existing feature i18n imports**: list already-imported feature i18n modules
+   - Set `autoIntegration` to `null` when:
+     - No i18n config file found
+     - `registrationPattern` is `unknown`
+     - Config file structure is unrecognizable
+   - Record findings in plan as `i18n.autoIntegration`
 
 7. **API service pattern** — Identify existing Axios instance location and error handling patterns
    - Glob: `src/**/axios*`, `src/**/api*`, `src/**/http*`
@@ -367,7 +395,16 @@ Save to the `outputFile` path in the following JSON structure.
       { "path": "/path/to/entities/:id", "page": "EntityDetailPage", "auth": true },
       { "path": "/path/to/entities/:id/edit", "page": "EntityEditPage", "auth": true }
     ],
-    "insertLocation": "src/App.tsx"
+    "insertLocation": "src/App.tsx",
+    "featureRouteFile": "src/features/{feature}/routes.tsx",
+    "autoIntegration": {
+      "routeFile": "src/App.tsx",
+      "insertAnchor": "</Routes>",
+      "existingLayoutRoute": "/app",
+      "existingFeatureImports": ["dashboardRoutes"],
+      "featureExportName": "{feature}Routes",
+      "featureImportPath": "@/features/{feature}/routes"
+    }
   },
   "i18n": {
     "namespace": "{feature}",
@@ -377,6 +414,15 @@ Save to the `outputFile` path in the following JSON structure.
       "form": ["entityForm.field1.label", "entityForm.field2.label"],
       "actions": ["actions.create", "actions.edit", "actions.delete", "actions.deleteConfirm"],
       "errors": ["errors.E001", "errors.E002"]
+    },
+    "featureI18nFile": "src/features/{feature}/i18n.ts",
+    "autoIntegration": {
+      "configFile": "src/i18n/config.ts",
+      "registrationPattern": "dynamic-import",
+      "insertAnchor": "// feature i18n imports",
+      "existingFeatureImports": ["dashboardI18n"],
+      "featureExportName": "{feature}I18n",
+      "featureImportPath": "@/features/{feature}/i18n"
     }
   },
   "shadcnDependencies": {
@@ -500,12 +546,14 @@ Save to the `outputFile` path in the following JSON structure.
     { "phase": 5, "items": ["routes", "i18n", "shadcn-install", "msw-setup"] }
   ],
   "summary": {
-    "totalFiles": 12,
+    "totalFiles": 14,
     "types": 2,
     "apiServices": 1,
     "stores": 1,
     "components": 2,
     "pages": 4,
+    "routeFile": 1,
+    "i18nRegistration": 1,
     "testFiles": 4,
     "testCases": 10,
     "mockFactories": 1,

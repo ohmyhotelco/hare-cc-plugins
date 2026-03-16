@@ -389,47 +389,63 @@ Skip this phase if plan has no `tests[]`.
 
 **Routes** — based on `routes` in the plan:
 
-**Nested layout routes** — when `routes.layoutRoute` is present:
+**Feature Route File Generation:**
 
-declarative mode:
+Generate `{featureRouteFile}` (e.g., `src/features/{feature}/routes.tsx`):
+
+Declarative mode:
 ```tsx
-<Route path="{layoutRoute}" element={<LayoutComponent />}>
-  <Route path="{child-path}" element={<ProtectedRoute><Page /></ProtectedRoute>} />
-</Route>
+import { Route } from 'react-router';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { EntityListPage } from './pages/EntityListPage';
+// ... other page imports
+
+export const {featureExportName} = (
+  <>
+    <Route path="entities" element={<ProtectedRoute><EntityListPage /></ProtectedRoute>} />
+    {/* ... other routes from plan.routes.entries */}
+  </>
+);
 ```
 
-data mode:
+Data mode:
 ```typescript
-{
-  path: "{layoutRoute}",
-  element: <LayoutComponent />,
-  children: [
-    { path: "{child-path}", element: <ProtectedRoute><Page /></ProtectedRoute> }
-  ]
-}
+import type { RouteObject } from 'react-router';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { EntityListPage } from './pages/EntityListPage';
+// ... other page imports
+
+export const {featureExportName}: RouteObject[] = [
+  { path: 'entities', element: <ProtectedRoute><EntityListPage /></ProtectedRoute> },
+  // ... other routes from plan.routes.entries
+];
 ```
 
-When inserting into existing route file:
-- If layout route already exists → add new child routes inside
-- If layout route doesn't exist → create wrapper + nest children
+- Route entries from `plan.routes.entries`
+- Auth wrapping: `auth: true` → `<ProtectedRoute>`, `permissions` → `<RoleRoute>`
+- Page imports are relative (same feature directory)
+- Guard imports use project's path alias
 
-**Standard routes** (no layout route):
+**Route Auto-Integration (Central File Edit):**
 
-declarative mode:
-```tsx
-<Route path="/path" element={<ProtectedRoute><EntityListPage /></ProtectedRoute>} />
-```
-
-data mode:
-```typescript
-{
-  path: "/path",
-  element: <ProtectedRoute><EntityListPage /></ProtectedRoute>,
-  loader: entityListLoader,
-}
-```
-
-Generate route code as a separate file, and indicate where to insert it in the existing route file (`insertLocation`).
+1. Read `routes.autoIntegration` from plan.json
+2. If `autoIntegration` is `null` → display manual guidance showing the generated route file path and how to import it
+3. Read the central route file (`autoIntegration.routeFile`)
+4. **Validate**: Confirm `insertAnchor` text exists
+   - If NOT found → fallback to manual guidance with warning
+5. **Add import**: Add `import { {featureExportName} } from '{featureImportPath}';` at the import section (use Edit)
+   - Check against `existingFeatureImports` to avoid duplicates
+6. **Add spread/render**:
+   a. If `existingLayoutRoute` is non-null:
+      - Search for `path: "{existingLayoutRoute}"` (data) or `path="{existingLayoutRoute}"` (declarative) in the central file
+      - Locate the `children: [` array (data) or the closing `</Route>` tag (declarative) of that layout route
+      - Insert `...{featureExportName},` (data) or `{{featureExportName}}` (declarative) before the last existing child route entry
+   b. If `existingLayoutRoute` is null AND plan has `layoutRoute`:
+      - Insert new layout route wrapper containing the feature routes
+   c. If no layout route:
+      - Insert at top level before `insertAnchor`
+7. **Verify**: `npx tsc --noEmit` — if errors, attempt one fix, then fallback if still failing
+8. Record result in output as `routeIntegration`
 
 **MSW Global Setup** (when `mockFirst` is `true`):
 
@@ -476,6 +492,57 @@ If `mocks.globalSetupNeeded` is `false` (subsequent features):
   }
 }
 ```
+
+**Feature i18n Registration File Generation:**
+
+Generate `{featureI18nFile}` (e.g., `src/features/{feature}/i18n.ts`):
+
+```typescript
+export const {featureExportName} = {
+  namespace: '{feature}',
+  resources: {
+    ko: () => import('@/locales/ko/{feature}.json'),
+    en: () => import('@/locales/en/{feature}.json'),
+    ja: () => import('@/locales/ja/{feature}.json'),
+    vi: () => import('@/locales/vi/{feature}.json'),
+  },
+};
+```
+
+- Language entries from `plan.i18n.languages`
+- Import paths use project's path alias for locales directory
+
+**i18n Auto-Integration (Central Config Edit):**
+
+1. Read `i18n.autoIntegration` from plan.json
+2. If `autoIntegration` is `null` → display manual guidance showing the generated i18n file path
+3. Read the i18n config file (`autoIntegration.configFile`)
+4. **Validate**: Confirm `insertAnchor` text exists
+   - If NOT found → fallback with warning
+5. **Add import**: `import { {featureExportName} } from '{featureImportPath}';` (use Edit)
+   - Check against `existingFeatureImports` to avoid duplicates
+6. **Add registration**: Based on `registrationPattern`, add the feature's namespace registration following existing patterns in the file
+
+   Based on `registrationPattern`:
+   - `resources`: Add entry to the `resources` object in i18next.init()
+     ```typescript
+     resources: {
+       ko: { '{feature}': () => import('@/locales/ko/{feature}.json') },  // ← added
+     }
+     ```
+   - `ns-array`: Add namespace string to `ns: [...]` array
+     ```typescript
+     ns: ['common', 'dashboard', '{feature}'],  // ← added
+     ```
+   - `dynamic-import`: Import feature i18n module and register via the project's existing registration function
+     ```typescript
+     import { {featureExportName} } from '{featureImportPath}';  // ← added
+     registerNamespace({featureExportName});  // ← follow existing call pattern
+     ```
+   - `unknown`: Skip auto-integration, fallback to manual guidance
+
+7. **Verify**: `npx tsc --noEmit`
+8. Record result in output as `i18nIntegration`
 
 **Barrel export** — `index.ts`:
 
@@ -554,6 +621,13 @@ Rules to apply to all generated code:
 - [ ] Feature pages do NOT import layout directly (router nesting only)
 - [ ] Layout i18n namespace is `"layout"` (separate from feature namespaces)
 
+### Route & i18n Files
+- [ ] Feature route file: `src/features/{feature}/routes.tsx`
+- [ ] Route export: declarative → JSX fragment, data → `RouteObject[]` (match `routerMode`)
+- [ ] Route paths: relative (no leading `/`) when nested under layout route
+- [ ] Feature i18n file: `src/features/{feature}/i18n.ts`
+- [ ] i18n export: `{ namespace, resources }` object with lazy imports per language
+
 ### RSC/SSR Skip
 - [ ] Vite SPA — ignore server component and SSR-related rules
 
@@ -584,6 +658,8 @@ After code generation is complete, display the following JSON structure to the u
     "src/features/{feature}/pages/{Entity}CreatePage.tsx",
     "src/features/{feature}/pages/{Entity}EditPage.tsx",
     "src/features/{feature}/pages/{Entity}DetailPage.tsx",
+    "src/features/{feature}/routes.tsx",
+    "src/features/{feature}/i18n.ts",
     "src/features/{feature}/index.ts"
   ],
   "shadcnInstalled": ["pagination"],
@@ -593,11 +669,32 @@ After code generation is complete, display the following JSON structure to the u
     "featureFixtures": "src/features/{feature}/mocks/fixtures.ts",
     "featureHandlers": "src/features/{feature}/mocks/handlers.ts"
   },
-  "routeRegistration": {
-    "mode": "declarative",
-    "snippet": "<Route path=\"/path\" element={<EntityListPage />} />",
-    "insertLocation": "src/App.tsx:42"
+  "routeIntegration": {
+    "status": "auto-integrated",
+    "featureFile": "src/features/{feature}/routes.tsx",
+    "centralFile": "src/App.tsx",
+    "routesExported": 4
   },
+  // When status is "manual-required":
+  // "routeIntegration": {
+  //   "status": "manual-required",
+  //   "featureFile": "src/features/{feature}/routes.tsx",
+  //   "reason": "insertAnchor not found in route file",
+  //   "guidance": "Import {featureExportName} from {featureImportPath} and add to your route configuration"
+  // },
+  "i18nIntegration": {
+    "status": "auto-integrated",
+    "featureFile": "src/features/{feature}/i18n.ts",
+    "centralFile": "src/i18n/config.ts",
+    "namespace": "{feature}"
+  },
+  // When status is "manual-required":
+  // "i18nIntegration": {
+  //   "status": "manual-required",
+  //   "featureFile": "src/features/{feature}/i18n.ts",
+  //   "reason": "registrationPattern is unknown",
+  //   "guidance": "Import {featureExportName} from {featureImportPath} and register namespace in your i18n config"
+  // },
   "i18n": {
     "namespace": "{feature}",
     "files": [
@@ -618,11 +715,12 @@ After code generation is complete, display the following JSON structure to the u
     "totalFiles": 4,
     "totalCases": 10
   },
-  "manualSteps": [
-    "Add route imports to src/App.tsx",
-    "Register i18n namespace in src/i18n/config.ts",
-    "Run tests: pnpm vitest run src/features/{feature}/"
-  ]
+  "manualSteps": []
+  // When any integration is "manual-required":
+  // "manualSteps": [
+  //   "Import and register {featureExportName} in {centralFile}",
+  //   "Import and register {featureExportName} in {centralI18nFile}"
+  // ]
 }
 ```
 
@@ -642,16 +740,18 @@ Code Generation Complete for '{feature}':
   Test files:
     {test file list or "no tests planned"}
 
-  Manual integration steps:
-    1. Route registration:
-       Add to {insertLocation}:
-       {route snippet}
-    2. i18n namespace:
-       Register '{namespace}' namespace in i18n config
-    3. Mock-first development:
-       Start with mocks: VITE_ENABLE_MOCKS=true pnpm dev
-       Commit: public/mockServiceWorker.js (recommended)
-    {additional manual steps}
+  Integration:
+    Routes: {featureFile} → {centralFile} ({auto-integrated | manual required})
+    i18n:   {featureFile} → {centralFile} ({auto-integrated | manual required})
+
+    {if any manual-required}
+    Manual steps needed:
+      {guidance for each manual-required integration}
+    {endif}
+
+  Mock-first development (if mockFirst):
+    Start with mocks: VITE_ENABLE_MOCKS=true pnpm dev
+    Commit: public/mockServiceWorker.js (recommended)
 ```
 
 ## Key Rules
