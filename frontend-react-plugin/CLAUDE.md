@@ -89,6 +89,11 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
 - **Templates**: `feature-module.md` (feature module structure reference)
 
+### Communication Language
+- Feature-level skills (fe-plan, fe-gen, fe-review, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
+- All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
+- Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
 ### Testing (TDD)
 - TDD workflow: plan.json `tests[]` → code-generator creates `__tests__/`
 - Test file location: `src/features/{feature}/__tests__/`

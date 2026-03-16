@@ -31,8 +31,11 @@ Generate production React code based on the implementation plan (plan.json).
 2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`
 
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
-4. Check UI DSL and prototype availability:
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
+5. Check UI DSL and prototype availability:
    - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
    - `src/prototypes/{feature}/` → `prototypeAvailable`
 

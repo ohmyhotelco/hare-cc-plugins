@@ -30,8 +30,11 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 2. Read `plan.json` → extract `baseDir`, `feature`
 
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
-4. **Generated files check** — verify the `baseDir` directory exists and contains files:
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
+5. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."

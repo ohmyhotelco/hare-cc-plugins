@@ -91,7 +91,7 @@ Verify the installation:
 - [ ] Component template library
 - [ ] i18n setup skill
 - [ ] Auth/RBAC pattern templates
-- [ ] Hook handlers (lint, type-check)
+- [x] Hook handlers (session-init, implementation validation)
 
 ## Directory Structure
 

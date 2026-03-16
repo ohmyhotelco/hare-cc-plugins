@@ -36,6 +36,9 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
      - Stop here.
 
 3. Extract `workingLanguage` from the progress file (default: `"en"`)
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
 ### Step 2: Check UI DSL
 
