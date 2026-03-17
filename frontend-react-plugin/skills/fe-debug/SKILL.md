@@ -124,7 +124,14 @@ Debug Report for '{feature}':
 
 Additional guidance on escalation:
 > "All 3 hypotheses failed — this may be a structural issue rather than a simple bug."
-> "Recommended: Consider re-reviewing the plan (`/frontend-react-plugin:fe-plan {feature}`) or revising the spec."
+
+If previousStatus is `review-failed` or `fixing`:
+> "- Fix remaining review issues: `/frontend-react-plugin:fe-fix {feature}`"
+> "- Or re-plan if the issue is structural: `/frontend-react-plugin:fe-plan {feature}`"
+
+Otherwise:
+> "- Consider re-reviewing the plan (`/frontend-react-plugin:fe-plan {feature}`) or revising the spec."
+
 > "Refer to the evidence and structural analysis in the report."
 
 ### Step 5: Next-Step Guidance

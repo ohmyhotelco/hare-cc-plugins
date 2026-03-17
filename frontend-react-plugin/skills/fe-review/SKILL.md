@@ -36,7 +36,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 5. **Status check** — verify `implementation.status` indicates code has been generated:
    - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`
-   - If status is `"planned"` or absent:
+   - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.

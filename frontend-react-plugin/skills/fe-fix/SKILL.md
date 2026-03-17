@@ -47,7 +47,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-7. Read `review-report.json` → verify it contains issues:
+7. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
+   - If `round >= 3`:
+     > "This is fix round {round+1}. Three previous fix attempts have not resolved all issues."
+     > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
+     - If the user declines, stop here.
+
+8. Read `review-report.json` → verify it contains issues:
    - If no issues found (all dimensions have 0 issues):
      > "No issues found in the review report. Nothing to fix."
      - Stop here.
@@ -158,12 +164,13 @@ If the fix report contains `regenRequired` entries, append this section after th
   Re-generation Required ({regenCount} issues):
     These files were never generated and cannot be patched:
       - {message} — {missingFiles}
-        Phase: {recommendedPhase}, Refs: {refs}
+        Phase: {recommendedPhase} {", Refs: " + refs if present}
 
   To generate missing code:
-    1. Update generation-state.json: mark {phases} as "pending"
-    2. Run: /frontend-react-plugin:fe-gen {feature}
-    3. Re-review: /frontend-react-plugin:fe-review {feature}
+    1. Run: /frontend-react-plugin:fe-gen {feature}
+    2. Re-review: /frontend-react-plugin:fe-review {feature}
+
+  Note: generation-state.json has been automatically updated ({phases} marked as pending).
 
   ⚠ Warning: Re-running a phase will regenerate ALL files in that phase.
     Any manual edits to files in the affected phase will be overwritten.
@@ -202,6 +209,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
     "status": "fixing | escalated",
     "fix": {
       "status": "completed | partial | failed",
+      "round": 1,
       "timestamp": "{ISO timestamp}",
       "fixed": 7,
       "escalated": 2,
@@ -215,5 +223,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
 Note: Set `implementation.status` as follows:
 - fix completed or partial → `"fixing"` (must re-review to move to `done`)
 - fix failed (all escalated) → `"escalated"`
+
+Note: Increment `fix.round` from the previous value (or set to 1 if absent).
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.

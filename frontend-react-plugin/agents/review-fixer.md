@@ -59,7 +59,10 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
    - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
    - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules
-5. **Review report** — read `reviewReportFile` → parse all issues from `specReview` and `qualityReview`
+5. **Review report** — read `reviewReportFile` → parse all issues:
+   - Always parse `specReview.dimensions[].issues[]`
+   - If `qualityReview` is not null, also parse `qualityReview.dimensions[].issues[]`
+   - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
 6. **Existing tests** — glob `src/features/{feature}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
 ### Step 1: Pre-check — Verify Issues Still Exist
@@ -75,14 +78,15 @@ For each issue in the review report:
 
 Classify each confirmed issue into one of three categories:
 
-1. **regen-required** — `missingArtifact === "file"`, OR `missingArtifact` field is absent and the issue's target file does not exist on disk.
+1. **regen-required** — `missingArtifact === "file"` (spec-reviewer issues), OR `missingArtifact` field is absent and the issue's target file does not exist on disk (quality-reviewer issues or legacy reports).
    - These require fe-gen re-execution. Do NOT attempt to fix.
    - Derive the recommended fe-gen phase from plan.json based on the file's location:
      - `types/` → `"foundation"`, `mocks/` → `"foundation"`
      - `api/` → `"api-tdd"`, `stores/` → `"store-tdd"`
      - `components/` → `"component-tdd"`, `pages/` → `"page-tdd"`
      - `routes`/`i18n` → `"integration"`
-   - Record: dimension, severity, message, refs, missingFiles, recommendedPhase, reason
+   - Record: dimension, severity, message, missingFiles, recommendedPhase, reason
+   - Record `refs` if present (spec-reviewer issues provide this); omit for quality-reviewer issues where the field is absent
 
 2. **tdd-required** — existing file needs behavioral changes (per Issue Classification table above)
 
@@ -233,6 +237,9 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
   }
 }
 ```
+
+**Field notes:**
+- `regenRequired[].refs` is optional — present for spec-reviewer issues (FR/BR/AC/TS IDs), absent for quality-reviewer issues
 
 Status determination:
 - `completed` — all issues fixed or already resolved (regenRequired issues do not block completion)

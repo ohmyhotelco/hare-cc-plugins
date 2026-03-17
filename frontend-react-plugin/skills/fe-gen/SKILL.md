@@ -125,7 +125,16 @@ Agent(subagent_type: "foundation-generator", prompt: "
 - Display: files created, tsc verification result
 
 **On failure:**
-- Update: `foundation.status = "failed"`, record error
+- Update generation-state.json:
+  ```json
+  {
+    "foundation": {
+      "status": "failed",
+      "error": "{error message or summary}",
+      "failedAt": "{ISO timestamp}"
+    }
+  }
+  ```
 - Ask user whether to retry or stop
 
 #### Phase 2-5: TDD Cycles
@@ -179,7 +188,16 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   ```
 
 **On failure:**
-- Update: `{phase}.status = "failed"`, record error details
+- Update generation-state.json:
+  ```json
+  {
+    "{phase}": {
+      "status": "failed",
+      "error": "{error message or summary}",
+      "failedAt": "{ISO timestamp}"
+    }
+  }
+  ```
 - Display error details
 - Ask user:
   > "Phase {phase} failed. Options:"

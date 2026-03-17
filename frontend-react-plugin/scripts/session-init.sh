@@ -98,7 +98,19 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-react-plugin:fe-verify $FEATURE) or re-reviewing (/frontend-react-plugin:fe-review $FEATURE)."
         ;;
       escalated)
-        echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
+        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/fix-report.json"
+        DEBUG_REPORT="$SPECS_DIR/$FEATURE/.implementation/debug-report.json"
+        if [ -f "$FIX_REPORT" ] && [ -f "$DEBUG_REPORT" ]; then
+          if [ "$FIX_REPORT" -nt "$DEBUG_REPORT" ]; then
+            echo "  Warning: [$FEATURE] Fix escalated — manual intervention required. See fix-report.json."
+          else
+            echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
+          fi
+        elif [ -f "$FIX_REPORT" ]; then
+          echo "  Warning: [$FEATURE] Fix escalated — manual intervention required. See fix-report.json."
+        else
+          echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
+        fi
         ;;
     esac
   done

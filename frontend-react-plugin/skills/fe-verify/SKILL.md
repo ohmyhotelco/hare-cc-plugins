@@ -35,7 +35,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
 5. **Status check** — verify `implementation.status` indicates code has been generated:
-   - If status is `"planned"` or absent:
+   - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
