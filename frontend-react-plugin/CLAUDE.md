@@ -90,14 +90,15 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
   - `integration-generator` — routes + i18n + MSW global setup + full verification
   - `spec-reviewer` — spec compliance review
   - `quality-reviewer` — code quality review
+  - `review-fixer` — TDD-disciplined review issue fixer
   - `debugger` — systematic debugging
-- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-debug`
+- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-debug`
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
 - **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers)
 
 ### Communication Language
-- Feature-level skills (fe-plan, fe-gen, fe-review, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
+- Feature-level skills (fe-plan, fe-gen, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -125,7 +126,8 @@ Anti-patterns (from obra/superpowers testing-anti-patterns):
 - Never create incomplete mocks — MSW responses must match full TypeScript interfaces
 - Mock only at network boundary (MSW) — use real stores, real components
 
-Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-debug`
+Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-fix` (if issues) → `/frontend-react-plugin:fe-review` (re-review)
+`/frontend-react-plugin:fe-debug` remains for runtime bugs at any point
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
@@ -164,13 +166,17 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 ### Debug & Progress
 - Debug report: `docs/specs/{feature}/.implementation/debug-report.json`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
+- Review report: `docs/specs/{feature}/.implementation/review-report.json`
+- Fix report: `docs/specs/{feature}/.implementation/fix-report.json`
 - Progress state machine:
   ```
   planned → generated → verified → reviewed → done
-               ↓            ↓           ↓
-           gen-failed   verify-failed review-failed
-                              ↓           ↓
-                          resolved | escalated
+               ↓            ↓         ↓    ↓
+           gen-failed   verify-failed  ↓  review-failed
+                              ↓        ↓      ↓
+                          resolved   fixing → (re-review)
+                          escalated     ↓
+                                   escalated
   ```
 
 ### Verification Philosophy

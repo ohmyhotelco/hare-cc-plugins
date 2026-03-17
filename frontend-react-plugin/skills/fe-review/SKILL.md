@@ -64,8 +64,9 @@ Task(subagent_type: "spec-reviewer", prompt: "
 - `status: "fail"` → display the report and stop (do not proceed to quality review):
   > "Spec Review FAILED (score: {overallScore}/10, critical issues: {criticalIssues})"
   > {issue list}
-  > "After resolving the spec issues, run `/frontend-react-plugin:fe-review {feature}` again."
-  - Skip to Step 5 (only record progress)
+  > "Fix with TDD discipline: `/frontend-react-plugin:fe-fix {feature}`"
+  > "Then re-review: `/frontend-react-plugin:fe-review {feature}`"
+  - Skip to Step 6 (save report and record progress)
 
 ### Step 3: Quality Review (only when spec review passes)
 
@@ -140,12 +141,23 @@ Code Review Report for '{feature}':
 ### Step 5: Re-Review Guidance
 
 If the result is `fail` or `pass_with_warnings`:
-> "After fixing the issues, re-review with `/frontend-react-plugin:fe-review {feature}`."
+> "Fix with TDD discipline: `/frontend-react-plugin:fe-fix {feature}`"
+> "Then re-review: `/frontend-react-plugin:fe-review {feature}`"
 > "Do not skip the re-review after making fixes."
 
-### Step 6: Update Progress
+### Step 6: Save Review Report & Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `review` field:
+Save the full review reports to `docs/specs/{feature}/.implementation/review-report.json`:
+
+```json
+{
+  "timestamp": "{ISO timestamp}",
+  "specReview": { /* full spec-reviewer output */ },
+  "qualityReview": { /* full quality-reviewer output, or null if spec failed */ }
+}
+```
+
+Then read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `review` field:
 
 ```json
 {
@@ -174,6 +186,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `revi
 Write the updated progress file back.
 
 Note: Set `implementation.status` as follows:
-- Both pass → `"done"`
+- Both pass (clean) → `"done"`
+- Both pass but either has `pass_with_warnings` → `"reviewed"`
 - Either one fails → `"review-failed"`
 - Only spec-reviewer passes, quality-reviewer fails → `"review-failed"`
