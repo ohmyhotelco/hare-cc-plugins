@@ -66,8 +66,12 @@ Check for ESLint config file existence:
 - Glob: `.eslintrc*`, `eslint.config.*`
 - If no config found, skip this step
 
-If config exists:
+If config exists, detect config type and use appropriate command:
 ```bash
+# If eslint.config.* exists (flat config, ESLint v9+):
+npx eslint {baseDir} 2>&1
+
+# If .eslintrc* exists (legacy config, ESLint v8):
 npx eslint {baseDir} --ext .ts,.tsx 2>&1
 ```
 

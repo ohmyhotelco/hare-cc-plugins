@@ -98,9 +98,11 @@ Calculate per-dimension scores and compute the overall score.
 
 ### Phase 3: Pass/Fail Determination
 
-- **pass**: overall score >= 7 AND 0 critical issues
-- **pass_with_warnings**: overall score >= 7 AND 0 critical issues AND warnings > 3
+Evaluate in this order (first match wins):
+
 - **fail**: overall score < 7 OR critical issues >= 1
+- **pass_with_warnings**: overall score >= 7 AND 0 critical issues AND warnings > 3
+- **pass**: overall score >= 7 AND 0 critical issues AND warnings <= 3
 
 ## Output Format
 

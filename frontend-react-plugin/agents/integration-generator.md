@@ -20,6 +20,7 @@ The coordinator skill provides:
 - `projectRoot` — project root path
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false`
+- `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 - `skills` — list of external skill paths to read
 
 ## Process
@@ -95,11 +96,24 @@ Rules:
 
 ### Step 4: Generate i18n Files
 
-Generate locale JSON files for each language:
+Generate locale JSON files for each language.
+
+Determine the primary language from `workingLanguage`:
+
+- `workingLanguage` translation is the primary (fully translated)
+- Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
+
+For example, if `workingLanguage` is `ko`:
 - ko: Korean translation (primary)
-- en: English translation
-- ja: Japanese translation (`"[JA] {ko text}"` placeholder)
-- vi: Vietnamese translation (`"[VI] {ko text}"` placeholder)
+- en: `"[EN] {ko text}"` placeholder
+- ja: `"[JA] {ko text}"` placeholder
+- vi: `"[VI] {ko text}"` placeholder
+
+If `workingLanguage` is `en`:
+- en: English translation (primary)
+- ko: `"[KO] {en text}"` placeholder
+- ja: `"[JA] {en text}"` placeholder
+- vi: `"[VI] {en text}"` placeholder
 
 Generate feature i18n registration file (`src/features/{feature}/i18n.ts`):
 ```typescript
@@ -158,7 +172,13 @@ npx tsc --noEmit 2>&1
 ```
 
 **b. ESLint (if config exists):**
+
+Detect config type and use appropriate command:
 ```bash
+# If eslint.config.* exists (flat config, ESLint v9+):
+npx eslint src/features/{feature}/ 2>&1
+
+# If .eslintrc* exists (legacy config, ESLint v8):
 npx eslint src/features/{feature}/ --ext .ts,.tsx 2>&1
 ```
 

@@ -136,6 +136,8 @@ After resolution, read the **previous** `implementation.status` (before this deb
 | `verify-failed` | > "Issue resolved. Re-verify: `/frontend-react-plugin:fe-verify {feature}`" |
 | `review-failed` | > "Issue resolved. Re-review: `/frontend-react-plugin:fe-review {feature}`, or fix remaining issues: `/frontend-react-plugin:fe-fix {feature}`" |
 | `generated` | > "Issue resolved. Continue pipeline: `/frontend-react-plugin:fe-verify {feature}`" |
+| `fixing` | > "Issue resolved. Re-review to verify fixes: `/frontend-react-plugin:fe-review {feature}`" |
+| `escalated` | > "Issue resolved. Re-enter pipeline: `/frontend-react-plugin:fe-verify {feature}` or `/frontend-react-plugin:fe-review {feature}`" |
 | Other / unknown | > "Issue resolved. Consider re-verifying (`/frontend-react-plugin:fe-verify {feature}`) or re-reviewing (`/frontend-react-plugin:fe-review {feature}`)." |
 
 If escalated:

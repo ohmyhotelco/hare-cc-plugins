@@ -58,6 +58,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - `vitest` → test patterns (for TDD fixes)
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
    - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
+   - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules
 5. **Review report** — read `reviewReportFile` → parse all issues from `specReview` and `qualityReview`
 6. **Existing tests** — glob `src/features/{feature}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
@@ -77,6 +78,7 @@ Classify each confirmed issue into one of three categories:
 1. **regen-required** — `missingArtifact === "file"`, OR `missingArtifact` field is absent and the issue's target file does not exist on disk.
    - These require fe-gen re-execution. Do NOT attempt to fix.
    - Derive the recommended fe-gen phase from plan.json based on the file's location:
+     - `types/` → `"foundation"`, `mocks/` → `"foundation"`
      - `api/` → `"api-tdd"`, `stores/` → `"store-tdd"`
      - `components/` → `"component-tdd"`, `pages/` → `"page-tdd"`
      - `routes`/`i18n` → `"integration"`

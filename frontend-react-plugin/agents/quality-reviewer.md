@@ -25,6 +25,7 @@ The skill will provide these parameters in the prompt:
 1. **Plan** — read `planFile` → extract file list, type definitions, component structure, and `routerMode`
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
    - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). Skip RSC/SSR rules (Vite SPA).
+   - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition rules when evaluating dimensions 1.1 (Single Responsibility) and 1.7 (Architecture & Design).
    - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
 3. **Project patterns** — identify patterns from existing feature modules:
@@ -35,6 +36,16 @@ The skill will provide these parameters in the prompt:
 ### Phase 1: Review — 7 Dimensions
 
 Inspect generated code for each dimension and produce a score (0-10) and issue list.
+
+Each issue MUST include the following fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `severity` | `"critical" \| "warning" \| "suggestion"` | yes | Issue severity |
+| `message` | `string` | yes | Clear description of the quality issue |
+| `file` | `string` | yes | File path where the issue is found |
+| `line` | `number` | no | Line number (when determinable) |
+| `fixHint` | `string` | yes | Actionable guidance for fixing the issue |
 
 #### 1.1 Single Responsibility
 
@@ -107,9 +118,11 @@ Calculate per-dimension scores and compute the overall score.
 
 ### Phase 3: Pass/Fail Determination
 
-- **pass**: overall score >= 7 AND 0 critical issues
-- **pass_with_warnings**: overall score >= 7 AND 0 critical issues AND warnings > 3
+Evaluate in this order (first match wins):
+
 - **fail**: overall score < 7 OR critical issues >= 1
+- **pass_with_warnings**: overall score >= 7 AND 0 critical issues AND warnings > 3
+- **pass**: overall score >= 7 AND 0 critical issues AND warnings <= 3
 
 ## Output Format
 
@@ -136,7 +149,7 @@ Return results in JSON format:
     "error_handling": {
       "score": 8,
       "issues": [
-        { "severity": "warning", "message": "entityApi.delete missing error documentation", "file": "src/features/{feature}/api/entityApi.ts", "line": 15 }
+        { "severity": "warning", "message": "entityApi.delete missing error documentation", "file": "src/features/{feature}/api/entityApi.ts", "line": 15, "fixHint": "Add JSDoc @throws documentation for error cases in the delete method." }
       ]
     },
     "typescript_strictness": {

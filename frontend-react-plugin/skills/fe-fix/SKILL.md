@@ -171,10 +171,14 @@ If the fix report contains `regenRequired` entries, append this section after th
 ```
 
 After displaying re-generation guidance, automatically update `generation-state.json`:
-- Read `docs/specs/{feature}/.implementation/generation-state.json`
-- For each phase in `regenRecommendation.phases`, set `phases.{phase}.status = "pending"`
-- Write the updated file back
-- Inform the user: "generation-state.json updated — {phases} marked as pending."
+- Check if `docs/specs/{feature}/.implementation/generation-state.json` exists
+  - If not found: skip the update and inform the user:
+    > "generation-state.json not found — it may have been manually deleted. Re-run `/frontend-react-plugin:fe-gen {feature}` to regenerate from scratch."
+  - If found:
+    - Read `docs/specs/{feature}/.implementation/generation-state.json`
+    - For each phase in `regenRecommendation.phases`, set `phases.{phase}.status = "pending"`
+    - Write the updated file back
+    - Inform the user: "generation-state.json updated — {phases} marked as pending."
 
 ### Step 5: Guide Re-Review
 

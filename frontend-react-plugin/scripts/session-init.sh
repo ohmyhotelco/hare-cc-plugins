@@ -67,6 +67,21 @@ if [ -d "$SPECS_DIR" ]; then
     FEATURE=$(basename "$PROGRESS_FILE" .json)
     IMPL_STATUS=$(jq -r '.implementation.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
     case "$IMPL_STATUS" in
+      planned)
+        echo "  Info: [$FEATURE] Plan ready. Run /frontend-react-plugin:fe-gen $FEATURE to generate code."
+        ;;
+      generated)
+        echo "  Info: [$FEATURE] Code generated. Run /frontend-react-plugin:fe-verify $FEATURE or /frontend-react-plugin:fe-review $FEATURE."
+        ;;
+      verified)
+        echo "  Info: [$FEATURE] Verification passed. Run /frontend-react-plugin:fe-review $FEATURE."
+        ;;
+      done)
+        echo "  Info: [$FEATURE] Pipeline complete."
+        ;;
+      reviewed)
+        echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or proceed."
+        ;;
       gen-failed)
         echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:fe-gen $FEATURE to retry."
         ;;

@@ -35,7 +35,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
 5. **Status check** — verify `implementation.status` indicates code has been generated:
-   - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`
+   - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`
    - If status is `"planned"` or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
@@ -151,9 +151,10 @@ Code Review Report for '{feature}':
     - {strength 2}
 
   Issues:
-    [{severity}] {message} — {file} ({missingArtifact description if available})
+    [{severity}] {message} — {file}:{line} ({missingArtifact description if available})
       Refs: {refs} | Fix: {fixHint}
-    (fall back to "[{severity}] {message} — {file}" if enriched fields are absent)
+    (fall back to "[{severity}] {message} — {file}:{line}" if enriched fields are absent)
+    (omit :{line} when line number is absent)
 ```
 
 ### Step 5: Re-Review Guidance

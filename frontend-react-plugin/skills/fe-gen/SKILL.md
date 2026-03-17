@@ -201,6 +201,7 @@ Agent(subagent_type: "integration-generator", prompt: "
   - projectRoot: {cwd}
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - workingLanguage: {workingLanguage}
   - skills: {skills list from buildOrder}
 
   Follow the process defined in agents/integration-generator.md.
@@ -292,12 +293,20 @@ Update generation-state.json with final status.
 When Step 1.6 detects an existing generation-state.json:
 
 1. Read the state file
-2. Find the first phase with `status` not `"completed"`
-3. Display:
+2. **Plan freshness check** — compare `plan.json` modification time against `generation-state.json` `startedAt`:
+   - Read `startedAt` from generation-state.json
+   - Check if `plan.json` was modified after `startedAt` (use `stat` or file system check)
+   - If plan.json is newer than startedAt:
+     > "Warning: plan.json has been modified since generation started ({startedAt})."
+     > "Resuming may create inconsistencies between already-generated and new code."
+     > "Options: 1. Continue anyway  2. Restart generation from scratch"
+     - If user chooses restart: delete generation-state.json and proceed to Step 3 (fresh start)
+3. Find the first phase with `status` not `"completed"`
+4. Display:
    ```
    Resuming code generation for '{feature}':
      Completed: {list of completed phases}
      Resuming from: {phase name}
    ```
-4. Ask user to confirm resume
-5. Continue from the incomplete phase (skip completed phases)
+5. Ask user to confirm resume
+6. Continue from the incomplete phase (skip completed phases)
