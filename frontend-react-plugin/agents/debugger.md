@@ -24,7 +24,11 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 1: Root Cause Investigation
 
-Trace errors and analyze code paths. Reference `.claude/skills/vitest` for test patterns when debugging test-related failures.
+Trace errors and analyze code paths.
+
+**External skills** — Read relevant SKILL.md files based on the error type:
+- If the error involves test failures or test infrastructure: Read `.claude/skills/vitest/SKILL.md` → apply its patterns when analyzing test code and proposing fixes.
+- If the error involves routing, navigation, or route guards: Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (extract `routerMode` from `planFile`) → apply its patterns when analyzing route-related code.
 
 1. **Error analysis** — analyze error messages/stack traces
    - Classify error type: TypeScript compile error, runtime error, UI rendering error, test failure

@@ -22,14 +22,17 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. **Plan** — read `planFile` → extract file list, type definitions, component structure
-2. **External skills** — Reference `.claude/skills/vercel-react-best-practices` for React performance patterns when evaluating the Architecture & Design dimension.
+1. **Plan** — read `planFile` → extract file list, type definitions, component structure, and `routerMode`
+2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
+   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). Skip RSC/SSR rules (Vite SPA).
+   - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
+   - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
 3. **Project patterns** — identify patterns from existing feature modules:
    - Glob: `src/features/*/` → verify existing module structure
    - Check import style and naming conventions of existing code
-3. **Generated files** — read all generated files under `baseDir`
+4. **Generated files** — read all generated files under `baseDir`
 
-### Phase 1: Review — 6 Dimensions
+### Phase 1: Review — 7 Dimensions
 
 Inspect generated code for each dimension and produce a score (0-10) and issue list.
 
@@ -76,6 +79,7 @@ Inspect generated code for each dimension and produce a score (0-10) and issue l
 - Verify only shadcn/ui components are used
 - Verify conditional className handling uses the `cn()` utility
 - Verify `react-router` import (not `react-router-dom`)
+- Verify routing patterns match the rules from `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (loaded in Phase 0)
 - Verify Zustand stores follow the thin state pattern
 - Convention violation → issue (severity: warning)
 

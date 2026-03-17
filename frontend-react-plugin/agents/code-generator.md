@@ -32,11 +32,11 @@ The skill will provide these parameters in the prompt:
    - `baseDir` → target directory for generation
    - `routerMode` → declarative vs data
    - `mockFirst` → if true, generate mock code; if false, skip all mock generation
-3. **External skills** (reference):
-   - `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules
-   - `.claude/skills/vercel-composition-patterns/SKILL.md` → composition patterns
-   - `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router patterns
-   - `.claude/skills/vitest/SKILL.md` → test patterns (required reference if plan has `tests[]`)
+3. **External skills** — Read each SKILL.md and apply its rules during code generation:
+   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance rules (waterfall elimination, bundle optimization, re-render minimization) to all components and pages. Skip RSC/SSR rules (Vite SPA).
+   - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition patterns (no boolean props, compound components) to all components.
+   - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → apply router patterns to Phase 2.5 (routes, page navigation, guards).
+   - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test patterns to all test generation phases (2.2a, 2.3a, 2.4a).
 4. **Prototype** (optional) — if `prototypeDir` exists:
    - Read `src/prototypes/{feature}/src/pages/` → layout/component structure hints
    - Do not copy prototype code — only reference structural hints
