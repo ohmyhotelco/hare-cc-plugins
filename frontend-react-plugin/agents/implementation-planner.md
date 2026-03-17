@@ -116,11 +116,14 @@ Identify existing project patterns so that generated code integrates naturally.
 8. **Zustand store pattern** — Identify existing store file patterns
    - Glob: `src/**/*Store*`, `src/**/*store*`
 
-9. **MSW infrastructure** — Detect MSW infrastructure (only when `mockFirst` is `true`):
-   - Whether `src/mocks/browser.ts` exists
-   - Whether `public/mockServiceWorker.js` exists
+9. **MSW infrastructure** — Detect existing MSW infrastructure (always — needed for test server regardless of `mockFirst`):
    - Whether `msw` devDependency exists in `package.json`
+   - Whether `src/mocks/server.ts` exists (test server)
+   - Whether `src/mocks/handlers.ts` exists (handler aggregator)
    - Identify existing feature `mocks/handlers.ts` patterns (Glob: `src/features/*/mocks/handlers.ts`)
+   - When `mockFirst` is `true`, also check:
+     - Whether `src/mocks/browser.ts` exists (dev browser worker)
+     - Whether `public/mockServiceWorker.js` exists
 
 10. **Test infrastructure** — Detect test infrastructure:
     - Check Vitest config: `vitest.config.ts` or `test` config in `vite.config.ts`
@@ -208,9 +211,9 @@ User-facing text per screen → namespace + key list:
 
 Required but not yet installed components → `npx shadcn@latest add` commands
 
-#### 2.9 Mocks (only when `mockFirst` is `true`)
+#### 2.9 Mocks
 
-MSW v2-based mock plan:
+MSW v2-based mock plan. Test mocking infrastructure (factories, fixtures, handlers, test server) is **always** generated — required for TDD phases. Dev mocking (browser worker, main.tsx bootstrap) is only generated when `mockFirst` is `true`.
 
 - `factories[]` — Factory function plan per entity:
   - Entity factory: default values, default patterns for FK relationship fields
@@ -227,11 +230,15 @@ MSW v2-based mock plan:
   - Delay values (200-500ms)
   - Error scenarios: based on spec's errorMapping
 
-- `globalSetupNeeded` — Whether global MSW files need to be created:
-  - `true` if `src/mocks/browser.ts` does not exist
-  - `false` if already exists (subsequent features → only update aggregator)
+- `globalSetupNeeded` — Whether global MSW test server files need to be created:
+  - `true` if `src/mocks/server.ts` does not exist
+  - `false` if already exists (subsequent features → only update handler aggregator)
 
-- `globalFiles[]` — List of global files to create
+- `globalFiles[]` — Test infrastructure global files (always): `src/mocks/server.ts`, `src/mocks/handlers.ts`
+
+- `devMocking` (only when `mockFirst` is `true`) — Dev browser worker setup:
+  - `browserSetupNeeded` — `true` if `src/mocks/browser.ts` does not exist
+  - `files[]` — Dev-only global files: `src/mocks/browser.ts`
 
 #### 2.10 Tests
 
@@ -461,7 +468,11 @@ Save to the `outputFile` path in the following JSON structure.
         { "code": "E001", "httpStatus": 409, "condition": "Duplicate name" }
       ]
     }],
-    "globalFiles": ["src/mocks/browser.ts", "src/mocks/server.ts", "src/mocks/handlers.ts"]
+    "globalFiles": ["src/mocks/server.ts", "src/mocks/handlers.ts"],
+    "devMocking": {
+      "browserSetupNeeded": true,
+      "files": ["src/mocks/browser.ts"]
+    }
   },
   "tests": [
     {

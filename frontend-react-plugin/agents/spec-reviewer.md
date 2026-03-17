@@ -34,41 +34,55 @@ The skill will provide these parameters in the prompt:
 
 Inspect generated code across each dimension and produce a score (0-10) and list of issues.
 
+Each issue MUST include the following fields:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `severity` | `"critical" \| "warning" \| "suggestion"` | yes | Issue severity |
+| `message` | `string` | yes | Clear description including relevant FR/BR/AC/TS IDs |
+| `file` | `string` | yes | Expected file path (even if the file does not exist yet) |
+| `refs` | `string[]` | yes | Related FR/BR/AC/TS identifiers from the spec |
+| `planEntries` | `object[]` | yes | Which plan.json section/entry this maps to (e.g., `{ "section": "pages", "name": "EntityCreatePage" }`) |
+| `missingArtifact` | `"file" \| "method" \| "state" \| "element" \| "key"` | yes | What is missing |
+| `fixHint` | `string` | yes | Actionable guidance for fixing the issue |
+
 #### 1.1 Requirement Coverage
 
 - Verify all FR-nnn are implemented in code
 - Verify all BR-nnn are reflected in code
 - Verify all AC-nnn can be satisfied in code
 - Missing requirements → issue (severity: critical)
+- Cross-reference plan.json to populate `refs` and `planEntries`
+- Determine `missingArtifact`: check if the expected file exists on disk → `"file"` if missing, otherwise `"method"` or `"state"` based on what is absent
 
 #### 1.2 UI Fidelity
 
 - Compare spec's `screens.md` screen definitions against generated pages
 - Verify each screen's component composition matches the spec
 - Check 4-state (loading/empty/error/success) implementation
-- Missing screens/components → issue (severity: critical)
-- Missing states → issue (severity: warning)
+- Missing screens/components → issue (severity: critical, `missingArtifact: "file"`)
+- Missing states → issue (severity: warning, `missingArtifact: "state"`)
 
 #### 1.3 i18n Completeness
 
 - Verify all user-facing text uses the `t()` function
 - Grep for hardcoded strings
 - Verify all required keys exist in i18n JSON files
-- Hardcoded strings → issue (severity: warning)
-- Missing keys → issue (severity: warning)
+- Hardcoded strings → issue (severity: warning, `missingArtifact: "element"`)
+- Missing keys → issue (severity: warning, `missingArtifact: "key"`, `refs` should list the missing key names)
 
 #### 1.4 Accessibility
 
 - Check icon-only buttons for `aria-label` presence
 - Check decorative icons for `aria-hidden="true"` presence
 - Check form controls for `<label>` association
-- Missing → issue (severity: warning)
+- Missing → issue (severity: warning, `missingArtifact: "element"`, reference the target component in `planEntries`)
 
 #### 1.5 Route Coverage
 
 - Verify route entries exist for all screens defined in spec
 - Verify auth/permission settings match the spec
-- Missing routes → issue (severity: critical)
+- Missing routes → issue (severity: critical, `planEntries` should reference `routes.entries` from plan.json)
 
 ### Phase 2: Scoring
 
@@ -99,13 +113,34 @@ Return the result in JSON format:
   "timestamp": "{ISO timestamp}",
   "dimensions": {
     "requirement_coverage": {
-      "score": 9,
-      "issues": []
+      "score": 6,
+      "issues": [
+        {
+          "severity": "critical",
+          "message": "FR-003 (Create entity) not implemented — no create page found",
+          "file": "src/features/{feature}/pages/EntityCreatePage.tsx",
+          "refs": ["FR-003", "AC-003-1", "AC-003-2"],
+          "planEntries": [
+            { "section": "pages", "name": "EntityCreatePage" },
+            { "section": "api", "name": "entityApi", "method": "create" }
+          ],
+          "missingArtifact": "file",
+          "fixHint": "Entire page missing. Re-run fe-gen page-tdd phase."
+        }
+      ]
     },
     "ui_fidelity": {
       "score": 8,
       "issues": [
-        { "severity": "warning", "message": "EntityDetailPage missing empty state", "file": "src/features/{feature}/pages/EntityDetailPage.tsx" }
+        {
+          "severity": "warning",
+          "message": "EntityDetailPage missing empty state",
+          "file": "src/features/{feature}/pages/EntityDetailPage.tsx",
+          "refs": ["AC-005-3"],
+          "planEntries": [{ "section": "pages", "name": "EntityDetailPage" }],
+          "missingArtifact": "state",
+          "fixHint": "Add empty state rendering when entity data is null/empty."
+        }
       ]
     },
     "i18n_completeness": {
@@ -128,11 +163,11 @@ Return the result in JSON format:
     ]
   },
   "overallScore": 8.5,
-  "criticalIssues": 0,
+  "criticalIssues": 1,
   "warningIssues": 1,
   "suggestionIssues": 0,
-  "totalIssues": 1,
-  "status": "pass"
+  "totalIssues": 2,
+  "status": "fail"
 }
 ```
 

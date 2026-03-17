@@ -68,9 +68,13 @@ For each entry in `sharedLayouts[]`:
 npx shadcn@latest add {component1} {component2} ...
 ```
 
-**MSW** (if `mockFirst` is `true` and `mocks.globalSetupNeeded` is `true`):
+**MSW** (if `mocks.globalSetupNeeded` is `true` and `msw` is not already installed):
 ```bash
 pnpm add -D msw
+```
+
+**MSW browser init** (only when `mockFirst` is `true` and `mocks.devMocking.browserSetupNeeded` is `true`):
+```bash
 npx msw init public/ --save
 ```
 
@@ -85,9 +89,9 @@ Based on `types[]` entries in the plan:
 - FK relationships (`ref` fields) → add corresponding type imports
 - ListParams, ListResponse generic types (create if not present in existing project)
 
-### Step 5: Generate Mocks (only when `mockFirst` is `true`)
+### Step 5: Generate Mocks
 
-Based on the `mocks` section of the plan. Skip if `mockFirst` is `false`.
+Based on the `mocks` section of the plan. Test mocking infrastructure (factories, fixtures, handlers) is **always** generated — required for TDD phases regardless of `mockFirst` setting.
 
 **a) `factories.ts`** — based on `plan.mocks.factories[]`:
 - Import entity types

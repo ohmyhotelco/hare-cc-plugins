@@ -74,7 +74,13 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Verification failed. Run /frontend-react-plugin:fe-debug $FEATURE or review errors."
         ;;
       review-failed)
-        echo "  Warning: [$FEATURE] Code review failed. Fix issues and run /frontend-react-plugin:fe-review $FEATURE."
+        echo "  Warning: [$FEATURE] Code review failed. Run /frontend-react-plugin:fe-fix $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
+        ;;
+      fixing)
+        echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-react-plugin:fe-review $FEATURE."
+        ;;
+      resolved)
+        echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-react-plugin:fe-verify $FEATURE) or re-reviewing (/frontend-react-plugin:fe-review $FEATURE)."
         ;;
       escalated)
         echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."

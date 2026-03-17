@@ -123,16 +123,22 @@ export const {featureExportName} = {
 5. **Add import** and **registration** based on `registrationPattern`
 6. **Verify**: `npx tsc --noEmit`
 
-### Step 6: MSW Global Setup (when `mockFirst` is `true`)
+### Step 6: MSW Global Setup
+
+**Test server (always):**
 
 If `mocks.globalSetupNeeded` is `true` (first feature):
-- `src/mocks/browser.ts` — `setupWorker(...handlers)`
 - `src/mocks/server.ts` — `setupServer(...handlers)`
 - `src/mocks/handlers.ts` — import/spread feature handlers
-- Modify `src/main.tsx` — conditional MSW bootstrap
 
 If `mocks.globalSetupNeeded` is `false` (subsequent features):
 - Only **Edit** `src/mocks/handlers.ts` to add new feature handler import
+
+**Dev browser worker (only when `mockFirst` is `true`):**
+
+If `mocks.devMocking.browserSetupNeeded` is `true`:
+- `src/mocks/browser.ts` — `setupWorker(...handlers)`
+- Modify `src/main.tsx` — conditional MSW bootstrap
 
 ### Step 7: Barrel Export
 
