@@ -78,7 +78,7 @@ If `design.stages.prototype` already exists, preserve it (it will be overwritten
 2. Build the prototype prompt. If `design.stages.stitch.status` is `"completed"`, append Stitch reference instructions:
 
 ```
-Agent(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at src/prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
+Agent(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
 ```
 
 ### Step 5: Update Progress
@@ -88,8 +88,8 @@ Agent(subagent_type: "prototype-generator", prompt: "Generate a React prototype 
 {
   "design.stages.prototype": {
     "status": "completed",
-    "path": "src/prototypes/{feature}/",
-    "artifact": "src/prototypes/{feature}/bundle.html",
+    "path": "prototypes/{feature}/",
+    "artifact": "prototypes/{feature}/bundle.html",
     "bundleStatus": "current",
     "generatedAt": "ISO-8601"
   }
@@ -107,14 +107,14 @@ Present a summary to the user:
 ```
 Prototype Generation Results for '{feature}':
 
-  Prototype: completed — src/prototypes/{feature}/bundle.html
+  Prototype: completed — prototypes/{feature}/bundle.html
 ```
 
 **Next Steps:**
 ```
 Next Steps:
-  - Open `src/prototypes/{feature}/bundle.html` in a browser to preview the prototype
-  - Run `cd src/prototypes/{feature} && npm run dev` for live development (Vite dev server)
+  - Open `prototypes/{feature}/bundle.html` in a browser to preview the prototype
+  - Run `cd prototypes/{feature} && npm run dev` for live development (Vite dev server)
   - Edit prototype files directly to refine the UI
   - Run `/planning-plugin:bundle {feature}` to rebuild bundle.html after edits
   - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md

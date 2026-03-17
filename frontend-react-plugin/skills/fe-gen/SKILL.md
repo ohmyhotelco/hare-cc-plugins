@@ -37,7 +37,7 @@ Generate production React code based on the implementation plan (plan.json).
 
 5. Check UI DSL and prototype availability:
    - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
-   - `src/prototypes/{feature}/` → `prototypeAvailable`
+   - `prototypes/{feature}/` → `prototypeAvailable`
 
 ### Step 2: Confirm with User
 
@@ -84,7 +84,7 @@ Task(subagent_type: "code-generator", prompt: "
   - planFile: docs/specs/{feature}/.implementation/plan.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
-  - prototypeDir: src/prototypes/{feature}/ (available: {prototypeAvailable})
+  - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - sharedLayouts: {sharedLayouts from plan.json or "none"}

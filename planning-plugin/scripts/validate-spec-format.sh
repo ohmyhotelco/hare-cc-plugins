@@ -97,12 +97,12 @@ if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]]; then
 fi
 
 # --- Prototype bundle stale detection ---
-# If a file under src/prototypes/{feature}/src/ is edited, mark bundle as stale
-if [[ "$FILE_PATH" =~ src/prototypes/([^/]+)/src/ ]]; then
+# If a file under prototypes/{feature}/src/ is edited, mark bundle as stale
+if [[ "$FILE_PATH" =~ prototypes/([^/]+)/src/ ]]; then
   FEATURE="${BASH_REMATCH[1]}"
 
   # Derive project root from the prototype path
-  PROJECT_ROOT="${FILE_PATH%%/src/prototypes/*}"
+  PROJECT_ROOT="${FILE_PATH%%/prototypes/*}"
   PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
 
   if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then

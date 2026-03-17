@@ -15,7 +15,7 @@ Rebuild bundle for: **$ARGUMENTS**
 ### Step 1: Parse & Validate
 
 1. Parse `feature` from arguments (required, kebab-case)
-2. Verify `src/prototypes/{feature}/package.json` exists. If not, stop with:
+2. Verify `prototypes/{feature}/package.json` exists. If not, stop with:
    > "No prototype found for '{feature}'. Run `/planning-plugin:prototype {feature}` first."
 3. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`. If it does not exist, stop with:
    > "No progress file found for '{feature}'."
@@ -24,7 +24,7 @@ Rebuild bundle for: **$ARGUMENTS**
 
 1. Execute the bundle script:
    ```
-   ${CLAUDE_PLUGIN_ROOT}/scripts/bundle-artifact.sh src/prototypes/{feature}
+   ${CLAUDE_PLUGIN_ROOT}/scripts/bundle-artifact.sh prototypes/{feature}
    ```
 2. Capture exit code and output
 
@@ -45,7 +45,7 @@ On **failure**:
 On success, display:
 ```
 Bundle rebuilt successfully for '{feature}'.
-  File: src/prototypes/{feature}/bundle.html
+  File: prototypes/{feature}/bundle.html
   Size: {size} KB
   Status: current
 ```

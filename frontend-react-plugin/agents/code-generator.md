@@ -16,7 +16,7 @@ The skill will provide these parameters in the prompt:
 - `planFile` — implementation plan path (e.g., `docs/specs/{feature}/.implementation/plan.json`)
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
-- `prototypeDir` — prototype path (e.g., `src/prototypes/{feature}/`)
+- `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
 - `projectRoot` — project root path
@@ -38,7 +38,7 @@ The skill will provide these parameters in the prompt:
    - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → apply router patterns to Phase 2.5 (routes, page navigation, guards).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test patterns to all test generation phases (2.2a, 2.3a, 2.4a).
 4. **Prototype** (optional) — if `prototypeDir` exists:
-   - Read `src/prototypes/{feature}/src/pages/` → layout/component structure hints
+   - Read `prototypes/{feature}/src/pages/` → layout/component structure hints
    - Do not copy prototype code — only reference structural hints
 5. **Existing patterns** — check patterns in existing project code:
    - Axios instance location and import path

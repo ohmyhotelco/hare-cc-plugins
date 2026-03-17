@@ -17,7 +17,7 @@ The skill will provide these parameters in the prompt:
 
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
-- `prototypeDir` — prototype path (e.g., `src/prototypes/{feature}/`)
+- `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
 - `projectRoot` — project root path
@@ -44,7 +44,7 @@ The skill will provide these parameters in the prompt:
 
 4. **Prototype** (optional) — Check `prototypeDir`:
    - If available, reference for page structure/layout hints
-   - Mock data reference: if `src/prototypes/{feature}/src/mocks/` exists, reference fixture format only (do not copy directly)
+   - Mock data reference: if `prototypes/{feature}/src/mocks/` exists, reference fixture format only (do not copy directly)
 
 5. **Shared layout reference** — Check for shared layout:
    a. If `uiDslDir/manifest.json` exists:

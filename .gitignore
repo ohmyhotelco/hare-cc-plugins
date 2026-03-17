@@ -16,10 +16,10 @@ planning-plugin/docs/specs/**/vi/
 planning-plugin/docs/specs/**/.progress/
 
 # Prototypes (generated output)
-planning-plugin/src/prototypes/*/node_modules/
-planning-plugin/src/prototypes/*/dist/
-planning-plugin/src/prototypes/*/.parcel-cache/
-planning-plugin/src/prototypes/*/bundle.html
+planning-plugin/prototypes/*/node_modules/
+planning-plugin/prototypes/*/dist/
+planning-plugin/prototypes/*/.parcel-cache/
+planning-plugin/prototypes/*/bundle.html
 
 # Generated UI DSL (runtime output)
 planning-plugin/docs/specs/**/ui-dsl/

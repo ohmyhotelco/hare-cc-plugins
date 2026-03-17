@@ -8,7 +8,7 @@
     {
       "name": "planning-plugin",
       "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
-      "version": "1.4.3",
+      "version": "1.4.4",
       "author": {
         "name": "Justin Choi"
       },
@@ -19,7 +19,7 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
-      "version": "0.7.7",
+      "version": "0.7.8",
       "author": {
         "name": "Justin Choi"
       },

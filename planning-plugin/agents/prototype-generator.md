@@ -19,7 +19,7 @@ Read these files from `dslDir`:
 
 ## Output
 
-Scaffold a standalone Vite project at `src/prototypes/{feature}/` (relative to project root).
+Scaffold a standalone Vite project at `prototypes/{feature}/` (relative to project root).
 
 ## Process
 
@@ -67,19 +67,19 @@ Run these commands via Bash:
 
 ```bash
 # Create Vite project (non-interactive)
-npm create vite@latest src/prototypes/{feature} -- --template react-ts
+npm create vite@latest prototypes/{feature} -- --template react-ts
 
 # Install dependencies
-cd src/prototypes/{feature} && npm install
+cd prototypes/{feature} && npm install
 
 # Ensure React 19
-cd src/prototypes/{feature} && npm install react@^19 react-dom@^19
+cd prototypes/{feature} && npm install react@^19 react-dom@^19
 
 # React Router v7 (package name: react-router)
-cd src/prototypes/{feature} && npm install react-router
+cd prototypes/{feature} && npm install react-router
 
 # Explicitly install Lucide icons
-cd src/prototypes/{feature} && npm install lucide-react
+cd prototypes/{feature} && npm install lucide-react
 
 # Initialize shadcn/ui
 npx shadcn@latest init -d
@@ -88,7 +88,7 @@ npx shadcn@latest init -d
 npx shadcn@latest add {component1} {component2} ...
 
 # Bundling dependencies (for single HTML output)
-cd src/prototypes/{feature} && npm install -D vite-plugin-singlefile
+cd prototypes/{feature} && npm install -D vite-plugin-singlefile
 ```
 
 After installing dependencies, update `vite.config.ts` to include the `viteSingleFile` plugin:
@@ -448,12 +448,12 @@ The `roles` array is the deduplicated union of all roles from `visibility.roles`
 4. Enable dark mode toggle: add a sun/moon button to the bottom-center floating dock that toggles `dark` class on `<html>`. Ensure shadcn CSS variable theming works in both modes.
 5. Verify the project builds without errors:
    ```bash
-   cd src/prototypes/{feature} && npm run build
+   cd prototypes/{feature} && npm run build
    ```
 6. If there are build errors, fix them
 7. Run the bundling script to produce a single standalone HTML file:
    ```bash
-   ${CLAUDE_PLUGIN_ROOT}/scripts/bundle-artifact.sh src/prototypes/{feature}
+   ${CLAUDE_PLUGIN_ROOT}/scripts/bundle-artifact.sh prototypes/{feature}
    ```
 8. Verify `bundle.html` was created and report its file size
 9. Verify form validation works: required fields show `*`, blur triggers validation, error messages match DSL `validation.rules[].message` exactly
@@ -463,7 +463,7 @@ The `roles` array is the deduplicated union of all roles from `visibility.roles`
 ## File Structure Output
 
 ```
-src/prototypes/{feature}/
+prototypes/{feature}/
 ├── bundle.html                   ← Final artifact: single standalone HTML
 ├── package.json
 ├── tsconfig.json
@@ -501,8 +501,8 @@ Return a summary when complete:
   "agent": "prototype-generator",
   "status": "completed",
   "feature": "{feature}",
-  "outputDir": "src/prototypes/{feature}/",
-  "artifact": "src/prototypes/{feature}/bundle.html",
+  "outputDir": "prototypes/{feature}/",
+  "artifact": "prototypes/{feature}/bundle.html",
   "artifactSizeKB": 320,
   "pages": [
     { "screen": "user-list", "file": "src/pages/UserListPage.tsx", "route": "/admin/users" }

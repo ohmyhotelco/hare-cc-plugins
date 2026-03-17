@@ -108,7 +108,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Implementation plan: `docs/specs/{feature}/.implementation/plan.json`
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
 - Feature-based structure: `src/features/{feature}/` (types, api, stores, components, pages, __tests__)
-- Prototypes are for reference only: do not copy code from `src/prototypes/{feature}/` into production code
+- Prototypes are for reference only: do not copy code from `prototypes/{feature}/` into production code
 
 ### Shared Layouts
 - Shared layout location: `src/layouts/{PascalCaseLayoutId}.tsx`

@@ -422,7 +422,7 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 **What happens**:
 1. If the feature's UI DSL references shared layouts (`source: "_shared"`), validates that `docs/specs/_shared/ui-dsl/manifest.json` exists
 2. If Stitch wireframes exist, prompts whether to sync latest changes from Stitch before generating
-3. The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`
+3. The Prototype Generator agent reads the UI DSL (and Stitch wireframe outputs if available) and scaffolds a standalone Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `prototypes/{feature}/`
 4. Bundles the project into a single standalone `bundle.html` (openable via `file://`)
 
 > Shared layout components are copied locally into the prototype (copy-on-reference) to keep prototypes self-contained.
@@ -469,7 +469,7 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 **When to use**: When `bundleStatus` is `"stale"` (prototype source files were edited after the last bundle), or after manually modifying prototype source files.
 
 **What happens**:
-1. Validates that a prototype exists at `src/prototypes/{feature}/`
+1. Validates that a prototype exists at `prototypes/{feature}/`
 2. Runs the bundle script to rebuild `bundle.html` from current source files
 3. Updates `bundleStatus` to `"current"` in the progress file on success
 
@@ -674,7 +674,7 @@ Reads `screens.md` and `{feature}-spec.md` from the finalized spec, then produce
 
 **Role**: Scaffold standalone React prototypes from UI DSL.
 
-Reads the UI DSL JSON and generates a complete Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `src/prototypes/{feature}/`, then bundles it into a single standalone `bundle.html` (openable via `file://`). Includes mock data, page routing, and all referenced shadcn/ui components. The prototype is standalone — no dependency on the main project. Uses the Opus model.
+Reads the UI DSL JSON and generates a complete Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7 + Lucide project in `prototypes/{feature}/`, then bundles it into a single standalone `bundle.html` (openable via `file://`). Includes mock data, page routing, and all referenced shadcn/ui components. The prototype is standalone — no dependency on the main project. Uses the Opus model.
 
 ### Stitch Wireframe
 
@@ -737,7 +737,7 @@ docs/specs/{feature}/
 └── .progress/
     └── {feature}.json                     ← Workflow state
 
-src/prototypes/{feature}/                  ← React prototype (standalone Vite project)
+prototypes/{feature}/                  ← React prototype (standalone Vite project)
 ├── bundle.html                            ← Final artifact (single standalone HTML, openable via file://)
 ├── package.json
 ├── src/
@@ -791,7 +791,7 @@ scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
 templates/       Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/ + stitch-wireframes/)
-src/prototypes/  Generated React prototypes (standalone Vite projects per feature)
+prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
 
 ## Hooks
@@ -810,11 +810,11 @@ Runs when a Claude Code session starts. Checks for:
 
 ### PostToolUse — `validate-spec-format.sh`
 
-Runs after every `Write` or `Edit` tool call. Only activates on files under `docs/specs/` or `src/prototypes/`:
+Runs after every `Write` or `Edit` tool call. Only activates on files under `docs/specs/` or `prototypes/`:
 
 - **Format validation**: Checks that required sections exist in each spec file (warning only, does not block)
 - **Notion stale detection**: If a spec file is edited and its Notion sync status is `"synced"`, automatically transitions to `"stale"`
-- **Bundle stale detection**: If a prototype source file under `src/prototypes/{feature}/src/` is edited and `bundleStatus` is `"current"`, automatically transitions to `"stale"`
+- **Bundle stale detection**: If a prototype source file under `prototypes/{feature}/src/` is edited and `bundleStatus` is `"current"`, automatically transitions to `"stale"`
 - **Stitch stale detection**: If a UI DSL file under `docs/specs/{feature}/ui-dsl/` is edited and `stitch.status` is `"completed"`, automatically transitions to `"stale"`
 
 ## Conventions
