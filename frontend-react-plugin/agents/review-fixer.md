@@ -70,6 +70,26 @@ For each issue in the review report:
 3. Mark issues that have already been resolved as `already-resolved`
 4. Report: `{N} issues confirmed, {M} already resolved`
 
+### Step 1.5: Triage — Fixable vs. Regen-required
+
+Classify each confirmed issue into one of three categories:
+
+1. **regen-required** — `missingArtifact === "file"`, OR `missingArtifact` field is absent and the issue's target file does not exist on disk.
+   - These require fe-gen re-execution. Do NOT attempt to fix.
+   - Derive the recommended fe-gen phase from plan.json based on the file's location:
+     - `api/` → `"api-tdd"`, `stores/` → `"store-tdd"`
+     - `components/` → `"component-tdd"`, `pages/` → `"page-tdd"`
+     - `routes`/`i18n` → `"integration"`
+   - Record: dimension, severity, message, refs, missingFiles, recommendedPhase, reason
+
+2. **tdd-required** — existing file needs behavioral changes (per Issue Classification table above)
+
+3. **direct-fix** — existing file needs mechanical changes (per Issue Classification table above)
+
+Report: `{N} tdd-required, {M} direct-fix, {K} regen-required`
+
+**regen-required issues skip Steps 2 and 3** — they go directly to the fix report.
+
 ### Step 2: Execute Direct Fixes First
 
 Direct fixes are faster and reduce noise before TDD fixes.
@@ -87,11 +107,11 @@ For each **direct-fix** issue (sorted: critical first, then warnings, then sugge
 
 ### Step 3: Execute TDD Fixes
 
-For each **tdd-required** issue (sorted: critical first, then warnings):
+For each **tdd-required** issue (sorted: critical first, then warnings, then suggestions):
 
 #### 3.1 RED — Add Failing Test
 
-1. Identify the EXISTING test file to extend (do not create new test files from scratch)
+1. Identify the EXISTING test file to extend (do not create new test files from scratch). If no matching test file exists for the issue's target, this issue should already have been classified as regen-required in Step 1.5 and will not reach this step.
    - Match by target: component issues → component test, page issues → page test, etc.
 2. Add `it()` block to the existing test file:
    - Comment: `// fix: {dimension}` for traceability
@@ -146,10 +166,11 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
   "status": "completed | partial | failed",
   "summary": {
     "total": 10,
-    "fixed": 7,
+    "fixed": 5,
     "alreadyResolved": 1,
     "skipped": 0,
-    "escalated": 2
+    "escalated": 1,
+    "regenRequired": 3
   },
   "directFixes": [
     {
@@ -173,6 +194,22 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
       "change": "Added empty state rendering in EntityListPage"
     }
   ],
+  "regenRequired": [
+    {
+      "dimension": "requirement_coverage",
+      "severity": "critical",
+      "message": "FR-003 not implemented",
+      "refs": ["FR-003"],
+      "missingFiles": ["src/features/{feature}/pages/EntityCreatePage.tsx"],
+      "recommendedPhase": "page-tdd",
+      "reason": "Entire page file missing — requires full TDD generation cycle"
+    }
+  ],
+  "regenRecommendation": {
+    "phases": ["page-tdd"],
+    "command": "/frontend-react-plugin:fe-gen {feature}",
+    "note": "Update generation-state.json to mark the above phases as pending, then re-run fe-gen."
+  },
   "escalated": [
     {
       "dimension": "ui_fidelity",
@@ -196,7 +233,7 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
 ```
 
 Status determination:
-- `completed` — all issues fixed or already resolved
+- `completed` — all issues fixed or already resolved (regenRequired issues do not block completion)
 - `partial` — some issues escalated but others fixed
 - `failed` — final verification failed
 

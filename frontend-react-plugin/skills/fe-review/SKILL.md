@@ -3,7 +3,7 @@ name: fe-review
 description: "Run 2-stage code review (spec compliance → quality) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Task
+allowed-tools: Read, Write, Glob, Grep, Task
 ---
 
 # Code Review Skill
@@ -34,7 +34,14 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Generated files check** — verify the `baseDir` directory exists and contains files:
+5. **Status check** — verify `implementation.status` indicates code has been generated:
+   - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`
+   - If status is `"planned"` or absent:
+     > "No generated code found (current status: '{status}')."
+     > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
+     - Stop here.
+
+6. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
@@ -60,10 +67,21 @@ Task(subagent_type: "spec-reviewer", prompt: "
 ```
 
 **Evaluate the result:**
-- `status: "pass"` → proceed to Step 3
+- `status: "pass"` or `"pass_with_warnings"` → proceed to Step 3
 - `status: "fail"` → display the report and stop (do not proceed to quality review):
   > "Spec Review FAILED (score: {overallScore}/10, critical issues: {criticalIssues})"
-  > {issue list}
+
+  Display issues using the enriched fields when available:
+  ```
+  Issues:
+    [{severity}] {message} — {file} ({missingArtifact: "file" → "missing file", else → "existing file"})
+      Refs: {refs joined by ", "} | Fix: {fixHint}
+  ```
+  If `refs` or `fixHint` are absent (legacy report), fall back to the basic format:
+  ```
+    [{severity}] {message} — {file}
+  ```
+
   > "Fix with TDD discipline: `/frontend-react-plugin:fe-fix {feature}`"
   > "Then re-review: `/frontend-react-plugin:fe-review {feature}`"
   - Skip to Step 6 (save report and record progress)
@@ -133,9 +151,9 @@ Code Review Report for '{feature}':
     - {strength 2}
 
   Issues:
-    [critical] {message} — {file}
-    [warning] {message} — {file}
-    [suggestion] {message} — {file}
+    [{severity}] {message} — {file} ({missingArtifact description if available})
+      Refs: {refs} | Fix: {fixHint}
+    (fall back to "[{severity}] {message} — {file}" if enriched fields are absent)
 ```
 
 ### Step 5: Re-Review Guidance
@@ -183,7 +201,7 @@ Then read `docs/specs/{feature}/.progress/{feature}.json` and add or update the 
 }
 ```
 
-Write the updated progress file back.
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `fix`, `debug`), then write back the complete file.
 
 Note: Set `implementation.status` as follows:
 - Both pass (clean) → `"done"`

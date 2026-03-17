@@ -138,4 +138,4 @@ Implementation Plan for '{feature}':
 }
 ```
 
-3. Write the updated progress file back.
+3. Write the updated progress file back. **Merge rule**: preserve all existing fields in the progress file — only add or update the `implementation` fields shown above.

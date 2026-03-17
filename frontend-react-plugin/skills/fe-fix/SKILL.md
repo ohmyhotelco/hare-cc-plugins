@@ -35,9 +35,9 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, or `fixing`:
+5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, or `resolved`:
    - If status is not one of these:
-     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', or 'fixing'."
+     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', or 'resolved'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
@@ -67,10 +67,6 @@ Review Issues for '{feature}':
     Critical:   {totalCritical}
     Warning:    {totalWarning}
     Suggestion: {totalSuggestion}
-
-  Fix Strategy:
-    TDD-required: {tddCount} (behavioral changes — test first)
-    Direct-fix:   {directCount} (mechanical changes — no behavior change)
 
   Total: {totalIssues} issues
 ```
@@ -106,7 +102,14 @@ Task(subagent_type: "review-fixer", prompt: "
 
 ### Step 4: Display Fix Report
 
-Display the agent execution results.
+Display the agent execution results. Include the Fix Strategy breakdown from the agent's fix report (`summary` field):
+
+```
+  Fix Strategy:
+    TDD-required:    {tddCount} (behavioral changes — test first)
+    Direct-fix:      {directCount} (mechanical changes — no behavior change)
+    Regen-required:  {regenCount} (entire files missing — fe-gen re-run needed)
+```
 
 **Completed:**
 ```
@@ -147,6 +150,32 @@ Fix Report for '{feature}':
   Note: Escalated issues may require manual intervention or plan revision.
 ```
 
+**Re-generation required:**
+
+If the fix report contains `regenRequired` entries, append this section after the main report:
+
+```
+  Re-generation Required ({regenCount} issues):
+    These files were never generated and cannot be patched:
+      - {message} — {missingFiles}
+        Phase: {recommendedPhase}, Refs: {refs}
+
+  To generate missing code:
+    1. Update generation-state.json: mark {phases} as "pending"
+    2. Run: /frontend-react-plugin:fe-gen {feature}
+    3. Re-review: /frontend-react-plugin:fe-review {feature}
+
+  ⚠ Warning: Re-running a phase will regenerate ALL files in that phase.
+    Any manual edits to files in the affected phase will be overwritten.
+    Consider committing or stashing manual changes before proceeding.
+```
+
+After displaying re-generation guidance, automatically update `generation-state.json`:
+- Read `docs/specs/{feature}/.implementation/generation-state.json`
+- For each phase in `regenRecommendation.phases`, set `phases.{phase}.status = "pending"`
+- Write the updated file back
+- Inform the user: "generation-state.json updated — {phases} marked as pending."
+
 ### Step 5: Guide Re-Review
 
 > "Re-review to verify all fixes: `/frontend-react-plugin:fe-review {feature}`"
@@ -155,6 +184,9 @@ Fix Report for '{feature}':
 If there are escalated issues:
 > "Escalated issues may need manual intervention before re-review."
 > "Consider `/frontend-react-plugin:fe-debug {feature}` for complex issues."
+
+If there are regen-required issues:
+> "Run `/frontend-react-plugin:fe-gen {feature}` to generate missing modules, then re-review."
 
 ### Step 6: Update Progress
 
@@ -180,4 +212,4 @@ Note: Set `implementation.status` as follows:
 - fix completed or partial → `"fixing"` (must re-review to move to `done`)
 - fix failed (all escalated) → `"escalated"`
 
-Write the updated progress file back.
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.

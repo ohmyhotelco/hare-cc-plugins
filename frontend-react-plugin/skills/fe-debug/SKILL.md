@@ -29,7 +29,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` and `implementation.status` (save as `previousStatus` for use in Step 5 guidance)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
@@ -127,7 +127,21 @@ Additional guidance on escalation:
 > "Recommended: Consider re-reviewing the plan (`/frontend-react-plugin:fe-plan {feature}`) or revising the spec."
 > "Refer to the evidence and structural analysis in the report."
 
-### Step 5: Update Progress
+### Step 5: Next-Step Guidance
+
+After resolution, read the **previous** `implementation.status` (before this debug session) and provide context-aware guidance:
+
+| Previous Status | Guidance |
+|----------------|----------|
+| `verify-failed` | > "Issue resolved. Re-verify: `/frontend-react-plugin:fe-verify {feature}`" |
+| `review-failed` | > "Issue resolved. Re-review: `/frontend-react-plugin:fe-review {feature}`, or fix remaining issues: `/frontend-react-plugin:fe-fix {feature}`" |
+| `generated` | > "Issue resolved. Continue pipeline: `/frontend-react-plugin:fe-verify {feature}`" |
+| Other / unknown | > "Issue resolved. Consider re-verifying (`/frontend-react-plugin:fe-verify {feature}`) or re-reviewing (`/frontend-react-plugin:fe-review {feature}`)." |
+
+If escalated:
+> "Manual intervention required. After resolving, re-enter the pipeline with `/frontend-react-plugin:fe-verify {feature}` or `/frontend-react-plugin:fe-review {feature}`."
+
+### Step 6: Update Progress
 
 Read `docs/specs/{feature}/.progress/{feature}.json` and update `implementation.status`:
 
@@ -147,4 +161,4 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update `implementation.
 }
 ```
 
-Write the updated progress file back.
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `fix`), then write back the complete file.

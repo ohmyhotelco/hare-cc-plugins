@@ -3,7 +3,7 @@ name: fe-verify
 description: "Run verification gate (tsc, ESLint, build) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Write, Glob, Grep, Bash
 ---
 
 # Verification Gate Skill
@@ -29,7 +29,18 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 
 2. Read `plan.json` → extract `baseDir`, file list from all sections (types, api, stores, components, pages, tests)
 
-3. **File existence check** — Verify that all files specified in the plan actually exist:
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`, `implementation.status`
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
+**Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
+
+5. **Status check** — verify `implementation.status` indicates code has been generated:
+   - If status is `"planned"` or absent:
+     > "No generated code found (current status: '{status}')."
+     > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
+     - Stop here.
+
+6. **File existence check** — Verify that all files specified in the plan actually exist:
    - Use Glob to check existence of each file path
    - If missing files are found, display a warning:
      > "Warning: {count} planned files not found:"
@@ -126,4 +137,4 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `veri
 Note: Set `implementation.status` to `"verified"` (all pass) or `"verify-failed"` (any fail).
 ```
 
-Write the updated progress file back.
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `review`, `fix`, `debug`), then write back the complete file.

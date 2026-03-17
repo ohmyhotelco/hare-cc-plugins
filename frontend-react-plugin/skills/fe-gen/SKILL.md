@@ -3,12 +3,14 @@ name: fe-gen
 description: "Generate production React code from an implementation plan using TDD. Run /frontend-react-plugin:fe-plan first."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # Code Generation Skill (TDD Coordinator)
 
 Generates production React code based on the implementation plan (plan.json) using strict Test-Driven Development. Each phase runs in a separate agent session for context isolation.
+
+> **Tool choice**: This skill uses `Agent` (not `Task`) to launch sub-agents. TDD phases are strictly sequential — each depends on the previous phase's output — so `Agent` is used for synchronous execution with immediate result inspection.
 
 ## Instructions
 
@@ -241,17 +243,12 @@ Code Generation Complete for '{feature}' (TDD mode):
     i18n:   {featureFile} → {centralFile} ({auto/manual})
 ```
 
-### Step 6: Code Review (optional)
+### Step 6: Next Steps
 
-> "Would you like to run a code review? (spec compliance + quality check)"
-
-If yes:
-- Run spec-reviewer agent → display results
-- If passes, run quality-reviewer agent → display results
-- Display combined report
-
-If review result is `fail` or `pass_with_warnings`:
-> "Fix the issues and re-review with `/frontend-react-plugin:fe-review {feature}`."
+> "Code generation complete. Recommended next steps:"
+> "1. Verify: `/frontend-react-plugin:fe-verify {feature}`"
+> "2. Review: `/frontend-react-plugin:fe-review {feature}`"
+> "3. Fix issues (if any): `/frontend-react-plugin:fe-fix {feature}`"
 
 ### Step 7: Mock-first Guidance (if `mockFirst` is `true`)
 
@@ -281,22 +278,12 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
       "component-tdd": "completed",
       "page-tdd": "completed",
       "integration": "completed"
-    },
-    "verification": {
-      "status": "pass|fail",
-      "timestamp": "{ISO timestamp}",
-      "testsPassed": {total},
-      "testsTotal": {total}
-    },
-    "review": {
-      "status": "pass|fail|skipped",
-      "timestamp": "{ISO timestamp}"
     }
   }
 }
 ```
 
-Write the updated progress file back.
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.
 
 Update generation-state.json with final status.
 

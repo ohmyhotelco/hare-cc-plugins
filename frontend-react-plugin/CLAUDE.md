@@ -98,7 +98,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers)
 
 ### Communication Language
-- Feature-level skills (fe-plan, fe-gen, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
+- Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -171,13 +171,22 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 - Progress state machine:
   ```
   planned → generated → verified → reviewed → done
-               ↓            ↓         ↓    ↓
-           gen-failed   verify-failed  ↓  review-failed
-                              ↓        ↓      ↓
-                          resolved   fixing → (re-review)
-                          escalated     ↓
-                                   escalated
+               ↓    ↘       ↓         ↓    ↓
+           gen-failed  ↘ verify-failed ↓  review-failed
+                        ↘     ↓        ↓      ↓
+                         → resolved  fixing → (re-review → reviewed/review-failed)
+                           escalated    ↓
+                              ↓    escalated
+                        (manual intervention)
   ```
+  Additional transitions:
+  - `generated → reviewed | review-failed` — fe-verify is optional, can go directly to fe-review
+  - `fixing → reviewed | review-failed` — after fe-fix, fe-review determines next status
+  - `fixing → generated` — when regen-required issues exist, fe-gen re-run resets to generated
+  - `resolved → verified | verify-failed` — re-verify after debug resolution
+  - `resolved → reviewed | review-failed` — re-review after debug resolution
+  - `resolved → fixing | escalated` — fe-fix after debug resolution (when review issues remain)
+  - `escalated` — requires manual intervention, then re-enter pipeline via fe-verify or fe-review
 
 ### Verification Philosophy
 
