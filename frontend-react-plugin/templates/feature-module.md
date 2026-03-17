@@ -1,6 +1,6 @@
 # Feature Module Structure Reference
 
-Canonical structure for a feature module. Both the `implementation-planner` and `code-generator` agents reference this structure.
+Canonical structure for a feature module. The `implementation-planner`, `foundation-generator`, `tdd-cycle-runner`, and `integration-generator` agents reference this structure.
 
 ## Directory Layout
 

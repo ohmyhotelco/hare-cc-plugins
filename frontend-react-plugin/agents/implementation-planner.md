@@ -246,31 +246,27 @@ Map TS-nnn items from `test-scenarios.md` to test files.
 - Test file location: `src/features/{feature}/__tests__/`
 - Each test case specifies TS-nnn, FR-nnn references via the `source` field
 
-#### 2.11 Build Order
+#### 2.11 Build Order (TDD Phases)
 
-Generation order based on inter-file dependencies. Each phase specifies a `steps` array for the TDD workflow (test → implement → verify):
+Generation order structured for strict TDD execution. Each phase runs in a separate agent session for context isolation.
 
-0. shared-layouts (layout creation or edit) — only include when `sharedLayouts[]` is non-empty
-1. types
-2. api, stores (parallel) + tests
-2.5. mocks (factories → fixtures → handlers)
-3. components + tests
-4. pages + tests
-5. routes, i18n, shadcn-install, msw-setup (parallel)
+**Phase structure:**
+- `foundation` — types + mocks (no TDD, infrastructure only)
+- `api-tdd` — API service tests → API services (strict Red-Green)
+- `store-tdd` — Store tests → Stores (strict Red-Green)
+- `component-tdd` — Component tests → Components (strict Red-Green)
+- `page-tdd` — Page tests → Pages (strict Red-Green)
+- `integration` — routes, i18n, MSW global setup, barrel export (no TDD, wiring only)
 
-Example `steps` for each phase:
-```json
-{
-  "phase": 2,
-  "items": ["api", "stores"],
-  "steps": [
-    { "action": "test", "target": "api", "testFile": "...entityApi.test.ts" },
-    { "action": "implement", "target": "api" },
-    { "action": "implement", "target": "stores" },
-    { "action": "verify", "command": "test", "scope": "api" }
-  ]
-}
-```
+Shared layouts are handled within the `foundation` phase.
+
+Each TDD phase specifies:
+- `testFiles[]` — test files to write in RED step
+- `implFiles[]` — implementation files to write in GREEN step
+- `skills[]` — external skills the agent should load for this phase
+- `verify[]` — verification commands to run
+
+Non-TDD phases (`tdd: false`) specify only `verify[]`.
 
 ## Output Format
 
@@ -512,38 +508,55 @@ Save to the `outputFile` path in the following JSON structure.
     }
   ],
   "buildOrder": [
-    { "phase": 0, "items": ["shared-layouts"] },   // omit when sharedLayouts[] is empty
-    { "phase": 1, "items": ["types"] },
     {
-      "phase": 2,
-      "items": ["api", "stores"],
-      "steps": [
-        { "action": "test", "target": "api", "testFile": "src/features/{feature}/__tests__/entityApi.test.ts" },
-        { "action": "implement", "target": "api" },
-        { "action": "implement", "target": "stores" },
-        { "action": "verify", "command": "test", "scope": "api" }
-      ]
+      "phase": "foundation",
+      "items": ["shared-layouts", "types", "mocks"],
+      "tdd": false,
+      "verify": ["tsc"]
     },
-    { "phase": 2.5, "items": ["mocks"] },
     {
-      "phase": 3,
+      "phase": "api-tdd",
+      "items": ["api"],
+      "tdd": true,
+      "testFiles": ["src/features/{feature}/__tests__/entityApi.test.ts"],
+      "implFiles": ["src/features/{feature}/api/entityApi.ts"],
+      "verify": ["vitest"],
+      "skills": ["vitest"]
+    },
+    {
+      "phase": "store-tdd",
+      "items": ["stores"],
+      "tdd": true,
+      "testFiles": ["src/features/{feature}/__tests__/entityStore.test.ts"],
+      "implFiles": ["src/features/{feature}/stores/entityStore.ts"],
+      "verify": ["vitest"],
+      "skills": ["vitest"]
+    },
+    {
+      "phase": "component-tdd",
       "items": ["components"],
-      "steps": [
-        { "action": "test", "target": "components", "testFile": "src/features/{feature}/__tests__/EntityForm.test.tsx" },
-        { "action": "implement", "target": "components" },
-        { "action": "verify", "command": "test", "scope": "components" }
-      ]
+      "tdd": true,
+      "testFiles": ["src/features/{feature}/__tests__/EntityForm.test.tsx"],
+      "implFiles": ["src/features/{feature}/components/EntityForm.tsx", "src/features/{feature}/components/EntityTable.tsx"],
+      "verify": ["vitest"],
+      "skills": ["vitest", "vercel-composition-patterns"]
     },
     {
-      "phase": 4,
+      "phase": "page-tdd",
       "items": ["pages"],
-      "steps": [
-        { "action": "test", "target": "pages", "testFile": "src/features/{feature}/__tests__/EntityListPage.test.tsx" },
-        { "action": "implement", "target": "pages" },
-        { "action": "verify", "command": "test", "scope": "pages" }
-      ]
+      "tdd": true,
+      "testFiles": ["src/features/{feature}/__tests__/EntityListPage.test.tsx"],
+      "implFiles": ["src/features/{feature}/pages/EntityListPage.tsx", "src/features/{feature}/pages/EntityCreatePage.tsx", "src/features/{feature}/pages/EntityDetailPage.tsx", "src/features/{feature}/pages/EntityEditPage.tsx"],
+      "verify": ["vitest"],
+      "skills": ["vitest", "vercel-react-best-practices"]
     },
-    { "phase": 5, "items": ["routes", "i18n", "shadcn-install", "msw-setup"] }
+    {
+      "phase": "integration",
+      "items": ["routes", "i18n", "barrel", "msw-setup"],
+      "tdd": false,
+      "verify": ["tsc", "vitest", "build"],
+      "skills": ["react-router-{routerMode}-mode"]
+    }
   ],
   "summary": {
     "totalFiles": 14,
@@ -590,8 +603,13 @@ Implementation Plan for '{feature}':
 
   shadcn/ui: {missing count} components need installation ({missing list})
 
-  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
-  TDD flow:    test → implement → verify (per phase)
+  TDD Phases:
+    1. Foundation     — shared-layouts + types + mocks (infra)
+    2. API TDD        — RED: api tests → GREEN: api services
+    3. Store TDD      — RED: store tests → GREEN: stores
+    4. Component TDD  — RED: component tests → GREEN: components
+    5. Page TDD       — RED: page tests → GREEN: pages
+    6. Integration    — routes + i18n + MSW setup + barrel
 
   Plan saved to: {outputFile}
   Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}

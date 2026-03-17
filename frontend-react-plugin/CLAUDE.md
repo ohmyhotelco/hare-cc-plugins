@@ -83,32 +83,67 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Internal navigation: use react-router `<Link>`, `<NavLink>`, `useNavigate` (do not use `<a>`, `window.location`)
 
 ## Architecture
-- **Agents**: `implementation-planner` (spec analysis → implementation plan), `code-generator` (production code generation based on plan), `spec-reviewer` (spec compliance review), `quality-reviewer` (code quality review), `debugger` (systematic debugging)
-- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen`, `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-debug`
+- **Agents**:
+  - `implementation-planner` — spec analysis → implementation plan (plan.json)
+  - `foundation-generator` — types + mock infrastructure generation (no TDD)
+  - `tdd-cycle-runner` — strict Red-Green TDD cycle per phase (api, store, component, page)
+  - `integration-generator` — routes + i18n + MSW global setup + full verification
+  - `spec-reviewer` — spec compliance review
+  - `quality-reviewer` — code quality review
+  - `debugger` — systematic debugging
+- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-debug`
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
-- **Templates**: `feature-module.md` (feature module structure reference)
+- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers)
 
 ### Communication Language
 - Feature-level skills (fe-plan, fe-gen, fe-review, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
-### Testing (TDD)
-- TDD workflow: plan.json `tests[]` → code-generator creates `__tests__/`
+### Testing (Strict TDD)
+
+TDD methodology adapted from [obra/superpowers](https://github.com/obra/superpowers). See `templates/tdd-rules.md` for full rules.
+
+- **Iron Law**: No production code without a failing test first
+- **Red-Green-Refactor**: Write test → verify failure → write minimal code → verify pass → refactor
+- **Verify RED/GREEN are MANDATORY**: Actually run vitest and check the output. Never skip.
+- **Phase-level TDD**: Each layer (api, store, component, page) runs a separate TDD cycle in its own agent session
+- **Stub-first for imports**: Create minimal stubs so tests fail on assertions, not on MODULE_NOT_FOUND
+
+Test infrastructure:
 - Test file location: `src/features/{feature}/__tests__/`
 - Test types: api (MSW server), component (@testing-library/react), page (4-state coverage), store (unit)
 - Factory usage: generate test data from `../mocks/factories`
 - MSW server: import from `@/mocks/server`, setup with `beforeAll/afterEach/afterAll`
 - Source tracking: reference spec test scenario with `// TS-nnn` comment in each test
-- Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-debug`
 
-### Code Generation
+Anti-patterns (from obra/superpowers testing-anti-patterns):
+- Never test mock behavior — assert on component output or return values
+- Never add test-only methods to production classes
+- Never mock without understanding dependency side effects
+- Never create incomplete mocks — MSW responses must match full TypeScript interfaces
+- Mock only at network boundary (MSW) — use real stores, real components
+
+Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-debug`
+
+### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
 - Implementation plan: `docs/specs/{feature}/.implementation/plan.json`
+- Generation state: `docs/specs/{feature}/.implementation/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
 - Feature-based structure: `src/features/{feature}/` (types, api, stores, components, pages, __tests__)
 - Prototypes are for reference only: do not copy code from `prototypes/{feature}/` into production code
+- TDD phase execution order:
+  1. `foundation` — types + mocks (foundation-generator agent, no TDD)
+  2. `api-tdd` — API tests → API services (tdd-cycle-runner agent)
+  3. `store-tdd` — store tests → stores (tdd-cycle-runner agent)
+  4. `component-tdd` — component tests → components (tdd-cycle-runner agent)
+  5. `page-tdd` — page tests → pages (tdd-cycle-runner agent)
+  6. `integration` — routes + i18n + MSW global + barrel (integration-generator agent)
+- Each TDD phase runs in a separate agent session for context isolation
+- External skills loaded per-phase (not all at once): vitest for TDD phases, composition-patterns for components, react-best-practices for pages, router for integration
+- Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
 
 ### Shared Layouts
 - Shared layout location: `src/layouts/{PascalCaseLayoutId}.tsx`
@@ -120,7 +155,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 
 ### Route & i18n Auto-Integration
 - Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory
-- Code-generator auto-integrates by adding import + spread to the central route file and i18n config (same pattern as MSW handler aggregation)
+- Integration-generator auto-integrates by adding import + spread to the central route file and i18n config (same pattern as MSW handler aggregation)
 - Supports declarative mode (`<Route>` JSX fragments) and data mode (`RouteObject[]` arrays)
 - Layout route nesting: spreads feature routes under existing layout route's children when present
 - Graceful fallback: if the central file has unexpected structure, falls back to manual guidance

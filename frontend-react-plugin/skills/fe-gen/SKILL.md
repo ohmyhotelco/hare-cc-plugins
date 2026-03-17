@@ -1,14 +1,14 @@
 ---
 name: fe-gen
-description: "Generate production React code from an implementation plan. Run /frontend-react-plugin:fe-plan first."
+description: "Generate production React code from an implementation plan using TDD. Run /frontend-react-plugin:fe-plan first."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, Task
 ---
 
-# Code Generation Skill
+# Code Generation Skill (TDD Coordinator)
 
-Generate production React code based on the implementation plan (plan.json).
+Generates production React code based on the implementation plan (plan.json) using strict Test-Driven Development. Each phase runs in a separate agent session for context isolation.
 
 ## Instructions
 
@@ -33,162 +33,227 @@ Generate production React code based on the implementation plan (plan.json).
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
-**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+**Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
 5. Check UI DSL and prototype availability:
    - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
    - `prototypes/{feature}/` → `prototypeAvailable`
 
+6. Check for existing generation state:
+   - If `docs/specs/{feature}/.implementation/generation-state.json` exists:
+     - Read it and check `currentPhase` and phase statuses
+     - Offer to resume from the last incomplete phase
+
 ### Step 2: Confirm with User
 
-Display the plan summary and ask for confirmation:
+Display the plan summary with TDD phase breakdown:
 
 ```
-Code Generation for '{feature}':
+Code Generation for '{feature}' (TDD mode):
 
   Plan: docs/specs/{feature}/.implementation/plan.json
   Target: {baseDir}/
 
-  Files to create ({totalFiles}):
-    Shared layouts: {layout list or "none"}
-      {created/existing + nav items to add}
-    {file list grouped by category}
-    Tests: {test file count} test files ({test case count} test cases)
+  TDD Phases:
+    1. Foundation     — Types ({typeCount}), Mocks ({mockFileCount})
+    2. API TDD        — {apiTestCount} tests → {apiFileCount} services
+    3. Store TDD      — {storeTestCount} tests → {storeFileCount} stores
+    4. Component TDD  — {componentTestCount} tests → {componentFileCount} components
+    5. Page TDD       — {pageTestCount} tests → {pageFileCount} pages
+    6. Integration    — Routes, i18n, MSW setup
 
+  Total: {totalFiles} files, {totalTestCases} test cases
   shadcn/ui to install: {missing list or "none"}
-
-  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 ```
 
-Check for existing files that would be overwritten:
-- For each file in plan, check if it already exists
-- If any exist, warn the user:
-  > "Warning: The following files already exist and will be overwritten:"
-  > {list of existing files}
+Check for existing files that would be overwritten. Warn if any exist.
 
 Ask:
 > "Proceed with code generation?"
 
 If the user declines, stop here.
 
-### Step 3: Launch Generator Agent
+### Step 3: Initialize Generation State
 
-Launch the code-generator agent:
+Create `docs/specs/{feature}/.implementation/generation-state.json`:
+
+```json
+{
+  "feature": "{feature}",
+  "startedAt": "{ISO timestamp}",
+  "currentPhase": "foundation",
+  "phases": {
+    "foundation": { "status": "pending" },
+    "api-tdd": { "status": "pending" },
+    "store-tdd": { "status": "pending" },
+    "component-tdd": { "status": "pending" },
+    "page-tdd": { "status": "pending" },
+    "integration": { "status": "pending" }
+  }
+}
+```
+
+### Step 4: Execute TDD Phases
+
+Execute each phase sequentially. After each phase, update generation-state.json and display progress.
+
+#### Phase 1: Foundation
+
+Launch the foundation-generator agent:
 
 ```
-Task(subagent_type: "code-generator", prompt: "
-  Generate production React code for '{feature}'.
+Agent(subagent_type: "foundation-generator", prompt: "
+  Generate test infrastructure for '{feature}'.
 
   Parameters:
-  - feature: {feature}
   - planFile: docs/specs/{feature}/.implementation/plan.json
+  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
+  - mockFirst: {mockFirst}
+  - projectRoot: {cwd}
+  - feature: {feature}
+
+  Follow the process defined in agents/foundation-generator.md.
+")
+```
+
+**On completion:**
+- Update generation-state.json: `foundation.status = "completed"`
+- Display: files created, tsc verification result
+
+**On failure:**
+- Update: `foundation.status = "failed"`, record error
+- Ask user whether to retry or stop
+
+#### Phase 2-5: TDD Cycles
+
+For each TDD phase in order (`api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`):
+
+**Skip if** plan has no matching tests or implementation entries for this phase.
+
+Get the `skills` list from the corresponding `buildOrder` entry.
+
+Launch the tdd-cycle-runner agent:
+
+```
+Agent(subagent_type: "tdd-cycle-runner", prompt: "
+  Execute TDD cycle for '{feature}' phase '{phase}'.
+
+  Parameters:
+  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - feature: {feature}
+  - phase: {phase}
+  - projectRoot: {cwd}
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
-  - sharedLayouts: {sharedLayouts from plan.json or "none"}
-  - projectRoot: {cwd}
+  - skills: {skills list from buildOrder}
 
-  Follow the process defined in agents/code-generator.md.
-  Generate all files according to the plan's buildOrder (starting with shared-layouts if present).
+  Follow the process defined in agents/tdd-cycle-runner.md.
+  Read templates/tdd-rules.md for TDD rules.
 ")
 ```
 
-### Step 4: Post-Generation
+**On completion:**
+- Update generation-state.json:
+  ```json
+  {
+    "{phase}": {
+      "status": "completed",
+      "red": { "verifyResult": "fail", "failureCount": N },
+      "green": { "verifyResult": "pass", "testsPassed": N, "testsTotal": N }
+    }
+  }
+  ```
+- Display phase summary:
+  ```
+  Phase {N}: {phase} — Complete
+    RED:   {failureCount} tests failed (expected)
+    GREEN: {testsPassed}/{testsTotal} tests passed
+    Files: {file list}
+  ```
 
-1. **Display results** — including test files and integration outcomes:
+**On failure:**
+- Update: `{phase}.status = "failed"`, record error details
+- Display error details
+- Ask user:
+  > "Phase {phase} failed. Options:"
+  > "1. Retry this phase"
+  > "2. Skip and continue to next phase"
+  > "3. Stop generation (resume later with /frontend-react-plugin:fe-gen {feature})"
+
+#### Phase 6: Integration
+
+Launch the integration-generator agent:
 
 ```
-Code Generation Complete for '{feature}':
+Agent(subagent_type: "integration-generator", prompt: "
+  Generate integration layer for '{feature}'.
+
+  Parameters:
+  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - feature: {feature}
+  - projectRoot: {cwd}
+  - routerMode: {routerMode}
+  - mockFirst: {mockFirst}
+  - skills: {skills list from buildOrder}
+
+  Follow the process defined in agents/integration-generator.md.
+")
+```
+
+**On completion:**
+- Update generation-state.json: `integration.status = "completed"`
+- Record verification results
+
+**On failure:**
+- Update: `integration.status = "failed"`
+
+### Step 5: Post-Generation Summary
+
+Display comprehensive results:
+
+```
+Code Generation Complete for '{feature}' (TDD mode):
+
+  TDD Results:
+    Foundation:     {status} — {typeCount} types, {mockCount} mock files
+    API TDD:        {status} — {testsPassed}/{testsTotal} tests
+    Store TDD:      {status} — {testsPassed}/{testsTotal} tests
+    Component TDD:  {status} — {testsPassed}/{testsTotal} tests
+    Page TDD:       {status} — {testsPassed}/{testsTotal} tests
+    Integration:    {status}
 
   Files created: {totalFiles}
-    Shared layouts:
-      {created/edited list or "none"}
-    {file list}
-    Test files: {test file list or "no tests planned"}
+    {file list grouped by category}
 
-  Files modified (auto-integration):
-    {central route file, central i18n config, or "none — see manual steps"}
+  Verification:
+    TypeScript: {pass/fail}
+    ESLint:     {pass/fail/skipped}
+    Vitest:     {pass/fail} ({totalTestsPassed}/{totalTestsTotal})
+    Build:      {pass/fail}
 
-  shadcn/ui installed: {installed list or "none needed"}
-```
-
-2. **Step 4a: Verification Gate** — automatically run tsc, ESLint, and build:
-
-   a. TypeScript verification:
-   ```bash
-   npx tsc --noEmit 2>&1
-   ```
-
-   b. ESLint verification (if config exists):
-   - Use Glob to check for `.eslintrc*`, `eslint.config.*`
-   - If found: `npx eslint {baseDir} --ext .ts,.tsx 2>&1`
-
-   c. Build verification:
-   ```bash
-   npx vite build 2>&1
-   ```
-
-   d. Test run (when plan has `tests[]`):
-   ```bash
-   npx vitest run {baseDir} 2>&1
-   ```
-   - exit code 0 → pass, else fail
-   - If no tests, skipped
-
-   Display results:
-   ```
-   Verification:
-     TypeScript: {pass/fail} ({error count} errors)
-     ESLint:     {pass/fail/skipped}
-     Build:      {pass/fail}
-     Tests:      {pass/fail/skipped}
-   ```
-
-   **On FAIL:**
-   > "Verification failed. Fix the errors and re-verify with `/frontend-react-plugin:fe-verify {feature}`."
-
-3. **Step 4b: Code Review (optional)** — confirm with user:
-
-   > "Would you like to run a code review? (spec compliance + quality check)"
-
-   If the user says yes:
-   - Run the spec-reviewer agent → display results
-   - If spec-reviewer passes, run the quality-reviewer agent → display results
-   - Display combined report:
-     ```
-     Code Review:
-       Spec Review:    {pass/fail} (score: {score}/10)
-       Quality Review: {pass/fail} (score: {score}/10)
-     ```
-
-   If review result is `fail` or `pass_with_warnings`:
-   > "Fix the issues and re-review with `/frontend-react-plugin:fe-review {feature}`."
-   > "Do not skip re-review after making fixes."
-
-   If the user says no, skip this step.
-   Standalone execution: `/frontend-react-plugin:fe-review {feature}`
-
-4. **Integration results** — display route and i18n integration outcomes:
-
-```
   Integration:
-    Routes: {featureRouteFile} → {centralRouteFile}
-      {if auto-integrated} Auto-integrated: {routesExported} routes
-      {else} Manual: Import and register {featureExportName} from {featureImportPath}
-    i18n: {featureI18nFile} → {centralI18nFile}
-      {if auto-integrated} Auto-integrated: '{namespace}' namespace
-      {else} Manual: Import and register {featureExportName} from {featureImportPath}
+    Routes: {featureFile} → {centralFile} ({auto/manual})
+    i18n:   {featureFile} → {centralFile} ({auto/manual})
 ```
 
-If all integrations succeeded:
-> "All integrations completed automatically."
+### Step 6: Code Review (optional)
 
-If any integration requires manual steps:
-> "Some integrations could not be automated. Please complete the manual steps above."
+> "Would you like to run a code review? (spec compliance + quality check)"
 
-5. **Mock-first guidance** (if `mockFirst` is `true`):
+If yes:
+- Run spec-reviewer agent → display results
+- If passes, run quality-reviewer agent → display results
+- Display combined report
+
+If review result is `fail` or `pass_with_warnings`:
+> "Fix the issues and re-review with `/frontend-react-plugin:fe-review {feature}`."
+
+### Step 7: Mock-first Guidance (if `mockFirst` is `true`)
 
 ```
   Mock-first development:
@@ -197,23 +262,31 @@ If any integration requires manual steps:
     Commit: public/mockServiceWorker.js (recommended)
 ```
 
-6. **Step 4c: Test run guidance** — if test files were generated but tests were fail or skipped in Step 4a:
+### Step 8: Update Progress
 
-   > "Re-run tests: `pnpm vitest run src/features/{feature}/`"
-   > "Auto-debug: `/frontend-react-plugin:fe-debug {feature}`"
-
-7. **Update progress** — Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `implementation` field (including verification and review results):
+Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementation` field:
 
 ```json
 {
   "implementation": {
     "status": "generated | gen-failed",
+    "mode": "tdd",
     "planFile": "docs/specs/{feature}/.implementation/plan.json",
     "generatedAt": "{ISO timestamp}",
     "filesCount": {totalFiles},
+    "tddPhases": {
+      "foundation": "completed",
+      "api-tdd": "completed",
+      "store-tdd": "completed",
+      "component-tdd": "completed",
+      "page-tdd": "completed",
+      "integration": "completed"
+    },
     "verification": {
       "status": "pass|fail",
-      "timestamp": "{ISO timestamp}"
+      "timestamp": "{ISO timestamp}",
+      "testsPassed": {total},
+      "testsTotal": {total}
     },
     "review": {
       "status": "pass|fail|skipped",
@@ -224,3 +297,20 @@ If any integration requires manual steps:
 ```
 
 Write the updated progress file back.
+
+Update generation-state.json with final status.
+
+### Resume Support
+
+When Step 1.6 detects an existing generation-state.json:
+
+1. Read the state file
+2. Find the first phase with `status` not `"completed"`
+3. Display:
+   ```
+   Resuming code generation for '{feature}':
+     Completed: {list of completed phases}
+     Resuming from: {phase name}
+   ```
+4. Ask user to confirm resume
+5. Continue from the incomplete phase (skip completed phases)
