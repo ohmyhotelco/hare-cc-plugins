@@ -14,9 +14,10 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
-2. If `mockFirst` is missing, use default value `true`
-3. If the file does not exist:
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`
+2. If `baseDir` is missing, use default value `"src"`
+3. If `mockFirst` is missing, use default value `true`
+4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -67,8 +68,16 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 ### Step 3: Launch Planner Agent
 
 Create the output directory if it doesn't exist:
+
+**Migration check** (backward compatibility):
+1. If `docs/specs/{feature}/.implementation/plan.json` exists (old path) AND `docs/specs/{feature}/.implementation/frontend/` does NOT exist:
+   - Move all files from `.implementation/` to `.implementation/frontend/` (excluding subdirectories that are already namespaces)
+   - Update embedded paths in progress file if present
+   - Display: "Migrated .implementation/ → .implementation/frontend/"
+2. Otherwise: create `docs/specs/{feature}/.implementation/frontend/` if it doesn't exist
+
 ```
-docs/specs/{feature}/.implementation/
+docs/specs/{feature}/.implementation/frontend/
 ```
 
 Launch the implementation-planner agent:
@@ -86,7 +95,8 @@ Task(subagent_type: "implementation-planner", prompt: "
   - mockFirst: {mockFirst}
   - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
-  - outputFile: docs/specs/{feature}/.implementation/plan.json
+  - baseDir: {baseDir}
+  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
 
   Follow the process defined in agents/implementation-planner.md.
   Write the implementation plan to the outputFile path.
@@ -95,7 +105,7 @@ Task(subagent_type: "implementation-planner", prompt: "
 
 ### Step 4: Display Summary
 
-1. Read the generated `docs/specs/{feature}/.implementation/plan.json`
+1. Read the generated `docs/specs/{feature}/.implementation/frontend/plan.json`
 2. Display the summary:
 
 ```
@@ -120,7 +130,7 @@ Implementation Plan for '{feature}':
 
   Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
 
-  Plan saved to: docs/specs/{feature}/.implementation/plan.json
+  Plan saved to: docs/specs/{feature}/.implementation/frontend/plan.json
   Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}
 ```
 
@@ -133,7 +143,7 @@ Implementation Plan for '{feature}':
 {
   "implementation": {
     "status": "planned",
-    "planFile": "docs/specs/{feature}/.implementation/plan.json"
+    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json"
   }
 }
 ```

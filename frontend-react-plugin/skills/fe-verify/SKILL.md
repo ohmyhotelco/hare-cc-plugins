@@ -21,7 +21,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."

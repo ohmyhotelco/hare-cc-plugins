@@ -21,7 +21,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
@@ -61,14 +61,14 @@ Task(subagent_type: "debugger", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - problemDescription: {problemDescription}
 
   Follow the 4-phase methodology defined in agents/debugger.md.
-  Write the debug report to docs/specs/{feature}/.implementation/debug-report.json.
+  Write the debug report to docs/specs/{feature}/.implementation/frontend/debug-report.json.
 ")
 ```
 
@@ -98,7 +98,7 @@ Debug Report for '{feature}':
     Build: {build result}
     Tests: {test result}
 
-  Report saved to: docs/specs/{feature}/.implementation/debug-report.json
+  Report saved to: docs/specs/{feature}/.implementation/frontend/debug-report.json
 ```
 
 **Escalated:**
@@ -119,7 +119,7 @@ Debug Report for '{feature}':
 
   Recommendation: {recommendation}
 
-  Report saved to: docs/specs/{feature}/.implementation/debug-report.json
+  Report saved to: docs/specs/{feature}/.implementation/frontend/debug-report.json
 ```
 
 Additional guidance on escalation:
@@ -164,7 +164,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update `implementation.
     "debug": {
       "status": "resolved | escalated",
       "timestamp": "{ISO timestamp}",
-      "reportFile": "docs/specs/{feature}/.implementation/debug-report.json"
+      "reportFile": "docs/specs/{feature}/.implementation/frontend/debug-report.json"
     }
   }
 }

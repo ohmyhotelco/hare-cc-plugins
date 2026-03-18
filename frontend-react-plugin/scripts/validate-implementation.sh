@@ -43,12 +43,12 @@ fi
 
 # Check if the edited file is a spec file or plan.json
 IS_SPEC=false
-if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/[^.].*\.(md|json)$ ]] && [[ ! "$FILE_PATH" =~ \.progress/ ]] && [[ ! "$FILE_PATH" =~ \.implementation/debug ]]; then
+if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/[^.].*\.(md|json)$ ]] && [[ ! "$FILE_PATH" =~ \.progress/ ]] && [[ ! "$FILE_PATH" =~ \.implementation/[^/]+/debug ]]; then
   IS_SPEC=true
 fi
 
 IS_PLAN=false
-if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/\.implementation/plan\.json$ ]]; then
+if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/\.implementation/[^/]+/plan\.json$ ]]; then
   IS_PLAN=true
 fi
 

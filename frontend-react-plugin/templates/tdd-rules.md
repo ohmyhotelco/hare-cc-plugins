@@ -27,7 +27,7 @@ Write one minimal test showing what should happen.
 Since tests are written before implementation, imports will fail. Create minimal stubs so the test FAILS on assertions, not on import errors:
 
 ```typescript
-// Stub: src/features/{feature}/api/entityApi.ts
+// Stub: {baseDir}/features/{feature}/api/entityApi.ts
 // Minimal stub — just enough for import resolution
 export const entityApi = {} as Record<string, never>;
 ```

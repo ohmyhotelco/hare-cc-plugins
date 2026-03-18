@@ -1,3 +1,5 @@
+> **Path convention**: All `{baseDir}` references resolve to the value in `.claude/frontend-react-plugin.json` (default: `app/src`, fallback: `src` when absent).
+
 # Feature Module Structure Reference
 
 Canonical structure for a feature module. The `implementation-planner`, `foundation-generator`, `tdd-cycle-runner`, and `integration-generator` agents reference this structure.
@@ -5,7 +7,7 @@ Canonical structure for a feature module. The `implementation-planner`, `foundat
 ## Directory Layout
 
 ```
-src/features/{feature}/
+{baseDir}/features/{feature}/
 ├── routes.tsx                   ← Feature route definitions (exported for central aggregation)
 ├── i18n.ts                      ← Feature i18n namespace registration (exported for central aggregation)
 ├── __tests__/
@@ -491,7 +493,7 @@ When a feature uses a shared layout (via `@layout:` directive):
 
 **Layout lives at app level (not inside feature):**
 ```
-src/layouts/
+{baseDir}/layouts/
 └── MainLayout.tsx          ← Uses <Outlet />, shared by all features
 ```
 
@@ -728,7 +730,7 @@ export const entityHandlers = [
 
 Global MSW files created once when the first feature is generated.
 
-**`src/mocks/browser.ts`** — For browser development mode:
+**`{baseDir}/mocks/browser.ts`** — For browser development mode:
 
 ```typescript
 import { setupWorker } from 'msw/browser';
@@ -737,7 +739,7 @@ import { handlers } from './handlers';
 export const worker = setupWorker(...handlers);
 ```
 
-**`src/mocks/server.ts`** — For Vitest:
+**`{baseDir}/mocks/server.ts`** — For Vitest:
 
 ```typescript
 import { setupServer } from 'msw/node';
@@ -746,7 +748,7 @@ import { handlers } from './handlers';
 export const server = setupServer(...handlers);
 ```
 
-**`src/mocks/handlers.ts`** — Imports and re-exports all feature handlers:
+**`{baseDir}/mocks/handlers.ts`** — Imports and re-exports all feature handlers:
 
 ```typescript
 import { entityHandlers } from '@/features/{feature}/mocks/handlers';
@@ -756,7 +758,7 @@ export const handlers = [
 ];
 ```
 
-### Conditional MSW bootstrap in `src/main.tsx`
+### Conditional MSW bootstrap in `{baseDir}/main.tsx`
 
 ```typescript
 async function bootstrap() {
@@ -773,7 +775,7 @@ bootstrap();
 
 ### Canonical Test Patterns
 
-Test files are located in `src/features/{feature}/__tests__/`. They use factories to generate test data and mock APIs with the MSW server.
+Test files are located in `{baseDir}/features/{feature}/__tests__/`. They use factories to generate test data and mock APIs with the MSW server.
 
 #### Store Test (`__tests__/entityStore.test.ts`)
 

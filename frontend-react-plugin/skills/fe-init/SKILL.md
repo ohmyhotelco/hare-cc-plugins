@@ -48,6 +48,18 @@ Default: `yes` (mock-first enabled)
 
 Note: Mock-first does not modify production code (Axios services). MSW intercepts requests at the network level, so once the backend is ready, you only need to remove the environment variable.
 
+### Step 2c: Ask for Source Directory Path
+
+Ask the user for the base source directory path.
+
+Present:
+- **app/src** (default) — Monorepo-friendly structure (app/src/features/, app/src/layouts/, etc.)
+- Custom path — e.g., `src`, `packages/web/src`
+
+Default: `app/src`
+
+Note: This sets the root directory for all generated source code (features, layouts, mocks, locales, etc.). The `@/` path alias in tsconfig should map to this directory.
+
 ### Step 3: Write Configuration
 
 1. Ensure the `.claude/` directory exists in the project root
@@ -56,7 +68,8 @@ Note: Mock-first does not modify production code (Axios services). MSW intercept
 ```json
 {
   "routerMode": "{selected mode}",
-  "mockFirst": {true or false based on Step 2b}
+  "mockFirst": {true or false based on Step 2b},
+  "baseDir": "{selected path from Step 2c}"
 }
 ```
 
@@ -91,6 +104,7 @@ Frontend React Plugin configured successfully!
 
   Router mode: {routerMode}
   Mock-first: {enabled or disabled}
+  Base dir: {baseDir}
 
   External skills installed:
     - .claude/skills/react-router-{routerMode}-mode (React Router v7)

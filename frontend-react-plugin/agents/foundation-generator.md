@@ -20,6 +20,7 @@ The coordinator skill provides:
 - `uiDslDir` — UI DSL path
 - `prototypeDir` — prototype path
 - `mockFirst` — `true` | `false`
+- `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `feature` — feature name
 
@@ -30,8 +31,8 @@ The coordinator skill provides:
 1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`
 2. **Existing patterns** — check patterns in existing project code:
    - Import style and naming conventions of existing feature modules
-   - Existing type patterns (Glob: `src/features/*/types/*.ts`)
-   - Existing mock patterns (Glob: `src/features/*/mocks/*.ts`)
+   - Existing type patterns (Glob: `{baseDir}/features/*/types/*.ts`)
+   - Existing mock patterns (Glob: `{baseDir}/features/*/mocks/*.ts`)
 3. **Prototype** (optional) — if `prototypeDir` exists:
    - Read `prototypes/{feature}/src/mocks/` → fixture format hints only
    - Do not copy prototype code
@@ -44,20 +45,20 @@ For each entry in `sharedLayouts[]`:
 
 **If `exists: false`** (first feature):
 1. Read `dslFile` (shared DSL) → extract componentTree
-2. Generate `src/layouts/{Name}.tsx`:
+2. Generate `{baseDir}/layouts/{Name}.tsx`:
    - Import `<Outlet />` from `react-router`
    - Import `NavLink`, `useLocation` from `react-router`
    - Import `useTranslation` from `react-i18next`
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels
-3. Generate layout i18n: `src/locales/{lang}/layout.json`
+3. Generate layout i18n: `{baseDir}/locales/{lang}/layout.json`
 4. Run `npx tsc --noEmit` to verify
 
 **If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
 1. Read existing layout file
 2. Edit to add new navigation items (targeted Edit, not rewrite)
-3. Update `src/locales/{lang}/layout.json` with new keys
+3. Update `{baseDir}/locales/{lang}/layout.json` with new keys
 
 **If `exists: true` AND `navItemsToAdd` is empty**: Skip.
 
@@ -135,11 +136,11 @@ Confirm: zero errors. If errors exist, fix and re-verify.
     "i18n": []
   },
   "filesCreated": {
-    "types": ["src/features/{feature}/types/{entity}.ts"],
+    "types": ["{baseDir}/features/{feature}/types/{entity}.ts"],
     "mocks": [
-      "src/features/{feature}/mocks/factories.ts",
-      "src/features/{feature}/mocks/fixtures.ts",
-      "src/features/{feature}/mocks/handlers.ts"
+      "{baseDir}/features/{feature}/mocks/factories.ts",
+      "{baseDir}/features/{feature}/mocks/fixtures.ts",
+      "{baseDir}/features/{feature}/mocks/handlers.ts"
     ]
   },
   "shadcnInstalled": ["pagination"],

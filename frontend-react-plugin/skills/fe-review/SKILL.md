@@ -21,7 +21,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
@@ -57,7 +57,7 @@ Task(subagent_type: "spec-reviewer", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - baseDir: {baseDir}/
 
@@ -96,7 +96,7 @@ Task(subagent_type: "quality-reviewer", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
 
@@ -166,7 +166,7 @@ If the result is `fail` or `pass_with_warnings`:
 
 ### Step 6: Save Review Report & Update Progress
 
-Save the full review reports to `docs/specs/{feature}/.implementation/review-report.json`:
+Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`:
 
 ```json
 {

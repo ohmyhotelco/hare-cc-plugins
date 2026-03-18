@@ -14,9 +14,9 @@ An agent that follows a systematic 4-phase debugging methodology. Escalates afte
 The skill will provide these parameters in the prompt:
 
 - `feature` — feature name
-- `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/plan.json`)
+- `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
-- `baseDir` — generated code directory (e.g., `src/features/{feature}/`)
+- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
 - `projectRoot` — project root path
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 
@@ -120,7 +120,7 @@ Apply minimal changes and verify upon successful hypothesis validation.
 
 ## Output Format
 
-Save to the path `docs/specs/{feature}/.implementation/debug-report.json`:
+Save to the path `docs/specs/{feature}/.implementation/frontend/debug-report.json`:
 
 ```json
 {
@@ -131,7 +131,7 @@ Save to the path `docs/specs/{feature}/.implementation/debug-report.json`:
   "problemDescription": "...",
   "issueClassification": "generation-bug",
   "rootCause": {
-    "file": "src/features/{feature}/api/entityApi.ts",
+    "file": "{baseDir}/features/{feature}/api/entityApi.ts",
     "line": 15,
     "description": "Incorrect import path for Entity type"
   },
@@ -144,7 +144,7 @@ Save to the path `docs/specs/{feature}/.implementation/debug-report.json`:
     }
   ],
   "filesModified": [
-    "src/features/{feature}/api/entityApi.ts"
+    "{baseDir}/features/{feature}/api/entityApi.ts"
   ],
   "patternsFound": [],
   "verification": {

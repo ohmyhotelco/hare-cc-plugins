@@ -22,7 +22,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 1: Validate Prerequisites
 
-1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
@@ -41,7 +41,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-6. **Review report check** — check if `docs/specs/{feature}/.implementation/review-report.json` exists:
+6. **Review report check** — check if `docs/specs/{feature}/.implementation/frontend/review-report.json` exists:
    - If not found:
      > "Review report not found."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
@@ -91,18 +91,18 @@ Task(subagent_type: "review-fixer", prompt: "
   Fix review issues for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
-  - reviewReportFile: docs/specs/{feature}/.implementation/review-report.json
+  - reviewReportFile: docs/specs/{feature}/.implementation/frontend/review-report.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
 
   Follow the process defined in agents/review-fixer.md.
   Read templates/tdd-rules.md for TDD rules.
-  Save the fix report to docs/specs/{feature}/.implementation/fix-report.json.
+  Save the fix report to docs/specs/{feature}/.implementation/frontend/fix-report.json.
 ")
 ```
 
@@ -178,11 +178,11 @@ If the fix report contains `regenRequired` entries, append this section after th
 ```
 
 After displaying re-generation guidance, automatically update `generation-state.json`:
-- Check if `docs/specs/{feature}/.implementation/generation-state.json` exists
+- Check if `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists
   - If not found: skip the update and inform the user:
     > "generation-state.json not found — it may have been manually deleted. Re-run `/frontend-react-plugin:fe-gen {feature}` to regenerate from scratch."
   - If found:
-    - Read `docs/specs/{feature}/.implementation/generation-state.json`
+    - Read `docs/specs/{feature}/.implementation/frontend/generation-state.json`
     - For each phase in `regenRecommendation.phases`, set `phases.{phase}.status = "pending"`
     - Write the updated file back
     - Inform the user: "generation-state.json updated — {phases} marked as pending."
@@ -214,7 +214,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
       "fixed": 7,
       "escalated": 2,
       "testsAdded": 5,
-      "reportFile": "docs/specs/{feature}/.implementation/fix-report.json"
+      "reportFile": "docs/specs/{feature}/.implementation/frontend/fix-report.json"
     }
   }
 }

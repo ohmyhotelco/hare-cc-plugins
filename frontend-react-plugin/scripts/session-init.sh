@@ -98,8 +98,8 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-react-plugin:fe-verify $FEATURE) or re-reviewing (/frontend-react-plugin:fe-review $FEATURE)."
         ;;
       escalated)
-        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/fix-report.json"
-        DEBUG_REPORT="$SPECS_DIR/$FEATURE/.implementation/debug-report.json"
+        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
+        DEBUG_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/debug-report.json"
         if [ -f "$FIX_REPORT" ] && [ -f "$DEBUG_REPORT" ]; then
           if [ "$FIX_REPORT" -nt "$DEBUG_REPORT" ]; then
             echo "  Warning: [$FEATURE] Fix escalated — manual intervention required. See fix-report.json."

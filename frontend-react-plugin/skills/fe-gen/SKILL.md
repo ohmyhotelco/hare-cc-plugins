@@ -16,15 +16,16 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
-2. If `mockFirst` is missing, use default value `true`
-3. If the file does not exist:
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`
+2. If `baseDir` is missing, use default value `"src"`
+3. If `mockFirst` is missing, use default value `true`
+4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
 ### Step 1: Validate Plan
 
-1. Check if `docs/specs/{feature}/.implementation/plan.json` exists
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
@@ -42,7 +43,7 @@ Generates production React code based on the implementation plan (plan.json) usi
    - `prototypes/{feature}/` → `prototypeAvailable`
 
 6. Check for existing generation state:
-   - If `docs/specs/{feature}/.implementation/generation-state.json` exists:
+   - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists:
      - Read it and check `currentPhase` and phase statuses
      - Offer to resume from the last incomplete phase
 
@@ -53,7 +54,7 @@ Display the plan summary with TDD phase breakdown:
 ```
 Code Generation for '{feature}' (TDD mode):
 
-  Plan: docs/specs/{feature}/.implementation/plan.json
+  Plan: docs/specs/{feature}/.implementation/frontend/plan.json
   Target: {baseDir}/
 
   TDD Phases:
@@ -77,7 +78,7 @@ If the user declines, stop here.
 
 ### Step 3: Initialize Generation State
 
-Create `docs/specs/{feature}/.implementation/generation-state.json`:
+Create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
 
 ```json
 {
@@ -108,11 +109,12 @@ Agent(subagent_type: "foundation-generator", prompt: "
   Generate test infrastructure for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - mockFirst: {mockFirst}
+  - baseDir: {baseDir}
   - projectRoot: {cwd}
   - feature: {feature}
 
@@ -152,7 +154,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   Execute TDD cycle for '{feature}' phase '{phase}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - phase: {phase}
   - projectRoot: {cwd}
@@ -161,6 +163,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - baseDir: {baseDir}
   - skills: {skills list from buildOrder}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
@@ -214,11 +217,12 @@ Agent(subagent_type: "integration-generator", prompt: "
   Generate integration layer for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/plan.json
+  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - projectRoot: {cwd}
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - baseDir: {baseDir}
   - workingLanguage: {workingLanguage}
   - skills: {skills list from buildOrder}
 
@@ -287,7 +291,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
   "implementation": {
     "status": "generated | gen-failed",
     "mode": "tdd",
-    "planFile": "docs/specs/{feature}/.implementation/plan.json",
+    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json",
     "generatedAt": "{ISO timestamp}",
     "filesCount": {totalFiles},
     "tddPhases": {
@@ -308,12 +312,12 @@ Update generation-state.json with final status.
 
 ### Resume Support
 
-When Step 1.6 detects an existing generation-state.json:
+When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`:
 
 1. Read the state file
-2. **Plan freshness check** — compare `plan.json` modification time against `generation-state.json` `startedAt`:
+2. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against `.implementation/frontend/generation-state.json` `startedAt`:
    - Read `startedAt` from generation-state.json
-   - Check if `plan.json` was modified after `startedAt` (use `stat` or file system check)
+   - Check if `.implementation/frontend/plan.json` was modified after `startedAt` (use `stat` or file system check)
    - If plan.json is newer than startedAt:
      > "Warning: plan.json has been modified since generation started ({startedAt})."
      > "Resuming may create inconsistencies between already-generated and new code."

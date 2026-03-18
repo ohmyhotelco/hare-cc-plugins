@@ -62,11 +62,11 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 
 ### Mock-First Development
 - `mockFirst: true` (default) — develop with MSW v2 without a backend
-- Feature-level mock: `src/features/{feature}/mocks/` (factories + fixtures + handlers)
+- Feature-level mock: `{baseDir}/features/{feature}/mocks/` (factories + fixtures + handlers)
 - Factory + Fixture separation: factory generates data for tests, fixture provides fixed data for MSW handlers
 - Hardcoded mock data — do not use external libraries like faker
 - Environment variable toggle: activate only in dev mode with `VITE_ENABLE_MOCKS=true`
-- Global MSW: `src/mocks/` (browser.ts, server.ts, handlers.ts aggregator)
+- Global MSW: `{baseDir}/mocks/` (browser.ts, server.ts, handlers.ts aggregator)
 
 ### Performance & Composition
 - React performance patterns: see `.claude/skills/vercel-react-best-practices` (waterfall elimination, bundle optimization, re-render minimization)
@@ -113,7 +113,7 @@ TDD methodology adapted from [obra/superpowers](https://github.com/obra/superpow
 - **Stub-first for imports**: Create minimal stubs so tests fail on assertions, not on MODULE_NOT_FOUND
 
 Test infrastructure:
-- Test file location: `src/features/{feature}/__tests__/`
+- Test file location: `{baseDir}/features/{feature}/__tests__/`
 - Test types: api (MSW server), component (@testing-library/react), page (4-state coverage), store (unit)
 - Factory usage: generate test data from `../mocks/factories`
 - MSW server: import from `@/mocks/server`, setup with `beforeAll/afterEach/afterAll`
@@ -131,10 +131,10 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
-- Implementation plan: `docs/specs/{feature}/.implementation/plan.json`
-- Generation state: `docs/specs/{feature}/.implementation/generation-state.json` (tracks phase progress, enables resume)
+- Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json`
+- Generation state: `docs/specs/{feature}/.implementation/frontend/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
-- Feature-based structure: `src/features/{feature}/` (types, api, stores, components, pages, __tests__)
+- Feature-based structure: `{baseDir}/features/{feature}/` (types, api, stores, components, pages, __tests__)
 - Prototypes are for reference only: do not copy code from `prototypes/{feature}/` into production code
 - TDD phase execution order:
   1. `foundation` — types + mocks (foundation-generator agent, no TDD)
@@ -148,8 +148,8 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 - Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
 
 ### Shared Layouts
-- Shared layout location: `src/layouts/{PascalCaseLayoutId}.tsx`
-- Mapping: `@layout: _shared/{layout-id}` in spec → `src/layouts/{PascalCaseLayoutId}.tsx` in production
+- Shared layout location: `{baseDir}/layouts/{PascalCaseLayoutId}.tsx`
+- Mapping: `@layout: _shared/{layout-id}` in spec → `{baseDir}/layouts/{PascalCaseLayoutId}.tsx` in production
 - Slot component → `<Outlet />` from react-router
 - Features do NOT import layout directly — relationship expressed via React Router nested routes
 - First feature: generates layout + feature code
@@ -164,10 +164,10 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 - The implementation-planner detects aggregation patterns, insertion anchors, and existing imports in plan.json
 
 ### Debug & Progress
-- Debug report: `docs/specs/{feature}/.implementation/debug-report.json`
+- Debug report: `docs/specs/{feature}/.implementation/frontend/debug-report.json`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
-- Review report: `docs/specs/{feature}/.implementation/review-report.json`
-- Fix report: `docs/specs/{feature}/.implementation/fix-report.json`
+- Review report: `docs/specs/{feature}/.implementation/frontend/review-report.json`
+- Fix report: `docs/specs/{feature}/.implementation/frontend/fix-report.json`
 - Progress state machine:
   ```
   planned → generated → verified → reviewed → done
@@ -219,7 +219,7 @@ docs/            - Documentation
 ### Generated Project Structure
 
 ```
-src/
+{baseDir}/
 ├── layouts/           ← Shared layouts (cross-feature, uses <Outlet />)
 ├── features/{feature}/
 │   ├── routes.tsx     ← Feature route definitions (auto-integrated)
@@ -237,9 +237,11 @@ src/
 ```json
 {
   "routerMode": "declarative",
-  "mockFirst": true
+  "mockFirst": true,
+  "baseDir": "app/src"
 }
 ```
 
 - `routerMode`: `"declarative"` (default) | `"data"` — determines React Router v7 mode
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
+- `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. When absent, falls back to `"src"` for backward compatibility.

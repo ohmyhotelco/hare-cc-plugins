@@ -17,7 +17,7 @@ The skill will provide these parameters in the prompt:
 
 - `planFile` — implementation plan path
 - `feature` — feature name
-- `baseDir` — generated code directory (e.g., `src/features/{feature}/`)
+- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
 - `projectRoot` — project root path
 - `reviewReportFile` — path to `review-report.json`
 - `specDir` — spec markdown path (for reference)
@@ -63,7 +63,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - Always parse `specReview.dimensions[].issues[]`
    - If `qualityReview` is not null, also parse `qualityReview.dimensions[].issues[]`
    - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
-6. **Existing tests** — glob `src/features/{feature}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
+6. **Existing tests** — glob `{baseDir}/features/{feature}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
 ### Step 1: Pre-check — Verify Issues Still Exist
 
@@ -162,7 +162,7 @@ Record results for each check.
 
 ### Step 5: Save & Output Report
 
-Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
+Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report.json`:
 
 ```json
 {
@@ -195,7 +195,7 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
       "message": "...",
       "file": "...",
       "status": "fixed",
-      "testFile": "src/features/{feature}/__tests__/EntityListPage.test.tsx",
+      "testFile": "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
       "testAdded": "renders empty state when no entities exist",
       "change": "Added empty state rendering in EntityListPage"
     }
@@ -206,7 +206,7 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
       "severity": "critical",
       "message": "FR-003 not implemented",
       "refs": ["FR-003"],
-      "missingFiles": ["src/features/{feature}/pages/EntityCreatePage.tsx"],
+      "missingFiles": ["{baseDir}/features/{feature}/pages/EntityCreatePage.tsx"],
       "recommendedPhase": "page-tdd",
       "reason": "Entire page file missing — requires full TDD generation cycle"
     }
@@ -227,8 +227,8 @@ Save the fix report to `docs/specs/{feature}/.implementation/fix-report.json`:
   ],
   "testsAdded": 5,
   "filesModified": [
-    "src/features/{feature}/__tests__/EntityListPage.test.tsx",
-    "src/features/{feature}/pages/EntityListPage.tsx"
+    "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
+    "{baseDir}/features/{feature}/pages/EntityListPage.tsx"
   ],
   "verification": {
     "tsc": "pass",

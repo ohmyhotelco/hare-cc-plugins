@@ -20,9 +20,10 @@ The skill will provide these parameters in the prompt:
 - `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
+- `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `feature` — feature name
-- `outputFile` — plan output path (e.g., `docs/specs/{feature}/.implementation/plan.json`)
+- `outputFile` — plan output path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 
 ## Process
 
@@ -59,9 +60,9 @@ The skill will provide these parameters in the prompt:
 
 Identify existing project patterns so that generated code integrates naturally.
 
-1. **Directory structure** — Identify `src/` structure
-   - feature-based: `src/features/` exists → `src/features/{feature}/`
-   - type-based: `src/pages/` + `src/components/` → follow that structure
+1. **Directory structure** — Identify `{baseDir}/` structure
+   - feature-based: `{baseDir}/features/` exists → `{baseDir}/features/{feature}/`
+   - type-based: `{baseDir}/pages/` + `{baseDir}/components/` → follow that structure
    - If undetermined, use feature-based as the default
 
 2. **tsconfig.json** — Check path aliases (e.g., `@/` → `src/`)
@@ -71,7 +72,7 @@ Identify existing project patterns so that generated code integrates naturally.
    - If no existing modules, use the canonical structure from templates/feature-module.md
 
 4. **Route file** — Identify and analyze existing route file for auto-integration
-   - Locate: `src/App.tsx` or `src/router.tsx` or `src/routes/index.tsx`
+   - Locate: `{baseDir}/App.tsx` or `{baseDir}/router.tsx` or `{baseDir}/routes/index.tsx`
    - Read the route file content and identify:
      - **Aggregation pattern**: Check if existing features export route arrays/fragments that are spread into the central file (e.g., `...dashboardRoutes`). If found, follow the same pattern.
      - **Insertion anchor**: The line before which new route imports/spreads should be inserted
@@ -85,16 +86,16 @@ Identify existing project patterns so that generated code integrates naturally.
      - Multiple route files exist and the correct one cannot be determined
    - Record findings in plan as `routes.autoIntegration`
 
-4b. **Existing shared layouts** — Scan `src/layouts/*.tsx`
+4b. **Existing shared layouts** — Scan `{baseDir}/layouts/*.tsx`
     - For each file: read to identify component name, `<Outlet />` usage, navigation items
     - Record as `existingLayouts[]` with import path
     - Cross-reference with `sharedLayoutRefs`: if matching layout exists → mark `reuseExisting: true`
 
-5. **shadcn/ui components** — Scan `src/components/ui/` → list of installed components
+5. **shadcn/ui components** — Scan `{baseDir}/components/ui/` → list of installed components
 
 6. **i18n directory & config** — Identify locales structure and registration config for auto-integration
-   - Identify `src/locales/` or `public/locales/` structure
-   - Locate i18n config file: Glob `src/**/i18n*`, `src/**/i18next*`
+   - Identify `{baseDir}/locales/` or `public/locales/` structure
+   - Locate i18n config file: Glob `{baseDir}/**/i18n*`, `{baseDir}/**/i18next*`
    - Read the config file and identify:
      - **Aggregation pattern**: Check if existing features export i18n registration objects that are imported into the central config (e.g., `import { dashboardI18n } from ...`). If found, follow the same pattern.
      - **Registration mechanism**: How namespaces are registered:
@@ -111,24 +112,24 @@ Identify existing project patterns so that generated code integrates naturally.
    - Record findings in plan as `i18n.autoIntegration`
 
 7. **API service pattern** — Identify existing Axios instance location and error handling patterns
-   - Glob: `src/**/axios*`, `src/**/api*`, `src/**/http*`
+   - Glob: `{baseDir}/**/axios*`, `{baseDir}/**/api*`, `{baseDir}/**/http*`
 
 8. **Zustand store pattern** — Identify existing store file patterns
-   - Glob: `src/**/*Store*`, `src/**/*store*`
+   - Glob: `{baseDir}/**/*Store*`, `{baseDir}/**/*store*`
 
 9. **MSW infrastructure** — Detect existing MSW infrastructure (always — needed for test server regardless of `mockFirst`):
    - Whether `msw` devDependency exists in `package.json`
-   - Whether `src/mocks/server.ts` exists (test server)
-   - Whether `src/mocks/handlers.ts` exists (handler aggregator)
-   - Identify existing feature `mocks/handlers.ts` patterns (Glob: `src/features/*/mocks/handlers.ts`)
+   - Whether `{baseDir}/mocks/server.ts` exists (test server)
+   - Whether `{baseDir}/mocks/handlers.ts` exists (handler aggregator)
+   - Identify existing feature `mocks/handlers.ts` patterns (Glob: `{baseDir}/features/*/mocks/handlers.ts`)
    - When `mockFirst` is `true`, also check:
-     - Whether `src/mocks/browser.ts` exists (dev browser worker)
+     - Whether `{baseDir}/mocks/browser.ts` exists (dev browser worker)
      - Whether `public/mockServiceWorker.js` exists
 
 10. **Test infrastructure** — Detect test infrastructure:
     - Check Vitest config: `vitest.config.ts` or `test` config in `vite.config.ts`
     - Check if `@testing-library/react` is installed (`package.json` devDependencies)
-    - Identify test setup file location (Glob: `src/setupTests.*`, `src/test-setup.*`)
+    - Identify test setup file location (Glob: `{baseDir}/setupTests.*`, `{baseDir}/test-setup.*`)
 
 ### Phase 2: Produce Implementation Plan
 
@@ -139,7 +140,7 @@ Synthesize spec and project analysis results to generate the implementation plan
 If `sharedLayoutRefs[]` is non-empty:
 
 - **Layout doesn't exist** (`reuseExisting: false`):
-  - Plan layout component: `src/layouts/{PascalCaseLayoutId}.tsx`
+  - Plan layout component: `{baseDir}/layouts/{PascalCaseLayoutId}.tsx`
   - Extract navigation items, sidebar structure, header from shared DSL componentTree
   - Plan layout i18n keys in `layout` namespace
 
@@ -231,14 +232,14 @@ MSW v2-based mock plan. Test mocking infrastructure (factories, fixtures, handle
   - Error scenarios: based on spec's errorMapping
 
 - `globalSetupNeeded` — Whether global MSW test server files need to be created:
-  - `true` if `src/mocks/server.ts` does not exist
+  - `true` if `{baseDir}/mocks/server.ts` does not exist
   - `false` if already exists (subsequent features → only update handler aggregator)
 
-- `globalFiles[]` — Test infrastructure global files (always): `src/mocks/server.ts`, `src/mocks/handlers.ts`
+- `globalFiles[]` — Test infrastructure global files (always): `{baseDir}/mocks/server.ts`, `{baseDir}/mocks/handlers.ts`
 
 - `devMocking` (only when `mockFirst` is `true`) — Dev browser worker setup:
-  - `browserSetupNeeded` — `true` if `src/mocks/browser.ts` does not exist
-  - `files[]` — Dev-only global files: `src/mocks/browser.ts`
+  - `browserSetupNeeded` — `true` if `{baseDir}/mocks/browser.ts` does not exist
+  - `files[]` — Dev-only global files: `{baseDir}/mocks/browser.ts`
 
 #### 2.10 Tests
 
@@ -250,7 +251,7 @@ Map TS-nnn items from `test-scenarios.md` to test files.
   - `page` — Page tests (4-state coverage: loading/empty/error/success)
   - `store` — Zustand store unit tests
 
-- Test file location: `src/features/{feature}/__tests__/`
+- Test file location: `{baseDir}/features/{feature}/__tests__/`
 - Each test case specifies TS-nnn, FR-nnn references via the `source` field
 
 #### 2.11 Build Order (TDD Phases)
@@ -285,12 +286,12 @@ Save to the `outputFile` path in the following JSON structure.
   "specStatus": "finalized",
   "routerMode": "declarative",
   "projectStructure": "feature-based",
-  "baseDir": "src/features/{feature}",
+  "baseDir": "{baseDir}/features/{feature}",
   "uiDslAvailable": true,
   "types": [
     {
       "name": "EntityName",
-      "file": "src/features/{feature}/types/entityName.ts",
+      "file": "{baseDir}/features/{feature}/types/entityName.ts",
       "fields": [
         { "name": "id", "type": "string" },
         { "name": "fieldName", "type": "string" },
@@ -307,7 +308,7 @@ Save to the `outputFile` path in the following JSON structure.
   "api": [
     {
       "name": "entityApi",
-      "file": "src/features/{feature}/api/entityApi.ts",
+      "file": "{baseDir}/features/{feature}/api/entityApi.ts",
       "endpoint": "/api/v1/entities",
       "methods": [
         { "name": "getList", "method": "GET", "path": "/", "response": "ListResponse<Entity>" },
@@ -325,7 +326,7 @@ Save to the `outputFile` path in the following JSON structure.
   "stores": [
     {
       "name": "entityStore",
-      "file": "src/features/{feature}/stores/entityStore.ts",
+      "file": "{baseDir}/features/{feature}/stores/entityStore.ts",
       "state": ["list", "selected", "filters", "pagination", "loading"],
       "actions": ["fetchList", "fetchById", "setFilters", "setPage", "clearSelected"],
       "usedBy": ["EntityListPage", "EntityDetailPage"],
@@ -335,7 +336,7 @@ Save to the `outputFile` path in the following JSON structure.
   "components": [
     {
       "name": "EntityForm",
-      "file": "src/features/{feature}/components/EntityForm.tsx",
+      "file": "{baseDir}/features/{feature}/components/EntityForm.tsx",
       "type": "shared-form",
       "usedBy": ["EntityCreatePage", "EntityEditPage"],
       "fields": ["field1", "field2"],
@@ -346,7 +347,7 @@ Save to the `outputFile` path in the following JSON structure.
     },
     {
       "name": "EntityTable",
-      "file": "src/features/{feature}/components/EntityTable.tsx",
+      "file": "{baseDir}/features/{feature}/components/EntityTable.tsx",
       "type": "data-table",
       "columns": ["col1", "col2", "actions"],
       "source": "screen: entity-list"
@@ -355,7 +356,7 @@ Save to the `outputFile` path in the following JSON structure.
   "pages": [
     {
       "name": "EntityListPage",
-      "file": "src/features/{feature}/pages/EntityListPage.tsx",
+      "file": "{baseDir}/features/{feature}/pages/EntityListPage.tsx",
       "screenId": "entity-list",
       "route": "/path/to/entities",
       "auth": true,
@@ -372,7 +373,7 @@ Save to the `outputFile` path in the following JSON structure.
   "sharedLayouts": [
     {
       "name": "MainLayout",
-      "file": "src/layouts/MainLayout.tsx",
+      "file": "{baseDir}/layouts/MainLayout.tsx",
       "layoutId": "main-layout",
       "source": "_shared",
       "dslFile": "docs/specs/_shared/ui-dsl/screen-main-layout.json",
@@ -398,10 +399,10 @@ Save to the `outputFile` path in the following JSON structure.
       { "path": "/path/to/entities/:id", "page": "EntityDetailPage", "auth": true },
       { "path": "/path/to/entities/:id/edit", "page": "EntityEditPage", "auth": true }
     ],
-    "insertLocation": "src/App.tsx",
-    "featureRouteFile": "src/features/{feature}/routes.tsx",
+    "insertLocation": "{baseDir}/App.tsx",
+    "featureRouteFile": "{baseDir}/features/{feature}/routes.tsx",
     "autoIntegration": {
-      "routeFile": "src/App.tsx",
+      "routeFile": "{baseDir}/App.tsx",
       "insertAnchor": "</Routes>",
       "existingLayoutRoute": "/app",
       "existingFeatureImports": ["dashboardRoutes"],
@@ -418,9 +419,9 @@ Save to the `outputFile` path in the following JSON structure.
       "actions": ["actions.create", "actions.edit", "actions.delete", "actions.deleteConfirm"],
       "errors": ["errors.E001", "errors.E002"]
     },
-    "featureI18nFile": "src/features/{feature}/i18n.ts",
+    "featureI18nFile": "{baseDir}/features/{feature}/i18n.ts",
     "autoIntegration": {
-      "configFile": "src/i18n/config.ts",
+      "configFile": "{baseDir}/i18n/config.ts",
       "registrationPattern": "dynamic-import",
       "insertAnchor": "// feature i18n imports",
       "existingFeatureImports": ["dashboardI18n"],
@@ -436,14 +437,14 @@ Save to the `outputFile` path in the following JSON structure.
     "globalSetupNeeded": true,
     "factories": [{
       "entity": "Entity",
-      "file": "src/features/{feature}/mocks/factories.ts",
+      "file": "{baseDir}/features/{feature}/mocks/factories.ts",
       "entityFactory": { "defaults": { "name": "Sample Entity", "status": "Active" } },
       "dtoFactory": { "type": "CreateEntityDto", "defaults": { "name": "New Entity" } },
       "listFactory": true
     }],
     "fixtures": [{
       "entity": "Entity",
-      "file": "src/features/{feature}/mocks/fixtures.ts",
+      "file": "{baseDir}/features/{feature}/mocks/fixtures.ts",
       "recordCount": 8,
       "usesFactory": true,
       "records": [
@@ -457,7 +458,7 @@ Save to the `outputFile` path in the following JSON structure.
       ]
     }],
     "handlers": [{
-      "file": "src/features/{feature}/mocks/handlers.ts",
+      "file": "{baseDir}/features/{feature}/mocks/handlers.ts",
       "api": "entityApi",
       "baseUrl": "/api/v1/entities",
       "operations": [
@@ -468,16 +469,16 @@ Save to the `outputFile` path in the following JSON structure.
         { "code": "E001", "httpStatus": 409, "condition": "Duplicate name" }
       ]
     }],
-    "globalFiles": ["src/mocks/server.ts", "src/mocks/handlers.ts"],
+    "globalFiles": ["{baseDir}/mocks/server.ts", "{baseDir}/mocks/handlers.ts"],
     "devMocking": {
       "browserSetupNeeded": true,
-      "files": ["src/mocks/browser.ts"]
+      "files": ["{baseDir}/mocks/browser.ts"]
     }
   },
   "tests": [
     {
       "target": "entityApi",
-      "file": "src/features/{feature}/__tests__/entityApi.test.ts",
+      "file": "{baseDir}/features/{feature}/__tests__/entityApi.test.ts",
       "type": "api",
       "cases": [
         { "name": "fetches entity list", "source": "TS-001, FR-001" },
@@ -487,7 +488,7 @@ Save to the `outputFile` path in the following JSON structure.
     },
     {
       "target": "entityStore",
-      "file": "src/features/{feature}/__tests__/entityStore.test.ts",
+      "file": "{baseDir}/features/{feature}/__tests__/entityStore.test.ts",
       "type": "store",
       "cases": [
         { "name": "sets list and total", "source": "TS-010" },
@@ -497,7 +498,7 @@ Save to the `outputFile` path in the following JSON structure.
     },
     {
       "target": "EntityForm",
-      "file": "src/features/{feature}/__tests__/EntityForm.test.tsx",
+      "file": "{baseDir}/features/{feature}/__tests__/EntityForm.test.tsx",
       "type": "component",
       "cases": [
         { "name": "renders form fields", "source": "TS-020" },
@@ -507,7 +508,7 @@ Save to the `outputFile` path in the following JSON structure.
     },
     {
       "target": "EntityListPage",
-      "file": "src/features/{feature}/__tests__/EntityListPage.test.tsx",
+      "file": "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
       "type": "page",
       "cases": [
         { "name": "shows loading state", "source": "TS-030" },
@@ -529,8 +530,8 @@ Save to the `outputFile` path in the following JSON structure.
       "phase": "api-tdd",
       "items": ["api"],
       "tdd": true,
-      "testFiles": ["src/features/{feature}/__tests__/entityApi.test.ts"],
-      "implFiles": ["src/features/{feature}/api/entityApi.ts"],
+      "testFiles": ["{baseDir}/features/{feature}/__tests__/entityApi.test.ts"],
+      "implFiles": ["{baseDir}/features/{feature}/api/entityApi.ts"],
       "verify": ["vitest"],
       "skills": ["vitest"]
     },
@@ -538,8 +539,8 @@ Save to the `outputFile` path in the following JSON structure.
       "phase": "store-tdd",
       "items": ["stores"],
       "tdd": true,
-      "testFiles": ["src/features/{feature}/__tests__/entityStore.test.ts"],
-      "implFiles": ["src/features/{feature}/stores/entityStore.ts"],
+      "testFiles": ["{baseDir}/features/{feature}/__tests__/entityStore.test.ts"],
+      "implFiles": ["{baseDir}/features/{feature}/stores/entityStore.ts"],
       "verify": ["vitest"],
       "skills": ["vitest"]
     },
@@ -547,8 +548,8 @@ Save to the `outputFile` path in the following JSON structure.
       "phase": "component-tdd",
       "items": ["components"],
       "tdd": true,
-      "testFiles": ["src/features/{feature}/__tests__/EntityForm.test.tsx"],
-      "implFiles": ["src/features/{feature}/components/EntityForm.tsx", "src/features/{feature}/components/EntityTable.tsx"],
+      "testFiles": ["{baseDir}/features/{feature}/__tests__/EntityForm.test.tsx"],
+      "implFiles": ["{baseDir}/features/{feature}/components/EntityForm.tsx", "{baseDir}/features/{feature}/components/EntityTable.tsx"],
       "verify": ["vitest"],
       "skills": ["vitest", "vercel-composition-patterns"]
     },
@@ -556,8 +557,8 @@ Save to the `outputFile` path in the following JSON structure.
       "phase": "page-tdd",
       "items": ["pages"],
       "tdd": true,
-      "testFiles": ["src/features/{feature}/__tests__/EntityListPage.test.tsx"],
-      "implFiles": ["src/features/{feature}/pages/EntityListPage.tsx", "src/features/{feature}/pages/EntityCreatePage.tsx", "src/features/{feature}/pages/EntityDetailPage.tsx", "src/features/{feature}/pages/EntityEditPage.tsx"],
+      "testFiles": ["{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx"],
+      "implFiles": ["{baseDir}/features/{feature}/pages/EntityListPage.tsx", "{baseDir}/features/{feature}/pages/EntityCreatePage.tsx", "{baseDir}/features/{feature}/pages/EntityDetailPage.tsx", "{baseDir}/features/{feature}/pages/EntityEditPage.tsx"],
       "verify": ["vitest"],
       "skills": ["vitest", "vercel-react-best-practices"]
     },
