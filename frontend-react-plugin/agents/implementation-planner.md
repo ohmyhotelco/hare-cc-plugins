@@ -94,7 +94,8 @@ Identify existing project patterns so that generated code integrates naturally.
 5. **shadcn/ui components** — Scan `{baseDir}/components/ui/` → list of installed components
 
 6. **i18n directory & config** — Identify locales structure and registration config for auto-integration
-   - Identify `{baseDir}/locales/` or `public/locales/` structure
+   - Identify locale directory: check `{baseDir}/locales/` first, then `public/locales/`
+   - Record the detected path as `localesDir` in plan output (e.g., `"{baseDir}/locales"` or `"public/locales"`). If neither exists, default to `"{baseDir}/locales"` (will be created).
    - Locate i18n config file: Glob `{baseDir}/**/i18n*`, `{baseDir}/**/i18next*`
    - Read the config file and identify:
      - **Aggregation pattern**: Check if existing features export i18n registration objects that are imported into the central config (e.g., `import { dashboardI18n } from ...`). If found, follow the same pattern.
@@ -142,6 +143,7 @@ If `sharedLayoutRefs[]` is non-empty:
 - **Layout doesn't exist** (`reuseExisting: false`):
   - Plan layout component: `{baseDir}/layouts/{PascalCaseLayoutId}.tsx`
   - Extract navigation items, sidebar structure, header from shared DSL componentTree
+  - If shared DSL is unavailable (no `docs/specs/_shared/ui-dsl/` directory): infer layout structure from `docs/specs/_shared/en/screens.md` and embed the extracted `componentTree` directly in the `sharedLayouts[]` entry. Set `dslFile: null`.
   - Plan layout i18n keys in `layout` namespace
 
 - **Layout exists** (`reuseExisting: true`):
@@ -284,9 +286,11 @@ Save to the `outputFile` path in the following JSON structure.
 {
   "feature": "{feature}",
   "specStatus": "finalized",
+  "workingLanguage": "ko",
   "routerMode": "declarative",
   "projectStructure": "feature-based",
   "baseDir": "{baseDir}/features/{feature}",
+  "localesDir": "{baseDir}/locales",
   "uiDslAvailable": true,
   "types": [
     {
@@ -376,7 +380,8 @@ Save to the `outputFile` path in the following JSON structure.
       "file": "{baseDir}/layouts/MainLayout.tsx",
       "layoutId": "main-layout",
       "source": "_shared",
-      "dslFile": "docs/specs/_shared/ui-dsl/screen-main-layout.json",
+      "dslFile": "docs/specs/_shared/ui-dsl/screen-main-layout.json | null",
+      "componentTree": "{ ... embedded componentTree when dslFile is null ... } | null",
       "exists": false,
       "reuseExisting": false,
       "navigationItems": [

@@ -31,6 +31,11 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 
 2. Read the progress file and check `status`:
    - `"reviewing"` or `"finalized"` → proceed
+   - If status is `"reviewing"`:
+     > "The specification is in 'reviewing' status — unresolved review issues may exist."
+     > "For the most accurate plan, finalize first: `/planning-plugin:review {feature}`"
+     > "Continue with current spec?"
+     - If the user declines, stop here.
    - `"drafting"` or `"analyzing"` →
      > "The functional specification is not yet complete (status: {status})."
      > "Please finish writing the specification, then try again."

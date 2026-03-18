@@ -92,7 +92,12 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Code review failed. Run /frontend-react-plugin:fe-fix $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
         ;;
       fixing)
-        echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-react-plugin:fe-review $FEATURE."
+        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
+        if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
+          echo "  Warning: [$FEATURE] Regen required. Run /frontend-react-plugin:fe-gen $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
+        else
+          echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-react-plugin:fe-review $FEATURE."
+        fi
         ;;
       resolved)
         echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-react-plugin:fe-verify $FEATURE) or re-reviewing (/frontend-react-plugin:fe-review $FEATURE)."
@@ -111,6 +116,7 @@ if [ -d "$SPECS_DIR" ]; then
         else
           echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
         fi
+        echo "    Re-entry: /frontend-react-plugin:fe-fix $FEATURE, /frontend-react-plugin:fe-review $FEATURE, or /frontend-react-plugin:fe-debug $FEATURE."
         ;;
     esac
   done

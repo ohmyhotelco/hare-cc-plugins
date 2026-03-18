@@ -33,7 +33,7 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
@@ -46,6 +46,18 @@ Generates production React code based on the implementation plan (plan.json) usi
    - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists:
      - Read it and check `currentPhase` and phase statuses
      - Offer to resume from the last incomplete phase
+
+7. **Demotion warning** — check `implementation.status` (already read in Step 1.3):
+   - If status is `verified`, `reviewed`, or `done`:
+     > "This feature is currently '{status}'. Re-generating will reset the pipeline status to 'generated', discarding verification/review progress."
+     > "Continue with code generation?"
+     - If the user declines, stop here.
+   - If status is `fixing`:
+     > "This feature is currently 'fixing' (fe-fix in progress or regen-required re-run)."
+     > "Re-generating will overwrite any fe-fix changes in re-run phases."
+     > "Continue with code generation?"
+     - If the user declines, stop here.
+   - All other statuses (`generated`, `gen-failed`, `planned`, `verify-failed`, `review-failed`, `resolved`, `escalated`) → no warning, proceed normally.
 
 ### Step 2: Confirm with User
 
@@ -207,6 +219,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   > "1. Retry this phase"
   > "2. Skip and continue to next phase"
   > "3. Stop generation (resume later with /frontend-react-plugin:fe-gen {feature})"
+- If user chooses Skip: update generation-state.json `{phase}.status = "skipped"`, continue to next phase
 
 #### Phase 6: Integration
 
@@ -306,6 +319,12 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 }
 ```
 
+**Status determination logic** — set `implementation.status` based on phase outcomes:
+- All phases `"completed"` → `"generated"`
+- Any phase `"failed"` AND user chose **Stop** → `"gen-failed"`
+- Any phase `"failed"` or `"skipped"` AND user chose **Skip** to continue → `"gen-failed"` (incomplete generation must not enter review pipeline)
+- Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
+
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.
 
 Update generation-state.json with final status.
@@ -315,7 +334,10 @@ Update generation-state.json with final status.
 When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`:
 
 1. Read the state file
-2. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against `.implementation/frontend/generation-state.json` `startedAt`:
+2. **All-completed check** — if every phase in the state file has `status: "completed"`:
+   > "Previous generation completed successfully. Re-running will start fresh."
+   - Delete generation-state.json and proceed to Step 3 (fresh start).
+3. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against `.implementation/frontend/generation-state.json` `startedAt`:
    - Read `startedAt` from generation-state.json
    - Check if `.implementation/frontend/plan.json` was modified after `startedAt` (use `stat` or file system check)
    - If plan.json is newer than startedAt:
@@ -323,12 +345,12 @@ When Step 1.6 detects an existing `.implementation/frontend/generation-state.jso
      > "Resuming may create inconsistencies between already-generated and new code."
      > "Options: 1. Continue anyway  2. Restart generation from scratch"
      - If user chooses restart: delete generation-state.json and proceed to Step 3 (fresh start)
-3. Find the first phase with `status` not `"completed"`
-4. Display:
+4. Find the first phase with `status` not `"completed"`
+5. Display:
    ```
    Resuming code generation for '{feature}':
      Completed: {list of completed phases}
      Resuming from: {phase name}
    ```
-5. Ask user to confirm resume
-6. Continue from the incomplete phase (skip completed phases)
+6. Ask user to confirm resume
+7. Continue from the incomplete phase (skip completed phases)

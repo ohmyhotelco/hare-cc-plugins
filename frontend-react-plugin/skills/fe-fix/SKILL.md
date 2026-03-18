@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 
 Fixes issues found by fe-review with TDD discipline for behavioral changes and direct fixes for mechanical changes.
 
+> **Tool choice**: This skill uses `Task` to launch the review-fixer agent. The fix process runs as a single autonomous session.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -30,16 +32,19 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`, `implementation.status`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, or `resolved`:
+5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, or `escalated`:
    - If status is not one of these:
-     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', or 'resolved'."
+     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', or 'escalated'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
+   - If status is `"escalated"`:
+     > "Status is 'escalated'. The review report may be outdated or absent."
+     > "If no review-report.json exists, run `/frontend-react-plugin:fe-review {feature}` first."
 
 6. **Review report check** — check if `docs/specs/{feature}/.implementation/frontend/review-report.json` exists:
    - If not found:
@@ -68,6 +73,7 @@ Review Issues for '{feature}':
   Source:
     Spec Review:    {specIssueCount} issues ({specCritical} critical, {specWarning} warnings, {specSuggestion} suggestions)
     Quality Review: {qualityIssueCount} issues ({qualityCritical} critical, {qualityWarning} warnings, {qualitySuggestion} suggestions)
+                    (If qualityReview is null: "skipped (spec review failed)")
 
   By Severity:
     Critical:   {totalCritical}
@@ -165,7 +171,14 @@ If the fix report contains `regenRequired` entries, append this section after th
     These files were never generated and cannot be patched:
       - {message} — {missingFiles}
         Phase: {recommendedPhase} {", Refs: " + refs if present}
+        {if planCovered is false: "⚠ Not in plan.json — run fe-plan first"}
 
+  {if any regenRequired entry has planCovered === false:}
+  To generate missing code (plan update needed):
+    1. Update plan: /frontend-react-plugin:fe-plan {feature}
+    2. Generate: /frontend-react-plugin:fe-gen {feature}
+    3. Re-review: /frontend-react-plugin:fe-review {feature}
+  {else:}
   To generate missing code:
     1. Run: /frontend-react-plugin:fe-gen {feature}
     2. Re-review: /frontend-react-plugin:fe-review {feature}
@@ -197,7 +210,10 @@ If there are escalated issues:
 > "Consider `/frontend-react-plugin:fe-debug {feature}` for complex issues."
 
 If there are regen-required issues:
-> "Run `/frontend-react-plugin:fe-gen {feature}` to generate missing modules, then re-review."
+- If any regen-required entry has `planCovered: false`:
+  > "Some missing files are not in the current plan. Run `/frontend-react-plugin:fe-plan {feature}` to update the plan, then `/frontend-react-plugin:fe-gen {feature}`."
+- Otherwise:
+  > "Run `/frontend-react-plugin:fe-gen {feature}` to generate missing modules, then re-review."
 
 ### Step 6: Update Progress
 

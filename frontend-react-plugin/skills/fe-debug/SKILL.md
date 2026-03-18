@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
 
 Resolves issues in generated code using a systematic 4-phase debugging methodology.
 
+> **Tool choice**: This skill uses `Task` to launch the debugger agent. The debug session runs autonomously with its own hypothesis-test-fix cycle.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -29,7 +31,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` and `implementation.status` (save as `previousStatus` for use in Step 5 guidance)
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`) and `implementation.status` (save as `previousStatus` for use in Step 5 guidance)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
@@ -39,6 +41,8 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
+
+   Note: fe-debug intentionally does not check `implementation.status` — it serves as an interrupt tool usable at any pipeline stage. The previous status is saved for context-aware guidance in Step 5.
 
 ### Step 2: Collect Problem Description
 
@@ -140,15 +144,16 @@ After resolution, read the **previous** `implementation.status` (before this deb
 
 | Previous Status | Guidance |
 |----------------|----------|
+| `gen-failed` | > "Issue resolved. Re-run code generation: `/frontend-react-plugin:fe-gen {feature}`" |
+| `generated` | > "Issue resolved. Continue pipeline: `/frontend-react-plugin:fe-verify {feature}`" |
 | `verify-failed` | > "Issue resolved. Re-verify: `/frontend-react-plugin:fe-verify {feature}`" |
 | `review-failed` | > "Issue resolved. Re-review: `/frontend-react-plugin:fe-review {feature}`, or fix remaining issues: `/frontend-react-plugin:fe-fix {feature}`" |
-| `generated` | > "Issue resolved. Continue pipeline: `/frontend-react-plugin:fe-verify {feature}`" |
 | `fixing` | > "Issue resolved. Re-review to verify fixes: `/frontend-react-plugin:fe-review {feature}`" |
-| `escalated` | > "Issue resolved. Re-enter pipeline: `/frontend-react-plugin:fe-verify {feature}` or `/frontend-react-plugin:fe-review {feature}`" |
+| `escalated` | > "Issue resolved. Re-enter pipeline: `/frontend-react-plugin:fe-fix {feature}`, `/frontend-react-plugin:fe-verify {feature}`, or `/frontend-react-plugin:fe-review {feature}`" |
 | Other / unknown | > "Issue resolved. Consider re-verifying (`/frontend-react-plugin:fe-verify {feature}`) or re-reviewing (`/frontend-react-plugin:fe-review {feature}`)." |
 
 If escalated:
-> "Manual intervention required. After resolving, re-enter the pipeline with `/frontend-react-plugin:fe-verify {feature}` or `/frontend-react-plugin:fe-review {feature}`."
+> "Manual intervention required. After resolving, re-enter the pipeline with `/frontend-react-plugin:fe-fix {feature}`, `/frontend-react-plugin:fe-verify {feature}`, or `/frontend-react-plugin:fe-review {feature}`."
 
 ### Step 6: Update Progress
 

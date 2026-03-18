@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Glob, Grep, Task
 
 Run a 2-stage code review (spec review → quality review) on generated code.
 
+> **Tool choice**: This skill uses `Task` to launch reviewer agents. Each reviewer runs independently and returns a complete report.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -29,19 +31,37 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
 5. **Status check** — verify `implementation.status` indicates code has been generated:
-   - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`
+   - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
+   - If status is `"escalated"`:
+     > "Status is 'escalated'. The previous review report may be outdated."
+     > "Proceeding with a fresh review."
 
-6. **Generated files check** — verify the `baseDir` directory exists and contains files:
+5b. **Demotion warning** — if `implementation.status` is `done`:
+   > "This feature is already marked as 'done'. Re-running review may reset the status if new issues are found."
+   > "Continue?"
+   - If the user declines, stop here.
+
+6. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+   - Read `implementation.generatedAt` from the progress file
+   - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt` (use `stat` or file system check)
+   - If spec is newer:
+     > "Warning: Spec files have been modified since code was generated ({generatedAt})."
+     > "Review results may flag issues caused by spec-code drift."
+     > "Consider re-running `/frontend-react-plugin:fe-plan {feature}` → `/frontend-react-plugin:fe-gen {feature}` first."
+     > "Continue with review anyway?"
+     - If the user declines, stop here.
+
+7. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."

@@ -16,7 +16,7 @@ The skill will provide these parameters in the prompt:
 - `feature` — feature name
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `specDir` — spec markdown directory path (e.g., `docs/specs/{feature}/{lang}/`)
-- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
+- `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 
 ## Process
 
@@ -120,7 +120,7 @@ Return the result in JSON format:
         {
           "severity": "critical",
           "message": "FR-003 (Create entity) not implemented — no create page found",
-          "file": "{baseDir}/features/{feature}/pages/EntityCreatePage.tsx",
+          "file": "{baseDir}/pages/EntityCreatePage.tsx",
           "refs": ["FR-003", "AC-003-1", "AC-003-2"],
           "planEntries": [
             { "section": "pages", "name": "EntityCreatePage" },
@@ -137,7 +137,7 @@ Return the result in JSON format:
         {
           "severity": "warning",
           "message": "EntityDetailPage missing empty state",
-          "file": "{baseDir}/features/{feature}/pages/EntityDetailPage.tsx",
+          "file": "{baseDir}/pages/EntityDetailPage.tsx",
           "refs": ["AC-005-3"],
           "planEntries": [{ "section": "pages", "name": "EntityDetailPage" }],
           "missingArtifact": "state",

@@ -28,7 +28,7 @@ The coordinator skill provides:
 
 ### Step 1: Read Plan & Context
 
-1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`
+1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`, `workingLanguage`, `localesDir`
 2. **Existing patterns** — check patterns in existing project code:
    - Import style and naming conventions of existing feature modules
    - Existing type patterns (Glob: `{baseDir}/features/*/types/*.ts`)
@@ -44,7 +44,9 @@ Skip if `sharedLayouts[]` is empty or absent.
 For each entry in `sharedLayouts[]`:
 
 **If `exists: false`** (first feature):
-1. Read `dslFile` (shared DSL) → extract componentTree
+1. Read layout source for componentTree:
+   - If `dslFile` is non-null and the file exists → read DSL → extract componentTree
+   - If `dslFile` is null or the file does not exist → use `componentTree` from plan.json's `sharedLayouts[]` entry (embedded by implementation-planner when DSL is unavailable). If neither source is available, generate a minimal layout shell with sidebar navigation from `navigationItems` and `<Outlet />` content area.
 2. Generate `{baseDir}/layouts/{Name}.tsx`:
    - Import `<Outlet />` from `react-router`
    - Import `NavLink`, `useLocation` from `react-router`
@@ -52,13 +54,15 @@ For each entry in `sharedLayouts[]`:
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels
-3. Generate layout i18n: `{baseDir}/locales/{lang}/layout.json`
+3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for all 4 languages (ko, en, ja, vi)
+   - `workingLanguage` translation is the primary (fully translated)
+   - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
 4. Run `npx tsc --noEmit` to verify
 
 **If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
 1. Read existing layout file
 2. Edit to add new navigation items (targeted Edit, not rewrite)
-3. Update `{baseDir}/locales/{lang}/layout.json` with new keys
+3. Update `{localesDir}/{lang}/layout.json` with new keys (follow same `workingLanguage` primary / placeholder convention)
 
 **If `exists: true` AND `navItemsToAdd` is empty**: Skip.
 

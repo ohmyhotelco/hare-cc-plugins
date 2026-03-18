@@ -17,7 +17,7 @@ The skill will provide these parameters in the prompt:
 
 - `planFile` — implementation plan path
 - `feature` — feature name
-- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
+- `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `reviewReportFile` — path to `review-report.json`
 - `specDir` — spec markdown path (for reference)
@@ -63,7 +63,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - Always parse `specReview.dimensions[].issues[]`
    - If `qualityReview` is not null, also parse `qualityReview.dimensions[].issues[]`
    - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
-6. **Existing tests** — glob `{baseDir}/features/{feature}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
+6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
 ### Step 1: Pre-check — Verify Issues Still Exist
 
@@ -80,8 +80,11 @@ Classify each confirmed issue into one of three categories:
 
 1. **regen-required** — `missingArtifact === "file"` (spec-reviewer issues), OR `missingArtifact` field is absent and the issue's target file does not exist on disk (quality-reviewer issues or legacy reports).
    - These require fe-gen re-execution. Do NOT attempt to fix.
+   - **Plan coverage check**: Verify the missing file exists in plan.json (search `types[]`, `api[]`, `stores[]`, `components[]`, `pages[]` file paths):
+     - If found in plan → regen will create it. Record `planCovered: true`.
+     - If NOT found in plan → regen will NOT create it. Record `planCovered: false`, `reason: "File not in plan.json — plan update required before regen"`.
    - Derive the recommended fe-gen phase from plan.json based on the file's location:
-     - `types/` → `"foundation"`, `mocks/` → `"foundation"`
+     - `types/` → `"foundation"`, `mocks/` → `"foundation"`, `layouts/` → `"foundation"`
      - `api/` → `"api-tdd"`, `stores/` → `"store-tdd"`
      - `components/` → `"component-tdd"`, `pages/` → `"page-tdd"`
      - `routes`/`i18n` → `"integration"`
@@ -89,10 +92,17 @@ Classify each confirmed issue into one of three categories:
    - Record `refs` if present (spec-reviewer issues provide this); omit for quality-reviewer issues where the field is absent
 
 2. **tdd-required** — existing file needs behavioral changes (per Issue Classification table above)
+   - **Test file existence check**: After classifying as tdd-required, derive the expected test file path based on the issue's target location:
+     - `api/` → `{baseDir}/__tests__/{target}.test.ts`
+     - `stores/` → `{baseDir}/__tests__/{target}.test.ts`
+     - `components/` → `{baseDir}/__tests__/{Component}.test.tsx`
+     - `pages/` → `{baseDir}/__tests__/{Page}.test.tsx`
+   - If the expected test file does not exist → reclassify as **regen-required** with reason `"test file missing — TDD fix requires existing test file to extend"`
+   - Derive `recommendedPhase` using the same mapping as category 1
 
 3. **direct-fix** — existing file needs mechanical changes (per Issue Classification table above)
 
-Report: `{N} tdd-required, {M} direct-fix, {K} regen-required`
+Report: `{N} tdd-required, {M} direct-fix, {K} regen-required ({R} reclassified from tdd-required)`
 
 **regen-required issues skip Steps 2 and 3** — they go directly to the fix report.
 
@@ -117,8 +127,9 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
 
 #### 3.1 RED — Add Failing Test
 
-1. Identify the EXISTING test file to extend (do not create new test files from scratch). If no matching test file exists for the issue's target, this issue should already have been classified as regen-required in Step 1.5 and will not reach this step.
+1. Identify the EXISTING test file to extend (do not create new test files from scratch).
    - Match by target: component issues → component test, page issues → page test, etc.
+   - **Defensive guard**: If the matching test file is unexpectedly missing at execution time (e.g., deleted between triage and execution), mark the issue as `escalated` with reason `"test file not found"` and move to the next issue.
 2. Add `it()` block to the existing test file:
    - Comment: `// fix: {dimension}` for traceability
    - Test name describes the expected behavior being fixed
@@ -195,7 +206,7 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
       "message": "...",
       "file": "...",
       "status": "fixed",
-      "testFile": "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
+      "testFile": "{baseDir}/__tests__/EntityListPage.test.tsx",
       "testAdded": "renders empty state when no entities exist",
       "change": "Added empty state rendering in EntityListPage"
     }
@@ -206,8 +217,9 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
       "severity": "critical",
       "message": "FR-003 not implemented",
       "refs": ["FR-003"],
-      "missingFiles": ["{baseDir}/features/{feature}/pages/EntityCreatePage.tsx"],
+      "missingFiles": ["{baseDir}/pages/EntityCreatePage.tsx"],
       "recommendedPhase": "page-tdd",
+      "planCovered": true,
       "reason": "Entire page file missing — requires full TDD generation cycle"
     }
   ],
@@ -227,8 +239,8 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
   ],
   "testsAdded": 5,
   "filesModified": [
-    "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
-    "{baseDir}/features/{feature}/pages/EntityListPage.tsx"
+    "{baseDir}/__tests__/EntityListPage.test.tsx",
+    "{baseDir}/pages/EntityListPage.tsx"
   ],
   "verification": {
     "tsc": "pass",

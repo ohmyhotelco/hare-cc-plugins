@@ -29,7 +29,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 
 2. Read `plan.json` → extract `baseDir`, file list from all sections (types, api, stores, components, pages, tests)
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage`, `implementation.status`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
@@ -40,7 +40,22 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
-6. **File existence check** — Verify that all files specified in the plan actually exist:
+6. **Demotion warning** — if `implementation.status` is `done` or `reviewed`:
+   > "This feature is currently '{status}'. Re-running verification will reset the status to 'verified' or 'verify-failed', discarding review progress."
+   > "Continue?"
+   - If the user declines, stop here.
+
+7. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+   - Read `implementation.generatedAt` from the progress file
+   - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt`
+   - If spec is newer:
+     > "Warning: Spec files have been modified since code was generated ({generatedAt})."
+     > "Verification results may not reflect the current spec."
+     > "Consider re-running `/frontend-react-plugin:fe-plan {feature}` → `/frontend-react-plugin:fe-gen {feature}` first."
+     > "Continue with verification anyway?"
+     - If the user declines, stop here.
+
+8. **File existence check** — Verify that all files specified in the plan actually exist:
    - Use Glob to check existence of each file path
    - If missing files are found, display a warning:
      > "Warning: {count} planned files not found:"

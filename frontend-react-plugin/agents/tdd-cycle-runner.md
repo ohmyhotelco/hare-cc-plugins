@@ -54,6 +54,14 @@ The coordinator skill provides:
    - i18n test wrapper (if any)
    - Existing test file conventions
 
+6. **Spec reference** (for `component-tdd` and `page-tdd` phases):
+   - Read `specDir/screens.md` → reference screen layouts, component composition, user interactions, error handling
+   - This provides detailed context beyond plan.json for accurate UI implementation
+
+7. **UI DSL reference** (if available, for `component-tdd` and `page-tdd` phases):
+   - Read `uiDslDir/screen-{id}.json` → reference componentTree, dataShape, validation rules, visibility conditions
+   - Use UI DSL as the primary source for component structure; fall back to spec markdown if unavailable
+
 ### Step 1: RED — Write Failing Tests
 
 For each test entry in the plan's `tests[]` matching this phase:

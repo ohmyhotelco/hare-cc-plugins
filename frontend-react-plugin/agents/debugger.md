@@ -16,7 +16,7 @@ The skill will provide these parameters in the prompt:
 - `feature` — feature name
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
-- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
+- `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 
@@ -131,7 +131,7 @@ Save to the path `docs/specs/{feature}/.implementation/frontend/debug-report.jso
   "problemDescription": "...",
   "issueClassification": "generation-bug",
   "rootCause": {
-    "file": "{baseDir}/features/{feature}/api/entityApi.ts",
+    "file": "{baseDir}/api/entityApi.ts",
     "line": 15,
     "description": "Incorrect import path for Entity type"
   },
@@ -144,7 +144,7 @@ Save to the path `docs/specs/{feature}/.implementation/frontend/debug-report.jso
     }
   ],
   "filesModified": [
-    "{baseDir}/features/{feature}/api/entityApi.ts"
+    "{baseDir}/api/entityApi.ts"
   ],
   "patternsFound": [],
   "verification": {

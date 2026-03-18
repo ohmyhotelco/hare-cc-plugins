@@ -15,7 +15,7 @@ The skill will provide these parameters in the prompt:
 
 - `feature` — feature name
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
-- `baseDir` — generated code directory (e.g., `{baseDir}/features/{feature}/`)
+- `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 
 ## Process
@@ -29,7 +29,8 @@ The skill will provide these parameters in the prompt:
    - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
 3. **Project patterns** — identify patterns from existing feature modules:
-   - Glob: `{baseDir}/features/*/` → verify existing module structure
+   - Derive project base: remove the trailing `features/{feature}` segment from `baseDir` (e.g., `app/src/features/order-management` → `app/src`)
+   - Glob: `{projectBase}/features/*/` → verify existing module structure
    - Check import style and naming conventions of existing code
 4. **Generated files** — read all generated files under `baseDir`
 
@@ -149,7 +150,7 @@ Return results in JSON format:
     "error_handling": {
       "score": 8,
       "issues": [
-        { "severity": "warning", "message": "entityApi.delete missing error documentation", "file": "{baseDir}/features/{feature}/api/entityApi.ts", "line": 15, "fixHint": "Add JSDoc @throws documentation for error cases in the delete method." }
+        { "severity": "warning", "message": "entityApi.delete missing error documentation", "file": "{baseDir}/api/entityApi.ts", "line": 15, "fixHint": "Add JSDoc @throws documentation for error cases in the delete method." }
       ]
     },
     "typescript_strictness": {

@@ -131,7 +131,7 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
-- Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json`
+- Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json` — includes `workingLanguage` and `localesDir` for downstream agents
 - Generation state: `docs/specs/{feature}/.implementation/frontend/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
 - Feature-based structure: `{baseDir}/features/{feature}/` (types, api, stores, components, pages, __tests__)
@@ -175,18 +175,23 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
            gen-failed  ↘ verify-failed ↓  review-failed
                         ↘     ↓        ↓      ↓
                          → resolved  fixing → (re-review → reviewed/review-failed)
-                           escalated    ↓
+                           escalated    ↓  ↘ generated (regen-required → fe-gen)
                               ↓    escalated
                         (manual intervention)
   ```
   Additional transitions:
-  - `generated → reviewed | review-failed` — fe-verify is optional, can go directly to fe-review
+  - `generated → reviewed | review-failed | done` — fe-verify is optional, can go directly to fe-review
+  - `verify-failed → reviewed | review-failed | done` — fe-review accepts verify-failed, user can review without fixing verification first
+  - `gen-failed → generated | gen-failed` — re-run fe-gen (resume or restart)
+  - `gen-failed → resolved | escalated` — fe-debug on partially generated code
   - `fixing → reviewed | review-failed` — after fe-fix, fe-review determines next status
   - `fixing → generated` — when regen-required issues exist, fe-gen re-run resets to generated
   - `resolved → verified | verify-failed` — re-verify after debug resolution
   - `resolved → reviewed | review-failed` — re-review after debug resolution
   - `resolved → fixing | escalated` — fe-fix after debug resolution (when review issues remain)
-  - `escalated` — requires manual intervention, then re-enter pipeline via fe-verify or fe-review
+  - `resolved → generated | gen-failed` — re-run fe-gen after debug resolution (when previousStatus was gen-failed)
+  - `escalated` — requires manual intervention, then re-enter pipeline via fe-fix, fe-verify, or fe-review
+  - Status determination on partial generation: any skipped or failed phase → `gen-failed` (prevents incomplete code from entering review pipeline)
 
 ### Verification Philosophy
 
