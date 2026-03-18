@@ -114,7 +114,12 @@ Frontend React Plugin configured successfully!
     - .claude/skills/web-design-guidelines (Web UI audit)
 
   Config file: .claude/frontend-react-plugin.json
-
-  Tip: Functional specifications are created using /planning-plugin:spec.
-       Run /planning-plugin:init first if you haven't already.
 ```
+
+### Step 6: Next Steps
+
+> "Setup complete. To generate your first feature:"
+> "1. Initialize planning plugin (if not done): `/planning-plugin:init`"
+> "2. Create a functional spec: `/planning-plugin:spec {feature}`"
+> "3. Create an implementation plan: `/frontend-react-plugin:fe-plan {feature}`"
+> "4. Generate code (TDD): `/frontend-react-plugin:fe-gen {feature}`"
