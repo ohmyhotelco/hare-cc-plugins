@@ -186,15 +186,49 @@ If the result is `fail` or `pass_with_warnings`:
 
 ### Step 6: Save Review Report & Update Progress
 
-Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`:
+Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`.
+
+**Critical**: The saved JSON must preserve the **complete** agent output including every `dimensions.{name}.issues[]` array. Do NOT reduce the output to summary counts only — downstream `fe-fix` / `review-fixer` depend on the individual issue objects.
+
+**Pre-save validation** (when status is fail or pass_with_warnings):
+- Verify `specReview.dimensions` is an object with dimension keys
+- Verify at least one dimension contains a non-empty `issues[]` array
+- If validation fails, re-run the spec-reviewer agent before saving
 
 ```json
 {
   "timestamp": "{ISO timestamp}",
-  "specReview": { /* full spec-reviewer output */ },
-  "qualityReview": { /* full quality-reviewer output, or null if spec failed */ }
+  "specReview": {
+    "agent": "spec-reviewer",
+    "feature": "{feature}",
+    "timestamp": "{ISO timestamp}",
+    "dimensions": {
+      "requirement_coverage": {
+        "score": 6,
+        "issues": [
+          {
+            "severity": "critical",
+            "message": "FR-003 not implemented",
+            "file": "{baseDir}/pages/EntityCreatePage.tsx",
+            "refs": ["FR-003"],
+            "planEntries": [{ "section": "pages", "name": "EntityCreatePage" }],
+            "missingArtifact": "file",
+            "fixHint": "Re-run fe-gen page-tdd phase."
+          }
+        ]
+      }
+    },
+    "summary": { "strengths": ["..."] },
+    "overallScore": 6.5,
+    "criticalIssues": 1,
+    "totalIssues": 2,
+    "status": "fail"
+  },
+  "qualityReview": null
 }
 ```
+
+Note: `qualityReview` is `null` when spec review failed (quality review was skipped). When both reviews ran, `qualityReview` follows the same structure with its own `dimensions.{name}.issues[]` arrays.
 
 Then read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `review` field:
 

@@ -60,9 +60,14 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
    - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules
 5. **Review report** — read `reviewReportFile` → parse all issues:
-   - Always parse `specReview.dimensions[].issues[]`
-   - If `qualityReview` is not null, also parse `qualityReview.dimensions[].issues[]`
+   - Parse `specReview.dimensions` as an object — iterate each key (e.g., `requirement_coverage`, `ui_fidelity`) and collect all entries from its `issues[]` array
+   - If `qualityReview` is not null, also parse `qualityReview.dimensions` the same way
    - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
+   - **Hard stop**: If the review report does not contain parseable issues (no `dimensions` object in `specReview`, or no `issues[]` arrays within the dimensions, or all arrays are empty despite the review having `status: "fail"`):
+     > "ERROR: review-report.json does not contain detailed issue data."
+     > "The review report may have been saved without full issue details."
+     > "Re-run `/frontend-react-plugin:fe-review {feature}` to regenerate the review report."
+     - **Stop. Do NOT derive issues from plan.json, spec files, or any other source.**
 6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
 ### Step 1: Pre-check — Verify Issues Still Exist

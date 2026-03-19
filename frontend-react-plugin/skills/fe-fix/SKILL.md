@@ -58,8 +58,14 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
      - If the user declines, stop here.
 
-8. Read `review-report.json` → verify it contains issues:
-   - If no issues found (all dimensions have 0 issues):
+8. Read `review-report.json` → validate structure and verify it contains issues:
+   a. **Structural validation**: Verify `specReview.dimensions` exists and is an object where each key (e.g., `requirement_coverage`) contains an `issues[]` array. If `qualityReview` is not null, verify its `dimensions` follows the same structure.
+   b. If structural validation fails (missing `dimensions` object or missing `issues[]` arrays within dimensions):
+     > "Review report has incomplete structure — detailed issue data is missing."
+     > "Please re-run `/frontend-react-plugin:fe-review {feature}` to generate a complete report."
+     - Stop here.
+   c. Count total issues by iterating each dimension's `issues[]` array (do NOT rely on top-level `totalIssues` count alone).
+   d. If no issues found (all dimensions have 0 issues):
      > "No issues found in the review report. Nothing to fix."
      - Stop here.
 
