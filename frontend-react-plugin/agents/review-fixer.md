@@ -171,8 +171,9 @@ If still failing after 3 retries:
 Run full verification suite:
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection)
-2. `npx vitest run {baseDir}` → all feature tests
-3. `npx vite build` → build check
+2. ESLint (if config exists) — same detection logic as fe-verify Step 2.2
+3. `npx vitest run {baseDir}` → all feature tests
+4. `npx vite build` → build check
 
 Record results for each check.
 
@@ -249,6 +250,7 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
   ],
   "verification": {
     "tsc": "pass",
+    "eslint": "pass | skipped",
     "vitest": "pass",
     "build": "pass"
   }
