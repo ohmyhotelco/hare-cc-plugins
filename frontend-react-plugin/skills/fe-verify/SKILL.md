@@ -67,7 +67,17 @@ Run the following 3 verifications sequentially.
 
 #### 2.1 TypeScript Check
 
+Detect composite tsconfig and use the correct command:
+
+1. Read root `tsconfig.json` in the project directory
+2. If it contains a `"references"` array → use `tsc -b`
+3. Otherwise → use `tsc --noEmit`
+
 ```bash
+# If root tsconfig.json contains "references":
+npx tsc -b 2>&1
+
+# Otherwise:
 npx tsc --noEmit 2>&1
 ```
 

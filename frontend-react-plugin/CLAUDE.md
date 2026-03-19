@@ -209,6 +209,17 @@ State files (progress, generation-state, review-report, fix-report, debug-report
 
 A principle applied across all agents and skills: **"Evidence before claims, always"**
 
+#### TypeScript Check — Composite Config Detection
+
+Vite projects commonly use composite tsconfig with `references`. Agents must detect this and use the correct command:
+
+1. Read root `tsconfig.json` in the project directory
+2. If it contains a `references` array → `npx tsc -b 2>&1`
+3. Otherwise → `npx tsc --noEmit 2>&1`
+
+> `tsc -b` checks all referenced tsconfig projects (e.g., tsconfig.app.json + tsconfig.node.json).
+> `tsc --noEmit` only checks the root config scope, missing errors in build tool configs.
+
 5-Step Gate:
 1. IDENTIFY — identify the target to verify
 2. RUN — execute verification tools (tsc, build, vitest, etc.)

@@ -57,7 +57,11 @@ For each entry in `sharedLayouts[]`:
 3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for all 4 languages (ko, en, ja, vi)
    - `workingLanguage` translation is the primary (fully translated)
    - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
-4. Run `npx tsc --noEmit` to verify
+4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
+   ```bash
+   # If root tsconfig.json contains "references": use tsc -b
+   # Otherwise: use tsc --noEmit
+   ```
 
 **If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
 1. Read existing layout file
@@ -121,8 +125,10 @@ Based on the `mocks` section of the plan. Test mocking infrastructure (factories
 
 ### Step 6: Verify
 
+**TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
 ```bash
-npx tsc --noEmit
+# If root tsconfig.json contains "references": use tsc -b
+# Otherwise: use tsc --noEmit
 ```
 
 Confirm: zero errors. If errors exist, fix and re-verify.
@@ -185,4 +191,4 @@ Confirm: zero errors. If errors exist, fix and re-verify.
 - **No prototype copying**: do not copy prototype code as-is. Only reference structural hints.
 - **Complete types**: every field from the spec must be in the TypeScript interface.
 - **Complete mock responses**: MSW handlers must return ALL fields defined in the interface. No partial responses.
-- **Evidence before claims**: run `npx tsc --noEmit` and verify zero errors. No "should compile".
+- **Evidence before claims**: run TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) and verify zero errors. No "should compile".

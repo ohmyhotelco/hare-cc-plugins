@@ -118,7 +118,7 @@ Direct fixes are faster and reduce noise before TDD fixes.
 For each **direct-fix** issue (sorted: critical first, then warnings, then suggestions):
 
 1. **Apply fix** — make the minimal code change
-2. **TypeScript check** — `npx tsc --noEmit`
+2. **TypeScript check** — see CLAUDE.md § TypeScript Check — Composite Config Detection (`tsc -b` if composite, `tsc --noEmit` otherwise)
 3. If tsc fails → revert the change, mark issue as `failed` with reason
 4. If tsc passes → mark issue as `fixed`
 
@@ -160,7 +160,7 @@ If tests fail:
 
 #### 3.3 VERIFY
 
-1. `npx tsc --noEmit` → confirm no type errors introduced
+1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm no type errors introduced
 
 If still failing after 3 retries:
 - Mark issue as `escalated` with failure details
@@ -170,7 +170,7 @@ If still failing after 3 retries:
 
 Run full verification suite:
 
-1. `npx tsc --noEmit` → TypeScript check
+1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection)
 2. `npx vitest run {baseDir}` → all feature tests
 3. `npx vite build` → build check
 

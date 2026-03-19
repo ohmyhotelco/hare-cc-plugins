@@ -181,9 +181,10 @@ npx vitest run {baseDir}/features/{feature}/__tests__/{testFile} --reporter=verb
 3. Re-run verification
 4. Maximum 3 fix-and-retry cycles. If still failing after 3 attempts, report the failures in output.
 
-**Also run TypeScript check:**
+**Also run TypeScript check** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
 ```bash
-npx tsc --noEmit 2>&1
+# If root tsconfig.json contains "references": use tsc -b
+# Otherwise: use tsc --noEmit
 ```
 
 ### Step 5: REFACTOR (Optional)

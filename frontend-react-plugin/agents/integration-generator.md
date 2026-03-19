@@ -93,7 +93,9 @@ Rules:
       - Insert new layout route wrapper
    c. If no layout route:
       - Insert at top level before `insertAnchor`
-7. **Verify**: `npx tsc --noEmit` — if errors, attempt one fix
+7. **Verify** — detect composite tsconfig and run the correct command:
+   - Read root `tsconfig.json`; if it contains `"references"` → `npx tsc -b 2>&1`, otherwise → `npx tsc --noEmit 2>&1`
+   - If errors, attempt one fix
 
 ### Step 4: Generate i18n Files
 
@@ -137,7 +139,8 @@ export const {featureExportName} = {
 3. Read the i18n config file
 4. **Validate**: Confirm `insertAnchor` exists
 5. **Add import** and **registration** based on `registrationPattern`
-6. **Verify**: `npx tsc --noEmit`
+6. **Verify** — detect composite tsconfig and run the correct command:
+   - Read root `tsconfig.json`; if it contains `"references"` → `npx tsc -b 2>&1`, otherwise → `npx tsc --noEmit 2>&1`
 
 ### Step 6: MSW Global Setup
 
@@ -168,8 +171,17 @@ export { default as EntityListPage } from './pages/EntityListPage';
 
 Run all verification checks:
 
-**a. TypeScript:**
+**a. TypeScript** — detect composite tsconfig and use the correct command:
+
+1. Read root `tsconfig.json` in the project directory
+2. If it contains a `"references"` array → use `tsc -b`
+3. Otherwise → use `tsc --noEmit`
+
 ```bash
+# If root tsconfig.json contains "references":
+npx tsc -b 2>&1
+
+# Otherwise:
 npx tsc --noEmit 2>&1
 ```
 

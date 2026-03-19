@@ -76,7 +76,7 @@ Formulate up to 3 hypotheses and test them sequentially. **STOP after 3 failures
 2. **Sequential testing** — test hypotheses one by one
    - Hypothesis 1 testing:
      - Apply minimal fix
-     - Run `npx tsc --noEmit` → check for TypeScript errors
+     - Run TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → check for TypeScript errors
      - Check result: resolved? → move to Phase 4 / unresolved? → rollback, next hypothesis
    - Hypothesis 2 testing: (if hypothesis 1 failed)
      - Repeat the same process
@@ -110,7 +110,7 @@ Apply minimal changes and verify upon successful hypothesis validation.
    - No unrelated code changes allowed
 
 2. **Verification** — verify after fix
-   - `npx tsc --noEmit` → confirm 0 TypeScript errors
+   - TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors
    - `npx vite build 2>&1` → confirm build success
    - If tests exist: `npx vitest run {baseDir}` → confirm tests pass
 
