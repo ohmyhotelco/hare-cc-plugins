@@ -59,6 +59,20 @@ Generates production React code based on the implementation plan (plan.json) usi
      - If the user declines, stop here.
    - All other statuses (`generated`, `gen-failed`, `planned`, `verify-failed`, `review-failed`, `resolved`, `escalated`) → no warning, proceed normally.
 
+### Lock Acquire
+
+Check `docs/specs/{feature}/.implementation/frontend/.lock`:
+- If file exists:
+  - Read `lockedAt` and `operation`
+  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
+  - Otherwise:
+    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
+    - Stop here.
+- Create lock file:
+  ```json
+  { "lockedAt": "{ISO timestamp}", "operation": "fe-gen" }
+  ```
+
 ### Step 2: Confirm with User
 
 Display the plan summary with TDD phase breakdown:
@@ -98,12 +112,12 @@ Create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
   "startedAt": "{ISO timestamp}",
   "currentPhase": "foundation",
   "phases": {
-    "foundation": { "status": "pending" },
-    "api-tdd": { "status": "pending" },
-    "store-tdd": { "status": "pending" },
-    "component-tdd": { "status": "pending" },
-    "page-tdd": { "status": "pending" },
-    "integration": { "status": "pending" }
+    "foundation": { "status": "pending", "completedAt": null },
+    "api-tdd": { "status": "pending", "completedAt": null },
+    "store-tdd": { "status": "pending", "completedAt": null },
+    "component-tdd": { "status": "pending", "completedAt": null },
+    "page-tdd": { "status": "pending", "completedAt": null },
+    "integration": { "status": "pending", "completedAt": null }
   }
 }
 ```
@@ -135,7 +149,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
 ```
 
 **On completion:**
-- Update generation-state.json: `foundation.status = "completed"`
+- Update generation-state.json: `foundation.status = "completed"`, `foundation.completedAt = "{ISO timestamp}"`
 - Display: files created, tsc verification result
 
 **On failure:**
@@ -189,6 +203,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   {
     "{phase}": {
       "status": "completed",
+      "completedAt": "{ISO timestamp}",
       "red": { "verifyResult": "fail", "failureCount": N },
       "green": { "verifyResult": "pass", "testsPassed": N, "testsTotal": N }
     }
@@ -244,7 +259,7 @@ Agent(subagent_type: "integration-generator", prompt: "
 ```
 
 **On completion:**
-- Update generation-state.json: `integration.status = "completed"`
+- Update generation-state.json: `integration.status = "completed"`, `integration.completedAt = "{ISO timestamp}"`
 - Record verification results
 
 **On failure:**
@@ -329,6 +344,10 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 
 Update generation-state.json with final status.
 
+### Lock Release
+
+Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+
 ### Resume Support
 
 When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`:
@@ -337,14 +356,24 @@ When Step 1.6 detects an existing `.implementation/frontend/generation-state.jso
 2. **All-completed check** — if every phase in the state file has `status: "completed"`:
    > "Previous generation completed successfully. Re-running will start fresh."
    - Delete generation-state.json and proceed to Step 3 (fresh start).
-3. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against `.implementation/frontend/generation-state.json` `startedAt`:
-   - Read `startedAt` from generation-state.json
-   - Check if `.implementation/frontend/plan.json` was modified after `startedAt` (use `stat` or file system check)
-   - If plan.json is newer than startedAt:
-     > "Warning: plan.json has been modified since generation started ({startedAt})."
-     > "Resuming may create inconsistencies between already-generated and new code."
-     > "Options: 1. Continue anyway  2. Restart generation from scratch"
-     - If user chooses restart: delete generation-state.json and proceed to Step 3 (fresh start)
+3. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against phase-level `completedAt` timestamps:
+   - Get plan.json mtime (use `stat` or file system check)
+   - For each completed phase (in order), compare plan.json mtime against `completedAt`:
+     - If plan.json was modified after a specific phase's `completedAt`:
+       > "plan.json has been modified after '{phase}' was completed."
+       > "Options:"
+       > "1. Continue from the next incomplete phase"
+       > "2. Re-run from '{phase}' onward"
+       > "3. Restart generation from scratch"
+       - Option 1: continue from next incomplete phase as-is
+       - Option 2: reset the affected phase and all subsequent phases to `"pending"` (clear `completedAt`), resume from that phase
+       - Option 3: delete generation-state.json and proceed to Step 3 (fresh start)
+   - If plan.json mtime is older than all completed phases' `completedAt` (or no `completedAt` recorded — legacy state):
+     - Fall back to `startedAt` comparison: if plan.json is newer than `startedAt`:
+       > "Warning: plan.json has been modified since generation started ({startedAt})."
+       > "Resuming may create inconsistencies between already-generated and new code."
+       > "Options: 1. Continue anyway  2. Restart generation from scratch"
+       - If user chooses restart: delete generation-state.json and proceed to Step 3 (fresh start)
 4. Find the first phase with `status` not `"completed"`
 5. Display:
    ```

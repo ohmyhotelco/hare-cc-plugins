@@ -1,14 +1,14 @@
 ---
 name: fe-plan
-description: "Analyze a functional specification and produce an implementation plan for production React code generation."
-argument-hint: "<feature-name>"
+description: "Analyze a functional specification (or gather requirements interactively) and produce an implementation plan for production React code generation."
+argument-hint: "<feature-name> [--standalone]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Task
 ---
 
 # Implementation Plan Skill
 
-Analyzes a functional specification (planning-plugin output) and produces an implementation plan for production React code.
+Analyzes a functional specification (planning-plugin output) or gathers requirements interactively (standalone mode) and produces an implementation plan for production React code.
 
 ## Instructions
 
@@ -20,6 +20,22 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+
+### Step 0.5: Detect Mode
+
+1. Check if `--standalone` flag is present in the argument
+   - If `--standalone` is present: `mode = "standalone"`, skip to Step 1-S
+   - If absent: `mode = "spec"`, proceed to Step 1
+
+2. **Auto-detection** — if `--standalone` is not specified, check if `docs/specs/{feature}/.progress/{feature}.json` exists:
+   - If not found:
+     > "No planning-plugin specification found for '{feature}'."
+     > "Options:"
+     > "1. Standalone mode (gather requirements interactively)"
+     > "2. Create specification first: `/planning-plugin:spec {feature}`"
+     - If user chooses 1: `mode = "standalone"`, skip to Step 1-S
+     - If user chooses 2: stop here.
+   - If found: `mode = "spec"`, proceed to Step 1
 
 ### Step 1: Validate Spec
 
@@ -45,6 +61,74 @@ Analyzes a functional specification (planning-plugin output) and produces an imp
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
+### Step 1-S: Standalone Requirements Gathering (standalone mode only)
+
+Gather minimal requirements interactively from the user.
+
+#### 1-S.1: Feature Description
+> "Describe '{feature}' in 2-3 sentences. What does this feature do?"
+
+#### 1-S.2: Working Language
+> "Working language? (en/ko/vi, default: en)"
+
+#### 1-S.3: Entities
+> "List the main data entities (e.g., Hotel, Room, Booking)."
+> "For each entity, list key fields (e.g., Hotel: id, name, rating, location)."
+
+#### 1-S.4: Screens
+> "List the screens/pages for this feature."
+> "Briefly describe what each screen does and which entities it uses."
+
+#### 1-S.5: Confirm & Proceed
+
+Display collected requirements summary and confirm:
+
+```
+Standalone Plan for '{feature}':
+  Description: {description}
+  Entities: {count} ({names})
+  Screens: {count} ({names})
+  Language: {workingLanguage}
+
+  Note: Standalone mode generates a simplified plan.
+  For a complete spec-based plan with validation rules,
+  error codes, and test scenarios, use planning-plugin.
+```
+
+> "Proceed with standalone plan generation?"
+- If the user declines, stop here.
+
+#### 1-S.6: Generate Minimal Spec Files
+
+Create the following directory structure:
+
+```
+docs/specs/{feature}/
+├── .progress/{feature}.json  ← status: "finalized", standalone: true
+├── {workingLanguage}/
+│   └── {feature}-spec.md     ← auto-generated from user input
+└── .implementation/
+    └── frontend/
+```
+
+**Progress file**: Include `"standalone": true` flag:
+```json
+{
+  "feature": "{feature}",
+  "status": "finalized",
+  "standalone": true,
+  "workingLanguage": "{workingLanguage}",
+  "createdAt": "{ISO timestamp}"
+}
+```
+
+**Minimal spec**: Auto-generate from user input — include overview section, entity definitions with fields, screen descriptions, and basic CRUD functional requirements per entity.
+
+#### 1-S.7: Continue to Plan Generation
+
+Set `uiDslAvailable = false`, `prototypeAvailable = false`.
+Proceed to Step 3 (Launch Planner Agent) — the implementation-planner already handles `uiDslAvailable = false` and `standalone: true` in the progress file.
 
 ### Step 2: Check UI DSL
 

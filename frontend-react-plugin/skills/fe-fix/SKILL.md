@@ -52,13 +52,22 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-7. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
+7. **Code change detection** — extract `timestamp` from `review-report.json`:
+   - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/features/{feature}/` and get its mtime
+   - If any source file is newer than the review-report.json `timestamp`:
+     > "Warning: Source files have been modified since the last review ({timestamp})."
+     > "Already-resolved issues may exist. The fixer will pre-verify each issue before applying fixes."
+     > "To run a fresh review instead: `/frontend-react-plugin:fe-review {feature}`"
+     > "Continue with the current review report?"
+     - If the user declines, stop here.
+
+8. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
    - If `round >= 3`:
      > "This is fix round {round+1}. Three previous fix attempts have not resolved all issues."
      > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
      - If the user declines, stop here.
 
-8. Read `review-report.json` → validate structure and verify it contains issues:
+9. Read `review-report.json` → validate structure and verify it contains issues:
    a. **Structural validation**: Verify `specReview.dimensions` exists and is an object where each key (e.g., `requirement_coverage`) contains an `issues[]` array. If `qualityReview` is not null, verify its `dimensions` follows the same structure.
    b. If structural validation fails (missing `dimensions` object or missing `issues[]` arrays within dimensions):
      > "Review report has incomplete structure — detailed issue data is missing."
@@ -68,6 +77,20 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
    d. If no issues found (all dimensions have 0 issues):
      > "No issues found in the review report. Nothing to fix."
      - Stop here.
+
+### Lock Acquire
+
+Check `docs/specs/{feature}/.implementation/frontend/.lock`:
+- If file exists:
+  - Read `lockedAt` and `operation`
+  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
+  - Otherwise:
+    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
+    - Stop here.
+- Create lock file:
+  ```json
+  { "lockedAt": "{ISO timestamp}", "operation": "fe-fix" }
+  ```
 
 ### Step 2: Parse & Display Issue Summary
 
@@ -249,3 +272,7 @@ Note: Set `implementation.status` as follows:
 Note: Increment `fix.round` from the previous value (or set to 1 if absent).
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.
+
+### Lock Release
+
+Delete `docs/specs/{feature}/.implementation/frontend/.lock`.

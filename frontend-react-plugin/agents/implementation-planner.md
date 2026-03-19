@@ -47,7 +47,17 @@ The skill will provide these parameters in the prompt:
    - If available, reference for page structure/layout hints
    - Mock data reference: if `prototypes/{feature}/src/mocks/` exists, reference fixture format only (do not copy directly)
 
-5. **Shared layout reference** — Check for shared layout:
+5b. **Standalone mode** — if progress file contains `standalone: true`:
+   - UI DSL reading: skip (always unavailable)
+   - Prototype reading: skip
+   - Shared layout detection: skip
+   - Infer types from spec markdown entity descriptions
+   - Generate default CRUD API methods per entity (GET list, GET by id, POST, PUT, DELETE)
+   - Default validation rules: non-nullable → `required`, email → `email`, string → `maxLength: 255`
+   - Generate CRUD-based generic test cases (no TS-nnn references)
+   - Set `source` field to `"standalone"` instead of `"FR-nnn"`
+
+6. **Shared layout reference** — Check for shared layout:
    a. If `uiDslDir/manifest.json` exists:
       - Read `layouts` array → find entries with `"source": "_shared"`
       - For each: read `docs/specs/_shared/ui-dsl/screen-{layout-id}.json` → extract componentTree

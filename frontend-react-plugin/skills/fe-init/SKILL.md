@@ -119,7 +119,9 @@ Frontend React Plugin configured successfully!
 ### Step 6: Next Steps
 
 > "Setup complete. To generate your first feature:"
-> "1. Initialize planning plugin (if not done): `/planning-plugin:init`"
-> "2. Create a functional spec: `/planning-plugin:spec {feature}`"
-> "3. Create an implementation plan: `/frontend-react-plugin:fe-plan {feature}`"
-> "4. Generate code (TDD): `/frontend-react-plugin:fe-gen {feature}`"
+>
+> "**Option A — With planning-plugin (recommended):**"
+> "1. /planning-plugin:init → 2. /planning-plugin:spec {feature} → 3. /frontend-react-plugin:fe-plan {feature} → 4. /frontend-react-plugin:fe-gen {feature}"
+>
+> "**Option B — Standalone (without spec):**"
+> "1. /frontend-react-plugin:fe-plan {feature} --standalone → 2. /frontend-react-plugin:fe-gen {feature}"

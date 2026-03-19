@@ -67,6 +67,20 @@ Run a 2-stage code review (spec review → quality review) on generated code.
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
+### Lock Acquire
+
+Check `docs/specs/{feature}/.implementation/frontend/.lock`:
+- If file exists:
+  - Read `lockedAt` and `operation`
+  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
+  - Otherwise:
+    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
+    - Stop here.
+- Create lock file:
+  ```json
+  { "lockedAt": "{ISO timestamp}", "operation": "fe-review" }
+  ```
+
 ### Step 2: Spec Review
 
 Run the spec-reviewer agent:
@@ -263,3 +277,7 @@ Note: Set `implementation.status` as follows:
 - Both pass but either has `pass_with_warnings` → `"reviewed"`
 - Either one fails → `"review-failed"`
 - Only spec-reviewer passes, quality-reviewer fails → `"review-failed"`
+
+### Lock Release
+
+Delete `docs/specs/{feature}/.implementation/frontend/.lock`.

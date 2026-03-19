@@ -131,6 +131,7 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
+- **Standalone mode**: `fe-plan {feature} --standalone` for interactive requirements gathering — no planning-plugin required. Generates a minimal spec stub and plan.json. Limitations: no error codes, validation rules, test scenario references (TS-nnn), or UI DSL.
 - Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json` — includes `workingLanguage` and `localesDir` for downstream agents
 - Generation state: `docs/specs/{feature}/.implementation/frontend/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
@@ -168,6 +169,17 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
 - Review report: `docs/specs/{feature}/.implementation/frontend/review-report.json`
 - Fix report: `docs/specs/{feature}/.implementation/frontend/fix-report.json`
+### State File Safety
+
+State files (progress, generation-state, review-report, fix-report, debug-report) are critical for pipeline continuity.
+
+**Read-Modify-Write rule**: When updating state JSON files:
+1. Read the **latest** file content immediately before writing (do not use data cached earlier in the session)
+2. Merge only the fields being changed — preserve all existing fields
+3. Write the complete merged object
+
+**Lock file**: Skills that modify state files must acquire `docs/specs/{feature}/.implementation/frontend/.lock` before starting work. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+
 - Progress state machine:
   ```
   planned → generated → verified → reviewed → done
