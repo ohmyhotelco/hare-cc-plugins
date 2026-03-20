@@ -185,17 +185,26 @@ npx tsc -b 2>&1
 npx tsc --noEmit 2>&1
 ```
 
-**b. ESLint (if config exists):**
+**b. ESLint:**
 
-Detect config type and use appropriate command. Lint both the feature directory and any global files modified by this agent:
-```bash
-# If eslint.config.* exists (flat config, ESLint v9+):
-npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1
+1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*`
+2. **Config found** → detect config type and run. Lint both the feature directory and any global files modified by this agent:
+   ```bash
+   # If eslint.config.* exists (flat config, ESLint v9+):
+   npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1
 
-# If .eslintrc* exists (legacy config, ESLint v8):
-npx eslint {baseDir}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
-```
-Note: "modified global files" includes `{baseDir}/mocks/handlers.ts`, `{baseDir}/mocks/server.ts`, `{baseDir}/mocks/browser.ts`, and any central route/i18n files that were auto-integrated.
+   # If .eslintrc* exists (legacy config, ESLint v8):
+   npx eslint {baseDir}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
+   ```
+   Note: "modified global files" includes `{baseDir}/mocks/handlers.ts`, `{baseDir}/mocks/server.ts`, `{baseDir}/mocks/browser.ts`, and any central route/i18n files that were auto-integrated.
+3. **Config not found** → template fallback (same logic as fe-verify Step 2.2):
+   a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
+   b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
+   c. If `eslintTemplate === true` or field absent (default: enabled):
+      - Read `templates/eslint-config.md` from the plugin directory → generate `eslint.config.js` at project root
+      - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - If any dependency missing → skip with install instructions
+      - If all installed → run `npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1`
 
 **c. Full test suite:**
 ```bash

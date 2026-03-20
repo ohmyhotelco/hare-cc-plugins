@@ -59,6 +59,22 @@ if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
   echo "  Run /frontend-react-plugin:fe-init to install them."
 fi
 
+# ESLint template status
+ESLINT_TEMPLATE=$(jq -r '.eslintTemplate // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
+if [ "$ESLINT_TEMPLATE" = "true" ]; then
+  # Check if ESLint config exists in the project
+  ESLINT_CONFIG_EXISTS=false
+  for pattern in "$CWD"/.eslintrc* "$CWD"/eslint.config.*; do
+    if [ -f "$pattern" ]; then
+      ESLINT_CONFIG_EXISTS=true
+      break
+    fi
+  done
+  if [ "$ESLINT_CONFIG_EXISTS" = "false" ]; then
+    echo "  Info: No ESLint config — will auto-generate on first verification."
+  fi
+fi
+
 # Scan progress files for implementation issues
 SPECS_DIR="$CWD/docs/specs"
 if [ -d "$SPECS_DIR" ]; then

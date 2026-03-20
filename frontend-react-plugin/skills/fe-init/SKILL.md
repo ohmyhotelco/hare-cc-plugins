@@ -60,6 +60,28 @@ Default: `app/src`
 
 Note: This sets the root directory for all generated source code (features, layouts, mocks, locales, etc.). The `@/` path alias in tsconfig should map to this directory.
 
+### Step 2d: Ask for ESLint Template
+
+Ask the user whether to enable the bundled ESLint template for projects without an ESLint config.
+
+Present:
+- **yes** (default) — Auto-generate `eslint.config.js` from the bundled template when no ESLint config is found during verification. Dependencies must be installed manually.
+- **no** — Skip ESLint checks if no config exists (existing behavior)
+
+Default: `yes` (ESLint template enabled)
+
+If the user selects **yes**:
+1. Check if an ESLint config already exists in the project (glob: `.eslintrc*`, `eslint.config.*`)
+2. If config already exists:
+   > "ESLint config already exists — the template will not be used unless the existing config is removed."
+3. If no config exists:
+   - Check `package.json` for required dependencies: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+   - If any are missing, display:
+     > "Required ESLint packages not yet installed. Run:"
+     > ```
+     > pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
+     > ```
+
 ### Step 3: Write Configuration
 
 1. Ensure the `.claude/` directory exists in the project root
@@ -69,7 +91,8 @@ Note: This sets the root directory for all generated source code (features, layo
 {
   "routerMode": "{selected mode}",
   "mockFirst": {true or false based on Step 2b},
-  "baseDir": "{selected path from Step 2c}"
+  "baseDir": "{selected path from Step 2c}",
+  "eslintTemplate": {true or false based on Step 2d}
 }
 ```
 
@@ -105,6 +128,7 @@ Frontend React Plugin configured successfully!
   Router mode: {routerMode}
   Mock-first: {enabled or disabled}
   Base dir: {baseDir}
+  ESLint template: {enabled or disabled}
 
   External skills installed:
     - .claude/skills/react-router-{routerMode}-mode (React Router v7)

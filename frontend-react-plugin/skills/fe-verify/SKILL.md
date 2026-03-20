@@ -85,20 +85,33 @@ npx tsc --noEmit 2>&1
 - exit code != 0 → fail (collect error list)
 - Record error/warning counts
 
-#### 2.2 ESLint Check (if config exists)
+#### 2.2 ESLint Check
 
-Check for ESLint config file existence:
-- Glob: `.eslintrc*`, `eslint.config.*`
-- If no config found, skip this step
+1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*`
+2. **Config found** → detect config type and run:
+   ```bash
+   # If eslint.config.* exists (flat config, ESLint v9+):
+   npx eslint {baseDir} 2>&1
 
-If config exists, detect config type and use appropriate command:
-```bash
-# If eslint.config.* exists (flat config, ESLint v9+):
-npx eslint {baseDir} 2>&1
-
-# If .eslintrc* exists (legacy config, ESLint v8):
-npx eslint {baseDir} --ext .ts,.tsx 2>&1
-```
+   # If .eslintrc* exists (legacy config, ESLint v8):
+   npx eslint {baseDir} --ext .ts,.tsx 2>&1
+   ```
+3. **Config not found** → template fallback:
+   a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
+   b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
+   c. If `eslintTemplate === true` or field absent (default: enabled):
+      - Read `templates/eslint-config.md` from the plugin directory
+      - Generate `eslint.config.js` at the project root from the Canonical Config section
+      - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - If any dependency is missing → skip with message:
+        > "ESLint skipped (dependencies missing). Install with:"
+        > ```
+        > pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
+        > ```
+      - If all dependencies are installed → run:
+        ```bash
+        npx eslint {baseDir} 2>&1
+        ```
 
 - exit code 0 → pass
 - exit code != 0 → fail (record error/warning counts)

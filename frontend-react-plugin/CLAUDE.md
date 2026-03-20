@@ -74,6 +74,13 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Component composition patterns: see `.claude/skills/vercel-composition-patterns` (no boolean props, compound component, React 19 API)
 - Web UI accessibility/design audit: see `.claude/skills/web-design-guidelines` (WebFetch latest guidelines during review)
 
+### ESLint
+- The plugin bundles a default ESLint v9 flat config template (`templates/eslint-config.md`)
+- Config includes `strictTypeChecked` + `stylisticTypeChecked` presets, native flat config for react-hooks and react-refresh, and test file overrides
+- When a project has no ESLint config (`.eslintrc*` or `eslint.config.*`), agents auto-generate `eslint.config.js` from the template
+- `eslintTemplate` flag in `.claude/frontend-react-plugin.json` controls this behavior (`true` by default, `false` to opt out)
+- Dependencies are NOT auto-installed — agents display `pnpm add -D ...` instructions and skip ESLint if packages are missing
+
 ### Routing Conventions
 - Routes requiring authentication: wrap with `<ProtectedRoute>` → redirect to /login when unauthenticated (pass return destination via location.state.from)
 - Routes requiring permissions: `<RoleRoute permissions={[...]}>` → redirect to /forbidden when unauthorized
@@ -95,7 +102,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-debug`
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
-- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers)
+- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config)
 
 ### Communication Language
 - Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
@@ -266,10 +273,12 @@ docs/            - Documentation
 {
   "routerMode": "declarative",
   "mockFirst": true,
-  "baseDir": "app/src"
+  "baseDir": "app/src",
+  "eslintTemplate": true
 }
 ```
 
 - `routerMode`: `"declarative"` (default) | `"data"` — determines React Router v7 mode
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
 - `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. When absent, falls back to `"src"` for backward compatibility.
+- `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
