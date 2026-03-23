@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-init.sh",
+            "timeout": 10,
+            "statusMessage": "Checking homepage-plugin configuration..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-pages.sh",
+            "timeout": 5,
+            "statusMessage": "Checking page plan freshness..."
+          }
+        ]
+      }
+    ]
+  }
+}
