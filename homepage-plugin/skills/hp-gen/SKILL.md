@@ -38,14 +38,33 @@ For each page, check `docs/pages/{page-name}/.progress/{page-name}.json`:
 - Status `generated` or later → warn about demotion and ask to confirm re-generation
 - Status `gen-failed` → check `generation-state.json` for resume opportunity
 
-**Resume support**: If `generation-state.json` exists with incomplete phases, offer to resume from the last incomplete phase instead of starting over.
+**Resume support**: If `generation-state.json` exists with incomplete phases, offer to resume from the last incomplete phase instead of starting over:
+1. Read `docs/pages/{page-name}/.implementation/homepage/generation-state.json`
+2. If `phases.infrastructure.status === "completed"` → skip Phase 1
+3. For Phase 2, check each page's status — skip pages already marked as `completed`, resume from first `pending` or `failed` page
+4. Ask user: "Resume from {phase/page}? Or restart from scratch?"
 
 ### Step 3: Acquire Lock
 
-Acquire `docs/pages/{page-name}/.implementation/homepage/.lock`:
-- If lock exists and is < 30 minutes old → exit with "Another generation is in progress"
-- If lock exists and is >= 30 minutes old → remove stale lock and proceed
-- Write lock file with current timestamp
+Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
+
+**Lock file format** (JSON):
+```json
+{
+  "lockedBy": "hp-gen",
+  "lockedAt": "2026-03-23T14:30:00.000Z",
+  "pageName": "home"
+}
+```
+
+**Acquisition protocol**:
+1. Check if `.lock` file exists
+2. If exists → read `lockedAt` field → parse as ISO-8601 → compare with current time
+   - If age < 30 minutes → exit with "Another homepage-plugin operation is in progress"
+   - If age >= 30 minutes → delete stale lock, log warning, proceed to step 3
+3. Write new `.lock` file with `lockedBy: "hp-gen"`, `lockedAt: new Date().toISOString()`, `pageName`
+
+**Release**: Always delete `.lock` file on completion or failure (in Step 8 and Error Handling).
 
 ### Step 4: Confirm with User
 
@@ -61,7 +80,15 @@ Ask user to confirm before proceeding.
 
 Determine if this is the first page being generated (no existing layout/shared components).
 
-Launch `page-assembler` agent with `isFirstPage: true` if no shared infrastructure exists:
+Launch `page-assembler` agent with the following parameters:
+- `pageName` — `"_infrastructure"` (special value for infrastructure phase)
+- `planFile` — path to the first page's `page-plan.json`
+- `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
+- `projectRoot` — project root path
+- `config` — homepage-plugin configuration object
+- `isFirstPage` — `true`
+
+The agent generates:
 - MarketingLayout.astro
 - Header.astro + Footer.astro + MobileNav.tsx
 - SEO utilities (structured-data.ts)
@@ -83,18 +110,45 @@ Update `generation-state.json`:
 
 For each page (sequential):
 
-1. Launch `section-generator` agent:
+1. Launch `section-generator` agent with:
+   - `pageName` — page identifier
+   - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
+   - `projectRoot` — project root path
+   - `config` — homepage-plugin configuration object
+
+   The agent will:
    - Generate all sections for this page
    - Skip sections marked as `reuse: true`
    - Generate React islands for interactive sections
    - Generate component tests for interactive islands
 
-2. Launch `page-assembler` agent with `isFirstPage: false`:
+2. Launch `page-assembler` agent with:
+   - `pageName` — page identifier
+   - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
+   - `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
+   - `projectRoot` — project root path
+   - `config` — homepage-plugin configuration object
+   - `isFirstPage` — `false`
+
+   The agent will:
    - Assemble page from generated sections
    - Add SEO metadata + JSON-LD
    - Wire i18n translations
 
-Update `generation-state.json` after each page.
+Update `generation-state.json` after each page:
+```json
+{
+  "phases": {
+    "infrastructure": { "status": "completed", "completedAt": "2026-03-23T14:30:00Z" },
+    "pages": {
+      "home": { "status": "completed", "completedAt": "2026-03-23T14:32:00Z" },
+      "about": { "status": "completed", "completedAt": "2026-03-23T14:35:00Z" },
+      "contact": { "status": "failed", "error": "section-generator failed on ContactSection" }
+    }
+  }
+}
+```
+Valid `status` values per phase: `"pending"`, `"completed"`, `"failed"`.
 
 ### Step 7: Phase 3 — Verification
 
@@ -102,8 +156,14 @@ Run verification checks:
 
 1. **TypeScript** — `npx tsc --noEmit`
 2. **ESLint** — `npx eslint .` (skip if no config and eslintTemplate is false)
-   - If `eslintTemplate` is true and no ESLint config exists: generate `eslint.config.js` from `templates/eslint-config.md`, then run ESLint
-   - If ESLint dependencies are missing: display `pnpm add -D ...` instructions and skip ESLint
+   - If `eslintTemplate` is true and no ESLint config exists (no `.eslintrc*` or `eslint.config.*`):
+     1. Read the plugin's `templates/eslint-config.md`
+     2. Extract the JavaScript code block from the "Canonical Config" section
+     3. Write it to `{projectRoot}/eslint.config.js` using the Write tool
+     4. Check dependencies: `pnpm ls eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals 2>&1`
+     5. If any dependency missing: display `pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals` and **skip ESLint** (do not run)
+     6. If all present: run `npx eslint . 2>&1`
+   - If `eslintTemplate` is false and no config exists: skip ESLint entirely
 3. **Astro build** — `npx astro build`
 
 ### Step 8: Update Progress

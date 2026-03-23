@@ -23,7 +23,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. **Review report** — read `reviewReportFile` to get all issues with severity, file, line, fixHint
+1. **Review report** — read `reviewReportFile` (merged report produced by hp-review skill). Structure: `{ seo: { score, verdict, issues[] }, quality: { score, verdict, issues[] }, overall: { verdict, totalIssues } }`. Extract all issues from both `seo.issues` and `quality.issues` arrays. Each issue has: severity, dimension, message, file, line (optional), fixHint.
 2. **Page plan** — read `planFile` for page structure context
 3. **SEO checklist** — read `templates/seo-checklist.md` for reference
 4. **Astro conventions** — read `templates/astro-conventions.md` for convention reference

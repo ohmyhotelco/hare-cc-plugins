@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 # Fix Skill
 
-Fixes issues identified by the `hp-review` skill. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
+Fixes issues identified by the `hp-review` skill or verification failures from `hp-verify`. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
 
 ## Instructions
 
@@ -22,13 +22,15 @@ Read `defaultLocale` — all user-facing output in this language.
 
 Required files:
 - `docs/pages/{page-name}/page-plan.json` — page plan
-- `docs/pages/{page-name}/.implementation/homepage/review-report.json` — review report
 - `docs/pages/{page-name}/.progress/{page-name}.json` — progress file
+- `docs/pages/{page-name}/.implementation/homepage/review-report.json` — review report (required for `review-failed`, `reviewed`, `fixing` statuses)
 
 Check progress status:
-- Accept: `review-failed`, `reviewed` (with warnings), `fixing`
+- Accept: `review-failed`, `reviewed` (with warnings), `fixing`, `verified`, `verify-failed`, `escalated`
 - Reject: `planned`, `generated`, `done`
-- If `generated` or `verified`: instruct user to run `/homepage-plugin:hp-review` first
+- If `generated`: instruct user to run `/homepage-plugin:hp-verify` or `/homepage-plugin:hp-review` first
+- If `verified` or `verify-failed` without `review-report.json`: run verification-based fixes using hp-verify output (tsc/eslint/build errors) instead of review issues
+- If `escalated`: user has manually intervened and wants to re-run fixes
 
 ### Step 2: Check Fix Rounds
 
@@ -38,9 +40,12 @@ Read fix history from `docs/pages/{page-name}/.implementation/homepage/fix-repor
 
 ### Step 3: Acquire Lock
 
-Acquire `docs/pages/{page-name}/.implementation/homepage/.lock`:
-- Stale lock (>= 30 min) → auto-remove
-- Active lock → exit with "Another operation is in progress"
+Same lock protocol as hp-gen Step 3 (JSON format with `lockedBy`, `lockedAt`, `pageName`; 30-min stale threshold).
+
+Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
+- Write with `lockedBy: "hp-fix"`
+- Stale lock (>= 30 min) → auto-remove and proceed
+- Active lock → exit with "Another homepage-plugin operation is in progress"
 
 ### Step 4: Launch Review Fixer
 

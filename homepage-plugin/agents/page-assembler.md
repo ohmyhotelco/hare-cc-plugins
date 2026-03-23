@@ -26,9 +26,10 @@ The skill will provide these parameters in the prompt:
 
 1. **Page plan** — read `planFile` for section composition, SEO metadata, i18n config
 2. **Layout plan** — read `layoutPlanFile` for shared header/footer structure
-3. **Astro conventions** — read `templates/astro-conventions.md` for page patterns
-4. **SEO checklist** — read `templates/seo-checklist.md` for metadata requirements
-5. **Existing structure** — scan project for existing layout, pages, and components
+3. **Page module template** — read `templates/page-module.md` for canonical page assembly patterns (layout integration, section composition, SEO metadata, JSON-LD, i18n, Content Collections)
+4. **Astro conventions** — read `templates/astro-conventions.md` for page patterns
+5. **SEO checklist** — read `templates/seo-checklist.md` for metadata requirements
+6. **Existing structure** — scan project for existing layout, pages, and components
 
 ### Phase 1: Shared Infrastructure (if `isFirstPage`)
 

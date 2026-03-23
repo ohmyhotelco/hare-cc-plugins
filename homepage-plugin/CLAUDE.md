@@ -222,9 +222,10 @@ planned → generated → verified → reviewed → done
 Additional transitions:
 - `generated → reviewed | review-failed | done` — hp-verify is optional
 - `verify-failed → reviewed | review-failed | done` — hp-review accepts verify-failed
+- `verified | verify-failed → fixing` — hp-fix accepts verification results directly (without hp-review)
 - `gen-failed → generated | gen-failed` — re-run hp-gen
 - `fixing → reviewed | review-failed` — after hp-fix, hp-review determines next status
-- `escalated` — requires manual intervention, then re-enter pipeline
+- `escalated → fixing | verified | reviewed` — after manual intervention, re-enter pipeline via hp-fix, hp-verify, or hp-review
 
 ## Generated Project Structure
 

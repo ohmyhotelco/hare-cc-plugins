@@ -28,7 +28,7 @@ Check that generated code exists:
 If `[page-name]` provided, check that specific page exists at `src/pages/{page-name}.astro` (or `src/pages/index.astro` for `home`).
 
 Check progress status:
-- Accept: `generated`, `gen-failed`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`
+- Accept: `generated`, `gen-failed`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `escalated`, `done`
 - Reject: `planned` (no code yet — run `/homepage-plugin:hp-gen` first)
 - Warn on demotion from `reviewed`/`done` → `verified`
 
@@ -44,13 +44,15 @@ Record: pass/fail, error count, error details.
 ### Step 3: ESLint Check
 
 1. Check if ESLint config exists (`.eslintrc*` or `eslint.config.*`)
-2. If no config and `eslintTemplate` is `true`:
-   - Read `templates/eslint-config.md` for the canonical config
-   - Check if ESLint dependencies are installed (`pnpm ls eslint`)
-   - If dependencies missing: display install command and skip ESLint
-   - If dependencies present: generate `eslint.config.js` and run
-3. If no config and `eslintTemplate` is `false`: skip ESLint
-4. Run: `npx eslint . 2>&1`
+2. If config exists → run `npx eslint . 2>&1`
+3. If no config and `eslintTemplate` is `true`:
+   1. Read the plugin's `templates/eslint-config.md`
+   2. Extract the JavaScript code block from the "Canonical Config" section
+   3. Write it to `{projectRoot}/eslint.config.js` using the Write tool
+   4. Check dependencies: `pnpm ls eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals 2>&1`
+   5. If any dependency missing: display `pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals` and **skip ESLint** (do not run)
+   6. If all present: run `npx eslint . 2>&1`
+4. If no config and `eslintTemplate` is `false`: skip ESLint entirely
 
 Record: pass/fail, error count, warning count.
 

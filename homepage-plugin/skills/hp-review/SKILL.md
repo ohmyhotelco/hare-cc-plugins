@@ -25,7 +25,7 @@ If `[page-name]` provided:
 - Check `docs/pages/{page-name}/.progress/{page-name}.json` exists
 
 Check progress status:
-- Accept: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
+- Accept: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `escalated`, `done`
 - Reject: `planned` (no code yet)
 - Warn on demotion from `done` → `reviewed`
 
@@ -33,9 +33,12 @@ If no argument: review all pages with generated code.
 
 ### Step 2: Acquire Lock
 
-Acquire `docs/pages/{page-name}/.implementation/homepage/.lock`:
-- Stale lock (>= 30 min) → auto-remove
-- Active lock → exit with "Another operation is in progress"
+Same lock protocol as hp-gen Step 3 (JSON format with `lockedBy`, `lockedAt`, `pageName`; 30-min stale threshold).
+
+Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
+- Write with `lockedBy: "hp-review"`
+- Stale lock (>= 30 min) → auto-remove and proceed
+- Active lock → exit with "Another homepage-plugin operation is in progress"
 
 ### Step 3: Stage 1 — SEO Review
 
