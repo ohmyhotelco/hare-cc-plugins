@@ -23,7 +23,7 @@ fi
 # Read configuration values
 CONTENT_STRATEGY=$(jq -r '.contentStrategy // "mdx"' "$CONFIG_FILE" 2>/dev/null || echo "mdx")
 DEFAULT_LOCALE=$(jq -r '.defaultLocale // "ko"' "$CONFIG_FILE" 2>/dev/null || echo "ko")
-DEPLOY_TARGET=$(jq -r '.deployTarget // "vercel"' "$CONFIG_FILE" 2>/dev/null || echo "vercel")
+DEPLOY_TARGET=$(jq -r '.deployTarget // "aws"' "$CONFIG_FILE" 2>/dev/null || echo "aws")
 
 # Skill installation checks
 SKILLS=(

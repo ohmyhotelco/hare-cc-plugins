@@ -131,7 +131,7 @@ Verify the installation:
 **What happens**:
 1. Prompts for content strategy (MDX, headless CMS, or both)
 2. Prompts for i18n locales and default locale
-3. Prompts for deploy target (Vercel, Netlify, CloudFlare, static)
+3. Prompts for deploy target (AWS, Vercel, Netlify, CloudFlare, static)
 4. Prompts for ESLint template preference
 5. Writes `.claude/homepage-plugin.json`
 6. Installs 2 external skills (Web Design Guidelines, Composition Patterns)
@@ -362,7 +362,7 @@ The plugin uses `.claude/homepage-plugin.json` in the project directory (created
   "contentStrategy": "mdx",
   "i18nLocales": ["ko", "en"],
   "defaultLocale": "ko",
-  "deployTarget": "vercel",
+  "deployTarget": "aws",
   "eslintTemplate": true
 }
 ```
@@ -373,7 +373,7 @@ The plugin uses `.claude/homepage-plugin.json` in the project directory (created
 | `contentStrategy` | Content management approach (`"mdx"` \| `"headless-cms"` \| `"both"`) | `"mdx"` |
 | `i18nLocales` | Supported locale codes | `["ko", "en"]` |
 | `defaultLocale` | Default locale for site and skill output language | `"ko"` |
-| `deployTarget` | Deployment target (`"vercel"` \| `"netlify"` \| `"cloudflare"` \| `"static"`) | `"vercel"` |
+| `deployTarget` | Deployment target (`"aws"` \| `"vercel"` \| `"netlify"` \| `"cloudflare"` \| `"static"`) | `"aws"` |
 | `eslintTemplate` | Auto-generate ESLint config when none exists | `true` |
 
 ## Generated Project Structure

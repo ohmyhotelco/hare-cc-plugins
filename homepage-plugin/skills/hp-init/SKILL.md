@@ -37,7 +37,8 @@ Ask: "Which languages should the site support?"
 Ask: "Where will this site be deployed?"
 
 Options:
-- **vercel** (default)
+- **aws** (default) — S3 + CloudFront static hosting
+- **vercel**
 - **netlify**
 - **cloudflare** — CloudFlare Pages
 - **static** — generic static hosting
@@ -59,7 +60,7 @@ Write `.claude/homepage-plugin.json`:
   "contentStrategy": "{user choice}",
   "i18nLocales": ["{user choices}"],
   "defaultLocale": "{user choice}",
-  "deployTarget": "{user choice}",
+  "deployTarget": "{user choice, default: aws}",
   "eslintTemplate": true
 }
 ```

@@ -264,7 +264,7 @@ src/
   "contentStrategy": "mdx",
   "i18nLocales": ["ko", "en"],
   "defaultLocale": "ko",
-  "deployTarget": "vercel",
+  "deployTarget": "aws",
   "eslintTemplate": true
 }
 ```
@@ -273,7 +273,7 @@ src/
 - `contentStrategy`: `"mdx"` (default) | `"headless-cms"` | `"both"`
 - `i18nLocales`: array of locale codes (default: `["ko", "en"]`)
 - `defaultLocale`: default locale code (default: `"ko"`)
-- `deployTarget`: `"vercel"` (default) | `"netlify"` | `"cloudflare"` | `"static"`
+- `deployTarget`: `"aws"` (default) | `"vercel"` | `"netlify"` | `"cloudflare"` | `"static"` — `"aws"` uses S3 + CloudFront static hosting
 - `eslintTemplate`: `true` (default) | `false` — auto-generate ESLint config
 
 ## File Structure

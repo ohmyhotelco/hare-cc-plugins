@@ -362,7 +362,7 @@ Lighthouse CI 성능 예산(목표: 모든 카테고리 90 이상)을 포함한 
   "contentStrategy": "mdx",
   "i18nLocales": ["ko", "en"],
   "defaultLocale": "ko",
-  "deployTarget": "vercel",
+  "deployTarget": "aws",
   "eslintTemplate": true
 }
 ```
@@ -373,7 +373,7 @@ Lighthouse CI 성능 예산(목표: 모든 카테고리 90 이상)을 포함한 
 | `contentStrategy` | 콘텐츠 관리 방식 (`"mdx"` \| `"headless-cms"` \| `"both"`) | `"mdx"` |
 | `i18nLocales` | 지원 로케일 코드 | `["ko", "en"]` |
 | `defaultLocale` | 기본 로케일 (사이트 및 스킬 출력 언어) | `"ko"` |
-| `deployTarget` | 배포 대상 (`"vercel"` \| `"netlify"` \| `"cloudflare"` \| `"static"`) | `"vercel"` |
+| `deployTarget` | 배포 대상 (`"aws"` \| `"vercel"` \| `"netlify"` \| `"cloudflare"` \| `"static"`) | `"aws"` |
 | `eslintTemplate` | ESLint 설정이 없을 때 자동 생성 | `true` |
 
 ## 생성되는 프로젝트 구조
