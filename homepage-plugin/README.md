@@ -68,7 +68,7 @@ Key capabilities:
 | i18n | Astro built-in i18n routing |
 | SEO | Static HTML + @astrojs/sitemap + JSON-LD structured data |
 | Images | astro:assets `<Image />` with Sharp optimization |
-| Testing | Vitest + Playwright + Lighthouse CI + axe-core |
+| Testing | Playwright (E2E + visual) + Lighthouse CI + axe-core |
 | Linting | ESLint v9 flat config (eslint-plugin-astro) |
 | Deploy | Vercel / Netlify / CloudFlare Pages (static adapter) |
 
@@ -195,7 +195,7 @@ Verify the installation:
 2. Runs ESLint (auto-generates config from template if needed)
 3. Runs Astro build (`astro build`)
 4. Runs Lighthouse CI (performance/accessibility/SEO >= 90 target)
-5. Runs component tests for interactive islands (if any)
+5. Reports pass/fail for each gate
 6. Reports pass/fail for each gate
 
 ---

@@ -120,7 +120,6 @@ For each page (sequential):
    - Generate all sections for this page
    - Skip sections marked as `reuse: true`
    - Generate React islands for interactive sections
-   - Generate component tests for interactive islands
 
 2. Launch `page-assembler` agent with:
    - `pageName` — page identifier

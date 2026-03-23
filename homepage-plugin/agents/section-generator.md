@@ -59,14 +59,6 @@ For each section generated:
 2. **Add to translation files** — update `src/i18n/{locale}.json` with new keys under the page's namespace
 3. **Generate all configured locales** — create keys for each locale in `config.i18nLocales`
 
-### Phase 4: Generate Component Tests (Islands Only)
-
-For interactive islands that handle user input (forms, complex interactions):
-
-1. **Create test file** — `src/components/islands/__tests__/{ComponentName}.test.tsx`
-2. **Test coverage** — render, user interaction, validation (if form), accessibility
-3. **Use @testing-library/react** + `userEvent` for interaction tests
-
 ## Generation Rules
 
 ### .astro Components

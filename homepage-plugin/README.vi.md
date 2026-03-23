@@ -68,7 +68,7 @@ Khả năng chính:
 | i18n | Astro built-in i18n routing |
 | SEO | Static HTML + @astrojs/sitemap + JSON-LD structured data |
 | Hình ảnh | astro:assets `<Image />` với tối ưu hóa Sharp |
-| Testing | Vitest + Playwright + Lighthouse CI + axe-core |
+| Testing | Playwright (E2E + visual) + Lighthouse CI + axe-core |
 | Linting | ESLint v9 flat config (eslint-plugin-astro) |
 | Triển khai | Vercel / Netlify / CloudFlare Pages (static adapter) |
 
@@ -195,7 +195,7 @@ Xác nhận cài đặt:
 2. Chạy ESLint (tự động sinh config từ template nếu cần)
 3. Chạy Astro build (`astro build`)
 4. Chạy Lighthouse CI (mục tiêu performance/accessibility/SEO >= 90)
-5. Chạy component tests cho interactive islands (nếu có)
+5. Báo cáo kết quả pass/fail cho mỗi gate
 6. Báo cáo đạt/không đạt cho mỗi cổng kiểm tra
 
 ---

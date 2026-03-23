@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 # Verification Skill
 
-Runs verification gates on generated homepage code. Checks TypeScript, ESLint, Astro build, Lighthouse CI, and component tests.
+Runs verification gates on generated homepage code. Checks TypeScript, ESLint, Astro build, and Lighthouse CI.
 
 ## Instructions
 
@@ -84,17 +84,7 @@ Info: Lighthouse CI not installed. Run `pnpm add -D @lhci/cli` to enable perform
 
 Record: scores per category or "skipped".
 
-### Step 6: Component Tests
-
-If test files exist (`src/components/islands/__tests__/*.test.tsx`):
-
-Run: `npx vitest run 2>&1`
-
-Record: pass/fail, test count, failure details.
-
-If no test files: record "no tests".
-
-### Step 7: Update Progress
+### Step 6: Update Progress
 
 Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 
@@ -111,14 +101,13 @@ Record verification details:
       "eslint": "pass",
       "build": "pass",
       "lighthouse": { "performance": 95, "accessibility": 98, "bestPractices": 100, "seo": 100 },
-      "tests": "pass (3 tests)",
       "verifiedAt": "2026-03-23T..."
     }
   }
 }
 ```
 
-### Step 8: Display Report
+### Step 7: Display Report
 
 Show verification summary:
 
@@ -128,7 +117,6 @@ Verification Results:
   ESLint:       ✓ pass (0 errors, 2 warnings)
   Astro Build:  ✓ pass (12 pages, 45KB total)
   Lighthouse:   ✓ pass (P:95 A:98 BP:100 SEO:100)
-  Tests:        ✓ pass (3 tests)
 
 Next step: Run /homepage-plugin:hp-review for code review.
 ```

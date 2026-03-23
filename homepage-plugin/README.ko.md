@@ -68,7 +68,7 @@
 | 국제화 | Astro 내장 i18n 라우팅 |
 | SEO | Static HTML + @astrojs/sitemap + JSON-LD structured data |
 | 이미지 | astro:assets `<Image />` with Sharp optimization |
-| 테스트 | Vitest + Playwright + Lighthouse CI + axe-core |
+| 테스트 | Playwright (E2E + 비주얼) + Lighthouse CI + axe-core |
 | 린팅 | ESLint v9 flat config (eslint-plugin-astro) |
 | 배포 | Vercel / Netlify / CloudFlare Pages (static adapter) |
 
@@ -195,7 +195,7 @@
 2. ESLint 실행 (필요 시 템플릿에서 설정 자동 생성)
 3. Astro 빌드 실행 (`astro build`)
 4. Lighthouse CI 실행 (성능/접근성/SEO >= 90 목표)
-5. 인터랙티브 islands용 컴포넌트 테스트 실행 (해당 시)
+5. 각 게이트별 pass/fail 결과 보고
 6. 각 게이트별 통과/실패 보고
 
 ---

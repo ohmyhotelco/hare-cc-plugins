@@ -43,8 +43,7 @@ A Claude Code plugin that applies tech stack and coding conventions for building
 - `astro:assets` `<Image />` with Sharp optimization (width, height, alt required)
 
 ### Testing
-- Vitest + @testing-library/react — interactive island component tests only
-- Playwright — E2E and visual regression
+- Playwright — E2E, visual regression, and interactive island verification
 - Lighthouse CI — performance budgets (target: 90+ on all categories)
 - axe-core — accessibility auditing (WCAG 2.1 AA)
 
@@ -145,7 +144,6 @@ hp-init → hp-plan → hp-gen → hp-verify → hp-review → hp-fix
 2. ESLint (template fallback)
 3. Astro build (`npx astro build`)
 4. Lighthouse CI (performance/accessibility/SEO >= 90)
-5. Component tests (interactive islands only)
 
 ### hp-review — 2-Stage Code Review
 1. **SEO Review** (seo-reviewer): 6 dimensions — metadata, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators
