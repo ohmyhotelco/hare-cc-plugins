@@ -37,16 +37,40 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, or `escalated`:
+5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`:
    - If status is not one of these:
-     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', or 'escalated'."
+     > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', 'escalated', or 'done'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
    - If status is `"escalated"`:
      > "Status is 'escalated'. The review report may be outdated or absent."
      > "If no review-report.json exists, run `/frontend-react-plugin:fe-review {feature}` first."
 
-6. **Review report check** — check if `docs/specs/{feature}/.implementation/frontend/review-report.json` exists:
+6. **Fix mode detection** — determine whether to fix review issues or E2E issues:
+   - Read `docs/specs/{feature}/.implementation/frontend/review-report.json` → extract `timestamp` (if exists)
+   - Read `docs/specs/{feature}/.implementation/frontend/e2e-report.json` → extract `timestamp`, `status`, `summary` (if exists)
+   - **E2E fix mode** if ALL of the following are true:
+     - `e2e-report.json` exists
+     - `e2e-report.json` has failures (`status` is `"partial"` or `"failed"`)
+     - `e2e-report.json` `timestamp` is newer than `review-report.json` `timestamp` (or review-report.json does not exist)
+   - **Tie-breaker**: If both reports exist and have identical timestamps (edge case):
+     - Default to **review fix mode** (review issues take priority over E2E issues)
+     - Inform the user:
+       > "Both review and E2E reports have the same timestamp. Defaulting to review fix mode."
+       > "To fix E2E issues instead, re-run `/frontend-react-plugin:fe-e2e {feature}` first."
+   - **Review fix mode** (default) otherwise
+
+   If E2E fix mode:
+   > "Detected E2E test failures ({failed}/{total} scenarios)."
+   > "Fixing E2E issues."
+   - Set `fixMode = "e2e"`, `reportFile = e2e-report.json`
+   - Skip step 6b (review report required check)
+
+   If Review fix mode:
+   - Set `fixMode = "review"`, `reportFile = review-report.json`
+   - Proceed to step 6b
+
+6b. **Review report required check** (review fix mode only) — check if `review-report.json` exists:
    - If not found:
      > "Review report not found."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
@@ -123,20 +147,23 @@ Run the review-fixer agent:
 
 ```
 Task(subagent_type: "review-fixer", prompt: "
-  Fix review issues for '{feature}'.
+  Fix {fixMode} issues for '{feature}'.
 
   Parameters:
   - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
+  - fixMode: {fixMode}
   - reviewReportFile: docs/specs/{feature}/.implementation/frontend/review-report.json
+  - e2eReportFile: docs/specs/{feature}/.implementation/frontend/e2e-report.json
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
 
   Follow the process defined in agents/review-fixer.md.
   Read templates/tdd-rules.md for TDD rules.
+  {If fixMode is 'e2e': Read templates/e2e-testing.md for E2E patterns.}
   Save the fix report to docs/specs/{feature}/.implementation/frontend/fix-report.json.
 ")
 ```
@@ -229,10 +256,22 @@ After displaying re-generation guidance, automatically update `generation-state.
     - Write the updated file back
     - Inform the user: "generation-state.json updated — {phases} marked as pending."
 
-### Step 5: Guide Re-Review
+### Step 5: Guide Next Steps
 
+**Review fix mode:**
 > "Re-review to verify all fixes: `/frontend-react-plugin:fe-review {feature}`"
 > "Do not skip the re-review after making fixes."
+> "After review passes, run E2E: `/frontend-react-plugin:fe-e2e {feature}`"
+
+**E2E fix mode:**
+> "Re-run E2E to verify fixes: `/frontend-react-plugin:fe-e2e {feature}`"
+
+If fix report has `changeScope.significantChange === true`:
+> "Significant code changes detected ({changeScope.filesModified} files, +{changeScope.linesAdded}/-{changeScope.linesRemoved} lines)."
+> "After E2E passes, re-run review to verify code quality: `/frontend-react-plugin:fe-review {feature}`"
+
+If `changeScope.significantChange === false`:
+> "Minor changes only. Re-review is optional after E2E passes."
 
 If there are escalated issues:
 > "Escalated issues may need manual intervention before re-review."

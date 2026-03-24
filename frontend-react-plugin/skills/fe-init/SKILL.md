@@ -112,11 +112,22 @@ rm -rf .claude/skills/react-router-{previousMode}-mode
 | React Best Practices | `.claude/skills/vercel-react-best-practices/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices -a claude-code -y --copy` |
 | Composition Patterns | `.claude/skills/vercel-composition-patterns/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill vercel-composition-patterns -a claude-code -y --copy` |
 | Web Design Guidelines | `.claude/skills/web-design-guidelines/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill web-design-guidelines -a claude-code -y --copy` |
+| Agent Browser | `.claude/skills/agent-browser/SKILL.md` | `npx skills add vercel-labs/agent-browser --skill agent-browser -a claude-code -y --copy` |
 
 For each row:
 1. Check if the Check Path file exists
 2. If missing, run the Install Command
 3. Verify installation succeeded
+
+**Agent-browser CLI check** (after skill installation):
+```bash
+agent-browser --version 2>&1
+```
+- If command not found, display (informational only — do not block):
+  > "agent-browser CLI not installed. E2E testing requires it. Install with:"
+  > "  npm i -g agent-browser"
+  > "  brew install agent-browser"
+  > "  cargo install agent-browser"
 
 ### Step 5: Confirm
 
@@ -136,6 +147,9 @@ Frontend React Plugin configured successfully!
     - .claude/skills/vercel-react-best-practices (React performance)
     - .claude/skills/vercel-composition-patterns (Composition patterns)
     - .claude/skills/web-design-guidelines (Web UI audit)
+    - .claude/skills/agent-browser (E2E browser automation)
+
+  Agent-browser CLI: {version or "not installed (optional — needed for E2E)"}
 
   Config file: .claude/frontend-react-plugin.json
 ```

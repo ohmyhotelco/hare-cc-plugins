@@ -147,15 +147,19 @@ Verification Report for '{feature}':
   ESLint:      {pass/fail/skipped} ({error count} errors, {warning count} warnings)
   Build:       {pass/fail}
   Tests:       {pass/fail/skipped} ({passed}/{total})
+  E2E:         {pass/partial/fail/not-run} ({passed}/{total} scenarios)
 
   Overall: {PASS/FAIL}
 ```
+
+The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{feature}.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 
 **If FAIL:**
 - Display up to 10 error messages for each failed item
 - Suggest fixes:
   > "After fixing the errors, re-verify with `/frontend-react-plugin:fe-verify {feature}`."
   > "Auto-debug: `/frontend-react-plugin:fe-debug {feature}`"
+  > "For E2E testing: `/frontend-react-plugin:fe-e2e {feature}`"
 
 ### Step 4: Update Progress
 

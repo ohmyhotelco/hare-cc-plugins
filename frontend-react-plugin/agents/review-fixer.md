@@ -19,7 +19,9 @@ The skill will provide these parameters in the prompt:
 - `feature` — feature name
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
+- `fixMode` — `"review"` (default) | `"e2e"` — determines which report to read and how to classify issues
 - `reviewReportFile` — path to `review-report.json`
+- `e2eReportFile` — path to `e2e-report.json` (used when `fixMode` is `"e2e"`)
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false`
@@ -43,6 +45,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 | convention_compliance | direct | Convention adherence (no behavior change) |
 | architecture_design (critical) | tdd | Fundamental design issue affecting behavior |
 | architecture_design (warning) | direct | Structural reorganization |
+| e2e | tdd or direct | E2E scenario failure — classified per root cause analysis (see E2E fix mode in Step 0) |
 
 ## Process
 
@@ -59,15 +62,35 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
    - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
    - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules
-5. **Review report** — read `reviewReportFile` → parse all issues:
-   - Parse `specReview.dimensions` as an object — iterate each key (e.g., `requirement_coverage`, `ui_fidelity`) and collect all entries from its `issues[]` array
-   - If `qualityReview` is not null, also parse `qualityReview.dimensions` the same way
-   - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
-   - **Hard stop**: If the review report does not contain parseable issues (no `dimensions` object in `specReview`, or no `issues[]` arrays within the dimensions, or all arrays are empty despite the review having `status: "fail"`):
-     > "ERROR: review-report.json does not contain detailed issue data."
-     > "The review report may have been saved without full issue details."
-     > "Re-run `/frontend-react-plugin:fe-review {feature}` to regenerate the review report."
-     - **Stop. Do NOT derive issues from plan.json, spec files, or any other source.**
+5. **Report loading** — load the appropriate report based on `fixMode`:
+
+   **Review fix mode** (`fixMode` is `"review"` or absent):
+   - Read `reviewReportFile` → parse all issues:
+     - Parse `specReview.dimensions` as an object — iterate each key (e.g., `requirement_coverage`, `ui_fidelity`) and collect all entries from its `issues[]` array
+     - If `qualityReview` is not null, also parse `qualityReview.dimensions` the same way
+     - If `qualityReview` is null (spec review failed, quality review was skipped), proceed with specReview issues only
+     - **Hard stop**: If the review report does not contain parseable issues (no `dimensions` object in `specReview`, or no `issues[]` arrays within the dimensions, or all arrays are empty despite the review having `status: "fail"`):
+       > "ERROR: review-report.json does not contain detailed issue data."
+       > "Re-run `/frontend-react-plugin:fe-review {feature}` to regenerate the review report."
+       - **Stop. Do NOT derive issues from plan.json, spec files, or any other source.**
+
+   **E2E fix mode** (`fixMode` is `"e2e"`):
+   - Read `e2eReportFile` → parse failed scenarios:
+     - Extract scenarios where `status` is `"fail"`
+     - For each failed scenario: extract `steps[]` with failure details, `evidence` (screenshots, snapshot excerpts)
+   - Read `templates/e2e-testing.md` for E2E patterns (MSW integration, scenario patterns, assertion strategy)
+   - Convert E2E failures to fix issues:
+     - For each failed scenario step, analyze the evidence to identify the root cause:
+       - **Navigation failure** → wrong route path or missing route entry → direct-fix
+       - **Element not found** → component not rendering expected element → tdd-required
+       - **Wrong text content** → i18n key missing or incorrect, wrong data binding → tdd-required
+       - **Form submission failure** → validation logic, API integration issue → tdd-required
+       - **API mock issue** → MSW handler returning wrong data → direct-fix (handler update)
+       - **Toast/notification missing** → success/error feedback not implemented → tdd-required
+     - Each converted issue gets: `dimension: "e2e"`, `severity: "critical"`, `message`, `file` (inferred from scenario context), `source` (TS-nnn from scenario)
+   - **Hard stop**: If e2e-report.json has no failed scenarios:
+     > "No E2E failures found. Nothing to fix."
+     - **Stop.**
 6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test files to understand existing structure
 
 ### Step 1: Pre-check — Verify Issues Still Exist
@@ -248,6 +271,12 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
     "{baseDir}/__tests__/EntityListPage.test.tsx",
     "{baseDir}/pages/EntityListPage.tsx"
   ],
+  "changeScope": {
+    "filesModified": 8,
+    "linesAdded": 150,
+    "linesRemoved": 30,
+    "significantChange": true
+  },
   "verification": {
     "tsc": "pass",
     "eslint": "pass | skipped",
@@ -259,6 +288,10 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
 
 **Field notes:**
 - `regenRequired[].refs` is optional — present for spec-reviewer issues (FR/BR/AC/TS IDs), absent for quality-reviewer issues
+- `changeScope` tracks the magnitude of code changes:
+  - `filesModified` — count of unique files changed (excluding test files)
+  - `linesAdded` / `linesRemoved` — approximate line counts from diffs
+  - `significantChange` — `true` if ANY of: more than 3 files modified, more than 50 lines added or removed, or any page/route file modified (affects user-facing behavior beyond the targeted fix scope)
 
 Status determination:
 - `completed` — all issues fixed or already resolved (regenRequired issues do not block completion)

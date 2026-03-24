@@ -198,6 +198,9 @@ If the result is `fail` or `pass_with_warnings`:
 > "Then re-review: `/frontend-react-plugin:fe-review {feature}`"
 > "Do not skip the re-review after making fixes."
 
+If the result is `pass` (clean) or all issues are resolved:
+> "Review passed. Run E2E tests: `/frontend-react-plugin:fe-e2e {feature}`"
+
 ### Step 6: Save Review Report & Update Progress
 
 Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`.

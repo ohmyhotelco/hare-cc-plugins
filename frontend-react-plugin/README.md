@@ -42,6 +42,7 @@ Key capabilities:
 /frontend-react-plugin:fe-verify "feature" (optional)
         │
         ▼
+Loop 1 — Code Quality:
 /frontend-react-plugin:fe-review "feature"
         │
         ├── Stage 1: spec-reviewer → spec compliance
@@ -53,7 +54,19 @@ Key capabilities:
         └── review-fixer agent → TDD fixes + direct fixes
         │
         ▼
-/frontend-react-plugin:fe-review "feature" (re-review)
+/frontend-react-plugin:fe-review "feature" (re-review until pass)
+        │
+        ▼ (quality pass)
+Loop 2 — E2E:
+/frontend-react-plugin:fe-e2e "feature"
+        │
+        └── e2e-test-runner agent → agent-browser drives browser scenarios
+        │
+        ▼ (if failures)
+/frontend-react-plugin:fe-fix "feature" (auto-detects E2E mode)
+        │
+        ▼
+/frontend-react-plugin:fe-e2e "feature" (re-run until pass)
 ```
 
 ## Tech Stack
@@ -70,7 +83,7 @@ Key capabilities:
 | HTTP | Axios (JWT, 401/403 interceptors) |
 | Mock | MSW v2 (dev & test — network-level intercept) |
 | i18n | i18next + react-i18next (ko/en/ja/vi) |
-| Testing | Vitest + @testing-library/react + Playwright |
+| Testing | Vitest + @testing-library/react + agent-browser (E2E) |
 
 ## Installation
 
@@ -148,7 +161,7 @@ Standalone mode gathers requirements interactively (description, entities, scree
 2. Prompts for mock-first development (MSW v2, default: enabled)
 3. Prompts for base source directory (default: `app/src`)
 4. Writes `.claude/frontend-react-plugin.json`
-5. Installs 5 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines)
+5. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
 6. Displays next-step options (with or without planning-plugin)
 
 ---
@@ -264,6 +277,25 @@ The planner agent analyzes:
 
 ---
 
+### `/frontend-react-plugin:fe-e2e`
+
+**Syntax**: `/frontend-react-plugin:fe-e2e <feature-name>`
+
+**When to use**: After `fe-review` passes (Loop 2 entry point). Runs end-to-end browser tests.
+
+**What happens**:
+1. Validates prerequisites (plan, generated code, E2E scenarios in plan.json, agent-browser CLI)
+2. Validates E2E scenario URLs against defined routes
+3. Starts a Vite dev server with `VITE_ENABLE_MOCKS=true`
+4. Runs a runtime health check (verifies app loads without errors)
+5. Launches the e2e-test-runner agent to drive browser scenarios
+6. Stops the dev server and displays E2E results
+7. Updates progress file with E2E status
+
+**E2E fix loop**: If scenarios fail, run `fe-fix` (auto-detects E2E mode) then re-run `fe-e2e`. Repeat until all scenarios pass.
+
+---
+
 ### `/frontend-react-plugin:fe-debug`
 
 **Syntax**: `/frontend-react-plugin:fe-debug <feature-name>`
@@ -339,6 +371,23 @@ Two-stage review with enriched issue reports (refs, fix hints, missing artifact 
 
 Iterate until review passes. The fix skill applies TDD discipline for behavioral changes and direct fixes for mechanical changes.
 
+### Step 7: E2E Test
+
+```
+/frontend-react-plugin:fe-e2e {feature}
+```
+
+After review passes, run end-to-end browser tests. The e2e-test-runner agent drives agent-browser through multi-page user flows defined in plan.json, verifying against MSW mock data.
+
+### Step 8: E2E Fix & Re-test
+
+```
+/frontend-react-plugin:fe-fix {feature}
+/frontend-react-plugin:fe-e2e {feature}
+```
+
+If E2E scenarios fail, `fe-fix` auto-detects E2E mode (by comparing report timestamps) and fixes root causes. Iterate until all E2E scenarios pass.
+
 ## Agents
 
 ### Implementation Planner
@@ -383,6 +432,12 @@ Evaluates single responsibility, consistent patterns, no hardcoded strings, erro
 
 Classifies each issue as TDD-required (behavioral change — test first), direct-fix (mechanical change), or regen-required (missing files). Applies fixes with appropriate discipline.
 
+### E2E Test Runner
+
+**Role**: E2E test execution via agent-browser.
+
+Drives headless Chromium through multi-page user flows defined in plan.json. Uses snapshot → interact → re-snapshot → assert → screenshot cycle. Resolves dynamic route parameters from fixture data. Classifies failures as assertion, agent-error, or timeout. Uses the Opus model.
+
 ### Debugger
 
 **Role**: Systematic debugging with 4-phase methodology.
@@ -399,6 +454,7 @@ Observe → Hypothesize → Test → Fix. Maintains ranked hypothesis list with 
 | Verify | `/frontend-react-plugin:fe-verify` | Run TypeScript, build, and test verification on generated code |
 | Review | `/frontend-react-plugin:fe-review` | 2-stage code review (spec compliance + quality) |
 | Fix | `/frontend-react-plugin:fe-fix` | Fix review issues with TDD discipline |
+| E2E | `/frontend-react-plugin:fe-e2e` | Run E2E browser tests via agent-browser |
 | Debug | `/frontend-react-plugin:fe-debug` | Systematic debugging with hypothesis testing and escalation |
 
 ### External Skills (installed by init)
@@ -410,6 +466,7 @@ Observe → Hypothesize → Test → Fix. Maintains ranked hypothesis list with 
 | React Best Practices | `vercel-labs/agent-skills` | React performance optimization (57 rules) |
 | Composition Patterns | `vercel-labs/agent-skills` | Component composition patterns (10 rules) |
 | Web Design Guidelines | `vercel-labs/agent-skills` | Accessibility/design audit (100+ rules) |
+| Agent Browser | `vercel-labs/agent-browser` | CLI for E2E browser automation |
 
 ## Configuration
 
@@ -460,6 +517,7 @@ State files under `docs/specs/{feature}/.implementation/frontend/`:
 | `generation-state.json` | Phase progress tracking with timestamps (enables resume) |
 | `review-report.json` | Full review results with enriched issue details (input for fe-fix) |
 | `fix-report.json` | Fix results with strategy breakdown |
+| `e2e-report.json` | E2E test results with scenario details (input for fe-fix E2E mode) |
 | `debug-report.json` | Debug session results with hypothesis log |
 | `.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
@@ -542,6 +600,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] Standalone mode (fe-plan without planning-plugin)
 - [x] State consistency (lock, timestamps, staleness detection)
 - [x] Hook handlers (session-init, implementation validation)
+- [x] E2E testing skill (agent-browser integration)
 - [ ] Component template library
 - [ ] i18n setup skill
 - [ ] Auth/RBAC pattern templates
@@ -550,11 +609,13 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 ```
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
-                 integration-generator, spec-reviewer, quality-reviewer, review-fixer, debugger)
-skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug)
+                 integration-generator, spec-reviewer, quality-reviewer, review-fixer,
+                 e2e-test-runner, debugger)
+skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
+                 fe-e2e, fe-debug)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
 docs/            Documentation
 ```
 

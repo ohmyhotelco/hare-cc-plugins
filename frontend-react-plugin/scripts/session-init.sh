@@ -31,6 +31,7 @@ SKILLS=(
   "React Best Practices|$CWD/.claude/skills/vercel-react-best-practices"
   "Composition Patterns|$CWD/.claude/skills/vercel-composition-patterns"
   "Web Design Guidelines|$CWD/.claude/skills/web-design-guidelines"
+  "Agent Browser|$CWD/.claude/skills/agent-browser"
 )
 
 MISSING_SKILLS=()
@@ -75,6 +76,14 @@ if [ "$ESLINT_TEMPLATE" = "true" ]; then
   fi
 fi
 
+# Agent-browser CLI availability
+if command -v agent-browser >/dev/null 2>&1; then
+  AB_VERSION=$(agent-browser --version 2>&1 | head -1)
+  echo "  Agent-browser CLI: $AB_VERSION"
+else
+  echo "  Agent-browser CLI: not installed (E2E testing requires it)"
+fi
+
 # Scan progress files for implementation issues
 SPECS_DIR="$CWD/docs/specs"
 if [ -d "$SPECS_DIR" ]; then
@@ -93,10 +102,16 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Info: [$FEATURE] Verification passed. Run /frontend-react-plugin:fe-review $FEATURE."
         ;;
       done)
-        echo "  Info: [$FEATURE] Pipeline complete."
+        # Check if E2E has been run
+        E2E_STATUS=$(jq -r '.implementation.e2e.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+        if [ -z "$E2E_STATUS" ]; then
+          echo "  Info: [$FEATURE] Review passed. Run /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
+        else
+          echo "  Info: [$FEATURE] Pipeline complete."
+        fi
         ;;
       reviewed)
-        echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or proceed."
+        echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
         ;;
       gen-failed)
         echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:fe-gen $FEATURE to retry."
@@ -109,8 +124,12 @@ if [ -d "$SPECS_DIR" ]; then
         ;;
       fixing)
         FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
+        E2E_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/e2e-report.json"
+        REVIEW_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/review-report.json"
         if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
           echo "  Warning: [$FEATURE] Regen required. Run /frontend-react-plugin:fe-gen $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
+        elif [ -f "$E2E_REPORT" ] && [ -f "$REVIEW_REPORT" ] && [ "$E2E_REPORT" -nt "$REVIEW_REPORT" ]; then
+          echo "  Warning: [$FEATURE] E2E fixes applied — re-run E2E. Run /frontend-react-plugin:fe-e2e $FEATURE."
         else
           echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-react-plugin:fe-review $FEATURE."
         fi
