@@ -24,6 +24,9 @@ The skill will provide these parameters in the prompt:
 - `projectRoot` — project root path
 - `feature` — feature name
 - `outputFile` — plan output path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
+- `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.
+- `existingPlanFile` — (optional) path to existing plan.json (provided when `incrementalMode` is `true`)
+- `deltaOutputFile` — (optional) delta output path (e.g., `docs/specs/{feature}/.implementation/frontend/delta-plan.json`)
 
 ## Process
 
@@ -266,7 +269,28 @@ Map TS-nnn items from `test-scenarios.md` to test files.
 - Test file location: `{baseDir}/features/{feature}/__tests__/`
 - Each test case specifies TS-nnn, FR-nnn references via the `source` field
 
-#### 2.11 Build Order (TDD Phases)
+#### 2.11 E2E Tests
+
+Identify multi-page user flow scenarios from `test-scenarios.md` that should be tested via agent-browser E2E.
+
+**Selection criteria** — a scenario qualifies as E2E when it involves:
+- Navigation between multiple screens (e.g., list → create → verify in list)
+- CRUD sequences spanning create/read/update/delete across pages
+- Form submission flows with page redirects
+- Multi-step workflows requiring browser state continuity
+- Auth/RBAC flows involving login, protected routes, or permission checks
+
+**Exclusion** — do NOT duplicate scenarios already covered by unit/component tests:
+- Single-component interactions (form field validation, button clicks within one page)
+- API response parsing (covered by API tests)
+- Store state changes (covered by store tests)
+- Individual component rendering (covered by component tests)
+
+Each E2E test entry maps to one or more TS-nnn scenarios and describes steps using actions: `navigate`, `fill`, `click`, `verify`, `wait`.
+
+- If `test-scenarios.md` contains no multi-page flow scenarios, set `e2eTests` to an empty array `[]`.
+
+#### 2.12 Build Order (TDD Phases)
 
 Generation order structured for strict TDD execution. Each phase runs in a separate agent session for context isolation.
 
@@ -287,6 +311,326 @@ Each TDD phase specifies:
 - `verify[]` — verification commands to run
 
 Non-TDD phases (`tdd: false`) specify only `verify[]`.
+
+### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
+
+When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and execute this phase instead. Phase 0 and Phase 1 are still executed to read the current spec and analyze the project.
+
+#### 3.1 Load Existing Plan
+
+1. Read `existingPlanFile` → parse the full plan.json
+2. Extract the **old spec fingerprint**: collect all `source` field values from every entry across `types[]`, `api[]`, `stores[]`, `components[]`, `pages[]`, `tests[]`, `e2eTests[]`, `sharedLayouts[]`
+3. Parse the source references into a set of atomic IDs:
+   - FR-nnn, BR-nnn, AC-nnn, US-nnn → from `{feature}-spec.md`
+   - TS-nnn → from `test-scenarios.md`
+   - Screen IDs (kebab-case) → from `screens.md` or UI DSL `manifest.json`
+   - Error codes (E-nnn) → from `screens.md` error handling
+4. Record the mapping: `{ specId → [plan entries that reference it] }`
+
+#### 3.2 Extract Current Spec Fingerprint
+
+1. Read current spec files (already loaded in Phase 0):
+   - `{feature}-spec.md` → extract all FR-nnn, BR-nnn, AC-nnn, US-nnn with their content
+   - `screens.md` → extract screen IDs, component lists, error codes, field lists
+   - `test-scenarios.md` → extract all TS-nnn with their content
+2. If UI DSL is available: read `manifest.json` → extract screen IDs, dataEntities, navigation edges
+3. Record as the **new spec fingerprint**: `{ specId → content hash or summary }`
+
+#### 3.3 Compute Spec Diff
+
+Compare old fingerprint against new fingerprint:
+
+1. **Added**: IDs in new fingerprint but NOT in old fingerprint
+   - New FR → may require new API method, store action, component, page
+   - New screen → requires new page, route, tests, possibly new components
+   - New TS → requires new test case(s)
+   - New error code → requires handler update, page error handling
+
+2. **Removed**: IDs in old fingerprint but NOT in new fingerprint
+   - Removed FR → remove implementing code, tests, handlers
+   - Removed screen → remove page, route, tests
+   - Removed TS → remove test case
+   - Removed error code → remove handler scenario, error UI
+
+3. **Modified**: IDs in both fingerprints but with different content
+   - Compare field-by-field for entity changes (fields added/removed/type-changed)
+   - Compare component lists for screen composition changes
+   - Compare validation rules for business rule changes
+   - Compare endpoint signatures for API changes
+   - For each modification, record the specific `change` description and affected `fields`
+
+#### 3.4 Compute Dependency Cascade
+
+For each spec change, trace the impact through the implementation layers using plan.json cross-references:
+
+**Cascade direction**: types → api → stores → components → pages → routes/i18n (always downward)
+
+**Cascade algorithm**:
+1. Start with directly affected plan entries (via `source` field matching)
+2. For each affected entry, find dependent entries:
+   - Type change → find `api[]` entries whose methods reference the type → find `stores[]` that use the API → find `components[]` and `pages[]` that use the store or reference the type
+   - API change → find `stores[]` with actions that call the API → find `pages[]` that use the store
+   - Component change → find `pages[]` with the component in their `components[]` list
+   - Store change → find `pages[]` with the store in their `store` field
+3. For each cascaded entry, determine what specifically needs to change (not just that it is affected)
+4. De-duplicate: if a file appears multiple times in the cascade, merge the changes
+
+**Conservative rule**: When the cascade impact is ambiguous, include the file in the modify list rather than skip it. The delta-modifier will read the file and determine if a change is actually needed (no-op is safe).
+
+#### 3.5 Classify Affected Files
+
+For each affected file, determine the operation:
+
+| Scenario | Operation |
+|---|---|
+| New spec element → new implementation file | `create` |
+| Modified spec element → existing file needs changes | `modify` |
+| Removed spec element → existing file has code to remove | `remove` |
+| File affected only by cascade (not directly by spec change) | `modify` |
+
+For `modify` operations, produce `changeDetail`:
+- `type`: enum describing the change kind (e.g., `enum-value-added`, `field-added`, `field-removed`, `field-type-changed`, `factory-update`, `fixture-update`, `handler-update`, `component-update`, `page-update`, `route-entry-added`, `route-entry-removed`, `i18n-key-added`, `i18n-key-removed`, `badge-variant-added`, `validation-rule-changed`, `action-added`, `action-removed`)
+- `target`: specific code element to change (e.g., `"EntityStatus enum"`, `"bulk delete dialog"`)
+- `value`: new value if applicable (e.g., `"Archived"` for an enum value addition)
+- `description`: human-readable description of the change
+
+For `remove` operations, produce `changeDetail`:
+- `type`: `feature-removal` | `test-removal` | `file-deletion`
+- `target`: specific code block to remove
+- `description`: what is being removed and why
+
+#### 3.6 Map to Phases
+
+Assign each affected file to its TDD phase:
+- `types/`, `mocks/`, `layouts/` → `foundation`
+- `api/` → `api-tdd`
+- `stores/` → `store-tdd`
+- `components/`, `__tests__/*Component*`, `__tests__/*Form*`, `__tests__/*Table*` → `component-tdd`
+- `pages/`, `__tests__/*Page*` → `page-tdd`
+- `routes.tsx`, `i18n.ts`, locale JSON files, MSW global files → `integration`
+
+Determine phase action:
+- `skip` — no affected files in this phase
+- `partial` — some files affected in this phase
+
+#### 3.7 Generate Plan Patch
+
+Compute the patch to apply to plan.json after delta execution:
+- `additions`: new entries to add to plan.json sections (types, api, stores, components, pages, tests, e2eTests, routes.entries)
+- `modifications`: existing entries to update (changed fields, new methods, updated source references)
+- `removals`: entries to remove from plan.json sections
+
+#### 3.8 Large Delta Warning
+
+Count total affected files vs total files in plan.json:
+- If affected files > 60% of total: set `largeDeltaWarning: true`
+- The skill will display a warning suggesting full regeneration may be more reliable
+
+## Delta Output Format
+
+When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFile`.
+
+```json
+{
+  "feature": "{feature}",
+  "mode": "incremental",
+  "basePlanFile": "{existingPlanFile}",
+  "basePlanTimestamp": "{ISO timestamp of existing plan.json file}",
+  "specChanges": {
+    "added": [
+      {
+        "id": "FR-007",
+        "type": "functional-requirement",
+        "description": "Export entity list to CSV"
+      }
+    ],
+    "modified": [
+      {
+        "id": "FR-001",
+        "type": "functional-requirement",
+        "change": "Added 'archived' status to entity listing filter",
+        "fields": ["status enum"]
+      }
+    ],
+    "removed": [
+      {
+        "id": "FR-005",
+        "type": "functional-requirement",
+        "description": "Bulk delete removed from spec"
+      }
+    ]
+  },
+  "affectedFiles": {
+    "create": [
+      {
+        "file": "{baseDir}/features/{feature}/pages/EntityExportPage.tsx",
+        "reason": "New screen: entity-export (FR-007)",
+        "phase": "page-tdd",
+        "planSection": "pages",
+        "specRefs": ["FR-007"]
+      }
+    ],
+    "modify": [
+      {
+        "file": "{baseDir}/features/{feature}/types/entity.ts",
+        "reason": "Add 'Archived' to EntityStatus enum (FR-001 modified)",
+        "phase": "foundation",
+        "planSection": "types",
+        "specRefs": ["FR-001"],
+        "changeDetail": {
+          "type": "enum-value-added",
+          "target": "EntityStatus",
+          "value": "Archived",
+          "description": "Add Archived value to EntityStatus enum"
+        }
+      }
+    ],
+    "remove": [
+      {
+        "file": "{baseDir}/features/{feature}/pages/EntityListPage.tsx",
+        "reason": "Remove bulk delete dialog (FR-005 removed)",
+        "phase": "page-tdd",
+        "planSection": "pages",
+        "specRefs": ["FR-005"],
+        "changeDetail": {
+          "type": "feature-removal",
+          "target": "bulk delete dialog and related handlers",
+          "description": "Remove bulk delete confirmation dialog and associated onClick handlers"
+        }
+      }
+    ]
+  },
+  "dependencyCascade": [
+    {
+      "trigger": "types/entity.ts (EntityStatus enum modified)",
+      "affects": [
+        "mocks/factories.ts",
+        "mocks/fixtures.ts",
+        "mocks/handlers.ts",
+        "components/EntityTable.tsx",
+        "pages/EntityListPage.tsx",
+        "__tests__/EntityListPage.test.tsx"
+      ],
+      "reason": "Type change cascades through all consumers"
+    }
+  ],
+  "phaseExecution": {
+    "foundation": {
+      "action": "partial",
+      "files": ["types/entity.ts", "mocks/factories.ts", "mocks/fixtures.ts", "mocks/handlers.ts"],
+      "operations": ["modify", "modify", "modify", "modify"]
+    },
+    "api-tdd": {
+      "action": "skip",
+      "reason": "No API changes in this delta"
+    },
+    "store-tdd": {
+      "action": "skip",
+      "reason": "No store changes in this delta"
+    },
+    "component-tdd": {
+      "action": "partial",
+      "files": ["components/EntityTable.tsx", "__tests__/EntityTable.test.tsx"],
+      "operations": ["modify", "modify"]
+    },
+    "page-tdd": {
+      "action": "partial",
+      "files": [
+        "pages/EntityExportPage.tsx",
+        "pages/EntityListPage.tsx",
+        "__tests__/EntityExportPage.test.tsx",
+        "__tests__/EntityListPage.test.tsx"
+      ],
+      "operations": ["create", "modify", "create", "modify"]
+    },
+    "integration": {
+      "action": "partial",
+      "files": ["routes.tsx", "i18n.ts"],
+      "operations": ["modify", "modify"]
+    }
+  },
+  "planJsonPatch": {
+    "additions": {
+      "pages": [
+        {
+          "name": "EntityExportPage",
+          "file": "{baseDir}/features/{feature}/pages/EntityExportPage.tsx",
+          "screenId": "entity-export",
+          "route": "/path/to/entities/export",
+          "source": "FR-007, screen: entity-export"
+        }
+      ],
+      "tests": [
+        {
+          "target": "EntityExportPage",
+          "file": "{baseDir}/features/{feature}/__tests__/EntityExportPage.test.tsx",
+          "type": "page",
+          "cases": [
+            { "name": "shows export configuration form", "source": "TS-070" }
+          ]
+        }
+      ],
+      "routes.entries": [
+        { "path": "entities/export", "page": "EntityExportPage", "auth": true }
+      ]
+    },
+    "modifications": {
+      "types": [
+        {
+          "name": "EntityName",
+          "change": "Add Archived to EntityStatus enum values"
+        }
+      ]
+    },
+    "removals": {
+      "routes.entries": [
+        { "path": "entities/bulk-delete" }
+      ],
+      "i18n.keyGroups.actions": ["actions.bulkDelete", "actions.bulkDeleteConfirm"]
+    }
+  },
+  "largeDeltaWarning": false,
+  "summary": {
+    "specChanges": { "added": 1, "modified": 1, "removed": 1 },
+    "affectedFiles": { "create": 2, "modify": 6, "remove": 2 },
+    "phasesAffected": ["foundation", "component-tdd", "page-tdd", "integration"],
+    "phasesSkipped": ["api-tdd", "store-tdd"]
+  }
+}
+```
+
+## Delta User Summary Template
+
+After writing delta-plan.json, display this summary to the user:
+
+```
+Delta Plan for '{feature}':
+
+  Spec Changes:
+    Added:    {added count} ({added IDs})
+    Modified: {modified count} ({modified IDs})
+    Removed:  {removed count} ({removed IDs})
+
+  Affected Files ({total}):
+    Create: {create count} files ({file names})
+    Modify: {modify count} files ({file names})
+    Remove: {remove count} code blocks in {file count} files
+
+  Dependency Cascade:
+    {trigger} → {affects count} files ({reason})
+
+  Phase Execution:
+    Foundation:     {action} ({file count} files)
+    API TDD:        {action}
+    Store TDD:      {action}
+    Component TDD:  {action} ({file count} files)
+    Page TDD:       {action} ({file count} files)
+    Integration:    {action} ({file count} files)
+
+  {If largeDeltaWarning: "Warning: This delta affects >60% of files. Full regeneration may be more reliable."}
+
+  Delta plan saved to: {deltaOutputFile}
+```
 
 ## Output Format
 
@@ -534,6 +878,35 @@ Save to the `outputFile` path in the following JSON structure.
       "dependencies": ["types", "pages", "mocks"]
     }
   ],
+  "e2eTests": [
+    {
+      "id": "E2E-001",
+      "name": "Create entity end-to-end flow",
+      "source": "TS-050, TS-051, TS-052",
+      "startUrl": "/path/to/entities/new",
+      "prerequisites": "authenticated user with 'admin' permission",
+      "steps": [
+        { "action": "navigate", "target": "/path/to/entities/new", "expect": "EntityCreatePage renders form" },
+        { "action": "fill", "target": "name field", "value": "Test Entity", "expect": "field populated" },
+        { "action": "fill", "target": "status select", "value": "Active", "expect": "status selected" },
+        { "action": "click", "target": "submit button", "expect": "redirect to /path/to/entities with success toast" },
+        { "action": "verify", "target": "entity list", "expect": "'Test Entity' appears in the list" }
+      ]
+    },
+    {
+      "id": "E2E-002",
+      "name": "Edit entity end-to-end flow",
+      "source": "TS-060, TS-061",
+      "startUrl": "/path/to/entities/ent-001/edit",
+      "prerequisites": "authenticated user, entity ent-001 exists",
+      "steps": [
+        { "action": "navigate", "target": "/path/to/entities/ent-001/edit", "expect": "EntityEditPage renders with existing data" },
+        { "action": "fill", "target": "name field", "value": "Updated Entity", "expect": "field updated" },
+        { "action": "click", "target": "submit button", "expect": "redirect to /path/to/entities with success toast" },
+        { "action": "verify", "target": "entity list", "expect": "'Updated Entity' shown in list" }
+      ]
+    }
+  ],
   "buildOrder": [
     {
       "phase": "foundation",
@@ -600,6 +973,7 @@ Save to the `outputFile` path in the following JSON structure.
     "mockFixtures": 1,
     "mockHandlers": 1,
     "i18nNamespaces": 1,
+    "e2eScenarios": 2,
     "estimatedLines": 800
   }
 }
@@ -627,6 +1001,7 @@ Implementation Plan for '{feature}':
     i18n:        {namespace} namespace ({language count} languages)
     Mocks:       {fixture count} fixtures, {handler count} handler sets (MSW v2)
     Tests:       {testFiles} test files, {testCases} test cases
+    E2E:         {e2eScenarios} scenarios
 
   shadcn/ui: {missing count} components need installation ({missing list})
 
@@ -655,3 +1030,7 @@ Implementation Plan for '{feature}':
 9. **Spec fallback**: If UI DSL is not available, infer types, fields, validation from spec markdown (FR, BR, AC sections).
 10. **Complete plan**: Every screen in the spec MUST have a corresponding page entry. Every FR MUST map to an API method. Every user-visible text MUST have an i18n key.
 11. **Test traceability**: Every TS-nnn in `test-scenarios.md` MUST map to at least one test case in the `tests[]` array. The `source` field provides this traceability link.
+12. **E2E scenario identification**: Multi-page user flows from `test-scenarios.md` should be captured as `e2eTests[]` entries. Single-component interactions are adequately covered by unit/component tests and MUST NOT be duplicated in E2E. If no multi-page flows exist, set `e2eTests` to `[]`.
+13. **Incremental mode — read-only for plan.json**: In incremental mode, do NOT modify the existing plan.json. Only produce delta-plan.json. The skill patches plan.json after delta execution.
+14. **Incremental mode — conservative cascade**: When cascade impact is ambiguous, include the file in the modify list. A no-op modification is safe; a missed modification causes drift.
+15. **Incremental mode — source traceability required**: Every entry in `affectedFiles` MUST have `specRefs[]` tracing back to the spec change that caused it. Entries without traceability cannot be verified.

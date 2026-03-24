@@ -48,7 +48,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 ### Testing
 - Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:fe-init`)
 - API mock with MSW server (Vitest integration) — reuse feature handlers in tests
-- E2E: Playwright
+- E2E: agent-browser (AI-agent native browser automation)
 
 ## Conventions
 - Use only shadcn/ui components (do not install alternative component libraries)
@@ -97,12 +97,14 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
   - `integration-generator` — routes + i18n + MSW global setup + full verification
   - `spec-reviewer` — spec compliance review
   - `quality-reviewer` — code quality review
-  - `review-fixer` — TDD-disciplined review issue fixer
+  - `review-fixer` — TDD-disciplined review issue fixer (supports review and E2E fix modes)
+  - `delta-modifier` — incremental spec change applier (modifies existing files per delta-plan.json)
+  - `e2e-test-runner` — E2E test execution via agent-browser
   - `debugger` — systematic debugging
-- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-debug`
-- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`) — installed by init
+- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`
+- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
-- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config)
+- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (E2E testing patterns with agent-browser)
 
 ### Communication Language
 - Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
@@ -133,8 +135,51 @@ Anti-patterns (from obra/superpowers testing-anti-patterns):
 - Never create incomplete mocks — MSW responses must match full TypeScript interfaces
 - Mock only at network boundary (MSW) — use real stores, real components
 
-Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` → `/frontend-react-plugin:fe-fix` (if issues) → `/frontend-react-plugin:fe-review` (re-review)
-`/frontend-react-plugin:fe-debug` remains for runtime bugs at any point
+### E2E Testing (Agent-Browser)
+
+- agent-browser drives headless Chromium via CLI commands (snapshot, click, fill, get, wait, screenshot)
+- MSW Service Worker intercepts API calls in the browser (`VITE_ENABLE_MOCKS=true`)
+- E2E scenarios defined in `plan.json` `e2eTests[]`, mapped to TS-nnn from `test-scenarios.md`
+- E2E results tracked in `progress.json` under `implementation.e2e`
+- Dev server auto-started/stopped by `fe-e2e` skill
+- 2-stage pipeline: review loop (code quality) completes first, then E2E loop (user flows)
+- `fe-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
+- After E2E fixes, if code changes were significant, consider re-running `fe-review`
+- Dynamic route parameters (`:id`) must be resolved to fixture IDs before navigation — see `agents/e2e-test-runner.md` § Dynamic Route Parameter Resolution
+- E2E scenario updates: when screens/routes change after initial plan, re-run `/frontend-react-plugin:fe-plan {feature}` to regenerate `e2eTests[]` in plan.json, then `/frontend-react-plugin:fe-e2e {feature}`. Manual edits to `e2eTests[]` are allowed but will be overwritten on next fe-plan run.
+- E2E test reference: `templates/e2e-testing.md` (plugin patterns) + `.claude/skills/agent-browser/SKILL.md` (CLI commands)
+
+Pipeline (2-stage loops):
+- Loop 1 (Quality): `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` ↔ `/frontend-react-plugin:fe-fix` (until review passes)
+- Loop 2 (E2E): `/frontend-react-plugin:fe-e2e` ↔ `/frontend-react-plugin:fe-fix` (until E2E passes) → done
+- `/frontend-react-plugin:fe-debug` remains for runtime bugs at any point
+- `fe-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
+
+### Delta Regeneration (Incremental Spec Changes)
+
+When a spec is modified after code has been generated and reviewed, delta regeneration preserves accumulated fixes while applying only the changes.
+
+- **Trigger**: `fe-plan` auto-detects existing plan.json + generated code → offers incremental mode
+- **Detection**: implementation-planner compares old plan.json `source` fields against current spec → identifies added/modified/removed spec elements (FR-nnn, screen IDs, TS-nnn, etc.)
+- **Delta file**: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` — describes affected files with `create`/`modify`/`remove` operations per phase
+- **Execution**: `fe-gen` detects delta-plan.json → executes only affected phases, skipping unchanged ones
+  - `create` operations → tdd-cycle-runner (scoped to new files only)
+  - `modify`/`remove` operations → delta-modifier agent (targeted Edit on existing files, TDD for behavioral changes)
+- **Cascade**: changes cascade downward (types → api → stores → components → pages → routes/i18n). Implementation-planner computes the full cascade using plan.json cross-references.
+- **Safety**: large deltas (>60% of files affected) trigger a warning suggesting full regeneration. User always chooses between incremental and full.
+- **After delta**: plan.json is patched with `planJsonPatch`, delta-plan.json is archived as `delta-plan.{timestamp}.json`
+- **Pipeline continues**: fe-verify → fe-review → fe-fix → fe-e2e (unchanged)
+
+Delta pipeline:
+```
+spec change → fe-plan (incremental) → delta-plan.json
+           → fe-gen (delta) → affected files only
+           → fe-verify → fe-review → fe-fix → fe-e2e (normal pipeline)
+```
+
+Key files:
+- `agents/delta-modifier.md` — modifies existing files per delta-plan.json (review-fixer pattern)
+- `agents/implementation-planner.md` § Phase 3 — incremental mode spec diff + cascade computation
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
@@ -176,6 +221,8 @@ Pipeline: `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify`
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
 - Review report: `docs/specs/{feature}/.implementation/frontend/review-report.json`
 - Fix report: `docs/specs/{feature}/.implementation/frontend/fix-report.json`
+- Delta plan: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` (active delta, archived as `delta-plan.{timestamp}.json` after execution)
+
 ### State File Safety
 
 State files (progress, generation-state, review-report, fix-report, debug-report) are critical for pipeline continuity.

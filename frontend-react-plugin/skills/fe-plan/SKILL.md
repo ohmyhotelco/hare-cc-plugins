@@ -154,6 +154,79 @@ Proceed to Step 3 (Launch Planner Agent) — the implementation-planner already 
    - If found: extract layout IDs
 3. If no shared layout references found: `sharedLayoutIds` = `"none"`
 
+### Step 2.7: Incremental Detection
+
+Check if incremental mode is applicable:
+
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists → `existingPlanExists`
+2. If `existingPlanExists`:
+   - Read `docs/specs/{feature}/.progress/{feature}.json` → extract `implementation.status`
+   - If `implementation.status` is one of `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`:
+     > "An existing implementation plan and generated code exist (status: {status})."
+     > "Options:"
+     > "1. Incremental update — detect spec changes, regenerate only affected files"
+     > "2. Full regeneration — discard all changes, create new plan from scratch"
+     - If user chooses 1: `planMode = "incremental"`, proceed to Step 3-I
+     - If user chooses 2: `planMode = "full"`, proceed to Step 3
+   - If `implementation.status` is `planned`, `gen-failed`, or absent:
+     - No generated code to preserve → `planMode = "full"`, proceed to Step 3
+3. If not `existingPlanExists`: `planMode = "full"`, proceed to Step 3
+
+### Step 3-I: Launch Planner Agent (Incremental Mode)
+
+Only executed when `planMode = "incremental"`.
+
+Launch the implementation-planner agent in incremental mode:
+
+```
+Task(subagent_type: "implementation-planner", prompt: "
+  Analyze spec changes for '{feature}' and produce a delta plan.
+
+  Parameters:
+  - feature: {feature}
+  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
+  - routerMode: {routerMode}
+  - mockFirst: {mockFirst}
+  - sharedLayoutIds: [{sharedLayoutIds or "none"}]
+  - projectRoot: {cwd}
+  - baseDir: {baseDir}
+  - incrementalMode: true
+  - existingPlanFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - deltaOutputFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
+  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
+
+  Follow the process defined in agents/implementation-planner.md.
+  Execute Phase 3 (Incremental Mode) instead of Phase 2.
+  Write the delta plan to the deltaOutputFile path.
+")
+```
+
+### Step 4-I: Display Delta Summary & Confirm
+
+Only executed when `planMode = "incremental"`.
+
+1. Read the generated `docs/specs/{feature}/.implementation/frontend/delta-plan.json`
+2. Display the delta summary (as defined in the agent's Delta User Summary Template)
+
+3. If `largeDeltaWarning` is `true`:
+   > "Warning: This delta affects more than 60% of implementation files."
+   > "Full regeneration may be more reliable and produce more consistent code."
+   > "Options:"
+   > "1. Proceed with delta (incremental update)"
+   > "2. Switch to full regeneration"
+   - If user chooses 2: discard delta-plan.json, set `planMode = "full"`, go to Step 3
+
+4. If no spec changes detected (`specChanges.added`, `modified`, and `removed` are all empty):
+   > "No spec changes detected. The current plan is up to date."
+   - Stop here.
+
+5. Confirm:
+   > "Proceed with incremental plan? Run `/frontend-react-plugin:fe-gen {feature}` to apply the delta."
+
+6. Skip to Step 5-I.
+
 ### Step 3: Launch Planner Agent
 
 Create the output directory if it doesn't exist:
@@ -238,3 +311,21 @@ Implementation Plan for '{feature}':
 ```
 
 3. Write the updated progress file back. **Merge rule**: preserve all existing fields in the progress file — only add or update the `implementation` fields shown above.
+
+### Step 5-I: Update Progress (Incremental Mode)
+
+Only executed when `planMode = "incremental"`.
+
+1. Read `docs/specs/{feature}/.progress/{feature}.json`
+2. Add or update the `implementation` field — preserve the existing status (do NOT reset to `"planned"`):
+
+```json
+{
+  "implementation": {
+    "deltaFile": "docs/specs/{feature}/.implementation/frontend/delta-plan.json",
+    "deltaDetectedAt": "{ISO timestamp}"
+  }
+}
+```
+
+3. Write the updated progress file back. **Merge rule**: preserve ALL existing fields in the progress file (including `status`, `planFile`, `tddPhases`, `generatedAt`, `verification`, `review`, `fix`, `debug`) — only add the `deltaFile` and `deltaDetectedAt` fields.
