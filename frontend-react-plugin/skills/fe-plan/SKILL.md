@@ -14,10 +14,11 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
-4. If the file does not exist:
+4. If `appDir` is missing, use default value `"."` (project root)
+5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -258,6 +259,7 @@ Task(subagent_type: "implementation-planner", prompt: "
   - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
 
   Follow the process defined in agents/implementation-planner.md.

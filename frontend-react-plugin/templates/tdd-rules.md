@@ -39,6 +39,8 @@ The stub ensures:
 
 ### VERIFY RED — Watch It Fail (MANDATORY)
 
+> Run from `{appDir}` — see CLAUDE.md § Build Command Working Directory.
+
 ```bash
 npx vitest run {testFile} --reporter=verbose
 ```

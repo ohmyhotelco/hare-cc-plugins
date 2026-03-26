@@ -16,9 +16,10 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
 2. If `mockFirst` is missing, use default value `true`
-3. If the file does not exist:
+3. If `appDir` is missing, use default value `"."` (project root)
+4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -160,6 +161,7 @@ Task(subagent_type: "review-fixer", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - appDir: {appDir}
 
   Follow the process defined in agents/review-fixer.md.
   Read templates/tdd-rules.md for TDD rules.

@@ -16,8 +16,9 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
-2. If the file does not exist:
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
+2. If `appDir` is missing, use default value `"."` (project root)
+3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -69,6 +70,7 @@ Task(subagent_type: "debugger", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
+  - appDir: {appDir}
   - problemDescription: {problemDescription}
 
   Follow the 4-phase methodology defined in agents/debugger.md.

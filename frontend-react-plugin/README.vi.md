@@ -167,9 +167,10 @@ Chế độ độc lập thu thập yêu cầu tương tác (mô tả, thực th
 1. Hỏi chế độ React Router (declarative hoặc data)
 2. Hỏi về phát triển mock-first (MSW v2, mặc định: bật)
 3. Hỏi thư mục nguồn cơ sở (mặc định: `app/src`)
-4. Ghi `.claude/frontend-react-plugin.json`
-5. Cài đặt 6 skill bên ngoài (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
-6. Hiển thị các tùy chọn bước tiếp theo (có hoặc không có planning-plugin)
+4. Hỏi về sử dụng template ESLint (tự động tạo `eslint.config.js` nếu chưa có, mặc định: bật)
+5. Ghi `.claude/frontend-react-plugin.json`
+6. Cài đặt 6 skill bên ngoài (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
+7. Hiển thị các tùy chọn bước tiếp theo (có hoặc không có planning-plugin)
 
 ---
 
@@ -492,7 +493,9 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
 {
   "routerMode": "declarative",
   "mockFirst": true,
-  "baseDir": "app/src"
+  "baseDir": "app/src",
+  "appDir": "app",
+  "eslintTemplate": true
 }
 ```
 
@@ -501,6 +504,8 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
 | `routerMode` | Chế độ React Router v7 (`"declarative"` hoặc `"data"`) | `"declarative"` |
 | `mockFirst` | Bật phát triển mock-first MSW v2 | `true` |
 | `baseDir` | Thư mục cơ sở cho mã nguồn được sinh | `"app/src"` |
+| `appDir` | Thư mục chứa `vite.config.*` và `package.json` — tất cả lệnh build/test chạy ở đây | Tự động từ `baseDir` |
+| `eslintTemplate` | Tự động tạo `eslint.config.js` từ template đi kèm khi chưa có cấu hình ESLint | `true` |
 
 ## Cấu trúc dự án được sinh
 

@@ -85,13 +85,18 @@ If the user selects **yes**:
 ### Step 3: Write Configuration
 
 1. Ensure the `.claude/` directory exists in the project root
-2. Write the configuration file to `.claude/frontend-react-plugin.json`:
+2. **Auto-derive `appDir`** from the selected `baseDir`:
+   - If `baseDir` ends with `/src` → strip `/src` (e.g., `app/src` → `app`)
+   - If `baseDir` is `src` → `"."`
+   - Otherwise → same as `baseDir`
+3. Write the configuration file to `.claude/frontend-react-plugin.json`:
 
 ```json
 {
   "routerMode": "{selected mode}",
   "mockFirst": {true or false based on Step 2b},
   "baseDir": "{selected path from Step 2c}",
+  "appDir": "{auto-derived from baseDir}",
   "eslintTemplate": {true or false based on Step 2d}
 }
 ```
@@ -139,6 +144,7 @@ Frontend React Plugin configured successfully!
   Router mode: {routerMode}
   Mock-first: {enabled or disabled}
   Base dir: {baseDir}
+  App dir: {appDir} (build/test commands run here)
   ESLint template: {enabled or disabled}
 
   External skills installed:

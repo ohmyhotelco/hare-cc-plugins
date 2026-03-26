@@ -53,10 +53,13 @@ Visual inspection alone is insufficient. The agent must verify programmatically:
 
 ### Starting the Dev Server
 
+> Run from `{appDir}` — see CLAUDE.md § Build Command Working Directory.
+
 ```bash
-VITE_ENABLE_MOCKS=true npx vite --port 5173 &
+cd {appDir} && VITE_ENABLE_MOCKS=true npx vite --port 5173 &
 ```
 
+- Run from `{appDir}` (where `vite.config.*` lives). If `appDir` is `"."`, omit the `cd` prefix.
 - Run in background (`&`) so the agent can continue
 - Record the PID for cleanup: `echo $!`
 - Default port: 5173

@@ -263,11 +263,23 @@ State files (progress, generation-state, review-report, fix-report, debug-report
 
 A principle applied across all agents and skills: **"Evidence before claims, always"**
 
+#### Build Command Working Directory
+
+All build/test tool commands (`npx vite`, `npx vitest`, `npx tsc`, `npx eslint`) must run from `{appDir}` — the directory containing `vite.config.*` and `package.json`.
+
+- Read `appDir` from `.claude/frontend-react-plugin.json`
+- If `appDir` is `"."` or absent → run from project root (no prefix needed)
+- Otherwise → prefix commands with `cd {projectRoot}/{appDir} &&`
+
+Example: `baseDir: "app/src"`, `appDir: "app"` → `cd {projectRoot}/app && npx vite build 2>&1`
+
+This applies to all agents and skills. Skills pass `appDir` to agents as a parameter.
+
 #### TypeScript Check — Composite Config Detection
 
 Vite projects commonly use composite tsconfig with `references`. Agents must detect this and use the correct command:
 
-1. Read root `tsconfig.json` in the project directory
+1. Read `tsconfig.json` in `{appDir}` (not project root)
 2. If it contains a `references` array → `npx tsc -b 2>&1`
 3. Otherwise → `npx tsc --noEmit 2>&1`
 
@@ -321,6 +333,7 @@ docs/            - Documentation
   "routerMode": "declarative",
   "mockFirst": true,
   "baseDir": "app/src",
+  "appDir": "app",
   "eslintTemplate": true
 }
 ```
@@ -328,4 +341,5 @@ docs/            - Documentation
 - `routerMode`: `"declarative"` (default) | `"data"` — determines React Router v7 mode
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
 - `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. When absent, falls back to `"src"` for backward compatibility.
+- `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip `/src` suffix from `baseDir` (`app/src` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.

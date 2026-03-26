@@ -18,6 +18,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 
 ## Process

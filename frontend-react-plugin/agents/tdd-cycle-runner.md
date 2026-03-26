@@ -19,6 +19,7 @@ The coordinator skill provides:
 - `feature` — feature name
 - `phase` — one of: `"api-tdd"`, `"store-tdd"`, `"component-tdd"`, `"page-tdd"`
 - `projectRoot` — project root path
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `specDir` — spec markdown path (for reference during implementation)
 - `uiDslDir` — UI DSL path (for component/page phases)
 - `prototypeDir` — prototype path (optional structural hints)

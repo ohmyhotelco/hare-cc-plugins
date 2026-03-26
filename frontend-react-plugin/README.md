@@ -163,9 +163,10 @@ Standalone mode gathers requirements interactively (description, entities, scree
 1. Prompts for React Router mode (declarative or data)
 2. Prompts for mock-first development (MSW v2, default: enabled)
 3. Prompts for base source directory (default: `app/src`)
-4. Writes `.claude/frontend-react-plugin.json`
-5. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
-6. Displays next-step options (with or without planning-plugin)
+4. Prompts for ESLint template usage (auto-generate `eslint.config.js` if none exists, default: enabled)
+5. Writes `.claude/frontend-react-plugin.json`
+6. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
+7. Displays next-step options (with or without planning-plugin)
 
 ---
 
@@ -488,7 +489,9 @@ The plugin uses `.claude/frontend-react-plugin.json` in the project directory (c
 {
   "routerMode": "declarative",
   "mockFirst": true,
-  "baseDir": "app/src"
+  "baseDir": "app/src",
+  "appDir": "app",
+  "eslintTemplate": true
 }
 ```
 
@@ -497,6 +500,8 @@ The plugin uses `.claude/frontend-react-plugin.json` in the project directory (c
 | `routerMode` | React Router v7 mode (`"declarative"` or `"data"`) | `"declarative"` |
 | `mockFirst` | Enable MSW v2 mock-first development | `true` |
 | `baseDir` | Base directory for generated source code | `"app/src"` |
+| `appDir` | Directory containing `vite.config.*` and `package.json` — all build/test commands run here | Auto-derived from `baseDir` |
+| `eslintTemplate` | Auto-generate `eslint.config.js` from bundled template when no ESLint config exists | `true` |
 
 ## Generated Project Structure
 

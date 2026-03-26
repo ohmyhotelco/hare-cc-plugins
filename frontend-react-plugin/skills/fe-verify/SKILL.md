@@ -14,8 +14,9 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
-2. If the file does not exist:
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
+2. If `appDir` is missing, use default value `"."` (project root)
+3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -69,12 +70,14 @@ Run the following 3 verifications sequentially.
 
 Detect composite tsconfig and use the correct command:
 
-1. Read root `tsconfig.json` in the project directory
+1. Read `tsconfig.json` in `{appDir}` (e.g., `app/tsconfig.json` when `appDir` is `app`, or root `tsconfig.json` when `appDir` is `.`)
 2. If it contains a `"references"` array → use `tsc -b`
 3. Otherwise → use `tsc --noEmit`
 
+All commands below run from `{appDir}`. If `appDir` is not `"."`, prefix each with `cd {appDir} &&`.
+
 ```bash
-# If root tsconfig.json contains "references":
+# If tsconfig.json contains "references":
 npx tsc -b 2>&1
 
 # Otherwise:

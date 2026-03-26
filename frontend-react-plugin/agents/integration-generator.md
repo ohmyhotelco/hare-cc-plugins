@@ -19,6 +19,7 @@ The coordinator skill provides:
 - `feature` — feature name
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `routerMode` — `"declarative"` | `"data"`
 - `mockFirst` — `true` | `false`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`

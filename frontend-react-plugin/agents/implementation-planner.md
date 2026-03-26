@@ -22,6 +22,7 @@ The skill will provide these parameters in the prompt:
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
+- `appDir` — app directory containing `vite.config.*` and `package.json` (e.g., `"app"` or `"."`)
 - `feature` — feature name
 - `outputFile` — plan output path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.

@@ -22,6 +22,7 @@ The coordinator skill provides:
 - `mockFirst` — `true` | `false`
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `feature` — feature name
 
 ## Process

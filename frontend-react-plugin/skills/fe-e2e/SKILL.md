@@ -16,10 +16,11 @@ Run end-to-end tests on generated code using agent-browser. Starts a Vite dev se
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
-4. If the file does not exist:
+4. If `appDir` is missing, use default value `"."` (project root)
+5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -128,12 +129,13 @@ If the user declines, release the lock and stop here.
      > "Options: 1. Use a different port  2. Kill the existing process  3. Cancel"
      - Adjust port accordingly or stop.
 
-2. Start the Vite dev server in background:
+2. Start the Vite dev server in background (from `{appDir}`):
    ```bash
-   VITE_ENABLE_MOCKS=true npx vite --port {port} &
+   cd {appDir} && VITE_ENABLE_MOCKS=true npx vite --port {port} &
    VITE_PID=$!
    echo "Vite PID: $VITE_PID"
    ```
+   > If `appDir` is `"."`, omit the `cd` prefix.
 
 3. Wait for server readiness (max 30 seconds):
    ```bash

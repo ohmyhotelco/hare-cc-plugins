@@ -16,10 +16,11 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
-4. If the file does not exist:
+4. If `appDir` is missing, use default value `"."` (project root)
+5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -210,6 +211,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - appDir: {appDir}
 
   Follow the process defined in agents/delta-modifier.md.
   Read templates/tdd-rules.md for TDD rules.
@@ -240,6 +242,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
+  - appDir: {appDir}
 
   Follow the process defined in agents/delta-modifier.md.
   Read templates/tdd-rules.md for TDD rules.
@@ -271,6 +274,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - skills: {skills list from buildOrder}
   - deltaMode: true
   - scopedFiles: {list of createFiles file paths}
@@ -427,6 +431,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - projectRoot: {cwd}
   - feature: {feature}
 
@@ -476,6 +481,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - skills: {skills list from buildOrder}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
@@ -537,6 +543,7 @@ Agent(subagent_type: "integration-generator", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - workingLanguage: {workingLanguage}
   - skills: {skills list from buildOrder}
 
