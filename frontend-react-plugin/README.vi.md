@@ -32,6 +32,9 @@ Các khả năng chính:
         ├── standalone mode: interactive requirements gathering
         │   └── generates minimal spec stub → implementation-planner agent → plan.json
         │
+        ├── incremental mode: detects spec changes after implementation
+        │   └── implementation-planner agent → delta-plan.json (affected files only)
+        │
         ▼
 /frontend-react-plugin:fe-gen "feature"
         │
@@ -179,10 +182,11 @@ Chế độ độc lập thu thập yêu cầu tương tác (mô tả, thực th
 **Quy trình thực hiện**:
 1. **Chế độ đặc tả** (mặc định): đọc đặc tả planning-plugin và UI DSL, phát hiện layout chia sẻ, phân tích các pattern dự án hiện có
 2. **Chế độ độc lập** (`--standalone`): thu thập yêu cầu tương tác (mô tả, thực thể, màn hình, ngôn ngữ), tạo spec stub tối thiểu
-3. **Tự động phát hiện**: nếu không tìm thấy đặc tả và không chỉ định `--standalone`, đưa ra lựa chọn giữa chế độ độc lập và tạo đặc tả trước
-4. Khởi chạy tác tử Implementation Planner để tạo `plan.json`
-5. Hiển thị tóm tắt kế hoạch (tệp, giai đoạn TDD, phụ thuộc shadcn/ui)
-6. Cập nhật tệp tiến độ với trạng thái `planned`
+3. **Chế độ gia tăng** (tự động phát hiện): khi plan.json và mã đã sinh tồn tại, phát hiện thay đổi đặc tả và tạo delta plan thay vì sinh lại toàn bộ
+4. **Tự động phát hiện**: nếu không tìm thấy đặc tả và không chỉ định `--standalone`, đưa ra lựa chọn giữa chế độ độc lập và tạo đặc tả trước
+5. Khởi chạy tác tử Implementation Planner để tạo `plan.json` (hoặc `delta-plan.json` trong chế độ gia tăng)
+6. Hiển thị tóm tắt kế hoạch (tệp, giai đoạn TDD, phụ thuộc shadcn/ui)
+7. Cập nhật tệp tiến độ với trạng thái `planned` (hoặc giữ trạng thái hiện có trong chế độ gia tăng)
 
 Tác tử planner phân tích:
 - Các pattern dự án hiện có (cấu trúc thư mục, path alias, tệp route, cấu hình i18n, store, dịch vụ API, thiết lập MSW, hạ tầng kiểm thử)
@@ -216,6 +220,8 @@ Tác tử planner phân tích:
 4. Mỗi giai đoạn TDD ghi lại timestamp `completedAt` để hỗ trợ tiếp tục chính xác
 5. Hiển thị kết quả toàn diện với tỷ lệ kiểm thử đạt và danh sách tệp
 6. Giải phóng khóa và cập nhật tiến độ
+
+**Chế độ delta**: Khi `delta-plan.json` tồn tại (được tạo bởi `fe-plan` trong chế độ gia tăng), `fe-gen` chỉ thực thi các giai đoạn và tệp bị ảnh hưởng. Các giai đoạn không thay đổi được bỏ qua hoàn toàn. Các thay đổi sử dụng tác tử delta-modifier; tệp mới sử dụng tdd-cycle-runner với phạm vi giới hạn.
 
 **Hỗ trợ tiếp tục**: Nếu quá trình sinh mã bị gián đoạn, chạy lại `fe-gen` sẽ phát hiện trạng thái hiện có và đề xuất tiếp tục từ giai đoạn chưa hoàn thành cuối cùng. Độ mới của kế hoạch được kiểm tra ở cấp giai đoạn — nếu `plan.json` được sửa đổi sau khi một giai đoạn cụ thể hoàn thành, bạn có thể chọn chạy lại từ giai đoạn đó trở đi.
 
@@ -436,6 +442,12 @@ So sánh mã sinh ra với đặc tả chức năng. Đánh giá mức độ bao
 
 Phân loại mỗi vấn đề là TDD-required (thay đổi hành vi — test trước), direct-fix (thay đổi cơ học) hoặc regen-required (tệp bị thiếu). Áp dụng sửa lỗi với kỷ luật phù hợp.
 
+### Delta Modifier
+
+**Vai trò**: Áp dụng thay đổi đặc tả gia tăng.
+
+Sửa đổi các tệp triển khai hiện có dựa trên `delta-plan.json`. Tuân theo pattern review-fixer: TDD cho thay đổi hành vi (hành vi UI mới, trường form mới), chỉnh sửa trực tiếp cho thay đổi cấu trúc (thêm type, cập nhật factory, kết nối route). Xử lý tạo foundation, xóa mã và sửa đổi cascade phụ thuộc. Bảo toàn tất cả công việc review/fix đã tích lũy.
+
 ### E2E Test Runner
 
 **Vai trò**: Thực thi kiểm thử E2E qua agent-browser.
@@ -523,6 +535,7 @@ Tệp trạng thái trong `docs/specs/{feature}/.implementation/frontend/`:
 | `fix-report.json` | Kết quả sửa lỗi với phân tích chiến lược |
 | `e2e-report.json` | Kết quả kiểm thử E2E với chi tiết kịch bản (đầu vào cho chế độ E2E của fe-fix) |
 | `debug-report.json` | Kết quả phiên gỡ lỗi với nhật ký giả thuyết |
+| `delta-plan.json` | Kế hoạch thay đổi đặc tả gia tăng (đầu vào cho delta fe-gen, lưu trữ sau thực thi) |
 | `.lock` | Ngăn thực thi đồng thời (tự động hết hạn sau 30 phút) |
 
 ### Máy trạng thái tiến độ
@@ -587,6 +600,8 @@ Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-
 
 - **Chế độ độc lập là khởi đầu nhanh, không phải đường tắt** — Nó tạo kế hoạch đơn giản hơn mà không có mã lỗi, quy tắc xác thực hoặc tham chiếu kịch bản kiểm thử. Đối với tính năng production, hãy đầu tư vào đặc tả đúng đắn với planning-plugin.
 
+- **Sử dụng chế độ gia tăng khi đặc tả thay đổi** — Sau khi sửa đổi đặc tả trên mã đã sinh, chạy lại `fe-plan`. Nó tự động phát hiện triển khai hiện có và đề xuất chế độ gia tăng, chỉ sinh lại các tệp bị ảnh hưởng trong khi bảo toàn tất cả công việc review/fix. Delta lớn (>60% tệp) sẽ hiển thị cảnh báo đề xuất sinh lại toàn bộ.
+
 - **Tiếp tục là an toàn** — Nếu quá trình sinh mã bị gián đoạn, chỉ cần chạy lại `fe-gen`. Nó phát hiện các giai đoạn đã hoàn thành và tiếp tục. Timestamp cấp giai đoạn đảm bảo kiểm tra độ mới chính xác.
 
 - **Khóa bảo vệ trạng thái của bạn** — Không chạy `fe-gen` và `fe-fix` trên cùng tính năng đồng thời. Cơ chế khóa ngăn hỏng tệp trạng thái.
@@ -605,6 +620,7 @@ Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-
 - [x] Tính nhất quán trạng thái (khóa, timestamp, phát hiện lỗi thời)
 - [x] Bộ xử lý hook (session-init, xác thực triển khai)
 - [x] Skill kiểm thử E2E (tích hợp agent-browser)
+- [x] Sinh lại delta (xử lý thay đổi đặc tả gia tăng)
 - [ ] Thư viện template component
 - [ ] Skill thiết lập i18n
 - [ ] Template pattern Auth/RBAC
@@ -614,7 +630,7 @@ Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-
 ```
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
                  integration-generator, spec-reviewer, quality-reviewer, review-fixer,
-                 e2e-test-runner, debugger)
+                 delta-modifier, e2e-test-runner, debugger)
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
                  fe-e2e, fe-debug)
 hooks/           Lifecycle hook configuration

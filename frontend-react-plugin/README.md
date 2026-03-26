@@ -28,6 +28,9 @@ Key capabilities:
         ├── standalone mode: interactive requirements gathering
         │   └── generates minimal spec stub → implementation-planner agent → plan.json
         │
+        ├── incremental mode: detects spec changes after implementation
+        │   └── implementation-planner agent → delta-plan.json (affected files only)
+        │
         ▼
 /frontend-react-plugin:fe-gen "feature"
         │
@@ -175,10 +178,11 @@ Standalone mode gathers requirements interactively (description, entities, scree
 **What happens**:
 1. **Spec mode** (default): reads the planning-plugin spec and UI DSL, detects shared layouts, analyzes existing project patterns
 2. **Standalone mode** (`--standalone`): gathers requirements interactively (description, entities, screens, language), generates a minimal spec stub
-3. **Auto-detection**: if no spec found and `--standalone` not specified, offers a choice between standalone mode and creating a spec first
-4. Launches the implementation-planner agent to produce `plan.json`
-5. Displays plan summary (files, TDD phases, shadcn/ui dependencies)
-6. Updates progress file with `planned` status
+3. **Incremental mode** (auto-detected): when existing plan.json + generated code exist, offers to detect spec changes and produce a delta plan instead of regenerating from scratch
+4. **Auto-detection**: if no spec found and `--standalone` not specified, offers a choice between standalone mode and creating a spec first
+5. Launches the implementation-planner agent to produce `plan.json` (or `delta-plan.json` in incremental mode)
+6. Displays plan summary (files, TDD phases, shadcn/ui dependencies)
+7. Updates progress file with `planned` status (or preserves existing status in incremental mode)
 
 The planner agent analyzes:
 - Existing project patterns (directory structure, path aliases, route files, i18n config, stores, API services, MSW setup, test infrastructure)
@@ -212,6 +216,8 @@ The planner agent analyzes:
 4. Each TDD phase tracks `completedAt` timestamps for precise resume support
 5. Displays comprehensive results with test pass rates and file lists
 6. Releases the lock and updates progress
+
+**Delta mode**: When a `delta-plan.json` exists (created by `fe-plan` in incremental mode), `fe-gen` offers to execute only the affected phases and files. Unchanged phases are skipped entirely. Modifications use the delta-modifier agent; new files use tdd-cycle-runner with scoped inputs.
 
 **Resume support**: If generation is interrupted, re-running `fe-gen` detects the existing state and offers to resume from the last incomplete phase. Plan freshness is checked at the phase level — if `plan.json` was modified after a specific phase completed, you can choose to re-run from that phase onward.
 
@@ -432,6 +438,12 @@ Evaluates single responsibility, consistent patterns, no hardcoded strings, erro
 
 Classifies each issue as TDD-required (behavioral change — test first), direct-fix (mechanical change), or regen-required (missing files). Applies fixes with appropriate discipline.
 
+### Delta Modifier
+
+**Role**: Incremental spec change applier.
+
+Modifies existing implementation files based on `delta-plan.json`. Follows the review-fixer pattern: TDD for behavioral changes (new UI behavior, new form fields), direct edit for structural changes (type additions, factory updates, route wiring). Handles foundation creates, code removal, and dependency cascade modifications. Preserves all accumulated review/fix work.
+
 ### E2E Test Runner
 
 **Role**: E2E test execution via agent-browser.
@@ -519,6 +531,7 @@ State files under `docs/specs/{feature}/.implementation/frontend/`:
 | `fix-report.json` | Fix results with strategy breakdown |
 | `e2e-report.json` | E2E test results with scenario details (input for fe-fix E2E mode) |
 | `debug-report.json` | Debug session results with hypothesis log |
+| `delta-plan.json` | Incremental spec change plan (input for delta fe-gen, archived after execution) |
 | `.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
 ### Progress State Machine
@@ -583,6 +596,8 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 - **Standalone mode is a quick start, not a shortcut** — It generates simpler plans without error codes, validation rules, or test scenario references. For production features, invest in a proper spec with planning-plugin.
 
+- **Use incremental mode when specs change** — After modifying a spec on generated code, run `fe-plan` again. It auto-detects existing implementation and offers incremental mode, which regenerates only affected files while preserving all review/fix work. Large deltas (>60% of files) trigger a warning suggesting full regeneration.
+
 - **Resume is safe** — If generation is interrupted, just re-run `fe-gen`. It detects completed phases and resumes. Phase-level timestamps ensure accurate freshness checks.
 
 - **Lock protects your state** — Don't run `fe-gen` and `fe-fix` on the same feature simultaneously. The lock mechanism prevents state file corruption.
@@ -601,6 +616,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] State consistency (lock, timestamps, staleness detection)
 - [x] Hook handlers (session-init, implementation validation)
 - [x] E2E testing skill (agent-browser integration)
+- [x] Delta regeneration (incremental spec change handling)
 - [ ] Component template library
 - [ ] i18n setup skill
 - [ ] Auth/RBAC pattern templates
@@ -610,7 +626,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 ```
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
                  integration-generator, spec-reviewer, quality-reviewer, review-fixer,
-                 e2e-test-runner, debugger)
+                 delta-modifier, e2e-test-runner, debugger)
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
                  fe-e2e, fe-debug)
 hooks/           Lifecycle hook configuration
