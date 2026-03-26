@@ -317,6 +317,18 @@ The planner agent analyzes:
    - **Fix**: Apply TDD fix with verification
 2. If unresolvable, escalates with detailed diagnosis
 
+---
+
+### `/frontend-react-plugin:fe-progress`
+
+**Syntax**: `/frontend-react-plugin:fe-progress [feature-name]`
+
+**When to use**: At any time to check the current pipeline status.
+
+**What happens**:
+- **With feature name**: Shows detailed status — implementation status, TDD phase completion, verification results, review scores, fix rounds, E2E results, delta history, spec staleness check, and next-step guidance.
+- **Without feature name**: Shows a summary table of all features with status, generation progress, review scores, fix rounds, E2E results, and delta state.
+
 ## Full Pipeline Workflow
 
 ### Step 1: Initialize
@@ -469,6 +481,7 @@ Observe → Hypothesize → Test → Fix. Maintains ranked hypothesis list with 
 | Fix | `/frontend-react-plugin:fe-fix` | Fix review issues with TDD discipline |
 | E2E | `/frontend-react-plugin:fe-e2e` | Run E2E browser tests via agent-browser |
 | Debug | `/frontend-react-plugin:fe-debug` | Systematic debugging with hypothesis testing and escalation |
+| Progress | `/frontend-react-plugin:fe-progress` | Show implementation pipeline status for all or a specific feature |
 
 ### External Skills (installed by init)
 
@@ -633,7 +646,7 @@ agents/          Agent definitions (planner, foundation-generator, tdd-cycle-run
                  integration-generator, spec-reviewer, quality-reviewer, review-fixer,
                  delta-modifier, e2e-test-runner, debugger)
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
-                 fe-e2e, fe-debug)
+                 fe-e2e, fe-debug, fe-progress)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
