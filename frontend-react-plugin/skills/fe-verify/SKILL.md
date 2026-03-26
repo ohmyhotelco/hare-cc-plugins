@@ -51,7 +51,7 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
    - If spec is newer:
      > "Warning: Spec files have been modified since code was generated ({generatedAt})."
      > "Verification results may not reflect the current spec."
-     > "Consider re-running `/frontend-react-plugin:fe-plan {feature}` → `/frontend-react-plugin:fe-gen {feature}` first."
+     > "To apply spec changes incrementally (preserving existing fixes): `/frontend-react-plugin:fe-plan {feature}` (choose incremental mode) → `/frontend-react-plugin:fe-gen {feature}`"
      > "Continue with verification anyway?"
      - If the user declines, stop here.
 

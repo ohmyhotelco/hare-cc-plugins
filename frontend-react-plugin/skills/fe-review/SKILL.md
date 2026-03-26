@@ -57,7 +57,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
    - If spec is newer:
      > "Warning: Spec files have been modified since code was generated ({generatedAt})."
      > "Review results may flag issues caused by spec-code drift."
-     > "Consider re-running `/frontend-react-plugin:fe-plan {feature}` → `/frontend-react-plugin:fe-gen {feature}` first."
+     > "To apply spec changes incrementally (preserving existing fixes): `/frontend-react-plugin:fe-plan {feature}` (choose incremental mode) → `/frontend-react-plugin:fe-gen {feature}`"
      > "Continue with review anyway?"
      - If the user declines, stop here.
 

@@ -91,6 +91,35 @@ if [ -d "$SPECS_DIR" ]; then
     [ -f "$PROGRESS_FILE" ] || continue
     FEATURE=$(basename "$PROGRESS_FILE" .json)
     IMPL_STATUS=$(jq -r '.implementation.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+    # Check for pending delta-plan.json
+    DELTA_PLAN="$SPECS_DIR/$FEATURE/.implementation/frontend/delta-plan.json"
+    if [ -f "$DELTA_PLAN" ]; then
+      echo "  Info: [$FEATURE] Delta plan pending. Run /frontend-react-plugin:fe-gen $FEATURE to apply incremental changes."
+    fi
+
+    # Check for spec staleness (spec modified after generation)
+    GENERATED_AT=$(jq -r '.implementation.generatedAt // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+    if [ -n "$GENERATED_AT" ] && [ "$IMPL_STATUS" != "planned" ] && [ "$IMPL_STATUS" != "gen-failed" ]; then
+      WORKING_LANG=$(jq -r '.workingLanguage // "en"' "$PROGRESS_FILE" 2>/dev/null || echo "en")
+      SPEC_DIR="$SPECS_DIR/$FEATURE/$WORKING_LANG"
+      if [ -d "$SPEC_DIR" ]; then
+        # Convert generatedAt ISO timestamp to epoch for comparison
+        GENERATED_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${GENERATED_AT%%.*}" "+%s" 2>/dev/null || echo "0")
+        SPEC_STALE=false
+        for SPEC_FILE in "$SPEC_DIR"/*.md; do
+          [ -f "$SPEC_FILE" ] || continue
+          SPEC_EPOCH=$(stat -f "%m" "$SPEC_FILE" 2>/dev/null || echo "0")
+          if [ "$SPEC_EPOCH" -gt "$GENERATED_EPOCH" ]; then
+            SPEC_STALE=true
+            break
+          fi
+        done
+        if [ "$SPEC_STALE" = true ] && [ ! -f "$DELTA_PLAN" ]; then
+          echo "  Warning: [$FEATURE] Spec modified after code generation. Run /frontend-react-plugin:fe-plan $FEATURE to detect changes (incremental mode preserves existing fixes)."
+        fi
+      fi
+    fi
+
     case "$IMPL_STATUS" in
       planned)
         echo "  Info: [$FEATURE] Plan ready. Run /frontend-react-plugin:fe-gen $FEATURE to generate code."
