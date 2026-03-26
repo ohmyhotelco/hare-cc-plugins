@@ -343,6 +343,22 @@ E2E tests verify **multi-page user flows**, not individual component behavior. D
 
 E2E should test **flows that span multiple pages or involve real browser navigation**.
 
+### Do Not Use JS Template Literals in Bash Heredoc
+
+When running `agent-browser eval` with a heredoc, **never use ES6 template literals** (`` `${expr}` ``) in the JavaScript code. Bash interprets `${}` as variable substitution even inside `<<'EOF'` in some parsers, causing "Bad substitution" errors.
+
+```bash
+# BAD — Bash parses ${btn.textContent} as variable substitution
+agent-browser eval --stdin --session e2e-feature <<'EOF'
+return `button: ${btn.textContent}`;
+EOF
+
+# GOOD — string concatenation avoids the conflict
+agent-browser eval --stdin --session e2e-feature <<'EOF'
+return 'button: ' + btn.textContent;
+EOF
+```
+
 ### Do Not Hardcode Element Positions
 
 Use the snapshot's semantic information (text content, element type, attributes) to identify elements, not absolute positions or assumed ref numbers. The agent should interpret each snapshot fresh.
