@@ -124,6 +124,29 @@ For each row:
 2. If missing, run the Install Command
 3. Verify installation succeeded
 
+**E2E permission setup** (after skill installation):
+
+The e2e-test-runner agent executes hundreds of `agent-browser` CLI calls via Bash in a sub-agent session. Sub-agents may not inherit session-level permissions, so a project-level permission rule is required.
+
+1. Read `.claude/settings.json` (create if absent)
+2. Check if `permissions.allow` array contains `"Bash(agent-browser *)"`:
+   - If already present → skip
+   - If absent → add `"Bash(agent-browser *)"` to the `permissions.allow` array
+3. Write the updated `.claude/settings.json`
+
+Example result:
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(agent-browser *)"
+    ]
+  }
+}
+```
+
+> Merge rule: preserve all existing fields in settings.json — only add to the `permissions.allow` array.
+
 **Agent-browser CLI check** (after skill installation):
 ```bash
 agent-browser --version 2>&1

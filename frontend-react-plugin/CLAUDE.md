@@ -148,6 +148,7 @@ Anti-patterns (from obra/superpowers testing-anti-patterns):
 - Dynamic route parameters (`:id`) must be resolved to fixture IDs before navigation — see `agents/e2e-test-runner.md` § Dynamic Route Parameter Resolution
 - E2E scenario updates: when screens/routes change after initial plan, re-run `/frontend-react-plugin:fe-plan {feature}` to regenerate `e2eTests[]` in plan.json, then `/frontend-react-plugin:fe-e2e {feature}`. Manual edits to `e2eTests[]` are allowed but will be overwritten on next fe-plan run.
 - E2E test reference: `templates/e2e-testing.md` (plugin patterns) + `.claude/skills/agent-browser/SKILL.md` (CLI commands)
+- E2E permissions: `fe-init` adds `Bash(agent-browser *)` to `.claude/settings.json` `permissions.allow` — required because the e2e-test-runner runs as a sub-agent and session-level approvals do not transfer to sub-agents
 
 Pipeline (2-stage loops):
 - Loop 1 (Quality): `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` ↔ `/frontend-react-plugin:fe-fix` (until review passes)

@@ -1,6 +1,6 @@
 {
   "name": "frontend-react-plugin",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
   "author": {
     "name": "Justin Choi"
