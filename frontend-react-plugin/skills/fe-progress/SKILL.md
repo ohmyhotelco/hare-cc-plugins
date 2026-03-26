@@ -151,7 +151,11 @@ For each progress file:
    - E2E: `e2e.passed`/`e2e.total` (or "—")
    - Delta: "pending" if `delta-plan.json` exists, "applied" if `lastDelta` exists, "—" otherwise
 
-3. Display:
+3. If no features have `implementation` data after filtering:
+   > "No features with implementation data found. Run `/frontend-react-plugin:fe-plan {feature}` to start."
+   - Stop here.
+
+4. Display:
 
 ```
 Implementation Progress:
