@@ -36,6 +36,12 @@ Show implementation pipeline status for features managed by the frontend-react-p
 
 #### Step 2: Display Detailed Status
 
+1. Check if the `implementation` field exists in the progress file
+   - If absent:
+     > "Feature '{feature}' has no implementation data yet."
+     > "Run `/frontend-react-plugin:fe-plan {feature}` to start the implementation pipeline."
+     - Stop here.
+
 Read the `implementation` field and display:
 
 ```
@@ -136,6 +142,7 @@ Based on `implementation.status`, display the recommended next action:
 
 For each progress file:
 1. Read `implementation` field
+   - If `implementation` is absent → skip this feature (only show features with implementation data)
 2. Extract:
    - `status`
    - TDD phase completion: count completed phases out of 6 total
