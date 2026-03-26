@@ -333,3 +333,4 @@ If the target element cannot be found in the snapshot:
 - **MSW trust**: The mock data is provided by the TDD foundation phase. Do not attempt to modify MSW handlers.
 - **No unit test duplication**: If a behavior is already tested by Vitest unit/component tests, do not create an E2E scenario for it. E2E tests user journeys, not individual components.
 - **No JS template literals in Bash**: When using `agent-browser eval` with heredoc, never use ES6 template literals (`` `${expr}` ``) in the JavaScript code — Bash interprets `${}` as variable substitution, causing "Bad substitution" errors that block automation. Use string concatenation (`+`) instead: `'submit button: ' + btn.textContent`.
+- **One command per Bash call**: Never chain multiple `agent-browser` commands with `&&`, `;`, or newlines in a single Bash call. Each `agent-browser` command must be a separate Bash tool invocation. Chaining triggers "Command contains newlines" warnings that block automation.

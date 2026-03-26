@@ -343,6 +343,24 @@ E2E tests verify **multi-page user flows**, not individual component behavior. D
 
 E2E should test **flows that span multiple pages or involve real browser navigation**.
 
+### Do Not Chain Commands in a Single Bash Call
+
+Each `agent-browser` command must be a **separate Bash tool invocation**. Never combine with `&&`, `;`, or newlines.
+
+```bash
+# BAD — triggers "Command contains newlines" warning
+agent-browser fill @e9 "test" --session e2e-feature && \
+agent-browser click @e12 --session e2e-feature && \
+agent-browser wait --network idle --session e2e-feature
+
+# GOOD — one command per Bash call
+agent-browser fill @e9 "test" --session e2e-feature
+# (separate Bash call)
+agent-browser click @e12 --session e2e-feature
+# (separate Bash call)
+agent-browser wait --network idle --session e2e-feature
+```
+
 ### Do Not Use JS Template Literals in Bash Heredoc
 
 When running `agent-browser eval` with a heredoc, **never use ES6 template literals** (`` `${expr}` ``) in the JavaScript code. Bash interprets `${}` as variable substitution even inside `<<'EOF'` in some parsers, causing "Bad substitution" errors.
