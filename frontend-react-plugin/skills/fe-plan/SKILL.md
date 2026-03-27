@@ -1,6 +1,6 @@
 ---
 name: fe-plan
-description: "Analyze a functional specification (or gather requirements interactively) and produce an implementation plan for production React code generation."
+description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
 argument-hint: "<feature-name> [--standalone]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Task

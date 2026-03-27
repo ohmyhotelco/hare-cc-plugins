@@ -1,6 +1,6 @@
 ---
 name: design
-description: "Generate UI DSL and Stitch wireframes from a finalized functional specification (DSL → Stitch → review gate)."
+description: "Use when a functional specification is finalized and UI design artifacts (DSL, wireframes) are needed before implementation."
 argument-hint: "[feature-name] [--stage=dsl|stitch]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen

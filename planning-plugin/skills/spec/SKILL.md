@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Generate a functional specification through multi-agent collaboration. Analyzes project context, gathers requirements, creates spec draft in the configured working language, and runs sequential planner→tester review cycles with translation to other supported languages.
+description: Use when starting a new feature or project that needs a functional specification before implementation.
 argument-hint: "[feature description]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task

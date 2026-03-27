@@ -1,6 +1,6 @@
 ---
 name: fe-debug
-description: "Systematic debugging of generated code using 4-phase methodology with escalation."
+description: "Use when generated code has runtime errors, test failures, or build issues that need systematic diagnosis."
 argument-hint: "<feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task

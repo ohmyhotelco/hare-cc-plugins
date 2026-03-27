@@ -1,6 +1,6 @@
 ---
 name: prototype
-description: "Generate a React prototype from UI DSL (+ optional Stitch wireframes). Scaffolds Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui + React Router v7, bundles into standalone HTML."
+description: "Use when UI DSL is ready and a clickable prototype is needed for stakeholder review before production implementation."
 argument-hint: "[feature-name]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Bash

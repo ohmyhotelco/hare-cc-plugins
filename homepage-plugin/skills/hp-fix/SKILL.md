@@ -1,6 +1,6 @@
 ---
 name: hp-fix
-description: "Fix review issues found by hp-review. Direct fixes for SEO and quality issues."
+description: "Use after hp-review identifies issues that need fixing."
 argument-hint: "<page-name>"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent

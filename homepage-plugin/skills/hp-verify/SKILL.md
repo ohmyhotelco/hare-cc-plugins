@@ -1,6 +1,6 @@
 ---
 name: hp-verify
-description: "Run verification gates on generated homepage code: TypeScript, ESLint, Astro build, Lighthouse CI."
+description: "Use after hp-gen to verify generated homepage code passes all quality gates."
 argument-hint: "[page-name]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash

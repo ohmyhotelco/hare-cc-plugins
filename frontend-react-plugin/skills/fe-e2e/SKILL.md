@@ -1,6 +1,6 @@
 ---
 name: fe-e2e
-description: "Run E2E tests on generated code using agent-browser. Starts dev server with MSW mocks and drives browser scenarios."
+description: "Use after fe-review passes to validate user flows end-to-end in the browser."
 argument-hint: "<feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent

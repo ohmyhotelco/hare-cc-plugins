@@ -1,6 +1,6 @@
 ---
 name: design-system
-description: "Generate a domain-specific design system (B2B Admin or Hotel/Travel) by reading curated CSV databases with domain filtering and industry reasoning rules. Outputs MASTER.md + pages/*.md."
+description: "Use when a new project needs a domain-specific design system (B2B Admin or Hotel/Travel) before specification and UI design work."
 argument-hint: "[--domain=b2b-admin|hotel-travel] [--query=\"context\"]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep
