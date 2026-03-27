@@ -198,6 +198,7 @@ Key files:
   5. `page-tdd` — page tests → pages (tdd-cycle-runner agent)
   6. `integration` — routes + i18n + MSW global + barrel (integration-generator agent)
 - Each TDD phase runs in a separate agent session for context isolation
+- **Subagent isolation principle**: subagents never inherit session history. The coordinator constructs only the parameters each agent needs — no conversation context leaks between phases. This prevents context pollution and ensures fresh judgment per task.
 - External skills loaded per-phase (not all at once): vitest for TDD phases, composition-patterns for components, react-best-practices for pages, router for integration
 - Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
 
