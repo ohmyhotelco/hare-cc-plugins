@@ -81,7 +81,16 @@ Each issue MUST include the following fields:
 #### 1.5 Route Coverage
 
 - Verify route entries exist for all screens defined in spec
-- Verify auth/permission settings match the spec
+- Verify auth/permission settings match plan.json (the single source of truth for route permissions):
+
+  | Context | plan.json field | What to check |
+  |---------|----------------|---------------|
+  | Route guard | `routes.entries[].roles` | If present → `<RoleGuard>` required. If absent → no RoleGuard. |
+  | Page access | `pages[].permissions` | If `[]` (empty) → accessible to all authenticated users. |
+  | Menu visibility | `navigation.items[].roles` | Sidebar display only — does NOT imply route-level restriction. |
+
+- Do NOT infer route permissions from URL path naming (e.g., `/admin/` does not mean admin-only)
+- Do NOT infer route permissions from navigation roles — menu visibility ≠ page access
 - Missing routes → issue (severity: critical, `planEntries` should reference `routes.entries` from plan.json)
 
 ### Phase 2: Scoring
