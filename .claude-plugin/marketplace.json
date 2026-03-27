@@ -8,7 +8,7 @@
     {
       "name": "planning-plugin",
       "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
-      "version": "1.4.4",
+      "version": "1.4.5",
       "author": {
         "name": "Justin Choi"
       },
@@ -19,7 +19,7 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "author": {
         "name": "Justin Choi"
       },
@@ -30,7 +30,7 @@
     {
       "name": "homepage-plugin",
       "description": "Claude Code plugin for building company marketing and homepage websites with Astro 5, Tailwind CSS, shadcn/ui, MDX content, and SEO optimization",
-      "version": "0.2.0",
+      "version": "0.2.1",
       "author": {
         "name": "Justin Choi"
       },

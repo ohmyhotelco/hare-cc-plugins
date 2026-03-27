@@ -1,6 +1,6 @@
 {
   "name": "homepage-plugin",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Claude Code plugin for building company marketing and homepage websites with Astro 5, Tailwind CSS, shadcn/ui, MDX content, and SEO optimization",
   "author": {
     "name": "Justin Choi"
