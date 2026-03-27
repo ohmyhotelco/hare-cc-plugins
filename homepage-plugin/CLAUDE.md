@@ -166,10 +166,17 @@ Same principle as frontend-react-plugin: **"Evidence before claims, always"**
 4. VERIFY — determine whether the output matches the claim
 5. CLAIM — report the result citing evidence
 
-Red Flags:
-- "should work" / "probably fine" — do not use without running tools
-- Do not substitute a previous run's result for the current verification
-- Do not skip verification because "the change is small"
+Verification Red Flags — these thoughts mean you're rationalizing (all agents):
+
+| Thought | Reality |
+|---------|---------|
+| "Should work" / "probably fine" | Evidence or silence. Run the tool. |
+| "The change is small, no need to verify" | Small changes cause big bugs. Verify always. |
+| "I already verified this earlier" | Code changed since. Verify again. |
+| "Astro build passed, so SEO is fine" | Build ≠ SEO audit. Different tools check different things. |
+| "Lighthouse will catch it later" | Lighthouse runs at hp-verify. Fix now, don't defer. |
+| "It's just static HTML, what could go wrong" | Missing meta tags, broken structured data, wrong heading hierarchy. Verify. |
+| "The error is unrelated to my change" | Prove it. Run the verification. |
 
 ### TypeScript Check
 - Astro projects: `npx tsc --noEmit` (Astro does not use composite tsconfig by default)

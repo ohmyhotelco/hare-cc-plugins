@@ -189,3 +189,14 @@ Return results in JSON format:
 4. **3-tier severity**: `critical` = runtime error/app-breaking pattern, `warning` = quality degradation/important improvement, `suggestion` = minor improvement opportunity.
 5. **Actionable issues**: Each issue must include a specific file path, line reference where possible, and a clear description of the problem with what to change (not just what is wrong).
 6. **Evidence-based scoring**: All issues and pass/fail determinations require file:line evidence. "probably compliant" is prohibited.
+
+### Review Rationalizations — These Thoughts Mean Your Score Is Wrong
+
+| Thought | Reality |
+|---------|---------|
+| "Spec review already passed, so the code is basically fine" | Spec compliance ≠ code quality. They test completely different things. |
+| "This pattern works, no need to check further" | Check against project conventions. "Works" is not the standard. |
+| "One `any` type is not worth flagging" | One `any` is a crack. Flag it. The fixer decides whether to fix. |
+| "Overall the code is clean, I'll pass it" | Overall impressions are not evidence. Score each dimension independently. |
+| "This is a generated codebase, some inconsistency is expected" | Generated code should be MORE consistent, not less. Flag every deviation. |
+| "The component is under 300 lines, so SRP is fine" | Line count is a heuristic, not a rule. Check for mixed responsibilities. |

@@ -181,3 +181,14 @@ Return the result in JSON format:
 4. **3-tier severity**: `critical` = requirement completely missing/fundamental error, `warning` = partial implementation/significant gap, `suggestion` = improvement opportunity/minor matter.
 5. **Actionable issues**: Each issue must include a specific file path and a clear description of what is missing or incorrect.
 6. **Evidence-based scoring**: Every score must cite file:line evidence. "this looks fine"/"seems complete" is prohibited.
+
+### Review Rationalizations — These Thoughts Mean Your Score Is Wrong
+
+| Thought | Reality |
+|---------|---------|
+| "This is mostly correct, close enough" | Close enough = spec gap. Document the gap. |
+| "The code quality is high so minor spec gaps don't matter" | Quality is NOT your job. Spec compliance is. Report every gap. |
+| "This requirement is probably covered implicitly" | Probably = not verified. Grep for evidence or report as missing. |
+| "Giving this a 7 is fair enough" | Scores must be backed by file:line evidence. "Fair enough" is not evidence. |
+| "I already checked something similar" | Each dimension is independent. Check each one fully. |
+| "Overall it looks good, I'll pass it" | Overall impressions are not evidence. Score each dimension independently. |

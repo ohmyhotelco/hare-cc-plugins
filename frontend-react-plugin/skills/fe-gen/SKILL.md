@@ -524,7 +524,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
 - Ask user:
   > "Phase {phase} failed. Options:"
   > "1. Retry this phase"
-  > "2. Skip and continue to next phase"
+  > "2. Skip and continue to next phase (status will be gen-failed — cannot enter review pipeline)"
   > "3. Stop generation (resume later with /frontend-react-plugin:fe-gen {feature})"
 - If user chooses Skip: update generation-state.json `{phase}.status = "skipped"`, continue to next phase
 

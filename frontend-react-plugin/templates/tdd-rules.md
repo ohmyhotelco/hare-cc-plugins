@@ -243,12 +243,30 @@ Before marking a TDD phase complete:
 - [ ] Mock responses are complete (all interface fields)
 - [ ] Each test has a `// TS-nnn` source comment
 
-## Red Flags — STOP and Reassess
+## Common Rationalizations — STOP Before You Convince Yourself
+
+| Excuse | Reality |
+|--------|---------|
+| "Too simple to test" | Simple code breaks. Test takes 30 seconds. No exceptions. |
+| "I'll write tests after" | Tests passing immediately prove nothing. RED is mandatory. |
+| "Already manually verified" | Ad-hoc ≠ systematic. No record, can't re-run, won't catch regressions. |
+| "Deleting the stub and rewriting is wasteful" | Sunk cost fallacy. Keeping unverified code is technical debt. |
+| "Keep the implementation as reference, then write tests" | You'll adapt it. That's testing-after. Delete means delete. |
+| "Need to explore the codebase first" | Fine. Throw away exploration, then start with TDD. |
+| "Test is hard to write = skip it" | Hard to test = hard to use. Listen to the test — simplify the design. |
+| "TDD will slow me down" | TDD is faster than debugging. Pragmatic = test-first. |
+| "The plan.json is too complex for one-test-at-a-time" | Complex plans need MORE discipline, not less. One behavior per test. |
+| "MSW setup is too heavy for this test" | MSW is the only acceptable mock boundary. Set it up. |
+| "This is different because..." | No. That thought IS the rationalization. Follow the rules. |
+
+**Violating the letter of the rules is violating the spirit of the rules.**
+
+## Red Flags — STOP and Start Over
 
 - Writing implementation before test
 - Test passes immediately on first run
 - Asserting on mock call counts instead of rendered output
 - Mock setup is longer than the test logic
 - Adding methods to production code "for testing"
-- "This is too simple to test" — simple code breaks; test takes 30 seconds
-- "I'll add tests after" — tests-after prove nothing; RED is mandatory
+- Can't explain why a test failed
+- Rationalizing "just this once"

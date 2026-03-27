@@ -294,10 +294,17 @@ Vite projects commonly use composite tsconfig with `references`. Agents must det
 4. VERIFY — determine whether the output matches the claim
 5. CLAIM — report the result citing evidence
 
-Red Flags (all agents):
-- "should work" / "probably fine" / "seems correct" — do not use without running tools
-- Do not substitute a previous run's result for the current verification
-- Do not skip verification because "the change is small"
+Verification Red Flags — these thoughts mean you're rationalizing (all agents):
+
+| Thought | Reality |
+|---------|---------|
+| "Should work" / "probably fine" / "seems correct" | Evidence or silence. Run the tool. |
+| "The change is small, no need to verify" | Small changes cause big bugs. Verify always. |
+| "I already verified this earlier" | That was then. Code changed since. Verify again. |
+| "tsc passed, so the build will too" | tsc ≠ vite build. Different tools catch different errors. |
+| "Tests passed, so it's correct" | Tests cover what was written, not what was missed. Check the spec. |
+| "I'll verify at the end" | Errors compound. Verify at each step. |
+| "The error is unrelated to my change" | Prove it. Run the verification. |
 
 ## File Structure
 

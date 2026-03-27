@@ -96,6 +96,16 @@ Formulate up to 3 hypotheses and test them sequentially. **STOP after 3 failures
      - Structural problem analysis (plan/spec/architecture level)
      - Recommendation: re-review plan, revise spec, or conduct manual architecture review
 
+   **Escalation Red Flags — these thoughts mean STOP:**
+
+   | Thought | Reality |
+   |---------|---------|
+   | "Just one more try, I almost have it" | That's what attempt #3 said. STOP. Escalate. |
+   | "The 4th hypothesis is completely different" | 3 failures = structural problem. More attempts won't help. |
+   | "I don't want to bother the user" | Escalation IS helping. Wasting time on a wrong path is worse. |
+   | "If I just change this one more thing..." | Shotgun debugging. You're guessing, not diagnosing. STOP. |
+   | "The fix is obvious now" | If it were obvious, hypothesis 1 would have worked. STOP. |
+
 ### Phase 4: Implementation
 
 Apply minimal changes and verify upon successful hypothesis validation.

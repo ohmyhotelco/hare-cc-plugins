@@ -310,3 +310,14 @@ Status determination:
 7. **Regression safety**: Run existing tests after each fix. Revert if regressions are introduced.
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
 9. **Traceability**: Comment `// fix: {dimension}` on added tests for audit trail.
+
+### Fix Classification Red Flags — These Thoughts Mean You're Misclassifying
+
+| Thought | Reality |
+|---------|---------|
+| "This behavioral fix is small enough for a direct fix" | Small behavioral change = still behavioral. TDD required. |
+| "Adding a test for this would be overkill" | The test proves the fix works. Without it, you're guessing. |
+| "The existing tests already cover this case" | If they did, the issue wouldn't have been reported. Add a test. |
+| "I'll fix the code first, then add the test" | That's testing-after. RED before GREEN. Always. |
+| "This i18n key change doesn't need a test" | i18n changes affect rendered output. TDD required per classification table. |
+| "The test file doesn't exist, so I'll just do a direct fix" | Reclassify as regen-required. Do NOT downgrade to direct-fix. |
