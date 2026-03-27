@@ -2,12 +2,73 @@
 
 > **Ohmyhotel & Co** Claude Code plugins mono-repo
 
+A collection of Claude Code plugins that cover the full software delivery lifecycle — from functional specification through production code generation and marketing site creation.
+
 ## Plugins
 
-| Plugin | Description |
-|--------|-------------|
-| [planning-plugin](./planning-plugin/) | Multi-agent functional specification generation with automated review cycles and multilingual output (en/ko/vi) |
-| [frontend-react-plugin](./frontend-react-plugin/) | Frontend React development plugin for Claude Code |
+### [Planning Plugin](./planning-plugin/) `v1.4.5`
+
+Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
+
+**Pipeline**: `spec` → `design` (DSL + wireframes) → `prototype` → `review` → `translate` → `sync-notion`
+
+**Key features**:
+- 8-category structured requirements gathering
+- Sequential planner → tester review cycles with convergence scoring
+- UI DSL → Google Stitch wireframe → standalone React prototype pipeline
+- Domain-specific design system generation (B2B Admin, Hotel/Travel)
+- Notion page sync via MCP
+
+---
+
+### [Frontend React Plugin](./frontend-react-plugin/) `v1.0.2`
+
+Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing.
+
+**Pipeline**: `fe-plan` → `fe-gen` (TDD) → `fe-verify` → `fe-review` ↔ `fe-fix` → `fe-e2e`
+
+**Key features**:
+- Strict Red-Green-Refactor TDD with per-phase agent isolation
+- 2-stage review: spec compliance (5 dimensions) + code quality (7 dimensions)
+- Delta regeneration — incremental spec changes without full rebuild
+- E2E testing via agent-browser (headless Chromium)
+- React 19, Vite, TypeScript, shadcn/ui, Zustand, MSW v2, i18next
+
+---
+
+### [Homepage Plugin](./homepage-plugin/) `v0.2.1`
+
+Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
+
+**Pipeline**: `hp-plan` → `hp-gen` → `hp-verify` (Lighthouse CI) → `hp-review` ↔ `hp-fix`
+
+**Key features**:
+- 15 canonical marketing sections (hero, pricing, FAQ, testimonials, etc.)
+- SEO-first: static HTML, JSON-LD structured data, sitemap, meta tags
+- 2-stage review: SEO compliance (6 dimensions) + quality/accessibility (6 dimensions)
+- Astro 5, Tailwind CSS, shadcn/ui, Content Collections (MDX + optional headless CMS)
+- Lighthouse CI auditing (target: 90+ on all categories)
+
+## How They Work Together
+
+```
+planning-plugin                 frontend-react-plugin
+     │                                │
+     ├── spec + screens + tests ──────┤
+     ├── UI DSL ──────────────────────┤
+     └── prototype (reference) ───────┘
+                                      │
+                                      └── production React code (TDD)
+
+planning-plugin                 homepage-plugin
+     │                                │
+     └── (independent) ───────────────┘
+                                      │
+                                      └── marketing site (Astro)
+```
+
+- **planning-plugin → frontend-react-plugin**: Specs, UI DSL, and prototypes flow from planning to frontend code generation. The frontend plugin can also run standalone without planning-plugin.
+- **homepage-plugin**: Operates independently with its own interactive planning. Does not require planning-plugin.
 
 ## Installation
 
@@ -15,8 +76,10 @@
 # 1. Register this repo as a marketplace source
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
-# 2. Install a plugin (project scope)
+# 2. Install plugins (project scope)
 /plugin install planning-plugin@ohmyhotelco --scope project
+/plugin install frontend-react-plugin@ohmyhotelco --scope project
+/plugin install homepage-plugin@ohmyhotelco --scope project
 ```
 
 ## Management
@@ -31,7 +94,7 @@
 
 Open `/plugin` for the full management UI (Discover, Installed, Marketplaces tabs).
 
-> **Note**: This plugin bundles Figma and Notion MCP servers. After installation, run `/mcp` and authenticate each server via OAuth. See the [planning-plugin README](./planning-plugin/) for details.
+> **Note**: planning-plugin bundles Figma and Notion MCP servers. After installation, run `/mcp` and authenticate each server via OAuth. See the [planning-plugin README](./planning-plugin/) for details.
 
 ## License
 
