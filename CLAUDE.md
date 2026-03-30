@@ -5,9 +5,10 @@ Claude Code plugin monorepo.
 ## Repository Structure
 
 ```
-planning-plugin/          - Functional spec generation plugin (see planning-plugin/CLAUDE.md)
-frontend-react-plugin/    - Frontend React development plugin (see frontend-react-plugin/CLAUDE.md)
-.claude-plugin/            - Root marketplace manifest
+planning-plugin/              - Functional spec generation plugin (see planning-plugin/CLAUDE.md)
+frontend-react-plugin/        - Frontend React development plugin (see frontend-react-plugin/CLAUDE.md)
+backend-springboot-plugin/    - Backend Spring Boot development plugin (see backend-springboot-plugin/CLAUDE.md)
+.claude-plugin/                - Root marketplace manifest
 ```
 
 ## Documentation Language

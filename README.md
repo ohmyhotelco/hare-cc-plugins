@@ -49,6 +49,23 @@ Generates marketing homepage websites from interactive page/section definitions.
 - Astro 5, Tailwind CSS, shadcn/ui, Content Collections (MDX + optional headless CMS)
 - Lighthouse CI auditing (target: 90+ on all categories)
 
+---
+
+### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.1.0`
+
+Develops Spring Boot backend applications using CQRS architecture and strict Test-Driven Development. Features a full pipeline with verification gate, review-fix loop, systematic debugging, and pipeline state tracking — modeled after the frontend-react-plugin's mature orchestration patterns.
+
+**Pipeline**: `be-init` → `be-crud` → `be-code` (TDD) → `be-verify` → `be-review` ↔ `be-fix` → `be-commit`
+
+**Key features**:
+- CQRS scaffold generation (Entity, Command/Query, Executor/Processor, Controller, Migration)
+- Strict RED-GREEN TDD with work document scenario tracking
+- Verification gate (build + checkstyle + tests) before review
+- Review-fix loop: 6-dimension code review + TDD-disciplined auto-fix + re-review
+- Systematic debugging with 4-phase hypothesis-test methodology
+- Pipeline state machine with feature-level progress tracking
+- Java 21, Spring Boot 4.x, Gradle, PostgreSQL, JPA, Flyway, JUnit 5
+
 ## How They Work Together
 
 ```
@@ -60,6 +77,12 @@ planning-plugin                 frontend-react-plugin
                                       │
                                       └── production React code (TDD)
 
+planning-plugin                 backend-springboot-plugin
+     │                                │
+     └── (independent) ───────────────┘
+                                      │
+                                      └── Spring Boot API (CQRS + TDD)
+
 planning-plugin                 homepage-plugin
      │                                │
      └── (independent) ───────────────┘
@@ -68,6 +91,7 @@ planning-plugin                 homepage-plugin
 ```
 
 - **planning-plugin → frontend-react-plugin**: Specs, UI DSL, and prototypes flow from planning to frontend code generation. The frontend plugin can also run standalone without planning-plugin.
+- **backend-springboot-plugin**: Operates independently with its own work document system and TDD workflow. Does not require planning-plugin.
 - **homepage-plugin**: Operates independently with its own interactive planning. Does not require planning-plugin.
 
 ## Installation
@@ -79,6 +103,7 @@ planning-plugin                 homepage-plugin
 # 2. Install plugins (project scope)
 /plugin install planning-plugin@ohmyhotelco --scope project
 /plugin install frontend-react-plugin@ohmyhotelco --scope project
+/plugin install backend-springboot-plugin@ohmyhotelco --scope project
 /plugin install homepage-plugin@ohmyhotelco --scope project
 ```
 

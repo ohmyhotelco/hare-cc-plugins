@@ -37,6 +37,17 @@
       "source": "./homepage-plugin/",
       "category": "development",
       "keywords": ["homepage", "marketing", "astro", "seo", "tailwind", "shadcn", "mdx", "i18n", "lighthouse", "accessibility", "content", "landing-page", "islands", "static-site"]
+    },
+    {
+      "name": "backend-springboot-plugin",
+      "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, and multi-dimension code review for Claude Code",
+      "version": "0.1.0",
+      "author": {
+        "name": "Justin Choi"
+      },
+      "source": "./backend-springboot-plugin/",
+      "category": "development",
+      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline"]
     }
   ]
 }
