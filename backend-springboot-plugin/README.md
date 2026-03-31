@@ -13,7 +13,7 @@ Key capabilities:
 - **6-dimension review** — API contract, JPA patterns, clean code, logging, test quality, architecture — with TDD-disciplined auto-fix
 - **Pipeline tracking** — Feature-level state machine with progress dashboard, demotion warnings, and staleness detection
 - **State safety** — Lock mechanism, read-modify-write discipline, and subagent isolation across the pipeline
-- **Standalone audits** — Independent JPA, API, clean code, logging, and test quality audits usable at any time
+- **Standalone audits** — Independent JPA, API, clean code, logging, test quality, and security audits usable at any time
 
 ## Architecture Overview
 
@@ -71,7 +71,7 @@ Interrupt skills (usable at any stage):
   be-build    — build + auto-fix (independent)
 
 Standalone audits (usable independently):
-  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review
+  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
 ```
 
 ## Tech Stack
@@ -297,7 +297,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **When to use**: After pipeline reaches `done` or `reviewed` status.
 
-**What happens**: Creates a commit from staged changes following project conventions (English, present tense, 50-char subject, no prefix, no test mentions).
+**What happens**: Runs pre-commit security scan (secrets, dangerous files), then creates a commit from staged changes following project conventions (English, present tense, 50-char subject, no prefix, no test mentions). Aborts if secrets are detected.
 
 ---
 
@@ -328,10 +328,11 @@ These skills run independently of the pipeline. Use them at any time for targete
 | Skill | What it checks |
 |-------|---------------|
 | `be-api-review` | HTTP method semantics, URL patterns (kebab-case, plural), status codes, pagination, error responses |
-| `be-jpa` | N+1 queries, missing @Transactional, lazy loading risks, unbounded queries, missing indexes, cascades |
+| `be-jpa` | N+1 queries, missing @Transactional, lazy loading risks, unbounded queries, missing indexes, cascades, schema design, migration safety, data integrity |
 | `be-clean-code` | DRY/KISS/YAGNI violations, god classes, deep nesting, long methods, naming issues |
 | `be-logging` | System.out usage, sensitive data exposure, string concatenation, wrong log levels, MDC usage |
 | `be-test-review` | Naming conventions, assertion quality, anti-patterns, coverage analysis, slow test detection |
+| `be-security` | Authentication, authorization, input validation, PII exposure, injection, secrets |
 
 ## Full Pipeline Workflow
 
@@ -547,7 +548,7 @@ Language mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 - **Use be-debug for complex issues** — If tests fail in non-obvious ways, `be-debug` provides systematic hypothesis testing rather than ad-hoc debugging.
 
-- **Standalone audits are free** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, and `be-test-review` work independently of the pipeline. Use them anytime for targeted quality checks.
+- **Standalone audits are free** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`, and `be-security` work independently of the pipeline. Use them anytime for targeted quality checks.
 
 - **Resume is safe** — If `be-code` is interrupted, just re-run it with the same work document. Completed scenarios (`- [x]`) are preserved, and it resumes from the next `- [ ]`.
 
@@ -562,12 +563,12 @@ Language mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] Build doctor (auto-diagnosis and fix)
 - [x] Systematic debugging (4-phase hypothesis-test)
 - [x] Pipeline state tracking with progress dashboard
-- [x] Standalone audits (JPA, API, clean code, logging, test quality)
+- [x] Standalone audits (JPA, API, clean code, logging, test quality, security)
 - [x] State safety (lock, demotion, staleness, subagent isolation)
+- [x] Pre-commit security scan (secrets, API keys, dangerous files)
 - [ ] Planning-plugin integration (spec-driven scaffold)
 - [ ] Multi-module project support
 - [ ] Event-driven architecture templates (Kafka, RabbitMQ)
-- [ ] Security audit skill (OWASP, Spring Security)
 
 ## Directory Structure
 
@@ -577,7 +578,7 @@ agents/          Agent definitions (implement, build-doctor, code-reviewer,
 skills/          Skill entry points (be-init, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review)
+                 be-test-review, be-security)
 templates/       Template files (tdd-rules, cqrs-module, entity-conventions,
                  test-scenario-template, work-document-template, checkstyle-config,
                  progress-schema)

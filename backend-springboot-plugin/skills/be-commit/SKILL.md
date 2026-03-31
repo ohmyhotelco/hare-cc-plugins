@@ -30,7 +30,14 @@ Run `git diff --staged` to see what is staged.
 - `topic: <topic>` -- optional topic hint for the commit message (inferred from diff if omitted)
 - `short` -- if present, generate subject line only (skip body)
 
-### Step 3: Analyze Changes
+### Step 3: Security Scan
+
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/pre-commit-check.sh security` to scan staged changes for secrets and dangerous files.
+
+- If the script reports issues, show the findings and **abort the commit**
+- Do not proceed to message drafting until the security scan passes
+
+### Step 4: Analyze Changes
 
 From the staged diff, determine:
 
@@ -39,7 +46,7 @@ From the staged diff, determine:
 3. The domain/module affected
 4. If a topic hint was provided, use it to guide the message focus
 
-### Step 4: Draft Commit Message
+### Step 5: Draft Commit Message
 
 Follow CLAUDE.md commit standards:
 
@@ -59,7 +66,7 @@ Follow CLAUDE.md commit standards:
    - Do not list file names
    - Do not include tool advertisements or branding
 
-### Step 5: Validate
+### Step 6: Validate
 
 Check the draft message against all 13 commit rules from CLAUDE.md:
 
@@ -77,13 +84,13 @@ Check the draft message against all 13 commit rules from CLAUDE.md:
 
 If validation fails, revise the message.
 
-### Step 6: Execute Commit
+### Step 7: Execute Commit
 
 ```bash
 git commit -m "{message}"
 ```
 
-### Step 7: Report
+### Step 8: Report
 
 > "Committed: `{short hash}` {subject line}"
 

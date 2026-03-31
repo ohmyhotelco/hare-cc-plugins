@@ -273,7 +273,7 @@ Interrupt skills (usable at any stage):
   be-build — build + auto-fix (independent of pipeline)
 
 Standalone audit skills (usable independently):
-  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review
+  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
 ```
 
 ### Pipeline State Machine
@@ -354,6 +354,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 | `/backend-springboot-plugin:be-clean-code` | DRY/KISS/YAGNI code audit |
 | `/backend-springboot-plugin:be-logging` | Structured logging audit |
 | `/backend-springboot-plugin:be-test-review` | Test quality audit |
+| `/backend-springboot-plugin:be-security` | Security vulnerability audit |
 
 ## Templates
 

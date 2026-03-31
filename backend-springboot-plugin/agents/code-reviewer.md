@@ -40,16 +40,20 @@ Evaluate each dimension and score 1-10:
 - Pagination pattern: max page size enforced, sensible defaults
 - Error response consistency
 
-#### Dimension 2: JPA Patterns
+#### Dimension 2: JPA & Database
 
 - N+1 query detection: collections without `@BatchSize`, `@EntityGraph`, or JOIN FETCH
 - Lazy loading outside transaction scope risk
 - Missing `@Transactional` on write operations in executors
+- `@Transactional` methods containing external calls (HTTP, email) that could hang
 - Unbounded `findAll()` without pagination
 - Missing indexes for frequently queried columns (check queries vs entity annotations)
 - Cascade operations that could cause unintended deletes
 - `open-in-view` anti-pattern usage
 - Entity follows conventions: extends BaseEntity, sequence + UUID dual key
+- Schema design: NOT NULL on required fields, UNIQUE on business keys, FK with ON DELETE
+- Unique constraint violations handled with domain exceptions (not generic 500)
+- Migration safety (if applicable): sequential versioning, backward compatibility, CONCURRENT INDEX
 
 #### Dimension 3: Clean Code
 
@@ -84,14 +88,28 @@ Evaluate each dimension and score 1-10:
 
 #### Dimension 6: Architecture Compliance
 
-- CQRS pattern adherence (if `config.architecture == "cqrs"`):
-  - Commands in `command/`, executors in `commandmodel/`
-  - Queries in `query/`, processors in `querymodel/`
-  - Views in `view/`, entities in `data/`
-  - Controllers are records with DI
-- Naming convention compliance (per CLAUDE.md naming table)
-- Domain packaging: business logic grouped by domain
-- Separation of concerns: no repository calls in controllers
+- **CQRS Compliance** (if `config.architecture == "cqrs"`):
+  - Write operations use `command/` + `commandmodel/` (not query layer)
+  - Read operations use `query/` + `querymodel/` + `view/` (not command layer)
+  - Command executors do not return domain entities (return void or ID only)
+  - Query processors return `view/` records, not JPA entities
+  - No cross-references between command and query packages
+- **Layer Violations**:
+  - Controllers only delegate to command executors or query processors
+  - No business logic in controllers (validation, transformation, if/else branching)
+  - No direct `Repository` calls from controllers
+  - No HTTP/controller concerns in executors or processors (`HttpServletRequest`, `ResponseEntity`)
+  - Domain exceptions mapped to HTTP status in controller layer, not in executors
+- **Dependency Direction**:
+  - Dependencies flow inward: controller → business logic → data
+  - No circular dependencies between packages
+  - `data/` package does not import from domain packages
+- **Domain Boundaries**:
+  - Each domain has its own sub-package
+  - Controllers live inside their domain's `api/` sub-package
+  - Cross-domain communication goes through defined interfaces, not direct imports
+  - Shared entities live in `data/`, domain-specific logic stays in domain packages
+- **Naming Conventions**: compliance per CLAUDE.md naming table
 
 ### Phase 2: Compile Report
 

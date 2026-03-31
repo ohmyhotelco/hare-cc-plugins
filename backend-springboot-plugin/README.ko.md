@@ -13,7 +13,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 - **6차원 리뷰** — API 계약, JPA 패턴, 클린 코드, 로깅, 테스트 품질, 아키텍처 — TDD 기반 자동 수정 포함
 - **파이프라인 추적** — 피처별 상태 머신 + 진행률 대시보드, 강등 경고, 변경 감지
 - **상태 안전** — 잠금 메커니즘, 읽기-수정-쓰기 규칙, 서브에이전트 격리
-- **독립 감사** — JPA, API, 클린 코드, 로깅, 테스트 품질 감사를 언제든 독립 실행 가능
+- **독립 감사** — JPA, API, 클린 코드, 로깅, 테스트 품질, 보안 감사를 언제든 독립 실행 가능
 
 ## 아키텍처 개요
 
@@ -71,7 +71,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
   be-build    — 빌드 + 자동 수정 (독립 실행)
 
 독립 감사 (파이프라인과 무관하게 사용 가능):
-  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review
+  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
 ```
 
 ## 기술 스택
@@ -297,7 +297,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **사용 시점**: 파이프라인이 `done` 또는 `reviewed` 상태에 도달한 후.
 
-**동작**: 프로젝트 규칙에 따라 staged 변경사항으로 커밋 생성 (영문, 현재 시제, 50자 제목, 접두사 없음, 테스트 코드 언급 없음).
+**동작**: 사전 커밋 보안 스캔(시크릿, 위험 파일)을 실행한 후 프로젝트 규칙에 따라 staged 변경사항으로 커밋 생성 (영문, 현재 시제, 50자 제목, 접두사 없음, 테스트 코드 언급 없음). 시크릿 감지 시 중단.
 
 ---
 
@@ -328,10 +328,11 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 | 스킬 | 검사 항목 |
 |------|----------|
 | `be-api-review` | HTTP 메서드 시맨틱, URL 패턴 (kebab-case, 복수형), 상태 코드, 페이지네이션, 오류 응답 |
-| `be-jpa` | N+1 쿼리, @Transactional 누락, 지연 로딩 위험, 무제한 쿼리, 인덱스 누락, 캐스케이드 |
+| `be-jpa` | N+1 쿼리, @Transactional 누락, 지연 로딩 위험, 무제한 쿼리, 인덱스 누락, 캐스케이드, 스키마 설계, 마이그레이션 안전성, 데이터 무결성 |
 | `be-clean-code` | DRY/KISS/YAGNI 위반, 갓 클래스, 깊은 중첩, 긴 메서드, 네이밍 이슈 |
 | `be-logging` | System.out 사용, 민감 데이터 노출, 문자열 연결, 잘못된 로그 레벨, MDC 사용 |
 | `be-test-review` | 네이밍 규칙, 어서션 품질, 안티패턴, 커버리지 분석, 느린 테스트 감지 |
+| `be-security` | 인증, 인가, 입력 검증, PII 노출, 인젝션, 시크릿 |
 
 ## 전체 파이프라인 워크플로
 
@@ -547,7 +548,7 @@ scaffolded → implementing → implemented → verified → reviewed → done
 
 - **복잡한 이슈에는 be-debug 사용** — 테스트가 비직관적으로 실패하면 `be-debug`가 임기응변이 아닌 체계적 가설 검증을 제공합니다.
 
-- **독립 감사는 자유롭게** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`는 파이프라인과 독립적으로 동작합니다. 타겟 품질 검사가 필요할 때 언제든 사용하세요.
+- **독립 감사는 자유롭게** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`, `be-security`는 파이프라인과 독립적으로 동작합니다. 타겟 품질 검사가 필요할 때 언제든 사용하세요.
 
 - **재개는 안전** — `be-code`가 중단되면 같은 작업 문서로 다시 실행하면 됩니다. 완료된 시나리오(`- [x]`)는 보존되고 다음 `- [ ]`부터 재개됩니다.
 
@@ -562,12 +563,12 @@ scaffolded → implementing → implemented → verified → reviewed → done
 - [x] 빌드 닥터 (자동 진단 및 수정)
 - [x] 체계적 디버깅 (4단계 가설-검증)
 - [x] 파이프라인 상태 추적 + 진행률 대시보드
-- [x] 독립 감사 (JPA, API, 클린 코드, 로깅, 테스트 품질)
+- [x] 독립 감사 (JPA, API, 클린 코드, 로깅, 테스트 품질, 보안)
 - [x] 상태 안전 (잠금, 강등, 변경 감지, 서브에이전트 격리)
 - [ ] Planning-plugin 연동 (스펙 기반 스캐폴딩)
 - [ ] 멀티 모듈 프로젝트 지원
 - [ ] 이벤트 기반 아키텍처 템플릿 (Kafka, RabbitMQ)
-- [ ] 보안 감사 스킬 (OWASP, Spring Security)
+- [x] 사전 커밋 보안 스캔 (시크릿, API 키, 위험 파일)
 
 ## 디렉토리 구조
 
@@ -577,7 +578,7 @@ agents/          에이전트 정의 (implement, build-doctor, code-reviewer,
 skills/          스킬 진입점 (be-init, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review)
+                 be-test-review, be-security)
 templates/       템플릿 파일 (tdd-rules, cqrs-module, entity-conventions,
                  test-scenario-template, work-document-template, checkstyle-config,
                  progress-schema)

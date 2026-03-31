@@ -13,7 +13,7 @@ Tinh nang chinh:
 - **Review 6 chieu** — API contract, JPA patterns, clean code, logging, test quality, architecture — voi tu dong sua bang TDD
 - **Theo doi pipeline** — May trang thai cap tinh nang + dashboard tien do, canh bao ha cap, phat hien thay doi
 - **An toan trang thai** — Co che khoa, doc-sua-ghi, cach ly subagent trong pipeline
-- **Audit doc lap** — JPA, API, clean code, logging, test quality audit su dung doc lap bat ky luc nao
+- **Audit doc lap** — JPA, API, clean code, logging, test quality, security audit su dung doc lap bat ky luc nao
 
 ## Tong quan kien truc
 
@@ -71,7 +71,7 @@ Interrupt skills (dung o bat ky giai doan nao):
   be-build    — build + tu dong sua (doc lap)
 
 Audit doc lap (dung doc lap voi pipeline):
-  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review
+  be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
 ```
 
 ## Tech Stack
@@ -297,7 +297,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **Khi nao dung**: Sau khi pipeline dat trang thai `done` hoac `reviewed`.
 
-**Hoat dong**: Tao commit tu staged changes theo quy uoc project (tieng Anh, thi hien tai, tieu de 50 ky tu, khong prefix, khong de cap test code).
+**Hoat dong**: Chay quet bao mat pre-commit (secret, file nguy hiem), sau do tao commit tu staged changes theo quy uoc project (tieng Anh, thi hien tai, tieu de 50 ky tu, khong prefix, khong de cap test code). Huy bo neu phat hien secret.
 
 ---
 
@@ -328,10 +328,11 @@ Cac skill nay chay doc lap voi pipeline. Su dung bat ky luc nao cho audit co muc
 | Skill | Noi dung kiem tra |
 |-------|-------------------|
 | `be-api-review` | HTTP method semantic, URL pattern (kebab-case, so nhieu), status code, pagination, error response |
-| `be-jpa` | N+1 query, thieu @Transactional, rui ro lazy loading, query khong gioi han, thieu index, cascade |
+| `be-jpa` | N+1 query, thieu @Transactional, rui ro lazy loading, query khong gioi han, thieu index, cascade, thiet ke schema, an toan migration, toan ven du lieu |
 | `be-clean-code` | Vi pham DRY/KISS/YAGNI, god class, nest sau, method dai, van de naming |
 | `be-logging` | Su dung System.out, lo du lieu nhay cam, noi chuoi, log level sai, su dung MDC |
 | `be-test-review` | Quy uoc naming, chat luong assertion, anti-pattern, phan tich coverage, phat hien test cham |
+| `be-security` | Authentication, authorization, input validation, PII exposure, injection, secret |
 
 ## Workflow pipeline day du
 
@@ -547,7 +548,7 @@ Anh xa ngon ngu: `en` = English, `ko` = Korean, `vi` = Tieng Viet.
 
 - **Dung be-debug cho issue phuc tap** — Neu test that bai khong ro rang, `be-debug` cung cap kiem tra gia thuyet he thong thay vi debug tuy hung.
 
-- **Audit doc lap mien phi** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, va `be-test-review` hoat dong doc lap voi pipeline. Dung bat ky luc nao cho kiem tra chat luong co muc tieu.
+- **Audit doc lap mien phi** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`, va `be-security` hoat dong doc lap voi pipeline. Dung bat ky luc nao cho kiem tra chat luong co muc tieu.
 
 - **Tiep tuc an toan** — Neu `be-code` bi gian doan, chi can chay lai voi cung tai lieu cong viec. Scenario hoan thanh (`- [x]`) duoc giu lai va tiep tuc tu `- [ ]` tiep theo.
 
@@ -562,12 +563,12 @@ Anh xa ngon ngu: `en` = English, `ko` = Korean, `vi` = Tieng Viet.
 - [x] Build doctor (tu dong chan doan va sua)
 - [x] Debug he thong (4 giai doan gia thuyet-kiem chung)
 - [x] Theo doi trang thai pipeline + dashboard tien do
-- [x] Audit doc lap (JPA, API, clean code, logging, test quality)
+- [x] Audit doc lap (JPA, API, clean code, logging, test quality, security)
+- [x] Pre-commit security scan (secret, API key, file nguy hiem)
 - [x] An toan trang thai (khoa, ha cap, thay doi, cach ly subagent)
 - [ ] Tich hop planning-plugin (scaffold tu spec)
 - [ ] Ho tro project da module
 - [ ] Template kien truc event-driven (Kafka, RabbitMQ)
-- [ ] Skill audit bao mat (OWASP, Spring Security)
 
 ## Cau truc thu muc
 
@@ -577,7 +578,7 @@ agents/          Dinh nghia agent (implement, build-doctor, code-reviewer,
 skills/          Diem vao skill (be-init, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review)
+                 be-test-review, be-security)
 templates/       File template (tdd-rules, cqrs-module, entity-conventions,
                  test-scenario-template, work-document-template, checkstyle-config,
                  progress-schema)
