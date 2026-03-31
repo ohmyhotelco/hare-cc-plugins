@@ -332,5 +332,8 @@ If the target element cannot be found in the snapshot:
 - **Resilience**: Retry failed steps once. Continue to next steps on failure. Do not abort.
 - **MSW trust**: The mock data is provided by the TDD foundation phase. Do not attempt to modify MSW handlers.
 - **No unit test duplication**: If a behavior is already tested by Vitest unit/component tests, do not create an E2E scenario for it. E2E tests user journeys, not individual components.
-- **No JS template literals in Bash**: When using `agent-browser eval` with heredoc, never use ES6 template literals (`` `${expr}` ``) in the JavaScript code — Bash interprets `${}` as variable substitution, causing "Bad substitution" errors that block automation. Use string concatenation (`+`) instead: `'submit button: ' + btn.textContent`.
-- **One command per Bash call**: Never chain multiple `agent-browser` commands with `&&`, `;`, or newlines in a single Bash call. Each `agent-browser` command must be a separate Bash tool invocation. Chaining triggers "Command contains newlines" warnings that block automation.
+- **One command per Bash call**: Never chain multiple `agent-browser` commands with `&&`, `;`, or newlines in a single Bash call. Each `agent-browser` command must be a separate Bash tool invocation. Chaining triggers "Command contains ambiguous syntax" warnings that block automation.
+- **No heredoc for eval**: Never use heredoc (`<<'EOF'`) with `agent-browser eval --stdin` — heredoc produces multi-line Bash commands that are blocked by the Bash tool safety check. Instead, use the **Write tool + file redirect** pattern:
+  1. Use the Write tool to create a temporary JS file (e.g., `e2e-screenshots/{feature}/_eval-temp.js`)
+  2. Run a single-line Bash command: `agent-browser eval --stdin --session e2e-{feature} < e2e-screenshots/{feature}/_eval-temp.js`
+  This keeps the Bash command on one line and allows any JS syntax (template literals, semicolons, etc.) without quoting issues.
