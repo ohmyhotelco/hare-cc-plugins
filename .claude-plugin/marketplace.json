@@ -19,7 +19,7 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "author": {
         "name": "Justin Choi"
       },
@@ -40,14 +40,14 @@
     },
     {
       "name": "backend-springboot-plugin",
-      "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, and multi-dimension code review for Claude Code",
-      "version": "0.1.1",
+      "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, multi-dimension code review, and security audit for Claude Code",
+      "version": "0.2.0",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./backend-springboot-plugin/",
       "category": "development",
-      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline"]
+      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline", "security"]
     }
   ]
 }
