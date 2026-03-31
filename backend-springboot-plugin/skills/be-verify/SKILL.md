@@ -18,6 +18,36 @@ Run build, checkstyle, and tests to produce a structured verification report. Th
 2. If missing, tell the user to run `/backend-springboot-plugin:be-init` first and stop
 3. If feature argument provided, read `{workDocDir}/.progress/{feature}.json` for pipeline context
 
+### Step 0.5: Demotion Check
+
+If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
+
+1. Read `pipeline.status`
+2. If status is `"reviewed"` or `"done"`:
+   > "This feature is currently '{status}'. Re-running verification will reset the status, discarding review progress."
+   > "Continue?"
+   If the user declines, stop here.
+
+### Step 0.6: Work Document Staleness Check
+
+If a feature argument was provided:
+
+1. Read the work document path from progress file (`workDocument` field)
+2. Compare work document modification time against `updatedAt` in the progress file
+3. If the work document is newer:
+   > "Warning: Work document has been modified since last pipeline update ({updatedAt})."
+   > "New or modified scenarios may not be reflected in the current code."
+   > "Consider re-running `/backend-springboot-plugin:be-code {workDoc}` to implement new scenarios."
+   > "Continue with verification anyway?"
+   If the user declines, stop here.
+
+### Step 0.7: Acquire Lock
+
+1. Check if `{workDocDir}/.progress/.lock` exists
+2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}" }`
+
 ### Step 1: Run Verification Steps
 
 Execute these checks sequentially. Set Bash tool timeout to 600000ms (10 minutes) for all Gradle commands.
@@ -112,6 +142,7 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
    - All pass → `"verified"`
    - Any fail → `"verify-failed"`
 4. Write back the progress file (read-modify-write: preserve all other fields)
+5. Release lock: delete `{workDocDir}/.progress/.lock`
 
 ### Step 4: Suggest Next Action
 

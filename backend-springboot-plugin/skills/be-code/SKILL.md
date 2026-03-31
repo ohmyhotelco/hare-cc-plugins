@@ -59,7 +59,28 @@ If no work document was provided:
 5. Wait for user approval before proceeding
 6. Save approved scenarios to `{workDocDir}/{feature-name}.md`
 
-### Step 3.5: Initialize Pipeline State
+### Step 3.5: Demotion Check
+
+If `{workDocDir}/.progress/{feature-name}.json` exists:
+
+1. Read `pipeline.status`
+2. If status is `"verified"`, `"reviewed"`, or `"done"`:
+   > "This feature is currently '{status}'. Re-running TDD implementation will reset the pipeline status to 'implementing', discarding verification/review progress."
+   > "Continue?"
+   If the user declines, stop here.
+3. If status is `"fixing"`:
+   > "This feature is currently 'fixing' (be-fix in progress). Re-running implementation will overwrite fix changes."
+   > "Continue?"
+   If the user declines, stop here.
+
+### Step 3.6: Acquire Lock
+
+1. Check if `{workDocDir}/.progress/.lock` exists
+2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature-name}" }`
+
+### Step 3.7: Initialize Pipeline State
 
 Create or update `{workDocDir}/.progress/{feature-name}.json`:
 
@@ -80,6 +101,8 @@ Create or update `{workDocDir}/.progress/{feature-name}.json`:
 3. If progress file exists, update `pipeline.status` to `"implementing"` and refresh scenario counts
 
 ### Step 4: TDD Cycle
+
+**Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
 For each `- [ ]` scenario, launch the `implement` agent with:
 
@@ -138,6 +161,8 @@ Update `{workDocDir}/.progress/{feature-name}.json`:
    - Some scenarios remain → `"implementing"`
 4. Update `updatedAt` timestamp
 5. Write back (read-modify-write)
+
+6. Release lock: delete `{workDocDir}/.progress/.lock`
 
 Suggest next step:
 - **implemented + build passes**: `/backend-springboot-plugin:be-verify {feature}`

@@ -39,6 +39,10 @@ For each issue in the report, classify the fix strategy:
 | **skip** | Issue already resolved (code already matches suggestion) | Verify and mark as already-resolved |
 | **escalated** | Cannot fix without architectural change or plan revision | Mark for manual intervention |
 
+When issues include a `refs` field (API endpoint or scenario references), use it to improve classification:
+- Issues referencing a specific scenario → likely **tdd-required** (the scenario defines the expected behavior)
+- Issues referencing only an API endpoint → check if the fix changes response behavior (tdd-required) or just annotations/naming (direct-fix)
+
 ### Phase 2: Apply Fixes
 
 Process issues in order: critical → warning → suggestion.

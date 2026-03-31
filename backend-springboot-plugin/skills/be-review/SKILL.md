@@ -35,7 +35,29 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"verified"` or `"verify-failed"`: proceed (normal flow)
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
 
+### Step 2.5: Work Document Staleness Check
+
+If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exists:
+
+1. Read the work document path from progress file (`workDocument` field)
+2. Compare work document modification time against `updatedAt` in the progress file
+3. If the work document is newer:
+   > "Warning: Work document has been modified since last pipeline update ({updatedAt})."
+   > "New or modified scenarios may not be reflected in the current code."
+   > "Consider re-running `/backend-springboot-plugin:be-code {workDoc}` to implement new scenarios."
+   > "Continue with review anyway?"
+   If the user declines, stop here.
+
+### Step 2.6: Acquire Lock
+
+1. Check if `{workDocDir}/.progress/.lock` exists
+2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-review", "feature": "{feature}" }`
+
 ### Step 3: Launch Code Reviewer Agent
+
+**Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
 Launch the `code-reviewer` agent with:
 
@@ -70,7 +92,8 @@ Save the agent's output as `{workDocDir}/.progress/review-report.json` (or `revi
           "line": 42,
           "rule": "Missing @ResponseStatus",
           "message": "DELETE endpoint missing @ResponseStatus(NO_CONTENT)",
-          "fixHint": "Add @ResponseStatus(HttpStatus.NO_CONTENT) to delete method"
+          "fixHint": "Add @ResponseStatus(HttpStatus.NO_CONTENT) to delete method",
+          "refs": ["DELETE /hr/employees/{id}", "scenario: delete_employee_returns_204"]
         }
       ]
     },
@@ -124,6 +147,7 @@ Issues ({total}):
 {For each issue, sorted by severity:}
   [{severity}] {message}
     {file}:{line} — Fix: {fixHint}
+    Refs: {refs (if present)}
 ```
 
 ### Step 6: Update Pipeline State
@@ -147,6 +171,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    - Verdict PASS with warnings/suggestions → `"reviewed"`
    - Verdict FAIL → `"review-failed"`
 4. Write back (read-modify-write)
+5. Release lock: delete `{workDocDir}/.progress/.lock`
 
 ### Step 7: Suggest Next Action
 

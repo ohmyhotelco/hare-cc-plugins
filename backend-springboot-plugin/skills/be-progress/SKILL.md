@@ -70,6 +70,9 @@ Pipeline legend: scaffolded → implementing → implemented → verified → re
 
 #### Detail View (feature name provided)
 
+**Staleness Check**: Compare work document modification time against progress file `updatedAt`. If the work document is newer, display:
+> "Warning: Work document modified after last pipeline update. Run `/backend-springboot-plugin:be-code {workDoc}` to pick up new scenarios."
+
 ```
 Feature: {feature-name}
 Pipeline: {pipeline status}

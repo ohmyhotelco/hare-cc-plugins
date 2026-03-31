@@ -43,12 +43,22 @@ If `{workDocDir}/.progress/{feature}.json` exists:
 
 1. Read `pipeline.fix.round` (default 0)
 2. Increment round: `round + 1`
-3. If round >= 3: warn the user
+3. If round >= 3: warn the user and block until confirmed
    > "This is fix round {round}. Multiple fix rounds may indicate a deeper issue."
    > "Consider reviewing the architecture or requesting manual intervention."
    > "Continue anyway? (y/n)"
+   If the user declines, stop here.
+
+### Step 3.5: Acquire Lock
+
+1. Check if `{workDocDir}/.progress/.lock` exists
+2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-fix", "feature": "{feature}" }`
 
 ### Step 4: Launch Review Fixer Agent
+
+**Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
 Launch the `review-fixer` agent with:
 
@@ -116,6 +126,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
    - Some escalated → `"fixing"` (re-review will evaluate remaining)
    - All escalated / build fails → `"escalated"`
 4. Write back (read-modify-write)
+5. Release lock: delete `{workDocDir}/.progress/.lock`
 
 ### Step 7: Suggest Next Action
 

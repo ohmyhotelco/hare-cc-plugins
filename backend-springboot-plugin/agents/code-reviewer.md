@@ -105,8 +105,18 @@ For each issue found:
   "line": 15,
   "rule": "N+1 query detection",
   "message": "Collection access without @EntityGraph or JOIN FETCH may cause N+1 queries",
-  "suggestion": "Add @EntityGraph(attributePaths = {\"department\"}) to the repository method"
+  "suggestion": "Add @EntityGraph(attributePaths = {\"department\"}) to the repository method",
+  "refs": ["GET /hr/employees", "scenario: get_employees_returns_paginated_list"]
 }
+```
+
+The `refs` field traces the issue back to API endpoints and/or work document scenarios. Include when the issue is directly related to a specific endpoint or scenario. Omit when the issue is a general code quality concern.
+
+```json-comment
+// refs examples:
+// "refs": ["POST /hr/employees"]                          — API endpoint
+// "refs": ["scenario: duplicate_email_returns_409"]        — work document scenario
+// "refs": ["POST /hr/employees", "scenario: create_..."]   — both
 ```
 
 Severity levels:

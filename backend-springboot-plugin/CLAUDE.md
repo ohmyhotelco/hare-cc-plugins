@@ -255,7 +255,9 @@ Verification Red Flags -- these thoughts mean you are rationalizing:
 | "The change is small, no need to verify" | Small changes cause big bugs. Verify always. |
 | "I already verified this earlier" | Code changed since. Verify again. |
 | "Tests passed, so it's correct" | Tests cover what was written, not what was missed. Check the spec. |
+| "Compilation passed, so the build will too" | Compilation != checkstyle != tests. Different tools catch different errors. |
 | "I'll verify at the end" | Errors compound. Verify at each step. |
+| "The error is unrelated to my change" | Prove it. Run the verification. |
 
 ## Pipeline
 
@@ -292,6 +294,25 @@ At any point:
 ```
 
 State is tracked in `{workDocDir}/.progress/{feature}.json`. See `templates/progress-schema.md` for the full schema.
+
+### Demotion Warning
+
+Running a skill from an earlier pipeline stage demotes the status. Skills must warn the user and obtain confirmation before demotion. For example, running `be-code` when status is `verified` resets the pipeline to `implementing`, discarding verification and review progress.
+
+### State File Safety
+
+**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+
+Lock file format:
+```json
+{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature}" }
+```
+
+## Agent Coordination
+
+### Subagent Isolation Principle
+
+Subagents never inherit session history. Coordinator skills construct only the parameters each agent needs — no conversation context leaks between phases. This prevents context pollution and ensures fresh judgment per task.
 
 ## Agents
 

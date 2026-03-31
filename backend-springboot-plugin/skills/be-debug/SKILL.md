@@ -31,7 +31,18 @@ Gather context:
 3. Read related source files identified from the error
 4. Check `{workDocDir}/.progress/{feature}.json` for pipeline state context
 
+### Step 1.5: Acquire Lock
+
+If feature context exists (`{workDocDir}/.progress/{feature}.json`):
+
+1. Check if `{workDocDir}/.progress/.lock` exists
+2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-debug", "feature": "{feature}" }`
+
 ### Step 2: Launch Debugger Agent
+
+**Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
 Launch the `debugger` agent with:
 
@@ -104,6 +115,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    - Resolved → `"resolved"`
    - Escalated → `"escalated"`
 4. Write back (read-modify-write)
+5. Release lock: delete `{workDocDir}/.progress/.lock`
 
 ### Step 5: Suggest Next Action
 
