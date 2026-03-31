@@ -12,11 +12,11 @@ public abstract class BaseEntity {
 
     @CreatedDate
     @Column(nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     @LastModifiedDate
     @Column(nullable = false)
-    private LocalDateTime updatedAt;
+    private OffsetDateTime updatedAt;
 }
 ```
 
@@ -137,6 +137,7 @@ Mapped to HTTP status in the controller via `@ExceptionHandler`.
 ## Validation Utility Template
 
 ```java
+@Component
 public class EmployeePropertyValidator {
 
     private static final Pattern EMAIL_PATTERN =
@@ -145,13 +146,13 @@ public class EmployeePropertyValidator {
     private static final Pattern DISPLAY_NAME_PATTERN =
         Pattern.compile("^[a-zA-Z0-9]+( [a-zA-Z0-9]+)*$");
 
-    public static void validateEmail(String email) {
+    public void validateEmail(String email) {
         if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
             throw new InvalidEmailFormatException(email);
         }
     }
 
-    public static void validateDisplayName(String displayName) {
+    public void validateDisplayName(String displayName) {
         if (displayName == null || displayName.length() > 20
             || !DISPLAY_NAME_PATTERN.matcher(displayName).matches()) {
             throw new InvalidDisplayNameException(displayName);

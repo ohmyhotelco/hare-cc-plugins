@@ -51,6 +51,7 @@ public record CreateEmployeeCommandExecutor(
     EmployeeRepository employeeRepository,
     EmployeePropertyValidator validator
 ) {
+    @Transactional
     public void execute(CreateEmployee command) {
         validator.validateEmail(command.email());
         validator.validateDisplayName(command.displayName());

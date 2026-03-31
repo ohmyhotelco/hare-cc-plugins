@@ -83,6 +83,10 @@ run_security_check() {
     fi
 
     echo -e "$result"
+
+    if [ $issues_found -gt 0 ]; then
+        exit 2
+    fi
 }
 
 # Help

@@ -80,7 +80,7 @@ Record results: compilation, checkstyle, tests, build.
 
 ### Phase 4: Produce Fix Report
 
-Generate `fix-report.json` in the same directory as the review report:
+Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context) in the same directory as the review report:
 
 ```json
 {

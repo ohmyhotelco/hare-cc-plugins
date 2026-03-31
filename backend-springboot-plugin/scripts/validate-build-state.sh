@@ -13,7 +13,8 @@ FILE_PATH="${1:-}"
 # Check if a Java source or build file was modified
 case "$FILE_PATH" in
   *.java)
-    # Java source file modified -- reminder about build
+    # Java source file modified -- intentionally silent.
+    # Build validation is deferred to be-verify/be-build to avoid noise on every edit.
     ;;
   *build.gradle*|*settings.gradle*)
     echo "[Backend Plugin] Build config changed. Run /backend-springboot-plugin:be-build to validate."

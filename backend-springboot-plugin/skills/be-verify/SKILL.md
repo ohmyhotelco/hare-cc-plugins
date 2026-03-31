@@ -3,7 +3,7 @@ name: be-verify
 description: "Run build, checkstyle, and tests as a verification gate. Produces structured report without fixing."
 argument-hint: "[feature-name]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Write, Glob, Grep, Bash
 ---
 
 # Verification Gate

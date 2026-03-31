@@ -15,7 +15,7 @@ Diagnose and fix runtime errors, test failures, or build issues using a structur
 ### Step 0: Validate Configuration
 
 1. Read `.claude/backend-springboot-plugin.json`
-2. If missing, proceed with defaults (debugging should work without full config)
+2. If missing, warn the user: config provides `buildCommand` and `testCommand` needed for verification. Without config, the debugger can diagnose and propose fixes but cannot run build/test verification (Phases 3-4 will be limited to code analysis only). Suggest running `/backend-springboot-plugin:be-init` first for full debugging capability.
 
 ### Step 1: Gather Problem Context
 

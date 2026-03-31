@@ -75,7 +75,7 @@ The agent will evaluate 6 dimensions:
 
 ### Step 4: Save Review Report
 
-Save the agent's output as `{workDocDir}/.progress/review-report.json` (or `review-report.json` in the project root if no feature context):
+Save the agent's output as `{workDocDir}/.progress/review-report-{feature}.json` (or `review-report.json` in the project root if no feature context):
 
 ```json
 {
@@ -163,7 +163,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
      "overallScore": 8.2,
      "criticalIssues": 0,
      "totalIssues": 5,
-     "reportFile": "{path to review-report.json}"
+     "reportFile": "{path to review-report-{feature}.json}"
    }
    ```
 3. Update `pipeline.status`:

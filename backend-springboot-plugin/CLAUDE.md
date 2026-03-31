@@ -358,11 +358,11 @@ Subagents never inherit session history. Coordinator skills construct only the p
 
 ## Templates
 
-- `tdd-rules.md` -- TDD rules adapted for Spring Boot / Gradle / JUnit 5
-- `cqrs-module.md` -- CQRS module structure reference with code examples
-- `entity-conventions.md` -- Entity, Repository, DTO record conventions
-- `test-scenario-template.md` -- Work document template for test scenarios
-- `work-document-template.md` -- Full work document template
+- `tdd-rules.md` -- TDD rules adapted for Spring Boot / Gradle / JUnit 5 (used by: implement, review-fixer agents)
+- `cqrs-module.md` -- CQRS module structure reference with code examples (used by: be-crud, implement agent)
+- `entity-conventions.md` -- Entity, Repository, DTO record conventions (used by: be-crud, implement agent)
+- `test-scenario-template.md` -- Minimal scenario template (used by: be-code when drafting new scenarios)
+- `work-document-template.md` -- Full work document template (used by: be-crud for scaffold generation)
 - `checkstyle-config.md` -- Checkstyle zero-tolerance configuration reference
 - `progress-schema.md` -- Pipeline state file schema and status transitions
 

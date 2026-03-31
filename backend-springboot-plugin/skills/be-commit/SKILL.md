@@ -68,21 +68,22 @@ Follow CLAUDE.md commit standards:
 
 ### Step 6: Validate
 
-Check the draft message against all 13 commit rules from CLAUDE.md:
+Check the draft message against commit message rules from CLAUDE.md:
 
-- [ ] English
-- [ ] Present tense imperative
-- [ ] Subject <= 50 characters
-- [ ] Blank line between subject and body
-- [ ] Body lines <= 72 characters
-- [ ] No test code mentions
-- [ ] No prefix
-- [ ] Starts with uppercase (or justified lowercase identifier)
-- [ ] No branding/promotional content
-- [ ] No file name listing
-- [ ] Describes "why" not "what"
+- [ ] English (#1)
+- [ ] Present tense imperative (#2)
+- [ ] Subject <= 50 characters (#3)
+- [ ] Blank line between subject and body (#4)
+- [ ] Body lines <= 72 characters (#5)
+- [ ] Only break within a paragraph when exceeding 72 characters (#6)
+- [ ] No test code mentions (#7)
+- [ ] No prefix (fix:, feat:, docs:, etc.) (#8)
+- [ ] Starts with uppercase (or justified lowercase identifier) (#9)
+- [ ] No branding/promotional content (#10)
 
 If validation fails, revise the message.
+
+Note: CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
 
 ### Step 7: Execute Commit
 

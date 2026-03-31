@@ -36,7 +36,7 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
       "overallScore": 7.5,
       "criticalIssues": 1,
       "totalIssues": 5,
-      "reportFile": "work/features/.progress/review-report.json"
+      "reportFile": "work/features/.progress/review-report-create-employee.json"
     },
     "fix": {
       "status": "completed",
@@ -46,7 +46,7 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
       "escalated": 1,
       "tddCount": 2,
       "directCount": 2,
-      "reportFile": "work/features/.progress/fix-report.json"
+      "reportFile": "work/features/.progress/fix-report-create-employee.json"
     },
     "debug": {
       "status": "resolved",
@@ -109,8 +109,6 @@ This prevents race conditions and data loss when multiple skills update the file
 ├── query-employee.md
 ├── .progress/                  <- Pipeline state (gitignored optional)
 │   ├── create-employee.json    <- Progress for create-employee
-│   ├── review-report.json      <- Latest review report
-│   └── fix-report.json         <- Latest fix report
-└── done/
-    └── login.md                <- Completed features
+│   ├── review-report-create-employee.json  <- Review report (per feature)
+│   └── fix-report-create-employee.json     <- Fix report (per feature)
 ```

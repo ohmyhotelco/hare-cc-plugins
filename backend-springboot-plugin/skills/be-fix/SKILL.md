@@ -20,8 +20,9 @@ Read the review report produced by `be-review` and apply targeted fixes using TD
 ### Step 1: Locate Review Report
 
 Search for the review report in order:
-1. `{workDocDir}/.progress/review-report.json` (feature-scoped)
-2. `review-report.json` (project root)
+1. `{workDocDir}/.progress/review-report-{feature}.json` (feature-scoped)
+2. `{workDocDir}/.progress/review-report.json` (legacy fallback)
+3. `review-report.json` (project root)
 
 If not found:
 > "No review report found. Run `/backend-springboot-plugin:be-review {feature}` first."
@@ -36,6 +37,16 @@ If not found:
    > "Review report found ({timestamp}):"
    > "  Critical: {count}, Warning: {count}, Suggestion: {count}"
    > "  Proceeding to fix {total} issues."
+
+### Step 2.5: Demotion Check
+
+If `{workDocDir}/.progress/{feature}.json` exists:
+
+1. Read `pipeline.status`
+2. If status is `"done"`:
+   > "This feature is currently 'done'. Running fixes will reset the status to 'fixing', discarding the completed state."
+   > "Continue?"
+   If the user declines, stop here.
 
 ### Step 3: Check Fix Round
 

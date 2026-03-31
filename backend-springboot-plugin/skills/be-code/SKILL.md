@@ -104,18 +104,18 @@ Create or update `{workDocDir}/.progress/{feature-name}.json`:
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-For each `- [ ]` scenario, launch the `implement` agent with:
+Launch the `implement` agent once with:
 
 - `workDocument`: path to the work document
 - `config`: the parsed plugin config
 - `projectRoot`: current project root
 
-The implement agent will:
+The implement agent processes all scenarios internally:
 1. Select the next `- [ ]` scenario
 2. Write test (RED)
 3. Implement minimum code (GREEN)
 4. Mark as `- [x]`
-5. Repeat
+5. Repeat until all scenarios are complete
 
 ### Step 5: Final Build
 

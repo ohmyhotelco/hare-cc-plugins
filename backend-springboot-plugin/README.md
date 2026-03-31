@@ -503,8 +503,8 @@ State is tracked in `{workDocDir}/.progress/{feature}.json`.
 | File | Purpose |
 |------|---------|
 | `{feature}.json` | Pipeline status, scenario counts, verification/review/fix/debug history |
-| `review-report.json` | Review results with scored dimensions and enriched issues |
-| `fix-report.json` | Fix results with strategy breakdown (TDD/direct/escalated) |
+| `review-report-{feature}.json` | Review results with scored dimensions and enriched issues |
+| `fix-report-{feature}.json` | Fix results with strategy breakdown (TDD/direct/escalated) |
 | `.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
 ### State Machine

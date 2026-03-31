@@ -1,5 +1,7 @@
 # {Feature Name}
 
+<!-- Template used by: be-code (when drafting scenarios for a feature name without existing work document) -->
+
 ## Related Documents
 
 - CLAUDE.md (development rules)

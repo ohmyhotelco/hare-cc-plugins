@@ -1,5 +1,7 @@
 # {Feature Name}
 
+<!-- Template used by: be-crud (full work document with entity, commands, queries, API, and test scenarios) -->
+
 ## Related Documents
 
 - CLAUDE.md (development rules)
@@ -14,8 +16,8 @@
 | sequence | Long | PK, auto-increment | Database primary key |
 | id | UUID | unique, not null | External identifier (UUID v7) |
 | {field} | {Type} | {constraints} | {description} |
-| createdAt | LocalDateTime | not null, auto | Creation timestamp |
-| updatedAt | LocalDateTime | not null, auto | Last update timestamp |
+| createdAt | OffsetDateTime | not null, auto | Creation timestamp |
+| updatedAt | OffsetDateTime | not null, auto | Last update timestamp |
 
 Table name: `{snake_case_entity_name}`
 

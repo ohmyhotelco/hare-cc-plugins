@@ -30,21 +30,10 @@ For each `.md` file:
 1. Extract feature name from filename (kebab-case to display name)
 2. Count `- [x]` items (completed scenarios)
 3. Count `- [ ]` items (pending scenarios)
-4. Determine status:
-   - **done**: all scenarios completed (no `- [ ]` remaining)
-   - **active**: some completed, some pending
-   - **pending**: no scenarios completed yet
-   - **empty**: no scenarios defined
-
-### Step 2.5: Read Pipeline State
-
-For each feature, also check `{config.workDocDir}/.progress/{feature}.json`:
-
-1. If progress file exists, read `pipeline.status` and merge with scenario data
-2. Pipeline status overrides simple scenario-based status:
-   - `"verified"`, `"reviewed"`, `"done"` → use pipeline status
-   - `"review-failed"`, `"fixing"`, `"escalated"` → use pipeline status
-   - If no progress file → fall back to scenario-based status
+4. Read `{config.workDocDir}/.progress/{feature}.json` for pipeline status
+5. Determine displayed status:
+   - If progress file exists: use `pipeline.status` (authoritative)
+   - If no progress file (work document exists but pipeline not started): show `—` (not started)
 
 ### Step 3: Display Dashboard
 
