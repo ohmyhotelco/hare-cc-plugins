@@ -39,6 +39,9 @@ Display the result in the working language.
 > "Build passed."
 > {If changes were made: "Changes applied: {list}"}
 
+If any feature progress files exist in `{workDocDir}/.progress/` with `pipeline.status == "verify-failed"`:
+> "Feature '{feature}' is in 'verify-failed' status. Re-run `/backend-springboot-plugin:be-verify {feature}` to update."
+
 **On failure (after 3 retries):**
 > "Build failed after 3 attempts."
 > "Error: {category} - {root cause}"

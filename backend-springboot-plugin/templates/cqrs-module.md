@@ -15,7 +15,7 @@ When adding a new domain entity (e.g., `Leave`), create files in the following p
 │   ├── Create{Entity}CommandExecutor.java   <- Write logic (@Component record)
 │   └── Update{Entity}CommandExecutor.java
 ├── query/
-│   ├── Get{Entities}.java            <- List query DTO (record)
+│   ├── Get{Entity}Page.java          <- Paginated list query DTO (record)
 │   └── Find{Entity}.java             <- Single item query DTO (record)
 ├── querymodel/
 │   ├── Get{Entity}PageQueryProcessor.java   <- List logic (@Component record)
@@ -72,11 +72,11 @@ public record CreateEmployeeCommandExecutor(
 ### Query (Request DTO)
 
 ```java
-public record GetEmployees(
+public record GetEmployeePage(
     @Min(0) int page,
     @Min(1) @Max(20) int size
 ) {
-    public GetEmployees {
+    public GetEmployeePage {
         if (size > 20) size = 20;
     }
 }
@@ -89,7 +89,7 @@ public record GetEmployees(
 public record GetEmployeePageQueryProcessor(
     EmployeeRepository employeeRepository
 ) {
-    public PageCarrier<EmployeeView> process(GetEmployees query) {
+    public PageCarrier<EmployeeView> process(GetEmployeePage query) {
         var pageable = PageRequest.of(query.page(), query.size());
         var page = employeeRepository.findAll(pageable);
         var items = page.getContent().stream()
@@ -137,7 +137,7 @@ public record EmployeeController(
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "10") int size
     ) {
-        return pageProcessor.process(new GetEmployees(page, size));
+        return pageProcessor.process(new GetEmployeePage(page, size));
     }
 
     @GetMapping("/hr/employees/{id}")
@@ -182,7 +182,7 @@ POST /hr/employees
 
 GET /hr/employees?page=0&size=10
   -> EmployeeController.list()
-    -> GetEmployees (record)
+    -> GetEmployeePage (record)
       -> GetEmployeePageQueryProcessor.process()
         -> EmployeeRepository.findAll(pageable)
         -> map to EmployeeView

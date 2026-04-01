@@ -10,7 +10,7 @@ Tinh nang chinh:
 - **CQRS scaffold** — Tao CRUD hoan chinh voi tach Command/Query (entity, repository, DTO, controller, migration) trong mot lenh
 - **TDD nghiem ngat** — Thuc thi chu ky RED-GREEN voi theo doi tai lieu cong viec va trien khai tung scenario
 - **Cong xac minh** — Xac minh build + checkstyle + test co cau truc (cong chat luong chi doc)
-- **Review 6 chieu** — API contract, JPA patterns, clean code, logging, test quality, architecture — voi tu dong sua bang TDD
+- **Review da chieu** — API contract, JPA patterns, clean code, logging, test quality, architecture (+ spec compliance khi co plan.json) — voi tu dong sua bang TDD
 - **Theo doi pipeline** — May trang thai cap tinh nang + dashboard tien do, canh bao ha cap, phat hien thay doi
 - **An toan trang thai** — Co che khoa, doc-sua-ghi, cach ly subagent trong pipeline
 - **Audit doc lap** — JPA, API, clean code, logging, test quality, security audit su dung doc lap bat ky luc nao
@@ -21,7 +21,12 @@ Tinh nang chinh:
 /backend-springboot-plugin:be-init → .claude/backend-springboot-plugin.json
         │
         ▼
-/backend-springboot-plugin:be-crud <Entity> [field:Type ...]
+/backend-springboot-plugin:be-plan <feature>  (tuy chon, can planning-plugin spec)
+        │
+        └── backend-planner agent → plan.json
+        │
+        ▼
+/backend-springboot-plugin:be-crud <Entity> [field:Type ...] | --all <feature>
         │
         ├── Flyway migration + Entity + Repository
         ├── Command + CommandExecutor
@@ -69,6 +74,7 @@ Interrupt skills (dung o bat ky giai doan nao):
   be-debug    — debug he thong (4 giai doan gia thuyet-kiem chung)
   be-progress — dashboard trang thai pipeline
   be-build    — build + tu dong sua (doc lap)
+  be-recall   — tham chieu quy tac va kiem tra vi pham
 
 Audit doc lap (dung doc lap voi pipeline):
   be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
@@ -125,14 +131,33 @@ Xac nhan cai dat:
 
 ## Bat dau nhanh
 
+### Che do thu cong (khong co spec)
+
 ```
 1. /backend-springboot-plugin:be-init                          # cau hinh plugin (tu dong phat hien project)
 2. /backend-springboot-plugin:be-crud Employee email:String displayName:String   # scaffold CQRS CRUD
 3. /backend-springboot-plugin:be-code work/features/employee.md                  # trien khai TDD
 4. /backend-springboot-plugin:be-verify employee                                 # cong xac minh
-5. /backend-springboot-plugin:be-review employee                                 # review 6 chieu
+5. /backend-springboot-plugin:be-review employee                                 # review code
 6. /backend-springboot-plugin:be-commit                                          # smart commit
 ```
+
+### Che do spec-driven (voi planning-plugin)
+
+```
+1. /backend-springboot-plugin:be-init                          # cau hinh plugin
+2. /planning-plugin:spec employee-management                   # tao functional spec
+3. /backend-springboot-plugin:be-plan employee-management      # spec → plan.json
+4. /backend-springboot-plugin:be-crud --all employee-management # scaffold tat ca entity tu plan
+5. /backend-springboot-plugin:be-code employee-management      # TDD (tai lieu cong viec bo sung tu plan)
+6. /backend-springboot-plugin:be-verify employee               # cong xac minh (theo entity)
+7. /backend-springboot-plugin:be-review employee               # review 7 chieu (theo entity)
+8. /backend-springboot-plugin:be-commit                        # smart commit
+```
+
+> **Luu y**: Buoc 1-5 su dung **ten feature** cua planning-plugin (vi du: `employee-management`).
+> Buoc 6-7 su dung **ten entity** rieng (vi du: `employee`, `department`) vi tien do duoc theo doi theo entity.
+> Sau buoc 5, `be-code` hien thi lenh buoc tiep theo cho tung entity.
 
 ## Chi tiet Skills
 
@@ -151,11 +176,32 @@ Xac nhan cai dat:
 
 ---
 
+### `/backend-springboot-plugin:be-plan`
+
+**Cu phap**: `/backend-springboot-plugin:be-plan <ten-feature>`
+
+**Khi nao dung**: Sau khi tao functional spec voi planning-plugin, truoc khi scaffold.
+
+**Hoat dong**:
+1. Phat hien spec tai `docs/specs/{feature}/.progress/{feature}.json`
+2. Xac minh trang thai spec (phai la `reviewing` hoac `finalized`)
+3. Doc file spec + UI DSL (neu co) qua `backend-planner` agent
+4. Trich xuat entity, command, query, endpoint, exception, validation rule, test scenario
+5. Tao `docs/specs/{feature}/.implementation/backend/plan.json`
+6. Cap nhat file tien do spec voi trang thai `implementation.backend`
+
+---
+
 ### `/backend-springboot-plugin:be-crud`
 
-**Cu phap**: `/backend-springboot-plugin:be-crud <TenEntity> [field:Type ...]`
+**Cu phap**: `/backend-springboot-plugin:be-crud <TenEntity> [field:Type ...]` hoac `/backend-springboot-plugin:be-crud --all <ten-feature>`
 
 **Khi nao dung**: Tao domain entity moi voi toan bo cau truc CQRS.
+
+**Che do**:
+- **Thu cong**: `be-crud Employee email:String displayName:String` — chi dinh field truc tiep
+- **Spec-driven**: `be-crud Employee` — tu dong doc tu plan.json khi co
+- **Batch**: `be-crud --all employee-management` — scaffold tat ca entity tu plan theo thu tu phu thuoc
 
 **Hoat dong**:
 1. Tu dong tao phien ban Flyway migration tiep theo
@@ -165,6 +211,7 @@ Xac nhan cai dat:
 5. Tao domain exception
 6. Tao tai lieu cong viec voi test scenario ban dau
 7. Dat trang thai pipeline thanh `scaffolded`
+8. (Spec-driven) Bao gom tat ca command/query/endpoint/exception tu plan.json
 
 ---
 
@@ -220,7 +267,8 @@ Xac nhan cai dat:
    - Logging (SLF4J, MDC, bao mat)
    - Test Quality (naming, assertion, coverage)
    - Architecture Compliance (CQRS, naming convention)
-5. Luu `review-report.json` (diem tung chieu + issue bo sung: severity, fixHint, refs)
+   - Spec Compliance (khi co plan.json — FR/BR/E-nnn/TS-nnn coverage)
+5. Luu `review-report-{feature}.json` (diem tung chieu + issue bo sung: severity, suggestion, refs)
 6. Cap nhat trang thai pipeline (`done` / `reviewed` / `review-failed`)
 7. Giai phong khoa
 
@@ -237,7 +285,7 @@ Xac nhan cai dat:
 **Khi nao dung**: Sau khi `be-review` tim thay issue.
 
 **Hoat dong**:
-1. Doc `review-report.json`
+1. Doc `review-report-{feature}.json`
 2. Kiem tra bo dem vong sua (chan sau 3 vong — hoi nguoi dung truoc khi tiep tuc)
 3. Lay khoa
 4. Chay `review-fixer` agent phan loai tung issue:
@@ -396,6 +444,12 @@ Lap lai cho den khi review pass. TDD cho thay doi hanh vi, edit truc tiep cho th
 
 ## Agent
 
+### Backend Planner
+
+**Vai tro**: Agent phan tich spec cho che do scaffold spec-driven.
+
+Doc functional spec va UI DSL cua planning-plugin, trich xuat entity, command, query, endpoint, exception, validation rule, va test scenario, va tao `plan.json` co cau truc. Tinh toan thu tu phu thuoc entity cho trinh tu scaffold. Su dung model Opus.
+
 ### Implement
 
 **Vai tro**: Trien khai TDD tu tai lieu cong viec.
@@ -478,7 +532,7 @@ Reproduce → Hypothesize (chinh xac 3) → Test → Confirm. Phan loai loi: typ
 ├── commandmodel/               <- Logic thuc thi command
 │   └── Create{Entity}CommandExecutor.java
 ├── query/                      <- Request query DTO (record)
-│   └── Get{Entities}.java
+│   └── Get{Entity}Page.java
 ├── querymodel/                 <- Logic xu ly query
 │   └── Get{Entity}PageQueryProcessor.java
 ├── view/                       <- Response view DTO (record)
@@ -503,20 +557,23 @@ Trang thai duoc theo doi trong `{workDocDir}/.progress/{feature}.json`.
 | File | Muc dich |
 |------|----------|
 | `{feature}.json` | Trang thai pipeline, so luong scenario, lich su verify/review/fix/debug |
-| `review-report.json` | Ket qua review voi diem tung chieu va issue bo sung |
-| `fix-report.json` | Ket qua fix voi phan loai chien luoc (TDD/direct/escalated) |
+| `review-report-{feature}.json` | Ket qua review voi diem tung chieu va issue bo sung |
+| `fix-report-{feature}.json` | Ket qua fix voi phan loai chien luoc (TDD/direct/escalated) |
 | `.lock` | Ngan thuc thi dong thoi (tu dong het han sau 30 phut) |
 
 ### May trang thai
 
+Luu y: Trang thai `planned` duoc theo doi trong file tien do spec (boi `be-plan`), khong nam trong backend pipeline.
+
 ```
-scaffolded → implementing → implemented → verified → reviewed → done
-                                  ↓            ↓          ↓
-                            verify-failed  review-failed  fixing
-                                  ↓            ↓          ↓
-                              be-build     be-fix    be-review (re-review)
-                                  ↓            ↓
-                              verified     fixing → reviewed/done
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-review (re-review)
+                                    ↓            ↓
+                                verified     fixing → reviewed/done
 
 Bat ky luc nao:
   be-debug → resolved | escalated
@@ -559,29 +616,29 @@ Anh xa ngon ngu: `en` = English, `ko` = Korean, `vi` = Tieng Viet.
 - [x] Tao CQRS CRUD scaffold
 - [x] Pipeline trien khai TDD
 - [x] Cong xac minh
-- [x] Review code 6 chieu + vong review-fix
+- [x] Review code da chieu + vong review-fix (6 core + spec compliance tuy chon)
 - [x] Build doctor (tu dong chan doan va sua)
 - [x] Debug he thong (4 giai doan gia thuyet-kiem chung)
 - [x] Theo doi trang thai pipeline + dashboard tien do
 - [x] Audit doc lap (JPA, API, clean code, logging, test quality, security)
-- [x] Pre-commit security scan (secret, API key, file nguy hiem)
 - [x] An toan trang thai (khoa, ha cap, thay doi, cach ly subagent)
-- [ ] Tich hop planning-plugin (scaffold tu spec)
+- [x] Pre-commit security scan (secret, API key, file nguy hiem)
+- [x] Tich hop planning-plugin (scaffold tu spec)
 - [ ] Ho tro project da module
 - [ ] Template kien truc event-driven (Kafka, RabbitMQ)
 
 ## Cau truc thu muc
 
 ```
-agents/          Dinh nghia agent (implement, build-doctor, code-reviewer,
-                 review-fixer, debugger)
-skills/          Diem vao skill (be-init, be-crud, be-code, be-verify,
+agents/          Dinh nghia agent (backend-planner, implement, build-doctor,
+                 code-reviewer, review-fixer, debugger)
+skills/          Diem vao skill (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
                  be-test-review, be-security)
-templates/       File template (tdd-rules, cqrs-module, entity-conventions,
-                 test-scenario-template, work-document-template, checkstyle-config,
-                 progress-schema)
+templates/       File template (plan-schema, tdd-rules, cqrs-module,
+                 entity-conventions, test-scenario-template,
+                 work-document-template, checkstyle-config, progress-schema)
 docs/            Tai lieu
 ```
 

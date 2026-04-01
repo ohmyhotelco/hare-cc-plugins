@@ -30,10 +30,11 @@ Gather context:
 2. If error message: parse for file paths, line numbers, exception types
 3. Read related source files identified from the error
 4. Check `{workDocDir}/.progress/{feature}.json` for pipeline state context
+   - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found, list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
 
 ### Step 1.5: Acquire Lock
 
-If feature context exists (`{workDocDir}/.progress/{feature}.json`):
+If config is available and feature context exists (`{workDocDir}/.progress/{feature}.json`):
 
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
@@ -60,7 +61,7 @@ Show results in the working language:
 Debug Report
 ============
 
-Classification: {type-error | test-failure | build-error | runtime-error | config-error | migration-error}
+Classification: {type-error | test-failure | build-error | runtime-error | config-error | migration-error | checkstyle-error}
 
 Root Cause:
   {file}:{line} — {description}
@@ -78,6 +79,7 @@ Files Modified:
 
 Verification:
   Compilation: {pass|fail}
+  Checkstyle: {pass|fail|skip}
   Tests: {pass|fail} ({count}/{total})
   Build: {pass|fail}
 ```
@@ -98,34 +100,38 @@ Suggested investigation:
 
 ### Step 4: Update Pipeline State
 
-If feature context exists (`{workDocDir}/.progress/{feature}.json`):
+If config is available and feature context exists (`{workDocDir}/.progress/{feature}.json`):
 
 1. Read progress file
-2. Update `pipeline.debug`:
+2. Save current `pipeline.status` as `previousStatus` before overwriting
+3. Update `pipeline.debug`:
    ```json
    {
      "status": "resolved" | "escalated",
+     "previousStatus": "{status before debug, e.g. implementing, verify-failed}",
      "timestamp": "{ISO 8601}",
      "classification": "{error type}",
      "rootCause": "{description}",
      "filesModified": ["list"]
    }
    ```
-3. Update `pipeline.status`:
+4. Update `pipeline.status`:
    - Resolved → `"resolved"`
    - Escalated → `"escalated"`
-4. Write back (read-modify-write)
-5. Release lock: delete `{workDocDir}/.progress/.lock`
+5. Write back (read-modify-write)
+6. Release lock: delete `{workDocDir}/.progress/.lock`
 
 ### Step 5: Suggest Next Action
 
-Based on the previous pipeline status (stored in progress file):
+Read `pipeline.debug.previousStatus` from the progress file to determine where to re-enter the pipeline:
 
-| Previous Status | Suggestion |
-|----------------|------------|
+| `previousStatus` | Suggestion |
+|-------------------|------------|
 | `implementing` | Resume: `/backend-springboot-plugin:be-code {feature}` |
+| `implemented` | Verify: `/backend-springboot-plugin:be-verify {feature}` |
 | `verify-failed` | Re-verify: `/backend-springboot-plugin:be-verify {feature}` |
+| `verified` | Review: `/backend-springboot-plugin:be-review {feature}` |
 | `review-failed` | Re-review: `/backend-springboot-plugin:be-review {feature}` |
 | `fixing` | Re-review: `/backend-springboot-plugin:be-review {feature}` |
-| `escalated` | Re-enter: `/backend-springboot-plugin:be-fix {feature}` or `/backend-springboot-plugin:be-verify {feature}` |
-| (unknown) | Run build: `/backend-springboot-plugin:be-build` |
+| `escalated` | If review-report exists: `/backend-springboot-plugin:be-fix {feature}`. Otherwise: `/backend-springboot-plugin:be-verify {feature}` |
+| (unknown or missing) | Run build: `/backend-springboot-plugin:be-build` |

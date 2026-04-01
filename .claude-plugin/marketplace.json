@@ -40,14 +40,14 @@
     },
     {
       "name": "backend-springboot-plugin",
-      "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, multi-dimension code review, and security audit for Claude Code",
-      "version": "0.2.1",
+      "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, and security audit for Claude Code",
+      "version": "0.3.1",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./backend-springboot-plugin/",
       "category": "development",
-      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline", "security"]
+      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline", "security", "spec-driven", "planning-plugin"]
     }
   ]
 }

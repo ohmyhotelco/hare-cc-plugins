@@ -152,6 +152,7 @@ Return a structured result:
   "filesModified": ["{list of changed files}"],
   "verification": {
     "compilation": "pass",
+    "checkstyle": "pass",
     "tests": "pass (25/25)",
     "build": "pass"
   },

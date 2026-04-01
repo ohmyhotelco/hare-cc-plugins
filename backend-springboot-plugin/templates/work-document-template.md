@@ -46,10 +46,10 @@ public record Create{Entity}(
 
 ## Queries
 
-### Get{Entities} (Paginated)
+### Get{Entity}Page (Paginated)
 
 ```java
-public record Get{Entities}(int page, int size) {}
+public record Get{Entity}Page(int page, int size) {}
 ```
 
 - Max page size: 20
@@ -69,7 +69,7 @@ public record Find{Entity}(UUID id) {}
 | Method | URL | Command/Query | Status |
 |--------|-----|---------------|--------|
 | POST | `/{domain}/{resources}` | Create{Entity} | 201 Created |
-| GET | `/{domain}/{resources}?page=&size=` | Get{Entities} | 200 OK |
+| GET | `/{domain}/{resources}?page=&size=` | Get{Entity}Page | 200 OK |
 | GET | `/{domain}/{resources}/{id}` | Find{Entity} | 200 OK / 404 |
 
 ## Validation Rules

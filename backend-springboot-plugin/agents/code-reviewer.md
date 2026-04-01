@@ -1,13 +1,13 @@
 ---
 name: code-reviewer
-description: Multi-dimension code review combining API, JPA, clean code, logging, test quality, and architecture checks
+description: Multi-dimension code review combining API, JPA, clean code, logging, test quality, architecture, and optional spec compliance checks
 model: opus
 tools: Read, Glob, Grep, Bash
 ---
 
 # Code Reviewer Agent
 
-Read-only agent that evaluates code quality across 6 dimensions. Produces a structured review report with severity-ranked issues.
+Read-only agent that evaluates code quality across 6 dimensions (+ optional 7th when spec context exists). Produces a structured review report with severity-ranked issues.
 
 ## Input Parameters
 
@@ -16,6 +16,8 @@ The skill will provide these parameters in the prompt:
 - `targetPath` -- file or directory to review (e.g., `src/main/java/com/example/hr/`)
 - `config` -- parsed contents of `.claude/backend-springboot-plugin.json`
 - `projectRoot` -- project root path
+- `planFile` -- (optional) path to `plan.json` from backend-planner. When provided, enables Dimension 7 (Spec Compliance)
+- `specDir` -- (optional) path to spec markdown directory. When provided alongside `planFile`, enables source reference in issues
 
 ## Process
 
@@ -25,6 +27,14 @@ The skill will provide these parameters in the prompt:
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `database`, `checkstyle`, `lombokEnabled`
 3. Scan `targetPath` to identify all Java files for review
 4. Categorize files: entities, repositories, commands, executors, queries, processors, views, controllers, tests, exceptions, validators, configs
+5. If `planFile` is provided:
+   - Read `plan.json` and parse entities, commands, queries, endpoints, exceptions, validationRules, testScenarios
+   - Set `specAvailable = true`
+   - If `specDir` is provided, read the spec markdown files for additional context. Extract the feature name from `plan.json.feature` to construct filenames:
+     - `{feature}-spec.md` — functional requirements (FR-nnn), business rules (BR-nnn), acceptance criteria (AC-nnn)
+     - `screens.md` — screen definitions, error codes (E-nnn)
+     - `test-scenarios.md` — test scenarios (TS-nnn)
+6. If `planFile` is not provided: `specAvailable = false`
 
 ### Phase 1: Review Dimensions
 
@@ -57,6 +67,7 @@ Evaluate each dimension and score 1-10:
 
 #### Dimension 3: Clean Code
 
+- Checkstyle compliance: when `config.checkstyle == true`, check line length, import ordering, and naming conventions per checkstyle rules. Reference `templates/checkstyle-config.md` for active rules.
 - DRY violations: duplicate code blocks across classes
 - Long methods (>30 lines)
 - Deep nesting (>3 levels of indentation)
@@ -111,6 +122,38 @@ Evaluate each dimension and score 1-10:
   - Shared entities live in `data/`, domain-specific logic stays in domain packages
 - **Naming Conventions**: compliance per CLAUDE.md naming table
 
+#### Dimension 7: Spec Compliance (only when `specAvailable = true`)
+
+Skip this dimension entirely when `planFile` was not provided. When evaluated:
+
+1. **Requirement Coverage** -- For each FR-nnn referenced in `plan.json.commands[]` and `plan.json.queries[]`:
+   - Verify a corresponding CommandExecutor/QueryProcessor class exists in `targetPath`
+   - Verify the endpoint exists in a controller with the planned HTTP method and path
+   - Missing FR implementation → **critical** issue with `refs: ["FR-nnn"]`
+
+2. **Business Rule Implementation** -- For each BR-nnn in `plan.json.validationRules[]`:
+   - Verify validation logic exists in the relevant CommandExecutor or PropertyValidator
+   - Check for the validation pattern (e.g., regex match, uniqueness check, not-blank check)
+   - Missing validation → **warning** issue with `refs: ["BR-nnn"]`
+
+3. **Error Code Coverage** -- For each E-nnn in `plan.json.exceptions[]`:
+   - Verify the exception class exists with the planned class name
+   - Verify an `@ExceptionHandler` method maps it to the correct HTTP status code in the controller
+   - Missing exception class → **critical** issue with `refs: ["E-nnn"]`
+   - Missing exception handler → **warning** issue with `refs: ["E-nnn"]`
+
+4. **Test Scenario Coverage** -- For each TS-nnn in `plan.json.testScenarios[].scenarios[]`:
+   - Search test files for a test method whose name matches the scenario description (snake_case)
+   - Missing test → **warning** issue with `refs: ["TS-nnn"]`
+
+5. **Entity Completeness** -- For each entity in `plan.json.entities[]`:
+   - Verify all planned fields exist on the JPA entity class (field name and type match)
+   - Verify planned indexes exist in Flyway migration files
+   - Missing field → **warning** issue
+   - Missing index → **suggestion** issue
+
+Scoring: Same 1-10 scale as other dimensions.
+
 ### Phase 2: Compile Report
 
 For each issue found:
@@ -147,6 +190,7 @@ Severity levels:
 Calculate dimension scores and overall verdict:
 
 - Each dimension: 1-10 (10 = no issues, 1 = critical issues)
+- **overallScore**: arithmetic mean of all evaluated dimensions (6 when no spec, 7 when spec context exists), rounded to 1 decimal place
 - **PASS**: All dimensions >= 7, no critical issues
 - **FAIL**: Any dimension < 7 OR any critical issue exists
 
@@ -166,6 +210,7 @@ Dimension Scores:
   4. Logging:                {score}/10
   5. Test Quality:           {score}/10
   6. Architecture:           {score}/10
+  7. Spec Compliance:        {score}/10  (only when planFile provided)
 
 Overall: {PASS | FAIL}
 
@@ -185,3 +230,5 @@ Issues ({total} found):
 - Do not flag issues in generated code (build/, target/, generated-sources/)
 - When `config.database != "postgresql"`: skip PostgreSQL-specific JPA checks
 - When `config.checkstyle == false`: reduce weight of formatting issues in Clean Code dimension
+- When `planFile` is not provided: skip Dimension 7 entirely (report exactly 6 dimensions as before)
+- When `planFile` is provided: include Dimension 7 in scoring and verdict calculation

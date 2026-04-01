@@ -10,7 +10,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 - **CQRS 스캐폴딩** — Command/Query 분리 구조의 완전한 CRUD(엔티티, 리포지토리, DTO, 컨트롤러, 마이그레이션)를 한 번에 생성
 - **엄격한 TDD** — 작업 문서 추적과 시나리오별 구현을 통한 RED-GREEN 사이클 강제
 - **검증 게이트** — 빌드 + Checkstyle + 테스트 구조화 검증 (읽기 전용 품질 게이트)
-- **6차원 리뷰** — API 계약, JPA 패턴, 클린 코드, 로깅, 테스트 품질, 아키텍처 — TDD 기반 자동 수정 포함
+- **다차원 리뷰** — API 계약, JPA 패턴, 클린 코드, 로깅, 테스트 품질, 아키텍처 (+ plan.json 존재 시 스펙 준수) — TDD 기반 자동 수정 포함
 - **파이프라인 추적** — 피처별 상태 머신 + 진행률 대시보드, 강등 경고, 변경 감지
 - **상태 안전** — 잠금 메커니즘, 읽기-수정-쓰기 규칙, 서브에이전트 격리
 - **독립 감사** — JPA, API, 클린 코드, 로깅, 테스트 품질, 보안 감사를 언제든 독립 실행 가능
@@ -21,7 +21,12 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 /backend-springboot-plugin:be-init → .claude/backend-springboot-plugin.json
         │
         ▼
-/backend-springboot-plugin:be-crud <Entity> [field:Type ...]
+/backend-springboot-plugin:be-plan <feature>  (선택, planning-plugin 스펙 필요)
+        │
+        └── backend-planner 에이전트 → plan.json
+        │
+        ▼
+/backend-springboot-plugin:be-crud <Entity> [field:Type ...] | --all <feature>
         │
         ├── Flyway 마이그레이션 + 엔티티 + 리포지토리
         ├── Command + CommandExecutor
@@ -69,6 +74,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
   be-debug    — 체계적 디버깅 (4단계 가설-검증)
   be-progress — 파이프라인 상태 대시보드
   be-build    — 빌드 + 자동 수정 (독립 실행)
+  be-recall   — 규칙 참조 및 위반 검출
 
 독립 감사 (파이프라인과 무관하게 사용 가능):
   be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
@@ -125,14 +131,33 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 
 ## 빠른 시작
 
+### 수동 모드 (스펙 없이)
+
 ```
 1. /backend-springboot-plugin:be-init                          # 플러그인 설정 (프로젝트 자동 감지)
 2. /backend-springboot-plugin:be-crud Employee email:String displayName:String   # CQRS CRUD 스캐폴딩
 3. /backend-springboot-plugin:be-code work/features/employee.md                  # TDD 구현
 4. /backend-springboot-plugin:be-verify employee                                 # 검증 게이트
-5. /backend-springboot-plugin:be-review employee                                 # 6차원 리뷰
+5. /backend-springboot-plugin:be-review employee                                 # 코드 리뷰
 6. /backend-springboot-plugin:be-commit                                          # 스마트 커밋
 ```
+
+### 스펙 기반 모드 (planning-plugin 연동)
+
+```
+1. /backend-springboot-plugin:be-init                          # 플러그인 설정
+2. /planning-plugin:spec employee-management                   # 기능 스펙 생성
+3. /backend-springboot-plugin:be-plan employee-management      # 스펙 → plan.json
+4. /backend-springboot-plugin:be-crud --all employee-management # 플랜에서 전체 엔티티 스캐폴딩
+5. /backend-springboot-plugin:be-code employee-management      # TDD (플랜 기반 보강 작업 문서)
+6. /backend-springboot-plugin:be-verify employee               # 검증 게이트 (엔티티별)
+7. /backend-springboot-plugin:be-review employee               # 7차원 리뷰 (엔티티별)
+8. /backend-springboot-plugin:be-commit                        # 스마트 커밋
+```
+
+> **참고**: 1~5단계는 planning-plugin **피처명** (예: `employee-management`)을 사용합니다.
+> 6~7단계는 개별 **엔티티명** (예: `employee`, `department`)을 사용합니다 (진행률이 엔티티별로 추적되므로).
+> 5단계 후 `be-code`가 엔티티별 다음 단계 명령을 표시합니다.
 
 ## 스킬 상세
 
@@ -151,11 +176,32 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 
 ---
 
+### `/backend-springboot-plugin:be-plan`
+
+**구문**: `/backend-springboot-plugin:be-plan <피처명>`
+
+**사용 시점**: planning-plugin으로 기능 스펙 생성 후, 스캐폴딩 전.
+
+**동작**:
+1. `docs/specs/{feature}/.progress/{feature}.json`에서 스펙 감지
+2. 스펙 상태 검증 (`reviewing` 또는 `finalized`여야 함)
+3. `backend-planner` 에이전트로 스펙 파일 + UI DSL (있는 경우) 읽기
+4. 엔티티, 커맨드, 쿼리, 엔드포인트, 예외, 검증 규칙, 테스트 시나리오 추출
+5. `docs/specs/{feature}/.implementation/backend/plan.json` 생성
+6. 스펙 진행 파일에 `implementation.backend` 상태 업데이트
+
+---
+
 ### `/backend-springboot-plugin:be-crud`
 
-**구문**: `/backend-springboot-plugin:be-crud <엔티티명> [필드:타입 ...]`
+**구문**: `/backend-springboot-plugin:be-crud <엔티티명> [필드:타입 ...]` 또는 `/backend-springboot-plugin:be-crud --all <피처명>`
 
 **사용 시점**: 새 도메인 엔티티와 CQRS 구조 전체를 생성할 때.
+
+**모드**:
+- **수동**: `be-crud Employee email:String displayName:String` — 필드 직접 지정
+- **스펙 기반**: `be-crud Employee` — plan.json이 있으면 자동 읽기
+- **배치**: `be-crud --all employee-management` — 플랜의 전체 엔티티를 의존 순서대로 스캐폴딩
 
 **동작**:
 1. 다음 Flyway 마이그레이션 버전 자동 생성
@@ -165,6 +211,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 5. 도메인 예외 클래스 생성
 6. 초기 테스트 시나리오가 포함된 작업 문서 생성
 7. 파이프라인 상태를 `scaffolded`로 설정
+8. (스펙 기반) plan.json의 모든 커맨드/쿼리/엔드포인트/예외 포함
 
 ---
 
@@ -220,7 +267,8 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
    - 로깅 (SLF4J, MDC, 보안)
    - 테스트 품질 (네이밍, 어서션, 커버리지)
    - 아키텍처 준수 (CQRS, 네이밍 규칙)
-5. `review-report.json` 저장 (차원별 점수 + 보강된 이슈: severity, fixHint, refs)
+   - 스펙 준수 (plan.json 존재 시 — FR/BR/E-nnn/TS-nnn 커버리지)
+5. `review-report-{feature}.json` 저장 (차원별 점수 + 보강된 이슈: severity, suggestion, refs)
 6. 파이프라인 상태 업데이트 (`done` / `reviewed` / `review-failed`)
 7. 잠금 해제
 
@@ -237,7 +285,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 **사용 시점**: `be-review`에서 이슈가 발견된 후.
 
 **동작**:
-1. `review-report.json` 읽기
+1. `review-report-{feature}.json` 읽기
 2. 수정 라운드 카운터 확인 (3라운드 후 차단 — 계속할지 사용자 확인)
 3. 잠금 획득
 4. `review-fixer` 에이전트 실행, 각 이슈 분류:
@@ -396,6 +444,12 @@ CQRS 구조 전체 생성: Flyway 마이그레이션, 엔티티, 리포지토리
 
 ## 에이전트
 
+### Backend Planner
+
+**역할**: 스펙 기반 스캐폴딩을 위한 스펙 분석 에이전트.
+
+planning-plugin 기능 스펙과 UI DSL을 읽어 엔티티, 커맨드, 쿼리, 엔드포인트, 예외, 검증 규칙, 테스트 시나리오를 추출하고 구조화된 `plan.json`을 생성합니다. 스캐폴딩 순서를 위한 엔티티 의존 순서를 계산합니다. Opus 모델 사용.
+
 ### Implement
 
 **역할**: 작업 문서 기반 TDD 구현.
@@ -478,7 +532,7 @@ CQRS 구조 전체 생성: Flyway 마이그레이션, 엔티티, 리포지토리
 ├── commandmodel/               <- 커맨드 실행 로직
 │   └── Create{Entity}CommandExecutor.java
 ├── query/                      <- 요청 쿼리 DTO (record)
-│   └── Get{Entities}.java
+│   └── Get{Entity}Page.java
 ├── querymodel/                 <- 쿼리 처리 로직
 │   └── Get{Entity}PageQueryProcessor.java
 ├── view/                       <- 응답 뷰 DTO (record)
@@ -503,20 +557,23 @@ CQRS 구조 전체 생성: Flyway 마이그레이션, 엔티티, 리포지토리
 | 파일 | 용도 |
 |------|------|
 | `{feature}.json` | 파이프라인 상태, 시나리오 수, 검증/리뷰/수정/디버그 히스토리 |
-| `review-report.json` | 차원별 점수와 보강된 이슈가 포함된 리뷰 결과 |
-| `fix-report.json` | 전략별 분류(TDD/직접/에스컬레이션)가 포함된 수정 결과 |
+| `review-report-{feature}.json` | 차원별 점수와 보강된 이슈가 포함된 리뷰 결과 |
+| `fix-report-{feature}.json` | 전략별 분류(TDD/직접/에스컬레이션)가 포함된 수정 결과 |
 | `.lock` | 동시 실행 방지 (30분 후 자동 만료) |
 
 ### 상태 머신
 
+참고: `planned` 상태는 spec progress 파일(`be-plan`)에서 추적되며, 백엔드 파이프라인에 포함되지 않습니다.
+
 ```
-scaffolded → implementing → implemented → verified → reviewed → done
-                                  ↓            ↓          ↓
-                            verify-failed  review-failed  fixing
-                                  ↓            ↓          ↓
-                              be-build     be-fix    be-review (재리뷰)
-                                  ↓            ↓
-                              verified     fixing → reviewed/done
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-review (재리뷰)
+                                    ↓            ↓
+                                verified     fixing → reviewed/done
 
 언제든:
   be-debug → resolved | escalated
@@ -559,29 +616,29 @@ scaffolded → implementing → implemented → verified → reviewed → done
 - [x] CQRS CRUD 스캐폴딩 생성
 - [x] TDD 구현 파이프라인
 - [x] 검증 게이트
-- [x] 6차원 코드 리뷰 + 리뷰-수정 루프
+- [x] 다차원 코드 리뷰 + 리뷰-수정 루프 (6 코어 + 선택적 스펙 준수)
 - [x] 빌드 닥터 (자동 진단 및 수정)
 - [x] 체계적 디버깅 (4단계 가설-검증)
 - [x] 파이프라인 상태 추적 + 진행률 대시보드
 - [x] 독립 감사 (JPA, API, 클린 코드, 로깅, 테스트 품질, 보안)
 - [x] 상태 안전 (잠금, 강등, 변경 감지, 서브에이전트 격리)
-- [ ] Planning-plugin 연동 (스펙 기반 스캐폴딩)
+- [x] 사전 커밋 보안 스캔 (시크릿, API 키, 위험 파일)
+- [x] Planning-plugin 연동 (스펙 기반 스캐폴딩)
 - [ ] 멀티 모듈 프로젝트 지원
 - [ ] 이벤트 기반 아키텍처 템플릿 (Kafka, RabbitMQ)
-- [x] 사전 커밋 보안 스캔 (시크릿, API 키, 위험 파일)
 
 ## 디렉토리 구조
 
 ```
-agents/          에이전트 정의 (implement, build-doctor, code-reviewer,
-                 review-fixer, debugger)
-skills/          스킬 진입점 (be-init, be-crud, be-code, be-verify,
+agents/          에이전트 정의 (backend-planner, implement, build-doctor,
+                 code-reviewer, review-fixer, debugger)
+skills/          스킬 진입점 (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
                  be-test-review, be-security)
-templates/       템플릿 파일 (tdd-rules, cqrs-module, entity-conventions,
-                 test-scenario-template, work-document-template, checkstyle-config,
-                 progress-schema)
+templates/       템플릿 파일 (plan-schema, tdd-rules, cqrs-module,
+                 entity-conventions, test-scenario-template,
+                 work-document-template, checkstyle-config, progress-schema)
 docs/            문서
 ```
 

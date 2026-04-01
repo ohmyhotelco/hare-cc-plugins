@@ -16,15 +16,26 @@ Run build, checkstyle, and tests to produce a structured verification report. Th
 
 1. Read `.claude/backend-springboot-plugin.json`
 2. If missing, tell the user to run `/backend-springboot-plugin:be-init` first and stop
-3. If feature argument provided, read `{workDocDir}/.progress/{feature}.json` for pipeline context
+3. If feature argument provided:
+   - If `{workDocDir}/.progress/{feature}.json` exists: read it for pipeline context
+   - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found (multi-entity feature), list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
+   - If no matches: warn that no progress file exists for this feature and proceed without pipeline context (same as no-feature mode)
 
 ### Step 0.5: Demotion Check
 
 If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
 
 1. Read `pipeline.status`
-2. If status is `"reviewed"` or `"done"`:
-   > "This feature is currently '{status}'. Re-running verification will reset the status, discarding review progress."
+2. If status is `"scaffolded"` or `"implementing"`:
+   > "This feature is currently '{status}'. Implementation may be incomplete — not all test scenarios have been finished."
+   > "Continue with verification anyway?"
+   If the user declines, stop here.
+3. If status is `"reviewed"`, `"review-failed"`, `"fixing"`, or `"done"`:
+   > "This feature is currently '{status}'. Re-running verification will reset the status, discarding review/fix progress."
+   > "Continue?"
+   If the user declines, stop here.
+4. If status is `"escalated"`:
+   > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running verification."
    > "Continue?"
    If the user declines, stop here.
 
@@ -43,10 +54,14 @@ If a feature argument was provided:
 
 ### Step 0.7: Acquire Lock
 
+If a feature argument was provided:
+
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}" }`
+
+If no feature argument: skip lock acquisition.
 
 ### Step 1: Run Verification Steps
 
@@ -82,6 +97,8 @@ Execute these checks sequentially. Set Bash tool timeout to 600000ms (10 minutes
 - Parse test summary: `{passed} tests passed, {failed} tests failed`
 
 #### 1.4: Full Build Check
+
+Note: Gradle caching ensures previously-passed tasks complete instantly. This step catches integration issues not covered by individual checks (e.g., resource processing, annotation processing, jar packaging).
 
 ```bash
 {config.buildCommand} 2>&1
@@ -142,12 +159,14 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
    - All pass → `"verified"`
    - Any fail → `"verify-failed"`
 4. Write back the progress file (read-modify-write: preserve all other fields)
-5. Release lock: delete `{workDocDir}/.progress/.lock`
+
+If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock`.
 
 ### Step 4: Suggest Next Action
 
-- **All pass**: Suggest `/backend-springboot-plugin:be-review {feature}` for code review
-- **Failures found**: Suggest `/backend-springboot-plugin:be-build` for auto-fix, or manual intervention
+- **All pass** (feature provided): Suggest `/backend-springboot-plugin:be-review {feature}` for code review
+- **All pass** (no feature): Suggest running `be-review` with a specific feature or target path
+- **Failures found**: Suggest `/backend-springboot-plugin:be-build` for auto-fix, then re-run `/backend-springboot-plugin:be-verify {feature}` to confirm
 
 ### Constraints
 

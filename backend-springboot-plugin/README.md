@@ -10,7 +10,7 @@ Key capabilities:
 - **CQRS scaffold** — Generate complete Command/Query separation CRUD (entity, repository, DTOs, controller, migration) in one command
 - **Strict TDD** — RED-GREEN cycle enforcement with work document tracking and scenario-by-scenario implementation
 - **Verification gate** — Structured build + checkstyle + test verification as a read-only quality gate
-- **6-dimension review** — API contract, JPA patterns, clean code, logging, test quality, architecture — with TDD-disciplined auto-fix
+- **Multi-dimension review** — API contract, JPA patterns, clean code, logging, test quality, architecture (+ spec compliance when plan.json exists) — with TDD-disciplined auto-fix
 - **Pipeline tracking** — Feature-level state machine with progress dashboard, demotion warnings, and staleness detection
 - **State safety** — Lock mechanism, read-modify-write discipline, and subagent isolation across the pipeline
 - **Standalone audits** — Independent JPA, API, clean code, logging, test quality, and security audits usable at any time
@@ -21,7 +21,12 @@ Key capabilities:
 /backend-springboot-plugin:be-init → .claude/backend-springboot-plugin.json
         │
         ▼
-/backend-springboot-plugin:be-crud <Entity> [field:Type ...]
+/backend-springboot-plugin:be-plan <feature>  (optional, requires planning-plugin spec)
+        │
+        └── backend-planner agent → plan.json
+        │
+        ▼
+/backend-springboot-plugin:be-crud <Entity> [field:Type ...] | --all <feature>
         │
         ├── Flyway migration + Entity + Repository
         ├── Command + CommandExecutor
@@ -69,6 +74,7 @@ Interrupt skills (usable at any stage):
   be-debug    — systematic debugging (4-phase hypothesis-test)
   be-progress — pipeline status dashboard
   be-build    — build + auto-fix (independent)
+  be-recall   — rules reference and violation check
 
 Standalone audits (usable independently):
   be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
@@ -125,14 +131,33 @@ Verify the installation:
 
 ## Quick Start
 
+### Manual Mode (no spec)
+
 ```
 1. /backend-springboot-plugin:be-init                          # configure plugin (auto-detects project)
 2. /backend-springboot-plugin:be-crud Employee email:String displayName:String   # scaffold CQRS CRUD
 3. /backend-springboot-plugin:be-code work/features/employee.md                  # TDD implementation
 4. /backend-springboot-plugin:be-verify employee                                 # verification gate
-5. /backend-springboot-plugin:be-review employee                                 # 6-dimension review
+5. /backend-springboot-plugin:be-review employee                                 # code review
 6. /backend-springboot-plugin:be-commit                                          # smart commit
 ```
+
+### Spec-Driven Mode (with planning-plugin)
+
+```
+1. /backend-springboot-plugin:be-init                          # configure plugin
+2. /planning-plugin:spec employee-management                   # create functional spec
+3. /backend-springboot-plugin:be-plan employee-management      # spec → plan.json
+4. /backend-springboot-plugin:be-crud --all employee-management # scaffold all entities from plan
+5. /backend-springboot-plugin:be-code employee-management      # TDD (enriched work docs from plan)
+6. /backend-springboot-plugin:be-verify employee               # verification gate (per entity)
+7. /backend-springboot-plugin:be-review employee               # 7-dimension review (per entity)
+8. /backend-springboot-plugin:be-commit                        # smart commit
+```
+
+> **Note**: Steps 1-5 use the planning-plugin **feature name** (e.g., `employee-management`).
+> Steps 6-7 use individual **entity names** (e.g., `employee`, `department`) because progress is tracked per entity.
+> After step 5, `be-code` displays next-step commands per entity.
 
 ## Skills Reference
 
@@ -151,11 +176,32 @@ Verify the installation:
 
 ---
 
+### `/backend-springboot-plugin:be-plan`
+
+**Syntax**: `/backend-springboot-plugin:be-plan <feature-name>`
+
+**When to use**: After creating a functional specification with planning-plugin, before scaffolding.
+
+**What happens**:
+1. Detects spec at `docs/specs/{feature}/.progress/{feature}.json`
+2. Validates spec status (must be `reviewing` or `finalized`)
+3. Reads spec files + UI DSL (if available) via `backend-planner` agent
+4. Extracts entities, commands, queries, endpoints, exceptions, validation rules, test scenarios
+5. Produces `docs/specs/{feature}/.implementation/backend/plan.json`
+6. Updates spec progress file with `implementation.backend` status
+
+---
+
 ### `/backend-springboot-plugin:be-crud`
 
-**Syntax**: `/backend-springboot-plugin:be-crud <EntityName> [field:Type ...]`
+**Syntax**: `/backend-springboot-plugin:be-crud <EntityName> [field:Type ...]` or `/backend-springboot-plugin:be-crud --all <feature-name>`
 
 **When to use**: Creating a new domain entity with full CQRS structure.
+
+**Modes**:
+- **Manual**: `be-crud Employee email:String displayName:String` — specify fields directly
+- **Spec-driven**: `be-crud Employee` — auto-reads from plan.json when available
+- **Batch**: `be-crud --all employee-management` — scaffolds all entities from plan in dependency order
 
 **What happens**:
 1. Generates next Flyway migration version automatically
@@ -165,6 +211,7 @@ Verify the installation:
 5. Creates domain exceptions
 6. Generates work document with initial test scenarios
 7. Sets pipeline status to `scaffolded`
+8. (Spec-driven) Includes all commands/queries/endpoints/exceptions from plan.json
 
 ---
 
@@ -220,7 +267,8 @@ Verify the installation:
    - Logging (SLF4J, MDC, security)
    - Test Quality (naming, assertions, coverage)
    - Architecture Compliance (CQRS, naming conventions)
-5. Saves `review-report.json` with scored dimensions and enriched issues (severity, fixHint, refs)
+   - Spec Compliance (when plan.json exists — FR/BR/E-nnn/TS-nnn coverage)
+5. Saves `review-report-{feature}.json` with scored dimensions and enriched issues (severity, suggestion, refs)
 6. Updates pipeline status (`done` / `reviewed` / `review-failed`)
 7. Releases lock
 
@@ -237,7 +285,7 @@ Verify the installation:
 **When to use**: After `be-review` finds issues.
 
 **What happens**:
-1. Reads `review-report.json`
+1. Reads `review-report-{feature}.json`
 2. Checks fix round counter (blocks after 3 rounds — asks user before continuing)
 3. Acquires lock
 4. Launches `review-fixer` agent which classifies each issue:
@@ -377,7 +425,7 @@ Read-only gate: compilation, checkstyle, tests, full build. Reports pass/fail wi
 /backend-springboot-plugin:be-review employee
 ```
 
-6-dimension code review with scored dimensions. Issues include severity, fix hints, and refs tracing back to API endpoints or test scenarios.
+Multi-dimension code review (6 core + optional spec compliance) with scored dimensions. Issues include severity, suggestions, and refs tracing back to API endpoints or test scenarios.
 
 ### Step 6: Fix & Re-Review
 
@@ -395,6 +443,12 @@ Iterate until review passes. TDD discipline for behavioral changes, direct edit 
 ```
 
 ## Agents
+
+### Backend Planner
+
+**Role**: Spec analysis agent for spec-driven scaffold mode.
+
+Reads planning-plugin functional specifications and UI DSL, extracts entities, commands, queries, endpoints, exceptions, validation rules, and test scenarios, and produces a structured `plan.json`. Computes entity dependency order for scaffold sequence. Uses the Opus model.
 
 ### Implement
 
@@ -478,7 +532,7 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
 ├── commandmodel/               <- Command execution logic
 │   └── Create{Entity}CommandExecutor.java
 ├── query/                      <- Request query DTOs (records)
-│   └── Get{Entities}.java
+│   └── Get{Entity}Page.java
 ├── querymodel/                 <- Query processing logic
 │   └── Get{Entity}PageQueryProcessor.java
 ├── view/                       <- Response view DTOs (records)
@@ -509,14 +563,17 @@ State is tracked in `{workDocDir}/.progress/{feature}.json`.
 
 ### State Machine
 
+Note: `planned` status is tracked in the spec progress file (by `be-plan`), not in the backend pipeline.
+
 ```
-scaffolded → implementing → implemented → verified → reviewed → done
-                                  ↓            ↓          ↓
-                            verify-failed  review-failed  fixing
-                                  ↓            ↓          ↓
-                              be-build     be-fix    be-review (re-review)
-                                  ↓            ↓
-                              verified     fixing → reviewed/done
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-review (re-review)
+                                    ↓            ↓
+                                verified     fixing → reviewed/done
 
 At any point:
   be-debug → resolved | escalated
@@ -559,29 +616,29 @@ Language mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] CQRS CRUD scaffold generation
 - [x] TDD implementation pipeline
 - [x] Verification gate
-- [x] 6-dimension code review with review-fix loop
+- [x] Multi-dimension code review with review-fix loop (6 core + optional spec compliance)
 - [x] Build doctor (auto-diagnosis and fix)
 - [x] Systematic debugging (4-phase hypothesis-test)
 - [x] Pipeline state tracking with progress dashboard
 - [x] Standalone audits (JPA, API, clean code, logging, test quality, security)
 - [x] State safety (lock, demotion, staleness, subagent isolation)
 - [x] Pre-commit security scan (secrets, API keys, dangerous files)
-- [ ] Planning-plugin integration (spec-driven scaffold)
+- [x] Planning-plugin integration (spec-driven scaffold)
 - [ ] Multi-module project support
 - [ ] Event-driven architecture templates (Kafka, RabbitMQ)
 
 ## Directory Structure
 
 ```
-agents/          Agent definitions (implement, build-doctor, code-reviewer,
-                 review-fixer, debugger)
-skills/          Skill entry points (be-init, be-crud, be-code, be-verify,
+agents/          Agent definitions (backend-planner, implement, build-doctor,
+                 code-reviewer, review-fixer, debugger)
+skills/          Skill entry points (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
                  be-test-review, be-security)
-templates/       Template files (tdd-rules, cqrs-module, entity-conventions,
-                 test-scenario-template, work-document-template, checkstyle-config,
-                 progress-schema)
+templates/       Template files (plan-schema, tdd-rules, cqrs-module,
+                 entity-conventions, test-scenario-template,
+                 work-document-template, checkstyle-config, progress-schema)
 docs/            Documentation
 ```
 

@@ -66,7 +66,7 @@ If the minimum method signature required for this scenario does not exist:
 Run the test class:
 
 ```bash
-{buildCommand} --tests {fullTestClassName}
+{testCommand} --tests {fullTestClassName}
 ```
 
 - **Expected**: test FAILS on assertion (not compilation)
@@ -84,7 +84,7 @@ Run the test class:
 Run the entire test class:
 
 ```bash
-{buildCommand} --tests {fullTestClassName}
+{testCommand} --tests {fullTestClassName}
 ```
 
 - **Expected**: ALL tests in the class pass

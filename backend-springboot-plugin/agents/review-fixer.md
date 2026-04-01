@@ -43,6 +43,14 @@ When issues include a `refs` field (API endpoint or scenario references), use it
 - Issues referencing a specific scenario → likely **tdd-required** (the scenario defines the expected behavior)
 - Issues referencing only an API endpoint → check if the fix changes response behavior (tdd-required) or just annotations/naming (direct-fix)
 
+**Spec Compliance dimension issues** (dimension = `"spec_compliance"`):
+- Missing FR implementation (missing CommandExecutor/QueryProcessor/endpoint) → **escalated** (requires new work document scenarios and full TDD cycle via be-code, beyond scope of auto-fix)
+- Missing BR validation in executor → **tdd-required** (write test for the validation rule, then implement)
+- Missing E-nnn exception class → **direct-fix** (create exception class + @ExceptionHandler)
+- Missing E-nnn exception handler in controller → **direct-fix** (add @ExceptionHandler method)
+- Missing TS-nnn test method → **tdd-required** (write the missing test, then implement if RED)
+- Missing entity field or index → **escalated** (requires migration change, cannot auto-fix safely)
+
 ### Phase 2: Apply Fixes
 
 Process issues in order: critical → warning → suggestion.
@@ -50,7 +58,7 @@ Process issues in order: critical → warning → suggestion.
 #### For TDD-Required Fixes
 
 1. Write a test that exposes the issue (RED)
-2. Run test class: `{buildCommand} --tests {testClass}` (10-minute timeout)
+2. Run test class: `{testCommand} --tests {testClass}` (10-minute timeout)
 3. Verify test fails for the expected reason
 4. Apply minimum fix to pass the test (GREEN)
 5. Run test class again — verify all tests pass

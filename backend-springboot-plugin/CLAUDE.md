@@ -51,7 +51,7 @@ Read `architecture` from `.claude/backend-springboot-plugin.json`. Default is `c
 ├── commandmodel/               <- Command execution logic
 │   └── Create{Entity}CommandExecutor.java
 ├── query/                      <- Request query DTOs (records)
-│   ├── Get{Entities}.java
+│   ├── Get{Entity}Page.java
 │   └── Find{Entity}.java
 ├── querymodel/                 <- Query processing logic
 │   ├── Get{Entity}PageQueryProcessor.java
@@ -91,7 +91,7 @@ HTTP Request
 | Repository | `{Name}Repository` | `EmployeeRepository` |
 | Command | `{Action}{Name}` | `CreateEmployee` |
 | Command Executor | `{Command}CommandExecutor` | `CreateEmployeeCommandExecutor` |
-| Query | `{Action}{Name}` | `GetEmployees` |
+| Query | `{Action}{Name}` | `GetEmployeePage` |
 | Query Processor | `{Query}QueryProcessor` | `GetEmployeePageQueryProcessor` |
 | View | `{Name}View` | `EmployeeView` |
 | Controller | `{Name}Controller` (record) | `EmployeeController` |
@@ -262,15 +262,20 @@ Verification Red Flags -- these thoughts mean you are rationalizing:
 ## Pipeline
 
 ```
-be-init → be-crud (scaffold) → be-code (TDD) → be-verify → be-review ↔ be-fix → be-commit
-                                     ↕                          ↕
-                              implement agent            code-reviewer agent
-                            (RED → GREEN cycle)         (6-dimension review)
+be-plan (spec) → be-crud (scaffold) → be-code (TDD) → be-verify → be-review ↔ be-fix → be-commit
+   ↕                                       ↕                          ↕
+backend-planner agent              implement agent            code-reviewer agent
+(spec → plan.json)                (RED → GREEN cycle)     (6+1 dimension review)
+
+  be-plan is optional: without a planning-plugin spec, be-crud accepts manual field:Type input.
+  be-crud is recommended: it generates the CQRS scaffold (entity, repository, commands, queries, controller) that be-code builds upon. Skipping be-crud means be-code starts TDD from scratch without scaffold.
+  When plan.json exists, be-crud and be-code auto-detect spec-driven mode.
 
 Interrupt skills (usable at any stage):
   be-debug — systematic debugging (4-phase hypothesis-test methodology)
   be-progress — pipeline status dashboard
   be-build — build + auto-fix (independent of pipeline)
+  be-recall — rules reference and violation check
 
 Standalone audit skills (usable independently):
   be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
@@ -278,14 +283,19 @@ Standalone audit skills (usable independently):
 
 ### Pipeline State Machine
 
+Note: `planned` status is tracked in the spec progress file (by `be-plan`), not in the backend pipeline. The backend pipeline starts at `scaffolded` when `be-crud` is used, or at `implementing` when `be-code` is run directly without `be-crud`.
+
 ```
-scaffolded → implementing → implemented → verified → reviewed → done
-                                  ↓            ↓          ↓
-                            verify-failed  review-failed  fixing
-                                  ↓            ↓          ↓
-                              be-build     be-fix    be-review
-                                  ↓            ↓     (re-review)
-                              verified     fixing → reviewed/done
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-review
+                                    ↓            ↓     (re-review)
+                                be-verify    fixing → reviewed/done
+                                    ↓
+                                verified
 
 At any point:
   be-debug → resolved | escalated
@@ -316,9 +326,10 @@ Subagents never inherit session history. Coordinator skills construct only the p
 
 ## Agents
 
+- `backend-planner` -- Spec analysis agent that reads functional specifications and produces a structured backend implementation plan (plan.json)
 - `implement` -- TDD-based feature implementation from work documents or scenario lists
 - `build-doctor` -- Gradle build execution, failure diagnosis, and automatic fix with retry
-- `code-reviewer` -- Multi-dimension code review (API, JPA, clean code, logging, tests, architecture)
+- `code-reviewer` -- Multi-dimension code review (API, JPA, clean code, logging, tests, architecture, + optional spec compliance)
 - `review-fixer` -- TDD-disciplined fixer that reads review reports and applies targeted fixes
 - `debugger` -- Systematic debugger using 4-phase methodology (reproduce, hypothesize, test, confirm)
 
@@ -329,10 +340,11 @@ Subagents never inherit session history. Coordinator skills construct only the p
 | Skill | Purpose |
 |-------|---------|
 | `/backend-springboot-plugin:be-init` | Initialize plugin config for the project |
-| `/backend-springboot-plugin:be-crud` | CQRS CRUD scaffold generation |
+| `/backend-springboot-plugin:be-plan` | Analyze planning-plugin spec and produce backend plan.json |
+| `/backend-springboot-plugin:be-crud` | CQRS CRUD scaffold generation (manual or spec-driven) |
 | `/backend-springboot-plugin:be-code` | TDD-driven feature implementation |
 | `/backend-springboot-plugin:be-verify` | Verification gate (build + checkstyle + tests) |
-| `/backend-springboot-plugin:be-review` | Orchestrated 6-dimension code review |
+| `/backend-springboot-plugin:be-review` | Orchestrated code review (6 dimensions + optional spec compliance) |
 | `/backend-springboot-plugin:be-fix` | TDD-disciplined fix from review report |
 | `/backend-springboot-plugin:be-commit` | Smart commit from staged changes |
 
@@ -365,6 +377,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `work-document-template.md` -- Full work document template (used by: be-crud for scaffold generation)
 - `checkstyle-config.md` -- Checkstyle zero-tolerance configuration reference
 - `progress-schema.md` -- Pipeline state file schema and status transitions
+- `plan-schema.md` -- Backend plan.json schema and type mapping reference (used by: backend-planner, be-crud)
 
 ## Configuration
 

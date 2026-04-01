@@ -25,6 +25,18 @@ Run `git diff --staged` to see what is staged.
   > "No staged changes found. Stage your changes with `git add` first."
 - Stop if nothing is staged
 
+### Step 1.5: Pipeline Status Warning
+
+Check if any feature progress files exist in `{workDocDir}/.progress/`:
+
+1. Glob `{workDocDir}/.progress/*.json` — exclude files matching `review-report-*.json` or `fix-report-*.json` (only keep entity progress files)
+2. For each progress file, read `pipeline.status`
+3. If any feature has a status other than `reviewed` or `done` (i.e., `scaffolded`, `implementing`, `implemented`, `verified`, `verify-failed`, `review-failed`, `fixing`, `resolved`, `escalated`):
+   > "Warning: Feature '{feature}' is in '{status}' status — review/verification may not be complete."
+   > "Continue with commit?"
+   If the user declines, stop here.
+4. If all features are `reviewed`, `done`, or no progress files exist: proceed without warning
+
 ### Step 2: Parse Arguments
 
 - `topic: <topic>` -- optional topic hint for the commit message (inferred from diff if omitted)

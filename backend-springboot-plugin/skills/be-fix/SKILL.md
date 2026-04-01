@@ -17,12 +17,19 @@ Read the review report produced by `be-review` and apply targeted fixes using TD
 1. Read `.claude/backend-springboot-plugin.json`
 2. If missing, tell the user to run `/backend-springboot-plugin:be-init` first and stop
 
+### Step 0.5: Resolve Feature
+
+If `{workDocDir}/.progress/{feature}.json` does **not** exist:
+
+1. Scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`
+2. If matches found (multi-entity feature): list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name.
+3. If no matches: proceed (review report may still exist at project root)
+
 ### Step 1: Locate Review Report
 
 Search for the review report in order:
 1. `{workDocDir}/.progress/review-report-{feature}.json` (feature-scoped)
-2. `{workDocDir}/.progress/review-report.json` (legacy fallback)
-3. `review-report.json` (project root)
+2. `review-report.json` (project root, when no feature context)
 
 If not found:
 > "No review report found. Run `/backend-springboot-plugin:be-review {feature}` first."
@@ -137,7 +144,8 @@ If `{workDocDir}/.progress/{feature}.json` exists:
    - Some escalated → `"fixing"` (re-review will evaluate remaining)
    - All escalated / build fails → `"escalated"`
 4. Write back (read-modify-write)
-5. Release lock: delete `{workDocDir}/.progress/.lock`
+
+Release lock: delete `{workDocDir}/.progress/.lock` (always release — lock was acquired in Step 3.5).
 
 ### Step 7: Suggest Next Action
 

@@ -89,7 +89,6 @@ Write `.claude/backend-springboot-plugin.json`:
 ### Step 5: Set Up Work Document Directory
 
 1. If `{workDocDir}` does not exist, create it
-2. Create `{workDocDir}/done/` directory if it does not exist (for completed work documents)
 
 ### Step 6: Add Gradle Permission
 
@@ -108,14 +107,26 @@ Display final configuration summary:
 > "Configuration saved to `.claude/backend-springboot-plugin.json`."
 >
 > "Available skills:"
-> - `/backend-springboot-plugin:be-code` — TDD feature implementation
+>
+> Core pipeline:
+> - `/backend-springboot-plugin:be-plan` — Spec → backend plan.json
 > - `/backend-springboot-plugin:be-crud` — CQRS CRUD scaffold
-> - `/backend-springboot-plugin:be-build` — Build + auto-fix
+> - `/backend-springboot-plugin:be-code` — TDD feature implementation
+> - `/backend-springboot-plugin:be-verify` — Verification gate (build + checkstyle + tests)
+> - `/backend-springboot-plugin:be-review` — Multi-dimension code review
+> - `/backend-springboot-plugin:be-fix` — TDD-disciplined review fix
 > - `/backend-springboot-plugin:be-commit` — Smart commit
+>
+> Utility:
+> - `/backend-springboot-plugin:be-build` — Build + auto-fix
+> - `/backend-springboot-plugin:be-debug` — Systematic debugging
 > - `/backend-springboot-plugin:be-recall` — Rules reference
+> - `/backend-springboot-plugin:be-progress` — Progress dashboard
+>
+> Standalone audits:
 > - `/backend-springboot-plugin:be-jpa` — JPA audit
 > - `/backend-springboot-plugin:be-api-review` — API contract audit
 > - `/backend-springboot-plugin:be-clean-code` — Clean code audit
 > - `/backend-springboot-plugin:be-logging` — Logging audit
 > - `/backend-springboot-plugin:be-test-review` — Test quality audit
-> - `/backend-springboot-plugin:be-progress` — Progress dashboard
+> - `/backend-springboot-plugin:be-security` — Security audit

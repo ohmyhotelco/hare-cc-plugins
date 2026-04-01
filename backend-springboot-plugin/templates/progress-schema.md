@@ -6,7 +6,7 @@ Lightweight state tracking for the feature implementation pipeline.
 
 `{workDocDir}/.progress/{feature}.json`
 
-Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-review, be-fix, be-debug).
+Created by `be-crud` (per entity). Updated by pipeline skills (be-crud, be-code, be-verify, be-review, be-fix, be-debug).
 
 ## Schema
 
@@ -16,6 +16,11 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
   "workDocument": "work/features/create-employee.md",
   "createdAt": "2026-03-30T10:00:00Z",
   "updatedAt": "2026-03-30T15:30:00Z",
+  "specSource": {
+    "planFile": "docs/specs/employee-management/.implementation/backend/plan.json",
+    "entity": "Employee",
+    "feature": "employee-management"
+  },
   "pipeline": {
     "status": "implementing",
     "scenarios": {
@@ -50,6 +55,7 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
     },
     "debug": {
       "status": "resolved",
+      "previousStatus": "implementing",
       "timestamp": "2026-03-30T15:30:00Z",
       "classification": "test-failure",
       "rootCause": "Missing @Transactional on executor",
@@ -63,6 +69,7 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
 
 | Status | Meaning | Set By |
 |--------|---------|--------|
+| `planned` | Backend plan generated from spec, no scaffold yet | (tracked in spec progress file, not in backend pipeline) |
 | `scaffolded` | CRUD scaffold generated, no tests yet | be-crud |
 | `implementing` | TDD in progress (some `- [ ]` remain) | be-code |
 | `implemented` | All scenarios complete (`- [x]`) | be-code |
@@ -77,14 +84,19 @@ Created by `be-code` or `be-crud`. Updated by pipeline skills (be-verify, be-rev
 
 ## State Transitions
 
+Note: `planned` status is tracked in the spec progress file (by `be-plan`), not in the backend pipeline. The backend pipeline starts at `scaffolded` when `be-crud` is used, or at `implementing` when `be-code` is run directly without `be-crud`.
+
 ```
-scaffolded → implementing → implemented → verified → reviewed → done
-                                  ↓            ↓          ↓
-                            verify-failed  review-failed  fixing
-                                  ↓            ↓          ↓
-                              be-build     be-fix    be-review
-                                  ↓            ↓     (re-review)
-                              verified     fixing → reviewed/done
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-review
+                                    ↓            ↓     (re-review)
+                                be-verify    fixing → reviewed/done
+                                    ↓
+                                verified
 
 At any point:
   be-debug → resolved | escalated
@@ -100,6 +112,28 @@ When updating the progress file:
 3. Write the complete merged object
 
 This prevents race conditions and data loss when multiple skills update the file.
+
+## Optional Fields
+
+### `specSource` (spec-driven mode only)
+
+Present when the feature was scaffolded from a planning-plugin spec via `be-plan` + `be-crud`.
+
+```json
+{
+  "specSource": {
+    "planFile": "docs/specs/{feature}/.implementation/backend/plan.json",
+    "entity": "Employee",
+    "feature": "employee-management"
+  }
+}
+```
+
+- `planFile`: path to the backend plan.json that drove scaffold generation
+- `entity`: the specific entity name from the plan that this work document covers
+- `feature`: the planning-plugin feature name (may differ from the work document feature name)
+
+Set by: `be-crud` (spec-driven mode only)
 
 ## Directory Structure
 

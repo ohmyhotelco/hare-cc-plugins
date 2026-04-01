@@ -1,6 +1,6 @@
 ---
 name: be-review
-description: "Run 6-dimension code review via code-reviewer agent and produce structured report."
+description: "Run code review (6 dimensions + optional spec compliance) via code-reviewer agent and produce structured report."
 argument-hint: "<feature-name or target-path>"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 
 # Orchestrated Code Review
 
-Launch the code-reviewer agent for a comprehensive 6-dimension review. Produces a persistent `review-report.json` that `be-fix` can read.
+Launch the code-reviewer agent for a comprehensive review (6 core dimensions + optional 7th spec compliance dimension when plan.json exists). Produces a persistent `review-report-{feature}.json` that `be-fix` can read.
 
 ## Instructions
 
@@ -25,6 +25,14 @@ The argument can be:
 - **Directory path**: use directly as the review target
 - **No argument**: review all source code in `{sourceDir}/{basePackage}/`
 
+### Step 1.5: Resolve Feature
+
+If a feature name was provided and `{workDocDir}/.progress/{feature}.json` does **not** exist:
+
+1. Scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`
+2. If matches found (multi-entity feature): list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
+3. If no matches: proceed without pipeline context (same as no-feature mode)
+
 ### Step 2: Check Pipeline State
 
 If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exists:
@@ -32,7 +40,16 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
 1. Read progress file
 2. Check `pipeline.status`:
    - If `"implementing"` or earlier: warn that code may be incomplete, ask user to confirm
+   - If `"implemented"`:
+     > "Verification (`be-verify`) has not been run for this feature. Build, checkstyle, or test issues may exist."
+     > "Consider running `/backend-springboot-plugin:be-verify {feature}` first. Continue with review anyway?"
+     If the user declines, stop here.
    - If `"verified"` or `"verify-failed"`: proceed (normal flow)
+   - If `"fixing"` or `"resolved"`: proceed (normal flow — review after fix/debug is the expected path)
+   - If `"escalated"`:
+     > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running review."
+     > "Continue?"
+     If the user declines, stop here.
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
 
 ### Step 2.5: Work Document Staleness Check
@@ -50,10 +67,28 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
 
 ### Step 2.6: Acquire Lock
 
+If a feature name was provided:
+
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-review", "feature": "{feature}" }`
+
+If no feature name: skip lock acquisition.
+
+### Step 2.7: Check Spec Context
+
+If a feature name was provided:
+
+1. Check if a `specSource` field exists in `{workDocDir}/.progress/{feature}.json`
+   - If exists: extract `specSource.planFile` and `specSource.feature`
+   - Then check if `docs/specs/{specSource.feature}/.implementation/backend/plan.json` exists
+   - If plan.json exists: `specAvailable = true`, set `planFile` path
+   - Resolve `specDir`: read `docs/specs/{specSource.feature}/.progress/{specSource.feature}.json` and extract `workingLanguage` to determine spec language. Set `specDir = docs/specs/{specSource.feature}/{specLanguage}/`
+2. Alternatively, check if `docs/specs/{feature}/.implementation/backend/plan.json` exists directly
+   - If exists: `specAvailable = true`
+   - Resolve `specDir`: read `docs/specs/{feature}/.progress/{feature}.json` and extract `workingLanguage`. Set `specDir = docs/specs/{feature}/{specLanguage}/`
+3. If neither found: `specAvailable = false`
 
 ### Step 3: Launch Code Reviewer Agent
 
@@ -64,14 +99,17 @@ Launch the `code-reviewer` agent with:
 - `targetPath`: the resolved target path
 - `config`: parsed plugin config
 - `projectRoot`: current project root
+- `planFile`: path to plan.json (only when `specAvailable = true`, omit otherwise)
+- `specDir`: path to spec markdown directory (only when `specAvailable = true`, omit otherwise)
 
-The agent will evaluate 6 dimensions:
+The agent will evaluate 6 dimensions (+ optional 7th when spec context exists):
 1. API Contract (HTTP semantics, URLs, status codes)
 2. JPA Patterns (N+1, transactions, indexes)
 3. Clean Code (DRY, KISS, YAGNI, naming)
 4. Logging (SLF4J, MDC, security)
 5. Test Quality (naming, assertions, coverage)
 6. Architecture Compliance (CQRS, naming conventions)
+7. Spec Compliance (only when `planFile` is provided — FR/BR/E-nnn/TS-nnn coverage)
 
 ### Step 4: Save Review Report
 
@@ -92,7 +130,7 @@ Save the agent's output as `{workDocDir}/.progress/review-report-{feature}.json`
           "line": 42,
           "rule": "Missing @ResponseStatus",
           "message": "DELETE endpoint missing @ResponseStatus(NO_CONTENT)",
-          "fixHint": "Add @ResponseStatus(HttpStatus.NO_CONTENT) to delete method",
+          "suggestion": "Add @ResponseStatus(HttpStatus.NO_CONTENT) to delete method",
           "refs": ["DELETE /hr/employees/{id}", "scenario: delete_employee_returns_204"]
         }
       ]
@@ -101,7 +139,8 @@ Save the agent's output as `{workDocDir}/.progress/review-report-{feature}.json`
     "clean_code": { "score": 8, "issues": [] },
     "logging": { "score": 6, "issues": [] },
     "test_quality": { "score": 9, "issues": [] },
-    "architecture": { "score": 10, "issues": [] }
+    "architecture": { "score": 10, "issues": [] },
+    "spec_compliance": { "score": 9, "issues": [] }
   },
   "summary": {
     "overallScore": 8.2,
@@ -136,6 +175,7 @@ Dimension Scores:
   4. Logging:           {score}/10
   5. Test Quality:      {score}/10
   6. Architecture:      {score}/10
+  7. Spec Compliance:   {score}/10  (only when spec context exists)
 
 Overall: {score}/10 — {PASS | FAIL}
 
@@ -146,7 +186,7 @@ Issues ({total}):
 
 {For each issue, sorted by severity:}
   [{severity}] {message}
-    {file}:{line} — Fix: {fixHint}
+    {file}:{line} — Fix: {suggestion}
     Refs: {refs (if present)}
 ```
 
@@ -170,12 +210,14 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    - Verdict PASS with 0 issues → `"done"`
    - Verdict PASS with warnings/suggestions → `"reviewed"`
    - Verdict FAIL → `"review-failed"`
-4. Write back (read-modify-write)
-5. Release lock: delete `{workDocDir}/.progress/.lock`
+4. Reset fix round counter: set `pipeline.fix.round` to `0` (clear stale round counter from previous review-fix cycles so that a new fix cycle starts fresh)
+5. Write back (read-modify-write)
+
+If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock`.
 
 ### Step 7: Suggest Next Action
 
-- **PASS (no issues)**: Pipeline complete. Suggest `/backend-springboot-plugin:be-commit`
+- **PASS (no issues)**: Pipeline complete. Stage all implementation changes (`git add`), then run `/backend-springboot-plugin:be-commit`
 - **PASS (with warnings/suggestions)**: Suggest `/backend-springboot-plugin:be-fix {feature}` to clean up, or proceed to commit
 - **FAIL**: Suggest `/backend-springboot-plugin:be-fix {feature}` to address critical/warning issues
 

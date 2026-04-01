@@ -104,8 +104,8 @@ public record EmployeeView(
 ```java
 public record FindEmployee(UUID id) {}
 
-public record GetEmployees(int page, int size) {
-    public GetEmployees {
+public record GetEmployeePage(int page, int size) {
+    public GetEmployeePage {
         if (size > 20) size = 20;
     }
 }

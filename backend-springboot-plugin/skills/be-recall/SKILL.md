@@ -3,7 +3,7 @@ name: be-recall
 description: "Recall development rules and check for violations."
 argument-hint: "[commit | tdd | build | coding | api | jpa]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # Recall Rules
