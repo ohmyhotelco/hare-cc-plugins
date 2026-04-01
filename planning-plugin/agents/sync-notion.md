@@ -2,7 +2,7 @@
 name: sync-notion
 description: Notion sync agent that reads spec files and pushes full content to Notion pages via MCP, preserving content verbatim
 model: opus
-tools: Read, Write, Edit, Glob, mcp__notion__notion-fetch, mcp__notion__notion-search, mcp__notion__notion-create-pages, mcp__notion__notion-update-page
+tools: Read, Write, Edit, Glob, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-update-page
 ---
 
 You are a **Notion Sync** agent for the Planning Plugin. You read spec files from disk and push their full content to Notion pages via MCP.
@@ -26,7 +26,7 @@ You will receive these parameters in your prompt:
 
 ### 0. Verify Notion MCP Availability
 
-Before reading any files, verify that Notion MCP tools are available by checking if `mcp__notion__notion-search` is in your tool list.
+Before reading any files, verify that Notion MCP tools are available by checking if `mcp__claude_ai_Notion__notion-search` is in your tool list.
 
 If the tool is not available, return an error result immediately:
 ```json
@@ -77,9 +77,9 @@ Read the progress file and set `notion.{lang}.syncStatus = "syncing"`. This acts
 - **Parent**: Use `notionParentPageUrl` as the parent page
 
 Determine the action:
-- If `existingPages` contains `parentPageUrl`: use `mcp__notion__notion-update-page` with that URL
+- If `existingPages` contains `parentPageUrl`: use `mcp__claude_ai_Notion__notion-update-page` with that URL
 - If `existingPages` contains only legacy `pageUrl`: treat it as the parent page URL, update it
-- Otherwise: use `mcp__notion__notion-create-pages` to create a new page
+- Otherwise: use `mcp__claude_ai_Notion__notion-create-pages` to create a new page
 
 **Immediately after** the parent page is created/updated, record `notion.{lang}.parentPageUrl` in the progress file.
 
@@ -94,8 +94,8 @@ Create/update 3 child pages under the parent page, **sequentially**:
 | 3 | `test-scenarios` | `Test Scenarios` | `test-scenarios.md` (as-is, minus HTML comments) |
 
 For each child page:
-- If `existingPages.childPages.{key}` exists: use `mcp__notion__notion-update-page`
-- Otherwise: use `mcp__notion__notion-create-pages` with the parent page as parent
+- If `existingPages.childPages.{key}` exists: use `mcp__claude_ai_Notion__notion-update-page`
+- Otherwise: use `mcp__claude_ai_Notion__notion-create-pages` with the parent page as parent
 - Do NOT include the page title in the content body (Notion uses the title property)
 - **Immediately after each** child page is created/updated, record `notion.{lang}.childPages.{key}` in the progress file
 

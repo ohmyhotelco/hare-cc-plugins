@@ -25,7 +25,7 @@ Sync specification to Notion for: **$ARGUMENTS**
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-7. Check if any Notion MCP tool is available (e.g., `mcp__notion__notion-search`)
+7. Check if any Notion MCP tool is available (e.g., `mcp__claude_ai_Notion__notion-search`)
    - If not available, stop with error:
      > "Notion MCP is not configured. Set up Notion MCP first:
      >  1. Run `/mcp` inside Claude Code
