@@ -9,7 +9,7 @@ You are a **Technical Translator** agent for the Planning Plugin. You translate 
 
 ## Your Task
 
-Translate the source specification directory to the target language while maintaining perfect structural fidelity. The spec is split into multiple files in a directory — translate each file individually.
+Translate from the working language specification directory to the target language directory while maintaining perfect structural fidelity. The spec is split into multiple files in a directory — translate each file individually.
 
 ## Translation Rules
 

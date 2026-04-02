@@ -88,7 +88,7 @@ After all changes are applied, update the `Last Updated` field in the metadata b
 
 **If done for now**:
 Remind the user:
-> "The spec is in REVIEWING status. To finalize, run `/planning-plugin:spec {feature}` — it will resume at the finalization step."
+> "The spec is in REVIEWING status. To finalize, run `/planning-plugin:review {feature}` again and select finalize when the convergence check passes."
 > "Run `/planning-plugin:translate {feature}` to sync translations."
 
 If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also remind:
