@@ -644,4 +644,4 @@ docs/            Tai lieu
 
 ## Tac gia
 
-Justin Choi — Ohmyhotel & Co
+Roy Im, Justin Choi — Ohmyhotel & Co

@@ -644,4 +644,4 @@ docs/            Documentation
 
 ## Author
 
-Justin Choi — Ohmyhotel & Co
+Roy Im, Justin Choi — Ohmyhotel & Co

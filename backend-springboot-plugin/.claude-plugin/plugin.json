@@ -3,7 +3,7 @@
   "version": "0.3.1",
   "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, and security audit for Claude Code",
   "author": {
-    "name": "Justin Choi"
+    "name": "Roy Im, Justin Choi"
   },
   "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline", "security", "spec-driven", "planning-plugin"]
 }

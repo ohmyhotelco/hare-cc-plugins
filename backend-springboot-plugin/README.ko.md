@@ -644,4 +644,4 @@ docs/            문서
 
 ## 작성자
 
-Justin Choi — Ohmyhotel & Co
+Roy Im, Justin Choi — Ohmyhotel & Co
