@@ -19,13 +19,13 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
-      "version": "1.0.4",
+      "version": "1.0.6",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./frontend-react-plugin/",
       "category": "development",
-      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next", "routing", "vitest", "performance", "accessibility", "composition", "codegen", "spec-driven", "msw", "mock-first", "tdd", "testing", "e2e", "agent-browser", "debug", "code-review", "fix"]
+      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next", "routing", "vitest", "performance", "accessibility", "composition", "codegen", "spec-driven", "msw", "mock-first", "tdd", "testing", "e2e", "agent-browser", "debug", "code-review", "fix", "security", "clean-code", "test-review"]
     },
     {
       "name": "homepage-plugin",

@@ -96,12 +96,14 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
   - `tdd-cycle-runner` — strict Red-Green TDD cycle per phase (api, store, component, page)
   - `integration-generator` — routes + i18n + MSW global setup + full verification
   - `spec-reviewer` — spec compliance review
-  - `quality-reviewer` — code quality review
+  - `quality-reviewer` — code quality review (pipeline and standalone modes)
+  - `security-auditor` — frontend security vulnerability audit (XSS, auth tokens, secrets, client-side data safety)
+  - `test-reviewer` — test quality audit (assertion patterns, Testing Library, async, coverage, timing, anti-patterns)
   - `review-fixer` — TDD-disciplined review issue fixer (supports review and E2E fix modes)
   - `delta-modifier` — incremental spec change applier (modifies existing files per delta-plan.json)
   - `e2e-test-runner` — E2E test execution via agent-browser
   - `debugger` — systematic debugging
-- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`, `/frontend-react-plugin:fe-progress` (pipeline status dashboard)
+- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`, `/frontend-react-plugin:fe-progress` (pipeline status dashboard), `/frontend-react-plugin:fe-security` (security audit), `/frontend-react-plugin:fe-clean-code` (clean code audit), `/frontend-react-plugin:fe-test-review` (test quality audit)
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`) — installed by init
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
 - **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (E2E testing patterns with agent-browser)
@@ -226,6 +228,20 @@ Key files:
 - E2E report: `docs/specs/{feature}/.implementation/frontend/e2e-report.json`
 - Delta plan: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` (active delta, archived as `delta-plan.{timestamp}.json` after execution)
 
+### Standalone Audit Skills
+
+Independent audit skills that run outside the pipeline. No progress tracking, no lock files, no feature context required.
+
+| Skill | Purpose |
+|-------|---------|
+| `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
+| `/frontend-react-plugin:fe-clean-code` | Clean code audit (7 quality dimensions — standalone mode of quality-reviewer) |
+| `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing) |
+
+Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`
+
+These skills are completely independent of the pipeline (fe-plan → fe-gen → fe-verify → fe-review → fe-fix → fe-e2e). They can be run at any time on any code, not just pipeline-generated features.
+
 ### State File Safety
 
 State files (progress, generation-state, review-report, fix-report, debug-report) are critical for pipeline continuity.
@@ -236,6 +252,8 @@ State files (progress, generation-state, review-report, fix-report, debug-report
 3. Write the complete merged object
 
 **Lock file**: Skills that modify state files must acquire `docs/specs/{feature}/.implementation/frontend/.lock` before starting work. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+
+**Exception**: `fe-debug` intentionally does NOT acquire a lock — it serves as an interrupt tool usable at any pipeline stage, even when another operation holds the lock. The debugger writes `debug-report.json` and updates `implementation.status` without locking.
 
 - Progress state machine:
   ```

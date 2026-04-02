@@ -443,7 +443,19 @@ Compares generated code against the functional spec. Evaluates requirement cover
 
 **Role**: Code quality review (7 dimensions).
 
-Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, and architecture. Only runs when spec review passes.
+Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, and architecture. Supports pipeline mode (invoked by fe-review after spec review passes) and standalone mode (invoked by fe-clean-code for ad-hoc audits).
+
+### Security Auditor
+
+**Role**: Frontend security vulnerability audit.
+
+Scans for XSS vectors (dangerouslySetInnerHTML, eval, innerHTML), auth token storage issues (localStorage), secrets exposure (hardcoded API keys), data safety issues (console logging PII, open redirects), and configuration concerns (CSP, CORS, source maps). Produces a text report with risk level assessment.
+
+### Test Reviewer
+
+**Role**: Test quality audit (7 dimensions).
+
+Evaluates assertion quality, Testing Library best practices, async patterns, test structure, coverage analysis, timing gates (optional — measures actual test execution times via vitest), and anti-patterns. Produces a text report with scored dimensions.
 
 ### Review Fixer
 
@@ -482,6 +494,20 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike l
 | E2E | `/frontend-react-plugin:fe-e2e` | Run E2E browser tests via agent-browser |
 | Debug | `/frontend-react-plugin:fe-debug` | Systematic debugging with hypothesis testing and escalation |
 | Progress | `/frontend-react-plugin:fe-progress` | Show implementation pipeline status for all or a specific feature |
+
+### Standalone Audit Skills
+
+Independent audit skills that run outside the pipeline. No progress tracking, no lock files, no feature context required.
+
+| Skill | Command | Description |
+|-------|---------|-------------|
+| Security | `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
+| Clean Code | `/frontend-react-plugin:fe-clean-code` | Clean code audit (7 quality dimensions — standalone mode of quality-reviewer) |
+| Test Review | `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing gates) |
+
+Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`
+
+These skills can be run at any time on any code, not just pipeline-generated features.
 
 ### External Skills (installed by init)
 
@@ -646,10 +672,10 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 ```
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
-                 integration-generator, spec-reviewer, quality-reviewer, review-fixer,
-                 delta-modifier, e2e-test-runner, debugger)
+                 integration-generator, spec-reviewer, quality-reviewer, security-auditor,
+                 test-reviewer, review-fixer, delta-modifier, e2e-test-runner, debugger)
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
-                 fe-e2e, fe-debug, fe-progress)
+                 fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)

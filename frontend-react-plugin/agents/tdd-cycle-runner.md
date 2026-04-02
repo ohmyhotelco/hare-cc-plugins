@@ -27,6 +27,8 @@ The coordinator skill provides:
 - `mockFirst` — `true` | `false`
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `skills` — list of external skill paths to read (from plan's buildOrder)
+- `deltaMode` — (optional) `true` when invoked during delta generation. Restricts generation to `scopedFiles` only.
+- `scopedFiles` — (optional) list of file paths to generate. Only provided when `deltaMode` is `true`. Files not in this list are treated as existing — import and reference them as-is.
 
 ## Process
 
@@ -37,6 +39,7 @@ The coordinator skill provides:
    - `store-tdd`: `stores[]`, `tests[type:"store"]`
    - `component-tdd`: `components[]`, `tests[type:"component"]`
    - `page-tdd`: `pages[]`, `tests[type:"page"]`
+   - **Delta mode filter**: if `deltaMode` is `true`, filter the extracted entries to include ONLY files listed in `scopedFiles`. All other files in the plan for this phase are treated as existing — import and reference them as-is, but do NOT generate stubs, tests, or implementations for them.
 
 2. **TDD Rules** — read `templates/tdd-rules.md` → internalize all rules for this cycle
 

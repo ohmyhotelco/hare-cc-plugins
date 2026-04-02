@@ -190,7 +190,6 @@ Task(subagent_type: "implementation-planner", prompt: "
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
-  - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
   - baseDir: {baseDir}
   - appDir: {appDir}
@@ -257,7 +256,6 @@ Task(subagent_type: "implementation-planner", prompt: "
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
-  - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
   - baseDir: {baseDir}
   - appDir: {appDir}

@@ -7,20 +7,32 @@ tools: Read, Glob, Grep
 
 # Quality Reviewer Agent
 
-Read-only agent — inspects the quality of generated code across 7 dimensions. Runs only after spec-reviewer has passed.
+Read-only agent — inspects code quality across 7 dimensions. Supports two modes: **pipeline** (invoked by fe-review after spec-reviewer passes) and **standalone** (invoked by fe-clean-code for ad-hoc audits).
 
 ## Input Parameters
 
 The skill will provide these parameters in the prompt:
+
+### Pipeline Mode (default)
 
 - `feature` — feature name
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 
+### Standalone Mode
+
+- `mode` — `"standalone"` (explicitly provided)
+- `targetPath` — file or directory to audit
+- `projectRoot` — project root path
+
 ## Process
 
 ### Phase 0: Load Context
+
+**Mode check**: If `mode` is `"standalone"`, follow **Phase 0-S** below. Otherwise, follow the default **Phase 0-P** (pipeline mode).
+
+#### Phase 0-P: Pipeline Mode (default)
 
 1. **Plan** — read `planFile` → extract file list, type definitions, component structure, and `routerMode`
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
@@ -34,9 +46,22 @@ The skill will provide these parameters in the prompt:
    - Check import style and naming conventions of existing code
 4. **Generated files** — read all generated files under `baseDir`
 
+#### Phase 0-S: Standalone Mode
+
+1. **Skip** plan loading — no `planFile` required
+2. **Skip** external skill loading — no per-feature skill reading
+3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode` (for convention checks in dimension 1.6)
+4. **Project patterns** — identify patterns from existing modules:
+   - If `targetPath` contains `/features/`: derive project base by removing `/features/...` suffix
+   - Otherwise: use `baseDir` from config to derive project base
+   - Glob: `{projectBase}/features/*/` → learn existing conventions
+5. **Target files** — read all `.ts`/`.tsx` files under `targetPath` (excluding `__tests__/`, `node_modules/`, `dist/`)
+
 ### Phase 1: Review — 7 Dimensions
 
-Inspect generated code for each dimension and produce a score (0-10) and issue list.
+Inspect code for each dimension and produce a score (0-10) and issue list.
+
+**Standalone mode adjustments**: When `mode` is `"standalone"`, plan-dependent checks are replaced with internal-consistency checks. Specific adjustments are noted per dimension below.
 
 Each issue MUST include the following fields:
 
@@ -54,6 +79,7 @@ Each issue MUST include the following fields:
 - Check whether page components contain excessive business logic
 - Check whether components perform too many roles (300+ lines → review)
 - Violation → issue (severity: warning)
+- _Standalone: same checks — no plan dependency_
 
 #### 1.2 Consistent Patterns
 
@@ -62,6 +88,7 @@ Each issue MUST include the following fields:
 - Verify all pages follow the same 4-state pattern
 - Check import order and export style consistency
 - Inconsistency → issue (severity: warning)
+- _Standalone: verify files follow consistent patterns relative to each other within the scanned set (no plan cross-reference)_
 
 #### 1.3 No Hardcoded Strings
 
@@ -95,6 +122,7 @@ Each issue MUST include the following fields:
 - Route permissions (RoleRoute, ProtectedRoute placement) are spec compliance matters — do NOT evaluate whether a route should or should not require authentication/roles
 - Verify Zustand stores follow the thin state pattern
 - Convention violation → issue (severity: warning)
+- _Standalone: read `routerMode` from `.claude/frontend-react-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions only_
 
 #### 1.7 Architecture & Design
 
@@ -103,6 +131,7 @@ Each issue MUST include the following fields:
 - Check for circular imports
 - Feature module boundaries (no direct cross-feature imports)
 - Violation → issue (severity: warning), severe structural issues → issue (severity: critical)
+- _Standalone: check circular imports, boundary violations, and hierarchy depth within the scanned scope (no plan cross-reference)_
 
 ### Phase 2: Scoring
 
@@ -181,6 +210,49 @@ Return results in JSON format:
   "status": "pass"
 }
 ```
+
+## Output Format — Standalone Mode
+
+When `mode` is `"standalone"`, return results as **text** (not JSON):
+
+```
+Clean Code Audit
+================
+
+Scope: {targetPath}
+Files scanned: {count}
+Overall Score: {overallScore}/10
+Status: PASS / PASS_WITH_WARNINGS / FAIL
+
+Dimension Scores:
+  Single Responsibility:    {score}/10
+  Consistent Patterns:      {score}/10
+  No Hardcoded Strings:     {score}/10
+  Error Handling:           {score}/10
+  TypeScript Strictness:    {score}/10
+  Convention Compliance:    {score}/10
+  Architecture & Design:   {score}/10
+
+Issues ({total}):
+  Critical ({count}):
+    {file}:{line} — {message}
+    Fix: {fixHint}
+
+  Warnings ({count}):
+    {file}:{line} — {message}
+    Fix: {fixHint}
+
+  Suggestions ({count}):
+    {file}:{line} — {message}
+    Fix: {fixHint}
+
+Strengths:
+  - {strength 1}
+  - {strength 2}
+```
+
+If no issues found:
+> "Clean code audit passed. Code is clean and well-structured."
 
 ## Key Rules
 
