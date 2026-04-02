@@ -107,7 +107,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (E2E testing patterns with agent-browser)
 
 ### Communication Language
-- Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
+- Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -223,6 +223,7 @@ Key files:
 - Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
 - Review report: `docs/specs/{feature}/.implementation/frontend/review-report.json`
 - Fix report: `docs/specs/{feature}/.implementation/frontend/fix-report.json`
+- E2E report: `docs/specs/{feature}/.implementation/frontend/e2e-report.json`
 - Delta plan: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` (active delta, archived as `delta-plan.{timestamp}.json` after execution)
 
 ### State File Safety

@@ -23,6 +23,8 @@ fi
 # Read configuration values
 ROUTER_MODE=$(jq -r '.routerMode // "declarative"' "$CONFIG_FILE" 2>/dev/null || echo "declarative")
 MOCK_FIRST=$(jq -r '.mockFirst // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
+BASE_DIR=$(jq -r '.baseDir // "src"' "$CONFIG_FILE" 2>/dev/null || echo "src")
+APP_DIR=$(jq -r '.appDir // "."' "$CONFIG_FILE" 2>/dev/null || echo ".")
 
 # Skill installation checks
 SKILLS=(
@@ -52,6 +54,8 @@ if [ "$MOCK_FIRST" = "true" ]; then
 else
   echo "  Mock-first: disabled"
 fi
+echo "  Base dir: $BASE_DIR"
+echo "  App dir: $APP_DIR"
 if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
   echo "  Warning: Missing skills:"
   for skill in "${MISSING_SKILLS[@]}"; do
@@ -103,12 +107,18 @@ if [ -d "$SPECS_DIR" ]; then
       WORKING_LANG=$(jq -r '.workingLanguage // "en"' "$PROGRESS_FILE" 2>/dev/null || echo "en")
       SPEC_DIR="$SPECS_DIR/$FEATURE/$WORKING_LANG"
       if [ -d "$SPEC_DIR" ]; then
-        # Convert generatedAt ISO timestamp to epoch for comparison
-        GENERATED_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${GENERATED_AT%%.*}" "+%s" 2>/dev/null || echo "0")
+        # Convert generatedAt ISO timestamp to epoch for comparison (cross-platform)
+        if date -j -f "%Y-%m-%dT%H:%M:%S" "${GENERATED_AT%%.*}" "+%s" >/dev/null 2>&1; then
+          # macOS
+          GENERATED_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${GENERATED_AT%%.*}" "+%s" 2>/dev/null || echo "0")
+        else
+          # Linux (GNU date)
+          GENERATED_EPOCH=$(date -d "${GENERATED_AT%%.*}" "+%s" 2>/dev/null || echo "0")
+        fi
         SPEC_STALE=false
         for SPEC_FILE in "$SPEC_DIR"/*.md; do
           [ -f "$SPEC_FILE" ] || continue
-          SPEC_EPOCH=$(stat -f "%m" "$SPEC_FILE" 2>/dev/null || echo "0")
+          SPEC_EPOCH=$(stat -f "%m" "$SPEC_FILE" 2>/dev/null || stat -c "%Y" "$SPEC_FILE" 2>/dev/null || echo "0")
           if [ "$SPEC_EPOCH" -gt "$GENERATED_EPOCH" ]; then
             SPEC_STALE=true
             break
@@ -131,16 +141,25 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Info: [$FEATURE] Verification passed. Run /frontend-react-plugin:fe-review $FEATURE."
         ;;
       done)
-        # Check if E2E has been run
+        # Check if E2E has been run and its result
         E2E_STATUS=$(jq -r '.implementation.e2e.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
         if [ -z "$E2E_STATUS" ]; then
           echo "  Info: [$FEATURE] Review passed. Run /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
-        else
+        elif [ "$E2E_STATUS" = "pass" ]; then
           echo "  Info: [$FEATURE] Pipeline complete."
+        else
+          echo "  Info: [$FEATURE] Review passed but E2E has failures (status: $E2E_STATUS). Run /frontend-react-plugin:fe-fix $FEATURE then /frontend-react-plugin:fe-e2e $FEATURE."
         fi
         ;;
       reviewed)
-        echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
+        E2E_STATUS=$(jq -r '.implementation.e2e.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
+        if [ -z "$E2E_STATUS" ]; then
+          echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
+        elif [ "$E2E_STATUS" = "pass" ]; then
+          echo "  Info: [$FEATURE] Reviewed with warnings, E2E passed. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings."
+        else
+          echo "  Info: [$FEATURE] Reviewed with warnings, E2E has failures (status: $E2E_STATUS). Run /frontend-react-plugin:fe-fix $FEATURE then /frontend-react-plugin:fe-e2e $FEATURE."
+        fi
         ;;
       gen-failed)
         echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:fe-gen $FEATURE to retry."

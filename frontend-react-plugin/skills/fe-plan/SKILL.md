@@ -193,6 +193,7 @@ Task(subagent_type: "implementation-planner", prompt: "
   - sharedLayoutIds: [{sharedLayoutIds or "none"}]
   - projectRoot: {cwd}
   - baseDir: {baseDir}
+  - appDir: {appDir}
   - incrementalMode: true
   - existingPlanFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - deltaOutputFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
@@ -289,10 +290,18 @@ Implementation Plan for '{feature}':
     Routes:      {entry count} entries under {parentRoute}
     i18n:        {namespace} namespace ({language count} languages)
     Mocks:       {fixture count} fixtures, {handler count} handler sets (MSW v2)
+    Tests:       {testFiles} test files, {testCases} test cases
+    E2E:         {e2eScenarios} scenarios
 
   shadcn/ui: {missing count} components need installation ({missing list})
 
-  Build order: shared-layouts → types → api/stores → mocks → components → pages → routes/i18n/msw-setup
+  TDD Phases:
+    1. Foundation     — shared-layouts + types + mocks (infra)
+    2. API TDD        — RED: api tests → GREEN: api services
+    3. Store TDD      — RED: store tests → GREEN: stores
+    4. Component TDD  — RED: component tests → GREEN: components
+    5. Page TDD       — RED: page tests → GREEN: pages
+    6. Integration    — routes + i18n + MSW setup + barrel
 
   Plan saved to: docs/specs/{feature}/.implementation/frontend/plan.json
   Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}

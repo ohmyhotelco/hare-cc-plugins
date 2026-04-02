@@ -117,12 +117,12 @@ Based on `implementation.status`, display the recommended next action:
 | `gen-failed` | "Run `/frontend-react-plugin:fe-gen {feature}` to retry generation." |
 | `verified` | "Run `/frontend-react-plugin:fe-review {feature}`." |
 | `verify-failed` | "Run `/frontend-react-plugin:fe-debug {feature}` or review errors." |
-| `reviewed` | "Run `/frontend-react-plugin:fe-fix {feature}` to address warnings, or `/frontend-react-plugin:fe-e2e {feature}` for E2E." |
+| `reviewed` | Check `implementation.e2e.status`: if absent -> "Run `/frontend-react-plugin:fe-fix {feature}` to address warnings, or `/frontend-react-plugin:fe-e2e {feature}` for E2E."; if `pass` -> "Reviewed with warnings, E2E passed. Run `/frontend-react-plugin:fe-fix {feature}` to address warnings."; if `partial` or `fail` -> "Run `/frontend-react-plugin:fe-fix {feature}` then `/frontend-react-plugin:fe-e2e {feature}`." |
 | `review-failed` | "Run `/frontend-react-plugin:fe-fix {feature}`, then `/frontend-react-plugin:fe-review {feature}`." |
-| `fixing` | "Run `/frontend-react-plugin:fe-review {feature}` to re-review after fixes." |
+| `fixing` | Check report file timestamps: if `e2e-report.json` exists and is newer than `review-report.json` -> "Run `/frontend-react-plugin:fe-e2e {feature}` to re-run E2E after fixes."; if fix-report.json has regen-required entries -> "Run `/frontend-react-plugin:fe-gen {feature}` then `/frontend-react-plugin:fe-review {feature}`."; otherwise -> "Run `/frontend-react-plugin:fe-review {feature}` to re-review after fixes." |
 | `resolved` | "Run `/frontend-react-plugin:fe-verify {feature}` or `/frontend-react-plugin:fe-review {feature}`." |
 | `escalated` | "Manual intervention needed. See fix-report.json or debug-report.json." |
-| `done` | "Pipeline complete. Run `/frontend-react-plugin:fe-e2e {feature}` if E2E not yet run." |
+| `done` | Check `implementation.e2e.status`: if absent -> "Review passed. Run `/frontend-react-plugin:fe-e2e {feature}` for E2E testing."; if `pass` -> "Pipeline complete."; if `partial` or `fail` -> "Review passed but E2E has failures. Run `/frontend-react-plugin:fe-fix {feature}` then `/frontend-react-plugin:fe-e2e {feature}`." |
 
 ### If no feature name is provided:
 

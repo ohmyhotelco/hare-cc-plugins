@@ -62,6 +62,20 @@ Run TypeScript, ESLint, and Vite build verification on generated code.
      > "Warning: {count} planned files not found:"
      > {list of missing files}
 
+### Lock Acquire
+
+Check `docs/specs/{feature}/.implementation/frontend/.lock`:
+- If file exists:
+  - Read `lockedAt` and `operation`
+  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
+  - Otherwise:
+    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
+    - Stop here.
+- Create lock file:
+  ```json
+  { "lockedAt": "{ISO timestamp}", "operation": "fe-verify" }
+  ```
+
 ### Step 2: Run Verification
 
 Run the following 3 verifications sequentially.
@@ -187,3 +201,7 @@ Note: Set `implementation.status` to `"verified"` (all pass) or `"verify-failed"
 ```
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `review`, `fix`, `debug`), then write back the complete file.
+
+### Lock Release
+
+Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
