@@ -77,13 +77,15 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-7. **Code change detection** — extract `timestamp` from `review-report.json`:
-   - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/features/{feature}/` and get its mtime
-   - If any source file is newer than the review-report.json `timestamp`:
-     > "Warning: Source files have been modified since the last review ({timestamp})."
+7. **Code change detection** — compare source file timestamps against the active report:
+   - Determine which report to check: if `fixMode` is `"e2e"` → use `e2e-report.json` `timestamp`; otherwise → use `review-report.json` `timestamp`
+   - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/` and get its mtime
+   - If any source file is newer than the active report's `timestamp`:
+     > "Warning: Source files have been modified since the last {fixMode === 'e2e' ? 'E2E run' : 'review'} ({timestamp})."
      > "Already-resolved issues may exist. The fixer will pre-verify each issue before applying fixes."
-     > "To run a fresh review instead: `/frontend-react-plugin:fe-review {feature}`"
-     > "Continue with the current review report?"
+     > {If review fix mode:} "To run a fresh review instead: `/frontend-react-plugin:fe-review {feature}`"
+     > {If E2E fix mode:} "To re-run E2E instead: `/frontend-react-plugin:fe-e2e {feature}`"
+     > "Continue with the current report?"
      - If the user declines, stop here.
 
 8. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
@@ -92,8 +94,11 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
      - If the user declines, stop here.
 
-9. Read `review-report.json` → validate structure and verify it contains issues:
-   a. **Structural validation**: Verify `specReview.dimensions` exists and is an object where each key (e.g., `requirement_coverage`) contains an `issues[]` array. If `qualityReview` is not null, verify its `dimensions` follows the same structure.
+9. **Report validation** — validate the active report based on `fixMode`:
+
+   **Review fix mode** (`fixMode` is `"review"`):
+   a. Read `review-report.json` → validate structure:
+      - Verify `specReview.dimensions` exists and is an object where each key (e.g., `requirement_coverage`) contains an `issues[]` array. If `qualityReview` is not null, verify its `dimensions` follows the same structure.
    b. If structural validation fails (missing `dimensions` object or missing `issues[]` arrays within dimensions):
      > "Review report has incomplete structure — detailed issue data is missing."
      > "Please re-run `/frontend-react-plugin:fe-review {feature}` to generate a complete report."
@@ -101,6 +106,14 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
    c. Count total issues by iterating each dimension's `issues[]` array (do NOT rely on top-level `totalIssues` count alone).
    d. If no issues found (all dimensions have 0 issues):
      > "No issues found in the review report. Nothing to fix."
+     - Stop here.
+
+   **E2E fix mode** (`fixMode` is `"e2e"`):
+   a. Read `e2e-report.json` → validate structure:
+      - Verify `scenarios` array exists and is non-empty
+      - Verify at least one scenario has `status: "fail"`
+   b. If no failed scenarios found:
+     > "No E2E failures found in the report. Nothing to fix."
      - Stop here.
 
 ### Lock Acquire
@@ -119,7 +132,9 @@ Check `docs/specs/{feature}/.implementation/frontend/.lock`:
 
 ### Step 2: Parse & Display Issue Summary
 
-Parse the review report and display a summary:
+Parse the active report and display a summary based on `fixMode`:
+
+**Review fix mode:**
 
 ```
 Review Issues for '{feature}':
@@ -137,8 +152,21 @@ Review Issues for '{feature}':
   Total: {totalIssues} issues
 ```
 
+**E2E fix mode:**
+
+```
+E2E Issues for '{feature}':
+
+  Failed Scenarios: {failedCount}/{totalCount}
+    {id}: {name} — {stepFailureCount} step failures
+    ...
+
+  Total: {totalFailedSteps} step failures across {failedCount} scenarios
+```
+
 Ask user to confirm:
-> "Proceed with fixing {totalIssues} issues?"
+> {Review mode:} "Proceed with fixing {totalIssues} issues?"
+> {E2E mode:} "Proceed with fixing {failedCount} failed E2E scenarios?"
 
 If the user declines, stop here.
 

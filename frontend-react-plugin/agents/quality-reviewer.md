@@ -92,7 +92,7 @@ Each issue MUST include the following fields:
 - Verify conditional className handling uses the `cn()` utility
 - Verify `react-router` import (not `react-router-dom`)
 - Verify routing patterns match the rules from `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (loaded in Phase 0) — import style, route structure, NavLink patterns only (NOT permission/auth decisions)
-- Route permissions (RoleGuard, ProtectedRoute placement) are spec compliance matters — do NOT evaluate whether a route should or should not require authentication/roles
+- Route permissions (RoleRoute, ProtectedRoute placement) are spec compliance matters — do NOT evaluate whether a route should or should not require authentication/roles
 - Verify Zustand stores follow the thin state pattern
 - Convention violation → issue (severity: warning)
 

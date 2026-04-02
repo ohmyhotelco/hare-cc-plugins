@@ -59,7 +59,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    - `screens.md` → screen definitions, components, error handling
    - `test-scenarios.md` → test scenarios (TS-nnn)
 4. **External skills** — read each SKILL.md as needed:
-   - `vitest` → test patterns (for TDD fixes)
+   - `.claude/skills/vitest/SKILL.md` → test patterns (for TDD fixes)
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
    - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
    - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules

@@ -311,11 +311,11 @@ The planner agent analyzes:
 
 **What happens**:
 1. Launches the debugger agent with a 4-phase methodology:
-   - **Observe**: Gather evidence (error messages, logs, reproduction steps)
-   - **Hypothesize**: Form ranked hypotheses with confidence scores
-   - **Test**: Verify each hypothesis systematically
-   - **Fix**: Apply TDD fix with verification
-2. If unresolvable, escalates with detailed diagnosis
+   - **Root Cause Investigation**: Analyze errors, trace code paths, compare against spec/plan
+   - **Pattern Analysis**: Search for same-pattern bugs, classify issue type (generation-bug, plan-bug, spec-bug, environment)
+   - **Hypothesis Testing**: Formulate up to 3 hypotheses and test sequentially (3-strike escalation)
+   - **Implementation**: Apply minimal TDD fix with verification
+2. If all 3 hypotheses fail, escalates with structural analysis and recommendations
 
 ---
 
@@ -467,7 +467,7 @@ Drives headless Chromium through multi-page user flows defined in plan.json. Use
 
 **Role**: Systematic debugging with 4-phase methodology.
 
-Observe → Hypothesize → Test → Fix. Maintains ranked hypothesis list with confidence scores. Escalates if unresolvable.
+Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike limit) → Implementation. Classifies issues by type (generation-bug, plan-bug, spec-bug, environment). Escalates after 3 failed hypotheses with structural analysis.
 
 ## Skills
 
@@ -567,7 +567,7 @@ planned → generated → verified → reviewed → done
 
 ### State File Safety
 
-- **Lock mechanism**: Skills that modify state files acquire `.lock` before starting. Prevents concurrent execution of fe-gen/fe-fix/fe-review on the same feature. Stale locks (>30 min) are auto-removed.
+- **Lock mechanism**: Skills that modify state files acquire `.lock` before starting. Prevents concurrent execution of fe-gen/fe-verify/fe-review/fe-fix/fe-e2e on the same feature. Stale locks (>30 min) are auto-removed.
 - **Read-Modify-Write rule**: Always read latest file content before writing. Merge only changed fields — preserve all existing fields.
 - **Phase timestamps**: Each TDD phase records `completedAt` for precise resume and plan freshness detection.
 - **Staleness detection**: fe-fix warns when source files changed since last review. fe-review warns when spec changed since generation.
@@ -585,11 +585,14 @@ Runs when a Claude Code session starts. Checks for:
   - `planned` → suggests `fe-gen`
   - `generated` → suggests `fe-verify` or `fe-review`
   - `gen-failed` → suggests retry `fe-gen`
+  - `verified` → suggests `fe-review`
   - `verify-failed` → suggests `fe-debug`
+  - `reviewed` → suggests `fe-fix` (warnings) or `fe-e2e` (with E2E awareness)
   - `review-failed` → suggests `fe-fix` then `fe-review`
-  - `fixing` → suggests `fe-review` (or `fe-gen` if regen required)
+  - `fixing` → suggests `fe-review` (or `fe-gen` if regen required, or `fe-e2e` if E2E fixes applied)
+  - `resolved` → suggests `fe-verify` or `fe-review`
   - `escalated` → warns about manual intervention needed
-  - `done` → reports completion
+  - `done` → reports completion (with E2E awareness)
 
 ### PostToolUse — `validate-implementation.sh`
 
@@ -598,7 +601,7 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 
 ## Communication Language
 
-Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-debug) read `workingLanguage` from the progress file. All user-facing output (summaries, questions, feedback, next-step guidance) is in the working language.
+Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) read `workingLanguage` from the progress file. All user-facing output (summaries, questions, feedback, next-step guidance) is in the working language.
 
 Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 

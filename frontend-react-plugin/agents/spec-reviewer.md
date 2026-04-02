@@ -23,12 +23,12 @@ The skill will provide these parameters in the prompt:
 ### Phase 0: Load Context
 
 1. **Plan** — Read `planFile` → extract file list, types, API, pages, components, i18n, routes
-2. **External skills** — Reference `.claude/skills/web-design-guidelines` for accessibility review criteria when evaluating the Accessibility dimension.
+2. **External skills** — Read `.claude/skills/web-design-guidelines/SKILL.md` → apply accessibility review criteria when evaluating the Accessibility dimension.
 3. **Spec** — Read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
    - `screens.md` → screen definitions, components, error handling
    - `test-scenarios.md` → test scenarios (TS-nnn)
-3. **Generated files** — Check the list of all generated files within `baseDir`
+4. **Generated files** — Check the list of all generated files within `baseDir`
 
 ### Phase 1: Review — 5 Dimensions
 
@@ -85,9 +85,9 @@ Each issue MUST include the following fields:
 
   | Context | plan.json field | What to check |
   |---------|----------------|---------------|
-  | Route guard | `routes.entries[].roles` | If present → `<RoleGuard>` required. If absent → no RoleGuard. |
-  | Page access | `pages[].permissions` | If `[]` (empty) → accessible to all authenticated users. |
-  | Menu visibility | `navigation.items[].roles` | Sidebar display only — does NOT imply route-level restriction. |
+  | Route guard | `pages[].permissions` | If non-empty array → `<RoleRoute>` required on the corresponding route. If `[]` or absent → no RoleRoute. |
+  | Route auth | `routes.entries[].auth` | If `true` → `<ProtectedRoute>` required. |
+  | Menu visibility | `sharedLayouts[].navigationItems[].roles` | Sidebar display only — does NOT imply route-level restriction. |
 
 - Do NOT infer route permissions from URL path naming (e.g., `/admin/` does not mean admin-only)
 - Do NOT infer route permissions from navigation roles — menu visibility ≠ page access
