@@ -1,27 +1,27 @@
 # Backend Spring Boot Plugin
 
-> **Ohmyhotel & Co** — Plugin Claude Code cho phat trien backend Spring Boot voi TDD
+> **Ohmyhotel & Co** — Plugin Claude Code cho phát triển backend Spring Boot với TDD
 
-## Gioi thieu
+## Giới thiệu
 
-Plugin Claude Code cung cap pipeline phat trien day du cho backend Spring Boot su dung kien truc CQRS va phuong phap Test-Driven Development (TDD) nghiem ngat. Bao gom toan bo vong doi tu CRUD scaffolding, trien khai TDD, xac minh, review code 6 chieu, va tu dong sua — tat ca voi theo doi trang thai pipeline.
+Plugin Claude Code cung cấp pipeline phát triển đầy đủ cho backend Spring Boot sử dụng kiến trúc CQRS và phương pháp Test-Driven Development (TDD) nghiêm ngặt. Bao gồm toàn bộ vòng đời từ CRUD scaffolding, triển khai TDD, xác minh, review code 6 chiều, và tự động sửa — tất cả với theo dõi trạng thái pipeline.
 
-Tinh nang chinh:
-- **CQRS scaffold** — Tao CRUD hoan chinh voi tach Command/Query (entity, repository, DTO, controller, migration) trong mot lenh
-- **TDD nghiem ngat** — Thuc thi chu ky RED-GREEN voi theo doi tai lieu cong viec va trien khai tung scenario
-- **Cong xac minh** — Xac minh build + checkstyle + test co cau truc (cong chat luong chi doc)
-- **Review da chieu** — API contract, JPA patterns, clean code, logging, test quality, architecture (+ spec compliance khi co plan.json) — voi tu dong sua bang TDD
-- **Theo doi pipeline** — May trang thai cap tinh nang + dashboard tien do, canh bao ha cap, phat hien thay doi
-- **An toan trang thai** — Co che khoa, doc-sua-ghi, cach ly subagent trong pipeline
-- **Audit doc lap** — JPA, API, clean code, logging, test quality, security audit su dung doc lap bat ky luc nao
+Tính năng chính:
+- **CQRS scaffold** — Tạo CRUD hoàn chỉnh với tách Command/Query (entity, repository, DTO, controller, migration) trong một lệnh
+- **TDD nghiêm ngặt** — Thực thi chu kỳ RED-GREEN với theo dõi tài liệu công việc và triển khai từng scenario
+- **Cổng xác minh** — Xác minh build + checkstyle + test có cấu trúc (cổng chất lượng chỉ đọc)
+- **Review đa chiều** — API contract, JPA patterns, clean code, logging, test quality, architecture (+ spec compliance khi có plan.json) — với tự động sửa bằng TDD
+- **Theo dõi pipeline** — Máy trạng thái cấp tính năng + dashboard tiến độ, cảnh báo hạ cấp, phát hiện thay đổi
+- **An toàn trạng thái** — Cơ chế khóa, đọc-sửa-ghi, cách ly subagent trong pipeline
+- **Audit độc lập** — JPA, API, clean code, logging, test quality, security audit sử dụng độc lập bất kỳ lúc nào
 
-## Tong quan kien truc
+## Tổng quan kiến trúc
 
 ```
 /backend-springboot-plugin:be-init → .claude/backend-springboot-plugin.json
         │
         ▼
-/backend-springboot-plugin:be-plan <feature>  (tuy chon, can planning-plugin spec)
+/backend-springboot-plugin:be-plan <feature>  (tùy chọn, cần planning-plugin spec)
         │
         └── backend-planner agent → plan.json
         │
@@ -32,411 +32,411 @@ Tinh nang chinh:
         ├── Command + CommandExecutor
         ├── Query + QueryProcessor
         ├── View DTO + Controller + Exception
-        └── Tai lieu cong viec voi test scenario
+        └── Tài liệu công việc với test scenario
         │
         ▼
 /backend-springboot-plugin:be-code <feature>
         │
-        └── implement agent (tung scenario):
-            ├── Chon scenario - [ ] tiep theo
-            ├── Viet test (RED) → xac nhan that bai
-            ├── Trien khai code toi thieu (GREEN) → xac nhan thanh cong
-            └── Danh dau - [x] → lap lai
+        └── implement agent (từng scenario):
+            ├── Chọn scenario - [ ] tiếp theo
+            ├── Viết test (RED) → xác nhận thất bại
+            ├── Triển khai code tối thiểu (GREEN) → xác nhận thành công
+            └── Đánh dấu - [x] → lặp lại
         │
         ▼
 /backend-springboot-plugin:be-verify <feature>
         │
-        ├── Kiem tra compilation
-        ├── Kiem tra checkstyle (neu bat)
-        ├── Kiem tra test
-        └── Kiem tra full build
+        ├── Kiểm tra compilation
+        ├── Kiểm tra checkstyle (nếu bật)
+        ├── Kiểm tra test
+        └── Kiểm tra full build
         │
         ▼
-Vong lap — Review & Fix:
+Vòng lặp — Review & Fix:
 /backend-springboot-plugin:be-review <feature>
         │
-        └── code-reviewer agent (6 chieu)
+        └── code-reviewer agent (6 chiều)
         │
-        ▼ (neu co issue)
+        ▼ (nếu có issue)
 /backend-springboot-plugin:be-fix <feature>
         │
         └── review-fixer agent
-            ├── TDD fix (thay doi hanh vi — test truoc)
-            └── Direct fix (thay doi co hoc — edit truc tiep)
+            ├── TDD fix (thay đổi hành vi — test trước)
+            └── Direct fix (thay đổi cơ học — edit trực tiếp)
         │
         ▼
-/backend-springboot-plugin:be-review <feature> (re-review cho den khi pass)
+/backend-springboot-plugin:be-review <feature> (re-review cho đến khi pass)
         │
         ▼
 /backend-springboot-plugin:be-commit
 
-Interrupt skills (dung o bat ky giai doan nao):
-  be-debug    — debug he thong (4 giai doan gia thuyet-kiem chung)
-  be-progress — dashboard trang thai pipeline
-  be-build    — build + tu dong sua (doc lap)
-  be-recall   — tham chieu quy tac va kiem tra vi pham
+Interrupt skills (dùng ở bất kỳ giai đoạn nào):
+  be-debug    — debug hệ thống (4 giai đoạn giả thuyết-kiểm chứng)
+  be-progress — dashboard trạng thái pipeline
+  be-build    — build + tự động sửa (độc lập)
+  be-recall   — tham chiếu quy tắc và kiểm tra vi phạm
 
-Audit doc lap (dung doc lap voi pipeline):
+Audit độc lập (dùng độc lập với pipeline):
   be-jpa, be-api-review, be-clean-code, be-logging, be-test-review, be-security
 ```
 
 ## Tech Stack
 
-| Danh muc | Cong nghe |
+| Danh mục | Công nghệ |
 |----------|-----------|
-| Ngon ngu | Java 21+ |
+| Ngôn ngữ | Java 21+ |
 | Framework | Spring Boot 4.x + Spring MVC (REST) + Spring Validation |
-| Build | Gradle (Kotlin DSL hoac Groovy) hoac Maven |
-| Database | PostgreSQL (mac dinh), MySQL, MariaDB, H2 |
+| Build | Gradle (Kotlin DSL hoặc Groovy) hoặc Maven |
+| Database | PostgreSQL (mặc định), MySQL, MariaDB, H2 |
 | ORM | Spring Data JPA (Hibernate) |
-| Migration | Flyway (mac dinh), Liquibase, hoac none |
-| Testing | JUnit 5 + TestRestTemplate + AssertJ (khong Mockito) |
-| Chat luong code | Checkstyle (khong dung thu: maxErrors=0, maxWarnings=0) |
-| Tien ich | Lombok, UUID Creator (UUID v7) |
+| Migration | Flyway (mặc định), Liquibase, hoặc none |
+| Testing | JUnit 5 + TestRestTemplate + AssertJ (không Mockito) |
+| Chất lượng code | Checkstyle (không dung thứ: maxErrors=0, maxWarnings=0) |
+| Tiện ích | Lombok, UUID Creator (UUID v7) |
 
-## Cai dat
+## Cài đặt
 
 ```
-# 1. Dang ky nguon marketplace
+# 1. Đăng ký nguồn marketplace
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
-# 2. Cai dat plugin (pham vi project — luu vao .claude/settings.json, chia se voi team)
+# 2. Cài đặt plugin (phạm vi project — lưu vào .claude/settings.json, chia sẻ với team)
 /plugin install backend-springboot-plugin@ohmyhotelco --scope project
 ```
 
-Xac nhan cai dat:
+Xác nhận cài đặt:
 ```
 /plugin
 ```
 
-## Cap nhat & Quan ly
+## Cập nhật & Quản lý
 
-**Cap nhat marketplace** de lay phien ban plugin moi nhat:
+**Cập nhật marketplace** để lấy phiên bản plugin mới nhất:
 ```
 /plugin marketplace update ohmyhotelco
 ```
 
-**Vo hieu hoa / Kich hoat** plugin ma khong go bo:
+**Vô hiệu hóa / Kích hoạt** plugin mà không gỡ bỏ:
 ```
 /plugin disable backend-springboot-plugin@ohmyhotelco
 /plugin enable backend-springboot-plugin@ohmyhotelco
 ```
 
-**Go bo**:
+**Gỡ bỏ**:
 ```
 /plugin uninstall backend-springboot-plugin@ohmyhotelco --scope project
 ```
 
-**Giao dien quan ly plugin**: Chay `/plugin` de mo giao dien tab (Discover, Installed, Marketplaces, Errors).
+**Giao diện quản lý plugin**: Chạy `/plugin` để mở giao diện tab (Discover, Installed, Marketplaces, Errors).
 
-## Bat dau nhanh
+## Bắt đầu nhanh
 
-### Che do thu cong (khong co spec)
+### Chế độ thủ công (không có spec)
 
 ```
-1. /backend-springboot-plugin:be-init                          # cau hinh plugin (tu dong phat hien project)
+1. /backend-springboot-plugin:be-init                          # cấu hình plugin (tự động phát hiện project)
 2. /backend-springboot-plugin:be-crud Employee email:String displayName:String   # scaffold CQRS CRUD
-3. /backend-springboot-plugin:be-code work/features/employee.md                  # trien khai TDD
-4. /backend-springboot-plugin:be-verify employee                                 # cong xac minh
+3. /backend-springboot-plugin:be-code work/features/employee.md                  # triển khai TDD
+4. /backend-springboot-plugin:be-verify employee                                 # cổng xác minh
 5. /backend-springboot-plugin:be-review employee                                 # review code
 6. /backend-springboot-plugin:be-commit                                          # smart commit
 ```
 
-### Che do spec-driven (voi planning-plugin)
+### Chế độ spec-driven (với planning-plugin)
 
 ```
-1. /backend-springboot-plugin:be-init                          # cau hinh plugin
-2. /planning-plugin:spec employee-management                   # tao functional spec
+1. /backend-springboot-plugin:be-init                          # cấu hình plugin
+2. /planning-plugin:spec employee-management                   # tạo functional spec
 3. /backend-springboot-plugin:be-plan employee-management      # spec → plan.json
-4. /backend-springboot-plugin:be-crud --all employee-management # scaffold tat ca entity tu plan
-5. /backend-springboot-plugin:be-code employee-management      # TDD (tai lieu cong viec bo sung tu plan)
-6. /backend-springboot-plugin:be-verify employee               # cong xac minh (theo entity)
-7. /backend-springboot-plugin:be-review employee               # review 7 chieu (theo entity)
+4. /backend-springboot-plugin:be-crud --all employee-management # scaffold tất cả entity từ plan
+5. /backend-springboot-plugin:be-code employee-management      # TDD (tài liệu công việc bổ sung từ plan)
+6. /backend-springboot-plugin:be-verify employee               # cổng xác minh (theo entity)
+7. /backend-springboot-plugin:be-review employee               # review 7 chiều (theo entity)
 8. /backend-springboot-plugin:be-commit                        # smart commit
 ```
 
-> **Luu y**: Buoc 1-5 su dung **ten feature** cua planning-plugin (vi du: `employee-management`).
-> Buoc 6-7 su dung **ten entity** rieng (vi du: `employee`, `department`) vi tien do duoc theo doi theo entity.
-> Sau buoc 5, `be-code` hien thi lenh buoc tiep theo cho tung entity.
+> **Lưu ý**: Bước 1-5 sử dụng **tên feature** của planning-plugin (ví dụ: `employee-management`).
+> Bước 6-7 sử dụng **tên entity** riêng (ví dụ: `employee`, `department`) vì tiến độ được theo dõi theo entity.
+> Sau bước 5, `be-code` hiển thị lệnh bước tiếp theo cho từng entity.
 
-## Chi tiet Skills
+## Chi tiết Skills
 
 ### `/backend-springboot-plugin:be-init`
 
-**Cu phap**: `/backend-springboot-plugin:be-init`
+**Cú pháp**: `/backend-springboot-plugin:be-init`
 
-**Khi nao dung**: Cai dat lan dau trong project, hoac cau hinh lai.
+**Khi nào dùng**: Cài đặt lần đầu trong project, hoặc cấu hình lại.
 
-**Hoat dong**:
-1. Tu dong phat hien build tool (Gradle Kotlin/Groovy, Maven), phien ban Java, phien ban Spring Boot
-2. Tu dong phat hien base package, loai database, migration tool
-3. Kiem tra cau hinh Checkstyle va Lombok
-4. Tao `.claude/backend-springboot-plugin.json`
-5. Tao thu muc tai lieu cong viec (mac dinh: `work/features/`)
+**Hoạt động**:
+1. Tự động phát hiện build tool (Gradle Kotlin/Groovy, Maven), phiên bản Java, phiên bản Spring Boot
+2. Tự động phát hiện base package, loại database, migration tool
+3. Kiểm tra cấu hình Checkstyle và Lombok
+4. Tạo `.claude/backend-springboot-plugin.json`
+5. Tạo thư mục tài liệu công việc (mặc định: `work/features/`)
 
 ---
 
 ### `/backend-springboot-plugin:be-plan`
 
-**Cu phap**: `/backend-springboot-plugin:be-plan <ten-feature>`
+**Cú pháp**: `/backend-springboot-plugin:be-plan <tên-feature>`
 
-**Khi nao dung**: Sau khi tao functional spec voi planning-plugin, truoc khi scaffold.
+**Khi nào dùng**: Sau khi tạo functional spec với planning-plugin, trước khi scaffold.
 
-**Hoat dong**:
-1. Phat hien spec tai `docs/specs/{feature}/.progress/{feature}.json`
-2. Xac minh trang thai spec (phai la `reviewing` hoac `finalized`)
-3. Doc file spec + UI DSL (neu co) qua `backend-planner` agent
-4. Trich xuat entity, command, query, endpoint, exception, validation rule, test scenario
-5. Tao `docs/specs/{feature}/.implementation/backend/plan.json`
-6. Cap nhat file tien do spec voi trang thai `implementation.backend`
+**Hoạt động**:
+1. Phát hiện spec tại `docs/specs/{feature}/.progress/{feature}.json`
+2. Xác minh trạng thái spec (phải là `reviewing` hoặc `finalized`)
+3. Đọc file spec + UI DSL (nếu có) qua `backend-planner` agent
+4. Trích xuất entity, command, query, endpoint, exception, validation rule, test scenario
+5. Tạo `docs/specs/{feature}/.implementation/backend/plan.json`
+6. Cập nhật file tiến độ spec với trạng thái `implementation.backend`
 
 ---
 
 ### `/backend-springboot-plugin:be-crud`
 
-**Cu phap**: `/backend-springboot-plugin:be-crud <TenEntity> [field:Type ...]` hoac `/backend-springboot-plugin:be-crud --all <ten-feature>`
+**Cú pháp**: `/backend-springboot-plugin:be-crud <TênEntity> [field:Type ...]` hoặc `/backend-springboot-plugin:be-crud --all <tên-feature>`
 
-**Khi nao dung**: Tao domain entity moi voi toan bo cau truc CQRS.
+**Khi nào dùng**: Tạo domain entity mới với toàn bộ cấu trúc CQRS.
 
-**Che do**:
-- **Thu cong**: `be-crud Employee email:String displayName:String` — chi dinh field truc tiep
-- **Spec-driven**: `be-crud Employee` — tu dong doc tu plan.json khi co
-- **Batch**: `be-crud --all employee-management` — scaffold tat ca entity tu plan theo thu tu phu thuoc
+**Chế độ**:
+- **Thủ công**: `be-crud Employee email:String displayName:String` — chỉ định field trực tiếp
+- **Spec-driven**: `be-crud Employee` — tự động đọc từ plan.json khi có
+- **Batch**: `be-crud --all employee-management` — scaffold tất cả entity từ plan theo thứ tự phụ thuộc
 
-**Hoat dong**:
-1. Tu dong tao phien ban Flyway migration tiep theo
-2. Tao entity voi BaseEntity, dual key (sequence + UUID v7), va cac cot field
-3. Tao repository, command/executor, query/processor, view DTO
-4. Tao controller (record DI) voi REST endpoint
-5. Tao domain exception
-6. Tao tai lieu cong viec voi test scenario ban dau
-7. Dat trang thai pipeline thanh `scaffolded`
-8. (Spec-driven) Bao gom tat ca command/query/endpoint/exception tu plan.json
+**Hoạt động**:
+1. Tự động tạo phiên bản Flyway migration tiếp theo
+2. Tạo entity với BaseEntity, dual key (sequence + UUID v7), và các cột field
+3. Tạo repository, command/executor, query/processor, view DTO
+4. Tạo controller (record DI) với REST endpoint
+5. Tạo domain exception
+6. Tạo tài liệu công việc với test scenario ban đầu
+7. Đặt trạng thái pipeline thành `scaffolded`
+8. (Spec-driven) Bao gồm tất cả command/query/endpoint/exception từ plan.json
 
 ---
 
 ### `/backend-springboot-plugin:be-code`
 
-**Cu phap**: `/backend-springboot-plugin:be-code <ten-feature hoac duong-dan-tai-lieu>`
+**Cú pháp**: `/backend-springboot-plugin:be-code <tên-feature hoặc đường-dẫn-tài-liệu>`
 
-**Khi nao dung**: Sau scaffolding, hoac khi tai lieu cong viec voi scenario `- [ ]` da san sang.
+**Khi nào dùng**: Sau scaffolding, hoặc khi tài liệu công việc với scenario `- [ ]` đã sẵn sàng.
 
-**Hoat dong**:
-1. Neu cho ten feature: kham pha code hien co, soan test scenario, yeu cau phe duyet
-2. Neu cho duong dan tai lieu: doc truc tiep scenario `- [ ]` hien co
-3. Kiem tra ha cap pipeline (canh bao neu trang thai bi lui)
-4. Lay khoa tren file tien do
-5. Chay `implement` agent cho tung scenario: RED (viet test, xac nhan that bai) → GREEN (trien khai, xac nhan thanh cong)
-6. Chay full build sau khi hoan thanh tat ca scenario
-7. Cap nhat trang thai pipeline (`implemented` hoac `implementing`)
-8. Giai phong khoa
+**Hoạt động**:
+1. Nếu cho tên feature: khám phá code hiện có, soạn test scenario, yêu cầu phê duyệt
+2. Nếu cho đường dẫn tài liệu: đọc trực tiếp scenario `- [ ]` hiện có
+3. Kiểm tra hạ cấp pipeline (cảnh báo nếu trạng thái bị lùi)
+4. Lấy khóa trên file tiến độ
+5. Chạy `implement` agent cho từng scenario: RED (viết test, xác nhận thất bại) → GREEN (triển khai, xác nhận thành công)
+6. Chạy full build sau khi hoàn thành tất cả scenario
+7. Cập nhật trạng thái pipeline (`implemented` hoặc `implementing`)
+8. Giải phóng khóa
 
 ---
 
 ### `/backend-springboot-plugin:be-verify`
 
-**Cu phap**: `/backend-springboot-plugin:be-verify [ten-feature]`
+**Cú pháp**: `/backend-springboot-plugin:be-verify [tên-feature]`
 
-**Khi nao dung**: Sau trien khai, lam cong chat luong truoc review. Chi doc — KHONG sua gi.
+**Khi nào dùng**: Sau triển khai, làm cổng chất lượng trước review. Chỉ đọc — KHÔNG sửa gì.
 
-**Hoat dong**:
-1. Kiem tra ha cap pipeline (canh bao neu tien do review bi mat)
-2. Kiem tra thay doi tai lieu cong viec (canh bao neu co scenario moi tu lan trien khai cuoi)
-3. Lay khoa
-4. Chay 4 buoc kiem tra tuan tu: compilation, checkstyle, test, full build
-5. Tao bao cao xac minh co cau truc
-6. Cap nhat trang thai pipeline (`verified` hoac `verify-failed`)
-7. Giai phong khoa
+**Hoạt động**:
+1. Kiểm tra hạ cấp pipeline (cảnh báo nếu tiến độ review bị mất)
+2. Kiểm tra thay đổi tài liệu công việc (cảnh báo nếu có scenario mới từ lần triển khai cuối)
+3. Lấy khóa
+4. Chạy 4 bước kiểm tra tuần tự: compilation, checkstyle, test, full build
+5. Tạo báo cáo xác minh có cấu trúc
+6. Cập nhật trạng thái pipeline (`verified` hoặc `verify-failed`)
+7. Giải phóng khóa
 
 ---
 
 ### `/backend-springboot-plugin:be-review`
 
-**Cu phap**: `/backend-springboot-plugin:be-review <ten-feature hoac duong-dan>`
+**Cú pháp**: `/backend-springboot-plugin:be-review <tên-feature hoặc đường-dẫn>`
 
-**Khi nao dung**: Sau xac minh, hoac truc tiep sau trien khai, de review chat luong code.
+**Khi nào dùng**: Sau xác minh, hoặc trực tiếp sau triển khai, để review chất lượng code.
 
-**Hoat dong**:
-1. Giai quyet doi tuong (ten feature → thu muc source, hoac duong dan truc tiep)
-2. Kiem tra thay doi tai lieu cong viec (canh bao neu co scenario moi tu lan trien khai cuoi)
-3. Lay khoa
-4. Chay `code-reviewer` agent danh gia 6 chieu:
+**Hoạt động**:
+1. Giải quyết đối tượng (tên feature → thư mục source, hoặc đường dẫn trực tiếp)
+2. Kiểm tra thay đổi tài liệu công việc (cảnh báo nếu có scenario mới từ lần triển khai cuối)
+3. Lấy khóa
+4. Chạy `code-reviewer` agent đánh giá 6 chiều:
    - API Contract (HTTP semantic, URL, status code)
    - JPA Patterns (N+1, transaction, index)
    - Clean Code (DRY, KISS, YAGNI, naming)
-   - Logging (SLF4J, MDC, bao mat)
+   - Logging (SLF4J, MDC, bảo mật)
    - Test Quality (naming, assertion, coverage)
    - Architecture Compliance (CQRS, naming convention)
-   - Spec Compliance (khi co plan.json — FR/BR/E-nnn/TS-nnn coverage)
-5. Luu `review-report-{feature}.json` (diem tung chieu + issue bo sung: severity, suggestion, refs)
-6. Cap nhat trang thai pipeline (`done` / `reviewed` / `review-failed`)
-7. Giai phong khoa
+   - Spec Compliance (khi có plan.json — FR/BR/E-nnn/TS-nnn coverage)
+5. Lưu `review-report-{feature}.json` (điểm từng chiều + issue bổ sung: severity, suggestion, refs)
+6. Cập nhật trạng thái pipeline (`done` / `reviewed` / `review-failed`)
+7. Giải phóng khóa
 
-**Quy tac ket luan**:
-- **PASS**: Tat ca chieu >= 7, khong co issue nghiem trong
-- **FAIL**: Bat ky chieu nao < 7 HOAC co issue nghiem trong
+**Quy tắc kết luận**:
+- **PASS**: Tất cả chiều >= 7, không có issue nghiêm trọng
+- **FAIL**: Bất kỳ chiều nào < 7 HOẶC có issue nghiêm trọng
 
 ---
 
 ### `/backend-springboot-plugin:be-fix`
 
-**Cu phap**: `/backend-springboot-plugin:be-fix <ten-feature>`
+**Cú pháp**: `/backend-springboot-plugin:be-fix <tên-feature>`
 
-**Khi nao dung**: Sau khi `be-review` tim thay issue.
+**Khi nào dùng**: Sau khi `be-review` tìm thấy issue.
 
-**Hoat dong**:
-1. Doc `review-report-{feature}.json`
-2. Kiem tra bo dem vong sua (chan sau 3 vong — hoi nguoi dung truoc khi tiep tuc)
-3. Lay khoa
-4. Chay `review-fixer` agent phan loai tung issue:
-   - **TDD required**: Thay doi hanh vi — viet test that bai truoc roi sua
-   - **Direct fix**: Thay doi co hoc (naming, annotation) — edit truc tiep
-   - **Skip**: Issue da duoc giai quyet
-   - **Escalated**: Can thay doi kien truc ngoai pham vi tu dong sua
-5. Chay xac minh full build sau khi sua
-6. Tao `fix-report.json`
-7. Cap nhat trang thai pipeline va giai phong khoa
+**Hoạt động**:
+1. Đọc `review-report-{feature}.json`
+2. Kiểm tra bộ đếm vòng sửa (chặn sau 3 vòng — hỏi người dùng trước khi tiếp tục)
+3. Lấy khóa
+4. Chạy `review-fixer` agent phân loại từng issue:
+   - **TDD required**: Thay đổi hành vi — viết test thất bại trước rồi sửa
+   - **Direct fix**: Thay đổi cơ học (naming, annotation) — edit trực tiếp
+   - **Skip**: Issue đã được giải quyết
+   - **Escalated**: Cần thay đổi kiến trúc ngoài phạm vi tự động sửa
+5. Chạy xác minh full build sau khi sửa
+6. Tạo `fix-report.json`
+7. Cập nhật trạng thái pipeline và giải phóng khóa
 
-**Vong lap review-fix**:
+**Vòng lặp review-fix**:
 ```
 be-review → FAIL → be-fix → be-review → PASS → be-commit
               ^                 |
-              └─────────────────┘ (neu van that bai)
+              └─────────────────┘ (nếu vẫn thất bại)
 ```
 
 ---
 
 ### `/backend-springboot-plugin:be-build`
 
-**Cu phap**: `/backend-springboot-plugin:be-build`
+**Cú pháp**: `/backend-springboot-plugin:be-build`
 
-**Khi nao dung**: Khi build that bai va can tu dong chan doan va sua. Doc lap voi pipeline.
+**Khi nào dùng**: Khi build thất bại và cần tự động chẩn đoán và sửa. Độc lập với pipeline.
 
-**Hoat dong**:
-1. Chay `build-doctor` agent
-2. Phan loai loi: compilation, test, checkstyle, dependency, configuration
-3. Ap dung sua co muc tieu voi toi da 3 lan thu lai
-4. Bao cao tat ca thay doi da ap dung
+**Hoạt động**:
+1. Chạy `build-doctor` agent
+2. Phân loại lỗi: compilation, test, checkstyle, dependency, configuration
+3. Áp dụng sửa có mục tiêu với tối đa 3 lần thử lại
+4. Báo cáo tất cả thay đổi đã áp dụng
 
 ---
 
 ### `/backend-springboot-plugin:be-debug`
 
-**Cu phap**: `/backend-springboot-plugin:be-debug <mo-ta-loi hoac ten-feature>`
+**Cú pháp**: `/backend-springboot-plugin:be-debug <mô-tả-lỗi hoặc tên-feature>`
 
-**Khi nao dung**: Cho runtime error, test failure, hoac build issue o bat ky diem nao trong pipeline.
+**Khi nào dùng**: Cho runtime error, test failure, hoặc build issue ở bất kỳ điểm nào trong pipeline.
 
-**Hoat dong**:
-1. Thu thap ngu canh van de (error message, stack trace, source file lien quan)
-2. Lay khoa (neu co ngu canh feature)
-3. Chay `debugger` agent voi phuong phap 4 giai doan:
-   - **Reproduce**: Phan tich loi, xac nhan tai tao duoc
-   - **Hypothesize**: Lap chinh xac 3 gia thuyet xep hang
-   - **Test**: Ap dung sua theo gia thuyet, xac minh, hoan tac neu that bai
-   - **Confirm**: Kiem tra hoi quy + full build
-4. Neu ca 3 gia thuyet that bai: escalate cho can thiep thu cong
-5. Cap nhat trang thai pipeline (`resolved` hoac `escalated`) va giai phong khoa
+**Hoạt động**:
+1. Thu thập ngữ cảnh vấn đề (error message, stack trace, source file liên quan)
+2. Lấy khóa (nếu có ngữ cảnh feature)
+3. Chạy `debugger` agent với phương pháp 4 giai đoạn:
+   - **Reproduce**: Phân tích lỗi, xác nhận tái tạo được
+   - **Hypothesize**: Lập chính xác 3 giả thuyết xếp hạng
+   - **Test**: Áp dụng sửa theo giả thuyết, xác minh, hoàn tác nếu thất bại
+   - **Confirm**: Kiểm tra hồi quy + full build
+4. Nếu cả 3 giả thuyết thất bại: escalate cho can thiệp thủ công
+5. Cập nhật trạng thái pipeline (`resolved` hoặc `escalated`) và giải phóng khóa
 
 ---
 
 ### `/backend-springboot-plugin:be-commit`
 
-**Cu phap**: `/backend-springboot-plugin:be-commit`
+**Cú pháp**: `/backend-springboot-plugin:be-commit`
 
-**Khi nao dung**: Sau khi pipeline dat trang thai `done` hoac `reviewed`.
+**Khi nào dùng**: Sau khi pipeline đạt trạng thái `done` hoặc `reviewed`.
 
-**Hoat dong**: Chay quet bao mat pre-commit (secret, file nguy hiem), sau do tao commit tu staged changes theo quy uoc project (tieng Anh, thi hien tai, tieu de 50 ky tu, khong prefix, khong de cap test code). Huy bo neu phat hien secret.
+**Hoạt động**: Chạy quét bảo mật pre-commit (secret, file nguy hiểm), sau đó tạo commit từ staged changes theo quy ước project (tiếng Anh, thì hiện tại, tiêu đề 50 ký tự, không prefix, không đề cập test code). Hủy bỏ nếu phát hiện secret.
 
 ---
 
 ### `/backend-springboot-plugin:be-recall`
 
-**Cu phap**: `/backend-springboot-plugin:be-recall [section]`
+**Cú pháp**: `/backend-springboot-plugin:be-recall [section]`
 
-**Khi nao dung**: Tham khao quy tac hoac kiem tra vi pham trong cong viec gan day.
+**Khi nào dùng**: Tham khảo quy tắc hoặc kiểm tra vi phạm trong công việc gần đây.
 
-**Hoat dong**: Hien thi quy tac tu CLAUDE.md theo section (commit, tdd, build, coding, api, jpa) va kiem tra vi pham trong cong viec gan day. Co the tu dong sua vi pham don gian (vi du: thieu newline cuoi file).
+**Hoạt động**: Hiển thị quy tắc từ CLAUDE.md theo section (commit, tdd, build, coding, api, jpa) và kiểm tra vi phạm trong công việc gần đây. Có thể tự động sửa vi phạm đơn giản (ví dụ: thiếu newline cuối file).
 
 ---
 
 ### `/backend-springboot-plugin:be-progress`
 
-**Cu phap**: `/backend-springboot-plugin:be-progress [ten-feature]`
+**Cú pháp**: `/backend-springboot-plugin:be-progress [tên-feature]`
 
-**Khi nao dung**: Bat ky luc nao de kiem tra trang thai pipeline hien tai.
+**Khi nào dùng**: Bất kỳ lúc nào để kiểm tra trạng thái pipeline hiện tại.
 
-**Hoat dong**:
-- **Khong co ten feature**: Bang tom tat tat ca feature (trang thai pipeline, tien do scenario, ket qua xac minh, diem review, vong sua)
-- **Co ten feature**: Xem chi tiet (lich su pipeline, scenario hoan thanh/con lai, kiem tra thay doi tai lieu, huong dan buoc tiep theo)
+**Hoạt động**:
+- **Không có tên feature**: Bảng tóm tắt tất cả feature (trạng thái pipeline, tiến độ scenario, kết quả xác minh, điểm review, vòng sửa)
+- **Có tên feature**: Xem chi tiết (lịch sử pipeline, scenario hoàn thành/còn lại, kiểm tra thay đổi tài liệu, hướng dẫn bước tiếp theo)
 
-## Audit doc lap
+## Audit độc lập
 
-Cac skill nay chay doc lap voi pipeline. Su dung bat ky luc nao cho audit co muc tieu.
+Các skill này chạy độc lập với pipeline. Sử dụng bất kỳ lúc nào cho audit có mục tiêu.
 
-| Skill | Noi dung kiem tra |
+| Skill | Nội dung kiểm tra |
 |-------|-------------------|
-| `be-api-review` | HTTP method semantic, URL pattern (kebab-case, so nhieu), status code, pagination, error response |
-| `be-jpa` | N+1 query, thieu @Transactional, rui ro lazy loading, query khong gioi han, thieu index, cascade, thiet ke schema, an toan migration, toan ven du lieu |
-| `be-clean-code` | Vi pham DRY/KISS/YAGNI, god class, nest sau, method dai, van de naming |
-| `be-logging` | Su dung System.out, lo du lieu nhay cam, noi chuoi, log level sai, su dung MDC |
-| `be-test-review` | Quy uoc naming, chat luong assertion, anti-pattern, phan tich coverage, phat hien test cham |
+| `be-api-review` | HTTP method semantic, URL pattern (kebab-case, số nhiều), status code, pagination, error response |
+| `be-jpa` | N+1 query, thiếu @Transactional, rủi ro lazy loading, query không giới hạn, thiếu index, cascade, thiết kế schema, an toàn migration, toàn vẹn dữ liệu |
+| `be-clean-code` | Vi phạm DRY/KISS/YAGNI, god class, nest sâu, method dài, vấn đề naming |
+| `be-logging` | Sử dụng System.out, lộ dữ liệu nhạy cảm, nối chuỗi, log level sai, sử dụng MDC |
+| `be-test-review` | Quy ước naming, chất lượng assertion, anti-pattern, phân tích coverage, phát hiện test chậm |
 | `be-security` | Authentication, authorization, input validation, PII exposure, injection, secret |
 
-## Workflow pipeline day du
+## Workflow pipeline đầy đủ
 
-### Buoc 1: Khoi tao
+### Bước 1: Khởi tạo
 
 ```
 /backend-springboot-plugin:be-init
 ```
 
-Tu dong phat hien cai dat project (build tool, phien ban Java, phien ban Spring Boot, base package, database, migration tool). Tao `.claude/backend-springboot-plugin.json`.
+Tự động phát hiện cài đặt project (build tool, phiên bản Java, phiên bản Spring Boot, base package, database, migration tool). Tạo `.claude/backend-springboot-plugin.json`.
 
-### Buoc 2: Scaffold CRUD
+### Bước 2: Scaffold CRUD
 
 ```
 /backend-springboot-plugin:be-crud Employee email:String displayName:String
 ```
 
-Tao toan bo cau truc CQRS: Flyway migration, entity, repository, command/executor, query/processor, view, controller, exception, va tai lieu cong viec voi test scenario ban dau.
+Tạo toàn bộ cấu trúc CQRS: Flyway migration, entity, repository, command/executor, query/processor, view, controller, exception, và tài liệu công việc với test scenario ban đầu.
 
-### Buoc 3: Trien khai voi TDD
+### Bước 3: Triển khai với TDD
 
 ```
 /backend-springboot-plugin:be-code work/features/employee.md
 ```
 
-`implement` agent xu ly tung scenario `- [ ]` mot lan:
-1. **RED** — Viet test, chay test class, xac nhan that bai
-2. **GREEN** — Viet code toi thieu, chay toan bo test class, xac nhan tat ca pass
-3. **Danh dau** — Cap nhat `- [ ]` thanh `- [x]`, chuyen sang scenario tiep
+`implement` agent xử lý từng scenario `- [ ]` một lần:
+1. **RED** — Viết test, chạy test class, xác nhận thất bại
+2. **GREEN** — Viết code tối thiểu, chạy toàn bộ test class, xác nhận tất cả pass
+3. **Đánh dấu** — Cập nhật `- [ ]` thành `- [x]`, chuyển sang scenario tiếp
 
-### Buoc 4: Xac minh
+### Bước 4: Xác minh
 
 ```
 /backend-springboot-plugin:be-verify employee
 ```
 
-Cong chi doc: compilation, checkstyle, test, full build. Bao cao pass/fail ma khong sua.
+Cổng chỉ đọc: compilation, checkstyle, test, full build. Báo cáo pass/fail mà không sửa.
 
-### Buoc 5: Review
+### Bước 5: Review
 
 ```
 /backend-springboot-plugin:be-review employee
 ```
 
-Review code 6 chieu voi diem tung chieu. Issue bao gom severity, fix hint, va refs truy vet den API endpoint hoac test scenario.
+Review code 6 chiều với điểm từng chiều. Issue bao gồm severity, fix hint, và refs truy vết đến API endpoint hoặc test scenario.
 
-### Buoc 6: Sua & Re-review
+### Bước 6: Sửa & Re-review
 
 ```
 /backend-springboot-plugin:be-fix employee
 /backend-springboot-plugin:be-review employee
 ```
 
-Lap lai cho den khi review pass. TDD cho thay doi hanh vi, edit truc tiep cho thay doi co hoc. Vong sua duoc theo doi — canh bao sau 3 vong.
+Lặp lại cho đến khi review pass. TDD cho thay đổi hành vi, edit trực tiếp cho thay đổi cơ học. Vòng sửa được theo dõi — cảnh báo sau 3 vòng.
 
-### Buoc 7: Commit
+### Bước 7: Commit
 
 ```
 /backend-springboot-plugin:be-commit
@@ -446,43 +446,43 @@ Lap lai cho den khi review pass. TDD cho thay doi hanh vi, edit truc tiep cho th
 
 ### Backend Planner
 
-**Vai tro**: Agent phan tich spec cho che do scaffold spec-driven.
+**Vai trò**: Agent phân tích spec cho chế độ scaffold spec-driven.
 
-Doc functional spec va UI DSL cua planning-plugin, trich xuat entity, command, query, endpoint, exception, validation rule, va test scenario, va tao `plan.json` co cau truc. Tinh toan thu tu phu thuoc entity cho trinh tu scaffold. Su dung model Opus.
+Đọc functional spec và UI DSL của planning-plugin, trích xuất entity, command, query, endpoint, exception, validation rule, và test scenario, và tạo `plan.json` có cấu trúc. Tính toán thứ tự phụ thuộc entity cho trình tự scaffold. Sử dụng model Opus.
 
 ### Implement
 
-**Vai tro**: Trien khai TDD tu tai lieu cong viec.
+**Vai trò**: Triển khai TDD từ tài liệu công việc.
 
-Xu ly scenario `- [ ]` tung cai theo chu ky RED-GREEN nghiem ngat. Tung scenario: viet test → xac nhan that bai → trien khai code toi thieu → xac nhan tat ca test pass → danh dau hoan thanh. Toi da 3 lan test that bai lien tiep truoc khi escalate. Su dung model Opus.
+Xử lý scenario `- [ ]` từng cái theo chu kỳ RED-GREEN nghiêm ngặt. Từng scenario: viết test → xác nhận thất bại → triển khai code tối thiểu → xác nhận tất cả test pass → đánh dấu hoàn thành. Tối đa 3 lần test thất bại liên tiếp trước khi escalate. Sử dụng model Opus.
 
 ### Build Doctor
 
-**Vai tro**: Chan doan va tu dong sua loi build.
+**Vai trò**: Chẩn đoán và tự động sửa lỗi build.
 
-Phan loai loi build (compilation, test, checkstyle, dependency, configuration) va ap dung sua co muc tieu. Thu lai toi da 3 lan. Su dung model Sonnet.
+Phân loại lỗi build (compilation, test, checkstyle, dependency, configuration) và áp dụng sửa có mục tiêu. Thử lại tối đa 3 lần. Sử dụng model Sonnet.
 
 ### Code Reviewer
 
-**Vai tro**: Review code 6 chieu.
+**Vai trò**: Review code 6 chiều.
 
-Agent chi doc, danh gia API contract, JPA pattern, clean code, logging, test quality, va architecture compliance. Tao bao cao review co cau truc voi issue xep theo severity. Moi issue bao gom dimension, severity, file, line, rule, message, suggestion, va refs (truy vet den API endpoint hoac test scenario). Su dung model Opus.
+Agent chỉ đọc, đánh giá API contract, JPA pattern, clean code, logging, test quality, và architecture compliance. Tạo báo cáo review có cấu trúc với issue xếp theo severity. Mỗi issue bao gồm dimension, severity, file, line, rule, message, suggestion, và refs (truy vết đến API endpoint hoặc test scenario). Sử dụng model Opus.
 
 ### Review Fixer
 
-**Vai tro**: Sua issue review bang TDD.
+**Vai trò**: Sửa issue review bằng TDD.
 
-Phan loai tung issue: TDD required (thay doi hanh vi — test truoc), direct fix (thay doi co hoc), skip (da giai quyet), escalated (can can thiep thu cong). Toi da 3 lan thu cho moi TDD fix truoc khi escalate. Su dung model Opus.
+Phân loại từng issue: TDD required (thay đổi hành vi — test trước), direct fix (thay đổi cơ học), skip (đã giải quyết), escalated (cần can thiệp thủ công). Tối đa 3 lần thử cho mỗi TDD fix trước khi escalate. Sử dụng model Opus.
 
 ### Debugger
 
-**Vai tro**: Debug he thong voi phuong phap 4 giai doan.
+**Vai trò**: Debug hệ thống với phương pháp 4 giai đoạn.
 
-Reproduce → Hypothesize (chinh xac 3) → Test → Confirm. Phan loai loi: type-error, test-failure, build-error, runtime-error, config-error, migration-error. Escalate neu ca 3 gia thuyet that bai. Su dung model Opus.
+Reproduce → Hypothesize (chính xác 3) → Test → Confirm. Phân loại lỗi: type-error, test-failure, build-error, runtime-error, config-error, migration-error. Escalate nếu cả 3 giả thuyết thất bại. Sử dụng model Opus.
 
-## Cau hinh
+## Cấu hình
 
-`.claude/backend-springboot-plugin.json` (tao boi `be-init`):
+`.claude/backend-springboot-plugin.json` (tạo bởi `be-init`):
 
 ```json
 {
@@ -504,40 +504,40 @@ Reproduce → Hypothesize (chinh xac 3) → Test → Confirm. Phan loai loi: typ
 }
 ```
 
-| Truong | Mo ta | Mac dinh |
+| Trường | Mô tả | Mặc định |
 |--------|-------|----------|
-| `javaVersion` | Phien ban Java toolchain | `"21"` |
-| `springBootVersion` | Phien ban Spring Boot | `"4.0.2"` |
+| `javaVersion` | Phiên bản Java toolchain | `"21"` |
+| `springBootVersion` | Phiên bản Spring Boot | `"4.0.2"` |
 | `buildTool` | `"gradle-kotlin"` / `"gradle-groovy"` / `"maven"` | `"gradle-kotlin"` |
-| `buildCommand` | Lenh build day du | `"./gradlew build"` |
-| `testCommand` | Lenh chi chay test | `"./gradlew test"` |
-| `basePackage` | Package Java goc | `"com.example"` |
-| `sourceDir` | Thu muc source chinh | `"src/main/java"` |
-| `testDir` | Thu muc source test | `"src/test/java"` |
-| `architecture` | Kieu kien truc — quyet dinh cau truc package va template | `"cqrs"` |
+| `buildCommand` | Lệnh build đầy đủ | `"./gradlew build"` |
+| `testCommand` | Lệnh chỉ chạy test | `"./gradlew test"` |
+| `basePackage` | Package Java gốc | `"com.example"` |
+| `sourceDir` | Thư mục source chính | `"src/main/java"` |
+| `testDir` | Thư mục source test | `"src/test/java"` |
+| `architecture` | Kiểu kiến trúc — quyết định cấu trúc package và template | `"cqrs"` |
 | `database` | `"postgresql"` / `"mysql"` / `"h2"` / `"mariadb"` | `"postgresql"` |
 | `migration` | `"flyway"` / `"liquibase"` / `"none"` | `"flyway"` |
-| `checkstyle` | Bat Checkstyle hay khong | `true` |
-| `lombokEnabled` | Su dung Lombok hay khong | `true` |
-| `workDocDir` | Thu muc tai lieu cong viec | `"work/features"` |
-| `workingLanguage` | Ngon ngu output cho nguoi dung (`"en"` / `"ko"` / `"vi"`) | `"en"` |
+| `checkstyle` | Bật Checkstyle hay không | `true` |
+| `lombokEnabled` | Sử dụng Lombok hay không | `true` |
+| `workDocDir` | Thư mục tài liệu công việc | `"work/features"` |
+| `workingLanguage` | Ngôn ngữ output cho người dùng (`"en"` / `"ko"` / `"vi"`) | `"en"` |
 
-## Cau truc package CQRS
+## Cấu trúc package CQRS
 
 ```
 {basePackage}/
 ├── {App}Application.java
 ├── command/                    <- Request command DTO (record)
 │   └── Create{Entity}.java
-├── commandmodel/               <- Logic thuc thi command
+├── commandmodel/               <- Logic thực thi command
 │   └── Create{Entity}CommandExecutor.java
 ├── query/                      <- Request query DTO (record)
 │   └── Get{Entity}Page.java
-├── querymodel/                 <- Logic xu ly query
+├── querymodel/                 <- Logic xử lý query
 │   └── Get{Entity}PageQueryProcessor.java
 ├── view/                       <- Response view DTO (record)
 │   └── {Entity}View.java
-├── data/                       <- Entity va repository
+├── data/                       <- Entity và repository
 │   ├── {Entity}.java
 │   ├── {Entity}Repository.java
 │   └── BaseEntity.java
@@ -548,22 +548,22 @@ Reproduce → Hypothesize (chinh xac 3) → Test → Confirm. Phan loai loi: typ
     └── {Description}Exception.java
 ```
 
-## Trang thai Pipeline
+## Trạng thái Pipeline
 
-### File trang thai
+### File trạng thái
 
-Trang thai duoc theo doi trong `{workDocDir}/.progress/{feature}.json`.
+Trạng thái được theo dõi trong `{workDocDir}/.progress/{feature}.json`.
 
-| File | Muc dich |
+| File | Mục đích |
 |------|----------|
-| `{feature}.json` | Trang thai pipeline, so luong scenario, lich su verify/review/fix/debug |
-| `review-report-{feature}.json` | Ket qua review voi diem tung chieu va issue bo sung |
-| `fix-report-{feature}.json` | Ket qua fix voi phan loai chien luoc (TDD/direct/escalated) |
-| `.lock` | Ngan thuc thi dong thoi (tu dong het han sau 30 phut) |
+| `{feature}.json` | Trạng thái pipeline, số lượng scenario, lịch sử verify/review/fix/debug |
+| `review-report-{feature}.json` | Kết quả review với điểm từng chiều và issue bổ sung |
+| `fix-report-{feature}.json` | Kết quả fix với phân loại chiến lược (TDD/direct/escalated) |
+| `.lock` | Ngăn thực thi đồng thời (tự động hết hạn sau 30 phút) |
 
-### May trang thai
+### Máy trạng thái
 
-Luu y: Trang thai `planned` duoc theo doi trong file tien do spec (boi `be-plan`), khong nam trong backend pipeline.
+Lưu ý: Trạng thái `planned` được theo dõi trong file tiến độ spec (bởi `be-plan`), không nằm trong backend pipeline.
 
 ```
 scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
@@ -575,73 +575,73 @@ scaffolded → implementing → implemented → verified ─→ reviewed ─→ 
                                     ↓            ↓
                                 verified     fixing → reviewed/done
 
-Bat ky luc nao:
+Bất kỳ lúc nào:
   be-debug → resolved | escalated
-  resolved → (tai nhap pipeline o giai doan phu hop)
-  escalated → (can thiep thu cong, sau do tai nhap)
+  resolved → (tái nhập pipeline ở giai đoạn phù hợp)
+  escalated → (can thiệp thủ công, sau đó tái nhập)
 ```
 
-### An toan trang thai
+### An toàn trạng thái
 
-- **Co che khoa**: Skill sua file tien do phai lay `.lock` truoc khi bat dau. Ngan thuc thi dong thoi tren cung feature. Khoa cu (>30 phut) tu dong xoa.
-- **Quy tac doc-sua-ghi**: Luon doc noi dung file moi nhat truoc khi ghi. Chi merge truong thay doi — giu tat ca truong hien co.
-- **Canh bao ha cap**: Chay skill tu giai doan pipeline truoc do se canh bao truoc khi reset tien do (vi du: chay lai `be-code` khi status la `verified` se mat ket qua xac minh).
-- **Phat hien thay doi**: `be-verify` va `be-review` canh bao khi tai lieu cong viec da duoc sua tu lan cap nhat pipeline cuoi, cho thay scenario moi co the chua duoc trien khai.
-- **Cach ly subagent**: Skill dieu phoi chi truyen parameter can thiet cho agent — khong co ngu canh hoi thoai ro ri giua cac giai doan.
+- **Cơ chế khóa**: Skill sửa file tiến độ phải lấy `.lock` trước khi bắt đầu. Ngăn thực thi đồng thời trên cùng feature. Khóa cũ (>30 phút) tự động xóa.
+- **Quy tắc đọc-sửa-ghi**: Luôn đọc nội dung file mới nhất trước khi ghi. Chỉ merge trường thay đổi — giữ tất cả trường hiện có.
+- **Cảnh báo hạ cấp**: Chạy skill từ giai đoạn pipeline trước đó sẽ cảnh báo trước khi reset tiến độ (ví dụ: chạy lại `be-code` khi status là `verified` sẽ mất kết quả xác minh).
+- **Phát hiện thay đổi**: `be-verify` và `be-review` cảnh báo khi tài liệu công việc đã được sửa từ lần cập nhật pipeline cuối, cho thấy scenario mới có thể chưa được triển khai.
+- **Cách ly subagent**: Skill điều phối chỉ truyền parameter cần thiết cho agent — không có ngữ cảnh hội thoại rò rỉ giữa các giai đoạn.
 
-## Ngon ngu giao tiep
+## Ngôn ngữ giao tiếp
 
-Skill doc `workingLanguage` tu cau hinh. Tat ca output cho nguoi dung (tom tat, cau hoi, phan hoi, huong dan buoc tiep) bang ngon ngu lam viec.
+Skill đọc `workingLanguage` từ cấu hình. Tất cả output cho người dùng (tóm tắt, câu hỏi, phản hồi, hướng dẫn bước tiếp) bằng ngôn ngữ làm việc.
 
-Anh xa ngon ngu: `en` = English, `ko` = Korean, `vi` = Tieng Viet.
+Ánh xạ ngôn ngữ: `en` = English, `ko` = Korean, `vi` = Tiếng Việt.
 
-## Meo & Thuc hanh tot
+## Mẹo & Thực hành tốt
 
-- **Xem lai tai lieu cong viec truoc khi code** — `be-crud` tao scenario ban dau, nhung ban co the them, xoa, hoac sap xep lai truoc khi chay `be-code`.
+- **Xem lại tài liệu công việc trước khi code** — `be-crud` tạo scenario ban đầu, nhưng bạn có thể thêm, xóa, hoặc sắp xếp lại trước khi chạy `be-code`.
 
-- **Dung be-verify lam cong nhanh** — Chi doc va nhanh. Chay sau trien khai de bat issue compilation hoac test truoc khi dau tu thoi gian cho review day du.
+- **Dùng be-verify làm cổng nhanh** — Chỉ đọc và nhanh. Chạy sau triển khai để bắt issue compilation hoặc test trước khi đầu tư thời gian cho review đầy đủ.
 
-- **Khong bo qua re-review sau fix** — Luon chay `be-review` sau `be-fix`. Vong review-fix dam bao khong co hoi quy.
+- **Không bỏ qua re-review sau fix** — Luôn chạy `be-review` sau `be-fix`. Vòng review-fix đảm bảo không có hồi quy.
 
-- **Dung be-debug cho issue phuc tap** — Neu test that bai khong ro rang, `be-debug` cung cap kiem tra gia thuyet he thong thay vi debug tuy hung.
+- **Dùng be-debug cho issue phức tạp** — Nếu test thất bại không rõ ràng, `be-debug` cung cấp kiểm tra giả thuyết hệ thống thay vì debug tùy hứng.
 
-- **Audit doc lap mien phi** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`, va `be-security` hoat dong doc lap voi pipeline. Dung bat ky luc nao cho kiem tra chat luong co muc tieu.
+- **Audit độc lập miễn phí** — `be-jpa`, `be-api-review`, `be-clean-code`, `be-logging`, `be-test-review`, và `be-security` hoạt động độc lập với pipeline. Dùng bất kỳ lúc nào cho kiểm tra chất lượng có mục tiêu.
 
-- **Tiep tuc an toan** — Neu `be-code` bi gian doan, chi can chay lai voi cung tai lieu cong viec. Scenario hoan thanh (`- [x]`) duoc giu lai va tiep tuc tu `- [ ]` tiep theo.
+- **Tiếp tục an toàn** — Nếu `be-code` bị gián đoạn, chỉ cần chạy lại với cùng tài liệu công việc. Scenario hoàn thành (`- [x]`) được giữ lại và tiếp tục từ `- [ ]` tiếp theo.
 
-- **Khoa bao ve trang thai** — Khong chay `be-code` va `be-fix` dong thoi tren cung feature. Co che khoa ngan hong file tien do.
+- **Khóa bảo vệ trạng thái** — Không chạy `be-code` và `be-fix` đồng thời trên cùng feature. Cơ chế khóa ngăn hỏng file tiến độ.
 
-## Lo trinh
+## Lộ trình
 
-- [x] Tao CQRS CRUD scaffold
-- [x] Pipeline trien khai TDD
-- [x] Cong xac minh
-- [x] Review code da chieu + vong review-fix (6 core + spec compliance tuy chon)
-- [x] Build doctor (tu dong chan doan va sua)
-- [x] Debug he thong (4 giai doan gia thuyet-kiem chung)
-- [x] Theo doi trang thai pipeline + dashboard tien do
-- [x] Audit doc lap (JPA, API, clean code, logging, test quality, security)
-- [x] An toan trang thai (khoa, ha cap, thay doi, cach ly subagent)
-- [x] Pre-commit security scan (secret, API key, file nguy hiem)
-- [x] Tich hop planning-plugin (scaffold tu spec)
-- [ ] Ho tro project da module
-- [ ] Template kien truc event-driven (Kafka, RabbitMQ)
+- [x] Tạo CQRS CRUD scaffold
+- [x] Pipeline triển khai TDD
+- [x] Cổng xác minh
+- [x] Review code đa chiều + vòng review-fix (6 core + spec compliance tùy chọn)
+- [x] Build doctor (tự động chẩn đoán và sửa)
+- [x] Debug hệ thống (4 giai đoạn giả thuyết-kiểm chứng)
+- [x] Theo dõi trạng thái pipeline + dashboard tiến độ
+- [x] Audit độc lập (JPA, API, clean code, logging, test quality, security)
+- [x] An toàn trạng thái (khóa, hạ cấp, thay đổi, cách ly subagent)
+- [x] Pre-commit security scan (secret, API key, file nguy hiểm)
+- [x] Tích hợp planning-plugin (scaffold từ spec)
+- [ ] Hỗ trợ project đa module
+- [ ] Template kiến trúc event-driven (Kafka, RabbitMQ)
 
-## Cau truc thu muc
+## Cấu trúc thư mục
 
 ```
-agents/          Dinh nghia agent (backend-planner, implement, build-doctor,
+agents/          Định nghĩa agent (backend-planner, implement, build-doctor,
                  code-reviewer, review-fixer, debugger)
-skills/          Diem vao skill (be-init, be-plan, be-crud, be-code, be-verify,
+skills/          Điểm vào skill (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
                  be-test-review, be-security)
 templates/       File template (plan-schema, tdd-rules, cqrs-module,
                  entity-conventions, test-scenario-template,
                  work-document-template, checkstyle-config, progress-schema)
-docs/            Tai lieu
+docs/            Tài liệu
 ```
 
-## Tac gia
+## Tác giả
 
 Roy Im, Justin Choi — Ohmyhotel & Co
