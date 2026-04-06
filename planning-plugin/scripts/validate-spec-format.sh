@@ -21,7 +21,8 @@ if [ ! -f "$FILE_PATH" ]; then
 fi
 
 # --- Spec format validation (only for spec markdown files under docs/specs/) ---
-if [[ "$FILE_PATH" =~ docs/specs/ ]]; then
+# Skip _shared directory — layout-only screens intentionally omit Error Handling
+if [[ "$FILE_PATH" =~ docs/specs/ ]] && [[ ! "$FILE_PATH" =~ docs/specs/_shared/ ]]; then
   BASENAME=$(basename "$FILE_PATH")
   MISSING=()
   TEMPLATE=""
@@ -75,7 +76,8 @@ fi
 
 # --- Notion sync stale detection ---
 # Extract feature and lang from the file path: docs/specs/{feature}/{lang}/...
-if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]]; then
+# Skip .progress directory — it is not a language directory
+if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]] && [[ ! "${BASH_REMATCH[2]}" =~ ^\. ]]; then
   FEATURE="${BASH_REMATCH[1]}"
   LANG="${BASH_REMATCH[2]}"
 

@@ -57,9 +57,12 @@ If the user declines, abort with: "Migration cancelled."
 
 Perform these changes in order:
 
-**4a. Remove sync header from new source file**
+**4a. Remove sync headers from new source files**
 
-Read `docs/specs/{feature}/{to}/{feature}-spec.md` and remove the `<!-- Synced with ... -->` comment line at the top of the file (if present).
+Read all 3 spec files in `docs/specs/{feature}/{to}/` and remove the `<!-- Synced with ... -->` comment line at the top of each file (if present):
+- `{feature}-spec.md`
+- `screens.md`
+- `test-scenarios.md`
 
 **4b. Update progress file**
 
@@ -70,7 +73,9 @@ Read and update `docs/specs/{feature}/.progress/{feature}.json`:
    - Remove the target language key from `translations` (it is now the source)
    - Add the previous `workingLanguage` as a new key in `translations`
    - Set ALL translation entries to `{ "synced": false, "lastSyncedAt": null }`
-3. Preserve all other fields (status, currentRound, reviews, etc.) unchanged
+3. Mark Notion pages as stale (if `notion` field exists):
+   - For every language key under `notion`, set `syncStatus` to `"stale"` (the source language has changed, so all synced pages are now out of date)
+4. Preserve all other fields (status, currentRound, reviews, etc.) unchanged
 
 Write the updated progress file.
 
@@ -85,9 +90,11 @@ Changes:
 - Source of truth: docs/specs/{feature}/{to}/{feature}-spec.md
 - Progress file updated: workingLanguage → "{to}"
 - All translations marked as out of sync
+- All Notion pages marked as stale (re-sync needed)
 
 Next steps:
 1. Edit the {new_lang_name} spec at docs/specs/{feature}/{to}/{feature}-spec.md
 2. Run /planning-plugin:translate {feature} to re-sync translations from the new source
-3. To also change the default language for new specs, update .claude/planning-plugin.json
+3. Run /planning-plugin:sync-notion {feature} to re-sync Notion pages (if configured)
+4. To also change the default language for new specs, update .claude/planning-plugin.json
 ```

@@ -3,7 +3,7 @@ name: sync-notion
 description: Use when a specification needs to be published or re-synced to Notion after finalization or manual edits.
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__claude_ai_Notion__notion-search
 ---
 
 # Sync to Notion

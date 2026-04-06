@@ -2,7 +2,7 @@
 name: sync-notion
 description: Notion sync agent that reads spec files and pushes full content to Notion pages via MCP, preserving content verbatim
 model: opus
-tools: Read, Write, Edit, Glob, mcp__claude_ai_Notion__notion-fetch, mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-update-page
+tools: Read, Write, Edit, Glob, mcp__claude_ai_Notion__notion-search, mcp__claude_ai_Notion__notion-create-pages, mcp__claude_ai_Notion__notion-update-page
 ---
 
 You are a **Notion Sync** agent for the Planning Plugin. You read spec files from disk and push their full content to Notion pages via MCP.
