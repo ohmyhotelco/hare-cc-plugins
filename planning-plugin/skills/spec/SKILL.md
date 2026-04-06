@@ -29,7 +29,7 @@ Follow these steps in order. After each major step, update the progress file.
 ### Step 1: Initialize
 
 1. Derive a kebab-case feature name from the user's description (e.g., "social login" → `social-login`)
-2. **If the feature directory already exists**, read the progress file and use its `workingLanguage` value (ignore `config.json` for existing specs). Ask the user whether to resume or start fresh.
+2. **If the feature directory already exists**, read the progress file and use its `workingLanguage` value (ignore `planning-plugin.json` for existing specs). Ask the user whether to resume or start fresh.
 3. Create the output directory structure:
    ```
    docs/specs/{feature}/{workingLanguage}/
@@ -144,11 +144,19 @@ Task(subagent_type: "tester", prompt: "Review the functional specification at do
 
 **4c. Present Combined Feedback:**
 
+Read `templates/review-reception-rules.md` and apply the review reception discipline.
+
 Show the user a summary of both reviews:
 - Overall scores (planner: X/10, tester: Y/10)
-- Critical and major issues from both agents
+- Each issue presented with a technical assessment (per review-reception-rules.md):
+  - Flag issues that conflict with previous round decisions (check progress file's `rounds` array)
+  - Flag issues where the reviewer may have misread the spec section
+  - Classify each suggestion's impact (improves spec / neutral / scope creep risk)
+  - Flag redundant issues (overlaps within same round or already addressed in prior rounds)
 - Proposed test cases from the tester
 - Approved sections
+
+Response discipline: No performative agreement ("Great point!", "Excellent observation!"). Present technical assessments directly.
 
 **4d. Convergence Check:**
 
@@ -169,7 +177,28 @@ Ask the user what to do with each issue:
 
 Apply accepted changes to the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/error handling issues → `screens.md`).
 
-Update progress file with round results.
+When applying changes, follow the review-reception-rules.md application discipline:
+- Re-read the target section before applying
+- If the suggestion would create inconsistency with other sections, note this to the user before applying
+- If multiple accepted suggestions target the same section, apply them as a coherent edit rather than sequential independent patches
+
+Update progress file with round results. Append an entry to the `rounds` array:
+```json
+{
+  "round": 1,
+  "plannerScore": 7,
+  "testerScore": 6,
+  "issues": [
+    {
+      "id": "PL-001",
+      "section": "{feature}-spec.md > FR-001",
+      "decision": "Accept",
+      "suggestion": "Add password reset flow with email verification."
+    }
+  ]
+}
+```
+Each issue must include `id`, `section`, `decision` (Accept/Reject/Modify/Defer), and `suggestion` (original text, or user's modified version for Modify decisions) for verification gate traceability.
 
 **4f. Repeat or Finalize:**
 
@@ -186,6 +215,21 @@ Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/
 ```
 
 After all complete, update the progress file's translation status with `synced: true` and timestamps.
+
+### Step 5.5: Pre-Finalization Verification
+
+Read `templates/verification-rules.md` and execute the verification gate.
+
+1. Read the progress file and collect all issues with "Accept" or "Modify" decisions from ALL rounds
+2. For each collected issue, read the relevant spec file section and verify the change is present in the text
+3. Present the verification summary showing verified/unverified counts with evidence (e.g., `✓ PL-001: Found in {feature}-spec.md > FR-005`)
+4. If unverified items exist:
+   - Present each with its original suggestion
+   - Ask the user to: **resolve now** (apply the missing change) / **defer** (move to Open Questions) / **dismiss** (user explains how it was addressed differently)
+   - Record the resolution in the progress file
+5. Only proceed to Step 6 after all items are verified, deferred, or dismissed
+
+This gate supplements the convergence check — both must pass before finalization.
 
 ### Step 6: Finalize
 

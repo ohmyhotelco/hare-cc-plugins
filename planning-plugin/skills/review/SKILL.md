@@ -1,6 +1,6 @@
 ---
 name: review
-description: Run a single review round on an existing functional specification. Use after manual edits to re-check spec quality.
+description: Use after manual spec edits to re-check quality, or when review scores need improvement before finalization.
 argument-hint: "[feature-name]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Task
@@ -25,7 +25,7 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 ### Step 1: Locate the Specification
 
 1. Read the progress file at `docs/specs/$ARGUMENTS/.progress/$ARGUMENTS.json`
-2. If the progress file exists and contains `workingLanguage`, use that value (ignore `config.json` for existing specs)
+2. If the progress file exists and contains `workingLanguage`, use that value (ignore `planning-plugin.json` for existing specs)
 3. Look for the spec directory at `docs/specs/$ARGUMENTS/{workingLanguage}/` — verify that `$ARGUMENTS-spec.md` exists inside it
 4. If not found, search `docs/specs/` for a matching feature directory
 5. If still not found, list available specs and ask the user to choose
@@ -55,16 +55,46 @@ Task(subagent_type: "tester", prompt: "Review the functional specification at do
 
 ### Step 4: Present Feedback
 
+Read `templates/review-reception-rules.md` and apply the review reception discipline.
+
 Show combined feedback with:
 - Scores from both reviewers
+- Each issue presented with a technical assessment (per review-reception-rules.md):
+  - Flag issues that conflict with previous round decisions (check progress file's `rounds` array)
+  - Flag issues where the reviewer may have misread the spec section
+  - Classify each suggestion's impact (improves spec / neutral / scope creep risk)
+  - Flag redundant issues (overlaps within same round or already addressed in prior rounds)
 - New issues found (compared to previous rounds if available)
 - Improvement trend (if previous rounds exist in progress file)
+
+Response discipline: No performative agreement ("Great point!", "Excellent observation!"). Present technical assessments directly.
 
 ### Step 5: Apply Changes
 
 For each issue the user wants to address:
 1. Update the appropriate file in the {workingLanguage} spec directory based on which section the issue targets (e.g., FR issues → `{feature}-spec.md`, screen/error handling issues → `screens.md`, open questions → `{feature}-spec.md`)
-2. Record the decision in the progress file
+2. Record the decision in the progress file. Append an entry to the `rounds` array:
+   ```json
+   {
+     "round": 2,
+     "plannerScore": 8,
+     "testerScore": 7,
+     "issues": [
+       {
+         "id": "PL-003",
+         "section": "screens.md > Screen: List View",
+         "decision": "Accept",
+         "suggestion": "Define an empty state with a call-to-action."
+       }
+     ]
+   }
+   ```
+   Each issue must include `id`, `section`, `decision` (Accept/Reject/Modify/Defer), and `suggestion` (original text, or user's modified version for Modify decisions) for verification gate traceability.
+
+When applying changes, follow the review-reception-rules.md application discipline:
+- Re-read the target section before applying
+- If the suggestion would create inconsistency with other sections, note this to the user before applying
+- If multiple accepted suggestions target the same section, apply them as a coherent edit rather than sequential independent patches
 
 After all changes are applied, update the `Last Updated` field in the metadata blockquote of `{feature}-spec.md` (in the {workingLanguage} directory) to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z).
 
@@ -84,7 +114,7 @@ After all changes are applied, update the `Last Updated` field in the metadata b
 
 **If another round**: Go back to Step 3.
 
-**If finalize** (only when available per convergence check above): Run Steps 6a → 6b → 6c below to translate, finalize, and optionally sync to Notion.
+**If finalize** (only when available per convergence check above): Run Steps 6a → 6a.5 → 6b → 6c below to translate, verify, finalize, and optionally sync to Notion.
 
 **If done for now**:
 Remind the user:
@@ -106,6 +136,21 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
    Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
    ```
 4. After all translators complete, update the progress file's `translations` field: set `synced: true` and `lastSyncedAt` to the current timestamp for each target language
+
+#### Step 6a.5: Pre-Finalization Verification (Finalize path)
+
+Read `templates/verification-rules.md` and execute the verification gate.
+
+1. Read the progress file and collect all issues with "Accept" or "Modify" decisions from ALL rounds
+2. For each collected issue, read the relevant spec file section and verify the change is present in the text
+3. Present the verification summary showing verified/unverified counts with evidence (e.g., `✓ PL-001: Found in {feature}-spec.md > FR-005`)
+4. If unverified items exist:
+   - Present each with its original suggestion
+   - Ask the user to: **resolve now** (apply the missing change) / **defer** (move to Open Questions) / **dismiss** (user explains how it was addressed differently)
+   - Record the resolution in the progress file
+5. Only proceed to Step 6b after all items are verified, deferred, or dismissed
+
+This gate supplements the convergence check — both must pass before finalization.
 
 #### Step 6b: Finalize (Finalize path)
 

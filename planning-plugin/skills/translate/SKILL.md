@@ -1,6 +1,6 @@
 ---
 name: translate
-description: Manually sync translations from the working language to other supported languages. Use after directly editing the working language spec.
+description: Use after directly editing the working language spec to sync changes to other supported languages.
 argument-hint: "[feature-name] [--file=<name>]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Task
@@ -34,7 +34,7 @@ Sync translations for: **$ARGUMENTS**
 ### Step 2: Locate the Source Spec
 
 1. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
-2. If the progress file exists and contains `workingLanguage`, use that value (ignore `config.json` for existing specs)
+2. If the progress file exists and contains `workingLanguage`, use that value (ignore `planning-plugin.json` for existing specs)
 3. Find the spec directory at `docs/specs/{feature}/{workingLanguage}/` — verify that it contains the expected markdown files
 4. If not found, list available specs and ask the user to choose
 

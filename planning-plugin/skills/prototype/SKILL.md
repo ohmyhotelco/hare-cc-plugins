@@ -3,7 +3,7 @@ name: prototype
 description: "Use when UI DSL is ready and a clickable prototype is needed for stakeholder review before production implementation."
 argument-hint: "[feature-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Bash
+allowed-tools: Read, Write, Edit, Glob, Bash, Task
 ---
 
 # Prototype Generation
@@ -78,7 +78,7 @@ If `design.stages.prototype` already exists, preserve it (it will be overwritten
 2. Build the prototype prompt. If `design.stages.stitch.status` is `"completed"`, append Stitch reference instructions:
 
 ```
-Agent(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
+Task(subagent_type: "prototype-generator", prompt: "Generate a React prototype for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Scaffold a Vite + React 19 + TypeScript + TailwindCSS + shadcn/ui project at prototypes/{feature}/ using React Router v7. Generate page components, mock data, and router setup with Lucide icons, then bundle into a single standalone HTML file using the bundle-artifact.sh script.{IF stitch completed: ' Also read Stitch wireframe outputs from docs/specs/{feature}/stitch-wireframes/ — use design-tokens.json for Tailwind theme, shadcn-mapping.json for component hints, HTML files for visual layout reference.'}")
 ```
 
 ### Step 5: Update Progress

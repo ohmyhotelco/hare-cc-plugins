@@ -1,6 +1,6 @@
 ---
 name: migrate-language
-description: Change the working language of an existing specification. Use when transferring a project to a team member who works in a different language.
+description: Use when transferring a specification to a team member who works in a different language.
 argument-hint: "[feature-name] --to=[lang]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep
@@ -20,7 +20,7 @@ Migrate working language for: **$ARGUMENTS**
 3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
-**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in the current working language (extracted from the progress file in Step 2).
 
 ### Step 1: Parse Arguments
 

@@ -180,7 +180,7 @@ Review your wireframes:
      /planning-plugin:prototype {feature}
 ```
 
-Then skip to Step 6 (Finalize).
+Then proceed to Step 6 (Finalize) to update progress and display the summary.
 
 ### Step 6: Finalize & Summary
 

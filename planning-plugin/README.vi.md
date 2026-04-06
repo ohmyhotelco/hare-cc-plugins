@@ -98,15 +98,18 @@ Xác minh cài đặt:
 
 ## Thiết lập MCP (Notion & Stitch)
 
-### Notion (đóng gói — OAuth)
+### Notion (tích hợp sẵn trong Claude — OAuth)
 
-Plugin này đi kèm một máy chủ HTTP MCP (được định nghĩa trong `plugin.json`):
+Máy chủ Notion MCP được tích hợp sẵn trong Claude và có sẵn theo mặc định. Bạn chỉ cần xác thực qua OAuth để bắt đầu sử dụng.
 
-| Máy chủ | URL | Sử dụng bởi |
-|----------|-----|-------------|
-| `notion` | `https://mcp.notion.com/mcp` | Tác tử Notion Syncer (`/planning-plugin:sync-notion`) |
+| Máy chủ | Sử dụng bởi |
+|----------|-------------|
+| `notion` | Tác tử Notion Syncer (`/planning-plugin:sync-notion`) |
 
-Quá trình cài đặt tự động đăng ký các máy chủ này — không cần chạy `claude mcp add` thủ công.
+Nếu máy chủ Notion MCP không khả dụng trong môi trường của bạn, hãy thêm thủ công:
+```
+claude mcp add notion --transport http https://mcp.notion.com/mcp -s user
+```
 
 ### Stitch (Google Stitch MCP — tùy chọn)
 
@@ -619,8 +622,8 @@ Sau khi áp dụng thay đổi, các tác tử Translator tự động đồng b
 Plugin áp dụng các quy tắc hội tụ sau mỗi vòng đánh giá:
 
 - **Cả hai điểm >= 8/10**: "Cả hai người đánh giá đều hài lòng. Sẵn sàng hoàn thiện?"
-- **Điểm cải thiện qua từng vòng**: "Điểm đang cải thiện. Bạn muốn thực hiện thêm một vòng?"
-- **3 vòng không cải thiện**: "Sau 3 vòng, đây là các câu hỏi mở còn lại. Sẵn sàng hoàn thiện ở trạng thái hiện tại?"
+- **Bất kỳ điểm nào < 8 VÀ chưa hoàn thành 3 vòng**: KHÔNG đề xuất hoàn thiện. "Khuyến nghị thực hiện thêm một vòng đánh giá."
+- **Đã hoàn thành 3 vòng mà vẫn có điểm < 8**: "Sau 3 vòng, đây là các câu hỏi mở còn lại. Sẵn sàng hoàn thiện ở trạng thái hiện tại?"
 
 Quyết định cuối cùng luôn thuộc về bạn. Khi hoàn thiện:
 
@@ -732,6 +735,7 @@ docs/specs/{feature}/
 ├── stitch-wireframes/                     ← Đầu ra wireframe Stitch (tùy chọn)
 │   ├── stitch-manifest.json               ← Ánh xạ màn hình + metadata dự án Stitch
 │   ├── design-tokens.json                 ← Token màu/font/khoảng cách đã trích xuất
+│   ├── DESIGN.md                          ← Tài liệu thiết kế ngôn ngữ tự nhiên (5 chiều)
 │   ├── shadcn-mapping.json                ← Gợi ý ánh xạ Stitch HTML → shadcn/ui
 │   ├── {screen-id}.html                   ← Mã HTML/CSS theo màn hình
 │   └── {screen-id}.png                    ← Ảnh chụp PNG theo màn hình
@@ -785,12 +789,12 @@ prototypes/{feature}/                  ← Prototype React (dự án Vite độc
 ## Cấu trúc thư mục
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, sync-notion)
 skills/          Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
+templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
 docs/specs/      Generated specifications (3 tệp mỗi thư mục ngôn ngữ + ui-dsl/ + stitch-wireframes/)
 prototypes/  Generated React prototypes (dự án Vite độc lập theo tính năng)
 ```

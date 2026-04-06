@@ -618,8 +618,8 @@ After changes are applied, translator agents sync the other language versions au
 The plugin applies these convergence rules after each review round:
 
 - **Both scores >= 8/10**: "Both reviewers are satisfied. Ready to finalize?"
-- **Scores improving round over round**: "Scores are improving. Want to do another round?"
-- **3 rounds with no improvement**: "After 3 rounds, here are the remaining open questions. Ready to finalize as-is?"
+- **Either score < 8 AND fewer than 3 rounds completed**: Do NOT offer finalization. "Another review round is recommended."
+- **3 rounds completed with either score still < 8**: "After 3 rounds, here are the remaining open questions. Ready to finalize as-is?"
 
 You always have the final say. When you finalize:
 
@@ -731,6 +731,7 @@ docs/specs/{feature}/
 ├── stitch-wireframes/                     ← Stitch wireframe outputs (optional)
 │   ├── stitch-manifest.json               ← Screen mapping + Stitch project metadata
 │   ├── design-tokens.json                 ← Extracted color/font/spacing tokens
+│   ├── DESIGN.md                          ← Natural-language design document (5 dimensions)
 │   ├── shadcn-mapping.json                ← Stitch HTML → shadcn/ui mapping hints
 │   ├── {screen-id}.html                   ← Per-screen HTML/CSS code
 │   └── {screen-id}.png                    ← Per-screen PNG screenshots
@@ -784,12 +785,12 @@ prototypes/{feature}/                  ← React prototype (standalone Vite proj
 ## Directory Structure
 
 ```
-agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator)
+agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, sync-notion)
 skills/          Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
+templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/ + stitch-wireframes/)
 prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
