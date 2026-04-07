@@ -118,7 +118,7 @@ Use an ISO-8601 UTC timestamp for generation time.
 
 This design system is intended to be used with:
 
-- **`/planning-plugin:design`** — The `dsl-generator` agent reads `pages/components.md`, `pages/icons.md`, `pages/patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints. The `prototype-generator` agent reads `pages/colors.md`, `pages/typography.md`, and `pages/spacing-layout.md` to configure Tailwind theme.
+- **`/planning-plugin:design`** — The `dsl-generator` agent reads `pages/components.md`, `pages/icons.md`, `pages/patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints. The `stitch-wireframe` agent reads `pages/colors.md`, `pages/typography.md`, `pages/patterns.md`, and `MASTER.md` to inform wireframe color/font context and layout validation. The `prototype-generator` agent reads `pages/colors.md`, `pages/typography.md`, and `pages/spacing-layout.md` to configure Tailwind theme.
 
 
 ### Tailwind Theme Config

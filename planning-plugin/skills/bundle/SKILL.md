@@ -1,6 +1,6 @@
 ---
 name: bundle
-description: "Rebuild bundle.html from existing prototype source files."
+description: Use when prototype source files have changed and the standalone HTML bundle needs rebuilding.
 argument-hint: "[feature-name]"
 user-invocable: true
 allowed-tools: Read, Write, Bash, Glob

@@ -1,6 +1,6 @@
 ---
 name: progress
-description: Show the current status of all functional specifications including review scores, open issues, and translation sync state.
+description: Use when checking specification progress, review scores, translation sync status, or determining the next pipeline step.
 argument-hint: "[feature-name]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep
@@ -26,7 +26,7 @@ Show status for: **$ARGUMENTS**
 ### If a feature name is provided:
 
 1. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
-2. If the progress file contains `workingLanguage`, use that value (ignore `config.json` for existing specs)
+2. If the progress file contains `workingLanguage`, use that value (ignore `planning-plugin.json` for existing specs)
 3. Determine target languages: `supportedLanguages` minus the spec's `workingLanguage`
 4. Display:
 

@@ -30,7 +30,7 @@ A Claude Code plugin that generates functional specifications through multi-agen
 - **Data**: 7 curated CSV databases in `data/design-system/` — styles, colors, typography, components, patterns, industry-rules, icons
 - **Engine**: CSV data read by Claude with domain filtering + industry reasoning rules
 - **Output**: `design-system/MASTER.md` + `design-system/pages/*.md` (colors, typography, spacing-layout, components, patterns, icons)
-- **Integration**: The `dsl-generator` agent reads `design-system/pages/components.md`, `icons.md`, `patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints; the `prototype-generator` agent reads `design-system/pages/colors.md`, `typography.md`, and `spacing-layout.md` to configure Tailwind theme
+- **Integration**: The `dsl-generator` agent reads `design-system/pages/components.md`, `icons.md`, `patterns.md`, and `MASTER.md` to inform component selection, icon mapping, layout validation, and design constraints; the `stitch-wireframe` agent reads `design-system/pages/colors.md`, `typography.md`, `patterns.md`, and `MASTER.md` to inform wireframe color/font context and layout validation; the `prototype-generator` agent reads `design-system/pages/colors.md`, `typography.md`, and `spacing-layout.md` to configure Tailwind theme
 
 ## Design Workflow
 
@@ -55,7 +55,7 @@ Default run executes Stage 1→2 then stops with a review gate — the user revi
 - Convergence (strict priority): both scores >= 8 → suggest finalization; any score < 8 AND < 3 rounds → do NOT offer finalization; 3 rounds with any score < 8 → suggest finalization with caveats
 - Notion sync: triggered automatically after spec finalization and translation; `notionParentPageUrl` must be set in `.claude/planning-plugin.json`; file-per-page structure — each language gets a parent page (`[{feature}] {lang_name}`) with 3 child pages (Overview, Screens, Test Scenarios); the `sync-notion` skill orchestrates config/progress management, then launches the `sync-notion` agent (one per language) which reads spec files in a fresh context and calls Notion MCP for maximum content fidelity; progress file stores `syncStatus` + `parentPageUrl` + `childPages` in the `notion` field; legacy `pageUrl` format is auto-migrated on next sync
 - Notion sync reliability: uses a WAL (Write-Ahead Log) pattern — `syncStatus` is set to `"syncing"` before MCP calls, each page URL is recorded incrementally after creation/update, and `syncStatus` is set to `"synced"` only after all pages complete. Values: `"syncing"` (in progress or interrupted), `"synced"` (complete), `"stale"` (spec edited after sync). `session-init.sh` warns on `"syncing"` (interrupted) and `"stale"` states. `validate-spec-format.sh` auto-transitions `"synced"` → `"stale"` when spec files are edited
-- Stitch wireframe output: `docs/specs/{feature}/stitch-wireframes/` contains `stitch-manifest.json`, `design-tokens.json`, `shadcn-mapping.json`, per-screen HTML/PNG files. Optional — only generated when Stitch MCP is configured
+- Stitch wireframe output: `docs/specs/{feature}/stitch-wireframes/` contains `stitch-manifest.json`, `design-tokens.json`, `DESIGN.md`, `shadcn-mapping.json`, per-screen HTML/PNG files. Optional — only generated when Stitch MCP is configured
 - Stitch sync: `/planning-plugin:sync-stitch {feature}` re-fetches wireframe content from Stitch after manual edits on the Stitch website. Use `sync-stitch` when wireframes were edited on Stitch website; use `design --stage=stitch` for full DSL-to-wireframe regeneration
 - UI DSL output: `docs/specs/{feature}/ui-dsl/` contains `manifest.json` (screen index + navigation map) and `screen-{id}.json` per screen
 - Prototype output: `prototypes/{feature}/bundle.html` is the final artifact (single standalone HTML, openable via `file://`). The intermediate Vite project is kept for debugging
@@ -73,11 +73,11 @@ Default run executes Stage 1→2 then stops with a review gate — the user revi
 ```
 .claude-plugin/  - Plugin manifest (plugin.json, marketplace.json)
 agents/          - Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, sync-notion)
-skills/          - Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, sync-notion, sync-stitch, bundle)
+skills/          - Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
 hooks/           - Lifecycle hook configuration
 scripts/         - Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            - Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       - Spec templates + UI DSL schema + Stitch prompt template (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md)
+templates/       - Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
 docs/specs/      - Generated specifications (3 files per language directory + ui-dsl/ per feature)
 prototypes/  - Generated React prototypes (standalone Vite projects per feature)
 ```

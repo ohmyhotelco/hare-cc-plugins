@@ -1,6 +1,6 @@
 ---
 name: sync-stitch
-description: "Re-fetch updated wireframe content from Stitch after manual edits on the Stitch website."
+description: "Use when wireframes were manually edited on the Stitch website and need to be re-fetched to the local project."
 argument-hint: "[feature-name] [--screen=screen-id]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash,

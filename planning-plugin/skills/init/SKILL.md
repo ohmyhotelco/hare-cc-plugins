@@ -1,6 +1,6 @@
 ---
 name: init
-description: Initialize Planning Plugin configuration for the current project. Sets working language and optional Notion sync URL.
+description: Use when setting up Planning Plugin for a new project — configures working language and optional Notion sync.
 argument-hint: ""
 user-invocable: true
 allowed-tools: Read, Write, Glob

@@ -1,6 +1,6 @@
 ---
 name: sync-notion
-description: Sync functional specification(s) to Notion pages. Creates a parent page with 3 child pages per language (file-per-page).
+description: Use when a specification needs to be published or re-synced to Notion after finalization or manual edits.
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Task
