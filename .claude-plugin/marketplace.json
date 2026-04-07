@@ -29,14 +29,14 @@
     },
     {
       "name": "homepage-plugin",
-      "description": "Claude Code plugin for building company marketing and homepage websites with Astro 5, Tailwind CSS, shadcn/ui, MDX content, and SEO optimization",
-      "version": "0.2.1",
+      "description": "Claude Code plugin for building company marketing and homepage websites with Astro 5, Tailwind CSS, shadcn/ui (or Figma-derived custom components), MDX content, and SEO optimization",
+      "version": "0.3.1",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./homepage-plugin/",
       "category": "development",
-      "keywords": ["homepage", "marketing", "astro", "seo", "tailwind", "shadcn", "mdx", "i18n", "lighthouse", "accessibility", "content", "landing-page", "islands", "static-site"]
+      "keywords": ["homepage", "marketing", "astro", "seo", "tailwind", "shadcn", "figma", "design-tokens", "design-system", "mdx", "i18n", "lighthouse", "accessibility", "content", "landing-page", "islands", "static-site"]
     },
     {
       "name": "backend-springboot-plugin",

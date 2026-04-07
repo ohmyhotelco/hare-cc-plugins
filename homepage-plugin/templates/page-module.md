@@ -36,7 +36,7 @@ All marketing pages are wrapped by `MarketingLayout.astro`, which provides the H
 ---
 import Header from '../components/layout/Header.astro';
 import Footer from '../components/layout/Footer.astro';
-import ViewTransitions from 'astro:transitions';
+import { ViewTransitions } from 'astro:transitions';
 
 interface Props {
   title: string;
@@ -58,6 +58,7 @@ const { title, description, ogImage, structuredData } = Astro.props;
   <meta property="og:description" content={description} />
   {ogImage && <meta property="og:image" content={ogImage} />}
   <meta property="og:type" content="website" />
+  <meta property="og:url" content={Astro.url.href} />
   <!-- Twitter card -->
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="canonical" href={Astro.url.href} />

@@ -36,6 +36,7 @@ Check each page for:
 - `<meta property="og:description">` — present
 - `<meta property="og:image">` — present, absolute URL
 - `<meta property="og:type">` — present, correct type per page
+- `<meta property="og:url">` — present, canonical URL, absolute
 - `<meta name="twitter:card">` — present, `summary_large_image`
 - `<link rel="canonical">` — present, absolute URL, self-referencing
 

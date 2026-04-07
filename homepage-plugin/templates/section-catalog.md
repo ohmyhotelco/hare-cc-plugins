@@ -4,6 +4,8 @@ Reference template for 15 canonical marketing/homepage sections. Each section is
 
 All components use Tailwind CSS for styling, Astro for static rendering, and React islands (via `client:` directives) for interactive elements. shadcn/ui is used for interactive primitives (Accordion, Dialog, etc.).
 
+> **Custom Components**: When `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` exist, the components at `@/components/ui/` are Figma-derived custom components (Radix + Tailwind, styled with Figma design tokens) instead of shadcn/ui. Import paths and props interfaces are identical — all patterns below work unchanged.
+
 ---
 
 ## Sections
@@ -249,7 +251,7 @@ interface TestimonialsSectionProps {
 ```astro
 ---
 import { Image } from "astro:assets";
-import TestimonialsCarousel from "@/components/TestimonialsCarousel";
+import TestimonialsCarousel from "@/components/islands/TestimonialsCarousel";
 
 interface Testimonial {
   quote: string;
@@ -314,7 +316,7 @@ const {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/TestimonialsCarousel.tsx
+// src/components/islands/TestimonialsCarousel.tsx
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -527,7 +529,7 @@ interface PricingSectionProps {
 #### Astro Component
 ```astro
 ---
-import PricingToggle from "@/components/PricingToggle";
+import PricingToggle from "@/components/islands/PricingToggle";
 
 interface PricingPlan {
   name: string;
@@ -607,7 +609,7 @@ const {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/PricingToggle.tsx
+// src/components/islands/PricingToggle.tsx
 import { useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -750,7 +752,7 @@ interface FAQSectionProps {
 #### Astro Component
 ```astro
 ---
-import FAQAccordion from "@/components/FAQAccordion";
+import FAQAccordion from "@/components/islands/FAQAccordion";
 
 interface FAQItem {
   question: string;
@@ -785,7 +787,7 @@ const { sectionTitle, sectionSubtitle, items } = Astro.props;
 
 #### React Island (if interactive)
 ```tsx
-// src/components/FAQAccordion.tsx
+// src/components/islands/FAQAccordion.tsx
 import {
   Accordion,
   AccordionContent,
@@ -1049,7 +1051,7 @@ interface NewsletterSectionProps {
 #### Astro Component
 ```astro
 ---
-import NewsletterForm from "@/components/NewsletterForm";
+import NewsletterForm from "@/components/islands/NewsletterForm";
 
 interface Props {
   sectionTitle: string;
@@ -1098,7 +1100,7 @@ const {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/NewsletterForm.tsx
+// src/components/islands/NewsletterForm.tsx
 import { useState, type FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -1226,7 +1228,7 @@ interface ContactSectionProps {
 #### Astro Component
 ```astro
 ---
-import ContactForm from "@/components/ContactForm";
+import ContactForm from "@/components/islands/ContactForm";
 
 interface Props {
   sectionTitle: string;
@@ -1281,7 +1283,7 @@ const {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/ContactForm.tsx
+// src/components/islands/ContactForm.tsx
 import { useState, type FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1723,7 +1725,7 @@ interface GallerySectionProps {
 ```astro
 ---
 import { Image } from "astro:assets";
-import GalleryLightbox from "@/components/GalleryLightbox";
+import GalleryLightbox from "@/components/islands/GalleryLightbox";
 
 interface GalleryImage {
   src: ImageMetadata;
@@ -1805,7 +1807,7 @@ const colsClass: Record<number, string> = {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/GalleryLightbox.tsx
+// src/components/islands/GalleryLightbox.tsx
 import { useState, useCallback, useEffect } from "react";
 import {
   Dialog,
@@ -2157,7 +2159,7 @@ interface HeaderSectionProps {
 ```astro
 ---
 import { Image } from "astro:assets";
-import MobileNav from "@/components/MobileNav";
+import MobileNav from "@/components/islands/MobileNav";
 
 interface NavItem {
   label: string;
@@ -2224,7 +2226,7 @@ const {
 
 #### React Island (if interactive)
 ```tsx
-// src/components/MobileNav.tsx
+// src/components/islands/MobileNav.tsx
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";

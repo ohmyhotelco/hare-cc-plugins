@@ -70,6 +70,18 @@ if [ "$ESLINT_TEMPLATE" = "true" ]; then
   fi
 fi
 
+# Design system status
+DESIGN_TOKENS="$CWD/docs/design-system/design-tokens.json"
+if [ -f "$DESIGN_TOKENS" ]; then
+  EXTRACTED_AT=$(jq -r '.extractedAt // "unknown"' "$DESIGN_TOKENS" 2>/dev/null || echo "unknown")
+  echo "  Design system: Figma tokens (synced: $EXTRACTED_AT)"
+else
+  FIGMA_KEY=$(jq -r '.figmaFileKey // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+  if [ -n "$FIGMA_KEY" ] && [ "$FIGMA_KEY" != "null" ]; then
+    echo "  Info: Figma configured but tokens not synced. Run /homepage-plugin:hp-design-sync."
+  fi
+fi
+
 # Scan progress files for page pipeline status
 PAGES_DIR="$CWD/docs/pages"
 if [ -d "$PAGES_DIR" ]; then

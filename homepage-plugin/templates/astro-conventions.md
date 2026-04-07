@@ -279,6 +279,44 @@ export default {
 }
 ```
 
+### Design Token-Based Global Styles
+
+When `docs/design-system/design-tokens.json` exists, generate `globals.css` using values from its `cssVariables` section instead of the hardcoded shadcn/ui defaults above.
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Generated from docs/design-system/design-tokens.json */
+    --background: {cssVariables[":root"]["--background"]};
+    --foreground: {cssVariables[":root"]["--foreground"]};
+    --card: {cssVariables[":root"]["--card"]};
+    --card-foreground: {cssVariables[":root"]["--card-foreground"]};
+    --popover: {cssVariables[":root"]["--popover"]};
+    --popover-foreground: {cssVariables[":root"]["--popover-foreground"]};
+    --primary: {cssVariables[":root"]["--primary"]};
+    --primary-foreground: {cssVariables[":root"]["--primary-foreground"]};
+    --secondary: {cssVariables[":root"]["--secondary"]};
+    --secondary-foreground: {cssVariables[":root"]["--secondary-foreground"]};
+    --muted: {cssVariables[":root"]["--muted"]};
+    --muted-foreground: {cssVariables[":root"]["--muted-foreground"]};
+    --accent: {cssVariables[":root"]["--accent"]};
+    --accent-foreground: {cssVariables[":root"]["--accent-foreground"]};
+    --destructive: {cssVariables[":root"]["--destructive"]};
+    --destructive-foreground: {cssVariables[":root"]["--destructive-foreground"]};
+    --border: {cssVariables[":root"]["--border"]};
+    --input: {cssVariables[":root"]["--input"]};
+    --ring: {cssVariables[":root"]["--ring"]};
+    --radius: {cssVariables[":root"]["--radius"]};
+  }
+}
+```
+
+The variable names and HSL format remain identical to the shadcn/ui pattern — only the values change. This ensures all Tailwind utility classes (`bg-primary`, `text-foreground`, etc.) continue to work without modification.
+
 ## Responsive Design Patterns
 
 ### Mobile-First Breakpoints

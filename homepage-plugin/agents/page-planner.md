@@ -33,16 +33,18 @@ The skill will provide these parameters in the prompt:
 3. **Existing pages** — scan `docs/pages/*/page-plan.json` to detect shared sections already generated and reuse opportunities
 4. **Project structure** — scan `src/components/sections/` and `src/components/islands/` to detect existing components
 5. **Figma reference** — if `figmaRef` is provided and is a file path, read the image to analyze design elements (colors, spacing, layout, content structure)
+6. **Design system** — if `docs/design-system/component-map.json` exists, read it. If `fileStructure === "page-based"` and the current `pageName` has a matching entry in `pages`, use the pre-extracted section list and design contexts to pre-populate section definitions in Phase 1 instead of relying solely on user descriptions
 
 ### Phase 1: Analyze Sections
 
 For each section in the user's selection:
 
 1. **Match to catalog** — find the closest matching canonical section from section-catalog.md
-2. **Determine type** — classify as Static (.astro) or Island (React + client: directive)
-3. **Extract props** — infer props from user description and Figma reference
-4. **Detect reuse** — check if this section already exists from a previous page's generation
-5. **Custom sections** — if no catalog match, define a new custom section with inferred props interface
+2. **Pre-populate from Figma** — if `component-map.json` has a matching page with pre-classified sections (from `hp-design-sync`), use the `sectionType`, `designContext`, and `components` data to pre-fill the section definition. Present pre-populated sections to the user for confirmation.
+3. **Determine type** — classify as Static (.astro) or Island (React + client: directive)
+4. **Extract props** — infer props from user description, Figma design context, and Figma screenshot reference
+5. **Detect reuse** — check if this section already exists from a previous page's generation
+6. **Custom sections** — if no catalog match, define a new custom section with inferred props interface
 
 ### Phase 2: SEO Analysis
 
@@ -142,3 +144,4 @@ When a user describes a section not in the catalog:
 - **Minimal island usage** — default to static (.astro) unless interactivity is genuinely required
 - **Props completeness** — include enough detail in props for the section-generator to produce complete code without further user input
 - **Figma analysis** — when a Figma reference is provided, extract concrete details (specific text, colors, layout, spacing) into props rather than keeping them generic
+- **Design system integration** — when `component-map.json` has page-level section data, use it to pre-populate section types and props. This avoids asking the user to re-describe sections that were already identified in Figma. Present the pre-populated plan for user confirmation and adjustment.

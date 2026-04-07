@@ -72,12 +72,19 @@ Save agent output to `docs/pages/{page-name}/.implementation/homepage/fix-report
   "issuesReceived": 5,
   "issuesFixed": 4,
   "issuesSkipped": 1,
+  "skippedReasons": [
+    {
+      "issue": "...",
+      "reason": "Issue no longer present in current code"
+    }
+  ],
   "escalated": [],
   "verification": {
     "tsc": "pass",
     "eslint": "pass",
     "build": "pass"
-  }
+  },
+  "remainingIssues": []
 }
 ```
 
