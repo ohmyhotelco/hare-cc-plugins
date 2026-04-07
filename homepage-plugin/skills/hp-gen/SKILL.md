@@ -95,7 +95,8 @@ The agent generates:
 - i18n setup (utils.ts + translation files)
 - Global styles (globals.css)
 - Content Collection config (if MDX enabled)
-- ESLint config (if eslintTemplate enabled and no config exists)
+
+> ESLint config is generated later in Phase 3 (Step 7) when `eslintTemplate` is enabled and no config exists.
 
 Update `generation-state.json`:
 ```json

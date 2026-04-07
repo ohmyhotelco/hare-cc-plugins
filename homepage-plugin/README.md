@@ -1,6 +1,6 @@
 # Homepage Plugin
 
-> **Ohmyhotel & Co** — Claude Code plugin for marketing homepage development with Astro
+> **Ohmyhotel & Co** — Claude Code plugin for marketing homepage development with Astro, shadcn/ui (or Figma-derived custom components), and SEO optimization
 
 ## What It Does
 
@@ -11,13 +11,20 @@ Key capabilities:
 - **Section-based generation** — 15 canonical marketing sections (.astro static + React islands for interactivity)
 - **SEO-first architecture** — Static HTML output, JSON-LD structured data, sitemap, meta tags, Lighthouse CI auditing
 - **Astro islands** — Zero JS by default; only hydrate interactive components (forms, carousels, accordions)
-- **2-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions)
+- **Figma design system integration** — Optional Figma MCP sync extracts design tokens and auto-generates custom components replacing shadcn/ui
+- **2-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions, +1 Design Token Consistency when design system exists)
 - **Content Collections** — Type-safe MDX blog posts with Zod schemas, optional headless CMS integration
 
 ## Architecture Overview
 
 ```
 /homepage-plugin:hp-init → .claude/homepage-plugin.json
+        │
+        ▼
+[/homepage-plugin:hp-design-sync] (optional — requires Figma MCP)
+        │
+        ├── design-token-extractor agent → design-tokens.json + component-map.json
+        └── Enables Figma-derived custom components in hp-gen
         │
         ▼
 /homepage-plugin:hp-plan [page-name]
@@ -42,7 +49,7 @@ Key capabilities:
 /homepage-plugin:hp-review [page-name]
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
-        └── Stage 2: quality-reviewer → code quality + accessibility (6 dimensions)
+        └── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -63,7 +70,7 @@ Key capabilities:
 | Language | TypeScript (strict) |
 | UI Integration | @astrojs/react (React 19 for interactive islands) |
 | Styling | Tailwind CSS (@astrojs/tailwind) |
-| Components | shadcn/ui + Lucide icons (replaceable with in-house design system) |
+| Components | shadcn/ui + Lucide icons (auto-replaced with Figma-derived custom components when design system exists) |
 | Content | Astro Content Collections + @astrojs/mdx, optional headless CMS |
 | i18n | Astro built-in i18n routing |
 | SEO | Static HTML + @astrojs/sitemap + JSON-LD structured data |
@@ -113,11 +120,12 @@ Verify the installation:
 
 ```
 1. /homepage-plugin:hp-init                           # configure plugin
-2. /homepage-plugin:hp-plan                           # define pages and sections interactively
-3. /homepage-plugin:hp-gen                            # generate Astro pages and components
-4. /homepage-plugin:hp-verify                         # verify build quality (optional)
-5. /homepage-plugin:hp-review                         # SEO + quality code review
-6. /homepage-plugin:hp-fix {page}                     # fix review issues (if any)
+2. /homepage-plugin:hp-design-sync                    # sync Figma design tokens (optional)
+3. /homepage-plugin:hp-plan                           # define pages and sections interactively
+4. /homepage-plugin:hp-gen                            # generate Astro pages and components
+5. /homepage-plugin:hp-verify                         # verify build quality (optional)
+6. /homepage-plugin:hp-review                         # SEO + quality code review
+7. /homepage-plugin:hp-fix {page}                     # fix review issues (if any)
 ```
 
 ## Skills Reference
@@ -136,6 +144,29 @@ Verify the installation:
 5. Writes `.claude/homepage-plugin.json`
 6. Installs 2 external skills (Web Design Guidelines, Composition Patterns)
 7. Displays next-step guidance
+
+---
+
+### `/homepage-plugin:hp-design-sync`
+
+**Syntax**: `/homepage-plugin:hp-design-sync [figma-file-url]`
+
+**When to use**: After `hp-init`, when you have a Figma design file and want to extract design tokens for custom component generation. Optional — without this, `hp-gen` uses shadcn/ui defaults.
+
+**Prerequisites**: Figma MCP server must be connected (remote `https://mcp.figma.com/mcp` or desktop plugin).
+
+**What happens**:
+1. Resolves Figma file key from URL argument, config, or user prompt
+2. Verifies Figma MCP connection (exits with setup instructions if unavailable)
+3. Discovers file structure (page-based or library-based)
+4. Launches design-token-extractor agent to extract:
+   - Color tokens, typography, spacing, border radius, shadows
+   - Component definitions mapped to shadcn/ui equivalents
+5. Writes `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json`
+6. Updates `.claude/homepage-plugin.json` with `figmaFileKey` and `figmaFileUrl`
+7. Validates output and displays summary
+
+**Re-run support**: Subsequent runs offer `replace` (fresh extraction) or `update` (merge with existing) modes.
 
 ---
 
@@ -196,7 +227,6 @@ Verify the installation:
 3. Runs Astro build (`astro build`)
 4. Runs Lighthouse CI (performance/accessibility/SEO >= 90 target)
 5. Reports pass/fail for each gate
-6. Reports pass/fail for each gate
 
 ---
 
@@ -209,7 +239,7 @@ Verify the installation:
 **What happens**:
 1. Acquires a lock to prevent concurrent operations
 2. **Stage 1 — SEO Review**: seo-reviewer agent checks metadata completeness, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators (6 dimensions, scored 0-10)
-3. **Stage 2 — Quality Review** (only when SEO passes): quality-reviewer agent checks accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (6 dimensions, scored 0-10)
+3. **Stage 2 — Quality Review** (only when SEO passes): quality-reviewer agent checks accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (6 dimensions, +1 Design Token Consistency when design system exists, scored 0-10)
 4. Saves merged review report with issue details (severity, file, line, fixHint)
 5. Releases the lock and updates progress
 
@@ -246,7 +276,15 @@ Verify the installation:
 
 Sets content strategy (MDX/headless CMS), i18n locales, deploy target, and ESLint preference. Installs external skills for accessibility and composition patterns.
 
-### Step 2: Define Pages & Sections
+### Step 2: Sync Design Tokens (optional)
+
+```
+/homepage-plugin:hp-design-sync
+```
+
+If you have a Figma design file, extract design tokens and component definitions. This enables `hp-gen` to generate Figma-derived custom components instead of shadcn/ui defaults. Requires Figma MCP server connection.
+
+### Step 3: Define Pages & Sections
 
 ```
 /homepage-plugin:hp-plan
@@ -260,7 +298,7 @@ The page-planner agent synthesizes your natural language descriptions and option
 - Shared elements → layout structure (header, footer, navigation)
 - Translations → i18n namespace and key groups
 
-### Step 3: Generate Code
+### Step 4: Generate Code
 
 ```
 /homepage-plugin:hp-gen
@@ -271,7 +309,7 @@ Executes 3 phases of code generation:
 2. **Sections & Pages** — per page: generate sections (.astro + React islands), assemble page with SEO metadata
 3. **Verification** — TypeScript, ESLint, Astro build
 
-### Step 4: Verify (optional)
+### Step 5: Verify (optional)
 
 ```
 /homepage-plugin:hp-verify
@@ -279,7 +317,7 @@ Executes 3 phases of code generation:
 
 Full verification including Lighthouse CI performance budgets (target: 90+ on all categories).
 
-### Step 5: Review
+### Step 6: Review
 
 ```
 /homepage-plugin:hp-review
@@ -287,7 +325,7 @@ Full verification including Lighthouse CI performance budgets (target: 90+ on al
 
 Two-stage review: SEO compliance first (metadata, structured data, images, performance), then code quality (accessibility, responsive, TypeScript, i18n, Astro conventions).
 
-### Step 6: Fix & Re-Review
+### Step 7: Fix & Re-Review
 
 ```
 /homepage-plugin:hp-fix {page}
@@ -297,6 +335,12 @@ Two-stage review: SEO compliance first (metadata, structured data, images, perfo
 Iterate until review passes. The fix skill applies direct fixes and verifies after each batch.
 
 ## Agents
+
+### Design Token Extractor
+
+**Role**: Figma MCP → design tokens + component map (`design-tokens.json`, `component-map.json`).
+
+Connects to a Figma file via MCP to extract design tokens (colors, typography, spacing, shadows) and component definitions. Supports both page-based files (where Figma pages represent website pages) and library-based files (design system libraries). Outputs JSON files that `hp-gen` reads for custom component generation. Uses the Opus model.
 
 ### Page Planner
 
@@ -324,9 +368,9 @@ Read-only agent that evaluates metadata completeness, structured data validity, 
 
 ### Quality Reviewer
 
-**Role**: Code quality + accessibility review (6 dimensions).
+**Role**: Code quality + accessibility review (6 dimensions, +1 optional Design Token Consistency).
 
-Read-only agent that evaluates accessibility (WCAG 2.1 AA), responsive design, component composition, TypeScript strictness, i18n completeness, and Astro convention compliance. Only runs when SEO review passes.
+Read-only agent that evaluates accessibility (WCAG 2.1 AA), responsive design, component composition, TypeScript strictness, i18n completeness, and Astro convention compliance. When `docs/design-system/design-tokens.json` exists, adds a 7th dimension for Design Token Consistency. Only runs when SEO review passes.
 
 ### Review Fixer
 
@@ -339,6 +383,7 @@ Fixes SEO and quality issues identified by reviewers. All fixes are direct (no T
 | Skill | Command | Description |
 |-------|---------|-------------|
 | Init | `/homepage-plugin:hp-init` | Plugin setup and external skill installation |
+| Design Sync | `/homepage-plugin:hp-design-sync` | Figma design token extraction (optional, requires Figma MCP) |
 | Plan | `/homepage-plugin:hp-plan` | Interactive page/section definition and planning |
 | Gen | `/homepage-plugin:hp-gen` | Generate Astro pages and sections (3-phase pipeline) |
 | Verify | `/homepage-plugin:hp-verify` | TypeScript, ESLint, Astro build, Lighthouse CI verification |
@@ -363,7 +408,9 @@ The plugin uses `.claude/homepage-plugin.json` in the project directory (created
   "i18nLocales": ["ko", "en"],
   "defaultLocale": "ko",
   "deployTarget": "aws",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "figmaFileKey": "abc123XYZ",
+  "figmaFileUrl": "https://www.figma.com/design/abc123XYZ/..."
 }
 ```
 
@@ -375,6 +422,8 @@ The plugin uses `.claude/homepage-plugin.json` in the project directory (created
 | `defaultLocale` | Default locale for site and skill output language | `"ko"` |
 | `deployTarget` | Deployment target (`"aws"` \| `"vercel"` \| `"netlify"` \| `"cloudflare"` \| `"static"`) | `"aws"` |
 | `eslintTemplate` | Auto-generate ESLint config when none exists | `true` |
+| `figmaFileKey` | (optional) Figma file key for design token extraction | — |
+| `figmaFileUrl` | (optional) Full Figma file URL for reference | — |
 
 ## Generated Project Structure
 
@@ -391,7 +440,7 @@ src/
 ├── components/
 │   ├── sections/                   ← .astro static sections
 │   ├── islands/                    ← React interactive components (client: directives)
-│   ├── ui/                         ← shadcn/ui components
+│   ├── ui/                         ← shadcn/ui or Figma-derived custom components
 │   └── layout/                     ← Header, Footer, Navigation
 ├── content/
 │   ├── config.ts                   ← Content Collection schemas (Zod)
@@ -431,6 +480,13 @@ src/
 
 ## Pipeline State Files
 
+Design system files under `docs/design-system/` (created by `hp-design-sync`):
+
+| File | Purpose |
+|------|---------|
+| `design-tokens.json` | Figma-extracted design tokens (colors, typography, spacing, shadows) |
+| `component-map.json` | Figma component-to-code mapping (shadcn/ui equivalents) |
+
 State files under `docs/pages/{page-name}/`:
 
 | File | Purpose |
@@ -448,12 +504,17 @@ Shared layout plan: `docs/pages/_shared/layout-plan.json`
 
 ```
 planned → generated → verified → reviewed → done
-             ↓            ↓         ↓
-        gen-failed   verify-failed  review-failed
-                                    ↓
-                               fixing → (re-review)
-                               escalated
+             ↓    \       ↓         ↓
+        gen-failed  \ verify-failed review-failed
+                     \              ↓
+                      → fixing → (re-review → reviewed/review-failed)
+                        escalated
 ```
+
+Additional transitions:
+- `generated → reviewed | review-failed | done` — hp-verify is optional
+- `gen-failed → verified | verify-failed` — run hp-verify after manual fixes
+- `escalated → fixing | verified | reviewed` — after manual intervention, re-enter pipeline
 
 ### State File Safety
 
@@ -521,7 +582,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] Fix skill (direct fixes)
 - [x] State consistency (lock, timestamps, resume)
 - [x] Hook handlers (session-init, page validation)
-- [ ] Figma MCP integration (automated design sync)
+- [x] Figma MCP integration (automated design sync via hp-design-sync)
 - [ ] Blog template library (pre-built MDX layouts)
 - [ ] CMS adapter templates (Sanity, Contentful)
 - [ ] Performance monitoring integration (Web Analytics, Sentry)
@@ -529,12 +590,14 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 ## Directory Structure
 
 ```
-agents/          Agent definitions (page-planner, section-generator, page-assembler,
-                 seo-reviewer, quality-reviewer, review-fixer)
-skills/          Skill entry points (hp-init, hp-plan, hp-gen, hp-verify, hp-review, hp-fix)
+agents/          Agent definitions (design-token-extractor, page-planner, section-generator,
+                 page-assembler, seo-reviewer, quality-reviewer, review-fixer)
+skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
+                 hp-review, hp-fix)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-pages.sh)
-templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config, astro-conventions)
+templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config,
+                 astro-conventions, custom-components)
 docs/            Documentation
 ```
 

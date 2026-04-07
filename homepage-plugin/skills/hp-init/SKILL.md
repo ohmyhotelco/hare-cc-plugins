@@ -50,6 +50,14 @@ Ask: "Should the plugin auto-generate ESLint config when none exists?"
 - **true** (default) — auto-generate `eslint.config.js` from bundled template
 - **false** — skip ESLint in projects without their own config
 
+### Step 5.5: Figma Configuration (Optional)
+
+Ask: "Do you have a Figma design system file? (Paste URL or skip)"
+
+- If the user provides a URL, extract the file key using regex: `figma\.com/(file|design)/([a-zA-Z0-9]+)`
+- Store the extracted key as `figmaFileKey` and the full URL as `figmaFileUrl` in the configuration
+- If skipped, omit both fields from the configuration
+
 ### Step 6: Write Configuration
 
 Write `.claude/homepage-plugin.json`:
@@ -61,7 +69,9 @@ Write `.claude/homepage-plugin.json`:
   "i18nLocales": ["{user choices}"],
   "defaultLocale": "{user choice}",
   "deployTarget": "{user choice, default: aws}",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "figmaFileKey": "{extracted key, omit if skipped}",
+  "figmaFileUrl": "{full URL, omit if skipped}"
 }
 ```
 
@@ -79,6 +89,7 @@ For each skill, check if already installed at `.claude/skills/{skill-name}/SKILL
 Display:
 - Configuration summary
 - Installed skills
+- Figma status: if `figmaFileKey` is set, show "Figma connected — run `/homepage-plugin:hp-design-sync` to extract design tokens." Otherwise show "No Figma configured — using shadcn/ui defaults."
 - Next step: "Run `/homepage-plugin:hp-plan` to define pages and sections."
 
 ## Communication Language

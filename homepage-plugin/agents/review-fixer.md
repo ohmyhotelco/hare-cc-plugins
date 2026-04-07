@@ -55,6 +55,10 @@ Process issues in priority order:
 - **TypeScript** — replace `any` with proper types, add missing interfaces
 - **i18n** — replace hardcoded strings with translation keys, add missing keys to locale files
 - **Astro conventions** — convert unnecessary React to .astro, fix `client:` directives
+- **Design token consistency** (when `docs/design-system/design-tokens.json` exists):
+  - Replace hardcoded hex/rgb colors with CSS variable references (`bg-primary`, `text-foreground`, etc.)
+  - Regenerate `globals.css` from `design-tokens.json` `cssVariables` if out of sync
+  - Update font family in `tailwind.config.ts` to match `design-tokens.json` `typography.fontFamily`
 
 ### Phase 3: Verification
 
@@ -82,6 +86,7 @@ Produce a fix report:
       "reason": "Issue no longer present in current code"
     }
   ],
+  "escalated": [],
   "verification": {
     "tsc": "pass",
     "eslint": "pass",

@@ -20,6 +20,8 @@ The skill will provide these parameters in the prompt:
 - `config` — homepage-plugin configuration object
 - `isFirstPage` — whether this is the first page being generated (creates shared infrastructure)
 
+**Special value**: When `pageName === "_infrastructure"`, only run Phase 1 (Shared Infrastructure). Skip Phases 2-5 entirely — the page file will be created in a subsequent invocation with the actual page name.
+
 ## Process
 
 ### Phase 0: Load Context
@@ -30,6 +32,7 @@ The skill will provide these parameters in the prompt:
 4. **Astro conventions** — read `templates/astro-conventions.md` for page patterns
 5. **SEO checklist** — read `templates/seo-checklist.md` for metadata requirements
 6. **Existing structure** — scan project for existing layout, pages, and components
+7. **Design tokens** — read `docs/design-system/design-tokens.json` if it exists. If present, use its `cssVariables` section for globals.css generation and `typography.fontFamily` for Tailwind config
 
 ### Phase 1: Shared Infrastructure (if `isFirstPage`)
 
@@ -52,7 +55,8 @@ Only on first page generation:
    - Copyright line
 
 4. **MobileNav.tsx** — create `src/components/islands/MobileNav.tsx`
-   - Sheet/drawer component from shadcn/ui
+   - If `docs/design-system/design-tokens.json` exists: use custom Dialog/Sheet component from `templates/custom-components.md`
+   - Otherwise: use Sheet/drawer component from shadcn/ui
    - Navigation links matching header
 
 5. **SEO utilities** — create `src/lib/structured-data.ts`
@@ -68,8 +72,9 @@ Only on first page generation:
    - JSON translation files for each configured locale
 
 7. **Global styles** — create `src/styles/globals.css`
-   - Tailwind directives
-   - shadcn/ui CSS variables
+   - Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`)
+   - If `docs/design-system/design-tokens.json` exists: generate `@layer base { :root { ... } }` using the `cssVariables` section from the tokens file
+   - Otherwise: use default shadcn/ui CSS variables (see `templates/astro-conventions.md`)
 
 8. **Content Collection config** (if `contentStrategy` includes mdx)
    - `src/content/config.ts` with blog collection schema

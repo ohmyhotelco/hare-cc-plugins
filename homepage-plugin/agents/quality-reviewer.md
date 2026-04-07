@@ -27,6 +27,7 @@ The skill will provide these parameters in the prompt:
    - `.claude/skills/web-design-guidelines/SKILL.md` — accessibility and design audit rules
    - `.claude/skills/vercel-composition-patterns/SKILL.md` — composition rules (no boolean props, compound components)
 4. **Generated files** — scan `src/pages/`, `src/components/`, `src/layouts/`, `src/lib/`
+5. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both are present, set `hasDesignSystem = true`
 
 ### Phase 1: Review (6 Dimensions)
 
@@ -82,7 +83,7 @@ Check:
 - Date/time formatting uses `Intl.DateTimeFormat`
 - No locale-specific formatting in code (currency, numbers)
 
-#### Dimension 6: Astro Conventions (weight: 15%)
+#### Dimension 6: Astro Conventions (weight: 15% without design system, 13% with)
 
 Check:
 - `.astro` files used for static content (not React)
@@ -93,6 +94,20 @@ Check:
 - File-based routing follows Astro conventions
 - Layout uses `<slot />` correctly
 - No `import React from 'react'` in island files (React 19 auto-import)
+
+#### Dimension 7: Design Token Consistency (weight: 12%) — only when `hasDesignSystem === true`
+
+When `hasDesignSystem === true`, evaluate this dimension and redistribute weights:
+- Accessibility: 22%, Responsive: 18%, Composition: 13%, TypeScript: 9%, i18n: 13%, Astro: 13%, **Token Consistency: 12%**
+
+Check:
+- `globals.css` `:root` CSS variable values match `design-tokens.json` `cssVariables[":root"]` exactly (critical)
+- No hardcoded hex/rgb color values in component files when a CSS variable equivalent exists (warning)
+- Custom components in `src/components/ui/` use Tailwind classes consistent with `component-map.json` `globalComponents` `figmaStyles` (warning)
+- Section components use section-specific styles from `component-map.json` `pages.{pageName}.sections[].components` when available (info)
+- Typography in `tailwind.config.ts` `fontFamily` matches `design-tokens.json` `typography.fontFamily` (warning)
+- Border radius values in components are consistent with `design-tokens.json` `borderRadius` (info)
+- No shadcn/ui installation artifacts (`components.json`) present when custom components are in use (info)
 
 ### Phase 2: Scoring
 

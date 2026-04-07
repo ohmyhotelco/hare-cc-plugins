@@ -27,11 +27,36 @@ The skill will provide these parameters in the prompt:
 3. **Astro conventions** — read `templates/astro-conventions.md` for component patterns
 4. **Existing components** — scan `src/components/sections/` and `src/components/islands/` to detect already-generated sections
 5. **shadcn/ui inventory** — scan `src/components/ui/` to detect installed components
+6. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both files are present and valid, set `useCustomComponents = true`
 
 ### Phase 1: Install Dependencies
 
+**If `useCustomComponents === false` (default — no design tokens):**
+
 1. **shadcn/ui components** — identify required shadcn/ui components from section definitions and install missing ones via `npx shadcn@latest add {component}`
 2. **Lucide icons** — verify `lucide-react` is installed
+
+**If `useCustomComponents === true` (design tokens exist):**
+
+1. **Skip shadcn/ui** — do NOT run `npx shadcn@latest add`
+2. **Read template** — read `templates/custom-components.md` for component code patterns
+3. **Read component map** — read `docs/design-system/component-map.json` for Figma-derived styles
+4. **Generate custom components** — for each UI component required by the section plan:
+   - Read the component template from `custom-components.md`
+   - Resolve `figmaStyles` using this priority:
+     1. Section-specific styles from `component-map.json → pages.{pageName}.sections[].components.{ComponentName}.figmaStyles`
+     2. Global styles from `component-map.json → globalComponents.{ComponentName}.figmaStyles`
+     3. Default styles from `design-token-extractor.md` Phase 5.3
+   - Replace all `{component-map: ComponentName.figmaStyles.key}` placeholders with the resolved Tailwind class strings
+   - Write to `src/components/ui/{component}.tsx` (uses `globalComponents` styles as the base)
+   - If a section needs component styles that differ from the global version, apply overrides directly in the section's `.astro` or `.tsx` file using Tailwind classes from the section-specific `figmaStyles`, passed via the `className` prop
+5. **Generate utility** — create `src/lib/utils.ts` with the `cn` utility if it does not exist
+6. **Install Radix dependencies** — install required packages (skip already-installed):
+   ```bash
+   pnpm add @radix-ui/react-accordion @radix-ui/react-dialog @radix-ui/react-label @radix-ui/react-slot @radix-ui/react-switch @radix-ui/react-visually-hidden class-variance-authority clsx tailwind-merge
+   ```
+7. **Tailwind animations** — if Accordion or Dialog components are used, add the accordion keyframe animations to `tailwind.config.ts` (see `custom-components.md`)
+8. **Lucide icons** — verify `lucide-react` is installed
 
 ### Phase 2: Generate Sections
 
@@ -39,7 +64,8 @@ For each section in the plan (in order):
 
 1. **Skip reuse** — if `reuse: true`, skip generation (component already exists)
 2. **Read catalog pattern** — find the canonical pattern from section-catalog.md
-3. **Generate .astro file** — create `src/components/sections/{SectionName}.astro`
+3. **Read Figma section context** (if `useCustomComponents`): look up the section in `component-map.json → pages.{pageName}.sections[]` by matching `sectionType`. Use the `designContext` and section-specific `components` to inform layout, spacing, and component styling decisions.
+4. **Generate .astro file** — create `src/components/sections/{SectionName}.astro`
    - Define `Props` interface in frontmatter
    - Use Tailwind CSS for responsive layout (mobile-first)
    - Import `<Image />` from `astro:assets` for images
@@ -71,7 +97,7 @@ For each section generated:
 
 ### React Islands
 - Smallest possible scope — only the interactive part
-- Import shadcn/ui components: `@/components/ui/{component}`
+- Import UI components: `@/components/ui/{component}` (works for both shadcn/ui and custom components)
 - TypeScript interface for all props
 - No global state — receive all data via props
 - Default export for Astro island integration

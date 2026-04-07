@@ -18,7 +18,7 @@ A Claude Code plugin that applies tech stack and coding conventions for building
 
 ### UI Layer
 - Tailwind CSS (`@astrojs/tailwind`)
-- shadcn/ui (Radix-based, code owned by the project) — may be replaced with in-house design system
+- shadcn/ui (Radix-based, code owned by the project) — automatically replaced with Figma-derived custom components when `docs/design-system/design-tokens.json` exists
 - Icons: Lucide (`lucide-react`) — may be replaced with in-house icon set
 - React 19 via `@astrojs/react` — used only for interactive islands
 
@@ -103,15 +103,16 @@ A Claude Code plugin that applies tech stack and coding conventions for building
 
 - **Agents**:
   - `page-planner` — user input analysis → page plan (page-plan.json)
+  - `design-token-extractor` — Figma MCP → design tokens + component map (optional)
   - `section-generator` — .astro sections + React islands generation
   - `page-assembler` — section assembly → full pages + SEO metadata + i18n
   - `seo-reviewer` — SEO compliance review (6 dimensions)
-  - `quality-reviewer` — code quality + accessibility review (6 dimensions)
+  - `quality-reviewer` — code quality + accessibility review (6 dimensions, +1 optional Design Token Consistency when design system exists)
   - `review-fixer` — direct fix for review issues
-- **Skills**: `/homepage-plugin:hp-init`, `/homepage-plugin:hp-plan`, `/homepage-plugin:hp-gen`, `/homepage-plugin:hp-verify`, `/homepage-plugin:hp-review`, `/homepage-plugin:hp-fix`
+- **Skills**: `/homepage-plugin:hp-init`, `/homepage-plugin:hp-design-sync`, `/homepage-plugin:hp-plan`, `/homepage-plugin:hp-gen`, `/homepage-plugin:hp-verify`, `/homepage-plugin:hp-review`, `/homepage-plugin:hp-fix`
 - **External Skills**: `web-design-guidelines` + `vercel-composition-patterns` (from `vercel-labs/agent-skills`) — installed by hp-init
 - **Configuration**: `.claude/homepage-plugin.json` (created by `/homepage-plugin:hp-init`)
-- **Templates**: `section-catalog.md` (15 section patterns), `page-module.md` (page assembly), `seo-checklist.md` (SEO requirements), `eslint-config.md` (ESLint v9 config), `astro-conventions.md` (Astro 5 conventions)
+- **Templates**: `section-catalog.md` (15 section patterns), `page-module.md` (page assembly), `seo-checklist.md` (SEO requirements), `eslint-config.md` (ESLint v9 config), `astro-conventions.md` (Astro 5 conventions), `custom-components.md` (Figma-derived UI components)
 
 ### Communication Language
 - Skills read `defaultLocale` from `.claude/homepage-plugin.json`
@@ -121,10 +122,12 @@ A Claude Code plugin that applies tech stack and coding conventions for building
 ## Page Generation Pipeline
 
 ```
-hp-init → hp-plan → hp-gen → hp-verify → hp-review → hp-fix
-                                                       ↓
-                                                  hp-review (re-review)
+hp-init → [hp-design-sync] → hp-plan → hp-gen → hp-verify → hp-review → hp-fix
+                                                                          ↓
+                                                                     hp-review (re-review)
 ```
+
+> `[hp-design-sync]` is optional — requires Figma MCP. When used, it extracts design tokens into `docs/design-system/` JSON files that `hp-gen` reads for custom component generation.
 
 ### hp-plan — Interactive Page/Section Definition
 - Pages and sections are NOT predefined
@@ -147,7 +150,7 @@ hp-init → hp-plan → hp-gen → hp-verify → hp-review → hp-fix
 
 ### hp-review — 2-Stage Code Review
 1. **SEO Review** (seo-reviewer): 6 dimensions — metadata, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators
-2. **Quality Review** (quality-reviewer, only if SEO passes): 6 dimensions — accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions
+2. **Quality Review** (quality-reviewer, only if SEO passes): 6 dimensions (7 when design system exists) — accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (+Design Token Consistency when `docs/design-system/design-tokens.json` exists)
 
 ### hp-fix — Direct Fix
 - No TDD classification — homepage sections are presentational
@@ -189,6 +192,10 @@ Verification Red Flags — these thoughts mean you're rationalizing (all agents)
 ## State Files
 
 ```
+docs/design-system/
+├── design-tokens.json                ← Figma-extracted design tokens (created by hp-design-sync)
+└── component-map.json                ← Figma component-to-code mapping (created by hp-design-sync)
+
 docs/pages/{page-name}/
 ├── page-plan.json                    ← Page plan (sections, metadata, i18n)
 ├── .progress/{page-name}.json        ← Pipeline progress
@@ -229,6 +236,7 @@ Additional transitions:
 - `verify-failed → reviewed | review-failed | done` — hp-review accepts verify-failed
 - `verified | verify-failed → fixing` — hp-fix accepts verification results directly (without hp-review)
 - `gen-failed → generated | gen-failed` — re-run hp-gen
+- `gen-failed → verified | verify-failed` — run hp-verify after manual fixes
 - `fixing → reviewed | review-failed` — after hp-fix, hp-review determines next status
 - `escalated → fixing | verified | reviewed` — after manual intervention, re-enter pipeline via hp-fix, hp-verify, or hp-review
 
@@ -247,7 +255,7 @@ src/
 ├── components/
 │   ├── sections/                      ← .astro static sections
 │   ├── islands/                       ← React interactive components
-│   ├── ui/                            ← shadcn/ui components
+│   ├── ui/                            ← shadcn/ui or Figma-derived custom components
 │   └── layout/                        ← Header, Footer, Navigation
 ├── content/
 │   ├── config.ts                      ← Content Collection schemas
@@ -270,7 +278,9 @@ src/
   "i18nLocales": ["ko", "en"],
   "defaultLocale": "ko",
   "deployTarget": "aws",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "figmaFileKey": "abc123XYZ",
+  "figmaFileUrl": "https://www.figma.com/design/abc123XYZ/..."
 }
 ```
 
@@ -280,6 +290,8 @@ src/
 - `defaultLocale`: default locale code (default: `"ko"`)
 - `deployTarget`: `"aws"` (default) | `"vercel"` | `"netlify"` | `"cloudflare"` | `"static"` — `"aws"` uses S3 + CloudFront static hosting
 - `eslintTemplate`: `true` (default) | `false` — auto-generate ESLint config
+- `figmaFileKey`: (optional) Figma file key for design token extraction
+- `figmaFileUrl`: (optional) full Figma file URL for reference
 
 ## File Structure
 
