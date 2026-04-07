@@ -247,7 +247,7 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 2. If the spec is already finalized, warns you (reviewing changes its status back to `reviewing`)
 3. Runs planner review, then tester review (tester sees planner's feedback)
 4. Presents combined feedback with score trends compared to previous rounds
-5. You resolve issues, translations sync automatically
+5. You resolve issues; if you choose to finalize, translations sync before finalization
 
 **Example**:
 ```
@@ -267,7 +267,8 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 2. Launches translator agents in parallel for each target language
 3. If `--file=<name>` is provided, only that file is re-translated (e.g., `--file=screens` for `screens.md`)
 4. Updates sync timestamps in the progress file
-5. Reports any `<!-- NEEDS_REVIEW -->` markers left by the translator for ambiguous content
+5. If `notionParentPageUrl` is configured, syncs translated languages to Notion automatically
+6. Reports any `<!-- NEEDS_REVIEW -->` markers left by the translator for ambiguous content
 
 **Examples**:
 ```
@@ -289,6 +290,7 @@ With a feature name — shows detailed status:
 ```
 Feature: social-login
 Status: reviewing
+Working Language: English
 Current Round: 2
 
 Review History:
@@ -303,19 +305,30 @@ Translation Status:
   Korean (ko):      Synced — Last synced: 2025-01-15T10:30:00Z
   Vietnamese (vi):  Synced — Last synced: 2025-01-15T10:30:00Z
 
+Design Status:
+  DSL:       completed — 4 screens — 2025-01-16T09:00:00Z
+  Stitch:    completed — 4 screens — 2025-01-16T10:00:00Z
+  Prototype: completed — prototypes/social-login/ — Bundle: up to date — 2025-01-16T11:00:00Z
+
+Notion Sync:
+  English (en): Synced — https://notion.so/... — Last synced: 2025-01-15T10:30:00Z
+  Korean (ko):  Synced — https://notion.so/... — Last synced: 2025-01-15T10:30:00Z
+
 Open Questions: 2
 ```
+
+Design Status, Design System, and Notion Sync sections only appear when the corresponding fields exist in the progress file.
 
 Without a feature name — shows a summary table of all specs:
 ```
 Specifications Overview:
-┌──────────────────┬────────────┬───────┬─────────┬─────────┬────────────┐
-│ Feature          │ Status     │ Round │ Planner │ Tester  │ Translated │
-├──────────────────┼────────────┼───────┼─────────┼─────────┼────────────┤
-│ social-login     │ reviewing  │   2   │  7/10   │  6/10   │ ko✓ vi✓    │
-│ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ ko✓ vi✓    │
-│ notifications    │ drafting   │   0   │   —     │   —     │ ko✗ vi✗    │
-└──────────────────┴────────────┴───────┴─────────┴─────────┴────────────┘
+┌──────────────────┬────────────┬───────┬─────────┬─────────┬────────────────────┬───────────┬───────────┐
+│ Feature          │ Status     │ Round │ Planner │ Tester  │ Translated         │ Design    │ Notion    │
+├──────────────────┼────────────┼───────┼─────────┼─────────┼────────────────────┼───────────┼───────────┤
+│ social-login     │ reviewing  │   2   │  7/10   │  6/10   │ ko✓ vi✓            │ —         │ en✓ ko✓   │
+│ user-profile     │ finalized  │   3   │  9/10   │  8/10   │ en✓ vi✓            │ ✓ DSL+Pro │ en⚠ ko✓  │
+│ notifications    │ drafting   │   0   │   —     │   —     │ ko✗ vi✗            │ —         │ —         │
+└──────────────────┴────────────┴───────┴─────────┴─────────┴────────────────────┴───────────┴───────────┘
 ```
 
 ---
@@ -606,7 +619,7 @@ For each issue raised by the reviewers, you choose one of four actions:
 
 | Action | What happens |
 |--------|-------------|
-| **Accept** | The suggestion is applied to the English spec as-is |
+| **Accept** | The suggestion is applied to the working language spec as-is |
 | **Reject** | The issue is dismissed with a note explaining why |
 | **Modify** | A modified version of the suggestion is applied |
 | **Defer** | The issue is moved to the Open Questions section |
@@ -807,7 +820,7 @@ Runs when a Claude Code session starts. Checks for:
 - **Interrupted Notion sync**: Warns if any language has `syncStatus: "syncing"` (session ended mid-sync)
 - **Stale Notion pages**: Warns if spec files were edited after the last Notion sync (`syncStatus: "stale"`)
 - **Stale prototype bundles**: Warns if prototype source files were edited after the last bundle build (`bundleStatus: "stale"`)
-- **Stale Stitch wireframes**: Warns if UI DSL files were edited after the last Stitch wireframe generation (`stitch.status: "stale"`)
+- **Stale Stitch wireframes**: Warns if UI DSL files were edited after the last Stitch wireframe generation (`design.stages.stitch.status: "stale"`)
 
 ### PostToolUse — `validate-spec-format.sh`
 
@@ -816,7 +829,7 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 - **Format validation**: Checks that required sections exist in each spec file (warning only, does not block)
 - **Notion stale detection**: If a spec file is edited and its Notion sync status is `"synced"`, automatically transitions to `"stale"`
 - **Bundle stale detection**: If a prototype source file under `prototypes/{feature}/src/` is edited and `bundleStatus` is `"current"`, automatically transitions to `"stale"`
-- **Stitch stale detection**: If a UI DSL file under `docs/specs/{feature}/ui-dsl/` is edited and `stitch.status` is `"completed"`, automatically transitions to `"stale"`
+- **Stitch stale detection**: If a UI DSL file under `docs/specs/{feature}/ui-dsl/` is edited and `design.stages.stitch.status` is `"completed"`, automatically transitions to `"stale"`
 
 ## Conventions
 

@@ -85,6 +85,8 @@ Based on the `--stage` argument:
 
 ### Step 3: Initialize Progress
 
+**Skip this step entirely if `feature` is `_shared`** — shared layouts have no progress file.
+
 Read the progress file and initialize the `design` field if not present:
 
 ```json
@@ -128,14 +130,14 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
      }
    }
    ```
-4. On failure, update `status: "error"`, report error, and ask user whether to retry or skip
+4. On failure, update `status: "error"` (skip for `_shared` — no progress file), report error, and ask user whether to retry or skip
 
 ### Step 5: Stage 2 — Stitch Wireframe Generation
 
 **Skip if not in the determined stages.**
 
 1. Check if any Stitch MCP tool is available (e.g., `mcp__stitch__list_projects`)
-   - If not available, update progress and inform the user:
+   - If not available, update progress (skip for `_shared` — no progress file) and inform the user:
      ```json
      { "design.stages.stitch": { "status": "skipped", "generatedAt": "ISO-8601" } }
      ```
@@ -143,20 +145,20 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
      >  Run: `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`"
    - Skip to Step 6
 
-2. Update progress: `design.stages.stitch.status = "in_progress"`
+2. Update progress: `design.stages.stitch.status = "in_progress"` (skip for `_shared` — no progress file)
 3. Launch the **stitch-wireframe** agent:
 
 ```
 Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Generate visual wireframes using Google Stitch MCP, extract design tokens and shadcn/ui mapping hints. Write outputs to docs/specs/{feature}/stitch-wireframes/.")
 ```
 
-4. On success, update progress:
+4. On success, update progress (skip for `_shared` — no progress file):
    ```json
    {
      "design.stages.stitch": {
        "status": "completed",
        "projectId": "{stitch project ID from agent result}",
-       "screenCount": "{count from agent result}",
+       "screenCount": {count from agent result},
        "outputDir": "docs/specs/{feature}/stitch-wireframes/",
        "designDoc": "docs/specs/{feature}/stitch-wireframes/DESIGN.md",
        "generatedAt": "ISO-8601"
@@ -164,7 +166,7 @@ Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for 
    }
    ```
    Stage 2 outputs now include `DESIGN.md` — a natural-language design document with 5 dimensions (Visual Theme, Color Palette, Typography, Component Styling, Layout Principles). This document is consumed by the prototype generator in Step 1c for Tailwind theming and component styling decisions.
-5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` and continue to Step 6
+5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` (skip for `_shared` — no progress file) and continue to Step 6
 
 6. **Review gate** (default run only): If no `--stage` flag was provided (i.e., this is a default dsl+stitch run) and stitch completed successfully, display the review gate message and stop:
 
@@ -183,6 +185,8 @@ Review your wireframes:
 Then proceed to Step 6 (Finalize) to update progress and display the summary.
 
 ### Step 6: Finalize & Summary
+
+**Skip progress updates in this step if `feature` is `_shared`** — shared layouts have no progress file.
 
 1. Determine overall design status:
    - Default run (dsl + stitch completed) → `design.status = "reviewing"` (stitch complete, awaiting human review before prototype)

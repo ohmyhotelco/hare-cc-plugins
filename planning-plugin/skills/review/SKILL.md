@@ -37,7 +37,11 @@ Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`.
 If the status is `finalized`, warn the user:
 > "This spec is already finalized. Running a review will change its status back to 'reviewing'. Continue?"
 
-If the user confirms (or the status is not `finalized`), update the progress status to `"reviewing"` and increment `currentRound`. Also update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
+If the user confirms, set `reviewCycleStart` in the progress file to the current value of `currentRound` (before incrementing). Then update the progress status to `"reviewing"` and increment `currentRound`.
+
+If the status is not `finalized`, simply update the progress status to `"reviewing"` and increment `currentRound` (do not modify `reviewCycleStart`).
+
+Also update the metadata blockquote at the top of `{feature}-spec.md` in the {workingLanguage} directory:
 - Change `Status` to `REVIEWING`
 - Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 
@@ -102,13 +106,15 @@ After all changes are applied, update the `Last Updated` field in the metadata b
 
 **Convergence check** — apply in strict priority order (first matching rule wins):
 
-1. **Both planner AND tester scores >= 8**: Present 3 options: another round / finalize / stop for now
-2. **Either score < 8 AND fewer than 3 rounds completed**: Present 2 options only: another round / stop for now. Do NOT offer finalization.
-   — "Tester score is below 8 (planner: X/10, tester: Y/10, round N/3). Finalization is not available yet."
-3. **3 rounds completed with either score still < 8**: Present 3 options: another round / finalize with caveats / stop for now
-   — "After 3 rounds, scores are (planner: X/10, tester: Y/10). Remaining issues: ..."
+First, compute `roundsInCycle`: read `reviewCycleStart` from the progress file (if absent or null, treat as 0), then `roundsInCycle = currentRound - reviewCycleStart`.
 
-**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed. This rule cannot be overridden by score trends or other factors.
+1. **Both planner AND tester scores >= 8**: Present 3 options: another round / finalize / stop for now
+2. **Either score < 8 AND roundsInCycle < 3**: Present 2 options only: another round / stop for now. Do NOT offer finalization.
+   — "Tester score is below 8 (planner: X/10, tester: Y/10, cycle round N/3). Finalization is not available yet."
+3. **roundsInCycle >= 3 with either score still < 8**: Present 3 options: another round / finalize with caveats / stop for now
+   — "After 3 rounds in this review cycle, scores are (planner: X/10, tester: Y/10). Remaining issues: ..."
+
+**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed in the current review cycle. This rule cannot be overridden by score trends or other factors.
 
 ---
 
@@ -128,6 +134,17 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 ---
 
 #### Step 6a: Translate (Finalize path)
+
+Before launching translators, ask the user:
+> "Translation will sync the spec to all target languages. This launches parallel translator agents and may take several minutes. How would you like to proceed?"
+> 1. **Translate and finalize** — run translation now, then verify and finalize
+> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:translate {feature}` later to sync translations)
+> 3. **Cancel** — go back to review options
+
+If the user selects option 2 (skip), jump directly to Step 6a.5 (Pre-Finalization Verification).
+If the user selects option 3 (cancel), return to the Step 6 convergence options.
+
+If the user selects option 1 (translate and finalize):
 
 1. Read `.claude/planning-plugin.json` and extract `supportedLanguages` and `workingLanguage`
 2. Determine target languages: `supportedLanguages` minus `workingLanguage`
@@ -154,7 +171,7 @@ This gate supplements the convergence check — both must pass before finalizati
 
 #### Step 6b: Finalize (Finalize path)
 
-1. Update the metadata blockquote in `{feature}-spec.md` across **all language versions** ({workingLanguage} + each target language):
+1. Update the metadata blockquote in `{feature}-spec.md` across all language versions that have spec files ({workingLanguage} directory always exists; only include target language directories where `{feature}-spec.md` actually exists — skip directories that are empty because translation was skipped):
    - Change `Status` to `FINALIZED`
    - Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 2. Update the progress file: set `status` to `"finalized"`
@@ -168,7 +185,7 @@ This gate supplements the convergence check — both must pass before finalizati
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. Read progress file for existing Notion page data (`notion` field)
-3. For each language (working language + all target languages with spec directories), sequentially launch the **sync-notion** agent:
+3. For each language (working language + all target languages where `{feature}-spec.md` actually exists inside the language directory — skip languages whose directories are empty because translation was skipped), sequentially launch the **sync-notion** agent:
    ```
    Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
      feature: {feature}. lang: {lang}. langName: {langName}.
@@ -181,7 +198,10 @@ This gate supplements the convergence check — both must pass before finalizati
 4. Include Notion page URLs from agent results in the finalization summary
 
 After completing Steps 6a–6c, suggest next steps:
-> "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"
+- If `docs/specs/_shared/en/screens.md` exists AND the feature's `screens.md` contains an active `@layout:` directive (not commented out):
+  > "Run `/planning-plugin:design _shared` first to generate the shared layout DSL (if not already done), then `/planning-plugin:design {feature}` to generate the feature DSL."
+- Otherwise:
+  > "Run `/planning-plugin:design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:prototype {feature}` to generate the React prototype"
 > "Run `/planning-plugin:review {feature}` anytime to re-review"
 > "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
 > "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"

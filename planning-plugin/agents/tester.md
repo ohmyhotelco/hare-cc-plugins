@@ -82,7 +82,7 @@ Return your review as structured JSON:
     {
       "id": "TS-002",
       "severity": "major",
-      "section": "test-scenarios.md > 8. Test Scenarios",
+      "section": "test-scenarios.md > 7. Test Scenarios",
       "title": "Missing negative test cases",
       "description": "Only happy path scenarios are defined. No tests for invalid input, unauthorized access, or server errors.",
       "suggestion": "Add test scenarios for: invalid email format, expired session, concurrent edit conflict."

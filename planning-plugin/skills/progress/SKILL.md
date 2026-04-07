@@ -34,7 +34,7 @@ Show status for: **$ARGUMENTS**
 Feature: {feature}
 Status: {status}
 Working Language: {workingLanguage_name}
-Current Round: {currentRound}
+Current Round: {currentRound} (if reviewCycleStart > 0, append: " — cycle started at round {reviewCycleStart + 1}")
 
 Review History:
 ┌───────┬─────────────────┬──────────────────┬──────────────────┐
@@ -59,8 +59,11 @@ Stitch status display mapping:
   "pending"     → omit entire Stitch line
   "in_progress" → "in progress"
 
+Design System: (only display this section if a `designSystem` field exists in the progress file)
+  Status: {status} — Domain: {domain} — {generatedAt}
+
 Notion Sync: (only display this section if a `notion` field exists in the progress file)
-  {lang_name} ({lang}): {syncStatus_display} — {pageUrl} — Last synced: {lastSyncedAt}
+  {lang_name} ({lang}): {syncStatus_display} — {parentPageUrl} — Last synced: {lastSyncedAt}
   syncStatus display mapping:
     "synced"  → "✓ Synced"
     "syncing" → "⚠ INTERRUPTED"
@@ -78,7 +81,7 @@ Open Questions: {count from {feature}-spec.md's Open Questions section}
 
 ### If no feature name is provided:
 
-1. Scan `docs/specs/*/` for all feature directories
+1. Scan `docs/specs/*/` for all feature directories. **Skip `_shared`** — it is a pseudo-feature for shared layouts and has no progress file.
 2. Read each progress file
 3. For each spec, determine its target languages from its `workingLanguage`
 4. Display a summary table with dynamic translation columns based on target languages:

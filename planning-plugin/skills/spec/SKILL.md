@@ -160,12 +160,14 @@ Response discipline: No performative agreement ("Great point!", "Excellent obser
 
 **4d. Convergence Check:**
 
+First, compute `roundsInCycle`: read `reviewCycleStart` from the progress file (if absent or null, treat as 0), then `roundsInCycle = currentRound - reviewCycleStart`.
+
 Apply these rules **in strict priority order** (first matching rule wins):
 1. **Both planner AND tester scores >= 8**: Suggest finalization — "Both reviewers are satisfied (planner: X/10, tester: Y/10). Ready to finalize?"
-2. **Either score < 8 AND fewer than 3 rounds completed**: Do NOT suggest finalization. Suggest another review round — "Tester score is below 8 (planner: X/10, tester: Y/10, round N/3). Another review round is recommended."
-3. **3 rounds completed with either score still < 8**: Suggest finalization with caveats — "After 3 rounds, scores are (planner: X/10, tester: Y/10). Here are the remaining open questions. Ready to finalize as-is?"
+2. **Either score < 8 AND roundsInCycle < 3**: Do NOT suggest finalization. Suggest another review round — "Tester score is below 8 (planner: X/10, tester: Y/10, cycle round N/3). Another review round is recommended."
+3. **roundsInCycle >= 3 with either score still < 8**: Suggest finalization with caveats — "After 3 rounds in this review cycle, scores are (planner: X/10, tester: Y/10). Here are the remaining open questions. Ready to finalize as-is?"
 
-**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed. This rule cannot be overridden by score trends or other factors.
+**Hard rule**: Never suggest or offer finalization if any score is below 8 AND fewer than 3 rounds have been completed in the current review cycle. This rule cannot be overridden by score trends or other factors.
 
 **4e. User Decision:**
 
@@ -208,6 +210,15 @@ Based on convergence check and user decision, either:
 
 ### Step 5: Generate Translations
 
+Before launching translators, ask the user:
+> "Translation will sync the spec to all target languages. This launches parallel translator agents and may take several minutes. How would you like to proceed?"
+> 1. **Translate and finalize** — run translation now, then verify and finalize
+> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:translate {feature}` later to sync translations)
+
+If the user selects option 2 (skip), jump directly to Step 5.5 (Pre-Finalization Verification).
+
+If the user selects option 1 (translate and finalize):
+
 For each target language, launch a **translator** agent in parallel using the Task tool:
 
 ```
@@ -233,7 +244,7 @@ This gate supplements the convergence check — both must pass before finalizati
 
 ### Step 6: Finalize
 
-1. Update the metadata blockquote in `{feature}-spec.md` across all language versions ({workingLanguage} + target languages):
+1. Update the metadata blockquote in `{feature}-spec.md` across all language versions that have spec files ({workingLanguage} directory always exists; only include target language directories where `{feature}-spec.md` actually exists — skip directories that are empty because translation was skipped):
    - Change `Status` to `FINALIZED`
    - Change `Last Updated` to the current timestamp (ISO 8601 format, e.g. 2026-03-04T09:00:00Z)
 2. Update the progress file:
@@ -249,7 +260,7 @@ This gate supplements the convergence check — both must pass before finalizati
    - If `docs/specs/_shared/en/screens.md` was created during this spec run (Step 3.5d):
      > "Run `/planning-plugin:design _shared` first to generate the shared layout DSL, then `/planning-plugin:design {feature}` to generate the feature DSL."
    - Otherwise:
-     > "Run `/planning-plugin:design {feature}` to generate UI DSL, Stitch wireframes, and React prototype"
+     > "Run `/planning-plugin:design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:prototype {feature}` to generate the React prototype"
    - "Run `/planning-plugin:review {feature}` anytime to re-review"
    - "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
    - "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"
@@ -258,7 +269,7 @@ This gate supplements the convergence check — both must pass before finalizati
 
 1. Read `.claude/planning-plugin.json` and check `notionParentPageUrl` — if empty or missing, skip this step silently
 2. Read progress file for existing Notion page data (`notion` field)
-3. For each language (working language + all target languages with spec directories), sequentially launch the **sync-notion** agent:
+3. For each language (working language + all target languages where `{feature}-spec.md` actually exists inside the language directory — skip languages whose directories are empty because translation was skipped), sequentially launch the **sync-notion** agent:
    ```
    Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
      feature: {feature}. lang: {lang}. langName: {langName}.
