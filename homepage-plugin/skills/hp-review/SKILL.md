@@ -81,6 +81,35 @@ Only runs if ALL conditions are met:
 
 If any condition is not met, skip this stage entirely.
 
+#### 5.5.1 Check Playwright Installation
+
+Before launching the reviewer agent, verify Playwright is available:
+
+```bash
+cd {projectRoot} && node -e "require('playwright')" 2>/dev/null
+```
+
+If the check **fails** (exit code !== 0), Playwright is not installed. Display a message to the user:
+
+> **Playwright is not installed.**
+> Visual Fidelity Review captures rendered screenshots with Playwright and compares them against Figma designs.
+>
+> To install:
+> ```
+> npm install -g @playwright/cli@latest
+> playwright-cli --help
+> ```
+>
+> 1. **Install and continue** — installs Playwright, then proceeds with Visual Fidelity Review
+> 2. **Skip this time** — completes the review without Visual Fidelity Review
+
+- If the user chooses **Install and continue**: run `npm install -g @playwright/cli@latest` and then `pnpm add -D playwright && npx playwright install chromium` in `{projectRoot}`. If installation succeeds, proceed to Step 5.5.2. If installation fails, display the error and fall back to skipping Stage 3.
+- If the user chooses **Skip this time**: skip Stage 3 entirely. Omit `visualFidelity` from the merged report.
+
+If the check **passes**, proceed directly to Step 5.5.2.
+
+#### 5.5.2 Launch Reviewer
+
 Launch `visual-fidelity-reviewer` agent with:
 - `pageName` — page identifier (or `"all"`)
 - `planFile` — path to page-plan.json
