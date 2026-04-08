@@ -12,7 +12,7 @@ Key capabilities:
 - **SEO-first architecture** — Static HTML output, JSON-LD structured data, sitemap, meta tags, Lighthouse CI auditing
 - **Astro islands** — Zero JS by default; only hydrate interactive components (forms, carousels, accordions)
 - **Figma design system integration** — Optional Figma MCP sync extracts design tokens and auto-generates custom components replacing shadcn/ui
-- **2-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions, +1 Design Token Consistency when design system exists)
+- **3-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions, +1 Design Token Consistency when design system exists) + visual fidelity comparison against Figma screenshots (5 sub-dimensions, advisory)
 - **Content Collections** — Type-safe MDX blog posts with Zod schemas, optional headless CMS integration
 
 ## Architecture Overview
@@ -325,7 +325,7 @@ Full verification including Lighthouse CI performance budgets (target: 90+ on al
 /homepage-plugin:hp-review
 ```
 
-Two-stage review: SEO compliance first (metadata, structured data, images, performance), then code quality (accessibility, responsive, TypeScript, i18n, Astro conventions).
+Three-stage review: SEO compliance first (metadata, structured data, images, performance), then code quality (accessibility, responsive, TypeScript, i18n, Astro conventions), then visual fidelity comparison against Figma screenshots (advisory, when available).
 
 ### Step 7: Fix & Re-Review
 
@@ -373,6 +373,12 @@ Read-only agent that evaluates metadata completeness, structured data validity, 
 **Role**: Code quality + accessibility review (6 dimensions, +1 optional Design Token Consistency).
 
 Read-only agent that evaluates accessibility (WCAG 2.1 AA), responsive design, component composition, TypeScript strictness, i18n completeness, and Astro convention compliance. When `docs/design-system/design-tokens.json` exists, adds a 7th dimension for Design Token Consistency. Only runs when SEO review passes.
+
+### Visual Fidelity Reviewer
+
+**Role**: AI vision comparison of rendered vs Figma screenshots (5 sub-dimensions, conditional on Figma screenshots).
+
+Captures rendered screenshots of generated sections using Playwright and compares them against the original Figma design screenshots using AI vision analysis. Scores visual fidelity across 5 sub-dimensions: layout structure, color accuracy, typography, spacing & alignment, and component fidelity. Only runs when SEO + Quality reviews pass and Figma section screenshots exist. Advisory (non-blocking) — does not fail the overall review on its own. Uses the Opus model.
 
 ### Review Fixer
 
@@ -496,7 +502,8 @@ State files under `docs/pages/{page-name}/`:
 | `page-plan.json` | Page plan with sections, SEO metadata, i18n config (input for hp-gen) |
 | `.progress/{page-name}.json` | Pipeline progress tracking |
 | `.implementation/homepage/generation-state.json` | Phase progress with timestamps (enables resume) |
-| `.implementation/homepage/review-report.json` | Merged review results (SEO + quality) |
+| `.implementation/homepage/review-report.json` | Merged review results (SEO + quality + visual fidelity when available) |
+| `.implementation/homepage/visual-fidelity-report.json` | Visual fidelity comparison results (optional, created by Stage 3) |
 | `.implementation/homepage/fix-report.json` | Fix results with round tracking |
 | `.implementation/homepage/.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
@@ -580,7 +587,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] Interactive page planning (hp-plan)
 - [x] Code generation (3-phase pipeline)
 - [x] SEO verification (Lighthouse CI)
-- [x] 2-stage code review (SEO + quality/accessibility)
+- [x] 3-stage code review (SEO + quality/accessibility + visual fidelity)
 - [x] Fix skill (direct fixes)
 - [x] State consistency (lock, timestamps, resume)
 - [x] Hook handlers (session-init, page validation)
@@ -598,7 +605,7 @@ agents/          Agent definitions (design-token-extractor, page-planner, sectio
 skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
                  hp-review, hp-fix)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts (session-init.sh, validate-pages.sh)
+scripts/         Hook handler scripts (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config,
                  astro-conventions, custom-components)
 docs/            Documentation

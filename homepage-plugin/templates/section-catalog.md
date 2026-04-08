@@ -347,28 +347,28 @@ export default function TestimonialsCarousel({ testimonials }: Props) {
   const item = testimonials[current];
 
   return (
-    <div class="relative mx-auto max-w-2xl" role="region" aria-label="Testimonials" aria-roledescription="carousel">
-      <div aria-live="polite" aria-atomic="true" class="rounded-xl border border-border bg-card p-8 text-center">
-        <blockquote class="text-base leading-relaxed text-card-foreground md:text-lg">
+    <div className="relative mx-auto max-w-2xl" role="region" aria-label="Testimonials" aria-roledescription="carousel">
+      <div aria-live="polite" aria-atomic="true" className="rounded-xl border border-border bg-card p-8 text-center">
+        <blockquote className="text-base leading-relaxed text-card-foreground md:text-lg">
           <p>&ldquo;{item.quote}&rdquo;</p>
         </blockquote>
-        <figcaption class="mt-6">
-          <p class="font-semibold text-card-foreground">{item.authorName}</p>
-          <p class="text-sm text-muted-foreground">
+        <figcaption className="mt-6">
+          <p className="font-semibold text-card-foreground">{item.authorName}</p>
+          <p className="text-sm text-muted-foreground">
             {item.authorRole}{item.companyName && `, ${item.companyName}`}
           </p>
         </figcaption>
       </div>
 
-      <div class="mt-6 flex items-center justify-center gap-4">
+      <div className="mt-6 flex items-center justify-center gap-4">
         <Button variant="outline" size="icon" onClick={prev} aria-label="Previous testimonial">
-          <ChevronLeft class="h-4 w-4" />
+          <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span class="text-sm text-muted-foreground" aria-live="polite">
+        <span className="text-sm text-muted-foreground" aria-live="polite">
           {current + 1} / {testimonials.length}
         </span>
         <Button variant="outline" size="icon" onClick={next} aria-label="Next testimonial">
-          <ChevronRight class="h-4 w-4" />
+          <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
     </div>
@@ -635,8 +635,8 @@ export default function PricingToggle({ plans }: Props) {
 
   return (
     <div>
-      <div class="flex items-center justify-center gap-3 mb-10">
-        <Label htmlFor="billing-toggle" class={`text-sm ${!isYearly ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+      <div className="flex items-center justify-center gap-3 mb-10">
+        <Label htmlFor="billing-toggle" className={`text-sm ${!isYearly ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
           Monthly
         </Label>
         <Switch
@@ -645,12 +645,12 @@ export default function PricingToggle({ plans }: Props) {
           onCheckedChange={setIsYearly}
           aria-label="Toggle between monthly and yearly billing"
         />
-        <Label htmlFor="billing-toggle" class={`text-sm ${isYearly ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
+        <Label htmlFor="billing-toggle" className={`text-sm ${isYearly ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
           Yearly
         </Label>
       </div>
 
-      <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => {
           const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
           const period = isYearly ? "/yr" : "/mo";
@@ -658,22 +658,22 @@ export default function PricingToggle({ plans }: Props) {
           return (
             <div
               key={plan.name}
-              class={`flex flex-col rounded-xl border p-6 shadow-sm md:p-8 ${
+              className={`flex flex-col rounded-xl border p-6 shadow-sm md:p-8 ${
                 plan.highlighted
                   ? "border-primary bg-primary/5 ring-2 ring-primary"
                   : "border-border bg-card"
               }`}
             >
-              <h3 class="text-lg font-semibold text-card-foreground">{plan.name}</h3>
-              <p class="mt-1 text-sm text-muted-foreground">{plan.description}</p>
-              <p class="mt-6 text-4xl font-bold text-card-foreground">
+              <h3 className="text-lg font-semibold text-card-foreground">{plan.name}</h3>
+              <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+              <p className="mt-6 text-4xl font-bold text-card-foreground">
                 {plan.currency}{price}
-                <span class="text-base font-normal text-muted-foreground">{period}</span>
+                <span className="text-base font-normal text-muted-foreground">{period}</span>
               </p>
-              <ul class="mt-6 flex-1 space-y-3" role="list">
+              <ul className="mt-6 flex-1 space-y-3" role="list">
                 {plan.features.map((feature) => (
-                  <li key={feature} class="flex items-start gap-2 text-sm text-card-foreground">
-                    <svg class="mt-0.5 h-4 w-4 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                  <li key={feature} className="flex items-start gap-2 text-sm text-card-foreground">
+                    <svg className="mt-0.5 h-4 w-4 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                     {feature}
@@ -682,7 +682,7 @@ export default function PricingToggle({ plans }: Props) {
               </ul>
               <a
                 href={plan.ctaHref}
-                class={`mt-8 inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                className={`mt-8 inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 ${
                   plan.highlighted
                     ? "bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:outline-primary"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:outline-secondary"
@@ -806,13 +806,13 @@ interface Props {
 
 export default function FAQAccordion({ items }: Props) {
   return (
-    <Accordion type="single" collapsible class="w-full">
+    <Accordion type="single" collapsible className="w-full">
       {items.map((item, index) => (
         <AccordionItem key={index} value={`item-${index}`}>
-          <AccordionTrigger class="text-left text-base font-medium text-foreground">
+          <AccordionTrigger className="text-left text-base font-medium text-foreground">
             {item.question}
           </AccordionTrigger>
-          <AccordionContent class="text-sm leading-relaxed text-muted-foreground">
+          <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
             {item.answer}
           </AccordionContent>
         </AccordionItem>
@@ -1142,8 +1142,8 @@ export default function NewsletterForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} class="flex flex-col gap-3 sm:flex-row sm:gap-2">
-      <label htmlFor="newsletter-email" class="sr-only">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:flex-row sm:gap-2">
+      <label htmlFor="newsletter-email" className="sr-only">
         Email address
       </label>
       <Input
@@ -1153,7 +1153,7 @@ export default function NewsletterForm({
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         placeholder={placeholder}
-        class="flex-1"
+        className="flex-1"
         disabled={status === "loading"}
         aria-describedby="newsletter-status"
       />
@@ -1162,12 +1162,12 @@ export default function NewsletterForm({
       </Button>
 
       {status === "success" && (
-        <p id="newsletter-status" class="w-full text-sm text-green-600 sm:col-span-2" role="status">
+        <p id="newsletter-status" className="w-full text-sm text-green-600 sm:col-span-2" role="status">
           {successMessage}
         </p>
       )}
       {status === "error" && (
-        <p id="newsletter-status" class="w-full text-sm text-destructive sm:col-span-2" role="alert">
+        <p id="newsletter-status" className="w-full text-sm text-destructive sm:col-span-2" role="alert">
           {errorMessage}
         </p>
       )}
@@ -1348,8 +1348,8 @@ export default function ContactForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} class="space-y-6" noValidate>
-      <div class="space-y-2">
+    <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+      <div className="space-y-2">
         <Label htmlFor="contact-name">{nameLabel}</Label>
         <Input
           id="contact-name"
@@ -1361,13 +1361,13 @@ export default function ContactForm({
           disabled={status === "loading"}
         />
         {errors.name && (
-          <p id="contact-name-error" class="text-sm text-destructive" role="alert">
+          <p id="contact-name-error" className="text-sm text-destructive" role="alert">
             {errors.name}
           </p>
         )}
       </div>
 
-      <div class="space-y-2">
+      <div className="space-y-2">
         <Label htmlFor="contact-email">{emailLabel}</Label>
         <Input
           id="contact-email"
@@ -1379,13 +1379,13 @@ export default function ContactForm({
           disabled={status === "loading"}
         />
         {errors.email && (
-          <p id="contact-email-error" class="text-sm text-destructive" role="alert">
+          <p id="contact-email-error" className="text-sm text-destructive" role="alert">
             {errors.email}
           </p>
         )}
       </div>
 
-      <div class="space-y-2">
+      <div className="space-y-2">
         <Label htmlFor="contact-message">{messageLabel}</Label>
         <Textarea
           id="contact-message"
@@ -1397,23 +1397,23 @@ export default function ContactForm({
           disabled={status === "loading"}
         />
         {errors.message && (
-          <p id="contact-message-error" class="text-sm text-destructive" role="alert">
+          <p id="contact-message-error" className="text-sm text-destructive" role="alert">
             {errors.message}
           </p>
         )}
       </div>
 
-      <Button type="submit" class="w-full" disabled={status === "loading"}>
+      <Button type="submit" className="w-full" disabled={status === "loading"}>
         {status === "loading" ? "Sending..." : buttonText}
       </Button>
 
       {status === "success" && (
-        <p class="text-sm text-green-600 text-center" role="status">
+        <p className="text-sm text-green-600 text-center" role="status">
           {successMessage}
         </p>
       )}
       {status === "error" && (
-        <p class="text-sm text-destructive text-center" role="alert">
+        <p className="text-sm text-destructive text-center" role="alert">
           {errorMessage}
         </p>
       )}
@@ -1861,19 +1861,19 @@ export default function GalleryLightbox({ images, columns }: Props) {
 
   return (
     <>
-      <div class={`grid grid-cols-1 ${colsClass[columns]} gap-4 md:gap-6`}>
+      <div className={`grid grid-cols-1 ${colsClass[columns]} gap-4 md:gap-6`}>
         {images.map((img, index) => (
           <button
             key={index}
             type="button"
-            class="overflow-hidden rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="overflow-hidden rounded-lg cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             onClick={() => { setCurrent(index); setOpen(true); }}
             aria-label={`View ${img.alt}`}
           >
             <img
               src={img.src}
               alt={img.alt}
-              class="w-full h-auto object-cover aspect-[4/3] transition hover:scale-105"
+              className="w-full h-auto object-cover aspect-[4/3] transition hover:scale-105"
               loading="lazy"
             />
           </button>
@@ -1881,40 +1881,40 @@ export default function GalleryLightbox({ images, columns }: Props) {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent class="max-w-4xl p-0 bg-black/95 border-none">
+        <DialogContent className="max-w-4xl p-0 bg-black/95 border-none">
           <VisuallyHidden>
             <DialogTitle>Image gallery viewer</DialogTitle>
           </VisuallyHidden>
-          <div class="relative flex items-center justify-center min-h-[50vh]">
+          <div className="relative flex items-center justify-center min-h-[50vh]">
             <img
               src={images[current].src}
               alt={images[current].alt}
-              class="max-h-[80vh] max-w-full object-contain"
+              className="max-h-[80vh] max-w-full object-contain"
             />
 
             <Button
               variant="ghost"
               size="icon"
-              class="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
               onClick={prev}
               aria-label="Previous image"
             >
-              <ChevronLeft class="h-6 w-6" />
+              <ChevronLeft className="h-6 w-6" />
             </Button>
 
             <Button
               variant="ghost"
               size="icon"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20"
               onClick={next}
               aria-label="Next image"
             >
-              <ChevronRight class="h-6 w-6" />
+              <ChevronRight className="h-6 w-6" />
             </Button>
           </div>
 
           {images[current].caption && (
-            <p class="text-center text-sm text-white/80 pb-4">
+            <p className="text-center text-sm text-white/80 pb-4">
               {images[current].caption}
             </p>
           )}
@@ -2276,23 +2276,23 @@ export default function MobileNav({ navItems, ctaText, ctaHref }: Props) {
         aria-controls="mobile-nav-panel"
         aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
       >
-        {isOpen ? <X class="h-5 w-5" /> : <Menu class="h-5 w-5" />}
+        {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
       </Button>
 
       {isOpen && (
         <div
           id="mobile-nav-panel"
-          class="fixed inset-x-0 top-16 bottom-0 z-40 bg-background border-t border-border"
+          className="fixed inset-x-0 top-16 bottom-0 z-40 bg-background border-t border-border"
           role="dialog"
           aria-modal="true"
           aria-label="Navigation menu"
         >
-          <nav class="flex flex-col p-6 space-y-4" aria-label="Mobile navigation">
+          <nav className="flex flex-col p-6 space-y-4" aria-label="Mobile navigation">
             {navItems.map((item) => (
               <a
                 key={item.href}
                 href={item.href}
-                class="text-lg font-medium text-foreground py-2 border-b border-border transition hover:text-primary"
+                className="text-lg font-medium text-foreground py-2 border-b border-border transition hover:text-primary"
                 onClick={() => setIsOpen(false)}
               >
                 {item.label}
@@ -2301,7 +2301,7 @@ export default function MobileNav({ navItems, ctaText, ctaHref }: Props) {
             {ctaText && ctaHref && (
               <a
                 href={ctaHref}
-                class="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
+                className="mt-4 inline-flex items-center justify-center rounded-lg bg-primary px-6 py-3 text-base font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90"
                 onClick={() => setIsOpen(false)}
               >
                 {ctaText}

@@ -49,6 +49,8 @@ Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 
 ### Step 4: Launch Review Fixer
 
+**4.1 If `review-report.json` exists** (normal flow — after `hp-review`):
+
 Launch `review-fixer` agent with:
 - `pageName` — page identifier
 - `planFile` — path to page-plan.json
@@ -60,6 +62,18 @@ The agent will:
 1. Pre-check issues still exist
 2. Apply direct fixes (critical first, then warnings)
 3. Run verification (tsc + ESLint + astro build)
+
+**4.2 If `review-report.json` does NOT exist** (verification-only flow — after `hp-verify` without `hp-review`):
+
+Run verification commands directly (without launching review-fixer agent):
+1. Run `npx tsc --noEmit 2>&1` — collect TypeScript errors
+2. Run `npx eslint . 2>&1` — collect ESLint errors (if config exists)
+3. Run `npx astro build 2>&1` — collect build errors
+
+For each error found, apply a direct fix using the error message as context.
+After fixing, re-run all verification commands to confirm fixes.
+
+Construct a synthetic fix report (same schema as Step 5) with issues derived from verification output rather than review report.
 
 ### Step 5: Save Fix Report
 

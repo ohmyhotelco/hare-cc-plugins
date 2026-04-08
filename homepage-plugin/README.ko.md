@@ -12,7 +12,7 @@
 - **SEO 우선 아키텍처** — 정적 HTML 출력, JSON-LD 구조화 데이터, sitemap, 메타 태그, Lighthouse CI 감사
 - **Astro islands** — 기본적으로 JS 없음; 인터랙티브 컴포넌트(폼, 캐러셀, 아코디언)만 하이드레이션
 - **Figma 디자인 시스템 통합** — 선택적 Figma MCP 동기화로 디자인 토큰을 추출하고 shadcn/ui를 대체하는 커스텀 컴포넌트를 자동 생성
-- **2단계 코드 리뷰** — SEO 준수(6개 차원) + 코드 품질/접근성(6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성)
+- **3단계 코드 리뷰** — SEO 준수(6개 차원) + 코드 품질/접근성(6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성) + Figma 스크린샷 대비 시각적 충실도 비교(5개 하위 차원, 자문용)
 - **Content Collections** — Zod 스키마를 사용한 타입 안전 MDX 블로그 포스트, 선택적 헤드리스 CMS 통합
 
 ## 아키텍처 개요
@@ -140,7 +140,7 @@
 **동작 내용**:
 1. 콘텐츠 전략 선택 (MDX, 헤드리스 CMS, 또는 둘 다)
 2. i18n 로케일 및 기본 로케일 설정
-3. 배포 대상 선택 (Vercel, Netlify, CloudFlare, static)
+3. 배포 대상 선택 (AWS, Vercel, Netlify, CloudFlare, static)
 4. ESLint 템플릿 선호도 설정
 5. `.claude/homepage-plugin.json` 파일 작성
 6. 2개의 외부 스킬 설치 (Web Design Guidelines, Composition Patterns)
@@ -325,7 +325,7 @@ Lighthouse CI 성능 예산(목표: 모든 카테고리 90 이상)을 포함한 
 /homepage-plugin:hp-review
 ```
 
-2단계 리뷰: SEO 준수를 먼저 확인(메타데이터, 구조화 데이터, 이미지, 성능), 그 다음 코드 품질(접근성, 반응형, TypeScript, i18n, Astro 컨벤션).
+3단계 리뷰: SEO 준수를 먼저 확인(메타데이터, 구조화 데이터, 이미지, 성능), 그 다음 코드 품질(접근성, 반응형, TypeScript, i18n, Astro 컨벤션), 마지막으로 Figma 스크린샷 대비 시각적 충실도 비교(가능한 경우, 자문용).
 
 ### 7단계: 수정 및 재리뷰
 
@@ -373,6 +373,12 @@ MCP를 통해 Figma 파일에 연결하여 디자인 토큰(색상, 타이포그
 **역할**: 코드 품질 + 접근성 리뷰 (6개 차원, +1 선택적 디자인 토큰 일관성).
 
 접근성(WCAG 2.1 AA), 반응형 디자인, 컴포넌트 구성, TypeScript 엄격성, i18n 완전성, Astro 컨벤션 준수를 평가하는 읽기 전용 에이전트입니다. `docs/design-system/design-tokens.json`이 존재하면 디자인 토큰 일관성 차원이 7번째로 추가됩니다. SEO 리뷰가 통과한 경우에만 실행됩니다.
+
+### Visual Fidelity Reviewer
+
+**역할**: AI 비전을 활용한 렌더링 결과와 Figma 스크린샷 비교 (5개 하위 차원, Figma 스크린샷 존재 시 조건부 실행).
+
+Playwright를 사용하여 생성된 섹션의 렌더링 스크린샷을 캡처하고 원본 Figma 디자인 스크린샷과 AI 비전 분석으로 비교합니다. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격 및 정렬, 컴포넌트 충실도 등 5개 하위 차원에서 시각적 충실도를 점수화합니다. SEO + 품질 리뷰가 통과하고 Figma 섹션 스크린샷이 존재할 때만 실행됩니다. 자문용(비차단) — 단독으로는 전체 리뷰를 실패시키지 않습니다. Opus 모델을 사용합니다.
 
 ### Review Fixer
 
@@ -496,7 +502,8 @@ src/
 | `page-plan.json` | 섹션, SEO 메타데이터, i18n 설정을 포함한 페이지 계획 (hp-gen 입력) |
 | `.progress/{page-name}.json` | 파이프라인 진행 상태 추적 |
 | `.implementation/homepage/generation-state.json` | 타임스탬프 포함 단계별 진행 상태 (재개 지원) |
-| `.implementation/homepage/review-report.json` | 병합된 리뷰 결과 (SEO + 품질) |
+| `.implementation/homepage/review-report.json` | 병합된 리뷰 결과 (SEO + 품질 + 가능한 경우 시각적 충실도) |
+| `.implementation/homepage/visual-fidelity-report.json` | 시각적 충실도 비교 결과 (선택사항, 3단계에서 생성) |
 | `.implementation/homepage/fix-report.json` | 라운드 추적 포함 수정 결과 |
 | `.implementation/homepage/.lock` | 동시 실행 방지 (30분 후 자동 만료) |
 
@@ -580,7 +587,7 @@ Claude Code 세션이 시작될 때 실행됩니다. 다음을 확인합니다:
 - [x] 대화형 페이지 기획 (hp-plan)
 - [x] 코드 생성 (3단계 파이프라인)
 - [x] SEO 검증 (Lighthouse CI)
-- [x] 2단계 코드 리뷰 (SEO + 품질/접근성)
+- [x] 3단계 코드 리뷰 (SEO + 품질/접근성 + 시각적 충실도)
 - [x] 수정 스킬 (직접 수정)
 - [x] 상태 일관성 (잠금, 타임스탬프, 재개)
 - [x] 훅 핸들러 (session-init, page validation)
@@ -598,7 +605,7 @@ agents/          에이전트 정의 (design-token-extractor, page-planner, sect
 skills/          스킬 진입점 (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
                  hp-review, hp-fix)
 hooks/           라이프사이클 훅 설정
-scripts/         훅 핸들러 스크립트 (session-init.sh, validate-pages.sh)
+scripts/         훅 핸들러 스크립트 (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       템플릿 파일 (section-catalog, page-module, seo-checklist, eslint-config,
                  astro-conventions, custom-components)
 docs/            문서

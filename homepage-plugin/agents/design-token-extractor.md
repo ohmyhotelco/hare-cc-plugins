@@ -18,7 +18,7 @@ The skill will provide these parameters in the prompt:
 
 - `fileKey` — Figma file key (extracted from URL)
 - `mcpToolPrefix` — MCP tool name prefix (e.g., `mcp__figma__`)
-- `selectedPages` — list of `{ name, nodeId }` objects for pages to extract
+- `selectedPages` — list of `{ name, nodeId, pageType }` objects for pages to extract. `pageType` is one of `"website"` (default), `"layout"`, `"icons"`, `"components"`
 - `fileStructure` — `"page-based"` or `"library-based"`
 - `projectRoot` — project root path
 - `outputDir` — output directory (e.g., `docs/design-system/`)
@@ -57,6 +57,7 @@ Map Figma color variables to the 17 semantic CSS variable names.
 | `--primary` | "primary", "brand" |
 | `--primary-foreground` | "primary foreground", "on primary" |
 | `--secondary` | "secondary" |
+| `--accent` | "accent", "highlight" |
 | `--background` | "background", "surface" |
 | `--foreground` | "foreground", "text" |
 | `--muted` | "muted", "subtle" |
@@ -68,6 +69,7 @@ Map Figma color variables to the 17 semantic CSS variable names.
 For compound tokens (`*-foreground`), derive from the base if not explicitly defined.
 For `--popover` and `--popover-foreground`, fall back to card values if not found.
 For `--input`, fall back to border value if not found.
+For `--accent`, fall back to secondary value if not found.
 
 #### 1.3 Color Conversion
 
@@ -125,7 +127,7 @@ For any semantic token that cannot be matched in Figma, use these shadcn/ui defa
 
 ### Phase 2: Extract Page Structure (Page-Based Files)
 
-**Skip this phase if `fileStructure === "library-based"` — jump to Phase 3.**
+**Skip this phase if `fileStructure === "library-based"` — jump to Phase 6.**
 
 For each page in `selectedPages`:
 
@@ -203,11 +205,493 @@ Within each section's design context, identify UI component instances:
 
 For each component found, extract its Tailwind classes from the design context. These become section-specific `figmaStyles`.
 
+#### 2.6 Extract Content Images
+
+**Only process sections classified as one of these 5 types**: HeroSection, TestimonialsSection, LogoCloudSection, TeamSection, GallerySection. Skip all other section types — they have no image props in the section catalog.
+
+For each qualifying section:
+
+**Step 1: Identify image nodes**
+
+Call `{mcpToolPrefix}get_metadata` with `fileKey` and `sectionNodeId` to get the child node tree. Cross-reference with the `designContext` already extracted in Phase 2.2 (which includes content hints about image placeholders).
+
+Filter candidate image nodes using section-type-specific rules:
+
+| Section Type | Role | Count | Identification Criteria |
+|---|---|---|---|
+| HeroSection | `background` | 0–1 | Largest child node with image fill, covering >50% of section area |
+| TestimonialsSection | `avatar` | 0–N | Small circular/square image nodes (~40–80px) adjacent to text groups |
+| LogoCloudSection | `logo` | 1–N | Medium rectangular image nodes arranged in a grid/row pattern |
+| TeamSection | `photo` | 1–N | Medium-large image nodes (>100px) each associated with a text group |
+| GallerySection | `image` | 1–N | Similarly-sized rectangular image nodes in a grid layout |
+
+**General filtering rules:**
+- Exclude nodes smaller than 24×24 pixels (likely icons, not content images)
+- Exclude nodes named with icon-related patterns ("icon", "arrow", "chevron", "close")
+- Sort candidate nodes by position (top-to-bottom, left-to-right) for consistent indexing
+
+**Step 2: Extract each image**
+
+For each identified image node:
+
+1. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the image node's ID
+2. Save the image to `{projectRoot}/src/assets/images/{pageName}/{sectionType}/{role}-{index}.png`
+   - For single images (e.g., hero background): use `background.png` (no index)
+   - For indexed items: use `{role}-0.png`, `{role}-1.png`, etc.
+   - If the MCP tool returns a base64-encoded image, decode and write the binary PNG
+   - If the tool returns a URL, download the image and save as PNG
+   - If the tool returns inline image content, write it directly
+3. Record the extraction result (success or failure with error reason)
+
+If the `get_screenshot` call fails for an individual image node, log the failure and continue with the next image. Do not abort the entire phase.
+
+**Step 3: Build contentImages object**
+
+For each section, construct the `contentImages` field:
+
+```json
+"contentImages": {
+  "status": "complete",
+  "images": [
+    {
+      "role": "background",
+      "index": 0,
+      "nodeId": "789:012",
+      "nodeName": "Hero Background Image",
+      "path": "images/home/HeroSection/background.png",
+      "extracted": true
+    }
+  ],
+  "extractionSummary": {
+    "total": 1,
+    "succeeded": 1,
+    "failed": 0
+  }
+}
+```
+
+**`status` values:**
+- `"complete"` — all identified images were extracted successfully
+- `"partial"` — some images extracted, some failed
+- `"failed"` — all image extractions for this section failed
+- `"none"` — no image nodes were identified in this section
+
+For failed images, include an `"error"` field:
+```json
+{
+  "role": "photo",
+  "index": 1,
+  "nodeId": "345:678",
+  "nodeName": "Team Member 2",
+  "path": "images/home/TeamSection/photo-1.png",
+  "extracted": false,
+  "error": "get_screenshot call failed: node not found"
+}
+```
+
+For non-image section types (FeaturesSection, CTASection, etc.), omit the `contentImages` field entirely.
+
 ---
 
-### Phase 3: Extract Components (Library-Based Files)
+### Phase 3: Extract Shared Layout Components
 
-**Skip this phase if `fileStructure === "page-based"` — section components were already extracted in Phase 2.**
+**Skip this phase if no pages have `pageType: "layout"` AND no sections were classified as `HeaderSection` or `FooterSection` in Phase 2.4.**
+
+This phase extracts shared layout components (Header, Footer) from Figma and produces both structural data (`layout-plan.json`) and styling data (`sharedComponents` in `component-map.json`).
+
+#### 3.1 Identify Layout Frames
+
+Two strategies, tried in order:
+
+1. **Dedicated layout page** — if `selectedPages` includes a page with `pageType: "layout"`, call `{mcpToolPrefix}get_metadata` with `fileKey` and the layout page's `nodeId`. Among the child frames, find frames whose names match "Header", "Navigation", "Nav", "Navbar", "Top Bar" (for header) and "Footer", "Bottom Bar" (for footer). Use case-insensitive matching.
+
+2. **In-page layout frames** — if no dedicated layout page exists, check sections already classified in Phase 2.4. Use the first section classified as `HeaderSection` and the first classified as `FooterSection` across all website pages. Mark these sections with `isSharedLayout: true` so they are excluded from the page's section list in `component-map.json`.
+
+If neither strategy finds any layout frames, skip the rest of Phase 3 entirely (backward-compatible — no layout data extracted).
+
+#### 3.2 Extract Header Structure
+
+For the identified header frame:
+
+1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the header frame's node ID to get styled code representation
+2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the header frame's node ID
+   - Save to `{outputDir}/screenshots/_shared/Header.png`
+3. Parse the design context to extract:
+   - **Logo element** — image node or text-based logo. If an image node is found, call `{mcpToolPrefix}get_screenshot` with the logo node ID and save to `{projectRoot}/src/assets/images/_shared/header-logo.png`
+   - **Navigation items** — text labels from nav link elements (e.g., "Home", "About", "Services", "Contact")
+   - **CTA button** — text label and style (if present)
+   - **Styling** — background color, border, typography classes
+4. Extract Tailwind classes from the design context for key elements:
+   - `container` — overall header wrapper styles
+   - `nav` — navigation container styles
+   - `navLink` — individual navigation link styles
+   - `ctaButton` — CTA button styles (if present)
+
+If the `get_design_context` or `get_screenshot` call fails, log the error and skip header extraction. Do not abort the entire phase.
+
+#### 3.3 Extract Footer Structure
+
+For the identified footer frame:
+
+1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the footer frame's node ID
+2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the footer frame's node ID
+   - Save to `{outputDir}/screenshots/_shared/Footer.png`
+3. Parse the design context to extract:
+   - **Logo/brand element** — same extraction as header logo. If found, save to `{projectRoot}/src/assets/images/_shared/footer-logo.png`
+   - **Description text** — company tagline or brief description
+   - **Link groups** — groups of links with section titles (e.g., "Product", "Company", "Support")
+   - **Social media icons** — identify platform names by matching icon/text patterns to: twitter, linkedin, github, facebook, instagram, youtube
+   - **Copyright text** — copyright line with year
+4. Extract Tailwind classes for key elements:
+   - `container` — overall footer wrapper styles
+   - `linkGroupTitle` — link group heading styles
+   - `link` — individual link styles
+   - `socialIcon` — social media icon styles (if present)
+
+If the `get_design_context` or `get_screenshot` call fails, log the error and skip footer extraction. Do not abort the entire phase.
+
+#### 3.4 Build Layout Plan
+
+If at least one layout component (header or footer) was extracted, create `{projectRoot}/docs/pages/_shared/layout-plan.json`:
+
+```json
+{
+  "_figmaSource": {
+    "populated": true,
+    "extractedAt": "{ISO 8601 timestamp}",
+    "headerNodeId": "{header frame node ID or null}",
+    "footerNodeId": "{footer frame node ID or null}"
+  },
+  "header": {
+    "logo": { "src": "images/_shared/header-logo.png", "alt": "Company Logo" },
+    "companyName": "{extracted company name or 'Company'}",
+    "navItems": [
+      { "label": "{extracted nav text}", "href": "/{slugified-label}" }
+    ],
+    "ctaText": "{extracted CTA text or null}",
+    "ctaHref": "/{slugified-cta-label}"
+  },
+  "footer": {
+    "description": "{extracted description text or ''}",
+    "linkGroups": [
+      {
+        "title": "{extracted group title}",
+        "links": [
+          { "label": "{extracted link text}", "href": "#" }
+        ]
+      }
+    ],
+    "socialLinks": [
+      { "platform": "{detected platform}", "href": "#" }
+    ],
+    "copyrightYear": {current year}
+  }
+}
+```
+
+**Rules for layout plan construction:**
+- Nav item `href` values: slugify the label text (e.g., "About Us" → "/about-us", "Home" → "/"). Use `"/"` for items matching "Home", "Main", "홈".
+- Footer link `href` values: use `"#"` as placeholder (specific URLs are not available in Figma).
+- Social link `href` values: use `"#"` as placeholder.
+- If header was not extracted, include a minimal `header` object with empty `navItems` and `null` for `ctaText`.
+- If footer was not extracted, include a minimal `footer` object with empty `linkGroups` and `socialLinks`.
+- If `mode === "update"` and `layout-plan.json` already exists, do NOT overwrite — preserve the existing file. The user may have manually edited it. Only write if the file does not exist.
+
+#### 3.5 Build Shared Components
+
+Add extracted layout component data to `component-map.json` under a new `sharedComponents` field:
+
+```json
+"sharedComponents": {
+  "Header": {
+    "figmaNodeId": "{header frame node ID}",
+    "figmaPageName": "{page name where header was found}",
+    "designContext": "{summary from get_design_context}",
+    "screenshotRef": "screenshots/_shared/Header.png",
+    "figmaStyles": {
+      "container": "{Tailwind classes}",
+      "nav": "{Tailwind classes}",
+      "navLink": "{Tailwind classes}",
+      "ctaButton": "{Tailwind classes}"
+    },
+    "structure": {
+      "logo": { "nodeId": "{logo node ID}", "hasImage": true },
+      "navItems": ["Home", "About", "Services", "Contact"],
+      "hasCta": true,
+      "ctaText": "Get Started"
+    }
+  },
+  "Footer": {
+    "figmaNodeId": "{footer frame node ID}",
+    "figmaPageName": "{page name where footer was found}",
+    "designContext": "{summary from get_design_context}",
+    "screenshotRef": "screenshots/_shared/Footer.png",
+    "figmaStyles": {
+      "container": "{Tailwind classes}",
+      "linkGroupTitle": "{Tailwind classes}",
+      "link": "{Tailwind classes}",
+      "socialIcon": "{Tailwind classes}"
+    },
+    "structure": {
+      "logo": { "nodeId": "{logo node ID or null}", "hasImage": false },
+      "description": "Company tagline",
+      "linkGroups": [
+        { "title": "Product", "linkCount": 4 },
+        { "title": "Company", "linkCount": 3 }
+      ],
+      "socialPlatforms": ["twitter", "linkedin", "github"],
+      "hasCopyright": true
+    }
+  }
+}
+```
+
+Only include `Header` and/or `Footer` entries for components that were actually extracted. If only one was found, include only that one.
+
+---
+
+### Phase 4: Extract Icon Set
+
+**Skip this phase if no pages have `pageType: "icons"` in `selectedPages`.**
+
+#### 4.1 Discover Icons
+
+Call `{mcpToolPrefix}get_metadata` with `fileKey` and the icon page's `nodeId` to enumerate all child frames. Each top-level child frame or component instance on the icon page is treated as an icon.
+
+**Fallback**: If the icon page has nested groups (e.g., "Category/IconName"), flatten the hierarchy — only leaf nodes are icons.
+
+**Filtering rules:**
+- Include nodes that are component instances, frames, or groups
+- Exclude nodes smaller than 12×12 pixels (likely decorative)
+- Exclude nodes larger than 128×128 pixels (likely containers, not individual icons)
+
+#### 4.2 Extract and Normalize Icon Names
+
+For each discovered icon node:
+
+1. Record `figmaName` — the node name as-is from Figma (e.g., "ic_lightning", "Icon/Arrow/Right", "shield-check")
+2. Record `figmaNodeId` for reference
+3. **Normalize** the name:
+   - Strip common prefixes: "ic_", "icon_", "ico_", "Icon/", "icons/"
+   - Replace separators (`_`, `-`, `/`, `.`) with spaces
+   - Convert to PascalCase (e.g., "shield check" → "ShieldCheck")
+
+#### 4.3 Match to Lucide Icons
+
+For each normalized icon name, attempt to match to a Lucide icon name. Apply matching strategies in priority order:
+
+1. **Exact match** — normalized name equals a Lucide icon name (e.g., "Zap" → "Zap"). Confidence: `1.0`
+2. **Synonym match** — use the synonym table below. Confidence: `0.9`
+3. **Partial match** — normalized name is a substring of a Lucide name, or vice versa (e.g., "ArrowLeft" matches "ArrowLeft"). Confidence: `0.7`
+4. **No match** — no Lucide equivalent found. Confidence: `0.0`
+
+**Synonym table** (common Figma icon names → Lucide equivalents):
+
+| Figma Name Pattern | Lucide Name |
+|---|---|
+| Lightning, Bolt, Thunder | Zap |
+| Checkmark, Check, Tick | Check |
+| Cross, Close, X, Cancel | X |
+| Hamburger, Menu, Bars | Menu |
+| Cog, Gear, Settings | Settings |
+| Magnifier, Search, Find | Search |
+| Bin, Trash, Delete, Remove | Trash2 |
+| Pencil, Edit, Pen | Pencil |
+| Eye, View, Show, Visible | Eye |
+| EyeOff, Hide, Invisible | EyeOff |
+| Heart, Like, Favorite | Heart |
+| Star, Rating | Star |
+| Home, House | Home |
+| User, Person, Profile, Account | User |
+| Users, People, Team, Group | Users |
+| Mail, Email, Envelope | Mail |
+| Phone, Call, Tel | Phone |
+| Calendar, Date, Schedule | Calendar |
+| Clock, Time | Clock |
+| Globe, World, International | Globe |
+| Shield, Security, Lock | Shield |
+| Download | Download |
+| Upload | Upload |
+| Share | Share2 |
+| Link, Chain | Link |
+| Image, Photo, Picture | Image |
+| Video, Play | Play |
+| Document, File, Paper | FileText |
+| Folder, Directory | Folder |
+| Bell, Notification, Alert | Bell |
+| Chat, Message, Comment | MessageSquare |
+| Send | Send |
+| Plus, Add, New | Plus |
+| Minus, Subtract | Minus |
+| ChevronRight, Right, Next, Forward | ChevronRight |
+| ChevronLeft, Left, Back, Prev | ChevronLeft |
+| ChevronDown, Down, Expand | ChevronDown |
+| ChevronUp, Up, Collapse | ChevronUp |
+| ArrowRight | ArrowRight |
+| ArrowLeft | ArrowLeft |
+| ExternalLink, External, NewWindow | ExternalLink |
+| Copy, Duplicate | Copy |
+| Clipboard | ClipboardCopy |
+| Filter, Funnel | Filter |
+| Sort, Order | ArrowUpDown |
+| Refresh, Reload, Sync | RefreshCw |
+| Info, Information | Info |
+| Warning, Warn, Caution | AlertTriangle |
+| Error, Danger | AlertCircle |
+| Success, Complete, Done | CheckCircle |
+| Help, Question, QuestionMark | HelpCircle |
+| Map, Location, Pin | MapPin |
+| Tag, Label | Tag |
+| Bookmark, Save | Bookmark |
+| Flag, Report | Flag |
+| Award, Badge, Trophy | Award |
+| Zap, Flash, Energy, Power | Zap |
+| Target, Goal, Aim | Target |
+| Layers, Stack | Layers |
+| Grid, Layout | LayoutGrid |
+| List | List |
+| BarChart, Chart, Graph, Analytics | BarChart3 |
+| PieChart | PieChart |
+| TrendingUp, Growth, Increase | TrendingUp |
+| DollarSign, Money, Currency, Price | DollarSign |
+| CreditCard, Payment, Card | CreditCard |
+| ShoppingCart, Cart, Basket | ShoppingCart |
+| Package, Box, Product | Package |
+| Truck, Delivery, Shipping | Truck |
+| Building, Office, Company | Building |
+| Briefcase, Work, Job | Briefcase |
+| Wrench, Tool, Fix | Wrench |
+| Code, Coding, Developer | Code |
+| Terminal, Console, CLI | Terminal |
+| Database, Storage, Data | Database |
+| Cloud, CloudComputing | Cloud |
+| Wifi, Internet, Network | Wifi |
+| Smartphone, Mobile | Smartphone |
+| Monitor, Screen, Desktop | Monitor |
+| Printer, Print | Printer |
+| Key, Access | Key |
+| LogIn, SignIn | LogIn |
+| LogOut, SignOut | LogOut |
+
+#### 4.4 Extract Custom Icon SVG (for unmatched icons)
+
+For icons with no Lucide match (`confidence === 0`):
+
+1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the icon's node ID
+2. From the design context response, extract the SVG path data (`d` attribute of `<path>` elements)
+3. Store in the `customSvgPath` field — this allows inline SVG rendering during code generation
+
+If extraction fails for a specific icon, set `customSvgPath` to `null` and log the error. Continue with remaining icons.
+
+Limit custom SVG extraction to the first 20 unmatched icons to avoid excessive MCP calls.
+
+#### 4.5 Build Icon Map
+
+Add the `iconMap` section to `component-map.json`:
+
+```json
+"iconMap": {
+  "extractedAt": "{ISO 8601 timestamp}",
+  "figmaPageName": "{icon page name}",
+  "figmaPageNodeId": "{icon page node ID}",
+  "icons": [
+    {
+      "figmaName": "ic_lightning",
+      "figmaNodeId": "100:1",
+      "normalizedName": "Lightning",
+      "lucideMatch": "Zap",
+      "confidence": 0.9,
+      "category": "feature"
+    },
+    {
+      "figmaName": "ic_custom_brand",
+      "figmaNodeId": "100:3",
+      "normalizedName": "CustomBrand",
+      "lucideMatch": null,
+      "confidence": 0.0,
+      "customSvgPath": "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10..."
+    }
+  ],
+  "unmappedCount": 1,
+  "totalCount": 10
+}
+```
+
+**`category` assignment** — infer from icon name or grouping:
+- `"navigation"` — arrows, chevrons, menu, hamburger
+- `"action"` — edit, delete, add, remove, share, download
+- `"status"` — check, warning, error, info
+- `"social"` — twitter, linkedin, github, facebook
+- `"feature"` — all others (default)
+
+---
+
+### Phase 5: Extract Additional Components
+
+**Skip this phase if no pages have `pageType: "components"` in `selectedPages`.**
+
+#### 5.1 Discover Components
+
+Call `{mcpToolPrefix}get_metadata` with `fileKey` and the component page's `nodeId` to enumerate all top-level child frames.
+
+**Filter out:**
+- Frames whose names match any of the standard 7 UI components (Button, Input, Label, Textarea, Switch, Accordion, Dialog) — these are already handled by Phase 2.5 or Phase 6
+- Frames matching layout patterns (Header, Footer, Nav) — already handled by Phase 3
+- Frames matching icon patterns (individual icons < 128×128) — already handled by Phase 4
+- Frames smaller than 48×48 pixels (likely decorative elements or spacers)
+- Frames named with documentation patterns ("Notes", "Instructions", "README", "Cover", "Changelog")
+
+**Result**: A list of additional component frames with their names and node IDs.
+
+#### 5.2 Extract Component Styles
+
+For each additional component (up to 20 components to limit MCP calls):
+
+1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the component's node ID
+2. Parse the response to extract:
+   - Tailwind CSS classes for the component's key sub-elements
+   - Variant definitions from Figma component properties (if any)
+3. Build a `figmaStyles` object mapping sub-element names to their Tailwind class strings
+
+#### 5.3 Build Additional Components
+
+Add the `additionalComponents` section to `component-map.json`:
+
+```json
+"additionalComponents": {
+  "Card": {
+    "figmaNodeId": "200:1",
+    "figmaPageName": "Components",
+    "designContext": "{summary from get_design_context}",
+    "figmaStyles": {
+      "root": "rounded-xl border border-border bg-card p-6 shadow-sm",
+      "header": "space-y-1.5",
+      "title": "text-lg font-semibold text-card-foreground",
+      "description": "text-sm text-muted-foreground",
+      "content": "pt-4",
+      "footer": "flex items-center pt-4"
+    },
+    "variants": {}
+  },
+  "Badge": {
+    "figmaNodeId": "200:2",
+    "figmaPageName": "Components",
+    "designContext": "{summary from get_design_context}",
+    "figmaStyles": {
+      "default": "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+    },
+    "variants": { "variant": ["default", "secondary", "destructive", "outline"] }
+  }
+}
+```
+
+If no additional components are discovered after filtering, omit the `additionalComponents` field entirely.
+
+---
+
+### Phase 6: Extract Components (Library-Based Files)
+
+**Skip this phase if `fileStructure === "page-based"` — section components were already extracted in Phase 2.** Note: For library-based files, Phases 3–5 may still run if layout/icon/component pages were classified in `selectedPages`.
 
 For library-based files, extract the 7 target UI components globally:
 
@@ -216,11 +700,11 @@ For library-based files, extract the 7 target UI components globally:
 3. **Parse styles** — extract Tailwind CSS classes from the design context response. Map to `figmaStyles` object.
 4. **Map variants** — extract variant definitions from Figma component properties
 
-For components not found, use default figmaStyles (see Phase 5).
+For components not found, use default figmaStyles (see Phase 8).
 
 ---
 
-### Phase 4: Build CSS Variables
+### Phase 7: Build CSS Variables
 
 Assemble the `cssVariables` section from extracted colors (same for both file structures):
 
@@ -256,9 +740,9 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
 
 ---
 
-### Phase 5: Write Output Files
+### Phase 8: Write Output Files
 
-#### 5.1 `{outputDir}/design-tokens.json`
+#### 8.1 `{outputDir}/design-tokens.json`
 
 ```json
 {
@@ -287,7 +771,7 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
 - `typography`, `components` — same pattern for typography scales and UI components
 - `overallCoverage` — `(total fromFigma across all categories) / (total across all categories)`, range 0.0 to 1.0. A value below 0.5 indicates most tokens are defaults, not from Figma.
 
-#### 5.2 `{outputDir}/component-map.json`
+#### 8.2 `{outputDir}/component-map.json`
 
 **For page-based files:**
 
@@ -314,6 +798,24 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
               "figmaStyles": {
                 "default": "inline-flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-6 py-3 text-base font-semibold hover:bg-primary/90"
               }
+            }
+          },
+          "contentImages": {
+            "status": "complete",
+            "images": [
+              {
+                "role": "background",
+                "index": 0,
+                "nodeId": "789:012",
+                "nodeName": "Hero Background Image",
+                "path": "images/home/HeroSection/background.png",
+                "extracted": true
+              }
+            ],
+            "extractionSummary": {
+              "total": 1,
+              "succeeded": 1,
+              "failed": 0
             }
           }
         },
@@ -348,19 +850,41 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
     "Accordion": { ... },
     "Dialog": { ... }
   },
+  "sharedComponents": { ... },
+  "iconMap": { ... },
+  "additionalComponents": { ... },
   "extractionStats": {
     "sections": { "fromFigma": 5, "total": 5 },
     "components": { "fromFigma": 4, "fromDefault": 3, "total": 7 },
-    "screenshots": { "captured": 4, "failed": 1, "total": 5 }
+    "screenshots": { "captured": 4, "failed": 1, "total": 5 },
+    "contentImages": { "extracted": 8, "failed": 1, "total": 9, "sectionsWithImages": 3 },
+    "sharedComponents": { "fromFigma": 2, "total": 2 },
+    "icons": { "mapped": 8, "unmapped": 2, "total": 10 },
+    "additionalComponents": { "fromFigma": 3, "total": 3 }
   }
 }
 ```
 
+**New optional top-level fields** (only present when corresponding page types were extracted):
+- `sharedComponents` — Header/Footer layout components extracted in Phase 3 (see Phase 3.5 for schema)
+- `iconMap` — icon-to-Lucide mapping extracted in Phase 4 (see Phase 4.5 for schema)
+- `additionalComponents` — extra UI components beyond the standard 7, extracted in Phase 5 (see Phase 5.3 for schema)
+
+**Sections with `isSharedLayout: true`**: If a section classified as `HeaderSection` or `FooterSection` was used as the source for shared layout extraction in Phase 3, it is marked with `"isSharedLayout": true` in the sections array. Downstream consumers (page-planner, page-assembler) should exclude these from the page's section list since they are handled as shared layout, not page-level sections.
+
 **`extractionStats` in component-map.json:**
 - `sections.fromFigma` — number of sections discovered and classified from the Figma file
 - `components.fromFigma` — number of the 7 UI components whose `figmaStyles` were extracted from Figma
-- `components.fromDefault` — number that used hardcoded default styles (Phase 5.3)
+- `components.fromDefault` — number that used hardcoded default styles (Phase 8.3)
 - `screenshots` — number of section screenshots captured vs failed
+- `contentImages.extracted` — number of content images successfully extracted and saved to `src/assets/images/`
+- `contentImages.failed` — number of content images that failed to extract
+- `contentImages.total` — total image nodes identified across all image-bearing sections
+- `contentImages.sectionsWithImages` — number of sections where at least one image node was identified
+- `sharedComponents.fromFigma` — number of shared layout components (Header/Footer) extracted from Figma. Only present if Phase 3 ran.
+- `icons.mapped` — icons matched to Lucide equivalents. Only present if Phase 4 ran.
+- `icons.unmapped` — icons with no Lucide match (custom SVG). Only present if Phase 4 ran.
+- `additionalComponents.fromFigma` — number of extra components found. Only present if Phase 5 ran.
 
 **`globalComponents` derivation for page-based files:**
 
@@ -391,7 +915,7 @@ After extracting section-level components, aggregate them into `globalComponents
 }
 ```
 
-#### 5.3 Default figmaStyles
+#### 8.3 Default figmaStyles
 
 For any component not found in Figma (either file structure), use these defaults in `globalComponents`:
 
@@ -447,7 +971,7 @@ For any component not found in Figma (either file structure), use these defaults
 }
 ```
 
-#### 5.4 Radix Primitive Mapping
+#### 8.4 Radix Primitive Mapping
 
 Always include in `globalComponents`:
 
@@ -461,11 +985,16 @@ Always include in `globalComponents`:
 | Accordion | `"@radix-ui/react-accordion"` |
 | Dialog | `"@radix-ui/react-dialog"` |
 
-#### 5.5 Merge Logic (update mode)
+#### 8.5 Merge Logic (update mode)
 
 If `mode === "update"`:
 - For `design-tokens.json`: overwrite `colors`, `typography`, `spacing`, `borderRadius`, `shadows`, `cssVariables`. Update `extractedAt`.
 - For `component-map.json`: overwrite pages and sections that were in `selectedPages`. Preserve pages not in `selectedPages`. Update `globalComponents` for newly found components only. Preserve manually edited `figmaStyles`.
+- For content images: re-extract images for sections in `selectedPages`. Overwrite existing image files at `{projectRoot}/src/assets/images/{pageName}/`. Preserve images for pages not in `selectedPages`.
+- For `sharedComponents`: overwrite entirely with newly extracted data (layout changes are structural, partial merge is unreliable).
+- For `iconMap`: overwrite entirely with newly extracted data.
+- For `additionalComponents`: merge — update existing component entries, add new ones, preserve components not in the current extraction.
+- For `layout-plan.json`: do NOT overwrite if the file already exists (user may have manually edited it). Only write if the file does not exist.
 
 ## Rules
 
@@ -484,5 +1013,6 @@ If `mode === "update"`:
   This prevents silently generating files with entirely default values.
 - **Error resilience for partial failures** — if SOME MCP tool calls succeed and others fail, log the failed calls and continue with remaining extractions. Use defaults only for the specific tokens that could not be extracted. This rule applies only when at least one MCP call succeeds in Phase 1.
 - **HSL precision** — round H to 1 decimal place, S and L to 1 decimal place. Use the format `"H S% L%"` without the `hsl()` function wrapper.
-- **No side effects** — do not install packages, modify config files, or create any files outside the output directory. Screenshot PNG files within `{outputDir}/screenshots/` are part of the expected output.
+- **No side effects** — do not install packages, modify config files, or create any files outside the output directory. Screenshot PNG files within `{outputDir}/screenshots/` are part of the expected output. **Exceptions**: (1) content images from Phase 2.6 are saved to `{projectRoot}/src/assets/images/` because Astro's `<Image />` component requires images under `src/` for build-time optimization (WebP/AVIF conversion, responsive srcset). (2) Layout logo images from Phase 3 are saved to `{projectRoot}/src/assets/images/_shared/`. (3) `layout-plan.json` from Phase 3.4 is written to `{projectRoot}/docs/pages/_shared/`.
 - **Section ordering** — always sort sections by vertical position (y coordinate) to maintain visual order from top to bottom.
+- **Content image resilience** — individual content image extraction failures must not block the overall extraction process. Record each failure in the section's `contentImages.images[]` with `extracted: false` and an `error` description. Continue extracting remaining images. The `contentImages.status` field reflects the aggregate result (`complete`, `partial`, `failed`, or `none`).

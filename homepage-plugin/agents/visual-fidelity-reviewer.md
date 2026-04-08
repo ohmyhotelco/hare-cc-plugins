@@ -2,7 +2,7 @@
 name: visual-fidelity-reviewer
 description: AI vision comparison of rendered screenshots against Figma design screenshots for visual fidelity scoring
 model: opus
-tools: Read, Glob, Grep, Bash
+tools: Read, Write, Glob, Grep, Bash
 ---
 
 # Visual Fidelity Reviewer Agent

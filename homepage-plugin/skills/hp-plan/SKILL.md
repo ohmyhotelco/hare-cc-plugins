@@ -99,6 +99,46 @@ Display the proposed composition:
 
 ### Step 5: Shared Layout Definition
 
+#### 5.1 Check for Figma-Extracted Layout
+
+Read `docs/pages/_shared/layout-plan.json` if it exists.
+
+If the file exists and contains `_figmaSource.populated === true`, the layout was pre-populated from Figma by `hp-design-sync`. Display the pre-populated layout to the user:
+
+```
+Layout pre-populated from Figma design:
+
+Header:
+  Logo: [extracted from Figma] ✓
+  Nav items: Home, About, Services, Contact
+  CTA: "Get Started"
+
+Footer:
+  Description: "Company tagline"
+  Link groups: Product (4 links), Company (3 links)
+  Social: Twitter, LinkedIn, GitHub
+  Copyright: 2026
+```
+
+Ask the user to choose:
+1. **Use as-is** — keep the Figma-extracted layout without changes
+2. **Modify** — edit specific parts (nav items, links, social media URLs, etc.) while keeping the overall structure
+3. **Start fresh** — discard the Figma-extracted layout and define from scratch
+
+- If **Use as-is**: skip to Step 6 (no further layout questions)
+- If **Modify**: present each section (header, footer) for editing. Pre-fill all fields with the Figma-extracted values. The user can:
+  - Change nav item labels and add real href values (Figma-extracted hrefs are placeholders)
+  - Add or remove nav items
+  - Edit footer link groups, add/remove links
+  - Add real social media URLs (Figma-extracted are `"#"` placeholders)
+  - Change company name and description
+  - Write the modified layout plan back to `docs/pages/_shared/layout-plan.json`, preserving `_figmaSource` metadata
+- If **Start fresh**: proceed to Step 5.2
+
+#### 5.2 Manual Layout Definition
+
+If no Figma-extracted layout exists, or the user chose "Start fresh":
+
 Ask: "How should the header and footer be structured?"
 
 Gather:
