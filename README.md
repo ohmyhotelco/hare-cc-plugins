@@ -6,7 +6,7 @@ A collection of Claude Code plugins that cover the full software delivery lifecy
 
 ## Plugins
 
-### [Planning Plugin](./planning-plugin/) `v1.4.5`
+### [Planning Plugin](./planning-plugin/) `v1.5.1`
 
 Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
 
@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v1.0.2`
+### [Frontend React Plugin](./frontend-react-plugin/) `v1.0.6`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing.
 
@@ -36,7 +36,7 @@ Generates production-ready React code from functional specifications using stric
 
 ---
 
-### [Homepage Plugin](./homepage-plugin/) `v0.2.1`
+### [Homepage Plugin](./homepage-plugin/) `v0.3.2`
 
 Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
 
@@ -51,7 +51,7 @@ Generates marketing homepage websites from interactive page/section definitions.
 
 ---
 
-### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.1.0`
+### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.3.1`
 
 Develops Spring Boot backend applications using CQRS architecture and strict Test-Driven Development. Features a full pipeline with verification gate, review-fix loop, systematic debugging, and pipeline state tracking — modeled after the frontend-react-plugin's mature orchestration patterns.
 
