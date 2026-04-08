@@ -110,8 +110,13 @@ If `curl` fails (network issue), warn the user and continue — skills are optio
 Display:
 - Configuration summary
 - Installed skills
-- Figma status: if `figmaFileKey` is set, show "Figma connected — run `/homepage-plugin:hp-design-sync` to extract design tokens." Otherwise show "No Figma configured — using shadcn/ui defaults."
-- Next step: "Run `/homepage-plugin:hp-plan` to define pages and sections."
+- Figma status: if `figmaFileKey` is set, show "Figma connected." Otherwise show "No Figma configured — using shadcn/ui defaults."
+- Next steps (conditional on Figma):
+  - If `figmaFileKey` is set:
+    1. "Run `/homepage-plugin:hp-design-sync` to extract design tokens from Figma."
+    2. "Then run `/homepage-plugin:hp-plan` to define pages and sections."
+  - If no Figma:
+    1. "Run `/homepage-plugin:hp-plan` to define pages and sections."
 
 ## Communication Language
 
