@@ -2,7 +2,7 @@
 name: design-token-extractor
 description: Extracts design tokens and component definitions from Figma via MCP tools
 model: opus
-tools: Read, Write, Glob, Grep
+tools: Read, Write, Glob, Grep, mcp__figma__get_variable_defs, mcp__figma__search_design_system, mcp__figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma_desktop__get_variable_defs, mcp__figma_desktop__search_design_system, mcp__figma_desktop__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_screenshot, mcp__Figma__get_variable_defs, mcp__Figma__search_design_system, mcp__Figma__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_screenshot
 ---
 
 # Design Token Extractor Agent
@@ -271,9 +271,21 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
   "spacing": { ... },
   "borderRadius": { ... },
   "shadows": { ... },
-  "cssVariables": { ... }
+  "cssVariables": { ... },
+  "extractionStats": {
+    "colors": { "fromFigma": 12, "fromDefault": 5, "total": 17 },
+    "typography": { "fromFigma": 3, "fromDefault": 0, "total": 3 },
+    "components": { "fromFigma": 5, "fromDefault": 2, "total": 7 },
+    "overallCoverage": 0.74
+  }
 }
 ```
+
+**`extractionStats` fields:**
+- `colors.fromFigma` — number of the 17 semantic color variables that were actually extracted from the Figma file
+- `colors.fromDefault` — number that fell back to hardcoded shadcn/ui defaults (Phase 1.6)
+- `typography`, `components` — same pattern for typography scales and UI components
+- `overallCoverage` — `(total fromFigma across all categories) / (total across all categories)`, range 0.0 to 1.0. A value below 0.5 indicates most tokens are defaults, not from Figma.
 
 #### 5.2 `{outputDir}/component-map.json`
 
@@ -335,9 +347,20 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
     "Switch": { ... },
     "Accordion": { ... },
     "Dialog": { ... }
+  },
+  "extractionStats": {
+    "sections": { "fromFigma": 5, "total": 5 },
+    "components": { "fromFigma": 4, "fromDefault": 3, "total": 7 },
+    "screenshots": { "captured": 4, "failed": 1, "total": 5 }
   }
 }
 ```
+
+**`extractionStats` in component-map.json:**
+- `sections.fromFigma` — number of sections discovered and classified from the Figma file
+- `components.fromFigma` — number of the 7 UI components whose `figmaStyles` were extracted from Figma
+- `components.fromDefault` — number that used hardcoded default styles (Phase 5.3)
+- `screenshots` — number of section screenshots captured vs failed
 
 **`globalComponents` derivation for page-based files:**
 
@@ -447,8 +470,19 @@ If `mode === "update"`:
 ## Rules
 
 - **JSON output only** — never generate source code files (`.tsx`, `.astro`, `.css`). Only write JSON to the output directory.
-- **Complete coverage** — always produce entries for all 17 semantic color variables and all 7 global components, using defaults for anything not found in Figma.
-- **Error resilience** — if a specific MCP tool call fails, log the error and continue with remaining extractions. Never abort the entire process for a single tool failure.
+- **Complete coverage** — always produce entries for all 17 semantic color variables and all 7 global components, using defaults for anything not found in Figma. Track the source of each value (see Extraction Stats below).
+- **Abort on total MCP failure** — if ALL MCP tool calls in Phase 1 fail (no color, typography, or variable data could be extracted from Figma), do NOT proceed to write output files with all-default values. Instead, write a failure report to `{outputDir}/extraction-error.json` and abort:
+  ```json
+  {
+    "error": "total_mcp_failure",
+    "message": "All Figma MCP tool calls failed. No design tokens could be extracted.",
+    "failedCalls": ["get_variable_defs", "search_design_system"],
+    "mcpToolPrefix": "{mcpToolPrefix}",
+    "timestamp": "{ISO 8601}"
+  }
+  ```
+  This prevents silently generating files with entirely default values.
+- **Error resilience for partial failures** — if SOME MCP tool calls succeed and others fail, log the failed calls and continue with remaining extractions. Use defaults only for the specific tokens that could not be extracted. This rule applies only when at least one MCP call succeeds in Phase 1.
 - **HSL precision** — round H to 1 decimal place, S and L to 1 decimal place. Use the format `"H S% L%"` without the `hsl()` function wrapper.
 - **No side effects** — do not install packages, modify config files, or create any files outside the output directory. Screenshot PNG files within `{outputDir}/screenshots/` are part of the expected output.
 - **Section ordering** — always sort sections by vertical position (y coordinate) to maintain visual order from top to bottom.

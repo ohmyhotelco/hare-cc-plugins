@@ -37,6 +37,8 @@ Once resolved, if `figmaFileKey` is not already in `.claude/homepage-plugin.json
 
 ### Step 2: Verify Figma MCP Connection
 
+#### 2.1 Tool Discovery
+
 Check that Figma MCP tools are available. Look for tools matching any of these patterns:
 - `mcp__figma__*`
 - `mcp__figma_desktop__*`
@@ -56,9 +58,33 @@ Then exit.
 
 Identify the exact tool name prefix (e.g., `mcp__figma__` or `mcp__figma_desktop__`) for passing to the agent.
 
+#### 2.2 Connectivity Test
+
+After identifying the tool prefix, perform an actual MCP call to verify the connection works:
+
+Call `{mcpToolPrefix}get_metadata` with the `fileKey` from Step 1.
+
+- **Success**: The tool returns file metadata (page names, node structure). Proceed to Step 3 using this response (avoids a redundant call).
+- **Failure / Error / Timeout**: Display an error:
+
+> **Figma MCP connection failed.**
+>
+> Tools with prefix `{mcpToolPrefix}` were found but the connection test failed.
+> Error: {error message}
+>
+> Possible causes:
+> 1. The MCP server is not running or unreachable
+> 2. The Figma file key is invalid: `{fileKey}`
+> 3. You don't have access to this Figma file
+> 4. The MCP server needs re-authentication
+>
+> Try restarting the MCP server or re-adding it.
+
+Then exit. **Do NOT proceed to the agent if the connectivity test fails.**
+
 ### Step 3: Discover File Structure
 
-Call `{mcpToolPrefix}get_metadata` with the `fileKey` to get a high-level node map of the entire file.
+Use the `get_metadata` response from Step 2.2 (do not call again — reuse the connectivity test result).
 
 Analyze the result to determine the file structure:
 
@@ -94,19 +120,55 @@ Launch the `design-token-extractor` agent with the following parameters:
 
 ### Step 6: Validate Output
 
-After the agent completes, verify the output files:
+After the agent completes, first check for extraction failure:
+
+**6.0 Check for total failure:**
+- If `docs/design-system/extraction-error.json` exists, read it and display the error:
+  > **Design token extraction failed.**
+  > {error message from the file}
+  >
+  > No design tokens were extracted. Check your Figma MCP connection and try again.
+  Then exit without proceeding to Step 7.
+
+**6.1 Structural validation** — verify the output files exist and are well-formed:
 
 1. **`docs/design-system/design-tokens.json`** must exist and contain:
    - `$schema` field equal to `"design-tokens-v1"`
    - `colors` object with at least `primary`, `background`, `foreground`
    - `cssVariables` object with `:root` containing at least 10 CSS variable entries
    - `typography` object with `fontFamily`
+   - `extractionStats` object
 
 2. **`docs/design-system/component-map.json`** must exist and contain:
    - `$schema` field equal to `"component-map-v1"`
    - `pages` object with at least one page entry (for page-based files) OR `globalComponents` object (for library-based files)
+   - `extractionStats` object
 
-If validation fails, report which fields are missing and suggest re-running.
+If structural validation fails, report which fields are missing and suggest re-running.
+
+**6.2 Extraction coverage validation** — verify that meaningful data was extracted from Figma:
+
+Read `extractionStats.overallCoverage` from `design-tokens.json`.
+
+- **Coverage >= 0.5** (50%+) → proceed normally
+- **Coverage < 0.5 but > 0** → display a warning:
+  > **Low extraction coverage ({coverage*100}%).**
+  > Most design tokens are using default values, not values from your Figma file.
+  > This may indicate that the Figma file has non-standard variable naming,
+  > or that some MCP tool calls failed during extraction.
+  >
+  > You can:
+  > 1. Proceed with the current tokens (defaults will be used for missing values)
+  > 2. Re-run `/homepage-plugin:hp-design-sync` to retry extraction
+  >
+  Ask the user whether to proceed or retry.
+- **Coverage == 0** → display an error:
+  > **No tokens were extracted from Figma.**
+  > All values in the output are defaults. This likely means the Figma MCP
+  > connection failed silently during extraction.
+  >
+  > Please verify your Figma MCP connection and re-run `/homepage-plugin:hp-design-sync`.
+  Then exit.
 
 ### Step 7: Display Summary
 
