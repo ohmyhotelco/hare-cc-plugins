@@ -2,7 +2,7 @@
 name: visual-fidelity-reviewer
 description: AI vision comparison of rendered screenshots against Figma design screenshots for visual fidelity scoring
 model: opus
-tools: Read, Write, Glob, Grep, Bash
+tools: Read, Write, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
 ---
 
 # Visual Fidelity Reviewer Agent
@@ -19,17 +19,19 @@ The skill will provide these parameters in the prompt:
 - `planFile` — path to `page-plan.json`
 - `projectRoot` — project root path
 - `componentMapFile` — path to `docs/design-system/component-map.json`
+- `fileKey` — Figma file key (for direct `get_screenshot` calls)
+- `mcpToolPrefix` — MCP tool name prefix (e.g., `mcp__figma__`)
 
 ## Process
 
 ### Phase 0: Load Context
 
 1. **Component map** — read `componentMapFile` to get `pages.{pageName}.sections[]`
-2. **Identify comparable sections** — collect sections that have a non-empty `screenshotRef` field pointing to an existing file
+2. **Identify comparable sections** — collect sections that have a non-empty `sectionNodeId` field. These sections can be visually compared by fetching the Figma design directly via MCP. Also check for `screenshotRef` pointing to an existing PNG file as a fallback.
 3. **Page plan** — read `planFile` to understand section order and types
 4. **Build check** — verify `dist/` directory exists. If not, run `npx astro build` in `projectRoot`
 
-If no sections have valid `screenshotRef` files, skip the entire review and return an empty report with `verdict: "skipped"`.
+If no sections have valid `sectionNodeId` values (and no valid `screenshotRef` files), skip the entire review and return an empty report with `verdict: "skipped"`.
 
 ### Phase 1: Capture Rendered Screenshots
 
@@ -66,9 +68,9 @@ If no sections have valid `screenshotRef` files, skip the entire review and retu
 
 ### Phase 2: Compare via AI Vision
 
-For each section that has both a Figma screenshot and a rendered screenshot:
+For each section that has both a Figma design reference and a rendered screenshot:
 
-1. **Read Figma screenshot** — read the image at `{projectRoot}/docs/design-system/{screenshotRef}`
+1. **Fetch Figma design** — call `{mcpToolPrefix}get_screenshot` with `fileKey` and the section's `sectionNodeId`. The MCP tool returns the Figma design as an inline image that the agent can view directly. If the MCP call fails, fall back to reading from `{projectRoot}/docs/design-system/{screenshotRef}` if the file exists. If neither is available, skip this section.
 2. **Read rendered screenshot** — read the image at `{projectRoot}/docs/pages/{pageName}/.implementation/homepage/screenshots/{sectionType}.png`
 
 3. **Compare both images** using the following structured rubric. For each sub-dimension, score 0-10 and note specific divergences:

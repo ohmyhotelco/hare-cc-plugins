@@ -18,7 +18,9 @@ Read `.claude/homepage-plugin.json`. If not found, exit with instruction to run 
 
 Read `defaultLocale` — all user-facing output in this language.
 
-Check if `docs/design-system/component-map.json` exists. If it does, read it and check if any section has a non-empty `screenshotRef` field that points to an existing file under `docs/design-system/`. Set `hasVisualRefs = true` if at least one valid screenshot reference exists.
+Check if `docs/design-system/component-map.json` exists. If it does, read it and check if any section has a non-empty `sectionNodeId` field OR a non-empty `screenshotRef` field that points to an existing file under `docs/design-system/`. Set `hasVisualRefs = true` if at least one valid reference exists.
+
+Also read `.claude/homepage-plugin.json` for `figmaFileKey`. Read the Figma MCP tool prefix by checking which tools are available (`mcp__figma__*`, `mcp__figma_desktop__*`, or `mcp__Figma__*`). These are needed for the visual fidelity reviewer to fetch Figma designs directly.
 
 ### Step 1: Validate Prerequisites
 
@@ -115,6 +117,8 @@ Launch `visual-fidelity-reviewer` agent with:
 - `planFile` — path to page-plan.json
 - `projectRoot` — project root
 - `componentMapFile` — path to `docs/design-system/component-map.json`
+- `fileKey` — Figma file key from `.claude/homepage-plugin.json`
+- `mcpToolPrefix` — the MCP tool name prefix identified in Step 0
 
 Wait for result. Parse the visual fidelity report.
 
