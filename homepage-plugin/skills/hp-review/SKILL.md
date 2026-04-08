@@ -1,14 +1,14 @@
 ---
 name: hp-review
-description: "Run 2-stage code review (SEO + quality) on generated homepage code."
+description: "Run 3-stage code review (SEO + quality + visual fidelity) on generated homepage code."
 argument-hint: "[page-name]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
-# Code Review Skill (2-Stage)
+# Code Review Skill (3-Stage)
 
-Runs a 2-stage code review: SEO review first, then quality review (only if SEO passes). Uses specialized reviewer agents.
+Runs a 3-stage code review: SEO review first, then quality review (only if SEO passes), then visual fidelity review (optional, only when Figma screenshots exist). Uses specialized reviewer agents.
 
 ## Instructions
 
@@ -17,6 +17,8 @@ Runs a 2-stage code review: SEO review first, then quality review (only if SEO p
 Read `.claude/homepage-plugin.json`. If not found, exit with instruction to run `/homepage-plugin:hp-init`.
 
 Read `defaultLocale` — all user-facing output in this language.
+
+Check if `docs/design-system/component-map.json` exists. If it does, read it and check if any section has a non-empty `screenshotRef` field that points to an existing file under `docs/design-system/`. Set `hasVisualRefs = true` if at least one valid screenshot reference exists.
 
 ### Step 1: Validate Prerequisites
 
@@ -70,20 +72,45 @@ Launch `quality-reviewer` agent with:
 
 Wait for result. Parse the review report.
 
+### Step 5.5: Stage 3 — Visual Fidelity Review (Conditional)
+
+Only runs if ALL conditions are met:
+1. SEO review verdict is `pass` or `pass_with_warnings`
+2. Quality review verdict is `pass` or `pass_with_warnings`
+3. `hasVisualRefs === true` (Figma screenshots exist in component-map.json)
+
+If any condition is not met, skip this stage entirely.
+
+Launch `visual-fidelity-reviewer` agent with:
+- `pageName` — page identifier (or `"all"`)
+- `planFile` — path to page-plan.json
+- `projectRoot` — project root
+- `componentMapFile` — path to `docs/design-system/component-map.json`
+
+Wait for result. Parse the visual fidelity report.
+
+**Note**: Visual fidelity is **advisory (non-blocking)**. Its verdict does NOT cause the overall review to fail on its own. Issues are reported for user awareness and can be addressed via `hp-fix`.
+
 ### Step 6: Merge Reports
 
-Combine SEO and quality review reports into a single `review-report.json`:
+Combine all review reports into a single `review-report.json`:
 
 ```json
 {
   "timestamp": "2026-03-23T...",
   "seo": { "score": 8.5, "verdict": "pass", "issues": [...] },
   "quality": { "score": 8.0, "verdict": "pass_with_warnings", "issues": [...] },
+  "visualFidelity": { "score": 7.5, "verdict": "pass_with_warnings", "issues": [...], "coverage": {...} },
   "overall": {
     "verdict": "pass_with_warnings",
     "totalIssues": { "critical": 0, "warning": 5, "info": 2 }
   }
 }
+```
+
+The `visualFidelity` key is **optional** — omit it when Stage 3 did not run (conditions not met or skipped).
+
+The overall verdict is determined by SEO and quality reviews only. Visual fidelity issues are included in `totalIssues` for visibility but do not change the overall verdict.
 ```
 
 Save to `docs/pages/{page-name}/.implementation/homepage/review-report.json`.
@@ -104,11 +131,15 @@ Update `docs/pages/{page-name}/.progress/{page-name}.json`:
     "review": {
       "seoScore": 8.5,
       "qualityScore": 8.0,
+      "visualFidelityScore": 7.5,
       "verdict": "pass_with_warnings",
       "reviewedAt": "2026-03-23T..."
     }
   }
 }
+```
+
+The `visualFidelityScore` field is optional — omit when Stage 3 did not run.
 ```
 
 Release the lock file.
@@ -119,18 +150,22 @@ Show integrated review summary:
 
 ```
 Review Results:
-  SEO Review:     8.5/10 (pass)
-  Quality Review:  8.0/10 (pass with warnings)
+  SEO Review:        8.5/10 (pass)
+  Quality Review:    8.0/10 (pass with warnings)
+  Visual Fidelity:   7.5/10 (pass with warnings) [4/5 sections compared]
 
-  Issues: 0 critical, 5 warnings, 2 info
+  Issues: 0 critical, 7 warnings, 3 info
 
   Top warnings:
     1. [responsive] Touch target too small — Header.astro:28
     2. [i18n] Hardcoded string found — ContactSection.astro:15
+    3. [visual_fidelity] Hero background color differs from Figma — HeroSection.astro
     ...
 
 Next step: Run /homepage-plugin:hp-fix to address warnings.
 ```
+
+The Visual Fidelity line only appears when Stage 3 ran. Show `[N/M sections compared]` to indicate coverage.
 
 Or if failed:
 ```

@@ -108,6 +108,7 @@ A Claude Code plugin that applies tech stack and coding conventions for building
   - `page-assembler` — section assembly → full pages + SEO metadata + i18n
   - `seo-reviewer` — SEO compliance review (6 dimensions)
   - `quality-reviewer` — code quality + accessibility review (6 dimensions, +1 optional Design Token Consistency when design system exists)
+  - `visual-fidelity-reviewer` — AI vision comparison of rendered vs Figma screenshots (5 sub-dimensions, conditional on Figma screenshots)
   - `review-fixer` — direct fix for review issues
 - **Skills**: `/homepage-plugin:hp-init`, `/homepage-plugin:hp-design-sync`, `/homepage-plugin:hp-plan`, `/homepage-plugin:hp-gen`, `/homepage-plugin:hp-verify`, `/homepage-plugin:hp-review`, `/homepage-plugin:hp-fix`
 - **External Skills**: `web-design-guidelines` + `composition-patterns` (from `vercel-labs/agent-skills`) — installed by hp-init
@@ -148,9 +149,10 @@ hp-init → [hp-design-sync] → hp-plan → hp-gen → hp-verify → hp-review 
 3. Astro build (`npx astro build`)
 4. Lighthouse CI (performance/accessibility/SEO >= 90)
 
-### hp-review — 2-Stage Code Review
+### hp-review — 3-Stage Code Review
 1. **SEO Review** (seo-reviewer): 6 dimensions — metadata, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators
 2. **Quality Review** (quality-reviewer, only if SEO passes): 6 dimensions (7 when design system exists) — accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (+Design Token Consistency when `docs/design-system/design-tokens.json` exists)
+3. **Visual Fidelity Review** (visual-fidelity-reviewer, conditional): 5 sub-dimensions — layout structure, color accuracy, typography, spacing & alignment, component fidelity. Runs only when SEO + Quality pass and Figma section screenshots exist in `component-map.json`. Advisory (non-blocking) — does not fail the overall review on its own.
 
 ### hp-fix — Direct Fix
 - No TDD classification — homepage sections are presentational
@@ -194,7 +196,10 @@ Verification Red Flags — these thoughts mean you're rationalizing (all agents)
 ```
 docs/design-system/
 ├── design-tokens.json                ← Figma-extracted design tokens (created by hp-design-sync)
-└── component-map.json                ← Figma component-to-code mapping (created by hp-design-sync)
+├── component-map.json                ← Figma component-to-code mapping (created by hp-design-sync)
+└── screenshots/                      ← Figma section screenshots (created by hp-design-sync)
+    └── {page-name}/
+        └── {SectionType}.png
 
 docs/pages/{page-name}/
 ├── page-plan.json                    ← Page plan (sections, metadata, i18n)
@@ -202,7 +207,10 @@ docs/pages/{page-name}/
 └── .implementation/homepage/
     ├── generation-state.json         ← Generation progress per phase
     ├── review-report.json            ← Review results
+    ├── visual-fidelity-report.json   ← Visual fidelity comparison results (optional)
     ├── fix-report.json               ← Fix results
+    ├── screenshots/                  ← Rendered section screenshots (captured by Playwright)
+    │   └── {SectionType}.png
     └── .lock                         ← Concurrent execution prevention
 
 docs/pages/_shared/

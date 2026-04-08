@@ -49,7 +49,8 @@ Key capabilities:
 /homepage-plugin:hp-review [page-name]
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
-        └── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        ├── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, advisory)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -240,8 +241,9 @@ Verify the installation:
 1. Acquires a lock to prevent concurrent operations
 2. **Stage 1 — SEO Review**: seo-reviewer agent checks metadata completeness, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators (6 dimensions, scored 0-10)
 3. **Stage 2 — Quality Review** (only when SEO passes): quality-reviewer agent checks accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (6 dimensions, +1 Design Token Consistency when design system exists, scored 0-10)
-4. Saves merged review report with issue details (severity, file, line, fixHint)
-5. Releases the lock and updates progress
+4. **Stage 3 — Visual Fidelity Review** (conditional, advisory): visual-fidelity-reviewer captures rendered screenshots and compares them against Figma section screenshots using AI vision. Scores layout structure, color accuracy, typography, spacing, and component fidelity. Only runs when SEO + Quality pass and Figma screenshots exist.
+5. Saves merged review report with issue details (severity, file, line, fixHint)
+6. Releases the lock and updates progress
 
 **Status outcomes**:
 - Both pass clean → `done`
@@ -387,7 +389,7 @@ Fixes SEO and quality issues identified by reviewers. All fixes are direct (no T
 | Plan | `/homepage-plugin:hp-plan` | Interactive page/section definition and planning |
 | Gen | `/homepage-plugin:hp-gen` | Generate Astro pages and sections (3-phase pipeline) |
 | Verify | `/homepage-plugin:hp-verify` | TypeScript, ESLint, Astro build, Lighthouse CI verification |
-| Review | `/homepage-plugin:hp-review` | 2-stage code review (SEO + quality/accessibility) |
+| Review | `/homepage-plugin:hp-review` | 3-stage code review (SEO + quality/accessibility + visual fidelity) |
 | Fix | `/homepage-plugin:hp-fix` | Fix review issues with direct fixes |
 
 ### External Skills (installed by init)
@@ -591,7 +593,8 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 ```
 agents/          Agent definitions (design-token-extractor, page-planner, section-generator,
-                 page-assembler, seo-reviewer, quality-reviewer, review-fixer)
+                 page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
+                 review-fixer)
 skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
                  hp-review, hp-fix)
 hooks/           Lifecycle hook configuration
