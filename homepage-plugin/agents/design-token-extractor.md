@@ -2,7 +2,7 @@
 name: design-token-extractor
 description: Extracts design tokens and component definitions from Figma via MCP tools
 model: opus
-tools: Read, Write, Glob, Grep, mcp__figma__get_variable_defs, mcp__figma__search_design_system, mcp__figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma_desktop__get_variable_defs, mcp__figma_desktop__search_design_system, mcp__figma_desktop__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_screenshot, mcp__Figma__get_variable_defs, mcp__Figma__search_design_system, mcp__Figma__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_screenshot
+tools: Read, Write, Glob, Grep, Bash, mcp__figma__get_variable_defs, mcp__figma__search_design_system, mcp__figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma_desktop__get_variable_defs, mcp__figma_desktop__search_design_system, mcp__figma_desktop__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_screenshot, mcp__Figma__get_variable_defs, mcp__Figma__search_design_system, mcp__Figma__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_screenshot
 ---
 
 # Design Token Extractor Agent
@@ -157,16 +157,22 @@ This returns a styled code representation of the section. Parse the response to 
 
 For each section frame, call `{mcpToolPrefix}get_screenshot` with `fileKey` and `sectionNodeId`.
 
-Save the screenshot image to disk and record the file path:
+Save the screenshot image to disk (best-effort) and record the file path:
 
 1. Create the directory `{outputDir}/screenshots/{pageName}/` if it does not exist
-2. Save the screenshot image as `{outputDir}/screenshots/{pageName}/{sectionType}.png`
-   - If the MCP tool returns a base64-encoded image, decode and write the binary PNG
-   - If the tool returns a URL, download the image and save as PNG
-   - If the tool returns inline image content, write it directly
+2. Attempt to save the screenshot image as `{outputDir}/screenshots/{pageName}/{sectionType}.png`:
+   - If the MCP response contains a **URL**, download it:
+     ```bash
+     curl -sL '{imageUrl}' -o '{outputPath}'
+     ```
+   - If the MCP response contains **base64 text**, decode it:
+     ```bash
+     echo '{base64String}' | base64 -d > '{outputPath}'
+     ```
+   - If the MCP response returns an **inline image** (rendered visually but no extractable data), the file cannot be saved. This is expected — the `visual-fidelity-reviewer` will fetch the Figma design directly via MCP `get_screenshot` during review.
 3. Store the **relative path** (from `outputDir`) in `screenshotRef`: `"screenshots/{pageName}/{sectionType}.png"`
 
-These screenshots are used by `page-planner` for AI vision analysis and by `visual-fidelity-reviewer` for design fidelity comparison.
+**Note**: Disk-saved screenshots are a best-effort optimization. The primary consumer (`visual-fidelity-reviewer`) fetches Figma designs directly via MCP `get_screenshot` using the section's `sectionNodeId`, so missing PNG files do not block visual fidelity review.
 
 #### 2.4 Classify Section Type
 
@@ -234,13 +240,22 @@ Filter candidate image nodes using section-type-specific rules:
 
 For each identified image node:
 
-1. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the image node's ID
-2. Save the image to `{projectRoot}/src/assets/images/{pageName}/{sectionType}/{role}-{index}.png`
+1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the image node's ID. The response contains asset download URLs in the format:
+   ```
+   const imgXxx = "https://www.figma.com/api/mcp/asset/{uuid}";
+   ```
+   Parse the response to extract these URLs. These are temporary download links (valid for ~7 days).
+
+2. Download and save the image using the Bash tool:
+   ```bash
+   mkdir -p '{projectRoot}/src/assets/images/{pageName}/{sectionType}'
+   curl -sL '{assetUrl}' -o '{outputPath}'
+   test -s '{outputPath}' && echo "OK" || echo "FAILED"
+   ```
    - For single images (e.g., hero background): use `background.png` (no index)
    - For indexed items: use `{role}-0.png`, `{role}-1.png`, etc.
-   - If the MCP tool returns a base64-encoded image, decode and write the binary PNG
-   - If the tool returns a URL, download the image and save as PNG
-   - If the tool returns inline image content, write it directly
+   - If `get_design_context` does not return any asset URLs for the node, fall back to `get_screenshot` (best-effort — may return inline image only). Record as `extracted: false` with error `"no asset URL available"` if neither method produces a file.
+
 3. Record the extraction result (success or failure with error reason)
 
 If the `get_screenshot` call fails for an individual image node, log the failure and continue with the next image. Do not abort the entire phase.
@@ -315,9 +330,9 @@ For the identified header frame:
 
 1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the header frame's node ID to get styled code representation
 2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the header frame's node ID
-   - Save to `{outputDir}/screenshots/_shared/Header.png`
+   - Save to `{outputDir}/screenshots/_shared/Header.png` using the Bash tool (same base64 decode method as Phase 2.3)
 3. Parse the design context to extract:
-   - **Logo element** — image node or text-based logo. If an image node is found, call `{mcpToolPrefix}get_screenshot` with the logo node ID and save to `{projectRoot}/src/assets/images/_shared/header-logo.png`
+   - **Logo element** — image node or text-based logo. If an image node is found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/header-logo.png'`
    - **Navigation items** — text labels from nav link elements (e.g., "Home", "About", "Services", "Contact")
    - **CTA button** — text label and style (if present)
    - **Styling** — background color, border, typography classes
@@ -335,9 +350,9 @@ For the identified footer frame:
 
 1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and the footer frame's node ID
 2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the footer frame's node ID
-   - Save to `{outputDir}/screenshots/_shared/Footer.png`
+   - Save to `{outputDir}/screenshots/_shared/Footer.png` using the Bash tool (same base64 decode method as Phase 2.3)
 3. Parse the design context to extract:
-   - **Logo/brand element** — same extraction as header logo. If found, save to `{projectRoot}/src/assets/images/_shared/footer-logo.png`
+   - **Logo/brand element** — same extraction as header logo. If found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/footer-logo.png'`
    - **Description text** — company tagline or brief description
    - **Link groups** — groups of links with section titles (e.g., "Product", "Company", "Support")
    - **Social media icons** — identify platform names by matching icon/text patterns to: twitter, linkedin, github, facebook, instagram, youtube
@@ -998,7 +1013,7 @@ If `mode === "update"`:
 
 ## Rules
 
-- **JSON output only** — never generate source code files (`.tsx`, `.astro`, `.css`). Only write JSON to the output directory.
+- **JSON output only** — never generate source code files (`.tsx`, `.astro`, `.css`). Only write JSON to the output directory. The Bash tool is used exclusively for binary image file operations (base64 decode → PNG, curl download) — not for code generation.
 - **Complete coverage** — always produce entries for all 17 semantic color variables and all 7 global components, using defaults for anything not found in Figma. Track the source of each value (see Extraction Stats below).
 - **Abort on total MCP failure** — if ALL MCP tool calls in Phase 1 fail (no color, typography, or variable data could be extracted from Figma), do NOT proceed to write output files with all-default values. Instead, write a failure report to `{outputDir}/extraction-error.json` and abort:
   ```json

@@ -36,7 +36,7 @@ Generates production-ready React code from functional specifications using stric
 
 ---
 
-### [Homepage Plugin](./homepage-plugin/) `v0.3.2`
+### [Homepage Plugin](./homepage-plugin/) `v0.3.3`
 
 Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
 
