@@ -27,7 +27,10 @@ The skill will provide these parameters in the prompt:
 3. **Astro conventions** — read `templates/astro-conventions.md` for component patterns
 4. **Existing components** — scan `src/components/sections/` and `src/components/islands/` to detect already-generated sections
 5. **shadcn/ui inventory** — scan `src/components/ui/` to detect installed components
-6. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both files are present and valid, set `useCustomComponents = true`
+6. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both files are present and valid, set `useCustomComponents = true`. Also note `contentImages` data from each section in `component-map.json` for image import resolution in Phase 2.
+   Additionally, if `component-map.json` has:
+   - `iconMap`: load the icon mapping table. This will be used in Phase 2 for resolving icon imports in sections that use icon props (e.g., `FeaturesSection`, `StatsSection`).
+   - `additionalComponents`: note additional component styles for reference when generating custom sections that may use these components.
 
 ### Phase 1: Install Dependencies
 
@@ -46,7 +49,7 @@ The skill will provide these parameters in the prompt:
    - Resolve `figmaStyles` using this priority:
      1. Section-specific styles from `component-map.json → pages.{pageName}.sections[].components.{ComponentName}.figmaStyles`
      2. Global styles from `component-map.json → globalComponents.{ComponentName}.figmaStyles`
-     3. Default styles from `design-token-extractor.md` Phase 5.3
+     3. Default styles from `design-token-extractor.md` Phase 8.3
    - Replace all `{component-map: ComponentName.figmaStyles.key}` placeholders with the resolved Tailwind class strings
    - Write to `src/components/ui/{component}.tsx` (uses `globalComponents` styles as the base)
    - If a section needs component styles that differ from the global version, apply overrides directly in the section's `.astro` or `.tsx` file using Tailwind classes from the section-specific `figmaStyles`, passed via the `className` prop
@@ -64,15 +67,28 @@ For each section in the plan (in order):
 
 1. **Skip reuse** — if `reuse: true`, skip generation (component already exists)
 2. **Read catalog pattern** — find the canonical pattern from section-catalog.md
-3. **Read Figma section context** (if `useCustomComponents`): look up the section in `component-map.json → pages.{pageName}.sections[]` by matching `sectionType`. Use the `designContext` and section-specific `components` to inform layout, spacing, and component styling decisions.
-4. **Generate .astro file** — create `src/components/sections/{SectionName}.astro`
+3. **Read Figma section context** (if `useCustomComponents`): look up the section in `component-map.json ��� pages.{pageName}.sections[]` by matching `sectionType`. Use the `designContext` and section-specific `components` to inform layout, spacing, and component styling decisions.
+4. **Resolve image imports** — check the page-plan section's props for image objects (format: `{ "src": "...", "alt": "..." }`). For each image prop with a `src` path:
+   - Generate an import statement in the `.astro` frontmatter: `import heroBackground from '@/assets/{src}';`
+   - Pass the imported value as the component prop
+   - For array-based images (team photos, logos, gallery items), generate individual imports with indexed names and construct the array in frontmatter
+   - If `placeholder: true` (extraction failed), insert a `// TODO: Replace with actual image — Figma image extraction failed` comment and omit the prop for optional images or use a fallback for required images
+   - If `true` (legacy boolean, no design sync), do not generate any import — the section renders without the image or uses inline placeholder logic
+5. **Resolve icon imports** — for sections with `icon` string props (e.g., `FeaturesSection.features[].icon`):
+   - If `component-map.json` has `iconMap`:
+     - For each icon name in the section props, look up the `iconMap.icons[]` entries by `lucideMatch` name
+     - If `lucideMatch` is not null: import the icon from `lucide-react` (e.g., `import { Zap, Shield, Globe } from 'lucide-react';`)
+     - If `lucideMatch` is null and `customSvgPath` is available: render as inline SVG in the component using the path data. Create a small helper component or inline the `<svg>` element with the extracted `d` attribute, using `currentColor` for fill/stroke to inherit the text color.
+     - If `lucideMatch` is null and `customSvgPath` is null: fall back to a generic Lucide icon (e.g., `Circle`) and add a `// TODO: Replace with custom icon` comment
+   - If no `iconMap` exists: import all icon names from `lucide-react` directly (current behavior — icon names in props are assumed to be valid Lucide icon names)
+6. **Generate .astro file** — create `src/components/sections/{SectionName}.astro`
    - Define `Props` interface in frontmatter
    - Add `data-section="{SectionType}"` attribute on the root `<section>` element (e.g., `<section data-section="HeroSection">`) — used by Playwright for visual fidelity screenshot capture. For FooterSection use `<footer data-section="FooterSection">`, for HeaderSection use `<header data-section="HeaderSection">`.
    - Use Tailwind CSS for responsive layout (mobile-first)
    - Import `<Image />` from `astro:assets` for images
    - Use i18n translation function for all user-facing text
    - If section has an island: import the React component and add `client:` directive
-4. **Generate React island** (if `island: true`) — create `src/components/islands/{ComponentName}.tsx`
+7. **Generate React island** (if `island: true`) — create `src/components/islands/{ComponentName}.tsx`
    - Import shadcn/ui components as needed
    - Define TypeScript props interface
    - Export as default function component
@@ -113,6 +129,10 @@ For each section generated:
 - Always provide `width`, `height`, `alt`
 - Hero/above-fold: `loading="eager"`
 - Below-fold: default lazy loading
+- Image props in page-plan come in three formats — handle each:
+  - **Object with `src`** (e.g., `{ "src": "images/home/HeroSection/background.png", "alt": "..." }`): import from `@/assets/{src}` and pass as `ImageMetadata` typed prop
+  - **Object with `placeholder: true`** (e.g., `{ "src": null, "placeholder": true }`): insert `// TODO: Replace with actual image — Figma image extraction failed` comment. For optional props, omit the prop. For required props, generate the component call without the image and add a visible comment in the template
+  - **Boolean `true`** (legacy, no design sync): generate the section template without concrete image data — the section uses its conditional rendering pattern (e.g., `{backgroundImage && <Image ... />}`) which gracefully omits the image
 
 ## Verification
 

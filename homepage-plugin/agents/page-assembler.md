@@ -33,6 +33,7 @@ The skill will provide these parameters in the prompt:
 5. **SEO checklist** — read `templates/seo-checklist.md` for metadata requirements
 6. **Existing structure** — scan project for existing layout, pages, and components
 7. **Design tokens** — read `docs/design-system/design-tokens.json` if it exists. If present, use its `cssVariables` section for globals.css generation and `typography.fontFamily` for Tailwind config
+8. **Shared component styles** — read `docs/design-system/component-map.json` if it exists. If it contains `sharedComponents`, load the `figmaStyles` for Header and Footer to use in Phase 1 when generating layout components
 
 ### Phase 1: Shared Infrastructure (if `isFirstPage`)
 
@@ -48,15 +49,27 @@ Only on first page generation:
    - Logo + navigation from layout plan
    - Desktop nav: `hidden md:flex`
    - Mobile nav trigger: `md:hidden` → imports MobileNav React island with `client:load`
+   - **Figma styles**: If `component-map.json` has `sharedComponents.Header.figmaStyles`, apply the extracted Tailwind classes:
+     - `container` → outer header element classes
+     - `nav` → navigation container classes
+     - `navLink` → individual nav link classes
+     - `ctaButton` → CTA button classes (if present)
+   - If no `sharedComponents.Header` exists, use default styles from `section-catalog.md` HeaderSection pattern
 
 3. **Footer.astro** — create `src/components/layout/Footer.astro`
    - Multi-column links from layout plan
    - Social icons (Lucide)
    - Copyright line
+   - **Figma styles**: If `component-map.json` has `sharedComponents.Footer.figmaStyles`, apply the extracted Tailwind classes:
+     - `container` → outer footer element classes
+     - `linkGroupTitle` → link group heading classes
+     - `link` → individual link classes
+     - `socialIcon` → social icon wrapper classes (if present)
+   - If no `sharedComponents.Footer` exists, use default styles from `section-catalog.md` FooterSection pattern
 
 4. **MobileNav.tsx** — create `src/components/islands/MobileNav.tsx`
-   - If `docs/design-system/design-tokens.json` exists: use custom Dialog/Sheet component from `templates/custom-components.md`
-   - Otherwise: use Sheet/drawer component from shadcn/ui
+   - If `docs/design-system/design-tokens.json` exists: use custom Dialog component from `templates/custom-components.md` as the overlay panel
+   - Otherwise: use Dialog component from shadcn/ui (install via `npx shadcn@latest add dialog`)
    - Navigation links matching header
 
 5. **SEO utilities** — create `src/lib/structured-data.ts`

@@ -47,7 +47,7 @@ interface Props {
 
 const { title, description, ogImage, structuredData } = Astro.props;
 ---
-<html lang="ko">
+<html lang={Astro.currentLocale ?? "ko"}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -467,7 +467,7 @@ const blogCollection = defineCollection({
     updatedAt: z.coerce.date().optional(),
     author: z.string(),
     tags: z.array(z.string()).default([]),
-    coverImage: z.string().optional(),
+    ogImage: z.string().optional(),
     draft: z.boolean().default(false),
   }),
 });
@@ -484,10 +484,12 @@ Blog posts are stored as `.mdx` files in `src/content/blog/` with frontmatter ma
 ```astro
 ---
 import { getCollection } from 'astro:content';
+import { Image } from 'astro:assets';
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
-import { t } from '../../i18n/utils';
+import { t, getLocaleFromUrl } from '../../i18n/utils';
 import { generateBreadcrumbSchema } from '../../lib/structured-data';
 
+const locale = getLocaleFromUrl(Astro.url);
 const posts = await getCollection('blog', ({ data }) => !data.draft);
 const sorted = posts.sort(
   (a, b) => b.data.publishedAt.valueOf() - a.data.publishedAt.valueOf()
@@ -499,20 +501,22 @@ const breadcrumbs = generateBreadcrumbSchema([
 ]);
 ---
 <MarketingLayout
-  title={t('blog.meta.title')}
-  description={t('blog.meta.description')}
+  title={t('blog.meta.title', locale)}
+  description={t('blog.meta.description', locale)}
   structuredData={breadcrumbs}
 >
   <section class="max-w-4xl mx-auto px-4 py-16">
-    <h1 class="text-4xl font-bold mb-12">{t('blog.meta.title')}</h1>
+    <h1 class="text-4xl font-bold mb-12">{t('blog.meta.title', locale)}</h1>
     <ul class="space-y-8">
       {sorted.map((post) => (
         <li>
           <a href={`/blog/${post.slug}`} class="group block">
-            {post.data.coverImage && (
-              <img
-                src={post.data.coverImage}
+            {post.data.ogImage && (
+              <Image
+                src={post.data.ogImage}
                 alt={post.data.title}
+                width={896}
+                height={192}
                 class="w-full h-48 object-cover rounded-lg mb-4 group-hover:opacity-90 transition-opacity"
               />
             )}
@@ -521,7 +525,7 @@ const breadcrumbs = generateBreadcrumbSchema([
             </h2>
             <p class="text-gray-600 mt-2">{post.data.description}</p>
             <time class="text-sm text-gray-400 mt-2 block">
-              {post.data.publishedAt.toLocaleDateString('ko-KR')}
+              {new Intl.DateTimeFormat(locale).format(post.data.publishedAt)}
             </time>
           </a>
         </li>
@@ -537,7 +541,7 @@ const breadcrumbs = generateBreadcrumbSchema([
 ---
 import { getCollection } from 'astro:content';
 import MarketingLayout from '../../layouts/MarketingLayout.astro';
-import { t } from '../../i18n/utils';
+import { t, getLocaleFromUrl } from '../../i18n/utils';
 import {
   generateArticleSchema,
   generateBreadcrumbSchema,
@@ -553,13 +557,14 @@ export async function getStaticPaths() {
 
 const { post } = Astro.props;
 const { Content } = await post.render();
+const locale = getLocaleFromUrl(Astro.url);
 
 const structuredData = [
   generateArticleSchema({
     title: post.data.title,
     description: post.data.description,
     url: `https://acme.co/blog/${post.slug}`,
-    imageUrl: post.data.coverImage ?? 'https://acme.co/og/default.png',
+    imageUrl: post.data.ogImage ?? 'https://acme.co/og/default.png',
     publishedAt: post.data.publishedAt.toISOString(),
     updatedAt: post.data.updatedAt?.toISOString(),
     authorName: post.data.author,
@@ -576,18 +581,18 @@ const structuredData = [
 <MarketingLayout
   title={`${post.data.title} - Acme Corp Blog`}
   description={post.data.description}
-  ogImage={post.data.coverImage}
+  ogImage={post.data.ogImage}
   structuredData={structuredData}
 >
   <article class="max-w-3xl mx-auto px-4 py-16">
     <header class="mb-12">
       <a href="/blog" class="text-blue-600 hover:underline text-sm mb-4 inline-block">
-        &larr; {t('blog.backToList')}
+        &larr; {t('blog.backToList', locale)}
       </a>
       <h1 class="text-4xl font-bold mt-2">{post.data.title}</h1>
       <div class="flex items-center gap-4 mt-4 text-gray-500 text-sm">
         <span>{post.data.author}</span>
-        <time>{post.data.publishedAt.toLocaleDateString('ko-KR')}</time>
+        <time>{new Intl.DateTimeFormat(locale).format(post.data.publishedAt)}</time>
       </div>
       {post.data.tags.length > 0 && (
         <div class="flex gap-2 mt-4">

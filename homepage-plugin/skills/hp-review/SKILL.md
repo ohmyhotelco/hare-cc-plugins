@@ -111,7 +111,6 @@ Combine all review reports into a single `review-report.json`:
 The `visualFidelity` key is **optional** — omit it when Stage 3 did not run (conditions not met or skipped).
 
 The overall verdict is determined by SEO and quality reviews only. Visual fidelity issues are included in `totalIssues` for visibility but do not change the overall verdict.
-```
 
 Save to `docs/pages/{page-name}/.implementation/homepage/review-report.json`.
 
@@ -140,7 +139,6 @@ Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 ```
 
 The `visualFidelityScore` field is optional — omit when Stage 3 did not run.
-```
 
 Release the lock file.
 

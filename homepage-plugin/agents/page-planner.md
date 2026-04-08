@@ -33,7 +33,11 @@ The skill will provide these parameters in the prompt:
 3. **Existing pages** — scan `docs/pages/*/page-plan.json` to detect shared sections already generated and reuse opportunities
 4. **Project structure** — scan `src/components/sections/` and `src/components/islands/` to detect existing components
 5. **Figma reference** — if `figmaRef` is provided and is a file path, read the image to analyze design elements (colors, spacing, layout, content structure)
-6. **Design system** — if `docs/design-system/component-map.json` exists, read it. If `fileStructure === "page-based"` and the current `pageName` has a matching entry in `pages`, use the pre-extracted section list and design contexts to pre-populate section definitions in Phase 1 instead of relying solely on user descriptions
+6. **Design system** — if `docs/design-system/component-map.json` exists, read it. If `fileStructure === "page-based"` and the current `pageName` has a matching entry in `pages`, use the pre-extracted section list and design contexts to pre-populate section definitions in Phase 1 instead of relying solely on user descriptions. Also read `contentImages` from each section to populate image paths in Phase 1. When reading sections from `component-map.json`, exclude sections with `isSharedLayout: true` — these are shared layout components (Header/Footer) handled separately.
+   Additionally:
+   - If `iconMap` exists, load it for icon resolution in Phase 1. This provides a mapping of Figma icon names to Lucide icon names.
+   - If `sharedComponents` exists, note the extracted layout structure for reference when composing page sections (e.g., understanding nav items for consistent internal linking).
+   - If `additionalComponents` exists, use them as styling references when matching custom sections that correspond to these components.
 
 ### Phase 1: Analyze Sections
 
@@ -42,9 +46,13 @@ For each section in the user's selection:
 1. **Match to catalog** — find the closest matching canonical section from section-catalog.md
 2. **Pre-populate from Figma** — if `component-map.json` has a matching page with pre-classified sections (from `hp-design-sync`), use the `sectionType`, `designContext`, and `components` data to pre-fill the section definition. Present pre-populated sections to the user for confirmation.
 3. **Determine type** — classify as Static (.astro) or Island (React + client: directive)
-4. **Extract props** — infer props from user description, Figma design context, and Figma screenshot reference
-5. **Detect reuse** — check if this section already exists from a previous page's generation
-6. **Custom sections** — if no catalog match, define a new custom section with inferred props interface
+4. **Extract props** — infer props from user description, Figma design context, and Figma screenshot reference. When `component-map.json` has `contentImages` for a matching section, populate image props with extracted paths instead of boolean flags (see Phase 4 format below)
+5. **Resolve icons** — for sections with `icon` string props (e.g., `FeaturesSection.features[].icon`, `StatsSection.stats[].icon`):
+   - If `component-map.json` has `iconMap` with mapped icons: select contextually appropriate icons from the mapped set based on feature/stat descriptions. Use the `lucideMatch` name as the icon prop value (e.g., `"Zap"`, `"Shield"`). Prefer icons with higher `confidence` scores.
+   - If `iconMap` has unmapped custom icons relevant to the context: note these in a `_warnings` field so the section generator knows to use inline SVG rendering.
+   - If no `iconMap` exists: fall back to current behavior (AI picks semantically appropriate Lucide icon names based on feature descriptions).
+6. **Detect reuse** — check if this section already exists from a previous page's generation
+7. **Custom sections** — if no catalog match, define a new custom section with inferred props interface. If `additionalComponents` exists in `component-map.json`, check whether any additional component matches the custom section's purpose (e.g., a "Card" component for a card grid section) and reference its `figmaStyles` in the section plan.
 
 ### Phase 2: SEO Analysis
 
@@ -80,7 +88,10 @@ Write `page-plan.json` with the following structure:
         "subheadline": "We help companies transform their digital presence",
         "ctaText": "Get Started",
         "ctaHref": "/contact",
-        "backgroundImage": true
+        "backgroundImage": {
+          "src": "images/home/HeroSection/background.png",
+          "alt": "Hero background"
+        }
       }
     },
     {
@@ -119,6 +130,40 @@ Write `page-plan.json` with the following structure:
 }
 ```
 
+#### Image Prop Format
+
+Image props support three formats depending on data availability:
+
+**1. Extracted image (path available from `contentImages`):**
+```json
+"backgroundImage": { "src": "images/home/HeroSection/background.png", "alt": "Hero background" }
+```
+
+**2. Extraction failed for a required image:**
+```json
+"photo": { "src": null, "alt": "Team member photo", "placeholder": true }
+```
+
+**3. No design sync / no `contentImages` data (legacy boolean):**
+```json
+"backgroundImage": true
+```
+
+**Fallback rules when `contentImages` exists but images failed:**
+- **Optional image props** (`backgroundImage`, `authorAvatar`): set to `null` — the section renders without the image
+- **Required image props** (`photo`, `logos[].src`, `images[].src`): set to `{ "src": null, "alt": "...", "placeholder": true }` and add the failure to `_warnings`
+
+**`_warnings` array** — added to sections where image extraction partially or fully failed:
+```json
+{
+  "type": "TeamSection",
+  "_warnings": [
+    "Image extraction failed for photo-1. Replace manually at src/assets/images/home/TeamSection/photo-1.png"
+  ],
+  "props": { ... }
+}
+```
+
 ### Custom Section Definition
 
 When a user describes a section not in the catalog:
@@ -145,3 +190,4 @@ When a user describes a section not in the catalog:
 - **Props completeness** — include enough detail in props for the section-generator to produce complete code without further user input
 - **Figma analysis** — when a Figma reference is provided, extract concrete details (specific text, colors, layout, spacing) into props rather than keeping them generic
 - **Design system integration** — when `component-map.json` has page-level section data, use it to pre-populate section types and props. This avoids asking the user to re-describe sections that were already identified in Figma. Present the pre-populated plan for user confirmation and adjustment.
+- **Image path resolution** — when `component-map.json` has `contentImages` for a section, use the extracted image paths in props instead of boolean flags. When images failed to extract (`extracted: false`), apply the fallback rules (null for optional, placeholder for required) and include `_warnings`. When no `contentImages` data exists (no design sync was run), fall back to boolean `true` for backward compatibility.

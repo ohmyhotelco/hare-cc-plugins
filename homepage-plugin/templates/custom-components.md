@@ -431,6 +431,6 @@ When the `section-generator` agent generates custom components:
 2. For each component needed by the page plan:
    - Read the template code above
    - Replace all `{component-map: ComponentName.figmaStyles.key}` placeholders with the actual Tailwind class strings from `component-map.json`
-   - If a figmaStyles key is missing, use the default styles from `design-token-extractor.md` Phase 5.3 defaults
+   - If a figmaStyles key is missing, use the default styles from `design-token-extractor.md` Phase 8.3 defaults
 3. Write the component to `src/components/ui/{component}.tsx`
 4. Generate `src/lib/utils.ts` if it does not exist

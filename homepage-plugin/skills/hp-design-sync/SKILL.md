@@ -82,18 +82,52 @@ Call `{mcpToolPrefix}get_metadata` with the `fileKey` from Step 1.
 
 Then exit. **Do NOT proceed to the agent if the connectivity test fails.**
 
-### Step 3: Discover File Structure
+### Step 3: Discover File Structure and Classify Pages
 
 Use the `get_metadata` response from Step 2.2 (do not call again — reuse the connectivity test result).
+
+#### 3.1 Determine File Structure
 
 Analyze the result to determine the file structure:
 
 - **Page-based**: The file contains pages with names like "Home", "About", "Services", etc. Each page has child frames representing sections (hero, features, etc.). This is the common case for website design files.
 - **Library-based**: The file contains pages with names like "Components", "Styles", "Tokens", "Primitives". This is a design system library.
 
-Display the discovered pages and their child frames to the user. Ask:
+#### 3.2 Classify Pages
 
-> "Which pages should we extract designs from? (Enter page names or 'all')"
+For page-based files, classify each page into one of four categories using name pattern matching:
+
+| Category | Name Patterns (case-insensitive) | Purpose |
+|---|---|---|
+| `website` | "Home", "About", "Services", "Pricing", "Contact", "Blog", "FAQ", "Landing", "Portfolio" and other website page names | Website pages with sections |
+| `layout` | "Layout", "Shared", "Common", "Global", "Navigation" | Header/Footer/Nav definitions |
+| `icons` | "Icons", "Iconography", "Icon Set", "Icon Library" | Icon component library |
+| `components` | "Components", "Design System", "Library", "UI Kit", "Atoms", "Molecules" | Additional UI components |
+
+Pages that do not match any non-website pattern default to `website`.
+
+For library-based files, all pages default to `components` category.
+
+#### 3.3 User Confirmation
+
+Display the classified pages with their detected categories to the user:
+
+```
+Detected pages:
+  [website]     Home (5 sections)
+  [website]     About (3 sections)
+  [layout]      Layout (Header, Footer)
+  [icons]       Icons (24 components)
+  [components]  Components (Card, Badge, Avatar, ...)
+```
+
+Ask:
+
+> "Which pages should we extract? You can also change page categories if the auto-detection is wrong. (Enter page names or 'all')"
+
+The user can:
+- Select which pages to extract
+- Override a page's category (e.g., reclassify a page auto-detected as `components` to `website`)
 
 If a `nodeId` was extracted from the URL in Step 1, pre-select the corresponding page.
 
@@ -112,7 +146,7 @@ Launch the `design-token-extractor` agent with the following parameters:
 
 - `fileKey` — the Figma file key from Step 1
 - `mcpToolPrefix` — the MCP tool name prefix identified in Step 2
-- `selectedPages` — list of page names and their node IDs selected by the user in Step 3
+- `selectedPages` — list of `{ name, nodeId, pageType }` objects selected by the user in Step 3. `pageType` is one of `"website"`, `"layout"`, `"icons"`, `"components"`
 - `fileStructure` — `"page-based"` or `"library-based"` (from Step 3)
 - `projectRoot` — current working directory
 - `outputDir` — `docs/design-system/`
@@ -170,19 +204,94 @@ Read `extractionStats.overallCoverage` from `design-tokens.json`.
   > Please verify your Figma MCP connection and re-run `/homepage-plugin:hp-design-sync`.
   Then exit.
 
+**6.3 Content image validation** (page-based files only):
+
+Read `component-map.json` and check sections that have `contentImages`:
+
+1. For each section with `contentImages.status !== "none"`:
+   - Verify that files referenced in `contentImages.images[].path` actually exist at `{projectRoot}/src/assets/{path}`
+   - Count total extracted vs failed
+
+2. If any images have `extracted: false`, display a warning:
+
+   > **Some content images could not be extracted from Figma.**
+   >
+   > The following images failed to extract:
+   > - {sectionType}: {role}-{index} ({nodeName}) — {error}
+   > - ...
+   >
+   > These sections will use placeholder values during code generation. You can:
+   > 1. Manually add images to `src/assets/images/{pageName}/{sectionType}/`
+   > 2. Re-run `/homepage-plugin:hp-design-sync` to retry extraction
+   > 3. Proceed without images — optional image props will be omitted, required ones will get a TODO comment
+
+3. If `contentImages.extractionSummary` shows `total: 0` across all sections but image-bearing section types exist (HeroSection, TeamSection, etc.), display a note:
+
+   > **No content images were found in the Figma sections.**
+   >
+   > The sections exist but no image nodes were identified. This may mean the Figma file uses placeholder shapes instead of actual images, or images are embedded differently.
+   > You can add images manually to `src/assets/images/` after running `/homepage-plugin:hp-plan`.
+
+**6.4 Layout validation** (if any selected page had `pageType: "layout"`, or `component-map.json` contains `sharedComponents`):
+
+1. If `component-map.json` has `sharedComponents.Header` or `sharedComponents.Footer`:
+   - Verify `docs/pages/_shared/layout-plan.json` exists
+   - Verify screenshot files referenced in `sharedComponents[].screenshotRef` exist under `docs/design-system/`
+2. If layout pages were selected but `sharedComponents` is empty or missing, display a warning:
+   > **No layout components were detected in the layout page(s).**
+   >
+   > The page was classified as a layout page but no Header or Footer frames were found.
+   > You can define the layout manually during `/homepage-plugin:hp-plan`.
+
+**6.5 Icon map validation** (if any selected page had `pageType: "icons"`):
+
+1. Verify `iconMap` exists in `component-map.json`
+2. If `iconMap.unmappedCount > 0`, display a warning:
+   > **{unmappedCount} icon(s) could not be mapped to Lucide icons.**
+   >
+   > Unmapped icons:
+   > - {figmaName} — no Lucide match (custom SVG path saved)
+   > - ...
+   >
+   > These will use inline SVG rendering during code generation.
+
+3. If `iconMap.totalCount === 0`, display a note:
+   > **No icon components were found in the icon page(s).**
+
+**6.6 Additional components validation** (if any selected page had `pageType: "components"`):
+
+1. Verify `additionalComponents` exists in `component-map.json`
+2. Display the list of discovered additional components:
+   > **Additional components extracted: {count}**
+   > {ComponentName1}, {ComponentName2}, ...
+3. If `additionalComponents` is empty, display a note:
+   > **No additional components found beyond the standard 7 UI components.**
+
 ### Step 7: Display Summary
 
 Show extraction results:
 
 - File structure detected (page-based / library-based)
-- Pages extracted (with section counts per page)
+- Pages extracted by category:
+  - Website pages (with section counts per page)
+  - Layout pages (Header/Footer extracted: Y/N)
+  - Icon pages (mapped/total icons)
+  - Component pages (additional component count)
 - Number of color tokens extracted
 - Number of typography scales
 - Number of sections discovered and mapped
 - Number of UI components identified (Button, Input, etc.)
+- Content images extracted: {extracted} / {total} across {sectionsWithImages} sections
+- If any images failed: list failed images by section type
+- Layout components: Header (Y/N), Footer (Y/N) — if extracted
+- Layout plan pre-populated: `layout-plan.json` (Y/N) — if layout extracted
+- Icons: {mapped}/{total} mapped to Lucide, {unmapped} custom — if icons extracted
+- Additional components: {count} discovered — if component pages extracted
 
 Show next step guidance:
-- "Run `/homepage-plugin:hp-plan` to define pages and sections. The planner will use extracted Figma data to pre-populate section definitions."
+- If layout was extracted: "Layout pre-populated from Figma. Run `/homepage-plugin:hp-plan` to review and customize header/footer definitions."
+- If layout was NOT extracted: "Run `/homepage-plugin:hp-plan` to define pages, sections, and layout."
+- If icons were extracted: "Icon mappings saved. Section generator will use matched Lucide icons during `/homepage-plugin:hp-gen`."
 - "Run `/homepage-plugin:hp-design-sync` again to re-sync after Figma updates."
 
 ## Communication Language

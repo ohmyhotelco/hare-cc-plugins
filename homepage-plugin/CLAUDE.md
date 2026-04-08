@@ -197,9 +197,21 @@ Verification Red Flags — these thoughts mean you're rationalizing (all agents)
 docs/design-system/
 ├── design-tokens.json                ← Figma-extracted design tokens (created by hp-design-sync)
 ├── component-map.json                ← Figma component-to-code mapping (created by hp-design-sync)
+│   ├── pages.*                       ← Page sections (website pages)
+│   ├── globalComponents.*            ← Standard 7 UI components (Button, Input, etc.)
+│   ├── sharedComponents.*            ← (optional) Header/Footer figmaStyles + structure
+│   ├── iconMap.*                     ← (optional) Figma icon → Lucide mapping table
+│   └── additionalComponents.*        ← (optional) Extra UI components (Card, Badge, etc.)
 └── screenshots/                      ← Figma section screenshots (created by hp-design-sync)
-    └── {page-name}/
-        └── {SectionType}.png
+    ├── {page-name}/
+    │   └── {SectionType}.png
+    └── _shared/                      ← Shared layout screenshots (Header.png, Footer.png)
+
+src/assets/images/                    ← Figma-extracted content images (created by hp-design-sync)
+├── {page-name}/                        Stored under src/assets/ (not docs/) because Astro's <Image />
+│   └── {SectionType}/                  requires images importable from src/ for build-time optimization
+│       └── {role}-{index}.png
+└── _shared/                          ← Shared layout images (header-logo.png, footer-logo.png)
 
 docs/pages/{page-name}/
 ├── page-plan.json                    ← Page plan (sections, metadata, i18n)
@@ -214,7 +226,8 @@ docs/pages/{page-name}/
     └── .lock                         ← Concurrent execution prevention
 
 docs/pages/_shared/
-└── layout-plan.json                  ← Shared layout definition
+└── layout-plan.json                  ← Shared layout definition (auto-populated from Figma if
+                                        hp-design-sync extracted layout; contains _figmaSource metadata)
 ```
 
 ### State File Safety
