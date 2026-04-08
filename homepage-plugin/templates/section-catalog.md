@@ -61,7 +61,7 @@ const {
 const alignClass = alignment === "center" ? "text-center items-center" : "text-left items-start";
 ---
 
-<section class="relative w-full min-h-[60vh] flex items-center justify-center overflow-hidden">
+<section data-section="HeroSection" class="relative w-full min-h-[60vh] flex items-center justify-center overflow-hidden">
   {backgroundImage && (
     <Image
       src={backgroundImage}
@@ -166,7 +166,7 @@ const gridClass = columns === 4
   : "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="FeaturesSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-7xl">
     <div class="text-center mb-12 md:mb-16">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -274,7 +274,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
+<section data-section="TestimonialsSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
   <div class="mx-auto max-w-7xl">
     <h2 class="text-center text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl mb-12">
       {sectionTitle}
@@ -444,7 +444,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-primary">
+<section data-section="CTASection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-primary">
   <div class="mx-auto max-w-4xl text-center">
     <h2 class="text-2xl font-bold tracking-tight text-primary-foreground sm:text-3xl md:text-4xl">
       {headline}
@@ -558,7 +558,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="PricingSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-7xl">
     <div class="text-center mb-12">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -768,7 +768,7 @@ interface Props {
 const { sectionTitle, sectionSubtitle, items } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="FAQSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-3xl">
     <div class="text-center mb-12">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -883,7 +883,7 @@ interface Props {
 const { sectionTitle, stats } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
+<section data-section="StatsSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
   <div class="mx-auto max-w-7xl">
     {sectionTitle && (
       <h2 class="text-center text-2xl font-bold tracking-tight text-foreground sm:text-3xl mb-12">
@@ -970,7 +970,7 @@ interface Props {
 const { sectionTitle, logos } = Astro.props;
 ---
 
-<section class="w-full px-4 py-12 sm:px-6 md:py-16 lg:px-8">
+<section data-section="LogoCloudSection" class="w-full px-4 py-12 sm:px-6 md:py-16 lg:px-8">
   <div class="mx-auto max-w-7xl">
     {sectionTitle && (
       <p class="text-center text-sm font-medium uppercase tracking-wider text-muted-foreground mb-8">
@@ -1074,7 +1074,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
+<section data-section="NewsletterSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8 bg-muted/50">
   <div class="mx-auto max-w-xl text-center">
     <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
       {sectionTitle}
@@ -1255,7 +1255,7 @@ const {
 } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="ContactSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-2xl">
     <div class="text-center mb-10">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -1509,7 +1509,7 @@ interface Props {
 const { sectionTitle, sectionSubtitle, members } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="TeamSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-7xl">
     <div class="text-center mb-12 md:mb-16">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -1638,7 +1638,7 @@ interface Props {
 const { sectionTitle, sectionSubtitle, items } = Astro.props;
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="TimelineSection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-3xl">
     <div class="text-center mb-12">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -1756,7 +1756,7 @@ const colsClass: Record<number, string> = {
 };
 ---
 
-<section class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
+<section data-section="GallerySection" class="w-full px-4 py-16 sm:px-6 md:py-24 lg:px-8">
   <div class="mx-auto max-w-7xl">
     <div class="text-center mb-12">
       <h2 class="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
@@ -2040,7 +2040,7 @@ const socialIcons: Record<string, string> = {
 };
 ---
 
-<footer class="w-full border-t border-border bg-muted/30 px-4 pt-12 pb-8 sm:px-6 md:pt-16 lg:px-8">
+<footer data-section="FooterSection" class="w-full border-t border-border bg-muted/30 px-4 pt-12 pb-8 sm:px-6 md:pt-16 lg:px-8">
   <div class="mx-auto max-w-7xl">
     <div class="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]">
       <!-- Brand column -->
@@ -2185,7 +2185,7 @@ const {
 } = Astro.props;
 ---
 
-<header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+<header data-section="HeaderSection" class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
   <div class="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
     <!-- Logo -->
     <a href="/" class="flex items-center gap-2" aria-label={`${companyName} home`}>

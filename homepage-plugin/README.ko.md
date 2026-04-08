@@ -49,7 +49,8 @@
 /homepage-plugin:hp-review [page-name]
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
-        └── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        ├── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, advisory)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -240,8 +241,9 @@
 1. 동시 실행 방지를 위한 잠금 획득
 2. **1단계 — SEO 리뷰**: seo-reviewer 에이전트가 메타데이터 완전성, 구조화 데이터, 제목 계층구조, 이미지 최적화, sitemap/robots, 성능 지표를 검사 (6개 차원, 0-10점)
 3. **2단계 — 품질 리뷰** (SEO 통과 시에만): quality-reviewer 에이전트가 접근성 WCAG AA, 반응형 디자인, 컴포넌트 구성, TypeScript 엄격성, i18n 완전성, Astro 컨벤션을 검사 (6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성, 0-10점)
-4. 병합된 리뷰 보고서를 이슈 상세(심각도, 파일, 줄, fixHint)와 함께 저장
-5. 잠금 해제 및 진행 상태 업데이트
+4. **3단계 — 시각적 충실도 리뷰** (조건부, 자문용): visual-fidelity-reviewer가 렌더링된 스크린샷을 캡처하여 Figma 섹션 스크린샷과 AI 비전으로 비교. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격, 컴포넌트 충실도를 점수화. SEO + 품질 통과 및 Figma 스크린샷 존재 시에만 실행.
+5. 병합된 리뷰 보고서를 이슈 상세(심각도, 파일, 줄, fixHint)와 함께 저장
+6. 잠금 해제 및 진행 상태 업데이트
 
 **상태 결과**:
 - 모두 깨끗하게 통과 → `done`
@@ -387,7 +389,7 @@ MCP를 통해 Figma 파일에 연결하여 디자인 토큰(색상, 타이포그
 | Plan | `/homepage-plugin:hp-plan` | 대화형 페이지/섹션 정의 및 기획 |
 | Gen | `/homepage-plugin:hp-gen` | Astro 페이지 및 섹션 생성 (3단계 파이프라인) |
 | Verify | `/homepage-plugin:hp-verify` | TypeScript, ESLint, Astro build, Lighthouse CI 검증 |
-| Review | `/homepage-plugin:hp-review` | 2단계 코드 리뷰 (SEO + 품질/접근성) |
+| Review | `/homepage-plugin:hp-review` | 3단계 코드 리뷰 (SEO + 품질/접근성 + 시각적 충실도) |
 | Fix | `/homepage-plugin:hp-fix` | 직접 수정으로 리뷰 이슈 해결 |
 
 ### 외부 스킬 (init으로 설치)
@@ -591,7 +593,8 @@ Claude Code 세션이 시작될 때 실행됩니다. 다음을 확인합니다:
 
 ```
 agents/          에이전트 정의 (design-token-extractor, page-planner, section-generator,
-                 page-assembler, seo-reviewer, quality-reviewer, review-fixer)
+                 page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
+                 review-fixer)
 skills/          스킬 진입점 (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
                  hp-review, hp-fix)
 hooks/           라이프사이클 훅 설정

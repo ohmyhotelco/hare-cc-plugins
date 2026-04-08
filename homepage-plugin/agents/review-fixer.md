@@ -7,7 +7,7 @@ tools: Read, Write, Edit, Glob, Grep, Bash
 
 # Review Fixer Agent
 
-Fixes issues found by seo-reviewer and quality-reviewer. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
+Fixes issues found by seo-reviewer, quality-reviewer, and visual-fidelity-reviewer. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
 
 ## Input Parameters
 
@@ -23,7 +23,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. **Review report** — read `reviewReportFile` (merged report produced by hp-review skill). Structure: `{ seo: { score, verdict, issues[] }, quality: { score, verdict, issues[] }, overall: { verdict, totalIssues } }`. Extract all issues from both `seo.issues` and `quality.issues` arrays. Each issue has: severity, dimension, message, file, line (optional), fixHint.
+1. **Review report** — read `reviewReportFile` (merged report produced by hp-review skill). Structure: `{ seo: { score, verdict, issues[] }, quality: { score, verdict, issues[] }, visualFidelity?: { score, verdict, issues[], coverage }, overall: { verdict, totalIssues } }`. Extract all issues from `seo.issues`, `quality.issues`, and (if present) `visualFidelity.issues` arrays. Each issue has: severity, dimension, message, file, line (optional), fixHint.
 2. **Page plan** — read `planFile` for page structure context
 3. **SEO checklist** — read `templates/seo-checklist.md` for reference
 4. **Astro conventions** — read `templates/astro-conventions.md` for convention reference
@@ -59,6 +59,13 @@ Process issues in priority order:
   - Replace hardcoded hex/rgb colors with CSS variable references (`bg-primary`, `text-foreground`, etc.)
   - Regenerate `globals.css` from `design-tokens.json` `cssVariables` if out of sync
   - Update font family in `tailwind.config.ts` to match `design-tokens.json` `typography.fontFamily`
+
+#### Visual Fidelity Fixes (when `visualFidelity.issues` exists in review report)
+- **Color divergence** — update Tailwind color classes or CSS variable values to match Figma reference (e.g., change `bg-gray-50` to `bg-sky-50`)
+- **Spacing issues** — adjust padding, margin, or gap Tailwind classes to match Figma proportions
+- **Layout structure** — modify grid/flex direction, column count, or alignment to match Figma layout
+- **Typography** — adjust font-size, font-weight, or line-height Tailwind classes to match Figma text styling
+- **Component fidelity** — update button shapes, border-radius, or form element styles to match Figma components
 
 ### Phase 3: Verification
 

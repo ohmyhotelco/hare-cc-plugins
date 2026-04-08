@@ -49,7 +49,8 @@ Khả năng chính:
 /homepage-plugin:hp-review [page-name]
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
-        └── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        ├── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
+        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, advisory)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -240,8 +241,9 @@ Xác nhận cài đặt:
 1. Lấy khóa để ngăn chặn thao tác đồng thời
 2. **Giai đoạn 1 — Đánh giá SEO**: agent seo-reviewer kiểm tra tính đầy đủ metadata, dữ liệu có cấu trúc, hệ thống phân cấp heading, tối ưu hình ảnh, sitemap/robots, chỉ số hiệu suất (6 chiều, chấm điểm 0-10)
 3. **Giai đoạn 2 — Đánh giá chất lượng** (chỉ khi SEO đạt): agent quality-reviewer kiểm tra khả năng truy cập WCAG AA, thiết kế responsive, bố cục component, TypeScript strictness, tính đầy đủ i18n, quy ước Astro (6 chiều, +1 Design Token Consistency khi design system tồn tại, chấm điểm 0-10)
-4. Lưu báo cáo đánh giá hợp nhất với chi tiết vấn đề (severity, file, line, fixHint)
-5. Giải phóng khóa và cập nhật tiến trình
+4. **Giai đoạn 3 — Đánh giá độ trung thực thị giác** (có điều kiện, tham vấn): visual-fidelity-reviewer chụp ảnh màn hình đã render và so sánh với ảnh chụp section Figma bằng AI vision. Chấm điểm cấu trúc layout, độ chính xác màu sắc, typography, khoảng cách và độ trung thực component. Chỉ chạy khi SEO + Chất lượng đạt và ảnh chụp Figma tồn tại.
+5. Lưu báo cáo đánh giá hợp nhất với chi tiết vấn đề (severity, file, line, fixHint)
+6. Giải phóng khóa và cập nhật tiến trình
 
 **Kết quả trạng thái**:
 - Cả hai đạt sạch → `done`
@@ -387,7 +389,7 @@ Sửa các vấn đề SEO và chất lượng được xác định bởi revie
 | Plan | `/homepage-plugin:hp-plan` | Định nghĩa và lập kế hoạch trang/section tương tác |
 | Gen | `/homepage-plugin:hp-gen` | Sinh trang và section Astro (pipeline 3 phase) |
 | Verify | `/homepage-plugin:hp-verify` | Xác minh TypeScript, ESLint, Astro build, Lighthouse CI |
-| Review | `/homepage-plugin:hp-review` | Đánh giá mã 2 giai đoạn (SEO + chất lượng/khả năng truy cập) |
+| Review | `/homepage-plugin:hp-review` | Đánh giá mã 3 giai đoạn (SEO + chất lượng/khả năng truy cập + độ trung thực thị giác) |
 | Fix | `/homepage-plugin:hp-fix` | Sửa vấn đề đánh giá bằng sửa lỗi trực tiếp |
 
 ### Skill bên ngoài (cài đặt bởi init)
@@ -591,11 +593,12 @@ Các skill đọc `defaultLocale` từ tệp cấu hình. Tất cả đầu ra h
 
 ```
 agents/          Agent definitions (design-token-extractor, page-planner, section-generator,
-                 page-assembler, seo-reviewer, quality-reviewer, review-fixer)
+                 page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
+                 review-fixer)
 skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
                  hp-review, hp-fix)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handler scripts (session-init.sh, validate-pages.sh)
+scripts/         Hook handler scripts (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config,
                  astro-conventions, custom-components)
 docs/            Documentation

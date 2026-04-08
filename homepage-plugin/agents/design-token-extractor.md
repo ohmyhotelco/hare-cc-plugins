@@ -155,7 +155,16 @@ This returns a styled code representation of the section. Parse the response to 
 
 For each section frame, call `{mcpToolPrefix}get_screenshot` with `fileKey` and `sectionNodeId`.
 
-Store the screenshot reference in the output for use by `page-planner` as visual context.
+Save the screenshot image to disk and record the file path:
+
+1. Create the directory `{outputDir}/screenshots/{pageName}/` if it does not exist
+2. Save the screenshot image as `{outputDir}/screenshots/{pageName}/{sectionType}.png`
+   - If the MCP tool returns a base64-encoded image, decode and write the binary PNG
+   - If the tool returns a URL, download the image and save as PNG
+   - If the tool returns inline image content, write it directly
+3. Store the **relative path** (from `outputDir`) in `screenshotRef`: `"screenshots/{pageName}/{sectionType}.png"`
+
+These screenshots are used by `page-planner` for AI vision analysis and by `visual-fidelity-reviewer` for design fidelity comparison.
 
 #### 2.4 Classify Section Type
 
@@ -286,7 +295,7 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
           "sectionType": "HeroSection",
           "position": 0,
           "designContext": "summary of layout and structure from get_design_context",
-          "screenshotRef": "reference to section screenshot",
+          "screenshotRef": "screenshots/home/HeroSection.png",
           "components": {
             "Button": {
               "found": true,
@@ -441,5 +450,5 @@ If `mode === "update"`:
 - **Complete coverage** — always produce entries for all 17 semantic color variables and all 7 global components, using defaults for anything not found in Figma.
 - **Error resilience** — if a specific MCP tool call fails, log the error and continue with remaining extractions. Never abort the entire process for a single tool failure.
 - **HSL precision** — round H to 1 decimal place, S and L to 1 decimal place. Use the format `"H S% L%"` without the `hsl()` function wrapper.
-- **No side effects** — do not install packages, modify config files, or create any files outside the output directory.
+- **No side effects** — do not install packages, modify config files, or create any files outside the output directory. Screenshot PNG files within `{outputDir}/screenshots/` are part of the expected output.
 - **Section ordering** — always sort sections by vertical position (y coordinate) to maintain visual order from top to bottom.

@@ -67,6 +67,7 @@ For each section in the plan (in order):
 3. **Read Figma section context** (if `useCustomComponents`): look up the section in `component-map.json → pages.{pageName}.sections[]` by matching `sectionType`. Use the `designContext` and section-specific `components` to inform layout, spacing, and component styling decisions.
 4. **Generate .astro file** — create `src/components/sections/{SectionName}.astro`
    - Define `Props` interface in frontmatter
+   - Add `data-section="{SectionType}"` attribute on the root `<section>` element (e.g., `<section data-section="HeroSection">`) — used by Playwright for visual fidelity screenshot capture. For FooterSection use `<footer data-section="FooterSection">`, for HeaderSection use `<header data-section="HeaderSection">`.
    - Use Tailwind CSS for responsive layout (mobile-first)
    - Import `<Image />` from `astro:assets` for images
    - Use i18n translation function for all user-facing text
