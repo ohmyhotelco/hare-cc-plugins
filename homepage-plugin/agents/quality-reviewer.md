@@ -25,7 +25,7 @@ The skill will provide these parameters in the prompt:
 2. **Astro conventions** — read `templates/astro-conventions.md` for convention rules
 3. **External skills** — read and apply rules from:
    - `.claude/skills/web-design-guidelines/SKILL.md` — accessibility and design audit rules
-   - `.claude/skills/vercel-composition-patterns/SKILL.md` — composition rules (no boolean props, compound components)
+   - `.claude/skills/composition-patterns/SKILL.md` — composition rules (no boolean props, compound components)
 4. **Generated files** — scan `src/pages/`, `src/components/`, `src/layouts/`, `src/lib/`
 5. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both are present, set `hasDesignSystem = true`
 

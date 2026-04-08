@@ -28,7 +28,7 @@ DEPLOY_TARGET=$(jq -r '.deployTarget // "aws"' "$CONFIG_FILE" 2>/dev/null || ech
 # Skill installation checks
 SKILLS=(
   "Web Design Guidelines|$CWD/.claude/skills/web-design-guidelines"
-  "Composition Patterns|$CWD/.claude/skills/vercel-composition-patterns"
+  "Composition Patterns|$CWD/.claude/skills/composition-patterns"
 )
 
 MISSING_SKILLS=()

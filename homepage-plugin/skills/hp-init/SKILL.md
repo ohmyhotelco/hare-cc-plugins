@@ -77,12 +77,33 @@ Write `.claude/homepage-plugin.json`:
 
 ### Step 7: Install External Skills
 
-Install the following skills using `claude mcp add-skill` or equivalent:
+Download skills from `vercel-labs/agent-skills` GitHub repository into `.claude/skills/`:
 
-1. **Web Design Guidelines** — `vercel-labs/agent-skills` → `web-design-guidelines`
-2. **Composition Patterns** — `vercel-labs/agent-skills` → `vercel-composition-patterns`
+1. **Web Design Guidelines** — `skills/web-design-guidelines/SKILL.md`
+2. **Composition Patterns** — `skills/composition-patterns/` (includes `SKILL.md`, `AGENTS.md`, `metadata.json`, and `rules/` directory)
 
 For each skill, check if already installed at `.claude/skills/{skill-name}/SKILL.md`. Skip if present.
+
+Download method — use `curl` from GitHub raw content:
+```bash
+# Base URL for raw files
+BASE="https://raw.githubusercontent.com/vercel-labs/agent-skills/main/skills"
+
+# 1. Web Design Guidelines (single file)
+mkdir -p .claude/skills/web-design-guidelines
+curl -fsSL "$BASE/web-design-guidelines/SKILL.md" -o .claude/skills/web-design-guidelines/SKILL.md
+
+# 2. Composition Patterns (multiple files)
+mkdir -p .claude/skills/composition-patterns/rules
+curl -fsSL "$BASE/composition-patterns/SKILL.md" -o .claude/skills/composition-patterns/SKILL.md
+curl -fsSL "$BASE/composition-patterns/AGENTS.md" -o .claude/skills/composition-patterns/AGENTS.md
+curl -fsSL "$BASE/composition-patterns/metadata.json" -o .claude/skills/composition-patterns/metadata.json
+for f in _sections.md _template.md architecture-avoid-boolean-props.md architecture-compound-components.md patterns-children-over-render-props.md patterns-explicit-variants.md react19-no-forwardref.md state-context-interface.md state-decouple-implementation.md state-lift-state.md; do
+  curl -fsSL "$BASE/composition-patterns/rules/$f" -o ".claude/skills/composition-patterns/rules/$f"
+done
+```
+
+If `curl` fails (network issue), warn the user and continue — skills are optional enhancements.
 
 ### Step 8: Confirmation
 

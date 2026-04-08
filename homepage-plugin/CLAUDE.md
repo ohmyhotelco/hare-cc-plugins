@@ -110,7 +110,7 @@ A Claude Code plugin that applies tech stack and coding conventions for building
   - `quality-reviewer` — code quality + accessibility review (6 dimensions, +1 optional Design Token Consistency when design system exists)
   - `review-fixer` — direct fix for review issues
 - **Skills**: `/homepage-plugin:hp-init`, `/homepage-plugin:hp-design-sync`, `/homepage-plugin:hp-plan`, `/homepage-plugin:hp-gen`, `/homepage-plugin:hp-verify`, `/homepage-plugin:hp-review`, `/homepage-plugin:hp-fix`
-- **External Skills**: `web-design-guidelines` + `vercel-composition-patterns` (from `vercel-labs/agent-skills`) — installed by hp-init
+- **External Skills**: `web-design-guidelines` + `composition-patterns` (from `vercel-labs/agent-skills`) — installed by hp-init
 - **Configuration**: `.claude/homepage-plugin.json` (created by `/homepage-plugin:hp-init`)
 - **Templates**: `section-catalog.md` (15 section patterns), `page-module.md` (page assembly), `seo-checklist.md` (SEO requirements), `eslint-config.md` (ESLint v9 config), `astro-conventions.md` (Astro 5 conventions), `custom-components.md` (Figma-derived UI components)
 
