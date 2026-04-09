@@ -2,7 +2,7 @@
 name: section-generator
 description: Section generator agent that creates .astro sections and React island components from page plans
 model: opus
-tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_design_context, mcp__figma_desktop__get_design_context, mcp__Figma__get_design_context
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_design_context, mcp__figma__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_metadata
 ---
 
 # Section Generator Agent
@@ -69,10 +69,79 @@ For each section in the plan (in order):
 
 1. **Skip reuse** — if `reuse: true`, skip generation (component already exists)
 2. **Read catalog pattern** — find the canonical pattern from section-catalog.md
-3. **Fetch Figma design context** — if `component-map.json` exists and the section has a `sectionNodeId`:
-   - **Primary (MCP direct call)**: If `fileKey` and `mcpToolPrefix` are available, call `{mcpToolPrefix}get_design_context` with `fileKey` and the section's `sectionNodeId`. This returns the actual styled code with Tailwind classes, layout structure (grid/flex patterns, columns, gaps), colors (backgrounds, text, borders), typography (heading sizes, weights), and component instances. **Use this as the primary reference for generating the section** — replicate the Figma layout as closely as possible rather than relying solely on catalog templates.
-   - **Fallback**: If `fileKey`/`mcpToolPrefix` are unavailable or the MCP call fails, use the `designContext` summary and `components` data from `component-map.json → pages.{pageName}.sections[]`.
-   - **Catalog as supplement**: The section catalog (Step 2) provides the props interface, accessibility requirements, and island/static classification. But the **Figma design context drives the visual implementation** — layout structure, spacing values, color choices, and component arrangement should match Figma, not the generic catalog template.
+3. **Fetch and convert Figma design context** — if `component-map.json` exists and the section has a `sectionNodeId`:
+
+   **The section catalog (Step 2) provides the props interface, accessibility requirements, and island/static classification. But the Figma design context drives the visual implementation — the generated code should match Figma, not the generic catalog template.**
+
+   #### 3.1 Fetch design code from Figma
+
+   Call `{mcpToolPrefix}get_design_context` with `fileKey` and the section's `sectionNodeId`. This returns React + Tailwind code that represents the Figma design.
+
+   **Large section handling**: If the response contains sparse metadata instead of detailed code (common for large/complex sections), the section node is too large for a single call. In this case:
+   1. Call `{mcpToolPrefix}get_metadata` with the section's `sectionNodeId` to identify child nodes
+   2. Call `get_design_context` separately for each major child node
+   3. Combine the results to reconstruct the full section layout
+
+   **Fallback**: If `fileKey`/`mcpToolPrefix` are unavailable or the MCP call fails, use the `designContext` summary and `components` data from `component-map.json → pages.{pageName}.sections[]`, and fall back to catalog template-based generation.
+
+   #### 3.2 Convert React JSX to Astro template
+
+   Transform the Figma-returned React code into Astro syntax:
+
+   | React (from Figma) | Astro |
+   |---|---|
+   | `className="..."` | `class="..."` |
+   | `function Component({ props })` | `interface Props { ... }` in frontmatter + `const { ... } = Astro.props;` |
+   | `onClick`, `onChange` handlers | Mark element for React island extraction (Step 7) |
+   | `useState`, `useEffect` hooks | Extract to React island `.tsx` file |
+   | `style={{ color: 'red' }}` | Convert to Tailwind class (e.g., `text-red-500`) where possible |
+   | `<img src="..." />` | `<Image src={importedVar} alt="..." />` from `astro:assets` |
+   | Self-closing `<div />` | `<div></div>` (HTML compliance) |
+
+   Preserve all Tailwind utility classes from the Figma code exactly — these define the visual design. Do not replace them with catalog defaults.
+
+   #### 3.3 Convert content
+
+   **Text → i18n**: Replace all hardcoded user-facing text with `t()` calls:
+   - `<h1>Build Something Amazing</h1>` → `<h1>{t('{page}.{section}.headline')}</h1>`
+   - Store the original text as the default translation value in `src/i18n/{locale}.json`
+   - Key convention: `{pageName}.{sectionType}.{field}` (e.g., `home.hero.headline`)
+
+   **Image URLs → local imports**: The Figma code contains asset URLs as constants:
+   ```
+   const imgHeroBackground = "https://www.figma.com/api/mcp/asset/{uuid}";
+   ```
+   For each image URL:
+   1. Download via Bash: `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/{pageName}/{sectionType}/{descriptiveName}.png'`
+   2. Generate import in Astro frontmatter: `import heroBackground from '@/assets/images/{pageName}/{sectionType}/{descriptiveName}.png';`
+   3. Replace the URL reference with `<Image src={heroBackground} alt="..." width={w} height={h} />`
+   4. Above-the-fold images: add `loading="eager"`
+
+   **Icons**: Use `iconMap` from `component-map.json` if available (Step 5 handles this), or match Figma icon names to Lucide equivalents.
+
+   #### 3.4 Add responsive breakpoints
+
+   Figma designs are typically at a single desktop viewport (1920px or 1440px). The converted code needs mobile-first responsive classes added.
+
+   Apply these transformations to the Figma Tailwind classes:
+
+   | Figma (desktop-only) | Mobile-first conversion |
+   |---|---|
+   | `grid-cols-3` or `grid-cols-4` | `grid-cols-1 md:grid-cols-2 lg:grid-cols-{N}` |
+   | `grid-cols-2` | `grid-cols-1 md:grid-cols-2` |
+   | `flex` (horizontal layout) | `flex flex-col sm:flex-row` (stack on mobile) |
+   | `gap-8` or larger | `gap-4 md:gap-{N}` |
+   | `px-16`, `px-20` or larger | `px-4 sm:px-6 lg:px-{N}` |
+   | `py-24` or larger | `py-16 md:py-20 lg:py-{N}` |
+   | `text-5xl` or larger | `text-3xl md:text-4xl lg:text-{size}` |
+   | `text-xl` | `text-base md:text-lg lg:text-xl` |
+   | `w-[fixed-px]` wide elements | `w-full max-w-[fixed-px]` |
+   | `max-w-7xl` container | Keep as-is (already responsive with `mx-auto`) |
+   | Side-by-side buttons | `flex flex-col sm:flex-row gap-3 sm:gap-4` |
+
+   **Preserve** Figma classes that are already responsive-safe: `rounded-*`, `font-*`, `text-{color}`, `bg-{color}`, `border-*`, `shadow-*`, `opacity-*`, `z-*`.
+
+   **Do not modify** spacing/sizing classes that are reasonable at all viewports (e.g., `p-4`, `gap-2`, `text-sm`).
 4. **Resolve image imports** — check the page-plan section's props for image objects (format: `{ "src": "...", "alt": "..." }`). For each image prop with a `src` path:
    - Generate an import statement in the `.astro` frontmatter: `import heroBackground from '@/assets/{src}';`
    - Pass the imported value as the component prop
