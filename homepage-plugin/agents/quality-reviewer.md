@@ -101,13 +101,14 @@ When `hasDesignSystem === true`, evaluate this dimension and redistribute weight
 - Accessibility: 22%, Responsive: 18%, Composition: 13%, TypeScript: 9%, i18n: 13%, Astro: 13%, **Token Consistency: 12%**
 
 Check:
-- `globals.css` `:root` CSS variable values match `design-tokens.json` `cssVariables[":root"]` exactly (critical)
+- `globals.css` `:root` CSS variable values match `design-tokens.json` `cssVariables[":root"]` exactly — this includes all 17 semantic variables AND any extended color variables (e.g., `--primary-100`, `--neutral-50`, `--brand-blue`). Every key in `cssVariables[":root"]` must be present in `globals.css` (critical)
 - No hardcoded hex/rgb color values in component files when a CSS variable equivalent exists (warning)
 - Custom components in `src/components/ui/` use Tailwind classes consistent with `component-map.json` `globalComponents` `figmaStyles` (warning)
 - Section components use section-specific styles from `component-map.json` `pages.{pageName}.sections[].components` when available (info)
 - Typography in `tailwind.config.ts` `fontFamily` matches `design-tokens.json` `typography.fontFamily` (warning)
 - Border radius values in components are consistent with `design-tokens.json` `borderRadius` (info)
 - No shadcn/ui installation artifacts (`components.json`) present when custom components are in use (info)
+- If components reference extended color variables (e.g., `hsl(var(--primary-100))` or `text-[hsl(var(--brand-blue))]`), those variables must exist in `globals.css` `:root` (warning)
 
 ### Phase 2: Scoring
 

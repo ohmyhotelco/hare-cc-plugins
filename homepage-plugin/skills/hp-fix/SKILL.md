@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 # Fix Skill
 
-Fixes issues identified by the `hp-review` skill or verification failures from `hp-verify`. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
+Fixes issues identified by the `hp-review` skill (SEO, quality, and visual fidelity issues) or verification failures from `hp-verify`. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
 
 ## Instructions
 
@@ -46,6 +46,15 @@ Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 - Write with `lockedBy: "hp-fix"`
 - Stale lock (>= 30 min) → auto-remove and proceed
 - Active lock → exit with "Another homepage-plugin operation is in progress"
+
+### Step 3.5: Check for Fixable Issues
+
+If `review-report.json` exists, read it and count total issues across `seo.issues`, `quality.issues`, and `visualFidelity.issues` (if present).
+
+If there are **zero issues** (e.g., all issues were manually resolved between `hp-review` and `hp-fix`, or the review passed with only score-based warnings that have no associated issue entries):
+- Skip the fix phase entirely
+- Display: "No fixable issues found in the review report. Run `/homepage-plugin:hp-review` to re-evaluate."
+- Release the lock and exit without changing the progress status
 
 ### Step 4: Launch Review Fixer
 
@@ -124,6 +133,21 @@ Fix Results (Round 1):
   Issues fixed:    4
   Issues skipped:  1 (already resolved)
   Escalated:       0
+
+  Verification: tsc ✓ | ESLint ✓ | Build ✓
+
+Next step: Run /homepage-plugin:hp-review to re-review.
+```
+
+If visual fidelity issues were fixed:
+```
+Fix Results (Round 1):
+  Issues received: 7
+  Issues fixed:    6
+  Issues skipped:  1 (already resolved)
+  Escalated:       0
+
+  Fixed: 3 seo, 2 quality, 1 visual_fidelity
 
   Verification: tsc ✓ | ESLint ✓ | Build ✓
 

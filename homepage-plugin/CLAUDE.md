@@ -152,7 +152,7 @@ hp-init → [hp-design-sync] → hp-plan → hp-gen → hp-verify → hp-review 
 ### hp-review — 3-Stage Code Review
 1. **SEO Review** (seo-reviewer): 6 dimensions — metadata, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators
 2. **Quality Review** (quality-reviewer, only if SEO passes): 6 dimensions (7 when design system exists) — accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (+Design Token Consistency when `docs/design-system/design-tokens.json` exists)
-3. **Visual Fidelity Review** (visual-fidelity-reviewer, conditional): 5 sub-dimensions — layout structure, color accuracy, typography, spacing & alignment, component fidelity. Runs only when SEO + Quality pass and Figma section screenshots exist in `component-map.json`. Advisory (non-blocking) — does not fail the overall review on its own.
+3. **Visual Fidelity Review** (visual-fidelity-reviewer, conditional): 5 sub-dimensions — layout structure, color accuracy, typography, spacing & alignment, component fidelity. Runs only when SEO + Quality pass and Figma section screenshots exist in `component-map.json`. Conditionally blocking — score < 5 forces `review-failed`, score >= 5 and < 7 forces `pass_with_warnings`, score >= 7 is advisory only.
 
 ### hp-fix — Direct Fix
 - No TDD classification — homepage sections are presentational

@@ -100,6 +100,17 @@ For each section in the plan (in order):
 
    Preserve all Tailwind utility classes from the Figma code exactly — these define the visual design. Do not replace them with catalog defaults.
 
+   **Arbitrary value rule**: When the Figma code contains pixel values that don't map to standard Tailwind scale (e.g., `13px`, `22px`, `15px`), use Tailwind arbitrary values instead of rounding to the nearest scale step:
+   - `font-size: 22px` → `text-[22px]` (not `text-xl` which is 20px)
+   - `gap: 13px` → `gap-[13px]` (not `gap-3` which is 12px)
+   - `padding: 18px` → `p-[18px]` (not `p-4` which is 16px)
+   - `line-height: 1.4` → `leading-[1.4]` (not `leading-relaxed`)
+   - `letter-spacing: 0.02em` → `tracking-[0.02em]`
+   - `width: 340px` → `w-[340px]`
+   - `border-radius: 10px` → `rounded-[10px]` (not `rounded-lg` which is 8px)
+
+   This preserves the exact dimensions from the Figma design. Only use standard Tailwind scale values when the Figma value matches exactly (e.g., `16px` = `p-4`, `24px` = `gap-6`).
+
    #### 3.3 Convert content
 
    **Text → i18n**: Replace all hardcoded user-facing text with `t()` calls:
@@ -112,16 +123,33 @@ For each section in the plan (in order):
    const imgHeroBackground = "https://www.figma.com/api/mcp/asset/{uuid}";
    ```
    For each image URL:
-   1. Download via Bash: `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/{pageName}/{sectionType}/{descriptiveName}.png'`
-   2. Generate import in Astro frontmatter: `import heroBackground from '@/assets/images/{pageName}/{sectionType}/{descriptiveName}.png';`
-   3. Replace the URL reference with `<Image src={heroBackground} alt="..." width={w} height={h} />`
-   4. Above-the-fold images: add `loading="eager"`
+   1. **Check for pre-extracted images first** — if the section has `contentImages` in `component-map.json` with `extracted: true` entries, check whether any pre-extracted image corresponds to this asset (by matching node ID or role). If a matching pre-extracted image exists at `{projectRoot}/src/assets/{path}`, skip the download and use the existing file path instead. This avoids duplicating images already downloaded by `hp-design-sync`.
+   2. If no pre-extracted match exists, download via Bash: `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/{pageName}/{sectionType}/{descriptiveName}.png'`
+   3. Generate import in Astro frontmatter: `import heroBackground from '@/assets/images/{pageName}/{sectionType}/{descriptiveName}.png';`
+   4. Replace the URL reference with `<Image src={heroBackground} alt="..." width={w} height={h} />`
+   5. Above-the-fold images: add `loading="eager"`
 
    **Icons**: Use `iconMap` from `component-map.json` if available (Step 5 handles this), or match Figma icon names to Lucide equivalents.
 
    #### 3.4 Add responsive breakpoints
 
-   Figma designs are typically at a single desktop viewport (1920px or 1440px). The converted code needs mobile-first responsive classes added.
+   **If multi-viewport data exists** (section has `mobileNodeId` in `component-map.json`):
+
+   1. Call `{mcpToolPrefix}get_design_context` with `fileKey` and `mobileNodeId` to get the mobile layout code
+   2. Compare the mobile and desktop Tailwind classes to derive actual responsive breakpoints:
+      - Mobile classes become the base (no prefix)
+      - Desktop classes get `lg:` prefix
+      - If tablet exists, tablet classes get `md:` prefix
+   3. Merge into a single set of responsive Tailwind classes. Example:
+      - Mobile: `grid-cols-1 gap-4 px-4 text-2xl`
+      - Desktop: `grid-cols-3 gap-8 px-16 text-5xl`
+      - Result: `grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-8 px-4 lg:px-16 text-2xl lg:text-5xl`
+
+   This produces design-accurate responsive code from actual Figma mobile/desktop artboards.
+
+   **If no multi-viewport data** (single desktop design only):
+
+   Figma designs are typically at a single desktop viewport (1920px or 1440px). The converted code needs mobile-first responsive classes added by inference.
 
    Apply these transformations to the Figma Tailwind classes:
 

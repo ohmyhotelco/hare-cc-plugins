@@ -184,5 +184,6 @@ Save to `{projectRoot}/docs/pages/{pageName}/.implementation/homepage/visual-fid
 - **Actionable fixHint** — every issue must include a concrete fix suggestion (specific Tailwind class change, CSS variable update, or layout modification).
 - **Graceful degradation** — if Playwright is not installed, preview server fails, or screenshots cannot be captured, return a `skipped` verdict instead of failing. Always clean up the preview server process.
 - **No false positives** — do not flag minor rendering differences caused by font rendering, anti-aliasing, or sub-pixel rounding. Focus on design-intent differences: wrong colors, wrong layout, wrong spacing, missing elements.
+- **Blocking threshold** — the `hp-review` skill uses this agent's overall score to determine the review verdict. Scores < 5 cause the overall review to fail. Ensure scoring is consistent and calibrated: a score of 5 means "recognizably the same design with significant differences", 7 means "close match with minor differences", 9+ means "pixel-perfect".
 - **Desktop-first comparison** — compare at 1440x900 viewport only. Do not flag responsive differences unless the Figma screenshot clearly shows a mobile design.
 - **Clean up** — always kill the preview server process (port 4322) after screenshots are captured, even on error.

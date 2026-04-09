@@ -27,6 +27,7 @@ The skill will provide these parameters in the prompt:
 2. **Page plan** — read `planFile` for page structure context
 3. **SEO checklist** — read `templates/seo-checklist.md` for reference
 4. **Astro conventions** — read `templates/astro-conventions.md` for convention reference
+5. **Design system** — if `docs/design-system/design-tokens.json` exists, read it for CSS variable values and typography settings (needed for Design Token Consistency fixes and visual fidelity color fixes). If `docs/design-system/component-map.json` exists, read it for section-specific styles (needed for visual fidelity component fixes).
 
 ### Phase 1: Pre-Check
 

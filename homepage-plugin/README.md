@@ -12,7 +12,7 @@ Key capabilities:
 - **SEO-first architecture** — Static HTML output, JSON-LD structured data, sitemap, meta tags, Lighthouse CI auditing
 - **Astro islands** — Zero JS by default; only hydrate interactive components (forms, carousels, accordions)
 - **Figma design system integration** — Optional Figma MCP sync extracts design tokens and auto-generates custom components replacing shadcn/ui
-- **3-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions, +1 Design Token Consistency when design system exists) + visual fidelity comparison against Figma screenshots (5 sub-dimensions, advisory)
+- **3-stage code review** — SEO compliance (6 dimensions) + code quality/accessibility (6 dimensions, +1 Design Token Consistency when design system exists) + visual fidelity comparison against Figma screenshots (5 sub-dimensions, conditionally blocking)
 - **Content Collections** — Type-safe MDX blog posts with Zod schemas, optional headless CMS integration
 
 ## Architecture Overview
@@ -50,7 +50,7 @@ Key capabilities:
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
         ├── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
-        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, advisory)
+        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, conditionally blocking)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -241,7 +241,7 @@ Verify the installation:
 1. Acquires a lock to prevent concurrent operations
 2. **Stage 1 — SEO Review**: seo-reviewer agent checks metadata completeness, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators (6 dimensions, scored 0-10)
 3. **Stage 2 — Quality Review** (only when SEO passes): quality-reviewer agent checks accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (6 dimensions, +1 Design Token Consistency when design system exists, scored 0-10)
-4. **Stage 3 — Visual Fidelity Review** (conditional, advisory): visual-fidelity-reviewer captures rendered screenshots and compares them against Figma section screenshots using AI vision. Scores layout structure, color accuracy, typography, spacing, and component fidelity. Only runs when SEO + Quality pass and Figma screenshots exist.
+4. **Stage 3 — Visual Fidelity Review** (conditional, conditionally blocking): visual-fidelity-reviewer captures rendered screenshots and compares them against Figma section screenshots using AI vision. Scores layout structure, color accuracy, typography, spacing, and component fidelity. Only runs when SEO + Quality pass and Figma screenshots exist. Score < 5 forces review failure; score 5-6 forces pass with warnings; score >= 7 is advisory only.
 5. Saves merged review report with issue details (severity, file, line, fixHint)
 6. Releases the lock and updates progress
 
@@ -325,7 +325,7 @@ Full verification including Lighthouse CI performance budgets (target: 90+ on al
 /homepage-plugin:hp-review
 ```
 
-Three-stage review: SEO compliance first (metadata, structured data, images, performance), then code quality (accessibility, responsive, TypeScript, i18n, Astro conventions), then visual fidelity comparison against Figma screenshots (advisory, when available).
+Three-stage review: SEO compliance first (metadata, structured data, images, performance), then code quality (accessibility, responsive, TypeScript, i18n, Astro conventions), then visual fidelity comparison against Figma screenshots (conditionally blocking — score < 5 fails the review, score 5-6 forces warnings, score >= 7 is advisory only).
 
 ### Step 7: Fix & Re-Review
 
@@ -378,13 +378,13 @@ Read-only agent that evaluates accessibility (WCAG 2.1 AA), responsive design, c
 
 **Role**: AI vision comparison of rendered vs Figma screenshots (5 sub-dimensions, conditional on Figma screenshots).
 
-Captures rendered screenshots of generated sections using Playwright and compares them against the original Figma design screenshots using AI vision analysis. Scores visual fidelity across 5 sub-dimensions: layout structure, color accuracy, typography, spacing & alignment, and component fidelity. Only runs when SEO + Quality reviews pass and Figma section screenshots exist. Advisory (non-blocking) — does not fail the overall review on its own. Uses the Opus model.
+Captures rendered screenshots of generated sections using Playwright and compares them against the original Figma design screenshots using AI vision analysis. Scores visual fidelity across 5 sub-dimensions: layout structure, color accuracy, typography, spacing & alignment, and component fidelity. Only runs when SEO + Quality reviews pass and Figma section screenshots exist. Conditionally blocking — score < 5 forces review failure, score 5-6 forces pass with warnings, score >= 7 is advisory only. Uses the Opus model.
 
 ### Review Fixer
 
 **Role**: Direct fix for review issues.
 
-Fixes SEO and quality issues identified by reviewers. All fixes are direct (no TDD classification) since homepage sections are primarily presentational. Maximum 3 retry rounds per issue. Escalates unresolvable issues.
+Fixes SEO, quality, and visual fidelity issues identified by reviewers. All fixes are direct (no TDD classification) since homepage sections are primarily presentational. Maximum 3 retry rounds per issue. Escalates unresolvable issues.
 
 ## Skills
 
@@ -522,7 +522,11 @@ planned → generated → verified → reviewed → done
 
 Additional transitions:
 - `generated → reviewed | review-failed | done` — hp-verify is optional
+- `verify-failed → reviewed | review-failed | done` — hp-review accepts verify-failed
+- `verified | verify-failed → fixing` — hp-fix accepts verification results directly (without hp-review)
+- `gen-failed → generated | gen-failed` — re-run hp-gen
 - `gen-failed → verified | verify-failed` — run hp-verify after manual fixes
+- `fixing → reviewed | review-failed` — after hp-fix, hp-review determines next status
 - `escalated → fixing | verified | reviewed` — after manual intervention, re-enter pipeline
 
 ### State File Safety
