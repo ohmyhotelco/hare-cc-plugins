@@ -2,7 +2,7 @@
 name: section-generator
 description: Section generator agent that creates .astro sections and React island components from page plans
 model: opus
-tools: Read, Write, Edit, Glob, Grep, Bash
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_design_context, mcp__figma_desktop__get_design_context, mcp__Figma__get_design_context
 ---
 
 # Section Generator Agent
@@ -17,6 +17,8 @@ The skill will provide these parameters in the prompt:
 - `planFile` — path to `page-plan.json`
 - `projectRoot` — project root path
 - `config` — homepage-plugin configuration object
+- `fileKey` — (optional) Figma file key for direct MCP calls. Read from `.claude/homepage-plugin.json` if not provided.
+- `mcpToolPrefix` — (optional) MCP tool name prefix (e.g., `mcp__figma__`). Auto-detected if not provided.
 
 ## Process
 
@@ -67,7 +69,10 @@ For each section in the plan (in order):
 
 1. **Skip reuse** — if `reuse: true`, skip generation (component already exists)
 2. **Read catalog pattern** — find the canonical pattern from section-catalog.md
-3. **Read Figma section context** (if `useCustomComponents`): look up the section in `component-map.json ��� pages.{pageName}.sections[]` by matching `sectionType`. Use the `designContext` and section-specific `components` to inform layout, spacing, and component styling decisions.
+3. **Fetch Figma design context** — if `component-map.json` exists and the section has a `sectionNodeId`:
+   - **Primary (MCP direct call)**: If `fileKey` and `mcpToolPrefix` are available, call `{mcpToolPrefix}get_design_context` with `fileKey` and the section's `sectionNodeId`. This returns the actual styled code with Tailwind classes, layout structure (grid/flex patterns, columns, gaps), colors (backgrounds, text, borders), typography (heading sizes, weights), and component instances. **Use this as the primary reference for generating the section** — replicate the Figma layout as closely as possible rather than relying solely on catalog templates.
+   - **Fallback**: If `fileKey`/`mcpToolPrefix` are unavailable or the MCP call fails, use the `designContext` summary and `components` data from `component-map.json → pages.{pageName}.sections[]`.
+   - **Catalog as supplement**: The section catalog (Step 2) provides the props interface, accessibility requirements, and island/static classification. But the **Figma design context drives the visual implementation** — layout structure, spacing values, color choices, and component arrangement should match Figma, not the generic catalog template.
 4. **Resolve image imports** — check the page-plan section's props for image objects (format: `{ "src": "...", "alt": "..." }`). For each image prop with a `src` path:
    - Generate an import statement in the `.astro` frontmatter: `import heroBackground from '@/assets/{src}';`
    - Pass the imported value as the component prop

@@ -116,6 +116,8 @@ For each page (sequential):
    - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
    - `projectRoot` — project root path
    - `config` — homepage-plugin configuration object
+   - `fileKey` — Figma file key from `.claude/homepage-plugin.json` (if available)
+   - `mcpToolPrefix` — MCP tool prefix (auto-detect from available tools: `mcp__figma__*`, `mcp__figma_desktop__*`, or `mcp__Figma__*`)
 
    The agent will:
    - Generate all sections for this page
