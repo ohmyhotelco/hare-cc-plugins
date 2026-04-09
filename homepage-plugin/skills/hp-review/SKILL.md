@@ -122,7 +122,10 @@ Launch `visual-fidelity-reviewer` agent with:
 
 Wait for result. Parse the visual fidelity report.
 
-**Note**: Visual fidelity is **advisory (non-blocking)**. Its verdict does NOT cause the overall review to fail on its own. Issues are reported for user awareness and can be addressed via `hp-fix`.
+**Note**: Visual fidelity review is **conditionally blocking**:
+- If overall visual fidelity score **< 5** (critical mismatch): the overall review verdict is set to `review-failed`. The design diverges too far from Figma to be acceptable.
+- If overall visual fidelity score **5–6** (significant mismatch): the overall verdict is `pass_with_warnings`. Issues are flagged for `hp-fix`.
+- If overall visual fidelity score **>= 7**: does not affect the overall verdict (advisory only).
 
 ### Step 6: Merge Reports
 
@@ -143,17 +146,20 @@ Combine all review reports into a single `review-report.json`:
 
 The `visualFidelity` key is **optional** — omit it when Stage 3 did not run (conditions not met or skipped).
 
-The overall verdict is determined by SEO and quality reviews only. Visual fidelity issues are included in `totalIssues` for visibility but do not change the overall verdict.
+The overall verdict is determined by SEO, quality, and visual fidelity (when it runs):
+- If visual fidelity score **< 5**: forces overall verdict to `review-failed` regardless of SEO/quality scores
+- If visual fidelity score **5–6**: forces overall verdict to at most `pass_with_warnings`
+- If visual fidelity score **>= 7** or Stage 3 did not run: does not affect the overall verdict
 
 Save to `docs/pages/{page-name}/.implementation/homepage/review-report.json`.
 
 ### Step 7: Update Progress
 
 Determine overall verdict:
-- Both pass → `reviewed`
+- All stages pass → `reviewed`
 - Pass with warnings → `reviewed` (warnings noted)
-- Either fails → `review-failed`
-- Both pass, zero issues → `done` (skip fix step)
+- Any stage fails (including visual fidelity score < 5) → `review-failed`
+- All stages pass, zero issues → `done` (skip fix step)
 
 Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 ```json

@@ -41,9 +41,13 @@ Call `{mcpToolPrefix}get_variable_defs` with the `fileKey` to retrieve all Figma
 
 If the tool requires a node ID, use the first page's `nodeId` from `selectedPages`.
 
-#### 1.2 Semantic Color Mapping
+#### 1.2 Color Extraction
 
-Map Figma color variables to the 17 semantic CSS variable names.
+Extract colors in two tiers:
+
+**Tier 1: Semantic CSS variables (required 17)**
+
+Map Figma color variables to the 17 semantic CSS variable names used by shadcn/ui. These are required for component theming.
 
 **Primary strategy**: Parse the variable names returned by `get_variable_defs`. Common naming conventions in Figma:
 - `Primary/500`, `Brand/Primary`, `color-primary` → `--primary`
@@ -71,6 +75,35 @@ For `--popover` and `--popover-foreground`, fall back to card values if not foun
 For `--input`, fall back to border value if not found.
 For `--accent`, fall back to secondary value if not found.
 
+**Tier 2: Extended color palette (all remaining Figma colors)**
+
+After mapping the 17 semantic variables, extract **all remaining** Figma color variables and store them as additional CSS custom properties. Preserve the original Figma naming structure:
+
+- `Primary/100` → `--primary-100`
+- `Primary/200` → `--primary-200`
+- `Neutral/50` → `--neutral-50`
+- `Brand/Blue` → `--brand-blue`
+- `Status/Success` → `--status-success`
+
+Store these in `design-tokens.json` under a new `extendedColors` field:
+```json
+"extendedColors": {
+  "--primary-100": "217.2 91.2% 90.8%",
+  "--primary-200": "217.2 91.2% 80.4%",
+  "--primary-900": "217.2 91.2% 15.2%",
+  "--neutral-50": "210 40% 98%",
+  "--neutral-100": "210 40% 96.1%",
+  "--brand-blue": "210 100% 50%",
+  "--status-success": "142.1 76.2% 36.3%"
+}
+```
+
+These extended colors are output in `cssVariables[":root"]` alongside the 17 semantic variables, making them available as `hsl(var(--primary-100))` or via Tailwind arbitrary values `text-[hsl(var(--brand-blue))]` in generated sections.
+
+**Coverage tracking**: `extractionStats.colors` now includes:
+- `semantic` — `{ fromFigma, fromDefault, total: 17 }`
+- `extended` — `{ count }` (number of additional color variables extracted)
+
 #### 1.3 Color Conversion
 
 Convert all colors from Figma's format (hex or RGBA) to HSL-without-function format:
@@ -87,14 +120,35 @@ Algorithm:
 
 From Figma variables or text styles, extract:
 - `fontFamily` — primary sans-serif and monospace families
-- `fontSize` — scale from xs to 6xl with corresponding lineHeight
+- `fontSize` — extract **exact pixel values** from Figma text styles. Store both the raw pixel values and the nearest Tailwind scale name. Example:
+  ```json
+  "fontSize": {
+    "heading1": { "px": 48, "tailwind": "text-5xl", "lineHeight": 1.2 },
+    "heading2": { "px": 36, "tailwind": "text-4xl", "lineHeight": 1.3 },
+    "body": { "px": 15, "tailwind": "text-[15px]", "lineHeight": 1.6 },
+    "caption": { "px": 13, "tailwind": "text-[13px]", "lineHeight": 1.5 }
+  }
+  ```
+  When the Figma value does not match a standard Tailwind size exactly, use arbitrary value syntax: `text-[15px]`, `text-[13px]`, etc.
 - `fontWeight` — normal, medium, semibold, bold mappings
+- `lineHeight` — extract exact values per text style (e.g., `1.2`, `1.4`, `1.6`). Use arbitrary values when needed: `leading-[1.4]`
+- `letterSpacing` — extract exact values per text style (e.g., `0.02em`, `-0.01em`). Use arbitrary values: `tracking-[0.02em]`
 
 #### 1.5 Spacing, Border Radius, Shadows
 
-- **Spacing** — extract spacing scale (base unit and scale values)
-- **Border radius** — extract radius values (sm, default, md, lg, xl, 2xl, full)
-- **Shadows** — extract shadow definitions (sm, default, md, lg)
+- **Spacing** — extract spacing scale with **exact pixel values**. Store both raw values and Tailwind mappings. Use arbitrary values for non-standard sizes:
+  ```json
+  "spacing": {
+    "xs": { "px": 4, "tailwind": "1" },
+    "sm": { "px": 8, "tailwind": "2" },
+    "md": { "px": 13, "tailwind": "[13px]" },
+    "lg": { "px": 24, "tailwind": "6" },
+    "xl": { "px": 40, "tailwind": "10" },
+    "2xl": { "px": 64, "tailwind": "16" }
+  }
+  ```
+- **Border radius** — extract exact values. Use arbitrary values for non-standard radii (e.g., `10px` → `rounded-[10px]` instead of rounding to `rounded-lg` which is 8px)
+- **Shadows** — extract exact shadow definitions with pixel values (offset-x, offset-y, blur, spread, color)
 
 #### 1.6 Fallback Values
 
@@ -141,6 +195,25 @@ The response contains the page's child nodes — each top-level child frame is a
 - `sectionPosition` — vertical position (y coordinate) for ordering
 
 Sort sections by vertical position (top to bottom) to determine visual order.
+
+#### 2.1.1 Multi-Viewport Section Matching (if mobile/tablet pages exist)
+
+If `selectedPages` contains pages with `pageType: "website-mobile"` or `"website-tablet"`, match their sections to the corresponding desktop page sections:
+
+1. For each mobile/tablet page, enumerate sections using `get_metadata` (same as 2.1)
+2. Match mobile sections to desktop sections by name similarity or position order
+3. Store the matched mobile section node IDs in the desktop section's entry:
+   ```json
+   {
+     "sectionName": "Hero",
+     "sectionNodeId": "123:456",
+     "sectionType": "HeroSection",
+     "mobileNodeId": "789:012",
+     "tabletNodeId": null
+   }
+   ```
+
+This data is used by the section generator to extract actual mobile/tablet Tailwind classes from Figma instead of inferring responsive breakpoints.
 
 #### 2.2 Extract Section Design Context
 

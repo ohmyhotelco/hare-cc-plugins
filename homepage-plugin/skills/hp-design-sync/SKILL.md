@@ -106,6 +106,20 @@ For page-based files, classify each page into one of four categories using name 
 
 Pages that do not match any non-website pattern default to `website`.
 
+**Viewport detection**: For website pages, detect if multiple viewport variants exist. Common patterns:
+- Same page name with viewport suffix: "Home - Desktop", "Home - Mobile", "Home - Tablet"
+- Same page name with size suffix: "Home 1440", "Home 375", "Home 768"
+- Separate pages named "Mobile", "Tablet", "Responsive"
+- Frames within a page with different widths (check via `get_metadata` child frame dimensions)
+
+If multiple viewports are detected, group them by page and record the viewport info in `selectedPages`:
+```json
+{ "name": "Home", "nodeId": "0:1", "pageType": "website", "viewport": "desktop", "viewportWidth": 1440 }
+{ "name": "Home - Mobile", "nodeId": "0:4", "pageType": "website-mobile", "viewport": "mobile", "viewportWidth": 375, "desktopPageName": "Home" }
+```
+
+If no mobile/tablet variants are found, this is normal — the section generator will apply responsive breakpoint inference rules.
+
 For library-based files, all pages default to `components` category.
 
 #### 3.3 User Confirmation
