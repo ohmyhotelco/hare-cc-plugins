@@ -12,7 +12,7 @@
 - **SEO 우선 아키텍처** — 정적 HTML 출력, JSON-LD 구조화 데이터, sitemap, 메타 태그, Lighthouse CI 감사
 - **Astro islands** — 기본적으로 JS 없음; 인터랙티브 컴포넌트(폼, 캐러셀, 아코디언)만 하이드레이션
 - **Figma 디자인 시스템 통합** — 선택적 Figma MCP 동기화로 디자인 토큰을 추출하고 shadcn/ui를 대체하는 커스텀 컴포넌트를 자동 생성
-- **3단계 코드 리뷰** — SEO 준수(6개 차원) + 코드 품질/접근성(6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성) + Figma 스크린샷 대비 시각적 충실도 비교(5개 하위 차원, 자문용)
+- **3단계 코드 리뷰** — SEO 준수(6개 차원) + 코드 품질/접근성(6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성) + Figma 스크린샷 대비 시각적 충실도 비교(5개 하위 차원, 조건부 차단)
 - **Content Collections** — Zod 스키마를 사용한 타입 안전 MDX 블로그 포스트, 선택적 헤드리스 CMS 통합
 
 ## 아키텍처 개요
@@ -50,7 +50,7 @@
         │
         ├── Stage 1: seo-reviewer → SEO compliance (6 dimensions)
         ├── Stage 2: quality-reviewer → code quality + accessibility (6+1 dimensions)
-        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, advisory)
+        └── Stage 3: visual-fidelity-reviewer → Figma vs rendered comparison (5 sub-dimensions, conditionally blocking)
         │
         ▼ (if issues found)
 /homepage-plugin:hp-fix <page-name>
@@ -241,7 +241,7 @@
 1. 동시 실행 방지를 위한 잠금 획득
 2. **1단계 — SEO 리뷰**: seo-reviewer 에이전트가 메타데이터 완전성, 구조화 데이터, 제목 계층구조, 이미지 최적화, sitemap/robots, 성능 지표를 검사 (6개 차원, 0-10점)
 3. **2단계 — 품질 리뷰** (SEO 통과 시에만): quality-reviewer 에이전트가 접근성 WCAG AA, 반응형 디자인, 컴포넌트 구성, TypeScript 엄격성, i18n 완전성, Astro 컨벤션을 검사 (6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성, 0-10점)
-4. **3단계 — 시각적 충실도 리뷰** (조건부, 자문용): visual-fidelity-reviewer가 렌더링된 스크린샷을 캡처하여 Figma 섹션 스크린샷과 AI 비전으로 비교. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격, 컴포넌트 충실도를 점수화. SEO + 품질 통과 및 Figma 스크린샷 존재 시에만 실행.
+4. **3단계 — 시각적 충실도 리뷰** (조건부, 조건부 차단): visual-fidelity-reviewer가 렌더링된 스크린샷을 캡처하여 Figma 섹션 스크린샷과 AI 비전으로 비교. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격, 컴포넌트 충실도를 점수화. SEO + 품질 통과 및 Figma 스크린샷 존재 시에만 실행. 점수 < 5는 리뷰 실패, 5-6은 경고와 함께 통과, >= 7은 자문용.
 5. 병합된 리뷰 보고서를 이슈 상세(심각도, 파일, 줄, fixHint)와 함께 저장
 6. 잠금 해제 및 진행 상태 업데이트
 
@@ -325,7 +325,7 @@ Lighthouse CI 성능 예산(목표: 모든 카테고리 90 이상)을 포함한 
 /homepage-plugin:hp-review
 ```
 
-3단계 리뷰: SEO 준수를 먼저 확인(메타데이터, 구조화 데이터, 이미지, 성능), 그 다음 코드 품질(접근성, 반응형, TypeScript, i18n, Astro 컨벤션), 마지막으로 Figma 스크린샷 대비 시각적 충실도 비교(가능한 경우, 자문용).
+3단계 리뷰: SEO 준수를 먼저 확인(메타데이터, 구조화 데이터, 이미지, 성능), 그 다음 코드 품질(접근성, 반응형, TypeScript, i18n, Astro 컨벤션), 마지막으로 Figma 스크린샷 대비 시각적 충실도 비교(조건부 차단 — 점수 < 5는 리뷰 실패, 5-6은 경고, >= 7은 자문용).
 
 ### 7단계: 수정 및 재리뷰
 
@@ -378,13 +378,13 @@ MCP를 통해 Figma 파일에 연결하여 디자인 토큰(색상, 타이포그
 
 **역할**: AI 비전을 활용한 렌더링 결과와 Figma 스크린샷 비교 (5개 하위 차원, Figma 스크린샷 존재 시 조건부 실행).
 
-Playwright를 사용하여 생성된 섹션의 렌더링 스크린샷을 캡처하고 원본 Figma 디자인 스크린샷과 AI 비전 분석으로 비교합니다. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격 및 정렬, 컴포넌트 충실도 등 5개 하위 차원에서 시각적 충실도를 점수화합니다. SEO + 품질 리뷰가 통과하고 Figma 섹션 스크린샷이 존재할 때만 실행됩니다. 자문용(비차단) — 단독으로는 전체 리뷰를 실패시키지 않습니다. Opus 모델을 사용합니다.
+Playwright를 사용하여 생성된 섹션의 렌더링 스크린샷을 캡처하고 원본 Figma 디자인 스크린샷과 AI 비전 분석으로 비교합니다. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격 및 정렬, 컴포넌트 충실도 등 5개 하위 차원에서 시각적 충실도를 점수화합니다. SEO + 품질 리뷰가 통과하고 Figma 섹션 스크린샷이 존재할 때만 실행됩니다. 조건부 차단 — 점수 < 5는 리뷰 실패, 5-6은 경고와 함께 통과, >= 7은 자문용. Opus 모델을 사용합니다.
 
 ### Review Fixer
 
 **역할**: 리뷰 이슈 직접 수정.
 
-리뷰어가 식별한 SEO 및 품질 이슈를 수정합니다. 홈페이지 섹션이 주로 프레젠테이션 위주이므로 모든 수정은 직접 수정(TDD 분류 없음)입니다. 이슈당 최대 3회 재시도. 해결 불가능한 이슈는 에스컬레이션합니다.
+리뷰어가 식별한 SEO, 품질 및 시각적 충실도 이슈를 수정합니다. 홈페이지 섹션이 주로 프레젠테이션 위주이므로 모든 수정은 직접 수정(TDD 분류 없음)입니다. 이슈당 최대 3회 재시도. 해결 불가능한 이슈는 에스컬레이션합니다.
 
 ## 스킬
 
@@ -522,7 +522,11 @@ planned → generated → verified → reviewed → done
 
 추가 전환:
 - `generated → reviewed | review-failed | done` — hp-verify는 선택사항
+- `verify-failed → reviewed | review-failed | done` — hp-review는 verify-failed를 수용
+- `verified | verify-failed → fixing` — hp-fix가 hp-review 없이 직접 검증 결과를 수용
+- `gen-failed → generated | gen-failed` — hp-gen 재실행
 - `gen-failed → verified | verify-failed` — 수동 수정 후 hp-verify 실행
+- `fixing → reviewed | review-failed` — hp-fix 이후 hp-review가 다음 상태 결정
 - `escalated → fixing | verified | reviewed` — 수동 개입 후 파이프라인 재진입
 
 ### 상태 파일 안전성

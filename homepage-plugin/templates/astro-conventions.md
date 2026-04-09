@@ -283,6 +283,8 @@ export default {
 
 When `docs/design-system/design-tokens.json` exists, generate `globals.css` using values from its `cssVariables` section instead of the hardcoded shadcn/ui defaults above.
 
+**Iterate ALL keys from `cssVariables[":root"]`** — this includes the 17 semantic variables, `--radius`, and any extended color variables (e.g., `--primary-100`, `--neutral-50`, `--brand-blue`). Do not hardcode only the 17 semantic names; the design-token-extractor may add additional color variables from the Figma file.
+
 ```css
 @tailwind base;
 @tailwind components;
@@ -290,7 +292,7 @@ When `docs/design-system/design-tokens.json` exists, generate `globals.css` usin
 
 @layer base {
   :root {
-    /* Generated from docs/design-system/design-tokens.json */
+    /* 17 semantic variables from docs/design-system/design-tokens.json */
     --background: {cssVariables[":root"]["--background"]};
     --foreground: {cssVariables[":root"]["--foreground"]};
     --card: {cssVariables[":root"]["--card"]};
@@ -311,11 +313,17 @@ When `docs/design-system/design-tokens.json` exists, generate `globals.css` usin
     --input: {cssVariables[":root"]["--input"]};
     --ring: {cssVariables[":root"]["--ring"]};
     --radius: {cssVariables[":root"]["--radius"]};
+
+    /* Extended color variables (iterate remaining keys from cssVariables[":root"]) */
+    /* e.g., --primary-100, --primary-200, --neutral-50, --brand-blue, --status-success, etc. */
   }
+
+  /* Dark mode (only if cssVariables[".dark"] is non-empty) */
+  /* .dark { ... } */
 }
 ```
 
-The variable names and HSL format remain identical to the shadcn/ui pattern — only the values change. This ensures all Tailwind utility classes (`bg-primary`, `text-foreground`, etc.) continue to work without modification.
+The semantic variable names and HSL format remain identical to the shadcn/ui pattern — only the values change. This ensures all Tailwind utility classes (`bg-primary`, `text-foreground`, etc.) continue to work without modification. Extended color variables are available as `hsl(var(--primary-100))` or via Tailwind arbitrary values like `text-[hsl(var(--brand-blue))]`.
 
 ## Responsive Design Patterns
 

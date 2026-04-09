@@ -47,8 +47,8 @@ For each section in the user's selection:
 2. **Pre-populate from Figma** — if `component-map.json` has a matching page with pre-classified sections (from `hp-design-sync`), use the `sectionType`, `designContext`, and `components` data to pre-fill the section definition. Present pre-populated sections to the user for confirmation.
 3. **Determine type** — classify as Static (.astro) or Island (React + client: directive)
 4. **Extract props** — infer props from user description, Figma design context, and Figma screenshot reference. When `component-map.json` has `contentImages` for a matching section, populate image props with extracted paths instead of boolean flags (see Phase 4 format below)
-5. **Resolve icons** — for sections with `icon` string props (e.g., `FeaturesSection.features[].icon`, `StatsSection.stats[].icon`):
-   - If `component-map.json` has `iconMap` with mapped icons: select contextually appropriate icons from the mapped set based on feature/stat descriptions. Use the `lucideMatch` name as the icon prop value (e.g., `"Zap"`, `"Shield"`). Prefer icons with higher `confidence` scores.
+5. **Resolve icons** — for sections with `icon` string props (e.g., `FeaturesSection.features[].icon`):
+   - If `component-map.json` has `iconMap` with mapped icons: select contextually appropriate icons from the mapped set based on feature descriptions. Use the `lucideMatch` name as the icon prop value (e.g., `"Zap"`, `"Shield"`). Prefer icons with higher `confidence` scores.
    - If `iconMap` has unmapped custom icons relevant to the context: note these in a `_warnings` field so the section generator knows to use inline SVG rendering.
    - If no `iconMap` exists: fall back to current behavior (AI picks semantically appropriate Lucide icon names based on feature descriptions).
 6. **Detect reuse** — check if this section already exists from a previous page's generation

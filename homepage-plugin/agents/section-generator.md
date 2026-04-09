@@ -123,10 +123,11 @@ For each section in the plan (in order):
    const imgHeroBackground = "https://www.figma.com/api/mcp/asset/{uuid}";
    ```
    For each image URL:
-   1. Download via Bash: `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/{pageName}/{sectionType}/{descriptiveName}.png'`
-   2. Generate import in Astro frontmatter: `import heroBackground from '@/assets/images/{pageName}/{sectionType}/{descriptiveName}.png';`
-   3. Replace the URL reference with `<Image src={heroBackground} alt="..." width={w} height={h} />`
-   4. Above-the-fold images: add `loading="eager"`
+   1. **Check for pre-extracted images first** — if the section has `contentImages` in `component-map.json` with `extracted: true` entries, check whether any pre-extracted image corresponds to this asset (by matching node ID or role). If a matching pre-extracted image exists at `{projectRoot}/src/assets/{path}`, skip the download and use the existing file path instead. This avoids duplicating images already downloaded by `hp-design-sync`.
+   2. If no pre-extracted match exists, download via Bash: `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/{pageName}/{sectionType}/{descriptiveName}.png'`
+   3. Generate import in Astro frontmatter: `import heroBackground from '@/assets/images/{pageName}/{sectionType}/{descriptiveName}.png';`
+   4. Replace the URL reference with `<Image src={heroBackground} alt="..." width={w} height={h} />`
+   5. Above-the-fold images: add `loading="eager"`
 
    **Icons**: Use `iconMap` from `component-map.json` if available (Step 5 handles this), or match Figma icon names to Lucide equivalents.
 

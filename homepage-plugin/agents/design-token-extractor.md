@@ -18,7 +18,7 @@ The skill will provide these parameters in the prompt:
 
 - `fileKey` — Figma file key (extracted from URL)
 - `mcpToolPrefix` — MCP tool name prefix (e.g., `mcp__figma__`)
-- `selectedPages` — list of `{ name, nodeId, pageType }` objects for pages to extract. `pageType` is one of `"website"` (default), `"layout"`, `"icons"`, `"components"`
+- `selectedPages` — list of `{ name, nodeId, pageType }` objects for pages to extract. `pageType` is one of `"website"` (default), `"website-mobile"`, `"website-tablet"`, `"layout"`, `"icons"`, `"components"`
 - `fileStructure` — `"page-based"` or `"library-based"`
 - `projectRoot` — project root path
 - `outputDir` — output directory (e.g., `docs/design-system/`)
@@ -818,11 +818,14 @@ Assemble the `cssVariables` section from extracted colors (same for both file st
     "--border": "{...}",
     "--input": "{...}",
     "--ring": "{...}",
-    "--radius": "{extracted or 0.5rem}"
+    "--radius": "{extracted or 0.5rem}",
+    "...extended colors from Phase 1.2 Tier 2": "e.g. --primary-100, --neutral-50, --brand-blue, etc."
   },
   ".dark": {}
 }
 ```
+
+Include all extended color variables from Phase 1.2 Tier 2 in `":root"` alongside the 17 semantic variables. This makes them available as `hsl(var(--primary-100))` or via Tailwind arbitrary values like `text-[hsl(var(--brand-blue))]`.
 
 The `.dark` section is populated only if the Figma file contains dark mode variable values.
 
@@ -839,13 +842,17 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
   "figmaFileKey": "{fileKey}",
   "figmaFileName": "{from Figma metadata or 'Unknown'}",
   "colors": { ... },
+  "extendedColors": { ... },
   "typography": { ... },
   "spacing": { ... },
   "borderRadius": { ... },
   "shadows": { ... },
   "cssVariables": { ... },
   "extractionStats": {
-    "colors": { "fromFigma": 12, "fromDefault": 5, "total": 17 },
+    "colors": {
+      "semantic": { "fromFigma": 12, "fromDefault": 5, "total": 17 },
+      "extended": { "count": 8 }
+    },
     "typography": { "fromFigma": 3, "fromDefault": 0, "total": 3 },
     "components": { "fromFigma": 5, "fromDefault": 2, "total": 7 },
     "overallCoverage": 0.74
@@ -854,10 +861,11 @@ The `.dark` section is populated only if the Figma file contains dark mode varia
 ```
 
 **`extractionStats` fields:**
-- `colors.fromFigma` — number of the 17 semantic color variables that were actually extracted from the Figma file
-- `colors.fromDefault` — number that fell back to hardcoded shadcn/ui defaults (Phase 1.6)
+- `colors.semantic.fromFigma` — number of the 17 semantic color variables that were actually extracted from the Figma file
+- `colors.semantic.fromDefault` — number that fell back to hardcoded shadcn/ui defaults (Phase 1.6)
+- `colors.extended.count` — number of additional (non-semantic) color variables extracted from Figma (see Phase 1.2 Tier 2)
 - `typography`, `components` — same pattern for typography scales and UI components
-- `overallCoverage` — `(total fromFigma across all categories) / (total across all categories)`, range 0.0 to 1.0. A value below 0.5 indicates most tokens are defaults, not from Figma.
+- `overallCoverage` — `(total fromFigma across all categories) / (total across all categories)`, range 0.0 to 1.0. Uses `colors.semantic.fromFigma` (not extended) for the colors contribution. A value below 0.5 indicates most tokens are defaults, not from Figma.
 
 #### 8.2 `{outputDir}/component-map.json`
 

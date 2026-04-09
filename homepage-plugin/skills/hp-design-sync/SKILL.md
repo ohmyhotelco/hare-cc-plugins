@@ -160,7 +160,7 @@ Launch the `design-token-extractor` agent with the following parameters:
 
 - `fileKey` — the Figma file key from Step 1
 - `mcpToolPrefix` — the MCP tool name prefix identified in Step 2
-- `selectedPages` — list of `{ name, nodeId, pageType }` objects selected by the user in Step 3. `pageType` is one of `"website"`, `"layout"`, `"icons"`, `"components"`
+- `selectedPages` — list of `{ name, nodeId, pageType }` objects selected by the user in Step 3. `pageType` is one of `"website"`, `"website-mobile"`, `"website-tablet"`, `"layout"`, `"icons"`, `"components"`
 - `fileStructure` — `"page-based"` or `"library-based"` (from Step 3)
 - `projectRoot` — current working directory
 - `outputDir` — `docs/design-system/`

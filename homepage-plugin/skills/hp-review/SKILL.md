@@ -98,14 +98,14 @@ If the check **fails** (exit code !== 0), Playwright is not installed. Display a
 >
 > To install:
 > ```
-> npm install -g @playwright/cli@latest
-> playwright-cli --help
+> pnpm add -D playwright
+> npx playwright install chromium
 > ```
 >
 > 1. **Install and continue** — installs Playwright, then proceeds with Visual Fidelity Review
 > 2. **Skip this time** — completes the review without Visual Fidelity Review
 
-- If the user chooses **Install and continue**: run `npm install -g @playwright/cli@latest` and then `pnpm add -D playwright && npx playwright install chromium` in `{projectRoot}`. If installation succeeds, proceed to Step 5.5.2. If installation fails, display the error and fall back to skipping Stage 3.
+- If the user chooses **Install and continue**: run `pnpm add -D playwright && npx playwright install chromium` in `{projectRoot}`. If installation succeeds, proceed to Step 5.5.2. If installation fails, display the error and fall back to skipping Stage 3.
 - If the user chooses **Skip this time**: skip Stage 3 entirely. Omit `visualFidelity` from the merged report.
 
 If the check **passes**, proceed directly to Step 5.5.2.
@@ -124,7 +124,7 @@ Wait for result. Parse the visual fidelity report.
 
 **Note**: Visual fidelity review is **conditionally blocking**:
 - If overall visual fidelity score **< 5** (critical mismatch): the overall review verdict is set to `review-failed`. The design diverges too far from Figma to be acceptable.
-- If overall visual fidelity score **5–6** (significant mismatch): the overall verdict is `pass_with_warnings`. Issues are flagged for `hp-fix`.
+- If overall visual fidelity score **>= 5 and < 7** (significant mismatch): the overall verdict is `pass_with_warnings`. Issues are flagged for `hp-fix`.
 - If overall visual fidelity score **>= 7**: does not affect the overall verdict (advisory only).
 
 ### Step 6: Merge Reports
@@ -148,7 +148,7 @@ The `visualFidelity` key is **optional** — omit it when Stage 3 did not run (c
 
 The overall verdict is determined by SEO, quality, and visual fidelity (when it runs):
 - If visual fidelity score **< 5**: forces overall verdict to `review-failed` regardless of SEO/quality scores
-- If visual fidelity score **5–6**: forces overall verdict to at most `pass_with_warnings`
+- If visual fidelity score **>= 5 and < 7**: forces overall verdict to at most `pass_with_warnings`
 - If visual fidelity score **>= 7** or Stage 3 did not run: does not affect the overall verdict
 
 Save to `docs/pages/{page-name}/.implementation/homepage/review-report.json`.

@@ -86,7 +86,7 @@ Only on first page generation:
 
 7. **Global styles** — create `src/styles/globals.css`
    - Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`)
-   - If `docs/design-system/design-tokens.json` exists: generate `@layer base { :root { ... } }` using the `cssVariables` section from the tokens file
+   - If `docs/design-system/design-tokens.json` exists: generate `@layer base { :root { ... } }` by iterating **all** keys from `cssVariables[":root"]` in the tokens file — this includes the 17 semantic variables, `--radius`, and any extended color variables (e.g., `--primary-100`, `--neutral-50`, `--brand-blue`). If `cssVariables[".dark"]` is non-empty, also generate a `.dark { ... }` block. See `templates/astro-conventions.md` for the template pattern.
    - Otherwise: use default shadcn/ui CSS variables (see `templates/astro-conventions.md`)
 
 8. **Content Collection config** (if `contentStrategy` includes mdx)
