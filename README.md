@@ -36,7 +36,7 @@ Generates production-ready React code from functional specifications using stric
 
 ---
 
-### [Homepage Plugin](./homepage-plugin/) `v0.3.3`
+### [Homepage Plugin](./homepage-plugin/) `v1.0.0`
 
 Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
 
@@ -45,7 +45,8 @@ Generates marketing homepage websites from interactive page/section definitions.
 **Key features**:
 - 15 canonical marketing sections (hero, pricing, FAQ, testimonials, etc.)
 - SEO-first: static HTML, JSON-LD structured data, sitemap, meta tags
-- 2-stage review: SEO compliance (6 dimensions) + quality/accessibility (6 dimensions)
+- Figma design system integration: optional MCP sync extracts design tokens and auto-generates custom components
+- 3-stage review: SEO compliance (6 dimensions) + quality/accessibility (6+1 dimensions) + visual fidelity comparison against Figma screenshots (5 sub-dimensions, conditionally blocking)
 - Astro 5, Tailwind CSS, shadcn/ui, Content Collections (MDX + optional headless CMS)
 - Lighthouse CI auditing (target: 90+ on all categories)
 

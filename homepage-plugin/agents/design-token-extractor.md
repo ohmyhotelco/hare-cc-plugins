@@ -240,7 +240,7 @@ Save the screenshot image to disk (best-effort) and record the file path:
      ```
    - If the MCP response contains **base64 text**, decode it:
      ```bash
-     echo '{base64String}' | base64 -d > '{outputPath}'
+     echo '{base64String}' | base64 --decode > '{outputPath}'
      ```
    - If the MCP response returns an **inline image** (rendered visually but no extractable data), the file cannot be saved. This is expected — the `visual-fidelity-reviewer` will fetch the Figma design directly via MCP `get_screenshot` during review.
 3. Store the **relative path** (from `outputDir`) in `screenshotRef`: `"screenshots/{pageName}/{sectionType}.png"`
@@ -319,7 +319,7 @@ For each identified image node:
    ```
    Parse the response to extract these URLs. These are temporary download links (valid for ~7 days).
 
-2. Download and save the image using the Bash tool:
+2. **Primary path** — if asset URLs are found, download with the Bash tool:
    ```bash
    mkdir -p '{projectRoot}/src/assets/images/{pageName}/{sectionType}'
    curl -sL '{assetUrl}' -o '{outputPath}'
@@ -327,9 +327,19 @@ For each identified image node:
    ```
    - For single images (e.g., hero background): use `background.png` (no index)
    - For indexed items: use `{role}-0.png`, `{role}-1.png`, etc.
-   - If `get_design_context` does not return any asset URLs for the node, fall back to `get_screenshot` (best-effort — may return inline image only). Record as `extracted: false` with error `"no asset URL available"` if neither method produces a file.
 
-3. Record the extraction result (success or failure with error reason)
+3. **Vector fallback** — if `get_design_context` does not return any asset URLs (common for pure vector nodes such as logos drawn with path/pen tools, boolean shapes, and vector illustrations), fall back to `get_screenshot`:
+
+   a. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the image node's ID.
+
+   b. Inspect the response and handle by return type:
+      - **URL returned**: download with `curl -sL '{imageUrl}' -o '{outputPath}'`
+      - **Base64 text returned**: decode with `echo '{base64String}' | base64 --decode > '{outputPath}'`
+      - **Inline image only** (rendered visually but no extractable URL or base64 data): the file cannot be saved. Record as `extracted: false` with error `"vector node — screenshot returned inline image only, cannot save to disk"`.
+
+   c. If the downloaded/decoded file exists and is non-empty (`test -s`), record as `extracted: true`.
+
+4. Record the extraction result (success or failure with error reason). For vector fallback failures, include the specific reason (no asset URL + screenshot type) to help users understand why manual export is needed.
 
 If the `get_screenshot` call fails for an individual image node, log the failure and continue with the next image. Do not abort the entire phase.
 
@@ -364,7 +374,7 @@ For each section, construct the `contentImages` field:
 - `"failed"` — all image extractions for this section failed
 - `"none"` — no image nodes were identified in this section
 
-For failed images, include an `"error"` field:
+For failed images, include an `"error"` field and a `"manualExport"` guide:
 ```json
 {
   "role": "photo",
@@ -373,9 +383,17 @@ For failed images, include an `"error"` field:
   "nodeName": "Team Member 2",
   "path": "images/home/TeamSection/photo-1.png",
   "extracted": false,
-  "error": "get_screenshot call failed: node not found"
+  "error": "vector node — no asset URL available",
+  "manualExport": {
+    "figmaNodeName": "Team Member 2",
+    "saveTo": "src/assets/images/home/TeamSection/photo-1.png",
+    "format": "PNG",
+    "scale": "@2x"
+  }
 }
 ```
+
+The `manualExport` field is required for all failed images. It tells the user exactly which Figma layer to export and where to save it. `saveTo` is relative to the project root.
 
 For non-image section types (FeaturesSection, CTASection, etc.), omit the `contentImages` field entirely.
 
@@ -1091,6 +1109,20 @@ If `mode === "update"`:
 - For `iconMap`: overwrite entirely with newly extracted data.
 - For `additionalComponents`: merge — update existing component entries, add new ones, preserve components not in the current extraction.
 - For `layout-plan.json`: do NOT overwrite if the file already exists (user may have manually edited it). Only write if the file does not exist.
+
+## Known Limitations: Content Image Extraction
+
+Image extraction via Figma MCP has structural constraints across multiple layers:
+
+| Constraint | Cause | Impact |
+|---|---|---|
+| Vector nodes have no asset URL | `get_design_context` only returns URLs for image fills, not vector paths | Logos, icons, illustrations drawn in Figma cannot be downloaded via primary method |
+| `get_screenshot` inline image | Claude Code renders MCP `type:"image"` blocks visually; raw base64 bytes are inaccessible to the LLM | Fallback screenshot cannot be saved to disk when returned as image content block |
+| 20KB response limit (Desktop MCP) | Figma Plugin API caps MCP responses | Large/complex images get truncated during base64 transfer |
+| Subagent bash permissions | Claude Code subagents do not inherit the parent session's bash permissions | `curl`, `mkdir`, `base64` commands may be blocked when this agent runs as a subagent |
+| 1:1 call overhead | Each image requires a separate MCP round-trip | Bulk extraction (10+ images) is slow and error-prone |
+
+**Practical guidance**: For 5 or fewer simple images, MCP extraction works reasonably well. For vector-heavy designs or 10+ images, Figma manual Export (PNG @2x) is more reliable. All failed extractions include a `manualExport` field in `contentImages` to guide the user.
 
 ## Rules
 
