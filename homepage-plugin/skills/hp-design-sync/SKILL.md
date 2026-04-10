@@ -226,25 +226,30 @@ Read `component-map.json` and check sections that have `contentImages`:
    - Verify that files referenced in `contentImages.images[].path` actually exist at `{projectRoot}/src/assets/{path}`
    - Count total extracted vs failed
 
-2. If any images have `extracted: false`, display a warning:
+2. If any images have `extracted: false`, collect all `manualExport` entries and display a single actionable guide:
 
-   > **Some content images could not be extracted from Figma.**
+   > **The following images need to be exported manually from Figma:**
    >
-   > The following images failed to extract:
-   > - {sectionType}: {role}-{index} ({nodeName}) — {error}
-   > - ...
+   > | # | Figma Layer | Section | Save To |
+   > |---|---|---|---|
+   > | 1 | {manualExport.figmaNodeName} | {sectionType} | `{manualExport.saveTo}` |
+   > | 2 | ... | ... | ... |
    >
-   > These sections will use placeholder values during code generation. You can:
-   > 1. Manually add images to `src/assets/images/{pageName}/{sectionType}/`
-   > 2. Re-run `/homepage-plugin:hp-design-sync` to retry extraction
-   > 3. Proceed without images — optional image props will be omitted, required ones will get a TODO comment
+   > **Export steps:**
+   > 1. Open the Figma file
+   > 2. Select the layer listed above
+   > 3. In the right panel, click "Export" → Format: **PNG**, Scale: **2x**
+   > 4. Save to the path shown in "Save To" (relative to project root)
+   >
+   > After placing the files, proceed with `/homepage-plugin:hp-plan`. Missing images will use placeholder values during code generation — optional image props will be omitted, required ones will get a TODO comment.
 
 3. If `contentImages.extractionSummary` shows `total: 0` across all sections but image-bearing section types exist (HeroSection, TeamSection, etc.), display a note:
 
    > **No content images were found in the Figma sections.**
    >
-   > The sections exist but no image nodes were identified. This may mean the Figma file uses placeholder shapes instead of actual images, or images are embedded differently.
-   > You can add images manually to `src/assets/images/` after running `/homepage-plugin:hp-plan`.
+   > This is common when logos or illustrations are drawn as **vector shapes** rather than placed as image files. Figma MCP cannot export vector-only nodes as files.
+   >
+   > You can add images after running `/homepage-plugin:hp-plan` by exporting from Figma (Select layer → right panel "Export" → PNG @2x) and placing them in `src/assets/images/{pageName}/{sectionType}/`.
 
 **6.4 Layout validation** (if any selected page had `pageType: "layout"`, or `component-map.json` contains `sharedComponents`):
 
