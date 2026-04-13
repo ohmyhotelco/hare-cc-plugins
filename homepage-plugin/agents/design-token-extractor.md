@@ -23,6 +23,7 @@ The skill will provide these parameters in the prompt:
 - `projectRoot` — project root path
 - `outputDir` — output directory (e.g., `docs/design-system/`)
 - `mode` — `"replace"` (fresh extraction) or `"update"` (merge with existing)
+- `figmaAccessToken` — (optional) Figma Personal Access Token. When provided, enables REST API `/v1/images` fallback for 2x PNG export of nodes that MCP cannot extract.
 
 ## Process
 
@@ -339,9 +340,32 @@ For each identified image node:
 
    c. If the downloaded/decoded file exists and is non-empty (`test -s`), record as `extracted: true`.
 
-4. Record the extraction result (success or failure with error reason). For vector fallback failures, include the specific reason (no asset URL + screenshot type) to help users understand why manual export is needed.
+4. **REST API fallback** — if both MCP methods failed and `figmaAccessToken` is provided, export the node via Figma REST API:
 
-If the `get_screenshot` call fails for an individual image node, log the failure and continue with the next image. Do not abort the entire phase.
+   ```bash
+   # URL-encode the node ID (replace : with %3A)
+   NODE_ID_ENCODED=$(echo '{nodeId}' | sed 's/:/%3A/g')
+
+   # Get temporary image URL from Figma REST API
+   RESPONSE=$(curl -s "https://api.figma.com/v1/images/{fileKey}?ids=${NODE_ID_ENCODED}&format=png&scale=2" \
+     -H "X-Figma-Token: {figmaAccessToken}")
+
+   # Parse the image URL from JSON response
+   IMAGE_URL=$(echo "$RESPONSE" | jq -r '.images["{nodeId}"]')
+
+   # Download the image
+   mkdir -p '{projectRoot}/src/assets/images/{pageName}/{sectionType}'
+   curl -sL "$IMAGE_URL" -o '{outputPath}'
+   test -s '{outputPath}' && echo "OK" || echo "FAILED"
+   ```
+
+   - This works for ALL node types (vector and raster) at 2x scale
+   - If the API returns an error (e.g., invalid token, rate limit), record as `extracted: false` with error `"REST API export failed: {error message}"`
+   - Skip this step entirely if `figmaAccessToken` is not provided
+
+5. Record the extraction result (success or failure with error reason). For fallback failures, include the specific reason to help users understand why manual export is needed.
+
+If the `get_screenshot` or REST API call fails for an individual image node, log the failure and continue with the next image. Do not abort the entire phase.
 
 **Step 3: Build contentImages object**
 
@@ -423,7 +447,7 @@ For the identified header frame:
 2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the header frame's node ID
    - Save to `{outputDir}/screenshots/_shared/Header.png` using the Bash tool (same base64 decode method as Phase 2.3)
 3. Parse the design context to extract:
-   - **Logo element** — image node or text-based logo. If an image node is found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/header-logo.png'`
+   - **Logo element** — image node or text-based logo. If an image node is found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/header-logo.png'`. If no asset URL is returned (vector logo) and `figmaAccessToken` is provided, use the REST API fallback (same method as Phase 2.6 Step 4) to export the logo node as 2x PNG.
    - **Navigation items** — text labels from nav link elements (e.g., "Home", "About", "Services", "Contact")
    - **CTA button** — text label and style (if present)
    - **Styling** — background color, border, typography classes
@@ -443,7 +467,7 @@ For the identified footer frame:
 2. Call `{mcpToolPrefix}get_screenshot` with `fileKey` and the footer frame's node ID
    - Save to `{outputDir}/screenshots/_shared/Footer.png` using the Bash tool (same base64 decode method as Phase 2.3)
 3. Parse the design context to extract:
-   - **Logo/brand element** — same extraction as header logo. If found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/footer-logo.png'`
+   - **Logo/brand element** — same extraction as header logo. If found, call `{mcpToolPrefix}get_design_context` with the logo node ID to extract the asset URL, then download with `curl -sL '{assetUrl}' -o '{projectRoot}/src/assets/images/_shared/footer-logo.png'`. If no asset URL is returned (vector logo) and `figmaAccessToken` is provided, use the REST API fallback (same method as Phase 2.6 Step 4) to export the logo node as 2x PNG.
    - **Description text** — company tagline or brief description
    - **Link groups** — groups of links with section titles (e.g., "Product", "Company", "Support")
    - **Social media icons** — identify platform names by matching icon/text patterns to: twitter, linkedin, github, facebook, instagram, youtube
@@ -1112,17 +1136,25 @@ If `mode === "update"`:
 
 ## Known Limitations: Content Image Extraction
 
-Image extraction via Figma MCP has structural constraints across multiple layers:
+Image extraction has a 3-tier fallback chain: MCP asset URL → MCP screenshot → REST API `/v1/images`. The REST API tier (requires `figmaAccessToken`) resolves most MCP limitations.
+
+### MCP-only constraints (resolved when `figmaAccessToken` is provided)
+
+| Constraint | Cause | Resolved by REST API |
+|---|---|---|
+| Vector nodes have no asset URL | `get_design_context` only returns URLs for image fills, not vector paths | Yes — REST API exports any node type as 2x PNG |
+| `get_screenshot` inline image | Claude Code renders MCP `type:"image"` blocks visually; raw base64 bytes are inaccessible to the LLM | Yes — REST API bypasses MCP entirely |
+| 20KB response limit (Desktop MCP) | Figma Plugin API caps MCP responses | Yes — REST API returns a download URL, not inline data |
+
+### Remaining constraints
 
 | Constraint | Cause | Impact |
 |---|---|---|
-| Vector nodes have no asset URL | `get_design_context` only returns URLs for image fills, not vector paths | Logos, icons, illustrations drawn in Figma cannot be downloaded via primary method |
-| `get_screenshot` inline image | Claude Code renders MCP `type:"image"` blocks visually; raw base64 bytes are inaccessible to the LLM | Fallback screenshot cannot be saved to disk when returned as image content block |
-| 20KB response limit (Desktop MCP) | Figma Plugin API caps MCP responses | Large/complex images get truncated during base64 transfer |
-| Subagent bash permissions | Claude Code subagents do not inherit the parent session's bash permissions | `curl`, `mkdir`, `base64` commands may be blocked when this agent runs as a subagent |
-| 1:1 call overhead | Each image requires a separate MCP round-trip | Bulk extraction (10+ images) is slow and error-prone |
+| Subagent bash permissions | Claude Code subagents do not inherit the parent session's bash permissions | `curl`, `mkdir`, `base64` commands may require user approval when this agent runs as a subagent |
+| 1:1 call overhead | Each image requires a separate API round-trip | Bulk extraction (10+ images) is slow |
+| REST API rate limits | Free Figma accounts have limited API calls | Paid accounts have sufficient limits for typical homepage projects |
 
-**Practical guidance**: For 5 or fewer simple images, MCP extraction works reasonably well. For vector-heavy designs or 10+ images, Figma manual Export (PNG @2x) is more reliable. All failed extractions include a `manualExport` field in `contentImages` to guide the user.
+**Practical guidance**: When `figmaAccessToken` is configured, vector logos and complex assets are exported reliably at 2x scale. Without the token, MCP extraction works for raster images; vector nodes fall back to `manualExport` guidance. All failed extractions include a `manualExport` field in `contentImages`.
 
 ## Rules
 

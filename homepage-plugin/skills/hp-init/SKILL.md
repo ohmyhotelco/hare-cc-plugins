@@ -56,7 +56,14 @@ Ask: "Do you have a Figma design system file? (Paste URL or skip)"
 
 - If the user provides a URL, extract the file key using regex: `figma\.com/(file|design)/([a-zA-Z0-9]+)`
 - Store the extracted key as `figmaFileKey` and the full URL as `figmaFileUrl` in the configuration
-- If skipped, omit both fields from the configuration
+- If skipped, omit all Figma fields from the configuration
+
+If the user provided a Figma URL, ask a follow-up:
+
+> "Providing a Figma Personal Access Token enables automatic 2x PNG export of vector logos and design assets. (Generate at Figma Settings → Account → Personal access tokens. You can skip this.)"
+
+- If provided: store as `figmaAccessToken` in the configuration
+- If skipped: omit the field (MCP-only image extraction with manual export fallback)
 
 ### Step 6: Write Configuration
 
@@ -71,7 +78,8 @@ Write `.claude/homepage-plugin.json`:
   "deployTarget": "{user choice, default: aws}",
   "eslintTemplate": true,
   "figmaFileKey": "{extracted key, omit if skipped}",
-  "figmaFileUrl": "{full URL, omit if skipped}"
+  "figmaFileUrl": "{full URL, omit if skipped}",
+  "figmaAccessToken": "{user token, omit if skipped}"
 }
 ```
 
