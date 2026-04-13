@@ -165,6 +165,7 @@ Launch the `design-token-extractor` agent with the following parameters:
 - `projectRoot` — current working directory
 - `outputDir` — `docs/design-system/`
 - `mode` — `"update"` or `"replace"` (from Step 4, default `"replace"` for fresh extraction)
+- `figmaAccessToken` — (optional) read from `.claude/homepage-plugin.json`. If present, enables REST API image export fallback. If absent, omit this parameter.
 
 ### Step 6: Validate Output
 

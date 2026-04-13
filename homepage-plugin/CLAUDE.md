@@ -301,7 +301,8 @@ src/
   "deployTarget": "aws",
   "eslintTemplate": true,
   "figmaFileKey": "abc123XYZ",
-  "figmaFileUrl": "https://www.figma.com/design/abc123XYZ/..."
+  "figmaFileUrl": "https://www.figma.com/design/abc123XYZ/...",
+  "figmaAccessToken": "figd_xxxxx"
 }
 ```
 
@@ -313,6 +314,7 @@ src/
 - `eslintTemplate`: `true` (default) | `false` — auto-generate ESLint config
 - `figmaFileKey`: (optional) Figma file key for design token extraction
 - `figmaFileUrl`: (optional) full Figma file URL for reference
+- `figmaAccessToken`: (optional) Figma Personal Access Token — enables REST API `/v1/images` fallback for 2x PNG export of vector nodes when MCP extraction fails
 
 ## File Structure
 
