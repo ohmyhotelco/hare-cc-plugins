@@ -187,11 +187,22 @@ All build/test commands (`npx vite`, `npx vitest`, `npx tsc`, `npx playwright`,
 
 ## Mapping Catalog & Gate Definitions
 
-The Angular→React mapping catalog and the shared-package spec live under `templates/` and
-are authored in **AA-41** (`angular-to-react-mapping.md`, `shared-package-spec.md`). The
-WebView bridge and Hana SSO templates are authored in **AA-46**
+The Angular→React mapping catalog and the shared-package spec live under `templates/`
+(authored in **AA-41**):
+- `templates/angular-to-react-mapping.md` — idiom-by-idiom mapping grounded in the real PC /
+  Mobile / Hana source, with `file:line` anchors. Sections carry stable ids the analyzer
+  references via `analysis.json.mappingNotes[].catalogRef`.
+- `templates/shared-package-spec.md` — the six `packages/` and the purity classification.
+
+Source-confirmed corrections folded into the catalog: legacy i18n is **angular-i18next**
+(`| i18next`, `tl.*` keys, Google Sheets remote) — React reuses i18next; components reach the
+NgRx store only through a **Facade layer** (`*.facade.ts`) → maps to a custom hook; the Mobile
+**WebView** surface is primarily UA detection (`wv`/`ww`) + `universal-link.service` +
+`sessionStorage`, not an explicit `window.ohmyhotelAndroid` bridge (AA-46 reconciles).
+
+The WebView bridge and Hana SSO templates are authored in **AA-46**
 (`webview-bridge.md`, `hana-sso.md`); the Strangler Fig routing template in **AA-47**
-(`strangler-fig.md`). Until those land, this section is the index, not the content.
+(`strangler-fig.md`).
 
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest pass from `appDir`.
