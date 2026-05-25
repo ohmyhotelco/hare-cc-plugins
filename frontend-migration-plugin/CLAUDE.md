@@ -200,9 +200,9 @@ NgRx store only through a **Facade layer** (`*.facade.ts`) → maps to a custom 
 **WebView** surface is primarily UA detection (`wv`/`ww`) + `universal-link.service` +
 `sessionStorage`, not an explicit `window.ohmyhotelAndroid` bridge (AA-46 reconciles).
 
-The WebView bridge and Hana SSO templates are authored in **AA-46**
-(`webview-bridge.md`, `hana-sso.md`); the Strangler Fig routing template in **AA-47**
-(`strangler-fig.md`).
+The WebView bridge and Hana SSO templates (`templates/webview-bridge.md`,
+`templates/hana-sso.md`) are authored in **AA-46** and drive the `fm-parity` webview/sso checks.
+The Strangler Fig routing template is authored in **AA-47** (`strangler-fig.md`).
 
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest pass from `appDir`.
