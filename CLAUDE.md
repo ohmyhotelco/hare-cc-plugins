@@ -7,6 +7,8 @@ Claude Code plugin monorepo.
 ```
 planning-plugin/              - Functional spec generation plugin (see planning-plugin/CLAUDE.md)
 frontend-react-plugin/        - Frontend React development plugin (see frontend-react-plugin/CLAUDE.md)
+frontend-migration-plugin/    - Angular 15 → React Router v7 migration plugin (see frontend-migration-plugin/CLAUDE.md)
+homepage-plugin/              - Marketing homepage generation plugin (see homepage-plugin/CLAUDE.md)
 backend-springboot-plugin/    - Backend Spring Boot development plugin (see backend-springboot-plugin/CLAUDE.md)
 .claude-plugin/                - Root marketplace manifest
 ```
