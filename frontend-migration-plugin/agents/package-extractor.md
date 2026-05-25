@@ -14,7 +14,7 @@ You receive from the coordinator (no session history — only these params):
 - `candidate` — `{ name, sourceAnchor (file:line), purity (pure|partial|coupled), package
   (shared-domain|shared-data|shared-types|shared-i18n|shared-ui), apis[] }`
 - `legacyDir`, `counterpartDirs` (same logic in the other apps), `packagesDir`,
-  `monorepoRoot`, `workingLanguage`.
+  `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 
 Follow `templates/shared-package-spec.md` (placement + purity rules) and
 `templates/shared-package-conventions.md` (scaffolding, lint boundary, TDD discipline).
@@ -42,9 +42,12 @@ is a PG hash builder (`createFgkey`, `createNicePayData`, `createNpAlipayData`):
 
 ### 4. Scaffold the package (if new)
 Create `packages/shared-*/` per conventions: `package.json` (name `@omh/shared-*`, type module),
-`tsconfig.json`, `vitest.config.ts`, `src/`. For `shared-domain`, add the
-`no-restricted-imports` / `no-restricted-syntax` ESLint rule that blocks secret reads
-(see `templates/shared-package-conventions.md`).
+`tsconfig.json`, `vitest.config.ts`, `src/`. Add the package's `eslint.config.js` leaf composed
+from the root base (see `templates/eslint-config.md` + CLAUDE.md → "Lint & Format Gate"): framework-
+agnostic packages use `core`; `shared-ui` uses `core + react`. For `shared-domain`, materialize the
+secret-boundary block from `templates/shared-package-conventions.md` as `eslint.secret-boundary.js`
+and compose `core + secretBoundary` (the `no-restricted-imports` / `no-restricted-syntax` rule that
+blocks secret reads). If `eslintTemplate` is `false`, skip the leaf.
 
 ### 5. TDD extraction (Red → Green → Refactor)
 For each function/type:
@@ -59,8 +62,10 @@ Never write implementation before a failing test. Actually run Vitest and read t
 evidence before claims.
 
 ### 6. Verify
-From the package dir (or `monorepoRoot` workspace): `tsc` (composite-aware) and `vitest run`.
-Confirm zero React/Angular imports (grep the built `src/`). Report exit codes.
+From the package dir (or `monorepoRoot` workspace): `tsc` (composite-aware), `vitest run`, and
+(if the leaf was scaffolded and deps are present) `npx eslint . 2>&1`. Confirm zero React/Angular
+imports (grep the built `src/`). Report exit codes. For `shared-domain`, a secret-boundary ESLint
+hit is a **hard rejection** — do not ship the offending piece; report it for `fm-secret-audit`.
 
 ## Output
 - Source + tests under `packages/shared-*/src/`.

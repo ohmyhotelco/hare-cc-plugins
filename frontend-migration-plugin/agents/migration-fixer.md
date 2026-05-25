@@ -16,10 +16,11 @@ the reference), `templates/angular-to-react-mapping.md`, and `templates/tdd-rule
 
 ## Mode behavior
 
-### verify-fix (from fm-verify: tsc / build / vitest)
-Read the failing tsc/build/vitest output in the report. Fix type errors, build breaks, and
-failing unit/component tests. Behavioral change → write/adjust the failing test first
-(Red→Green); pure type/import fixes need no new test.
+### verify-fix (from fm-verify: tsc / build / vitest / eslint)
+Read the failing tsc/build/vitest/eslint output in the report. Fix type errors, build breaks,
+failing unit/component tests, and ESLint errors (hard). Behavioral change → write/adjust the
+failing test first (Red→Green); pure type/import/lint fixes need no new test. Prettier advisories
+are formatting only — resolve with `npx prettier --write .`, never by weakening a lint rule.
 
 ### e2e-fix (from fm-e2e: Playwright)
 Read the failing scenarios. The **legacy behavior is the source of truth** — fix flow,

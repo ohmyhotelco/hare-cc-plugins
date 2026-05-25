@@ -10,7 +10,8 @@ You lay the foundation a page migration needs before any TDD phase runs: types, 
 and the per-app test harness. No TDD here (this is scaffolding), but the output must compile.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `routerMode`, `workingLanguage`.
+`targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDirs` (every `apps.*.legacyDir`, for
+the `.prettierignore`), `routerMode`, `workingLanguage`, `eslintTemplate`, `prettierTemplate`.
 
 ## Tasks
 
@@ -34,6 +35,25 @@ If the app's harness is absent, scaffold it in `{appDir}`:
   per app). The harness is set up here; `fm-e2e`/`fm-parity` (AA-45/46) use it.
 Do not auto-install npm deps — if packages are missing, list the `pnpm add -D …` command and
 note it; scaffold the config regardless.
+
+### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
+Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
+the flag is on → skip silently if off → never auto-install). You receive `eslintTemplate` and
+`prettierTemplate` flags.
+- **ESLint** (if `eslintTemplate` ≠ false): if `{monorepoRoot}/eslint.config.base.js` is absent,
+  generate it from `templates/eslint-config.md`; then ensure this app's
+  `{appDir}/eslint.config.js` leaf (core + react) exists.
+- **Prettier** (if `prettierTemplate` ≠ false): if `{monorepoRoot}/prettier.config.js` is absent,
+  generate it plus `.prettierignore` from `templates/prettier-config.md` (single root config covers
+  all workspaces — do not write per-app copies). The `.prettierignore` **must** list the legacy app
+  dirs (every `apps.*.legacyDir` from config, e.g. `apps/legacy-pc`, `apps/legacy-mobile`) so a
+  root-level Prettier run never reformats legacy source.
+- **Legacy stays out of scope.** Only `apps/web-*` and `packages/shared-*` get leaf configs; never
+  write an `eslint.config.js`/`prettier.config.js` into a legacy app, and keep the shared ESLint
+  file named `eslint.config.base.js` (not a root `eslint.config.js`). See CLAUDE.md → "Lint &
+  Format Gate" (Legacy is out of scope).
+- If required packages are missing for either, list the `pnpm add -D -w …` command and continue
+  (scaffold the config files regardless; the run is `fm-verify`'s job).
 
 ## Output
 - `{targetDir}` types, `mocks/`, and (if new) the app harness configs.

@@ -20,7 +20,7 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 ### Step 0: Read configuration
 1. Read `.claude/frontend-migration-plugin.json`. If absent → tell the user to run `fm-init`; stop.
 2. Resolve `app` (`--app` or `currentApp`), `legacyDir`, the other apps' `legacyDir`
-   (`counterpartDirs`), `packagesDir`, `monorepoRoot`, `workingLanguage`.
+   (`counterpartDirs`), `packagesDir`, `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 
 ### Step 1: Resolve candidates
 - If `--from <page>` is given, read `docs/migration/{app}/{page}/analysis.json` and take its
@@ -37,7 +37,8 @@ fresh, report and stop.
 ### Step 3: Extract each candidate
 For each candidate (sequentially — packages may build on each other), launch the
 `package-extractor` agent (Agent tool) with only its needed params (subagent isolation):
-`candidate`, `legacyDir`, `counterpartDirs`, `packagesDir`, `monorepoRoot`, `workingLanguage`.
+`candidate`, `legacyDir`, `counterpartDirs`, `packagesDir`, `monorepoRoot`, `workingLanguage`,
+`eslintTemplate`.
 
 The agent works test-first and writes `packages/shared-*/src` + tests. If it **rejects** a piece
 for the secret boundary (shared-domain payment secrets / hash builders), collect it for Step 5.

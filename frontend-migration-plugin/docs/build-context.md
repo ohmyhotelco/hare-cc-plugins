@@ -53,6 +53,11 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
 - **2-PR feature flag** — code PR (flag OFF) → gate pass → one-line flag-ON PR. Rollback = flip OFF.
 - **`shared-domain` secret boundary** — PG/OAuth secret reads and hash builders are lint-blocked
   in `shared-domain`; they move server-side (OMH-477).
+- **Lint & format gate** — `templates/eslint-config.md` (ESLint v9 flat, composed per workspace:
+  core / +react / +secret-boundary) and `templates/prettier-config.md` (Prettier 3, single-quote).
+  ESLint is a **hard** `fm-verify` check; Prettier `--check` is **advisory**. Config flags
+  `eslintTemplate`/`prettierTemplate` (default on) drive scaffold-once; deps are never auto-installed.
+  See CLAUDE.md → "Lint & Format Gate".
 - **Infra**: per-page state machine (`analyzed → … → flipped → done` + `*-failed`/`fixing`/
   `escalated`), `.lock` (30-min stale), Read-Modify-Write on state files, subagent isolation,
   "evidence before claims" 5-step gate.

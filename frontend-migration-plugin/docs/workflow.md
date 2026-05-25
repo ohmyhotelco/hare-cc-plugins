@@ -16,7 +16,7 @@ Per-page loop (repeat per page)
   /fm-analyze <page>           analysis.json
   /fm-plan <page>              migration-plan.json (tree, rendering, gates, flag, e2e scenarios)
   /fm-gen <page>               RR v7 page via TDD (foundation→api→store→component→page→integration)
-  /fm-verify <page>            build / tsc / vitest                      ── gate 1 (technical)
+  /fm-verify <page>            build / tsc / vitest / eslint (+prettier)  ── gate 1 (technical)
   /fm-e2e <page>               Playwright (dual-run, staging)            ── gate 2 (gatekeeper)
   /fm-parity <page>            visual / contract / webview / telemetry   ── gate 3 (legacy equiv.)
   /fm-route <page> --flag-off  code PR (flag OFF)
@@ -47,7 +47,7 @@ analyzed → planned → generated → verified → e2e-passed → parity-passed
 
 | Gate | Skill | Checks | On fail |
 | --- | --- | --- | --- |
-| 1 technical | `fm-verify` | build, tsc (composite-aware), vitest | `fm-fix` (verify-fix) |
+| 1 technical | `fm-verify` | build, tsc (composite-aware), vitest, eslint (hard); prettier --check (advisory) | `fm-fix` (verify-fix) |
 | 2 functional | `fm-e2e` | Playwright user flows; legacy dual-run; staging payment | `fm-fix` (e2e-fix) |
 | 3 parity | `fm-parity` | visual regression, contract freeze, WebView, telemetry | `fm-fix` (parity-fix) |
 
