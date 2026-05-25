@@ -202,7 +202,8 @@ NgRx store only through a **Facade layer** (`*.facade.ts`) → maps to a custom 
 
 The WebView bridge and Hana SSO templates (`templates/webview-bridge.md`,
 `templates/hana-sso.md`) are authored in **AA-46** and drive the `fm-parity` webview/sso checks.
-The Strangler Fig routing template is authored in **AA-47** (`strangler-fig.md`).
+The Strangler Fig routing template (`templates/strangler-fig.md`, authored in **AA-47**) drives
+`fm-route`: the nginx host/path topology, the 2-PR flag flow, and the gate-guarded flip.
 
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest pass from `appDir`.
