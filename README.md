@@ -2,7 +2,7 @@
 
 > **Ohmyhotel & Co** Claude Code plugins mono-repo
 
-A collection of Claude Code plugins that cover the full software delivery lifecycle — from functional specification through production code generation and marketing site creation.
+A collection of Claude Code plugins that cover the full software delivery lifecycle — from functional specification through production code generation, marketing site creation, and legacy migration.
 
 ## Plugins
 
@@ -67,6 +67,23 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 - Pipeline state machine with feature-level progress tracking
 - Java 21, Spring Boot 4.x, Gradle, PostgreSQL, JPA, Flyway, JUnit 5
 
+---
+
+### [Frontend Migration Plugin](./frontend-migration-plugin/) `v0.2.0`
+
+Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
+
+**Pipeline**: `fm-init` → `fm-analyze` → `fm-extract` → (`fm-plan` → `fm-gen` → `fm-verify` → `fm-e2e` → `fm-parity` → `fm-route`) ↔ `fm-fix`
+
+**Key features**:
+- Angular→React mapping catalog grounded in the real source (Facade→hook, NgRx Effect→TanStack Query, NgbModal→shadcn Dialog, ControlValueAccessor→RHF, `| i18next`→`t()`)
+- Three legacy-parity gates: technical (build/tsc/vitest), Playwright E2E (legacy dual-run + staging payment gateways), and parity (visual regression/contract freeze/WebView/telemetry)
+- Strangler Fig route flip with 2-PR feature flags, refused until all gates pass
+- Incremental re-migration (`fm-delta`) on legacy drift; `shared-domain` secret boundary enforced by lint
+- Playwright for E2E + visual regression (a deliberate divergence from frontend-react-plugin's agent-browser)
+
+---
+
 ## How They Work Together
 
 ```
@@ -106,6 +123,7 @@ planning-plugin                 homepage-plugin
 /plugin install frontend-react-plugin@ohmyhotelco --scope project
 /plugin install backend-springboot-plugin@ohmyhotelco --scope project
 /plugin install homepage-plugin@ohmyhotelco --scope project
+/plugin install frontend-migration-plugin@ohmyhotelco --scope project
 ```
 
 ## Management
