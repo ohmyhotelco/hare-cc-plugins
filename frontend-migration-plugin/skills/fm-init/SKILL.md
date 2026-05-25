@@ -54,6 +54,12 @@ details — they can be refined when those phases begin.
 - `workingLanguage` — `ko` (default) | `en` | `vi`.
 - `externalSkills` — default `true` (install Playwright, Vitest, React Router skills in
   Step 6).
+- `eslintTemplate` — default `true`. When `true`, generators auto-scaffold `eslint.config.js`
+  from `templates/eslint-config.md` where none exists (ESLint is a hard verify check). `false`
+  skips ESLint. See CLAUDE.md → "Lint & Format Gate".
+- `prettierTemplate` — default `true`. When `true`, generators auto-scaffold `prettier.config.js`
+  from `templates/prettier-config.md` where none exists (Prettier is advisory only). `false`
+  skips formatting.
 
 ### Step 5: Write Config and Initialize Tracker
 

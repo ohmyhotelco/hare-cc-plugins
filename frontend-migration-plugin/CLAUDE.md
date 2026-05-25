@@ -48,6 +48,8 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
   "currentApp": "pc",
   "workingLanguage": "ko",
   "externalSkills": true,
+  "eslintTemplate": true,
+  "prettierTemplate": true,
   "apps": {
     "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "ssr": "mixed", "webview": false,     "sso": false },
     "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "ssr": "mixed", "webview": true,      "sso": false },
@@ -59,6 +61,12 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
 - `currentApp` — the active surface for skills that operate on one app. PC-first.
 - `workingLanguage` — `ko` | `en` | `vi`. All user-facing skill output is in this language.
 - `externalSkills` — when `true`, `fm-init` installs Playwright, Vitest, and React Router skills.
+- `eslintTemplate` — when `true` (default), generators auto-scaffold `eslint.config.js` from
+  `templates/eslint-config.md` where none exists; `false` skips ESLint entirely. See "Lint &
+  Format Gate".
+- `prettierTemplate` — when `true` (default), generators auto-scaffold `prettier.config.js` from
+  `templates/prettier-config.md` where none exists; `false` skips formatting. Prettier is advisory
+  (never blocks a gate). See "Lint & Format Gate".
 - `apps.*.appDir` — the directory containing each app's `vite.config.*`, `tsconfig.json`,
   `package.json`. All build/test commands run from this directory (see "Build Command
   Working Directory"). Per-app because this is a monorepo with multiple target apps.
@@ -88,8 +96,8 @@ in later phases.
 ```
 
 Two hard gates run in series after generation: `fm-verify` (technical: build / tsc /
-Vitest) then `fm-parity` (legacy equivalence). `fm-e2e` (Playwright) is the functional
-gatekeeper between them. A route flip (`fm-route --flag-on`) is permitted only when
+Vitest / ESLint, plus an advisory Prettier check) then `fm-parity` (legacy equivalence).
+`fm-e2e` (Playwright) is the functional gatekeeper between them. A route flip (`fm-route --flag-on`) is permitted only when
 `fm-verify`, `fm-e2e`, and `fm-parity` all pass for the page.
 
 ## Per-page State Machine
@@ -186,6 +194,54 @@ All build/test commands (`npx vite`, `npx vitest`, `npx tsc`, `npx playwright`,
 2. If it has a `references` array → `npx tsc -b 2>&1`.
 3. Otherwise → `npx tsc --noEmit 2>&1`.
 
+## Lint & Format Gate
+
+ESLint and Prettier specs live in `templates/eslint-config.md` and `templates/prettier-config.md`.
+This is the shared contract every skill/agent that scaffolds or checks them follows — they
+reference this section rather than redefining the logic.
+
+**Roles.** ESLint is a **hard** check (code quality + the `shared-domain` secret boundary);
+Prettier is **advisory** (formatting only — reported, never blocks a gate or a route flip).
+`eslint-config-prettier` keeps the two from conflicting.
+
+**Scaffold-once layout** (monorepo, pnpm workspaces):
+- Root, once: `eslint.config.base.js`, `prettier.config.js`, `.prettierignore`.
+- Per app (`apps/web-*`): `eslint.config.js` leaf (core + react), scaffolded by
+  `foundation-generator`.
+- Per package (`packages/shared-*`): `eslint.config.js` leaf, scaffolded by `package-extractor`
+  (`shared-domain` composes the secret-boundary block — see `shared-package-conventions.md`).
+
+**Detection / scaffold / skip (uniform across `foundation-generator`, `package-extractor`,
+`integration-generator`, `fm-verify`, `migration-fixer`):**
+1. Glob for an existing config (`eslint.config.*` / `.eslintrc*`; `prettier.config.*` /
+   `.prettierrc*`). If present → use it as-is.
+2. If absent and the flag (`eslintTemplate` / `prettierTemplate`) is `true` or unset →
+   generate from the template (root + the relevant leaf).
+3. If absent and the flag is `false` → skip silently.
+4. **Never auto-install deps.** If required packages (see each template's dependency list) are
+   missing → skip the run, print the `pnpm add -D -w …` command, and mark `skipped` (not a
+   failure).
+
+**Commands** (from `{appDir}` / package dir — see "Build Command Working Directory"):
+- ESLint: `npx eslint . 2>&1` — exit ≠ 0 is a **gate failure**.
+- Prettier: `npx prettier --check . 2>&1` — exit ≠ 0 is an **advisory warning only**.
+
+**Legacy is out of scope (required).** The gate applies to v2 surfaces only (`apps/web-*`,
+`packages/shared-*`) — never to the legacy Angular apps (`apps/legacy-*`), which are being
+strangled out, not maintained to the new rules. Three things enforce this:
+1. Gate commands run from the new app's `appDir`/package dir, never from the monorepo root.
+2. The shared ESLint file is `eslint.config.base.js` (an explicit import), **not** a root
+   `eslint.config.js` — flat-config auto-discovery finds nothing at the root, and `apps/legacy-*`
+   get no leaf config, so legacy is never linted.
+3. `.prettierignore` lists the `legacyDir` paths from config (`apps/legacy-*`), so even a manual
+   root `prettier` run or format-on-save skips legacy.
+Never scaffold an ESLint/Prettier config inside a legacy app, and never promote
+`eslint.config.base.js` to a root `eslint.config.js`.
+
+**Secret-boundary exception.** The `shared-domain` `no-restricted-syntax`/`no-restricted-imports`
+hit is always a hard rejection regardless of flags — the piece is routed to `fm-secret-audit`, not
+shipped (OMH-477).
+
 ## Mapping Catalog & Gate Definitions
 
 The Angular→React mapping catalog and the shared-package spec live under `templates/`
@@ -206,8 +262,13 @@ The WebView bridge and Hana SSO templates (`templates/webview-bridge.md`,
 The Strangler Fig routing template (`templates/strangler-fig.md`, authored in **AA-47**) drives
 `fm-route`: the nginx host/path topology, the 2-PR flag flow, and the gate-guarded flip.
 
+The lint/format templates (`templates/eslint-config.md`, `templates/prettier-config.md`) define the
+monorepo's ESLint v9 flat config (composed per workspace, with the `shared-domain` secret boundary)
+and the Prettier 3 config; they drive the scaffolding and checks described in "Lint & Format Gate".
+
 Gate definitions (owning task):
-- **verify** (AA-43): build, `tsc`, Vitest pass from `appDir`.
+- **verify** (AA-43): build, `tsc`, Vitest, and ESLint (hard) pass from `appDir`; Prettier
+  `--check` runs as an advisory warning (non-blocking). See "Lint & Format Gate".
 - **e2e** (AA-45): Playwright user-flow suite; legacy dual-run; staging for transactional pages.
 - **parity** (AA-46): visual regression vs legacy baseline, API contract freeze diff,
   WebView bridge round-trip, telemetry dual-fire parity.

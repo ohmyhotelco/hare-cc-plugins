@@ -44,3 +44,7 @@ add it rather than risk a broken edit.
 ## Rules
 - Read-modify-write central files; never clobber other features' routes/keys/handlers.
 - Verify the app still type-checks after integration; report the result.
+- Lint the generated feature + the central files you modified: `npx eslint {generated paths}
+  {modified central files} 2>&1` (hard). Use the detection/scaffold/skip rule in CLAUDE.md →
+  "Lint & Format Gate" (scaffold the config from the template if `eslintTemplate` ≠ false and none
+  exists; skip with install hint if deps are missing). Prettier is advisory — out of scope here.

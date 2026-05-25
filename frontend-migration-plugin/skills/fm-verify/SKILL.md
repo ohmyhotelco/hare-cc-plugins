@@ -1,6 +1,6 @@
 ---
 name: fm-verify
-description: "Use after fm-gen to run the technical gate on a migrated page — build, TypeScript (composite-aware), and Vitest — from the app's appDir, and advance the page to verified."
+description: "Use after fm-gen to run the technical gate on a migrated page — build, TypeScript (composite-aware), Vitest, and ESLint (hard); Prettier --check is advisory — from the app's appDir, and advance the page to verified."
 argument-hint: "<page> [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash
@@ -29,6 +29,13 @@ Read `tsconfig.json` in `{appDir}`:
 - `npx vite build 2>&1` (or the app's build script).
 - `npx vitest run 2>&1`.
 
+### Step 3b: Lint (hard) & format (advisory)
+Follow CLAUDE.md → "Lint & Format Gate" (detection / scaffold-if-flag-on / skip-if-deps-missing).
+- **ESLint — hard.** `npx eslint . 2>&1`. Exit ≠ 0 is a gate failure. `skipped` (config absent &
+  `eslintTemplate: false`, or deps missing) does not fail the gate.
+- **Prettier — advisory.** `npx prettier --check . 2>&1`. Exit ≠ 0 is recorded as a warning only;
+  it never blocks `verified`. Surface the unformatted file list and suggest `npx prettier --write .`.
+
 ### Step 4: Read and judge (evidence before claims)
 Apply the 5-step gate: RUN → READ the full output (exit codes, error/test counts) → VERIFY →
 CLAIM. Do not report a pass you did not observe. Capture the failing output verbatim if any step
@@ -36,10 +43,13 @@ fails.
 
 ### Step 5: Record
 Update `tracker.json` (Read-Modify-Write):
-- all pass → `apps[app].pages[page].status = "verified"`, with `verifiedAt` and the tool summary.
-- any fail → `verify-failed`, with the failing summary.
+- tsc + build + vitest + eslint all pass (or eslint `skipped`) → `apps[app].pages[page].status =
+  "verified"`, with `verifiedAt`, the tool summary, and any Prettier advisory under
+  `formatWarnings`.
+- any hard tool fails (tsc / build / vitest / eslint) → `verify-failed`, with the failing summary.
+  A Prettier advisory alone never sets `verify-failed`.
 
 ### Step 6: Report
-In `workingLanguage`: per-tool result (tsc / build / vitest) with the evidence (exit code, counts).
-Next step: on pass → `/frontend-migration-plugin:fm-e2e {page}`; on fail →
-`/frontend-migration-plugin:fm-fix {page}`.
+In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the evidence (exit code,
+counts), plus the Prettier advisory if any. Next step: on pass → `/frontend-migration-plugin:fm-e2e
+{page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`.

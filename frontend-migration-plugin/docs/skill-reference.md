@@ -47,4 +47,5 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 
 `angular-to-react-mapping.md`, `shared-package-spec.md`, `shared-package-conventions.md`,
 `migration-plan-schema.md`, `tdd-rules.md`, `e2e-testing.md`, `webview-bridge.md`, `hana-sso.md`,
-`strangler-fig.md`.
+`strangler-fig.md`, `eslint-config.md` (ESLint v9 flat config, composed per workspace),
+`prettier-config.md` (Prettier 3, advisory). See CLAUDE.md → "Lint & Format Gate".
