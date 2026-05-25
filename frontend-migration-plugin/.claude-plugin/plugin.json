@@ -1,0 +1,9 @@
+{
+  "name": "frontend-migration-plugin",
+  "version": "0.1.0",
+  "description": "Claude Code plugin that drives the Angular 15 to React Router v7 migration: Angular source analysis, framework-agnostic shared-package extraction, RR v7 page generation, legacy-parity gates (Playwright E2E, visual, contract, WebView, telemetry), and Strangler Fig progress tracking",
+  "author": {
+    "name": "Justin Choi"
+  },
+  "keywords": ["migration", "angular", "react", "react-router", "strangler-fig", "codegen", "playwright", "e2e", "visual-regression", "parity", "tdd", "shadcn", "zustand", "i18next", "vitest", "msw", "monorepo", "claude-code"]
+}
