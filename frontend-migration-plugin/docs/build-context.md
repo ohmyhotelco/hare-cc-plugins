@@ -13,12 +13,13 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-05-25)
 
-- **Build complete — v0.2.0.** 15 `fm-*` skills, 14 agents, 9 templates, multilingual README,
-  session hooks, state-machine/lock infrastructure.
+- **Build complete — v0.2.1.** 15 `fm-*` skills, 14 agents, 11 templates, multilingual README,
+  session hooks, state-machine/lock infrastructure. v0.2.1 added the ESLint (hard) / Prettier
+  (advisory) lint & format gate (templates + pipeline wiring; legacy apps out of scope).
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
-- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); all 11 child
-  tasks are `Done`.
+- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); all 12 child
+  tasks (AA-40–AA-51) are `Done`.
 
 ## Build map (epic AA-39, project AA "AI Agent")
 
@@ -38,6 +39,7 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
 | AA-48 | #25 | `fm-delta` + `delta-modifier` + planner incremental mode |
 | AA-49 | #26 | `fm-clean-code`/`fm-test-review` + `quality-reviewer`/`test-reviewer` |
 | AA-50 | #27 | `fm-secret-audit` + `secret-auditor`; multilingual docs; v0.2.0 bump; root README/CLAUDE registration |
+| AA-51 | #29 | `eslint-config.md`/`prettier-config.md` + lint/format gate wiring (fm-init flags, fm-verify ESLint hard / Prettier advisory, scaffolding, legacy exclusion); v0.2.1 bump |
 
 ## Key design decisions
 

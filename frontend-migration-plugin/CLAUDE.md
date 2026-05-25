@@ -11,8 +11,8 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **build complete (v0.2.0)** — all `fm-*` skills, agents, and templates are implemented
-> (JIRA epic **AA-39**, tasks AA-40–AA-50). The plugin is feature-complete tooling; runtime
+> Status: **build complete (v0.2.1)** — all `fm-*` skills, agents, and templates are implemented
+> (JIRA epic **AA-39**, tasks AA-40–AA-51). The plugin is feature-complete tooling; runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -275,7 +275,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.2.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.2.1). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 
