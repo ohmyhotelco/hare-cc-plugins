@@ -45,6 +45,22 @@ anchors so `fm-gen` and the gates can trace each decision. Keep the final messag
 component count, rendering mode, shared deps, gates, E2E scenario count, and any blockers
 (unextracted shared candidates), in `workingLanguage`.
 
+## Incremental mode (fm-delta)
+
+When invoked with `mode: "incremental"` (by `fm-delta`), you do not write a full plan — you
+compute a **delta** against the page's existing baseline:
+1. Re-read the current legacy source and diff it against the page's `analysis.json` /
+   `migration-plan.json` baseline (compare component fields, API calls, mapping decisions,
+   shared deps).
+2. Classify each change as **added / modified / removed** and map it to the affected generated
+   file(s) and TDD phase.
+3. Compute the downward **cascade** (types → api → stores → components → pages → routes/i18n)
+   using the plan's cross-references — a changed type ripples to its consumers.
+4. Write `delta-plan.json` (shape in `agents/delta-modifier.md`): `summary` counts, `ops[]`
+   (op/phase/file/reason/legacyAnchor/behavioral), and `cascade`.
+Do not modify code — `delta-modifier` applies the ops. Report the change counts and whether the
+delta is large (the skill recommends full `fm-gen` above ~60% of files).
+
 ## Rules
 - Decisions only — no production code. The single file you write is `migration-plan.json`.
 - Every mapping decision cites the catalog section and the analysis anchor.
