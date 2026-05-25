@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.2.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.2.1). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -26,7 +26,8 @@ New to the migration? These terms recur throughout:
 - **The per-page loop** — every page goes through the same sequence: `analyze → plan → gen →
   verify → e2e → parity → route`. One page at a time.
 - **Three parity gates** — after a page is generated it must pass, in order: `fm-verify`
-  (technical: build/types/unit tests), `fm-e2e` (does it behave like legacy?), `fm-parity`
+  (technical: build/types/unit tests + ESLint; Prettier is advisory), `fm-e2e` (does it behave
+  like legacy?), `fm-parity`
   (does it look/contract/track like legacy?). A route flip is **blocked** until all three pass.
 - **Legacy dual-run** — `fm-e2e` runs the same scenario against both the legacy app and the new
   app and compares. The legacy behavior is the source of truth.
@@ -118,7 +119,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 
 | Gate | Skill | Checks | On fail |
 | --- | --- | --- | --- |
-| 1 · technical | `fm-verify` | build, `tsc` (composite-aware), Vitest | `fm-fix` (verify-fix) |
+| 1 · technical | `fm-verify` | build, `tsc` (composite-aware), Vitest, ESLint (hard); Prettier `--check` (advisory) | `fm-fix` (verify-fix) |
 | 2 · functional | `fm-e2e` | Playwright user flows; legacy dual-run; staging payment gateways | `fm-fix` (e2e-fix) |
 | 3 · parity | `fm-parity` | visual regression vs legacy baseline, API contract freeze, WebView bridge round-trip, telemetry dual-fire | `fm-fix` (parity-fix) |
 
@@ -131,7 +132,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-extract` | Lift logic into framework-agnostic `packages/shared-*` |
 | `fm-plan` | analysis.json → migration-plan.json |
 | `fm-gen` | Generate the RR v7 page via per-phase TDD |
-| `fm-verify` | Technical gate: build / tsc / vitest |
+| `fm-verify` | Technical gate: build / tsc / vitest / eslint (hard); prettier --check (advisory) |
 | `fm-fix` | Targeted repair loop for verify/e2e/parity failures |
 | `fm-e2e` | Playwright E2E gatekeeper (legacy dual-run, staging gateways) |
 | `fm-parity` | Visual / contract / WebView / telemetry parity |
@@ -172,6 +173,7 @@ tracker state it sets.
   context for picking the work back up.
 - `CLAUDE.md` — conventions, state-file & lock rules, design principles, and the mapping/gate index.
 - `templates/` — the Angular→React mapping catalog, shared-package spec/conventions, WebView
-  bridge, Hana SSO, Strangler Fig routing, TDD rules, and the migration-plan schema.
+  bridge, Hana SSO, Strangler Fig routing, TDD rules, the migration-plan schema, and the
+  ESLint/Prettier lint & format gate configs (`eslint-config.md`, `prettier-config.md`).
 
 Localized: `README.ko.md`, `README.vi.md`.

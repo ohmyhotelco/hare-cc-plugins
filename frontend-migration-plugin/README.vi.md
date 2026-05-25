@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.2.0). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.2.1). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -25,7 +25,7 @@ Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
 - **Vòng lặp theo trang** — mỗi trang đi qua cùng một chuỗi: `analyze → plan → gen → verify →
   e2e → parity → route`. Mỗi lần một trang.
 - **Ba cổng parity** — sau khi sinh, trang phải vượt qua theo thứ tự: `fm-verify` (kỹ thuật:
-  build/types/unit test), `fm-e2e` (có hành xử như bản cũ?), `fm-parity` (có giống về giao
+  build/types/unit test + ESLint; Prettier là advisory), `fm-e2e` (có hành xử như bản cũ?), `fm-parity` (có giống về giao
   diện/contract/tracking?). Route chỉ được chuyển khi cả ba đạt.
 - **Dual-run với bản cũ** — `fm-e2e` chạy cùng kịch bản trên cả app cũ và app mới rồi so sánh.
   Hành vi của bản cũ là chuẩn.
@@ -116,7 +116,7 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 
 | Cổng | Skill | Kiểm tra | Khi fail |
 | --- | --- | --- | --- |
-| 1 · kỹ thuật | `fm-verify` | build, `tsc` (composite-aware), Vitest | `fm-fix` (verify-fix) |
+| 1 · kỹ thuật | `fm-verify` | build, `tsc` (composite-aware), Vitest, ESLint (hard); Prettier `--check` (advisory) | `fm-fix` (verify-fix) |
 | 2 · chức năng | `fm-e2e` | luồng người dùng Playwright; dual-run với bản cũ; cổng thanh toán staging | `fm-fix` (e2e-fix) |
 | 3 · parity | `fm-parity` | visual regression so bản cũ, đóng băng API contract, round-trip WebView bridge, telemetry dual-fire | `fm-fix` (parity-fix) |
 
@@ -151,6 +151,6 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 - `docs/build-context.md` — quá trình build, quyết định thiết kế, ngữ cảnh giữa các phiên
 - `CLAUDE.md` — quy ước, quy tắc state-file & lock, nguyên tắc thiết kế, chỉ mục mapping/gate
 - `templates/` — catalog ánh xạ, spec/quy ước shared package, WebView bridge, Hana SSO,
-  Strangler Fig, quy tắc TDD, schema migration-plan
+  Strangler Fig, quy tắc TDD, schema migration-plan, cấu hình cổng lint & format ESLint/Prettier (`eslint-config.md`, `prettier-config.md`)
 
 English: `README.md` · 한국어: `README.ko.md`
