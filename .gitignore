@@ -29,3 +29,6 @@ planning-plugin/docs/specs/**/ui-dsl/
 *.tmp
 __pycache__/
 node_modules/
+
+# frontend-migration-plugin planning docs (not version-controlled)
+frontend-migration-plugin/raw/
