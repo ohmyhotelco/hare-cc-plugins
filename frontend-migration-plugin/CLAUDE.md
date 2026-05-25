@@ -11,10 +11,11 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Scope today: this repository is being built task-by-task under JIRA epic **AA-39**.
-> `fm-init` and the foundation conventions below ship in **AA-40**. Other `fm-*` skills
-> are defined here as the target surface but are implemented in later tasks (see
-> "Skills" below for the owning task of each).
+> Status: **build complete (v0.2.0)** — all `fm-*` skills, agents, and templates are implemented
+> (JIRA epic **AA-39**, tasks AA-40–AA-50). The plugin is feature-complete tooling; runtime
+> execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
+> and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
+> source-confirmed corrections, see `docs/build-context.md`.
 
 ## Target Stack
 
@@ -213,9 +214,13 @@ Gate definitions (owning task):
 
 ## Skills
 
-| Skill | Purpose | Owning task |
+All skills are implemented (v0.2.0). The "Built in" column records the task that delivered each
+(provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
+the full build map.
+
+| Skill | Purpose | Built in |
 | --- | --- | --- |
-| `fm-init` | Initialize config + tracker | AA-40 (this) |
+| `fm-init` | Initialize config + tracker | AA-40 |
 | `fm-analyze` | Analyze a legacy Angular target → analysis.json | AA-41 |
 | `fm-extract` | Lift logic into framework-agnostic `packages/shared-*` | AA-42 |
 | `fm-plan` / `fm-gen` / `fm-verify` | Generate an RR v7 page via TDD | AA-43 |
