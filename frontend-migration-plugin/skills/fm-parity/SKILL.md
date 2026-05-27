@@ -34,8 +34,15 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: fail` → `parity-failed`.
 Release the lock.
 
+### Step 3b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+(Agent) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
+`parityReportPath` + the legacy baseline, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`). Codex cross-checks for regressions passed off as parity. Advisory — never
+changes the page status. Surface its verdict below.
+
 ### Step 4: Report
 In `workingLanguage`: per-gate result (visual / contract / webview / telemetry) with evidence,
-and the next step — on pass `/frontend-migration-plugin:fm-route {page} --flag-off` (then the
-flag-on PR after review); on fail `/frontend-migration-plugin:fm-fix {page}` (auto-detects
-parity-fix mode).
+the Codex audit verdict (advisory), and the next step — on pass
+`/frontend-migration-plugin:fm-route {page} --flag-off` (then the flag-on PR after review); on fail
+`/frontend-migration-plugin:fm-fix {page}` (auto-detects parity-fix mode).

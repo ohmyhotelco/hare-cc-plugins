@@ -51,6 +51,13 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
    `{ "status": "analyzed", "kind": ..., "requiredGates": [...], "risk": ..., "updatedAt": ISO }`.
 3. Release the lock.
 
+### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+(Agent) for the `analyze` stage (params: `app`, `page`, `stage="analyze"`, `appDir`, `legacyDir`,
+`analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`). It
+records `codex-audit.json` + tracker `codexAudit.analyze`. Advisory — never changes the page
+status. Surface its verdict in the report.
+
 ### Step 5: Report
 Summarize in `workingLanguage`:
 - Target, risk, and `requiredGates` (call out `secret` / `sso` / `webview` / `telemetry` when

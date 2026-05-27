@@ -13,13 +13,14 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-05-25)
 
-- **Build complete — v0.2.1.** 15 `fm-*` skills, 14 agents, 11 templates, multilingual README,
+- **Build complete — v0.3.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. v0.2.1 added the ESLint (hard) / Prettier
-  (advisory) lint & format gate (templates + pipeline wiring; legacy apps out of scope).
+  (advisory) lint & format gate; v0.3.0 added the **Codex independent-audit layer** (`fm-audit-codex`
+  + `codex-auditor`; advisory second opinion at every stage; design in `docs/design/`).
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
-- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); all 12 child
-  tasks (AA-40–AA-51) are `Done`.
+- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); all 13 child
+  tasks (AA-40–AA-51, AA-53) are `Done`.
 
 ## Build map (epic AA-39, project AA "AI Agent")
 
@@ -40,6 +41,7 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
 | AA-49 | #26 | `fm-clean-code`/`fm-test-review` + `quality-reviewer`/`test-reviewer` |
 | AA-50 | #27 | `fm-secret-audit` + `secret-auditor`; multilingual docs; v0.2.0 bump; root README/CLAUDE registration |
 | AA-51 | #29 | `eslint-config.md`/`prettier-config.md` + lint/format gate wiring (fm-init flags, fm-verify ESLint hard / Prettier advisory, scaffolding, legacy exclusion); v0.2.1 bump |
+| AA-53 | TBD | `fm-audit-codex` + `codex-auditor` + `codex-audit.md`; in-loop advisory Codex audit across all 7 stages; `fm-route --flag-on` soft ack; design doc; v0.3.0 bump |
 
 ## Key design decisions
 
@@ -60,6 +62,12 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
   ESLint is a **hard** `fm-verify` check; Prettier `--check` is **advisory**. Config flags
   `eslintTemplate`/`prettierTemplate` (default on) drive scaffold-once; deps are never auto-installed.
   See CLAUDE.md → "Lint & Format Gate".
+- **Codex independent audit (v0.3.0)** — Codex used as an advisory **auditor**, not a port or
+  bridge: Claude runs the pipeline and calls Codex (via the `codex` plugin's `codex-cli-runtime` /
+  headless `codex exec`) for an independent second review at every stage, recorded in
+  `codex-audit.json`. Default-on (`codexAudit`), auto-skips if Codex absent, never changes the FSM;
+  the only soft gate is the high-severity acknowledgement at `fm-route --flag-on`. Design:
+  `docs/design/codex-audit-layer.md`. See CLAUDE.md → "Codex Independent Audit".
 - **Infra**: per-page state machine (`analyzed → … → flipped → done` + `*-failed`/`fixing`/
   `escalated`), `.lock` (30-min stale), Read-Modify-Write on state files, subagent isolation,
   "evidence before claims" 5-step gate.

@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.2.1). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.3.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -37,6 +37,10 @@ New to the migration? These terms recur throughout:
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
   (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+- **Codex independent audit** — when enabled (default), every stage also gets a second, independent
+  review from **Codex** (advisory), recorded in `codex-audit.json`. It never changes a page's
+  status; the only soft gate is `fm-route --flag-on`, which asks you to acknowledge any unresolved
+  high-severity Codex findings before flipping. Requires the Codex CLI; auto-skips if absent.
 
 ## Prerequisites
 
@@ -142,6 +146,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-clean-code` | Standalone code-quality audit |
 | `fm-test-review` | Standalone test-quality audit |
 | `fm-secret-audit` | Secret inventory + relocation guidance |
+| `fm-audit-codex` | Independent Codex audit of each stage (advisory second opinion) |
 
 See `docs/skill-reference.md` for each skill's inputs/outputs, the agent it drives, and the
 tracker state it sets.

@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.2.1). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.3.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -35,6 +35,10 @@ Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
   bản cũ), rồi PR một dòng bật flag **ON** sau khi qua cổng. Rollback = tắt flag.
 - **Máy trạng thái + tracker** — trạng thái mỗi trang nằm trong `docs/migration/tracker.json`
   (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+- **Kiểm toán độc lập bằng Codex** — khi bật (mặc định), mỗi giai đoạn nhận thêm một đánh giá độc
+  lập từ **Codex** (advisory), ghi vào `codex-audit.json`. Không đổi trạng thái trang; soft gate duy
+  nhất là `fm-route --flag-on` yêu cầu xác nhận (ack) các phát hiện high-severity chưa xử lý. Cần
+  Codex CLI; tự bỏ qua nếu không có.
 
 ## Điều kiện tiên quyết
 
@@ -124,7 +128,7 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 
 `fm-init` · `fm-analyze` · `fm-extract` · `fm-plan` · `fm-gen` · `fm-verify` · `fm-fix` ·
 `fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
-`fm-test-review` · `fm-secret-audit`
+`fm-test-review` · `fm-secret-audit` · `fm-audit-codex`
 
 Đầu vào/đầu ra, agent tương ứng và trạng thái tracker của từng skill: xem `docs/skill-reference.md`.
 

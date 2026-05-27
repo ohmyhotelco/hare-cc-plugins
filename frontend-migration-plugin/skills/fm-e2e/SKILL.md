@@ -40,7 +40,15 @@ Read `e2e-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: fail` → `e2e-failed`.
 Release the lock.
 
+### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+(Agent) for the `e2e` stage (params: `app`, `page`, `stage="e2e"`, `appDir`, `legacyDir`,
+`e2eReportPath` + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`). The Codex cross-check here targets **false passes** — whether the scenarios
+truly cover legacy parity. Advisory — never changes the page status. Surface its verdict below.
+
 ### Step 5: Report
 In `workingLanguage`: scenarios run (msw vs staging), pass/fail with evidence, legacy dual-run
-parity, and the next step — on pass `/frontend-migration-plugin:fm-parity {page}`; on fail
-`/frontend-migration-plugin:fm-fix {page}` (auto-detects e2e-fix mode).
+parity, the Codex audit verdict (advisory), and the next step — on pass
+`/frontend-migration-plugin:fm-parity {page}`; on fail `/frontend-migration-plugin:fm-fix {page}`
+(auto-detects e2e-fix mode).

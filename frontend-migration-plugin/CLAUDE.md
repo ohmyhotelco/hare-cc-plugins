@@ -50,6 +50,8 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
   "externalSkills": true,
   "eslintTemplate": true,
   "prettierTemplate": true,
+  "codexAudit": true,
+  "codexAuditStages": ["analyze", "plan", "gen", "verify", "e2e", "parity", "route"],
   "apps": {
     "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "ssr": "mixed", "webview": false,     "sso": false },
     "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "ssr": "mixed", "webview": true,      "sso": false },
@@ -67,6 +69,10 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
 - `prettierTemplate` — when `true` (default), generators auto-scaffold `prettier.config.js` from
   `templates/prettier-config.md` where none exists; `false` skips formatting. Prettier is advisory
   (never blocks a gate). See "Lint & Format Gate".
+- `codexAudit` — when `true` (default), the pipeline runs an independent **Codex audit** of each
+  stage's artifact (advisory). Auto-skips if the Codex CLI/runtime is absent, so default-on is
+  safe. See "Codex Independent Audit".
+- `codexAuditStages` — which stages the in-loop Codex audit covers (default: all seven).
 - `apps.*.appDir` — the directory containing each app's `vite.config.*`, `tsconfig.json`,
   `package.json`. All build/test commands run from this directory (see "Build Command
   Working Directory"). Per-app because this is a monorepo with multiple target apps.
@@ -242,6 +248,37 @@ Never scaffold an ESLint/Prettier config inside a legacy app, and never promote
 hit is always a hard rejection regardless of flags — the piece is routed to `fm-secret-audit`, not
 shipped (OMH-477).
 
+## Codex Independent Audit
+
+An **advisory** layer that uses **Codex as an independent auditor** of Claude's migration work. For
+every artifact the pipeline produces, Codex gives a second, independent review recorded alongside
+Claude's own gate results. Codex reads and evaluates only — it never migrates. This is **neither a
+port nor a bridge**: Claude runs the pipeline as always and calls Codex as a second opinion through
+the `codex` plugin's `codex-cli-runtime` contract (headless `codex exec`). Full design:
+`docs/design/codex-audit-layer.md`; rubric: `templates/codex-audit.md`.
+
+**Components.** `fm-audit-codex` (manual/re-run entry), `codex-auditor` (the agent that delegates
+to Codex), `templates/codex-audit.md` (per-stage rubric + schema), `codex-audit.json` (per-page
+state), tracker `pages[page].codexAudit` (per-stage verdict summary).
+
+**Coverage.** All seven stages: `analyze`, `plan`, `gen`, `verify`, `e2e`, `parity`, `route`.
+
+**In-loop invocation.** When `codexAudit` is enabled and Codex is available, each artifact-producing
+skill (`fm-analyze`/`fm-plan`/`fm-gen`/`fm-verify`/`fm-e2e`/`fm-parity`), **after** it records its
+own result and releases the lock, spawns `codex-auditor` for that stage. The auditor gathers the
+stage inputs, runs Codex, reads the real output, and Read-Modify-Writes `codex-audit.json` +
+the tracker. The skill surfaces the verdict (advisory) in its report.
+
+**Advisory semantics.** A Codex verdict (`pass|concerns|fail|error|skipped`) **never** changes the
+per-page FSM state and never sets a `*-failed` state. The single consumer that gates on it is
+`fm-route --flag-on`, which surfaces unresolved **high-severity** findings and requires an explicit
+**acknowledgement** before flipping (a soft gate — a human can override; Codex stays advisory).
+
+**Independence & skip.** The auditor passes Codex only the artifacts + legacy source (never Claude's
+reasoning). If the Codex CLI/runtime is absent the audit is `skipped` (never a failure); a failed/
+unparseable `codex exec` is `error` (advisory). Codex prompts and `codex-audit.json` are English;
+user-facing summaries are in `workingLanguage`.
+
 ## Mapping Catalog & Gate Definitions
 
 The Angular→React mapping catalog and the shared-package spec live under `templates/`
@@ -292,6 +329,7 @@ the full build map.
 | `fm-delta` | Incremental re-migration on legacy drift | AA-48 |
 | `fm-clean-code` / `fm-test-review` | Code-quality / test-quality audit | AA-49 |
 | `fm-secret-audit` | Secret inventory + relocation guidance | AA-50 |
+| `fm-audit-codex` | Independent Codex audit of each stage (advisory) | AA-53 |
 
 ## File Structure
 

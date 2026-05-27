@@ -51,6 +51,13 @@ becomes `gen-failed`.
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Release the lock.
 
+### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available and generation succeeded, after the lock is
+released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
+`appDir`, `legacyDir`, the generated diff + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`). Codex checks mapping fidelity, RR v7 idioms, and secret-boundary violations.
+Advisory — never changes the page status. Surface its verdict in the report.
+
 ### Step 6: Report
 In `workingLanguage`: phases completed, files created, total tests with RED/GREEN evidence from
 each TDD phase, harness status, and any manual integration steps. Next step:

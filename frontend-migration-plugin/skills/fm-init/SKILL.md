@@ -60,6 +60,12 @@ details — they can be refined when those phases begin.
 - `prettierTemplate` — default `true`. When `true`, generators auto-scaffold `prettier.config.js`
   from `templates/prettier-config.md` where none exists (Prettier is advisory only). `false`
   skips formatting.
+- `codexAudit` — default `true`. When `true`, the pipeline runs an independent **Codex audit** of
+  each stage's artifact (advisory; auto-skips if Codex is absent). See CLAUDE.md → "Codex
+  Independent Audit". Detect the Codex CLI/runtime here (e.g. `command -v codex`); if absent, warn
+  that audits will be skipped (do not fail setup, record the flag regardless).
+- `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
+  `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
 
 ### Step 5: Write Config and Initialize Tracker
 

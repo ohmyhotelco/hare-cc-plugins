@@ -36,6 +36,13 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
    plus `rendering`, `requiredGates`, `flagKey`, `updatedAt`.
 3. Release the lock.
 
+### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+(Agent) for the `plan` stage (params: `app`, `page`, `stage="plan"`, `appDir`, `legacyDir`,
+`planPath` + `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`). Records `codex-audit.json` + tracker `codexAudit.plan`. Advisory — never
+changes the page status. Surface its verdict in the report.
+
 ### Step 5: Report
 In `workingLanguage`: component count, rendering mode, shared deps, required gates, E2E scenario
 count, and **blockers** (unextracted shared candidates → run `fm-extract` first). Next step:

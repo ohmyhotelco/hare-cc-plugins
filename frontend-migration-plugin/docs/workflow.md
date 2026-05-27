@@ -28,7 +28,13 @@ On legacy drift
 
 Anytime
   /fm-progress                 read-only dashboard
+  /fm-audit-codex <page>       independent Codex audit of a page's stages (advisory)
 ```
+
+When `codexAudit` is enabled (default), each stage also gets an **independent Codex audit** in-loop
+(advisory) — a second opinion recorded in `codex-audit.json` that never changes the FSM state. The
+only soft gate is `fm-route --flag-on`, which requires acknowledging unresolved high-severity Codex
+findings. See CLAUDE.md → "Codex Independent Audit".
 
 ## Per-page state machine
 

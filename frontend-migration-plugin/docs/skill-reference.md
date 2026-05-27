@@ -22,6 +22,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
 | `fm-test-review` | `test-reviewer` | generated tests → test-quality report (read-only) | — |
 | `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` → `secret-audit-report.json` (read-only) | — |
+| `fm-audit-codex` | `codex-auditor` | stage artifacts → independent Codex review → `codex-audit.json` (advisory) | `pages[page].codexAudit[stage]` |
 
 ## Agents
 
@@ -42,10 +43,14 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 - **delta-modifier** — applies `delta-plan.json` ops; preserves prior fm-fix edits; cascade order.
 - **quality-reviewer** / **test-reviewer** — standalone code/test quality audits.
 - **secret-auditor** — legacy secret inventory + exposure classification (posture only; OMH-477).
+- **codex-auditor** — independent Codex review of one stage's artifact via the `codex-cli-runtime`
+  contract (headless `codex exec`); records `codex-audit.json`. Advisory; never migrates or changes
+  pipeline state. See CLAUDE.md → "Codex Independent Audit".
 
 ## Templates
 
 `angular-to-react-mapping.md`, `shared-package-spec.md`, `shared-package-conventions.md`,
 `migration-plan-schema.md`, `tdd-rules.md`, `e2e-testing.md`, `webview-bridge.md`, `hana-sso.md`,
 `strangler-fig.md`, `eslint-config.md` (ESLint v9 flat config, composed per workspace),
-`prettier-config.md` (Prettier 3, advisory). See CLAUDE.md → "Lint & Format Gate".
+`prettier-config.md` (Prettier 3, advisory), `codex-audit.md` (per-stage Codex audit rubric). See
+CLAUDE.md → "Lint & Format Gate" and "Codex Independent Audit".
