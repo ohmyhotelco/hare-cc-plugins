@@ -63,6 +63,25 @@ React Router v7 (framework mode) · TypeScript (strict) · Tailwind · shadcn/ui
 Zustand · axios · react-hook-form + zod · i18next · dayjs · Vitest + MSW · **Playwright** (E2E +
 visual regression — a deliberate divergence from frontend-react-plugin's agent-browser).
 
+## External skills (shared with frontend-react-plugin)
+
+Generic React/test knowledge is not re-authored here — `fm-init` installs the same upstream skills
+`frontend-react-plugin` uses, via `npx skills add … --copy` (vendored into `.claude/skills/`), so
+generated React stays consistent across the org. Migration-specific knowledge (Angular→React
+mapping, Strangler Fig, WebView/SSO) lives in `templates/` instead.
+
+| Skill | Source | Purpose |
+| --- | --- | --- |
+| `react-router-framework-mode` | `remix-run/agent-skills` | RR v7 **framework-mode** routing (loader/action, per-route SSR/SSG/SPA) |
+| `vitest` | `antfu/skills` | Unit/component test patterns |
+| `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance — applied **SSR-aware** (framework mode, not a Vite SPA) |
+| `vercel-composition-patterns` | `vercel-labs/agent-skills` | Component composition patterns |
+
+Agents load each per phase, guarded by existence — a declined/absent install (or
+`externalSkills: false`) is skipped, never fatal. `web-design-guidelines` and `agent-browser`
+(used by frontend-react-plugin) are intentionally not adopted: UI fidelity is judged by `fm-parity`
+against the legacy baseline, and E2E runs on Playwright.
+
 ## Quickstart — migrate your first page
 
 After the prerequisites are met:

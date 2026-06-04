@@ -61,6 +61,25 @@ React Router v7 (framework mode) · TypeScript (strict) · Tailwind · shadcn/ui
 Zustand · axios · react-hook-form + zod · i18next · dayjs · Vitest + MSW · **Playwright** (E2E +
 visual regression — khác biệt có chủ đích so với agent-browser của frontend-react-plugin).
 
+## Skill bên ngoài (dùng chung với frontend-react-plugin)
+
+Kiến thức React/kiểm thử tổng quát không được viết lại ở đây — `fm-init` cài đặt cùng bộ skill
+upstream mà `frontend-react-plugin` dùng, qua `npx skills add … --copy` (vendor vào
+`.claude/skills/`), để mã React sinh ra nhất quán trên toàn tổ chức. Kiến thức riêng của di trú
+(ánh xạ Angular→React, Strangler Fig, WebView/SSO) nằm trong `templates/`.
+
+| Skill | Nguồn | Mục đích |
+| --- | --- | --- |
+| `react-router-framework-mode` | `remix-run/agent-skills` | Định tuyến RR v7 **framework mode** (loader/action, SSR/SSG/SPA theo route) |
+| `vitest` | `antfu/skills` | Pattern kiểm thử unit/component |
+| `vercel-react-best-practices` | `vercel-labs/agent-skills` | Hiệu năng React — áp dụng **SSR-aware** (framework mode, không phải Vite SPA) |
+| `vercel-composition-patterns` | `vercel-labs/agent-skills` | Pattern composition component |
+
+Các agent nạp từng skill theo từng pha, có kiểm tra tồn tại — nếu cài đặt bị từ chối/vắng mặt
+(hoặc `externalSkills: false`) thì bỏ qua, không gây lỗi. `web-design-guidelines` và `agent-browser`
+(mà frontend-react-plugin dùng) cố ý không được áp dụng: độ trung thực UI do `fm-parity` đánh giá so
+với bản cũ, và E2E chạy trên Playwright.
+
 ## Bắt đầu nhanh — di trú trang đầu tiên
 
 Sau khi đã đủ điều kiện tiên quyết:

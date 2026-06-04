@@ -12,6 +12,17 @@ to legacy (that is the parity gate) but also clean. Standalone — no pipeline s
 You receive (no session history): `path` (file or dir to review), `appDir`, `workingLanguage`.
 Read `templates/angular-to-react-mapping.md` (conventions) and the migration `CLAUDE.md`.
 
+Also Read these shared external skills when present under `.claude/skills/` (installed by `fm-init`
+— the same skills `frontend-react-plugin` reviews against), and apply each to the matching
+dimension; skip any that are absent:
+- `.claude/skills/vercel-composition-patterns/SKILL.md` → **Composition** (1).
+- `.claude/skills/vercel-react-best-practices/SKILL.md` → **Re-render / performance** (5) and
+  architecture under **Composition** (1). Apply its rendering-strategy rules too — these pages are
+  RR v7 **framework mode**, not a Vite SPA, so **do not skip SSR rules**.
+- `.claude/skills/react-router-framework-mode/SKILL.md` → routing idioms (loader/route data,
+  framework-mode route config) under **Convention compliance** (6).
+- `.claude/skills/vitest/SKILL.md` → test files, when the reviewed `path` includes tests.
+
 ## Dimensions
 
 1. **Composition** — no boolean-prop explosion; prefer compound components / children; React 19

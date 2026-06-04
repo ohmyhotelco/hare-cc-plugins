@@ -15,7 +15,7 @@ Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
-(`--app`/`currentApp`), `targetDir`, `appDir`, `packagesDir`, `routerMode`, `workingLanguage`.
+(`--app`/`currentApp`), `targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
 
 ### Step 1: Require analysis
 Check `docs/migration/{app}/{page}/analysis.json`. If missing:
@@ -28,7 +28,7 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 ### Step 3: Plan
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
 `outPath` = `docs/migration/{app}/{page}/migration-plan.json`, `targetDir`, `appDir`,
-`packagesDir`, `routerMode`, `workingLanguage`.
+`packagesDir`, `workingLanguage`.
 
 ### Step 4: Record
 1. Verify `migration-plan.json` exists and parses (`jq empty`).

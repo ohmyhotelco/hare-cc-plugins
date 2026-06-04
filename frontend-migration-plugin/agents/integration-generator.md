@@ -8,7 +8,12 @@ tools: Read, Glob, Grep, Write, Edit, Bash
 
 You connect the page's generated code to the app's central wiring. Last phase of `fm-gen`.
 
-You receive: `app`, `page`, `planPath`, `targetDir`, `appDir`, `routerMode`, `workingLanguage`.
+You receive: `app`, `page`, `planPath`, `targetDir`, `appDir`, `workingLanguage`.
+
+When present, Read `.claude/skills/react-router-framework-mode/SKILL.md` (the shared skill installed
+by `fm-init`) and apply RR v7 **framework-mode** routing patterns — `route`/`ssr`/`prerender`
+config, loader/action data, nested layouts — to the route wiring below; if absent, proceed from the
+plan's rendering modes alone.
 
 ## Tasks
 
@@ -19,7 +24,7 @@ central route config:
   framework mode).
 - Nest under the correct layout route. Preserve auth: protected routes use the loader/redirect or
   the login-modal UX per the analysis (do not convert the modal-UX guard into a hard redirect).
-- Support the configured `routerMode` patterns.
+- Apply the framework-mode routing patterns from the skill above.
 
 ### 2. i18n
 Generate `{targetDir}/i18n.ts` registering the page's namespaces/keys (`tl.*`) with the shared

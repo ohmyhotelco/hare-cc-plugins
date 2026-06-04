@@ -11,7 +11,7 @@ you decide the shape of the RR v7 implementation from the analysis and the mappi
 
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `outPath` (`migration-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `routerMode`, `workingLanguage`.
+`targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
 
 Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React target), and
 `templates/migration-plan-schema.md` (the output shape + rendering decision table).

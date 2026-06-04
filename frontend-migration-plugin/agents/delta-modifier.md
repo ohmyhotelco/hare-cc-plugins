@@ -14,6 +14,11 @@ You receive (no session history): `app`, `page`, `deltaPlanPath` (`delta-plan.js
 `targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`,
 `migration-plan.json`, `templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`.
 
+For each op, Read the matching shared external skill under `.claude/skills/` (installed by
+`fm-init`) for that op's `phase` and follow its rules; skip any that are absent: `vitest` (all
+phases), `vercel-composition-patterns` (component), `vercel-react-best-practices` (page —
+SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integration).
+
 ## delta-plan.json (input, written by migration-planner incremental mode)
 ```jsonc
 {

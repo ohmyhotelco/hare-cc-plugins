@@ -17,7 +17,7 @@ output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Require `docs/migration/{app}/{page}/migration-plan.json`
 (missing → run `fm-plan {page}`; stop). Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`,
-`routerMode`, `workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
+`workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
 + `blockers`.
 
 ### Step 1: Blockers

@@ -37,6 +37,28 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
 | Network mock | MSW v2 | |
 | **E2E / visual** | **Playwright** | **Divergence from `frontend-react-plugin` (agent-browser).** Required for visual-regression baselines (`toHaveScreenshot`), legacy-vs-new dual-run, and staging payment-gateway E2E |
 
+## External Skills (shared with frontend-react-plugin)
+
+The generic React/test knowledge is **not** re-authored here — it is the same upstream skill set
+`frontend-react-plugin` uses, installed by `fm-init` (`externalSkills`, default on) through the same
+`npx skills add … -a claude-code -y --copy` mechanism and vendored under `.claude/skills/`. This
+keeps generated React consistent across the org. Migration-specific knowledge (Angular→React mapping,
+Strangler Fig, WebView/SSO) stays in `templates/` — the dividing line is *generic → shared skill,
+migration-specific → bundled template*.
+
+| Skill | Source | Loaded by (per phase) | Notes |
+| --- | --- | --- | --- |
+| `react-router-framework-mode` | `remix-run/agent-skills` | `integration-generator`, `tdd-cycle-runner` (page), `quality-reviewer`, `migration-fixer`, `delta-modifier` | **framework mode** (not declarative/data) — matches the RR v7 + per-route SSR/SSG/SPA target |
+| `vitest` | `antfu/skills` | every TDD phase (`tdd-cycle-runner`, `package-extractor`, fixers, `quality-reviewer` tests) | unit/component test patterns |
+| `vercel-react-best-practices` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (page), `quality-reviewer`, fixers | applied **SSR-aware** — framework mode is not a Vite SPA, so the SSR/RSC rules are **not** skipped (inversion vs `frontend-react-plugin`) |
+| `vercel-composition-patterns` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (component), `quality-reviewer`, fixers | component composition rules |
+
+Loading is **guarded by existence**: each agent Reads a skill's `SKILL.md` only when present, so a
+non-blocking/declined install (or `externalSkills: false`) degrades gracefully — the skill is
+skipped, never an error. `web-design-guidelines` and `agent-browser` (used by `frontend-react-plugin`)
+are intentionally **not** adopted: UI fidelity here is judged by `fm-parity` against the legacy
+baseline, and E2E runs on Playwright.
+
 ## Configuration
 
 `fm-init` writes `.claude/frontend-migration-plugin.json`:
@@ -62,7 +84,14 @@ Aligned with `frontend-react-plugin`, with one deliberate divergence (E2E tool).
 
 - `currentApp` — the active surface for skills that operate on one app. PC-first.
 - `workingLanguage` — `ko` | `en` | `vi`. All user-facing skill output is in this language.
-- `externalSkills` — when `true`, `fm-init` installs Playwright, Vitest, and React Router skills.
+- `externalSkills` — when `true` (default), `fm-init` installs the shared skills via
+  `npx skills add … --copy` (same mechanism as `frontend-react-plugin`): **React Router framework
+  mode** (`remix-run/agent-skills`), **Vitest** (`antfu/skills`), and **Vercel React best-practices
+  + composition** (`vercel-labs/agent-skills`); it also verifies the **Playwright** CLI (E2E/visual,
+  installed separately). Agents load each SKILL.md **per phase**, guarded by existence — an absent
+  skill is skipped, never fatal. Best-practices is applied **SSR-aware** (framework mode, not a Vite
+  SPA — the SSR rules are *not* skipped, the deliberate inversion vs `frontend-react-plugin`). See
+  "External Skills (shared with frontend-react-plugin)".
 - `eslintTemplate` — when `true` (default), generators auto-scaffold `eslint.config.js` from
   `templates/eslint-config.md` where none exists; `false` skips ESLint entirely. See "Lint &
   Format Gate".
