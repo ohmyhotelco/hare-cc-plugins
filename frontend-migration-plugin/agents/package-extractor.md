@@ -50,6 +50,9 @@ and compose `core + secretBoundary` (the `no-restricted-imports` / `no-restricte
 blocks secret reads). If `eslintTemplate` is `false`, skip the leaf.
 
 ### 5. TDD extraction (Red → Green → Refactor)
+When present, Read `.claude/skills/vitest/SKILL.md` (the shared skill installed by `fm-init`) and
+follow its test patterns; if absent, proceed without it. (Only `vitest` applies here — these are
+framework-agnostic packages, so the React composition/performance/router skills are not relevant.)
 For each function/type:
 1. **Red** — write a Vitest test asserting the behavior, ported from the legacy logic and any
    existing edge cases. Run it; verify it FAILS (stub the module so it fails on the assertion,

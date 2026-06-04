@@ -14,6 +14,12 @@ You receive (no session history): `mode` (verify-fix | e2e-fix | parity-fix), `r
 `workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
 the reference), `templates/angular-to-react-mapping.md`, and `templates/tdd-rules.md`.
 
+For the files you touch, Read the matching shared external skill under `.claude/skills/` (installed
+by `fm-init`) and follow its rules; skip any that are absent: `vitest` (test fixes),
+`vercel-composition-patterns` (files under `components/`), `vercel-react-best-practices` (files
+under `pages/` — SSR-aware, framework mode, do not skip SSR rules), `react-router-framework-mode`
+(route/integration files).
+
 ## Mode behavior
 
 ### verify-fix (from fm-verify: tsc / build / vitest / eslint)

@@ -24,6 +24,13 @@ For `--flag-on`, read `docs/migration/{app}/{page}/{verify? from tracker},e2e-re
 parity-report.json` and `tracker.json`. Require `verified` + `e2e-passed` + `parity-passed`
 (reports `result: pass`). If any is not satisfied, stop and report the blocking gate — do not flip.
 
+### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
+Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
+across all stages. If any exist, present them and **require the user's explicit acknowledgement**
+before continuing — this is a soft gate, not an auto-block: Codex is advisory, so a human may
+acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or Codex is
+unavailable, skip this step.
+
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
@@ -37,6 +44,14 @@ Update `tracker.json` (Read-Modify-Write):
 - `--flag-on` (succeeded) → `apps[app].pages[page].status = "flipped"`, `flippedAt`.
 - `--revert` → set status back to `parity-passed`, note the rollback.
 Release the lock.
+
+### Step 4b: Codex audit (advisory; --flag-off only) — see CLAUDE.md → "Codex Independent Audit"
+After preparing the code PR (`--flag-off`), if `codexAudit` is enabled and Codex is available,
+spawn `codex-auditor` (Agent) for the `route` stage (params: `app`, `page`, `stage="route"`,
+`appDir`, `legacyDir`, the full PR diff + all gate reports + `codex-audit.json`,
+`outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`) — Codex's final
+independent sign-off of the whole page. Advisory; its high-severity findings are what the
+`--flag-on` acknowledgement (Step 1b) will surface.
 
 ### Step 5: Report
 In `workingLanguage`: action, the path/flag/app:port mapping, gate-guard result, and next step:

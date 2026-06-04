@@ -33,6 +33,32 @@ else
   echo "  Warning: node/npx not found — Playwright E2E gates require it."
 fi
 
+# Shared external-skill installation checks (when externalSkills is enabled).
+EXTERNAL_SKILLS=$(jq -r '.externalSkills // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
+if [ "$EXTERNAL_SKILLS" != "false" ]; then
+  SKILLS=(
+    "React Router framework mode|$CWD/.claude/skills/react-router-framework-mode"
+    "Vitest|$CWD/.claude/skills/vitest"
+    "React Best Practices|$CWD/.claude/skills/vercel-react-best-practices"
+    "Composition Patterns|$CWD/.claude/skills/vercel-composition-patterns"
+  )
+  MISSING_SKILLS=()
+  for entry in "${SKILLS[@]}"; do
+    skill_name="${entry%%|*}"
+    skill_dir="${entry##*|}"
+    if [ ! -f "$skill_dir/SKILL.md" ]; then
+      MISSING_SKILLS+=("$skill_name")
+    fi
+  done
+  if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
+    echo "  Warning: Missing external skills:"
+    for skill in "${MISSING_SKILLS[@]}"; do
+      echo "    - $skill"
+    done
+    echo "  Run /frontend-migration-plugin:fm-init to install them."
+  fi
+fi
+
 TRACKER="$CWD/docs/migration/tracker.json"
 if [ ! -f "$TRACKER" ]; then
   echo "  Tracker not initialized yet. fm-init creates docs/migration/tracker.json."

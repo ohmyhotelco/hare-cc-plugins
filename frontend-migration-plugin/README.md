@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.2.1). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.3.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -37,6 +37,10 @@ New to the migration? These terms recur throughout:
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
   (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+- **Codex independent audit** — when enabled (default), every stage also gets a second, independent
+  review from **Codex** (advisory), recorded in `codex-audit.json`. It never changes a page's
+  status; the only soft gate is `fm-route --flag-on`, which asks you to acknowledge any unresolved
+  high-severity Codex findings before flipping. Requires the Codex CLI; auto-skips if absent.
 
 ## Prerequisites
 
@@ -58,6 +62,25 @@ This plugin is **tooling**; it assumes the migration project has set up the work
 React Router v7 (framework mode) · TypeScript (strict) · Tailwind · shadcn/ui · TanStack Query ·
 Zustand · axios · react-hook-form + zod · i18next · dayjs · Vitest + MSW · **Playwright** (E2E +
 visual regression — a deliberate divergence from frontend-react-plugin's agent-browser).
+
+## External skills (shared with frontend-react-plugin)
+
+Generic React/test knowledge is not re-authored here — `fm-init` installs the same upstream skills
+`frontend-react-plugin` uses, via `npx skills add … --copy` (vendored into `.claude/skills/`), so
+generated React stays consistent across the org. Migration-specific knowledge (Angular→React
+mapping, Strangler Fig, WebView/SSO) lives in `templates/` instead.
+
+| Skill | Source | Purpose |
+| --- | --- | --- |
+| `react-router-framework-mode` | `remix-run/agent-skills` | RR v7 **framework-mode** routing (loader/action, per-route SSR/SSG/SPA) |
+| `vitest` | `antfu/skills` | Unit/component test patterns |
+| `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance — applied **SSR-aware** (framework mode, not a Vite SPA) |
+| `vercel-composition-patterns` | `vercel-labs/agent-skills` | Component composition patterns |
+
+Agents load each per phase, guarded by existence — a declined/absent install (or
+`externalSkills: false`) is skipped, never fatal. `web-design-guidelines` and `agent-browser`
+(used by frontend-react-plugin) are intentionally not adopted: UI fidelity is judged by `fm-parity`
+against the legacy baseline, and E2E runs on Playwright.
 
 ## Quickstart — migrate your first page
 
@@ -142,6 +165,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-clean-code` | Standalone code-quality audit |
 | `fm-test-review` | Standalone test-quality audit |
 | `fm-secret-audit` | Secret inventory + relocation guidance |
+| `fm-audit-codex` | Independent Codex audit of each stage (advisory second opinion) |
 
 See `docs/skill-reference.md` for each skill's inputs/outputs, the agent it drives, and the
 tracker state it sets.

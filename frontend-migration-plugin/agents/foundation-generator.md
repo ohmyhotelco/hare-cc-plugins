@@ -11,7 +11,7 @@ and the per-app test harness. No TDD here (this is scaffolding), but the output 
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json`),
 `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDirs` (every `apps.*.legacyDir`, for
-the `.prettierignore`), `routerMode`, `workingLanguage`, `eslintTemplate`, `prettierTemplate`.
+the `.prettierignore`), `workingLanguage`, `eslintTemplate`, `prettierTemplate`.
 
 ## Tasks
 

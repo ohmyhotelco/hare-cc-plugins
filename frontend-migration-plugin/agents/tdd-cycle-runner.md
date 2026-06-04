@@ -10,9 +10,24 @@ You implement one phase of a page migration test-first. Each phase runs in its o
 (context isolation) — you receive only what you need, not the whole conversation.
 
 You receive: `app`, `page`, `phase` (api | store | component | page), `planPath`, `targetDir`,
-`appDir`, `packagesDir`, `routerMode`, `workingLanguage`. Read `migration-plan.json` (this
+`appDir`, `packagesDir`, `workingLanguage`. Read `migration-plan.json` (this
 phase's `creates`/`tests`/`mapping`), `templates/angular-to-react-mapping.md`, and
 `templates/tdd-rules.md`.
+
+## External skills (load per phase, when installed)
+
+These are the shared skills `frontend-react-plugin` uses, installed by `fm-init` (`externalSkills`)
+under `.claude/skills/` and vendored via `--copy`. When present, Read the SKILL.md(s) for this
+`phase` and apply their rules so generated code stays consistent across the org; if a skill is
+absent, proceed without it (the install is non-blocking).
+
+- **all phases** — `.claude/skills/vitest/SKILL.md` → test patterns.
+- **component** — `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules.
+- **page** — `.claude/skills/vercel-react-best-practices/SKILL.md` → performance + rendering-strategy
+  rules. These pages are RR v7 **framework mode**, not a Vite SPA — **do not skip the SSR/RSC
+  rules** (this is the deliberate inversion vs `frontend-react-plugin`, which skips them).
+  Also `.claude/skills/react-router-framework-mode/SKILL.md` → loader/route-data and framework-mode
+  routing idioms for the page's route data.
 
 ## The cycle (per file/unit in this phase)
 

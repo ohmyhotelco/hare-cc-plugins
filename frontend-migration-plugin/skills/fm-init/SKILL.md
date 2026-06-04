@@ -60,6 +60,12 @@ details — they can be refined when those phases begin.
 - `prettierTemplate` — default `true`. When `true`, generators auto-scaffold `prettier.config.js`
   from `templates/prettier-config.md` where none exists (Prettier is advisory only). `false`
   skips formatting.
+- `codexAudit` — default `true`. When `true`, the pipeline runs an independent **Codex audit** of
+  each stage's artifact (advisory; auto-skips if Codex is absent). See CLAUDE.md → "Codex
+  Independent Audit". Detect the Codex CLI/runtime here (e.g. `command -v codex`); if absent, warn
+  that audits will be skipped (do not fail setup, record the flag regardless).
+- `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
+  `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
 
 ### Step 5: Write Config and Initialize Tracker
 
@@ -77,14 +83,36 @@ details — they can be refined when those phases begin.
 
 ### Step 6: Install External Skills (when `externalSkills` is true)
 
-Install (or verify) the skills the pipeline loads per phase. Do **not** auto-install npm
-dependencies — display the commands and let the user run them.
+Install the shared skills the pipeline loads per phase, using the **same mechanism as
+`frontend-react-plugin`'s `fe-init`** (`npx skills add … -a claude-code -y --copy` — vendored
+into `.claude/skills/`). For each row, check the Check Path first; install only if missing, then
+verify. Do **not** auto-install npm dependencies — display the commands and let the user run them.
 
-- **Playwright** — E2E + visual regression (`npx playwright install` for browsers).
-- **Vitest** — unit/component TDD.
-- **React Router** mode skill — routing patterns for the target `routerMode`.
+| Skill | Check Path | Install Command |
+| --- | --- | --- |
+| React Router (framework mode) | `.claude/skills/react-router-framework-mode/SKILL.md` | `npx skills add remix-run/agent-skills --skill react-router-framework-mode -a claude-code -y --copy` |
+| Vitest | `.claude/skills/vitest/SKILL.md` | `npx skills add antfu/skills --skill vitest -a claude-code -y --copy` |
+| React Best Practices | `.claude/skills/vercel-react-best-practices/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices -a claude-code -y --copy` |
+| Composition Patterns | `.claude/skills/vercel-composition-patterns/SKILL.md` | `npx skills add vercel-labs/agent-skills --skill vercel-composition-patterns -a claude-code -y --copy` |
 
-If a skill or its CLI is missing, list it and the install command; do not fail setup.
+For each row: (1) check whether the Check Path file exists, (2) if missing run the Install
+Command, (3) verify installation succeeded.
+
+> React Router uses the **framework-mode** skill (not `declarative`/`data`, which are
+> `frontend-react-plugin`'s library-mode skills) — this migration's target is RR v7 framework mode
+> with per-route SSR/SSG/SPA, so there is no `routerMode` to interpolate.
+
+**Playwright** is a CLI, not a skill — verify it and install browsers separately (E2E +
+visual-regression gates depend on it):
+```bash
+npx playwright install   # browsers
+```
+
+The agents load each SKILL.md **per phase**, guarded by existence (vitest → all TDD phases;
+`vercel-composition-patterns` → components; `vercel-react-best-practices` → pages, applied
+**SSR-aware** because framework mode is not a Vite SPA; `react-router-framework-mode` →
+routing/integration). If a skill or its CLI is missing, list it with its install command; never
+fail setup — an absent skill is skipped, not an error.
 
 ### Step 7: Report
 

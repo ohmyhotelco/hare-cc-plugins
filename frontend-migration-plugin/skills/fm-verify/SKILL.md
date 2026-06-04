@@ -49,7 +49,14 @@ Update `tracker.json` (Read-Modify-Write):
 - any hard tool fails (tsc / build / vitest / eslint) → `verify-failed`, with the failing summary.
   A Prettier advisory alone never sets `verify-failed`.
 
+### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+(Agent) for the `verify` stage (params: `app`, `page`, `stage="verify"`, `appDir`, `legacyDir`,
+generated code + test paths + the verify summary, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`) — an independent second opinion to Claude's own reviewers. Advisory — never
+changes the page status. Surface its verdict below.
+
 ### Step 6: Report
 In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the evidence (exit code,
-counts), plus the Prettier advisory if any. Next step: on pass → `/frontend-migration-plugin:fm-e2e
-{page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`.
+counts), the Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
+`/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`.

@@ -17,7 +17,7 @@ output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Require `docs/migration/{app}/{page}/migration-plan.json`
 (missing → run `fm-plan {page}`; stop). Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`,
-`routerMode`, `workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
+`workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
 + `blockers`.
 
 ### Step 1: Blockers
@@ -50,6 +50,13 @@ becomes `gen-failed`.
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Release the lock.
+
+### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+If `codexAudit` is enabled and Codex is available and generation succeeded, after the lock is
+released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
+`appDir`, `legacyDir`, the generated diff + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
+`workingLanguage`). Codex checks mapping fidelity, RR v7 idioms, and secret-boundary violations.
+Advisory — never changes the page status. Surface its verdict in the report.
 
 ### Step 6: Report
 In `workingLanguage`: phases completed, files created, total tests with RED/GREEN evidence from
