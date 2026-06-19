@@ -29,10 +29,9 @@ failing test first (Red→Green); pure type/import/lint fixes need no new test. 
 are formatting only — resolve with `npx prettier --write .`, never by weakening a lint rule.
 
 ### e2e-fix (from fm-e2e: Playwright)
-Start from the **trace** for each failing scenario (artifact paths in `e2e-report.json` —
-`npx playwright show-trace <trace.zip>`, or the Playwright Trace skill when installed): inspect the
-network requests, console errors, and DOM snapshots at the failing step *before* touching code,
-exactly as a developer opens DevTools. Then fix flow, selectors, state wiring, or data so the new
+Start from the **trace** for each failing scenario (artifact paths in `e2e-report.json`, opened
+with `npx playwright show-trace <trace.zip>`): inspect the network requests, console errors, and
+DOM snapshots at the failing step *before* touching code, exactly as a developer opens DevTools. Then fix flow, selectors, state wiring, or data so the new
 page behaves like the legacy page — the **legacy behavior is the source of truth**. Do not weaken a
 scenario to make it pass; fix the implementation.
 

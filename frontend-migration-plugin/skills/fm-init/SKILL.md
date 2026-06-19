@@ -112,10 +112,12 @@ visual-regression gates depend on it):
 npx playwright install   # browsers
 ```
 Trace analysis is built into the CLI (`npx playwright show-trace <trace.zip>`) — the agent's
-DevTools for `fm-fix` (e2e-fix), no install needed. The official Playwright **agent skills**
-(planner / generator / healer + trace exploration, via `npx playwright init-agents`) are
-**optional**: if vendored under `.claude/skills/`, `e2e-test-runner` and `migration-fixer` load
-them per phase; if absent, the built-in `show-trace` is used. Never fail setup over them.
+DevTools for `fm-fix` (e2e-fix), no install needed. Note: Playwright's own **test agents**
+(planner / generator / healer, via `npx playwright init-agents --loop=claude`) install to
+`.claude/agents/` plus a Playwright MCP `.mcp.json` — they are a **separate subagent system, not a
+loadable skill**, and this plugin does **not** adopt them (it already has equivalents —
+`migration-planner` / `e2e-test-runner` / `migration-fixer` — plus the legacy dual-run the healer
+cannot do). See CLAUDE.md → "External Skills".
 
 The agents load each SKILL.md **per phase**, guarded by existence (vitest → all TDD phases;
 `vercel-composition-patterns` → components; `vercel-react-best-practices` → pages, applied

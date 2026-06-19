@@ -60,10 +60,13 @@ are intentionally **not** adopted: UI fidelity here is judged by `fm-parity` aga
 baseline, and E2E runs on Playwright.
 
 **Playwright trace analysis** is built into the CLI (`npx playwright show-trace`) — no skill
-required; it is the primary evidence `fm-fix` (e2e-fix) reads to self-correct. The optional
-official Playwright agent skills (`npx playwright init-agents`) are loaded per phase by
-`e2e-test-runner` / `migration-fixer` when vendored under `.claude/skills/`, else `show-trace` is
-used — the same existence-guard.
+required; it is the primary evidence `fm-fix` (e2e-fix) reads to self-correct. Playwright's own
+**test agents** (planner / generator / healer, `npx playwright init-agents --loop=claude` →
+`.claude/agents/` + a Playwright MCP `.mcp.json`) are a separate subagent system, **not** a
+loadable skill, and are **intentionally not adopted**: this plugin already has equivalents
+(`migration-planner` / `e2e-test-runner` / `migration-fixer`) with the migration-specific **legacy
+dual-run** the healer cannot do. Their value — trace-driven self-correction — is captured via
+`show-trace` instead.
 
 ## Configuration
 

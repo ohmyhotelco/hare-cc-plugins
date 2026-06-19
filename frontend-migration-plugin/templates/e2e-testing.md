@@ -36,8 +36,7 @@ failure** (`trace: 'retain-on-failure'`). A failed run is then a rich, structure
 per-step network requests, console logs, DOM snapshots — not just a red line. `e2e-report.json`
 records each failing scenario's paths under `artifacts` (trace/video/screenshot). This is the
 primary evidence `fm-fix` (e2e-fix) reads to self-correct — open it with `npx playwright show-trace
-<trace.zip>` (or the Playwright Trace skill when installed), the way a developer opens DevTools.
-Diagnose from the trace before editing code.
+<trace.zip>`, the way a developer opens DevTools. Diagnose from the trace before editing code.
 
 ## Conventions
 - Resolve dynamic route params (`:id`) to fixture ids before navigation.
