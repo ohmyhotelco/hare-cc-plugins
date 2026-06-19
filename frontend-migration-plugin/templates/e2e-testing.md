@@ -25,6 +25,22 @@ path via the MSW **node** server (`mocks/server.ts`) or an E2E-only env flag tha
 responses. PC is `ssr: "mixed"`, so a page with a loader needs **both**. Only mock what you control
 (external gateways, third-party APIs) — never let an E2E hit a real external dependency.
 
+## Auth & state setup
+- **Reuse `storageState`.** Log in once via a Playwright **setup project** that saves
+  `storageState` to `.auth/<role>.json`; specs load it instead of logging in inside each test
+  (`foundation-generator` scaffolds the setup project). Multi-role pages get one state per role.
+- **Start at the branch under test.** Pre-seed the prerequisite state via API / `storageState` so a
+  scenario begins at the branch it verifies — do not replay shared prefixes (e.g. consent →
+  phone-auth) in every test. This keeps tests independent (Playwright's guidance) and fast.
+- The legacy AuthGuard **login-modal** UX (a scenario that exercises the gate itself) is a separate
+  concern from the storageState shortcut — see Conventions.
+
+## Reuse: page objects & helpers
+Factor repeated selectors and flows into **page objects / helpers** under `e2e/` (auth,
+state-setup, data factories) so specs across pages reuse them instead of duplicating — the
+maintenance payoff compounds across a multi-page migration. Create them as scenarios need them and
+reuse existing ones (read-modify-write; never clobber another page's helpers).
+
 ## Legacy dual-run (behavior parity)
 Run the same scenario against the legacy Angular app (its base URL) and the new RR v7 app;
 compare observable behavior (navigation, key outputs, success/error paths). The **legacy
