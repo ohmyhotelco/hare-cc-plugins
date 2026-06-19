@@ -40,7 +40,7 @@ For each phase in `buildOrder`, launch the right agent (Agent tool), passing onl
   pass `monorepoRoot`, `legacyDirs` (every `apps.*.legacyDir`), `eslintTemplate`, `prettierTemplate`)
 - `api` / `store` / `component` / `page` → **tdd-cycle-runner** (Red-Green per unit)
 - `integration` → **integration-generator** (routes + i18n + MSW global + ESLint on generated
-  code; pass `eslintTemplate`)
+  code; pass `monorepoRoot`, `eslintTemplate`)
 
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
 `done`/`failed`, record `currentPhase`. On a phase failure, stop and report — the page status

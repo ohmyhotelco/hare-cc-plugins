@@ -20,8 +20,9 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 1. Read `.claude/frontend-migration-plugin.json`. If absent:
    > "Run /frontend-migration-plugin:fm-init first."
    Stop.
-2. Resolve `app` from `--app` or `currentApp`. Read its `legacyDir` and, for the 3-app diff,
-   the other apps' `legacyDir` (`counterpartDirs`).
+2. Resolve `app` from `--app` or `currentApp`. Read its `legacyDir` and `appDir` (the latter for
+   the Step 4b Codex audit), and, for the 3-app diff, the other apps' `legacyDir`
+   (`counterpartDirs`).
 3. Read `workingLanguage`.
 
 ### Step 1: Resolve the target

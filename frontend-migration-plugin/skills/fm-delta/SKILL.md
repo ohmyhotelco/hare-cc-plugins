@@ -23,9 +23,11 @@ a first migration → use `fm-analyze`/`fm-plan`/`fm-gen`).
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 2: Compute the delta (planner incremental mode)
-Launch `migration-planner` in **incremental mode** (Agent): diff the current legacy source against
-the page's `analysis.json` / `migration-plan.json` baseline → write
-`docs/migration/{app}/{page}/delta-plan.json` (added/modified/removed ops + cascade).
+Launch `migration-planner` (Agent) with only its params: `mode: "incremental"`, `app`, `page`,
+`analysisPath`, `planPath` (= `migration-plan.json`, the baseline), `legacyDir`,
+`outPath = docs/migration/{app}/{page}/delta-plan.json`, `workingLanguage`. It diffs the current
+legacy source against the `analysis.json` / `migration-plan.json` baseline and writes
+`delta-plan.json` (added/modified/removed ops + cascade).
 
 ### Step 3: Offer incremental vs full
 Read `delta-plan.json.summary`. Present:
@@ -35,8 +37,10 @@ Read `delta-plan.json.summary`. Present:
 otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
-- **Incremental** → launch `delta-modifier` (Agent) with `deltaPlanPath` etc. (create ops use
-  `tdd-cycle-runner` semantics). It applies ops in cascade order and preserves fm-fix edits.
+- **Incremental** → launch `delta-modifier` (Agent) with only its params: `app`, `page`,
+  `deltaPlanPath` (= `delta-plan.json`), `targetDir`, `appDir`, `packagesDir`, `workingLanguage`
+  (create ops use `tdd-cycle-runner` semantics). It applies ops in cascade order and preserves
+  fm-fix edits.
 - **Full** → tell the user to run `fm-gen {page}` (the skill stops here).
 
 ### Step 5: Record

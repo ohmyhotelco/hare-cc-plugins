@@ -11,8 +11,9 @@ with tests, so the three React apps can import it. You work **test-first** and p
 **zero React and zero Angular imports** in `shared-domain` / `shared-types` / `shared-i18n`.
 
 You receive from the coordinator (no session history — only these params):
-- `candidate` — `{ name, sourceAnchor (file:line), purity (pure|partial|coupled), package
-  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui), apis[] }`
+- `candidate` — one `sharedCandidates[]` entry from the analysis, passed through verbatim:
+  `{ name, anchor (file:line), purity (pure|partial|coupled), package
+  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui), reason, apis[] }`
 - `legacyDir`, `counterpartDirs` (same logic in the other apps), `packagesDir`,
   `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 
@@ -22,7 +23,7 @@ Follow `templates/shared-package-spec.md` (placement + purity rules) and
 ## Procedure
 
 ### 1. Read the source and its counterparts
-Read the candidate at `sourceAnchor` and the same logic in `counterpartDirs`. Identify the pure
+Read the candidate at `anchor` and the same logic in `counterpartDirs`. Identify the pure
 core vs the Angular wrapping (DI, `ValidatorFn`, `HttpClient`, `Store`, decorators).
 
 ### 2. Reconcile the three apps

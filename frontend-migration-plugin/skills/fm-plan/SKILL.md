@@ -33,7 +33,7 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 ### Step 4: Record
 1. Verify `migration-plan.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
-   plus `rendering`, `requiredGates`, `flagKey`, `updatedAt`.
+   plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
 3. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"

@@ -78,6 +78,10 @@ baseline, and E2E runs on Playwright.
     "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "ssr": "mixed", "webview": false,     "sso": false },
     "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "ssr": "mixed", "webview": true,      "sso": false },
     "hana":   { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-hana",   "appDir": "apps/web-hana",   "domain": "hana.ohmyhotel.com", "port": 30321, "ssr": "spa",   "webview": "unknown", "sso": true }
+  },
+  "stagingConfig": {
+    "baseUrl": "https://staging.ohmyhotel.com",
+    "paymentGateways": { "nicePay": "", "eximbay": "", "kakaoPay": "" }
   }
 }
 ```
@@ -108,6 +112,10 @@ baseline, and E2E runs on Playwright.
 - `apps.*.webview` — `true` for surfaces loaded inside a native WebView (mobile),
   `false` for PC, `"unknown"` for Hana (pending stakeholder confirmation).
 - `apps.*.sso` — `true` for Hana (external `?ts` SSO; migration plan §7).
+- `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
+  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` passes to `e2e-test-runner` for transactional
+  scenarios. Transactional E2E runs against these, never production. Scaffolded empty (PC-first);
+  filled in when the first transactional page is reached.
 
 PC is fully configured; `mobile`/`hana` entries are scaffolded — recognized now, validated
 in later phases.

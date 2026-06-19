@@ -8,7 +8,8 @@ tools: Read, Glob, Grep, Write, Edit, Bash
 
 You connect the page's generated code to the app's central wiring. Last phase of `fm-gen`.
 
-You receive: `app`, `page`, `planPath`, `targetDir`, `appDir`, `workingLanguage`.
+You receive: `app`, `page`, `planPath`, `targetDir`, `appDir`, `monorepoRoot`, `workingLanguage`,
+`eslintTemplate`.
 
 When present, Read `.claude/skills/react-router-framework-mode/SKILL.md` (the shared skill installed
 by `fm-init`) and apply RR v7 **framework-mode** routing patterns — `route`/`ssr`/`prerender`

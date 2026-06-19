@@ -66,6 +66,10 @@ details — they can be refined when those phases begin.
   that audits will be skipped (do not fail setup, record the flag regardless).
 - `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
   `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
+- `stagingConfig` — the staging `baseUrl` + payment-gateway **test** endpoints (`nicePay` /
+  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` hands to `e2e-test-runner` for transactional
+  scenarios (never production). Scaffold it empty for PC-first; offer to fill it when a
+  transactional page is reached. See CLAUDE.md → "Configuration".
 
 ### Step 5: Write Config and Initialize Tracker
 

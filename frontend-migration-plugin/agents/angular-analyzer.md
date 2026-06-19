@@ -75,7 +75,9 @@ For each piece of logic, classify per `templates/shared-package-spec.md`:
 - `shared-types` — DTO/zod, the response envelope, event enums.
 - `shared-i18n` — translation keys.
 - `shared-ui` — primitives / headless domain hooks.
-Mark each candidate `pure | partial | coupled` with the reason.
+Mark each candidate `pure | partial | coupled` with the reason and its `anchor`; for `shared-data`
+candidates, list `apis[]` (the `POST_*` / `GET_*` methods it wraps). This is the exact shape
+`fm-extract` hands to `package-extractor`, so emit every field that agent consumes.
 
 ### 7. Three-app diff
 Compare the target against `counterpartDirs` (PC vs Mobile vs Hana). Classify each file
@@ -99,7 +101,8 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "mappingNotes": [{ "angular": "NgbModal.open", "react": "shadcn Dialog",
                      "anchor": "file:line", "catalogRef": "modals" }],
   "sharedCandidates": [{ "name": "UtilDateService", "purity": "pure",
-                         "package": "shared-domain", "reason": "...", "anchor": "file:line" }],
+                         "package": "shared-domain", "reason": "...", "anchor": "file:line",
+                         "apis": [] }],
   "requiredGates": ["e2e", "visual", "telemetry"],
   "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],
   "threeAppDiff": [{ "file": "...", "vsMobile": "near", "vsHana": "diverged", "note": "..." }],

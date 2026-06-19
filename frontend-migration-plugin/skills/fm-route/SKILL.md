@@ -20,9 +20,10 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 (`--flag-off` | `--flag-on` | `--revert`).
 
 ### Step 1: Gate guard (flag-on only)
-For `--flag-on`, read `docs/migration/{app}/{page}/{verify? from tracker},e2e-report.json,
-parity-report.json` and `tracker.json`. Require `verified` + `e2e-passed` + `parity-passed`
-(reports `result: pass`). If any is not satisfied, stop and report the blocking gate — do not flip.
+For `--flag-on`, read `tracker.json` (for the `verified` status — verify has no report file) and
+`docs/migration/{app}/{page}/e2e-report.json` + `parity-report.json`. Require `verified` +
+`e2e-passed` + `parity-passed` (the two reports show `result: pass`). If any is not satisfied,
+stop and report the blocking gate — do not flip.
 
 ### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
@@ -36,11 +37,12 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Orchestrate
 Launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
-`flagPlan`, `domain`, `port`, `legacyPort`, `infraDir`, the gate report paths, `workingLanguage`.
+`flagPlan`, `domain`, `port`, `legacyPort`, `infraDir`, the `verified` tracker status + the
+`e2e-report.json` / `parity-report.json` paths, `workingLanguage`.
 
 ### Step 4: Record
 Update `tracker.json` (Read-Modify-Write):
-- `--flag-off` → keep current status; record `routePrepared: true`, `flagKey`.
+- `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → `apps[app].pages[page].status = "flipped"`, `flippedAt`.
 - `--revert` → set status back to `parity-passed`, note the rollback.
 Release the lock.
