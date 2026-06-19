@@ -11,16 +11,19 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-05-25)
+## Status (2026-06-19)
 
-- **Build complete — v0.3.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
-  session hooks, state-machine/lock infrastructure. v0.2.1 added the ESLint (hard) / Prettier
-  (advisory) lint & format gate; v0.3.0 added the **Codex independent-audit layer** (`fm-audit-codex`
-  + `codex-auditor`; advisory second opinion at every stage; design in `docs/design/`).
+- **Build complete — v0.5.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
+  session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
+  / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
+  (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every stage; design in
+  `docs/design/`) plus shared external-skill injection (fe-init parity); v0.4.1 aligned the fm-*
+  skill↔agent contracts (7 mismatches); v0.5.0 hardened the **Playwright E2E harness** (trace-first
+  reports, flakiness prevention, SSR-loader mocking, auth/state-setup + page-object reuse).
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
-- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); all 13 child
-  tasks (AA-40–AA-51, AA-53) are `Done`.
+- **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
+  AA-40–AA-51 and AA-53 are `Done`; AA-61 (Playwright harness hardening) is `In Progress` (PR #32).
 
 ## Build map (epic AA-39, project AA "AI Agent")
 
@@ -62,7 +65,7 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
   ESLint is a **hard** `fm-verify` check; Prettier `--check` is **advisory**. Config flags
   `eslintTemplate`/`prettierTemplate` (default on) drive scaffold-once; deps are never auto-installed.
   See CLAUDE.md → "Lint & Format Gate".
-- **Codex independent audit (v0.3.0)** — Codex used as an advisory **auditor**, not a port or
+- **Codex independent audit (v0.4.0)** — Codex used as an advisory **auditor**, not a port or
   bridge: Claude runs the pipeline and calls Codex (via the `codex` plugin's `codex-cli-runtime` /
   headless `codex exec`) for an independent second review at every stage, recorded in
   `codex-audit.json`. Default-on (`codexAudit`), auto-skips if Codex absent, never changes the FSM;

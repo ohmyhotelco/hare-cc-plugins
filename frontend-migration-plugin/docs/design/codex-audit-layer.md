@@ -151,7 +151,7 @@ config regardless).
 4. **In-loop wiring** — advisory call from the six producing skills' Record/Report steps.
 5. **Route sign-off** — unresolved-high-severity acknowledgement in `fm-route --flag-on`.
 6. **Docs + version** — CLAUDE.md, skill-reference, workflow, build-context; README + KO/VI;
-   bump to v0.3.0 and sync `marketplace.json`.
+   bump to v0.3.0 and sync `marketplace.json`. (Shipped at v0.4.0 — PR #31.)
 
 ## Dependencies & assumptions
 - Requires the Codex CLI and the `codex` plugin's runtime present in the environment (same single
@@ -163,4 +163,4 @@ config regardless).
 - Whether `route`'s acknowledgement should be capturable as a recorded sign-off artifact for audit
   trails.
 - Possible CI variant (Codex reviewing the code PR via GitHub Action) as a complement to the
-  in-loop audit — out of scope for v0.3.0.
+  in-loop audit — out of scope for this layer.
