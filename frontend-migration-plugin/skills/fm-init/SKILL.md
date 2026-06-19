@@ -111,6 +111,11 @@ visual-regression gates depend on it):
 ```bash
 npx playwright install   # browsers
 ```
+Trace analysis is built into the CLI (`npx playwright show-trace <trace.zip>`) — the agent's
+DevTools for `fm-fix` (e2e-fix), no install needed. The official Playwright **agent skills**
+(planner / generator / healer + trace exploration, via `npx playwright init-agents`) are
+**optional**: if vendored under `.claude/skills/`, `e2e-test-runner` and `migration-fixer` load
+them per phase; if absent, the built-in `show-trace` is used. Never fail setup over them.
 
 The agents load each SKILL.md **per phase**, guarded by existence (vitest → all TDD phases;
 `vercel-composition-patterns` → components; `vercel-react-best-practices` → pages, applied

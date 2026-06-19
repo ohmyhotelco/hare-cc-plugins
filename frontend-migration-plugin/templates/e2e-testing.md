@@ -18,10 +18,26 @@ Scenarios come from `migration-plan.json.e2eScenarios[]` (mapped from legacy flo
 The payment matrix to cover on staging (OMH-459): each gateway × method — KR card, KR bank,
 Alipay (NicePay), Eximbay / international, OnePay / VN.
 
+**SSR / loader network (RR v7 framework mode).** Loaders and actions run **server-side**, so the
+browser MSW worker does **not** intercept their network calls — it only sees client-side fetches.
+Mock by call site: the **browser** path via MSW / `page.route`; the **server (loader / SSR / BFF)**
+path via the MSW **node** server (`mocks/server.ts`) or an E2E-only env flag that returns fixed
+responses. PC is `ssr: "mixed"`, so a page with a loader needs **both**. Only mock what you control
+(external gateways, third-party APIs) — never let an E2E hit a real external dependency.
+
 ## Legacy dual-run (behavior parity)
 Run the same scenario against the legacy Angular app (its base URL) and the new RR v7 app;
 compare observable behavior (navigation, key outputs, success/error paths). The **legacy
 behavior is the source of truth** — a divergence is a new-app failure, not a scenario to relax.
+
+## Trace-first diagnostics
+Playwright is configured (in `foundation-generator`) to retain **trace + video + screenshot on
+failure** (`trace: 'retain-on-failure'`). A failed run is then a rich, structured artifact —
+per-step network requests, console logs, DOM snapshots — not just a red line. `e2e-report.json`
+records each failing scenario's paths under `artifacts` (trace/video/screenshot). This is the
+primary evidence `fm-fix` (e2e-fix) reads to self-correct — open it with `npx playwright show-trace
+<trace.zip>` (or the Playwright Trace skill when installed), the way a developer opens DevTools.
+Diagnose from the trace before editing code.
 
 ## Conventions
 - Resolve dynamic route params (`:id`) to fixture ids before navigation.
@@ -30,6 +46,18 @@ behavior is the source of truth** — a divergence is a new-app failure, not a s
 - Preserve the legacy AuthGuard **login-modal** UX in auth scenarios (modal, not hard redirect).
 - WebView/SSO/telemetry assertions belong to `fm-parity` (AA-46), not here — this gate is
   behavior/flow.
+
+## Flakiness prevention
+The migration gate runs legacy + new **dual-run**, so the flake surface is doubled — catch flakes
+at authoring time, before the PR, not after merge.
+- **Burn-in.** Right after writing a spec, run it repeatedly (`npx playwright test <spec>
+  --repeat-each=5`). A single failure across the runs means it is flaky — fix it now; merge-time
+  flakes cost far more to chase than authoring-time ones.
+- **Condition-based waits only.** Never `waitForTimeout` / fixed sleeps. Use Playwright
+  auto-waiting and web-first assertions (`await expect(locator).toBeVisible()`, `expect.poll`) so a
+  test waits exactly as long as needed.
+- **Semantic selectors.** Query by role/label/text (see Conventions) so a design or DOM-structure
+  change does not break the test.
 
 ## Gatekeeper rule
 A failing or unrun scenario means the gate has not passed. `fm-route --flag-on` is blocked until

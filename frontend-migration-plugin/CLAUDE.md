@@ -59,6 +59,12 @@ skipped, never an error. `web-design-guidelines` and `agent-browser` (used by `f
 are intentionally **not** adopted: UI fidelity here is judged by `fm-parity` against the legacy
 baseline, and E2E runs on Playwright.
 
+**Playwright trace analysis** is built into the CLI (`npx playwright show-trace`) — no skill
+required; it is the primary evidence `fm-fix` (e2e-fix) reads to self-correct. The optional
+official Playwright agent skills (`npx playwright init-agents`) are loaded per phase by
+`e2e-test-runner` / `migration-fixer` when vendored under `.claude/skills/`, else `show-trace` is
+used — the same existence-guard.
+
 ## Configuration
 
 `fm-init` writes `.claude/frontend-migration-plugin.json`:

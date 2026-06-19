@@ -32,7 +32,10 @@ If the app's harness is absent, scaffold it in `{appDir}`:
 - **MSW** global setup (`mocks/server.ts` for node, `mocks/browser.ts` for the worker;
   `beforeAll/afterEach/afterAll`).
 - **Playwright** config (baseURL, projects; the visual-regression `toHaveScreenshot` baseline dir
-  per app). The harness is set up here; `fm-e2e`/`fm-parity` (AA-45/46) use it.
+  per app). Enable **trace-first diagnostics** so a failed run leaves the agent rich evidence to
+  self-correct: `use: { trace: 'retain-on-failure', screenshot: 'only-on-failure', video:
+  'retain-on-failure' }` (or `trace: 'on-first-retry'` when `retries` is set). The harness is set
+  up here; `fm-e2e`/`fm-parity` (AA-45/46) use it.
 Do not auto-install npm deps — if packages are missing, list the `pnpm add -D …` command and
 note it; scaffold the config regardless.
 
