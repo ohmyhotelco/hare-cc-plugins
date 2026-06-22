@@ -31,6 +31,12 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
      (e.g. `apps/web-pc`, `apps/web-mobile`, `apps/web-hana`). These may not exist yet —
      that is expected before the migration starts.
    - `packagesDir` (default `packages`).
+   - **Backend verification contracts** (`contractsDir`): check whether
+     `docs/migration/api-contracts/` exists with `responses/` and `requests/` subdirectories
+     (the confirmed OMH-604/606/607 zod-in-markdown contracts). If present, this is the
+     **authoritative** schema source for `shared-types`/`shared-data` (recorded in Step 4); if
+     absent, omit the key — extraction falls back to legacy. Do not create it; the migration
+     project owns it.
 3. Present what was detected and let the user confirm or correct each path.
 
 ### Step 3: Configure Apps
@@ -51,6 +57,11 @@ details — they can be refined when those phases begin.
 ### Step 4: Other Settings
 
 - `currentApp` — default `pc`.
+- `contractsDir` — **optional**. When `docs/migration/api-contracts/` was detected in Step 2
+  (OMH-604/606/607), record it (default `docs/migration/api-contracts`) as the **authoritative**
+  zod schema source for `shared-types`/`shared-data` only. If the directory is absent, **omit the
+  key** — `fm-extract` falls back to the existing legacy reverse-extraction (no regression). See
+  CLAUDE.md → "Configuration".
 - `workingLanguage` — `ko` (default) | `en` | `vi`.
 - `externalSkills` — default `true` (install Playwright, Vitest, React Router skills in
   Step 6).
@@ -74,7 +85,8 @@ details — they can be refined when those phases begin.
 ### Step 5: Write Config and Initialize Tracker
 
 1. Write `.claude/frontend-migration-plugin.json` with the gathered values (schema in the
-   plugin `CLAUDE.md` → "Configuration").
+   plugin `CLAUDE.md` → "Configuration"). Include `contractsDir` **only when** the
+   `docs/migration/api-contracts/` directory was detected in Step 2; otherwise omit the key.
 2. Create `docs/migration/tracker.json` if absent:
    ```json
    {

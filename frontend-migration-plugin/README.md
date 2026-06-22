@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.5.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.6.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -32,7 +32,12 @@ New to the migration? These terms recur throughout:
 - **Legacy dual-run** — `fm-e2e` runs the same scenario against both the legacy app and the new
   app and compares. The legacy behavior is the source of truth.
 - **Shared packages** — pure logic (validators, date math, DTOs, i18n) is extracted once into
-  `packages/shared-*` and imported by all three apps; React-free where possible.
+  `packages/shared-*` and imported by all three apps; React-free where possible. When the project
+  has confirmed backend contracts (`contractsDir`, default `docs/migration/api-contracts/`,
+  OMH-604/606/607), those zod-in-markdown contracts are the **authoritative** schema source for
+  `shared-types` and `shared-data` only — `fm-extract` transcribes them instead of
+  reverse-engineering the legacy `any` DTOs. Absent that config, it falls back to legacy
+  extraction (no regression); the other four packages always extract from legacy.
 - **2-PR feature flag** — a page ships in two PRs: a code PR with the flag **OFF** (users still
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
@@ -51,6 +56,10 @@ This plugin is **tooling**; it assumes the migration project has set up the work
 - **Node + pnpm** (pnpm workspaces), and **Playwright browsers** installed (`npx playwright
   install`) for the E2E and visual gates.
 - The **legacy Angular source** reachable for analysis.
+- *(Optional)* the confirmed **backend verification contracts** at `docs/migration/api-contracts/`
+  (`responses/` + `requests/`, OMH-604/606/607) — when present, `fm-init` records them as the
+  authoritative schema source for `shared-types`/`shared-data`. Absent → legacy extraction (no
+  regression).
 - The plugin **configured** — run `fm-init` once (writes `.claude/frontend-migration-plugin.json`
   + `docs/migration/tracker.json`).
 

@@ -21,6 +21,11 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 1. Read `.claude/frontend-migration-plugin.json`. If absent → tell the user to run `fm-init`; stop.
 2. Resolve `app` (`--app` or `currentApp`), `legacyDir`, the other apps' `legacyDir`
    (`counterpartDirs`), `packagesDir`, `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
+3. Resolve `contractsDir` (optional). If the config has `contractsDir`, confirm the directory
+   exists (with `responses/`+`requests/`); if the key is absent, leave it unset. This is the
+   **authoritative** zod schema source for `shared-types`/`shared-data` only — when unset those
+   packages fall back to legacy reverse-extraction (no regression). See CLAUDE.md →
+   "Configuration".
 
 ### Step 1: Resolve candidates
 - If `--from <page>` is given, read `docs/migration/{app}/{page}/analysis.json` and take its
@@ -39,6 +44,23 @@ For each candidate (sequentially — packages may build on each other), launch t
 `package-extractor` agent (Agent tool) with only its needed params (subagent isolation):
 `candidate`, `legacyDir`, `counterpartDirs`, `packagesDir`, `monorepoRoot`, `workingLanguage`,
 `eslintTemplate`.
+
+**Contract-authoritative packages (`shared-types` / `shared-data`).** When the candidate's target
+`package` is `shared-types` or `shared-data` **and** `contractsDir` is resolved (Step 0.3), also
+pass `contractsDir` to the agent and instruct it explicitly:
+
+> The confirmed zod contracts under `{contractsDir}/responses/` (OMH-606) and
+> `{contractsDir}/requests/` (OMH-607) are the **authoritative** schema source — **transcribe**
+> the zod out of the Markdown `ts` code fences (they are zod-in-markdown, not `.ts` files), reusing
+> the two shared base schemas (`ResponseEnvelopeSchema`, `CommonRequestParamsRqSchema`) that each
+> per-endpoint `{Entity}RqSchema` / response schema `.extend()`s. **Do not** reverse-engineer the
+> legacy `any` DTOs for any surface the contracts cover (migration plan §5). Use legacy source
+> only for (a) `shared-data` service wiring and call sites, and (b) schemas the contracts do
+> **not** include (`DataLayerEvent` + tracker events from `common/models/data-layer.model.ts`).
+
+When `contractsDir` is unset, **do not** pass it — the agent extracts from legacy exactly as
+before (no regression). The other four packages (`config`/`i18n`/`domain`/`ui`) never receive
+`contractsDir` regardless.
 
 The agent works test-first and writes `packages/shared-*/src` + tests. If it **rejects** a piece
 for the secret boundary (shared-domain payment secrets / hash builders), collect it for Step 5.

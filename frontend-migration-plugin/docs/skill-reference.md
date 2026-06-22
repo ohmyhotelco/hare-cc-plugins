@@ -9,7 +9,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | --- | --- | --- | --- |
 | `fm-init` | — | detect layout → `.claude/frontend-migration-plugin.json` + `tracker.json` | — |
 | `fm-analyze` | `angular-analyzer` | legacy target → `analysis.json` | `analyzed` |
-| `fm-extract` | `package-extractor` | analysis candidates → `packages/shared-*` (+ tests) | `tracker.packages` |
+| `fm-extract` | `package-extractor` | analysis candidates (+ `contractsDir` for `shared-types`/`shared-data`) → `packages/shared-*` (+ tests) | `tracker.packages` |
 | `fm-plan` | `migration-planner` | `analysis.json` + catalog → `migration-plan.json` | `planned` |
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
 | `fm-verify` | — | build / tsc / vitest from `appDir` | `verified` / `verify-failed` |
@@ -29,7 +29,13 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 - **angular-analyzer** — parses component/template, facade+NgRx, RxJS, HTTP/DTO, routing/guards/
   init; emits analysis with shared candidates, 3-app diff, required gates + triggers.
 - **package-extractor** — TDD extraction into `packages/shared-*`; reconciles 3 apps; enforces the
-  `shared-domain` secret boundary (rejects PG/OAuth secret reads, hash builders).
+  `shared-domain` secret boundary (rejects PG/OAuth secret reads, hash builders). For `shared-types`
+  / `shared-data`, when `contractsDir` (`docs/migration/api-contracts/`, OMH-604/606/607) is set it
+  **transcribes** the confirmed zod-in-markdown contracts as the authoritative schema source
+  (shared `ResponseEnvelopeSchema` / `CommonRequestParamsRqSchema` bases + per-endpoint
+  `.extend()`) instead of reverse-engineering legacy `any`; legacy stays the anchor only for
+  `shared-data` wiring and contract-excluded schemas (`DataLayerEvent` + tracker events). Falls
+  back to legacy when `contractsDir` is unset.
 - **migration-planner** — plan (component tree, rendering, gates, flag, e2e scenarios) + an
   incremental mode that emits `delta-plan.json`.
 - **foundation-generator** — types + MSW + per-app Playwright/Vitest/MSW harness (no TDD).

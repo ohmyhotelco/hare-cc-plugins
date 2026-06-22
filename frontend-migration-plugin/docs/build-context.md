@@ -11,15 +11,21 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-06-19)
+## Status (2026-06-22)
 
-- **Build complete — v0.5.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
+- **Build complete — v0.6.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every stage; design in
   `docs/design/`) plus shared external-skill injection (fe-init parity); v0.4.1 aligned the fm-*
   skill↔agent contracts (7 mismatches); v0.5.0 hardened the **Playwright E2E harness** (trace-first
-  reports, flakiness prevention, SSR-loader mocking, auth/state-setup + page-object reuse).
+  reports, flakiness prevention, SSR-loader mocking, auth/state-setup + page-object reuse); v0.6.0
+  made the confirmed backend contracts (`docs/migration/api-contracts/`, OMH-604/606/607) the
+  **authoritative** zod schema source for `shared-types`/`shared-data` only — `package-extractor`
+  transcribes the zod-in-markdown contracts (shared `ResponseEnvelopeSchema` /
+  `CommonRequestParamsRqSchema` bases + per-endpoint `.extend()`) instead of reverse-engineering
+  legacy `any`, behind the optional `contractsDir` config (legacy fallback when unset; the other
+  four packages unchanged).
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
