@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-06-22)
+## Status (2026-06-30)
 
-- **Build complete — v0.6.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
+- **Build complete — v0.7.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every stage; design in
@@ -25,7 +25,17 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   transcribes the zod-in-markdown contracts (shared `ResponseEnvelopeSchema` /
   `CommonRequestParamsRqSchema` bases + per-endpoint `.extend()`) instead of reverse-engineering
   legacy `any`, behind the optional `contractsDir` config (legacy fallback when unset; the other
-  four packages unchanged).
+  four packages unchanged); v0.7.0 made the **Strangler Fig route-flip mechanism per-app
+  configurable** (`apps.{app}.flipMechanism`: `nginx` default | `cloudfront`) — `fm-route` +
+  `strangler-orchestrator` now implement two strategies under one interface (same gate guard, lock,
+  tracker, 2-PR flow; only the edited ARTIFACT differs: nginx routing block + flag vs a
+  version-controlled CloudFront behavior manifest `cloudfrontDir/<manifest>` that is PR'd, never
+  pushed to AWS). Backward-compatible (absent `flipMechanism` → `nginx`); the per-app mechanism
+  **mapping is project config, never plugin-baked** (the plugin defaults every app to `nginx`).
+  Design-validated against a real two-edge production topology (public hosts flipping at a CDN, an
+  IP-whitelisted partner host that must stay on an entry nginx; OMH `v2-migration-infra.md` §11.4,
+  OMH-698/OMH-652) — the concrete which-app-uses-which mapping lives in the consuming project's
+  config, not here.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

@@ -1,6 +1,6 @@
 ---
 name: fm-route
-description: "Use to manage the Strangler Fig route flip for a migrated page — --flag-off prepares the nginx routing + flag (default OFF) for the code PR, --flag-on flips the path to the new app once verify/e2e/parity all pass."
+description: "Use to manage the Strangler Fig route flip for a migrated page at the app's configured edge layer (nginx or CloudFront) — --flag-off prepares the routing artifact + flag (default OFF) for the code PR, --flag-on flips the path to the new app once verify/e2e/parity all pass."
 argument-hint: "<page> --flag-off | --flag-on | --revert [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
@@ -8,15 +8,22 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 # Route Flip (Strangler Fig)
 
-Manages the per-path 2-PR feature-flag flip. The flag stays OFF until `fm-verify`, `fm-e2e`, and
-`fm-parity` all pass. All user-facing output in `workingLanguage`.
+Manages the per-path 2-PR feature-flag flip at the app's configured edge layer. The flag stays OFF
+until `fm-verify`, `fm-e2e`, and `fm-parity` all pass. The flip *semantics* are identical across
+mechanisms — only the **edited artifact** differs (nginx config vs CloudFront behavior manifest).
+All user-facing output in `workingLanguage`.
 
 ## Instructions
 
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
-`port`, `legacyPort`, `infraDir` (default `infra/nginx`), `workingLanguage`. Read the page's
-`migration-plan.json` → `flagPlan` (`key`, `guardsPath`). Determine `action` from the flag
+`port`, `legacyPort`, `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+**absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
+- `nginx` → `infraDir` (default `infra/nginx`).
+- `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
+
+Read the page's `migration-plan.json` → `flagPlan` (`key`, `guardsPath` — the same path is the
+nginx `location` *and* the CloudFront path-pattern). Determine `action` from the flag
 (`--flag-off` | `--flag-on` | `--revert`).
 
 ### Step 1: Gate guard (flag-on only)
@@ -37,8 +44,10 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Orchestrate
 Launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
-`flagPlan`, `domain`, `port`, `legacyPort`, `infraDir`, the `verified` tracker status + the
-`e2e-report.json` / `parity-report.json` paths, `workingLanguage`.
+`flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
+(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `verified` tracker
+status + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
+strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
 Update `tracker.json` (Read-Modify-Write):
@@ -56,8 +65,15 @@ independent sign-off of the whole page. Advisory; its high-severity findings are
 `--flag-on` acknowledgement (Step 1b) will surface.
 
 ### Step 5: Report
-In `workingLanguage`: action, the path/flag/app:port mapping, gate-guard result, and next step:
-- after `--flag-off`: open the code PR (flag OFF); when review passes, run `fm-route {page}
-  --flag-on` for the one-line flip PR.
-- after `--flag-on`: the path now serves the new app; rollback = `fm-route {page} --revert`.
+In `workingLanguage`: action, the `flipMechanism` and the artifact edited (the nginx routing block
+in `infraDir`, **or** the CloudFront behavior manifest `cloudfrontDir/<manifest>`), the
+path/flag/app:port mapping, gate-guard result, and next step:
+- after `--flag-off`: open the **code PR** with the flip prepared but OFF — for `nginx` the routing
+  block + flag entry (default OFF), for `cloudfront` the manifest entry mapping `guardsPath` to the
+  v2 origin but **not yet active**. When review passes, run `fm-route {page} --flag-on` for the
+  one-line flip PR.
+- after `--flag-on`: the path now serves the new app (nginx flag ON, or the CloudFront path-pattern
+  behavior active); rollback = `fm-route {page} --revert`.
+- for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest and opens a PR — it
+  **does not push to AWS**; applying the behavior change is the deployment owner's step (OMH-502).
 - mark the page complete (`done`) once stable.
