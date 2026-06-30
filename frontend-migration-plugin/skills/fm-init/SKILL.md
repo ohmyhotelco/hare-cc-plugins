@@ -49,6 +49,15 @@ For each surface (`pc`, `mobile`, `hana`), gather:
 - `ssr` — `mixed` (PC, Mobile) | `spa` (Hana)
 - `webview` — `false` (PC) | `true` (Mobile) | `"unknown"` (Hana, pending confirmation)
 - `sso` — `true` (Hana) | `false`
+- `flipMechanism` — `nginx` (default) | `cloudfront`. The edge layer the Strangler Fig route flip
+  is prepared at for this app (see CLAUDE.md → "Configuration"). Default to `nginx`; ask only if
+  the project flips this app at a CDN. Then record the mechanism-specific paths:
+  - `nginx` → `infraDir` (default `infra/nginx`).
+  - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default
+    `v2-routes.json`, the version-controlled CloudFront behavior manifest).
+
+  Keep this **project-driven** — the plugin has no built-in per-app mapping; default every app to
+  `nginx` unless the user states otherwise.
 
 PC-first: configure `pc` fully. Offer sensible defaults for `mobile`/`hana` (scaffolded,
 validated later) from the migration plan topology. Do not block setup on Mobile/Hana

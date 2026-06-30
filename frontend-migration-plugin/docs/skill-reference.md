@@ -16,7 +16,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → passed / `generated` / `escalated` |
-| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → nginx routing + flag | `flipped` (flag-on, gate-guarded) |
+| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipped` (flag-on, gate-guarded) |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
 | `fm-delta` | `migration-planner` (incremental) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
@@ -45,7 +45,10 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 - **migration-fixer** — smallest-change repair for verify/e2e/parity failures; TDD for behavior.
 - **e2e-test-runner** — Playwright specs; legacy dual-run; staging payment for transactional pages.
 - **parity-verifier** — visual regression, contract freeze, WebView round-trip, telemetry dual-fire.
-- **strangler-orchestrator** — nginx routing + feature flag; refuses flag-on unless all gates pass.
+- **strangler-orchestrator** — prepares/flips/reverts the route at the app's configured edge layer
+  (nginx routing + flag, or a CloudFront behavior manifest entry, per `flipMechanism`) under one
+  interface; cloudfront edits the in-repo manifest only (PR, never pushes to AWS); refuses flag-on
+  unless all gates pass.
 - **delta-modifier** — applies `delta-plan.json` ops; preserves prior fm-fix edits; cascade order.
 - **quality-reviewer** / **test-reviewer** — standalone code/test quality audits.
 - **secret-auditor** — legacy secret inventory + exposure classification (posture only; OMH-477).

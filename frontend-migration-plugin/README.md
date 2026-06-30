@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.6.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.7.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -20,9 +20,10 @@ It wraps code generation with the four things a migration needs:
 
 New to the migration? These terms recur throughout:
 
-- **Strangler Fig** — migrate page-by-page. nginx routes each path to either the legacy Angular
-  app or the new React app; you "strangle" the old app one route at a time, never a big-bang
-  rewrite.
+- **Strangler Fig** — migrate page-by-page. The edge layer routes each path to either the legacy
+  Angular app or the new React app; you "strangle" the old app one route at a time, never a
+  big-bang rewrite. The flip happens at each app's configured edge — an app-layer / entry **nginx**
+  routing block, or a **CloudFront** behavior — selected per app (`flipMechanism`, default `nginx`).
 - **The per-page loop** — every page goes through the same sequence: `analyze → plan → gen →
   verify → e2e → parity → route`. One page at a time.
 - **Three parity gates** — after a page is generated it must pass, in order: `fm-verify`
@@ -168,7 +169,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-fix` | Targeted repair loop for verify/e2e/parity failures |
 | `fm-e2e` | Playwright E2E gatekeeper (legacy dual-run, staging gateways) |
 | `fm-parity` | Visual / contract / WebView / telemetry parity |
-| `fm-route` | Strangler Fig route flip (2-PR feature flag) |
+| `fm-route` | Strangler Fig route flip (2-PR feature flag; per-app nginx or CloudFront edge) |
 | `fm-progress` | Read-only migration dashboard |
 | `fm-delta` | Incremental re-migration on legacy drift |
 | `fm-clean-code` | Standalone code-quality audit |

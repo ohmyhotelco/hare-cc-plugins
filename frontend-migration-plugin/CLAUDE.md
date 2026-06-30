@@ -11,9 +11,10 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.6.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.7.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
-> (AA-53) and Playwright E2E harness hardening (AA-61)). Runtime
+> (AA-53), Playwright E2E harness hardening (AA-61), and the per-app route-flip mechanism
+> (`nginx` | `cloudfront`, v0.7.0)). Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -86,9 +87,9 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   "codexAudit": true,
   "codexAuditStages": ["analyze", "plan", "gen", "verify", "e2e", "parity", "route"],
   "apps": {
-    "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "ssr": "mixed", "webview": false,     "sso": false },
-    "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "ssr": "mixed", "webview": true,      "sso": false },
-    "hana":   { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-hana",   "appDir": "apps/web-hana",   "domain": "hana.ohmyhotel.com", "port": 30321, "ssr": "spa",   "webview": "unknown", "sso": true }
+    "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "ssr": "mixed", "webview": false,     "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
+    "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "ssr": "mixed", "webview": true,      "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
+    "hana":   { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-hana",   "appDir": "apps/web-hana",   "domain": "hana.ohmyhotel.com", "port": 30321, "ssr": "spa",   "webview": "unknown", "sso": true,  "flipMechanism": "nginx", "infraDir": "infra/nginx" }
   },
   "stagingConfig": {
     "baseUrl": "https://staging.ohmyhotel.com",
@@ -135,6 +136,26 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 - `apps.*.webview` — `true` for surfaces loaded inside a native WebView (mobile),
   `false` for PC, `"unknown"` for Hana (pending stakeholder confirmation).
 - `apps.*.sso` — `true` for Hana (external `?ts` SSO; migration plan §7).
+- `apps.*.flipMechanism` — `nginx` (default) | `cloudfront`. Which edge layer the Strangler Fig
+  route flip is prepared at **for this app**. Per-app because one migration can flip different
+  surfaces at different layers — an app-layer / entry nginx vs a CDN (CloudFront). The flip
+  *semantics* are identical across mechanisms (2-PR flag flow, gate-guarded flag-on, revert =
+  rollback); only the **edited artifact** differs. **Backward-compatible**: an app with no
+  `flipMechanism` is treated as `nginx`, so existing nginx-only configs keep working unchanged.
+  - `nginx` → `apps.*.infraDir` (default `infra/nginx`): the in-repo nginx host/path routing block
+    + flag entry `fm-route` edits.
+  - `cloudfront` → `apps.*.cloudfrontDir` (default `infra/cloudfront`) + `apps.*.manifest`
+    (default `v2-routes.json`): a **version-controlled** CloudFront behavior manifest that maps
+    `guardsPath` path-patterns to the v2 origin. `fm-route` edits only this in-repo manifest and
+    opens a PR — it **never pushes to AWS** (governance = detect / PR, not apply).
+
+  The per-app mechanism **mapping** (which app uses which) is **project config**, decided at
+  `fm-init` and never hardcoded in this plugin — the plugin ships `nginx` as the neutral default.
+  See `templates/strangler-fig.md` and `fm-route`.
+- `apps.*.infraDir` — nginx flip only (default `infra/nginx`). Ignored when
+  `flipMechanism` is `cloudfront`.
+- `apps.*.cloudfrontDir` / `apps.*.manifest` — cloudfront flip only (defaults `infra/cloudfront` /
+  `v2-routes.json`). Ignored when `flipMechanism` is `nginx`.
 - `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
   `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` passes to `e2e-test-runner` for transactional
   scenarios. Transactional E2E runs against these, never production. Scaffolded empty (PC-first);
@@ -357,7 +378,8 @@ NgRx store only through a **Facade layer** (`*.facade.ts`) → maps to a custom 
 The WebView bridge and Hana SSO templates (`templates/webview-bridge.md`,
 `templates/hana-sso.md`) are authored in **AA-46** and drive the `fm-parity` webview/sso checks.
 The Strangler Fig routing template (`templates/strangler-fig.md`, authored in **AA-47**) drives
-`fm-route`: the nginx host/path topology, the 2-PR flag flow, and the gate-guarded flip.
+`fm-route`: the per-app flip topology (nginx host/path routing **or** a CloudFront behavior
+manifest, selected by `apps.*.flipMechanism`), the 2-PR flag flow, and the gate-guarded flip.
 
 The lint/format templates (`templates/eslint-config.md`, `templates/prettier-config.md`) define the
 monorepo's ESLint v9 flat config (composed per workspace, with the `shared-domain` secret boundary)
@@ -372,7 +394,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.6.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.7.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

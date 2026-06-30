@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.6.0). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.7.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -20,8 +20,10 @@ Bao quanh việc sinh mã bốn việc mà một cuộc di trú cần:
 
 Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
 
-- **Strangler Fig** — di trú theo từng trang. nginx định tuyến mỗi path tới app Angular cũ hoặc
-  app React mới; bạn "bóp nghẹt" app cũ từng route một, không viết lại kiểu big-bang.
+- **Strangler Fig** — di trú theo từng trang. Lớp edge định tuyến mỗi path tới app Angular cũ hoặc
+  app React mới; bạn "bóp nghẹt" app cũ từng route một, không viết lại kiểu big-bang. Điểm chuyển
+  (flip) được cấu hình theo từng app — khối định tuyến **nginx** ở lớp app/entry, hoặc một behavior
+  **CloudFront** (`flipMechanism`, mặc định `nginx`).
 - **Vòng lặp theo trang** — mỗi trang đi qua cùng một chuỗi: `analyze → plan → gen → verify →
   e2e → parity → route`. Mỗi lần một trang.
 - **Ba cổng parity** — sau khi sinh, trang phải vượt qua theo thứ tự: `fm-verify` (kỹ thuật:

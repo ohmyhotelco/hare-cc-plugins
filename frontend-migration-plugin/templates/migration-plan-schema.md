@@ -63,7 +63,10 @@ Every page migration ships as two PRs (Git Branch Strategy + migration plan §12
 1. **Code PR** — the RR v7 implementation with the feature flag **OFF**. Merges to `main`; the
    path still serves the legacy app.
 2. **Flag-ON PR** — a one-line change flipping the flag, opened only after `fm-verify`,
-   `fm-e2e`, and `fm-parity` all pass. `fm-route` manages the nginx route + flag (AA-47).
+   `fm-e2e`, and `fm-parity` all pass. `fm-route` manages the route flip at the app's configured
+   edge layer — nginx routing + flag, or a CloudFront behavior manifest entry (per
+   `apps.{app}.flipMechanism`; AA-47). `guardsPath` is the nginx `location` *and* the CloudFront
+   path-pattern, so the plan is mechanism-independent.
 
 `flagPlan.key` is the flag; `guardsPath` is the route it gates. Rollback = flip the flag back.
 
