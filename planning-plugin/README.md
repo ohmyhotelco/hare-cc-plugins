@@ -19,10 +19,10 @@ All specs are generated in the configured working language as the source of trut
 ## Architecture Overview
 
 ```
-/planning-plugin:init → .claude/planning-plugin.json
+/planning-plugin:pp-init → .claude/planning-plugin.json
         │
         ▼
-/planning-plugin:spec "feature"
+/planning-plugin:pp-spec "feature"
         │
         ├── analyst agent → requirements gathering (8 categories)
         │
@@ -38,7 +38,7 @@ All specs are generated in the configured working language as the source of trut
         └── Notion sync (optional) → parent + 3 child pages per language
         │
         ▼
-/planning-plugin:design "feature"
+/planning-plugin:pp-design "feature"
         │
         ├── Stage 1:   dsl-generator → UI DSL JSON
         └── Stage 2:   stitch-wireframe → visual wireframes (optional)
@@ -46,7 +46,7 @@ All specs are generated in the configured working language as the source of trut
               └── review gate — review wireframes on Stitch
         │
         ▼
-/planning-plugin:prototype "feature"
+/planning-plugin:pp-prototype "feature"
         │
         └── prototype-generator → React + bundle.html
 ```
@@ -100,7 +100,7 @@ The Notion MCP server is built into Claude and available by default. You only ne
 
 | Server | Used by |
 |--------|---------|
-| `notion` | Notion Syncer agent (`/planning-plugin:sync-notion`) |
+| `notion` | Notion Syncer agent (`/planning-plugin:pp-sync-notion`) |
 
 If the Notion MCP server is not available in your environment, add it manually:
 ```
@@ -118,7 +118,7 @@ The Stitch MCP server is **not bundled** in `plugin.json` because it requires an
    ```
 3. Verify setup by running `/mcp` — `stitch` should appear in the server list
 
-> **Note**: Stitch MCP is only needed for Stage 2 of `/planning-plugin:design`. If not configured, the stage is automatically skipped and the pipeline continues without wireframes.
+> **Note**: Stitch MCP is only needed for Stage 2 of `/planning-plugin:pp-design`. If not configured, the stage is automatically skipped and the pipeline continues without wireframes.
 
 **Authenticate via OAuth**:
 1. Run `/mcp` inside Claude Code
@@ -144,15 +144,15 @@ Get from zero to your first spec in 6 steps:
 ### 2. Initialize project configuration
 
 ```
-/planning-plugin:init
+/planning-plugin:pp-init
 ```
 
-Sets up `.claude/planning-plugin.json` with your working language, supported languages, and optional Notion URL. This step is required before running `/planning-plugin:spec` — the spec skill reads configuration from this file.
+Sets up `.claude/planning-plugin.json` with your working language, supported languages, and optional Notion URL. This step is required before running `/planning-plugin:pp-spec` — the pp-spec skill reads configuration from this file.
 
 ### 3. Start a new spec
 
 ```
-/planning-plugin:spec "social login with Google and Apple"
+/planning-plugin:pp-spec "social login with Google and Apple"
 ```
 
 ### 4. Answer the analyst's questions
@@ -186,16 +186,16 @@ You see a combined summary with scores, critical/major issues, and proposed test
 For each issue, choose: **Accept** / **Reject** / **Modify** / **Defer**. Translations sync automatically after changes. When both reviewers score >= 8/10, the plugin suggests finalization.
 
 ```
-/planning-plugin:progress social-login
+/planning-plugin:pp-progress social-login
 ```
 
 Use this anytime to check progress.
 
 ## Skills Reference
 
-### `/planning-plugin:init`
+### `/planning-plugin:pp-init`
 
-**Syntax**: `/planning-plugin:init`
+**Syntax**: `/planning-plugin:pp-init`
 
 **When to use**: Before creating your first spec in a project, to set up the plugin configuration.
 
@@ -207,14 +207,14 @@ Use this anytime to check progress.
 
 **Example**:
 ```
-/planning-plugin:init
+/planning-plugin:pp-init
 ```
 
 ---
 
-### `/planning-plugin:spec`
+### `/planning-plugin:pp-spec`
 
-**Syntax**: `/planning-plugin:spec "feature description"`
+**Syntax**: `/planning-plugin:pp-spec "feature description"`
 
 **When to use**: Starting a brand new feature specification from scratch.
 
@@ -229,16 +229,16 @@ Use this anytime to check progress.
 
 **Example**:
 ```
-/planning-plugin:spec "reservation cancellation policy with partial refunds"
+/planning-plugin:pp-spec "reservation cancellation policy with partial refunds"
 ```
 
 If a spec directory already exists for that feature, the plugin asks whether to resume or start fresh.
 
 ---
 
-### `/planning-plugin:review`
+### `/planning-plugin:pp-review`
 
-**Syntax**: `/planning-plugin:review feature-name`
+**Syntax**: `/planning-plugin:pp-review feature-name`
 
 **When to use**: After manually editing a spec, to re-check quality with fresh planner and tester reviews.
 
@@ -251,14 +251,14 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 **Example**:
 ```
-/planning-plugin:review social-login
+/planning-plugin:pp-review social-login
 ```
 
 ---
 
-### `/planning-plugin:translate`
+### `/planning-plugin:pp-translate`
 
-**Syntax**: `/planning-plugin:translate feature-name [--file=<name>]`
+**Syntax**: `/planning-plugin:pp-translate feature-name [--file=<name>]`
 
 **When to use**: After directly editing the working language spec to sync translations to the other supported languages.
 
@@ -272,15 +272,15 @@ If a spec directory already exists for that feature, the plugin asks whether to 
 
 **Examples**:
 ```
-/planning-plugin:translate social-login                    # full sync (all files)
-/planning-plugin:translate social-login --file=screens       # sync only screens.md
+/planning-plugin:pp-translate social-login                    # full sync (all files)
+/planning-plugin:pp-translate social-login --file=screens       # sync only screens.md
 ```
 
 ---
 
-### `/planning-plugin:progress`
+### `/planning-plugin:pp-progress`
 
-**Syntax**: `/planning-plugin:progress [feature-name]`
+**Syntax**: `/planning-plugin:pp-progress [feature-name]`
 
 **When to use**: To check the progress of one or all specifications.
 
@@ -333,9 +333,9 @@ Specifications Overview:
 
 ---
 
-### `/planning-plugin:migrate-language`
+### `/planning-plugin:pp-migrate-language`
 
-**Syntax**: `/planning-plugin:migrate-language feature-name --to=vi`
+**Syntax**: `/planning-plugin:pp-migrate-language feature-name --to=vi`
 
 **When to use**: When transferring a project to a team member who works in a different language, or when changing the working language of an existing spec.
 
@@ -348,14 +348,14 @@ Specifications Overview:
 
 **Example**:
 ```
-/planning-plugin:migrate-language social-login --to=vi
+/planning-plugin:pp-migrate-language social-login --to=vi
 ```
 
 ---
 
-### `/planning-plugin:sync-notion`
+### `/planning-plugin:pp-sync-notion`
 
-**Syntax**: `/planning-plugin:sync-notion feature-name [--lang=xx]`
+**Syntax**: `/planning-plugin:pp-sync-notion feature-name [--lang=xx]`
 
 **When to use**: To manually sync a finalized spec to Notion, or to re-sync after editing. Automatic sync runs after finalization and translation, but you can trigger it manually anytime.
 
@@ -369,17 +369,17 @@ Specifications Overview:
 
 **Example**:
 ```
-/planning-plugin:sync-notion social-login
-/planning-plugin:sync-notion social-login --lang=ko
+/planning-plugin:pp-sync-notion social-login
+/planning-plugin:pp-sync-notion social-login --lang=ko
 ```
 
 > **Note**: Requires `notionParentPageUrl` to be set in `.claude/planning-plugin.json`.
 
 ---
 
-### `/planning-plugin:design`
+### `/planning-plugin:pp-design`
 
-**Syntax**: `/planning-plugin:design feature-name [--stage=dsl|stitch]`
+**Syntax**: `/planning-plugin:pp-design feature-name [--stage=dsl|stitch]`
 
 **When to use**: After finalizing a spec, to generate UI DSL and visual wireframes.
 
@@ -402,33 +402,33 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 
 **Examples**:
 ```
-/planning-plugin:design social-login                    # full pipeline (stages 1→2 + review gate)
-/planning-plugin:design social-login --stage=dsl        # DSL generation only
-/planning-plugin:design social-login --stage=stitch     # Stitch wireframe generation only
+/planning-plugin:pp-design social-login                    # full pipeline (stages 1→2 + review gate)
+/planning-plugin:pp-design social-login --stage=dsl        # DSL generation only
+/planning-plugin:pp-design social-login --stage=stitch     # Stitch wireframe generation only
 ```
 
-> **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. To generate the prototype, run `/planning-plugin:prototype {feature}` after reviewing wireframes.
+> **Note**: Stage 2 (Stitch) is optional. Stitch requires `claude mcp add stitch --transport http https://stitch.googleapis.com/mcp --header "X-Goog-Api-Key: <key>" -s user`. To generate the prototype, run `/planning-plugin:pp-prototype {feature}` after reviewing wireframes.
 
 **Shared layouts (`_shared`)**: Use `_shared` as the feature name to generate DSL for app-wide layout screens (sidebar + header shells) shared across multiple features. Features reference shared layouts via `<!-- @layout: _shared/main-layout -->` directive in `screens.md`. Recommended workflow:
 
 ```
-/planning-plugin:design _shared                         # generate shared layout DSL (+ optional Stitch)
-/planning-plugin:design social-login                    # feature DSL references shared layouts automatically
-/planning-plugin:prototype social-login                 # prototype copies shared layout components locally
+/planning-plugin:pp-design _shared                         # generate shared layout DSL (+ optional Stitch)
+/planning-plugin:pp-design social-login                    # feature DSL references shared layouts automatically
+/planning-plugin:pp-prototype social-login                 # prototype copies shared layout components locally
 ```
 
 > `_shared` skips spec lifecycle validation (no progress file required) — only `docs/specs/_shared/en/screens.md` must exist. Features without `@layout:` directive use local layout detection as before (backward compatible).
 
-**Automatic shared layout creation**: When running `/planning-plugin:spec`, the plugin automatically detects shared layout patterns from the analyst's user flow answers. If screens share a persistent sidebar + header shell:
+**Automatic shared layout creation**: When running `/planning-plugin:pp-spec`, the plugin automatically detects shared layout patterns from the analyst's user flow answers. If screens share a persistent sidebar + header shell:
 - If `_shared/en/screens.md` already exists: the `@layout:` directive is activated automatically, and shell components are removed from the feature's screen definitions.
-- If `_shared/en/screens.md` does not exist: you are asked whether to create it. If approved, a shared layout screen (with a `Slot` component) is generated and the feature's `@layout:` directive is activated. The finalization step then guides you to run `design _shared` before `design {feature}`.
+- If `_shared/en/screens.md` does not exist: you are asked whether to create it. If approved, a shared layout screen (with a `Slot` component) is generated and the feature's `@layout:` directive is activated. The finalization step then guides you to run `pp-design _shared` before `pp-design {feature}`.
 - If no pattern is detected or you decline: the feature uses local layout detection as before.
 
 ---
 
-### `/planning-plugin:prototype`
+### `/planning-plugin:pp-prototype`
 
-**Syntax**: `/planning-plugin:prototype feature-name`
+**Syntax**: `/planning-plugin:pp-prototype feature-name`
 
 **When to use**: After reviewing Stitch wireframes (or after DSL generation if Stitch is skipped), to generate the React prototype.
 
@@ -442,16 +442,16 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 
 **Example**:
 ```
-/planning-plugin:prototype social-login
+/planning-plugin:pp-prototype social-login
 ```
 
 ---
 
-### `/planning-plugin:sync-stitch`
+### `/planning-plugin:pp-sync-stitch`
 
-**Syntax**: `/planning-plugin:sync-stitch feature-name [--screen=screen-id]`
+**Syntax**: `/planning-plugin:pp-sync-stitch feature-name [--screen=screen-id]`
 
-**When to use**: After editing wireframes on the Stitch website, to pull updated HTML/PNG/design tokens back to your local project. Unlike `design --stage=stitch` which regenerates wireframes from DSL, `sync-stitch` re-fetches content from existing Stitch screens.
+**When to use**: After editing wireframes on the Stitch website, to pull updated HTML/PNG/design tokens back to your local project. Unlike `pp-design --stage=stitch` which regenerates wireframes from DSL, `pp-sync-stitch` re-fetches content from existing Stitch screens.
 
 **What happens**:
 1. Reads the existing `stitch-manifest.json` to find the Stitch project and screen mappings
@@ -463,21 +463,21 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 **When to use which**:
 | Scenario | Command |
 |----------|---------|
-| Edited wireframes on Stitch website | `/planning-plugin:sync-stitch {feature}` |
-| Changed the UI DSL (spec screens changed) | `/planning-plugin:design {feature} --stage=stitch` |
-| Only need to sync one screen | `/planning-plugin:sync-stitch {feature} --screen=screen-id` |
+| Edited wireframes on Stitch website | `/planning-plugin:pp-sync-stitch {feature}` |
+| Changed the UI DSL (spec screens changed) | `/planning-plugin:pp-design {feature} --stage=stitch` |
+| Only need to sync one screen | `/planning-plugin:pp-sync-stitch {feature} --screen=screen-id` |
 
 **Example**:
 ```
-/planning-plugin:sync-stitch social-login
-/planning-plugin:sync-stitch social-login --screen=user-list
+/planning-plugin:pp-sync-stitch social-login
+/planning-plugin:pp-sync-stitch social-login --screen=user-list
 ```
 
 ---
 
-### `/planning-plugin:bundle`
+### `/planning-plugin:pp-bundle`
 
-**Syntax**: `/planning-plugin:bundle feature-name`
+**Syntax**: `/planning-plugin:pp-bundle feature-name`
 
 **When to use**: When `bundleStatus` is `"stale"` (prototype source files were edited after the last bundle), or after manually modifying prototype source files.
 
@@ -488,14 +488,14 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 
 **Example**:
 ```
-/planning-plugin:bundle social-login
+/planning-plugin:pp-bundle social-login
 ```
 
 ---
 
-### `/planning-plugin:design-system`
+### `/planning-plugin:pp-design-system`
 
-**Syntax**: `/planning-plugin:design-system [--domain=b2b-admin|hotel-travel] [--query="context"]`
+**Syntax**: `/planning-plugin:pp-design-system [--domain=b2b-admin|hotel-travel] [--query="context"]`
 
 **When to use**: Before running the design pipeline, to establish a domain-specific design system with colors, typography, components, and UX patterns.
 
@@ -520,15 +520,15 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 
 **Examples**:
 ```
-/planning-plugin:design-system --domain=b2b-admin
-/planning-plugin:design-system --domain=hotel-travel --query="booking CRM"
+/planning-plugin:pp-design-system --domain=b2b-admin
+/planning-plugin:pp-design-system --domain=hotel-travel --query="booking CRM"
 ```
 
 ## Full Workflow Guide
 
 ### Step 1: Requirements Gathering
 
-When you run `/planning-plugin:spec`, the **analyst agent** starts by silently scanning your project:
+When you run `/planning-plugin:pp-spec`, the **analyst agent** starts by silently scanning your project:
 
 - Reads `package.json`, `README.md`, `CLAUDE.md` and similar metadata
 - Maps directory structure and source code organization
@@ -640,10 +640,10 @@ You always have the final say. When you finalize:
 2. Progress file status updates to `finalized`
 3. You get a summary: total rounds, final scores, key decisions, remaining open questions
 4. Suggested next steps:
-   - `/planning-plugin:design-system --domain=...` to establish a domain-specific design system (recommended before running the design pipeline)
-   - `/planning-plugin:design {feature}` to generate UI DSL and wireframes, then `/planning-plugin:prototype {feature}` for the React prototype
-   - `/planning-plugin:review {feature}` anytime to re-review
-   - Edit the working language spec directly and run `/planning-plugin:translate {feature}` to sync
+   - `/planning-plugin:pp-design-system --domain=...` to establish a domain-specific design system (recommended before running the design pipeline)
+   - `/planning-plugin:pp-design {feature}` to generate UI DSL and wireframes, then `/planning-plugin:pp-prototype {feature}` for the React prototype
+   - `/planning-plugin:pp-review {feature}` anytime to re-review
+   - Edit the working language spec directly and run `/planning-plugin:pp-translate {feature}` to sync
 
 ## Agents
 
@@ -675,7 +675,7 @@ Translates specs while preserving markdown structure, technical terms, code bloc
 
 **Role**: Sync finalized specs to Notion pages.
 
-The `sync-notion` skill reads spec files directly and creates a parent page + 3 child pages (Overview, Screens, Test Scenarios) per language under the configured parent page URL. Each child page carries one spec file's content, avoiding LLM output token limits on large specs. Stores page URLs in the progress file for future updates. Triggered automatically after finalization and translation, or manually via `/planning-plugin:sync-notion`.
+The `pp-sync-notion` skill reads spec files directly and creates a parent page + 3 child pages (Overview, Screens, Test Scenarios) per language under the configured parent page URL. Each child page carries one spec file's content, avoiding LLM output token limits on large specs. Stores page URLs in the progress file for future updates. Triggered automatically after finalization and translation, or manually via `/planning-plugin:pp-sync-notion`.
 
 ### DSL Generator
 
@@ -697,7 +697,7 @@ Reads UI DSL JSON and converts component trees into natural-language prompts for
 
 ## Configuration
 
-The plugin uses `.claude/planning-plugin.json` in the user's project directory (created by `/planning-plugin:init`):
+The plugin uses `.claude/planning-plugin.json` in the user's project directory (created by `/planning-plugin:pp-init`):
 
 ```json
 {
@@ -775,31 +775,31 @@ prototypes/{feature}/                  ← React prototype (standalone Vite proj
 
 ## Tips & Best Practices
 
-- **Give detailed feature descriptions** — The more context you provide in the initial `/planning-plugin:spec` command, the better the analyst's questions will be. "Social login" is okay; "social login with Google and Apple for both web and mobile apps, replacing the current email-only signup" is much better.
+- **Give detailed feature descriptions** — The more context you provide in the initial `/planning-plugin:pp-spec` command, the better the analyst's questions will be. "Social login" is okay; "social login with Google and Apple for both web and mobile apps, replacing the current email-only signup" is much better.
 
 - **Don't skip TBD items forever** — TBD markers let you move forward, but come back to them before finalization. The planner and tester will flag unresolved TBDs as issues.
 
-- **Manual edits are welcome** — You can edit the working language spec directly at any time. After editing, run `/planning-plugin:translate feature-name` to sync translations, and `/planning-plugin:review feature-name` to re-check quality.
+- **Manual edits are welcome** — You can edit the working language spec directly at any time. After editing, run `/planning-plugin:pp-translate feature-name` to sync translations, and `/planning-plugin:pp-review feature-name` to re-check quality.
 
-- **Use `--file` for targeted translation** — If you only changed one file, use `/planning-plugin:translate feature-name --file=screens` instead of re-translating the entire spec.
+- **Use `--file` for targeted translation** — If you only changed one file, use `/planning-plugin:pp-translate feature-name --file=screens` instead of re-translating the entire spec.
 
-- **Check status regularly** — Use `/planning-plugin:progress` (no arguments) to see all specs at a glance, especially when working on multiple features.
+- **Check status regularly** — Use `/planning-plugin:pp-progress` (no arguments) to see all specs at a glance, especially when working on multiple features.
 
-- **Session resumption** — If you close Claude Code mid-workflow, the plugin automatically detects in-progress specs on restart and notifies you. Use `/planning-plugin:progress` to see where you left off, then `/planning-plugin:spec` to resume.
+- **Session resumption** — If you close Claude Code mid-workflow, the plugin automatically detects in-progress specs on restart and notifies you. Use `/planning-plugin:pp-progress` to see where you left off, then `/planning-plugin:pp-spec` to resume.
 
 - **Don't chase perfect scores** — If scores plateau after 3 rounds, the plugin suggests finalizing with open questions. This is often the right call — a finalized spec with documented open questions is more useful than an endlessly reviewed draft.
 
-- **Review after major changes** — Even after finalization, you can re-review anytime with `/planning-plugin:review`. This changes the status back to `reviewing` so you can iterate further.
+- **Review after major changes** — Even after finalization, you can re-review anytime with `/planning-plugin:pp-review`. This changes the status back to `reviewing` so you can iterate further.
 
 - **Changing the working language** — There are two scenarios:
   - *For new specs*: Edit `.claude/planning-plugin.json` and set `workingLanguage` to the desired language (e.g., `"vi"`). All future specs will be authored in that language.
-  - *For an existing spec*: Run `/planning-plugin:migrate-language feature-name --to=vi`. This switches the source of truth to the target language translation, marks all other translations as out of sync, and preserves the spec's status. The target language translation must already exist — run `/planning-plugin:translate` first if needed.
+  - *For an existing spec*: Run `/planning-plugin:pp-migrate-language feature-name --to=vi`. This switches the source of truth to the target language translation, marks all other translations as out of sync, and preserves the spec's status. The target language translation must already exist — run `/planning-plugin:pp-translate` first if needed.
 
 ## Directory Structure
 
 ```
 agents/          Agent definitions (analyst, planner, tester, translator, dsl-generator, stitch-wireframe, prototype-generator, sync-notion)
-skills/          Skill entry points (init, spec, review, translate, progress, design, prototype, design-system, migrate-language, sync-notion, sync-stitch, bundle)
+skills/          Skill entry points (pp-init, pp-spec, pp-review, pp-translate, pp-progress, pp-design, pp-prototype, pp-design-system, pp-migrate-language, pp-sync-notion, pp-sync-stitch, pp-bundle)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
@@ -840,7 +840,7 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 - Prototypes are standalone Vite projects with no dependency on the main project
 - Stitch wireframe generation is optional and requires Google Stitch MCP configuration
 - Shared layouts: `_shared` is a reserved pseudo-feature directory (`docs/specs/_shared/`) for app-wide layout screens shared across multiple features. Features reference shared layouts via `<!-- @layout: _shared/main-layout -->` directive in `screens.md`. Prototypes copy shared layout components locally (copy-on-reference) to remain standalone
-- Shared layout auto-generation: The `spec` skill automatically detects shared layout patterns and optionally creates `_shared/en/screens.md` during draft generation (Step 3.5). Always created under `en/` regardless of `workingLanguage`
+- Shared layout auto-generation: The `pp-spec` skill automatically detects shared layout patterns and optionally creates `_shared/en/screens.md` during draft generation (Step 3.5). Always created under `en/` regardless of `workingLanguage`
 
 ## Author
 

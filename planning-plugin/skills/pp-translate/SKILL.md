@@ -1,5 +1,5 @@
 ---
-name: translate
+name: pp-translate
 description: Use after directly editing the working language spec to sync changes to other supported languages.
 argument-hint: "[feature-name] [--file=<name>]"
 user-invocable: true
@@ -16,7 +16,7 @@ Sync translations for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 5. Determine target languages: `supportedLanguages` minus `workingLanguage`

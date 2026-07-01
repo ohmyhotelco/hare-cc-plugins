@@ -1,5 +1,5 @@
 ---
-name: design
+name: pp-design
 description: "Use when a functional specification is finalized and UI design artifacts (DSL, wireframes) are needed before implementation."
 argument-hint: "[feature-name] [--stage=dsl|stitch]"
 user-invocable: true
@@ -18,7 +18,7 @@ Follow these steps in order.
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -26,7 +26,7 @@ Follow these steps in order.
 
 ### Step 0b: Design System Integration
 
-The design pipeline produces better results when a design system exists. Run `/planning-plugin:design-system` before `/planning-plugin:design` for best results.
+The design pipeline produces better results when a design system exists. Run `/planning-plugin:pp-design-system` before `/planning-plugin:pp-design` for best results.
 
 **Agent-to-file reference map** (`design-system/pages/`):
 
@@ -62,19 +62,19 @@ All references are optional — agents fall back to defaults when design-system 
      > "No shared layout screens found. Create `docs/specs/_shared/en/screens.md` with layout screen definitions first."
    - **Otherwise**: Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
      - If it does not exist, stop with:
-       > "No specification found for '{feature}'. Run `/planning-plugin:spec "{feature}"` first."
+       > "No specification found for '{feature}'. Run `/planning-plugin:pp-spec "{feature}"` first."
      - Verify status is `reviewing` or `finalized`. If `drafting` or `analyzing`, stop with:
        > "The specification for '{feature}' is still in '{status}' status. Complete the spec review process first."
 
 3. Validate `screens.md` exists at `docs/specs/{feature}/en/screens.md`:
    - If `docs/specs/{feature}/en/` directory does not exist, stop with:
-     > "English spec not found. Run `/planning-plugin:translate {feature}` first to generate the English version."
+     > "English spec not found. Run `/planning-plugin:pp-translate {feature}` first to generate the English version."
    - If `screens.md` is missing inside the `en/` directory, stop with:
      > "No screen definitions found. The spec must include screens.md."
 
 4. Stage-specific prerequisite checks:
    - If `--stage=stitch`: verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not:
-     > "UI DSL not found. Run `/planning-plugin:design {feature} --stage=dsl` first."
+     > "UI DSL not found. Run `/planning-plugin:pp-design {feature} --stage=dsl` first."
 
 ### Step 2: Determine Stages
 
@@ -177,9 +177,9 @@ Stitch wireframes generated for '{feature}':
 Review your wireframes:
   1. Open Stitch project to review and edit: https://labs.google/stitch/projects/{projectId}
   2. If you made edits on Stitch, sync them:
-     /planning-plugin:sync-stitch {feature}
+     /planning-plugin:pp-sync-stitch {feature}
   3. When satisfied, generate the prototype:
-     /planning-plugin:prototype {feature}
+     /planning-plugin:pp-prototype {feature}
 ```
 
 Then proceed to Step 6 (Finalize) to update progress and display the summary.
@@ -211,9 +211,9 @@ Design Pipeline Results for '{feature}':
 Next Steps:
   1. Open Stitch project to review and edit: https://labs.google/stitch/projects/{projectId}
   2. If you made edits on Stitch, sync them:
-     /planning-plugin:sync-stitch {feature}
+     /planning-plugin:pp-sync-stitch {feature}
   3. When satisfied, generate the prototype:
-     /planning-plugin:prototype {feature}
+     /planning-plugin:pp-prototype {feature}
 ```
 
 **B) Single stage run (`--stage=dsl` or `--stage=stitch`):**
@@ -221,7 +221,7 @@ Adjust Next Steps to guide the user to the next logical stage.
 
 If `design-system/MASTER.md` does not exist, prepend this to the Next Steps:
 ```
-  - Run `/planning-plugin:design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
+  - Run `/planning-plugin:pp-design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
 ```
 
 ## Error Handling

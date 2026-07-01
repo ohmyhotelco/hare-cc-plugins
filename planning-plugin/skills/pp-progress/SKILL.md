@@ -1,5 +1,5 @@
 ---
-name: progress
+name: pp-progress
 description: Use when checking specification progress, review scores, translation sync status, or determining the next pipeline step.
 argument-hint: "[feature-name]"
 user-invocable: true
@@ -16,7 +16,7 @@ Show status for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 5. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
@@ -54,7 +54,7 @@ Design Status: (only display this section if a `design` field exists in the prog
 
 Stitch status display mapping:
   "completed"   → "completed"
-  "stale"       → "STALE (run /planning-plugin:sync-stitch or /planning-plugin:design --stage=stitch)"
+  "stale"       → "STALE (run /planning-plugin:pp-sync-stitch or /planning-plugin:pp-design --stage=stitch)"
   "skipped"     → "skipped"
   "pending"     → omit entire Stitch line
   "in_progress" → "in progress"
@@ -103,4 +103,4 @@ Notion column uses per-language status symbols:
 - `—` = no Notion sync configured
 
 5. If no specs exist yet, display:
-   > No specifications found. Run `/planning-plugin:spec "feature description"` to create one.
+   > No specifications found. Run `/planning-plugin:pp-spec "feature description"` to create one.

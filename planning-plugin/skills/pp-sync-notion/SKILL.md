@@ -1,5 +1,5 @@
 ---
-name: sync-notion
+name: pp-sync-notion
 description: Use when a specification needs to be published or re-synced to Notion after finalization or manual edits.
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
@@ -16,9 +16,9 @@ Sync specification to Notion for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `notionParentPageUrl` — if empty or missing, stop with error:
-   > "Notion sync is not configured. Run `/planning-plugin:init` and provide a Notion parent page URL."
+   > "Notion sync is not configured. Run `/planning-plugin:pp-init` and provide a Notion parent page URL."
 4. Extract `workingLanguage` (default: `"en"`)
 5. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 6. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
@@ -36,7 +36,7 @@ Sync specification to Notion for: **$ARGUMENTS**
 ### Step 1: Parse Arguments
 
 - First argument: feature name (required). If missing, stop with error:
-  > "Usage: `/planning-plugin:sync-notion <feature-name> [--lang=xx]`"
+  > "Usage: `/planning-plugin:pp-sync-notion <feature-name> [--lang=xx]`"
 - Optional `--lang=xx` flag: only sync the specified language (e.g., `--lang=ko`)
 - If no `--lang` specified, sync all available languages
 

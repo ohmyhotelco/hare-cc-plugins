@@ -1,5 +1,5 @@
 ---
-name: sync-stitch
+name: pp-sync-stitch
 description: "Use when wireframes were manually edited on the Stitch website and need to be re-fetched to the local project."
 argument-hint: "[feature-name] [--screen=screen-id]"
 user-invocable: true
@@ -18,7 +18,7 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -29,7 +29,7 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
 1. Parse `feature` from arguments (required, kebab-case)
 2. Parse optional `--screen=<screen-id>` flag — if provided, only sync that single screen
 3. Verify `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json` exists. If not, stop with:
-   > "No Stitch wireframes found for '{feature}'. Run `/planning-plugin:design {feature} --stage=stitch` to generate wireframes first."
+   > "No Stitch wireframes found for '{feature}'. Run `/planning-plugin:pp-design {feature} --stage=stitch` to generate wireframes first."
 4. Read and parse `stitch-manifest.json` — extract `stitchProject.projectId`, `screens` array, and `stitchProject.designTheme`
 
 ### Step 2: Verify Stitch MCP Connectivity
@@ -62,7 +62,7 @@ Re-fetch wireframe content from Stitch for: **$ARGUMENTS**
    b. Log: "Detected variant pattern: {n} original screens → {m} variant screens."
    c. Proceed to **Step 3b: Variant Adoption**
 6. If NOT a variant pattern (normal new/deleted only), keep existing behavior:
-   > "Found {n} new screen(s) and {m} deleted screen(s) in Stitch. New: [{titles}]. Deleted: [{titles}]. These will be noted but not auto-synced. Run `/planning-plugin:design {feature} --stage=stitch` for a full regeneration."
+   > "Found {n} new screen(s) and {m} deleted screen(s) in Stitch. New: [{titles}]. Deleted: [{titles}]. These will be noted but not auto-synced. Run `/planning-plugin:pp-design {feature} --stage=stitch` for a full regeneration."
 7. If `--screen=<screen-id>` was provided:
    - Find the matching screen in the manifest by `dslScreenId` or `stitchScreenId`
    - If not found, stop with: "Screen '{screen-id}' not found in the manifest."
@@ -135,7 +135,7 @@ For each deleted manifest screen, process its matching variant group:
 3. **Unmatched new screens**:
    Report any new screens that don't match any deleted manifest screen:
    > "New screen '{title}' has no matching manifest entry. Skipping."
-   > "To add new screens, run `/planning-plugin:design {feature} --stage=stitch`"
+   > "To add new screens, run `/planning-plugin:pp-design {feature} --stage=stitch`"
 
 4. **Unmatched deleted screens**:
    Report any deleted manifest screens that have no matching variants:
@@ -327,7 +327,7 @@ Variant adoption:
 
 {If new/deleted screens detected (non-variant):}
 Note: {n} new and {m} deleted screens detected in Stitch.
-  Run /planning-plugin:design {feature} --stage=stitch for full regeneration.
+  Run /planning-plugin:pp-design {feature} --stage=stitch for full regeneration.
 
 Updated artifacts:
   - HTML/PNG wireframes: docs/specs/{feature}/stitch-wireframes/
@@ -338,10 +338,10 @@ Updated artifacts:
 
 {If prototype exists and bundleStatus was set to stale:}
 Prototype bundle is now STALE. Next steps:
-  /planning-plugin:prototype {feature}                  (regenerate prototype with updated wireframes)
-  /planning-plugin:bundle {feature}                    (rebuild bundle only, without regenerating prototype)
+  /planning-plugin:pp-prototype {feature}                  (regenerate prototype with updated wireframes)
+  /planning-plugin:pp-bundle {feature}                    (rebuild bundle only, without regenerating prototype)
 
 {If no prototype:}
 Next steps:
-  /planning-plugin:prototype {feature}                  (generate prototype from updated wireframes)
+  /planning-plugin:pp-prototype {feature}                  (generate prototype from updated wireframes)
 ```

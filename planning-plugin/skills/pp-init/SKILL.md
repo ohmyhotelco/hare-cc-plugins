@@ -1,5 +1,5 @@
 ---
-name: init
+name: pp-init
 description: Use when setting up Planning Plugin for a new project — configures working language and optional Notion sync.
 argument-hint: ""
 user-invocable: true
@@ -78,7 +78,7 @@ Planning Plugin configured successfully!
   Config file: .claude/planning-plugin.json
 
 Next steps:
-  - Run /planning-plugin:spec "feature description" to create a specification
+  - Run /planning-plugin:pp-spec "feature description" to create a specification
   - Edit .claude/planning-plugin.json anytime to change settings
   - To generate production React code from specifications, also run /frontend-react-plugin:fe-init
 ```

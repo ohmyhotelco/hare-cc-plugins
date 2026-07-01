@@ -23,7 +23,7 @@ fi
 if [ ! -f "$CONFIG_FILE" ]; then
   echo ""
   echo "[Planning Plugin] No configuration found."
-  echo "Run /planning-plugin:init to set up the plugin for this project."
+  echo "Run /planning-plugin:pp-init to set up the plugin for this project."
   exit 0
 fi
 
@@ -59,7 +59,7 @@ if [ -n "$IN_PROGRESS" ]; then
   echo "[Planning Plugin] Working language: $WORKING_LANG"
   echo "[Planning Plugin] In-progress specifications found:"
   echo -e "$IN_PROGRESS"
-  echo "Use /planning-plugin:progress to see details, or /planning-plugin:spec to resume."
+  echo "Use /planning-plugin:pp-progress to see details, or /planning-plugin:pp-spec to resume."
 fi
 
 # Check Notion sync status across all progress files
@@ -84,7 +84,7 @@ if [ -n "$NOTION_WARNINGS" ]; then
   echo ""
   echo "[Planning Plugin] Notion sync issues:"
   echo -e "$NOTION_WARNINGS"
-  echo "  Run: /planning-plugin:sync-notion {feature} [--lang=xx]"
+  echo "  Run: /planning-plugin:pp-sync-notion {feature} [--lang=xx]"
 fi
 
 # Check prototype bundle stale status across all progress files
@@ -103,7 +103,7 @@ if [ -n "$BUNDLE_WARNINGS" ]; then
   echo ""
   echo "[Planning Plugin] Stale prototype bundles:"
   echo -e "$BUNDLE_WARNINGS"
-  echo "  Run: /planning-plugin:bundle {feature}"
+  echo "  Run: /planning-plugin:pp-bundle {feature}"
 fi
 
 # Check stitch wireframe stale status across all progress files
@@ -122,8 +122,8 @@ if [ -n "$STITCH_WARNINGS" ]; then
   echo ""
   echo "[Planning Plugin] Stale Stitch wireframes:"
   echo -e "$STITCH_WARNINGS"
-  echo "  Run: /planning-plugin:sync-stitch {feature}  (if edited on Stitch website)"
-  echo "    or /planning-plugin:design {feature} --stage=stitch  (if DSL was changed)"
+  echo "  Run: /planning-plugin:pp-sync-stitch {feature}  (if edited on Stitch website)"
+  echo "    or /planning-plugin:pp-design {feature} --stage=stitch  (if DSL was changed)"
 fi
 
 exit 0
