@@ -1,5 +1,5 @@
 ---
-name: review
+name: pp-review
 description: Use after manual spec edits to re-check quality, or when review scores need improvement before finalization.
 argument-hint: "[feature-name]"
 user-invocable: true
@@ -16,7 +16,7 @@ Run a review round on an existing specification for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -124,12 +124,12 @@ First, compute `roundsInCycle`: read `reviewCycleStart` from the progress file (
 
 **If done for now**:
 Remind the user:
-> "The spec is in REVIEWING status. To finalize, run `/planning-plugin:review {feature}` again and select finalize when the convergence check passes."
-> "Run `/planning-plugin:translate {feature}` to sync translations."
+> "The spec is in REVIEWING status. To finalize, run `/planning-plugin:pp-review {feature}` again and select finalize when the convergence check passes."
+> "Run `/planning-plugin:pp-translate {feature}` to sync translations."
 
 If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also remind:
-> "Run `/planning-plugin:sync-notion {feature} --lang={workingLanguage}` to update the Notion page.
->  Note: translations may be out of sync — run `/planning-plugin:translate {feature}` first if you want to sync all languages."
+> "Run `/planning-plugin:pp-sync-notion {feature} --lang={workingLanguage}` to update the Notion page.
+>  Note: translations may be out of sync — run `/planning-plugin:pp-translate {feature}` first if you want to sync all languages."
 
 ---
 
@@ -138,7 +138,7 @@ If `notionParentPageUrl` is configured in `.claude/planning-plugin.json`, also r
 Before launching translators, ask the user:
 > "Translation will sync the spec to all target languages. This launches parallel translator agents and may take several minutes. How would you like to proceed?"
 > 1. **Translate and finalize** — run translation now, then verify and finalize
-> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:translate {feature}` later to sync translations)
+> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:pp-translate {feature}` later to sync translations)
 > 3. **Cancel** — go back to review options
 
 If the user selects option 2 (skip), jump directly to Step 6a.5 (Pre-Finalization Verification).
@@ -199,9 +199,9 @@ This gate supplements the convergence check — both must pass before finalizati
 
 After completing Steps 6a–6c, suggest next steps:
 - If `docs/specs/_shared/en/screens.md` exists AND the feature's `screens.md` contains an active `@layout:` directive (not commented out):
-  > "Run `/planning-plugin:design _shared` first to generate the shared layout DSL (if not already done), then `/planning-plugin:design {feature}` to generate the feature DSL."
+  > "Run `/planning-plugin:pp-design _shared` first to generate the shared layout DSL (if not already done), then `/planning-plugin:pp-design {feature}` to generate the feature DSL."
 - Otherwise:
-  > "Run `/planning-plugin:design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:prototype {feature}` to generate the React prototype"
-> "Run `/planning-plugin:review {feature}` anytime to re-review"
-> "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
-> "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"
+  > "Run `/planning-plugin:pp-design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:pp-prototype {feature}` to generate the React prototype"
+> "Run `/planning-plugin:pp-review {feature}` anytime to re-review"
+> "Edit the {workingLanguage} spec directly and run `/planning-plugin:pp-translate {feature}` to sync translations"
+> "Run `/planning-plugin:pp-sync-notion {feature}` to manually re-sync Notion pages"

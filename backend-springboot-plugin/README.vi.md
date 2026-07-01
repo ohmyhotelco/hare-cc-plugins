@@ -146,7 +146,7 @@ Xác nhận cài đặt:
 
 ```
 1. /backend-springboot-plugin:be-init                          # cấu hình plugin
-2. /planning-plugin:spec employee-management                   # tạo functional spec
+2. /planning-plugin:pp-spec employee-management                   # tạo functional spec
 3. /backend-springboot-plugin:be-plan employee-management      # spec → plan.json
 4. /backend-springboot-plugin:be-crud --all employee-management # scaffold tất cả entity từ plan
 5. /backend-springboot-plugin:be-code employee-management      # TDD (tài liệu công việc bổ sung từ plan)

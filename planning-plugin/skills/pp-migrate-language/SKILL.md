@@ -1,5 +1,5 @@
 ---
-name: migrate-language
+name: pp-migrate-language
 description: Use when transferring a specification to a team member who works in a different language.
 argument-hint: "[feature-name] --to=[lang]"
 user-invocable: true
@@ -16,7 +16,7 @@ Migrate working language for: **$ARGUMENTS**
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -26,17 +26,17 @@ Migrate working language for: **$ARGUMENTS**
 
 - First argument: feature name (required)
 - `--to={lang}` flag: target language code (required)
-- If either is missing, show usage: `/planning-plugin:migrate-language feature-name --to=vi`
+- If either is missing, show usage: `/planning-plugin:pp-migrate-language feature-name --to=vi`
 - Validate the target language is in `supportedLanguages`. If not, error: "Unsupported language: {lang}. Supported languages: {supportedLanguages}"
 
 ### Step 2: Check Current State
 
 1. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
-2. If progress file not found, error: "No spec found for '{feature}'. Run `/planning-plugin:spec` first."
+2. If progress file not found, error: "No spec found for '{feature}'. Run `/planning-plugin:pp-spec` first."
 3. Extract `workingLanguage` from the progress file
 4. If `workingLanguage` equals the target language, error: "Already using {lang_name} ({lang}) as the working language."
 5. Check that the target language spec file exists at `docs/specs/{feature}/{to}/{feature}-spec.md`
-6. If the file does not exist, error: "Translation for {lang_name} ({lang}) does not exist. Run `/planning-plugin:translate {feature}` first."
+6. If the file does not exist, error: "Translation for {lang_name} ({lang}) does not exist. Run `/planning-plugin:pp-translate {feature}` first."
 
 ### Step 3: Confirm with User
 
@@ -94,7 +94,7 @@ Changes:
 
 Next steps:
 1. Edit the {new_lang_name} spec at docs/specs/{feature}/{to}/{feature}-spec.md
-2. Run /planning-plugin:translate {feature} to re-sync translations from the new source
-3. Run /planning-plugin:sync-notion {feature} to re-sync Notion pages (if configured)
+2. Run /planning-plugin:pp-translate {feature} to re-sync translations from the new source
+3. Run /planning-plugin:pp-sync-notion {feature} to re-sync Notion pages (if configured)
 4. To also change the default language for new specs, update .claude/planning-plugin.json
 ```

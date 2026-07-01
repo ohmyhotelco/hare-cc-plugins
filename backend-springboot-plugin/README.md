@@ -146,7 +146,7 @@ Verify the installation:
 
 ```
 1. /backend-springboot-plugin:be-init                          # configure plugin
-2. /planning-plugin:spec employee-management                   # create functional spec
+2. /planning-plugin:pp-spec employee-management                   # create functional spec
 3. /backend-springboot-plugin:be-plan employee-management      # spec → plan.json
 4. /backend-springboot-plugin:be-crud --all employee-management # scaffold all entities from plan
 5. /backend-springboot-plugin:be-code employee-management      # TDD (enriched work docs from plan)

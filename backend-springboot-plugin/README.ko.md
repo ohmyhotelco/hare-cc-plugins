@@ -146,7 +146,7 @@ CQRS 아키텍처와 엄격한 TDD(테스트 주도 개발)를 적용하여 Spri
 
 ```
 1. /backend-springboot-plugin:be-init                          # 플러그인 설정
-2. /planning-plugin:spec employee-management                   # 기능 스펙 생성
+2. /planning-plugin:pp-spec employee-management                   # 기능 스펙 생성
 3. /backend-springboot-plugin:be-plan employee-management      # 스펙 → plan.json
 4. /backend-springboot-plugin:be-crud --all employee-management # 플랜에서 전체 엔티티 스캐폴딩
 5. /backend-springboot-plugin:be-code employee-management      # TDD (플랜 기반 보강 작업 문서)

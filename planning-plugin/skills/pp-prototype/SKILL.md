@@ -1,5 +1,5 @@
 ---
-name: prototype
+name: pp-prototype
 description: "Use when UI DSL is ready and a clickable prototype is needed for stakeholder review before production implementation."
 argument-hint: "[feature-name]"
 user-invocable: true
@@ -18,7 +18,7 @@ Follow these steps in order.
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
@@ -30,18 +30,18 @@ Follow these steps in order.
 
 2. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
    - If it does not exist, stop with:
-     > "No specification found for '{feature}'. Run `/planning-plugin:spec "{feature}"` first."
+     > "No specification found for '{feature}'. Run `/planning-plugin:pp-spec "{feature}"` first."
    - Verify status is `reviewing` or `finalized`. If `drafting` or `analyzing`, stop with:
      > "The specification for '{feature}' is still in '{status}' status. Complete the spec review process first."
 
 3. Verify `docs/specs/{feature}/ui-dsl/manifest.json` exists. If not, stop with:
-   > "UI DSL not found for '{feature}'. Run `/planning-plugin:design {feature} --stage=dsl` first."
+   > "UI DSL not found for '{feature}'. Run `/planning-plugin:pp-design {feature} --stage=dsl` first."
 
 4. **Shared layout prerequisite check**: Read `docs/specs/{feature}/ui-dsl/manifest.json` and check if any screen or layout entry has `"source": "_shared"`:
    - If found, verify `docs/specs/_shared/ui-dsl/manifest.json` exists. If not, stop with:
-     > "Shared layout DSL not found. Run `/planning-plugin:design _shared` first."
+     > "Shared layout DSL not found. Run `/planning-plugin:pp-design _shared` first."
    - If found, also check if `docs/specs/_shared/stitch-wireframes/` has wireframe outputs (optional — only a suggestion if missing):
-     > "Shared layout wireframes not found. Consider running `/planning-plugin:design _shared` to generate them for better visual consistency."
+     > "Shared layout wireframes not found. Consider running `/planning-plugin:pp-design _shared` to generate them for better visual consistency."
 
 5. Check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`
    - If not present → skip (no Stitch integration)
@@ -49,11 +49,11 @@ Follow these steps in order.
      ```
      Stitch wireframes detected for '{feature}'.
      If you edited wireframes on the Stitch website,
-     run `/planning-plugin:sync-stitch {feature}` first.
+     run `/planning-plugin:pp-sync-stitch {feature}` first.
 
      Proceed without syncing? (y/n)
      ```
-   - If user answers **no** → stop with message: "Run `/planning-plugin:sync-stitch {feature}`, then re-run `/planning-plugin:prototype {feature}`."
+   - If user answers **no** → stop with message: "Run `/planning-plugin:pp-sync-stitch {feature}`, then re-run `/planning-plugin:pp-prototype {feature}`."
    - If user answers **yes** → continue (record Stitch wireframes as available for Step 4 prompt branching)
 
 ### Step 3: Initialize Progress
@@ -116,13 +116,13 @@ Next Steps:
   - Open `prototypes/{feature}/bundle.html` in a browser to preview the prototype
   - Run `cd prototypes/{feature} && npm run dev` for live development (Vite dev server)
   - Edit prototype files directly to refine the UI
-  - Run `/planning-plugin:bundle {feature}` to rebuild bundle.html after edits
-  - Run `/planning-plugin:design {feature} --stage=dsl` to regenerate DSL from updated screens.md
+  - Run `/planning-plugin:pp-bundle {feature}` to rebuild bundle.html after edits
+  - Run `/planning-plugin:pp-design {feature} --stage=dsl` to regenerate DSL from updated screens.md
 ```
 
 If `design-system/MASTER.md` does not exist, prepend this to the Next Steps:
 ```
-  - Run `/planning-plugin:design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
+  - Run `/planning-plugin:pp-design-system --domain={domain}` to generate a design system — this enhances DSL icon accuracy, pattern validation, and prototype theming
 ```
 
 ## Error Handling

@@ -188,7 +188,7 @@ Frontend React Plugin configured successfully!
 > "Setup complete. To generate your first feature:"
 >
 > "**Option A — With planning-plugin (recommended):**"
-> "1. /planning-plugin:init → 2. /planning-plugin:spec {feature} → 3. /frontend-react-plugin:fe-plan {feature} → 4. /frontend-react-plugin:fe-gen {feature}"
+> "1. /planning-plugin:pp-init → 2. /planning-plugin:pp-spec {feature} → 3. /frontend-react-plugin:fe-plan {feature} → 4. /frontend-react-plugin:fe-gen {feature}"
 >
 > "**Option B — Standalone (without spec):**"
 > "1. /frontend-react-plugin:fe-plan {feature} --standalone → 2. /frontend-react-plugin:fe-gen {feature}"

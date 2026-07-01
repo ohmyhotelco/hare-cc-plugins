@@ -149,7 +149,7 @@ For subsequent screens (after the first), inject the design system text in the p
 **Shared layout wireframe reuse**: For layout screens with `"source": "_shared"`:
 - Check if the wireframe already exists at `docs/specs/_shared/stitch-wireframes/{layout-id}.html`
 - If it exists: **skip generation** — do not call `generate_screen_from_text` for this screen. Instead, parse the existing HTML to extract design tokens for injection into child screen prompts
-- If it does not exist: generate it normally (this handles the case where `_shared` wireframes haven't been created yet, though the recommended flow is to run `/planning-plugin:design _shared` first)
+- If it does not exist: generate it normally (this handles the case where `_shared` wireframes haven't been created yet, though the recommended flow is to run `/planning-plugin:pp-design _shared` first)
 
 This ensures design tokens parsed from the first-screen HTML are available for all child screens, and the shell description is cached before child prompts are composed.
 

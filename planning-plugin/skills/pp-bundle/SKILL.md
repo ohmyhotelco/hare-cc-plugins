@@ -1,5 +1,5 @@
 ---
-name: bundle
+name: pp-bundle
 description: Use when prototype source files have changed and the standalone HTML bundle needs rebuilding.
 argument-hint: "[feature-name]"
 user-invocable: true
@@ -16,7 +16,7 @@ Rebuild bundle for: **$ARGUMENTS**
 
 1. Parse `feature` from arguments (required, kebab-case)
 2. Verify `prototypes/{feature}/package.json` exists. If not, stop with:
-   > "No prototype found for '{feature}'. Run `/planning-plugin:prototype {feature}` first."
+   > "No prototype found for '{feature}'. Run `/planning-plugin:pp-prototype {feature}` first."
 3. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`. If it does not exist, stop with:
    > "No progress file found for '{feature}'."
 

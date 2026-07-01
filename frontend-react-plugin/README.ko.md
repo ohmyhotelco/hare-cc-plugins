@@ -137,8 +137,8 @@ Loop 2 — E2E:
 
 ```
 1. /frontend-react-plugin:fe-init                     # configure plugin
-2. /planning-plugin:init                               # configure planning
-3. /planning-plugin:spec "feature description"         # generate spec
+2. /planning-plugin:pp-init                               # configure planning
+3. /planning-plugin:pp-spec "feature description"         # generate spec
 4. /frontend-react-plugin:fe-plan {feature}            # create implementation plan
 5. /frontend-react-plugin:fe-gen {feature}             # generate code (TDD)
 ```

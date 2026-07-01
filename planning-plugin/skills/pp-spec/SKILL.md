@@ -1,5 +1,5 @@
 ---
-name: spec
+name: pp-spec
 description: Use when starting a new feature or project that needs a functional specification before implementation.
 argument-hint: "[feature description]"
 user-invocable: true
@@ -18,7 +18,7 @@ Follow these steps in order. After each major step, update the progress file.
 
 1. Read `.claude/planning-plugin.json` from the current project directory
 2. If the file does not exist, stop with a guidance message:
-   > "Planning Plugin is not configured for this project. Run `/planning-plugin:init` to set up."
+   > "Planning Plugin is not configured for this project. Run `/planning-plugin:pp-init` to set up."
 3. Extract `workingLanguage` (default: `"en"` if field is absent)
 4. Extract `supportedLanguages` (default: `["en", "ko", "vi"]`)
 5. Determine target languages: `supportedLanguages` minus `workingLanguage`
@@ -118,7 +118,7 @@ After generating the 3 draft files, detect whether the feature uses a shared lay
       - **Always create under `en/` directory** regardless of `workingLanguage` (UI DSL always reads from English)
    c. In the feature's `screens.md`, activate the `@layout:` directive with the generated layout-id
    d. Remove shell components from the feature screens that render inside the shell
-   e. Inform the user: "After finalizing the spec, run `/planning-plugin:design _shared` first, then `/planning-plugin:design {feature}`."
+   e. Inform the user: "After finalizing the spec, run `/planning-plugin:pp-design _shared` first, then `/planning-plugin:pp-design {feature}`."
 
 ### Step 4: Sequential Review Cycle
 
@@ -213,7 +213,7 @@ Based on convergence check and user decision, either:
 Before launching translators, ask the user:
 > "Translation will sync the spec to all target languages. This launches parallel translator agents and may take several minutes. How would you like to proceed?"
 > 1. **Translate and finalize** — run translation now, then verify and finalize
-> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:translate {feature}` later to sync translations)
+> 2. **Skip translation and finalize** — proceed directly to verification and finalization (run `/planning-plugin:pp-translate {feature}` later to sync translations)
 
 If the user selects option 2 (skip), jump directly to Step 5.5 (Pre-Finalization Verification).
 
@@ -258,12 +258,12 @@ This gate supplements the convergence check — both must pass before finalizati
    - Any remaining open questions
 4. Suggest next steps:
    - If `docs/specs/_shared/en/screens.md` was created during this spec run (Step 3.5d):
-     > "Run `/planning-plugin:design _shared` first to generate the shared layout DSL, then `/planning-plugin:design {feature}` to generate the feature DSL."
+     > "Run `/planning-plugin:pp-design _shared` first to generate the shared layout DSL, then `/planning-plugin:pp-design {feature}` to generate the feature DSL."
    - Otherwise:
-     > "Run `/planning-plugin:design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:prototype {feature}` to generate the React prototype"
-   - "Run `/planning-plugin:review {feature}` anytime to re-review"
-   - "Edit the {workingLanguage} spec directly and run `/planning-plugin:translate {feature}` to sync translations"
-   - "Run `/planning-plugin:sync-notion {feature}` to manually re-sync Notion pages"
+     > "Run `/planning-plugin:pp-design {feature}` to generate UI DSL and Stitch wireframes, then `/planning-plugin:pp-prototype {feature}` to generate the React prototype"
+   - "Run `/planning-plugin:pp-review {feature}` anytime to re-review"
+   - "Edit the {workingLanguage} spec directly and run `/planning-plugin:pp-translate {feature}` to sync translations"
+   - "Run `/planning-plugin:pp-sync-notion {feature}` to manually re-sync Notion pages"
 
 ### Step 7: Sync to Notion (if configured)
 

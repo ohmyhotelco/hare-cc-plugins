@@ -94,7 +94,7 @@ if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]] && [[ ! "${BASH_REMATCH[2]}
       echo ""
       echo "[Planning Plugin] Notion sync is now STALE for $FEATURE ($LANG)."
       echo "  The spec file was edited after the last Notion sync."
-      echo "  Run: /planning-plugin:sync-notion $FEATURE --lang=$LANG"
+      echo "  Run: /planning-plugin:pp-sync-notion $FEATURE --lang=$LANG"
     fi
   fi
 fi
@@ -116,7 +116,7 @@ if [[ "$FILE_PATH" =~ prototypes/([^/]+)/src/ ]]; then
       echo ""
       echo "[Planning Plugin] Prototype bundle is now STALE for $FEATURE."
       echo "  The source was edited after the last bundle build."
-      echo "  Run: /planning-plugin:bundle $FEATURE"
+      echo "  Run: /planning-plugin:pp-bundle $FEATURE"
     fi
   fi
 fi
@@ -138,7 +138,7 @@ if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/ui-dsl/ ]]; then
       echo ""
       echo "[Planning Plugin] Stitch wireframes are now STALE for $FEATURE."
       echo "  The UI DSL was edited after the last Stitch wireframe generation."
-      echo "  Run: /planning-plugin:design $FEATURE --stage=stitch"
+      echo "  Run: /planning-plugin:pp-design $FEATURE --stage=stitch"
     fi
   fi
 fi
