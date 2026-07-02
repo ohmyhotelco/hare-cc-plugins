@@ -18,7 +18,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` / `npx react-router build` (framework mode) commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 
 ## Process
@@ -29,7 +29,8 @@ Trace errors and analyze code paths.
 
 **External skills** — Read relevant SKILL.md files based on the error type:
 - If the error involves test failures or test infrastructure: Read `.claude/skills/vitest/SKILL.md` → apply its patterns when analyzing test code and proposing fixes.
-- If the error involves routing, navigation, or route guards: Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (extract `routerMode` from `planFile`) → apply its patterns when analyzing route-related code.
+- If the error involves routing, navigation, or route guards: Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (extract `routerMode` from `planFile`; `framework` → `react-router-framework-mode`) → apply its patterns when analyzing route-related code.
+- **Framework mode** (`routerMode == "framework"`, from `planFile`): the app is **not** a Vite SPA (per-route SSR/SSG), so SSR/rendering rules **apply** when diagnosing render-path or hydration bugs — the server-render path must not touch `localStorage`/`window`/`document`, and loaders import only the D13 base client (CLAUDE.md § Router-mode command matrix, "SSR rules" row). In `declarative`/`data` (Vite SPA) these do not apply.
 
 1. **Error analysis** — analyze error messages/stack traces
    - Classify error type: TypeScript compile error, runtime error, UI rendering error, test failure
@@ -121,8 +122,8 @@ Apply minimal changes and verify upon successful hypothesis validation.
    - No unrelated code changes allowed
 
 2. **Verification** — verify after fix
-   - TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors
-   - `npx vite build 2>&1` → confirm build success
+   - TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors. **Framework mode** (`routerMode == "framework"`, from `planFile`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
+   - Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build 2>&1` for `declarative`/`data`, `npx react-router build 2>&1` for `framework` → confirm build success
    - If tests exist: `npx vitest run {baseDir}` → confirm tests pass
 
 3. **Regression check** — check for regressions

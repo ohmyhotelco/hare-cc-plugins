@@ -23,7 +23,7 @@ The skill will provide these parameters in the prompt:
 - `reviewReportFile` — path to `review-report.json`
 - `e2eReportFile` — path to `e2e-report.json` (used when `fixMode` is `"e2e"`)
 - `specDir` — spec markdown path (for reference)
-- `routerMode` — `"declarative"` | `"data"`
+- `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build`, `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 
@@ -62,8 +62,8 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 4. **External skills** — read each SKILL.md as needed:
    - `.claude/skills/vitest/SKILL.md` → test patterns (for TDD fixes)
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
-   - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules (skip RSC/SSR)
-   - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules
+   - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules. **RSC/SSR rules are router-mode conditional** (CLAUDE.md § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA); **apply** them in `framework` mode (per-route SSR/SSG).
+   - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules (`framework` → `react-router-framework-mode`)
 5. **Report loading** — load the appropriate report based on `fixMode`:
 
    **Review fix mode** (`fixMode` is `"review"` or absent):
@@ -195,10 +195,10 @@ If still failing after 3 retries:
 
 Run full verification suite:
 
-1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection)
+1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
 2. ESLint — same detection logic as fe-verify Step 2.2 (includes template fallback)
 3. `npx vitest run {baseDir}` → all feature tests
-4. `npx vite build` → build check
+4. Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.
 

@@ -34,9 +34,9 @@ The skill will provide these parameters in the prompt:
 
 #### Phase 0-P: Pipeline Mode (default)
 
-1. **Plan** — read `planFile` → extract file list, type definitions, component structure, and `routerMode`
+1. **Plan** — read `planFile` → extract file list, type definitions, component structure, `routerMode`, and (when present) `serverState`/`formStack` (the plan copies these from config). Also read `.claude/frontend-react-plugin.json` for `appProfile` (not copied into the plan) — needed for the ota date-convention check under dimension 1.6. When any key is absent, apply its default (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`) — the config-gated checks below then do not fire and behavior is unchanged.
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
-   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). Skip RSC/SSR rules (Vite SPA).
+   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). **RSC/SSR rules are router-mode conditional** (CLAUDE.md § Router-mode command matrix, "SSR rules" row): in `declarative`/`data` (Vite SPA) skip them; in `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG) — **apply** the SSR/rendering-strategy rules.
    - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition rules when evaluating dimensions 1.1 (Single Responsibility) and 1.7 (Architecture & Design).
    - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
@@ -50,7 +50,7 @@ The skill will provide these parameters in the prompt:
 
 1. **Skip** plan loading — no `planFile` required
 2. **Skip** external skill loading — no per-feature skill reading
-3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode` (for convention checks in dimension 1.6)
+3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode`, `serverState`, `formStack`, `appProfile` (for the config-gated convention checks in dimensions 1.6/1.2). Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`), leaving the gated checks inactive.
 4. **Project patterns** — identify patterns from existing modules:
    - If `targetPath` contains `/features/`: derive project base by removing `/features/...` suffix
    - Otherwise: use `baseDir` from config to derive project base
@@ -88,6 +88,7 @@ Each issue MUST include the following fields:
 - Verify all pages follow the same 4-state pattern
 - Check import order and export style consistency
 - Inconsistency → issue (severity: warning)
+- _Config-gated (`serverState == "tanstack-query"`)_: server data must flow through TanStack Query, not `useEffect` fetching — flag any `useEffect` that fetches server data when a query hook / loader→`initialData` handoff is the intended home (D9/R3) → issue (severity: warning). Does not fire under `zustand-only` (behavior unchanged).
 - _Standalone: verify files follow consistent patterns relative to each other within the scanned set (no plan cross-reference)_
 
 #### 1.3 No Hardcoded Strings
@@ -122,7 +123,16 @@ Each issue MUST include the following fields:
 - Route permissions (RoleRoute, ProtectedRoute placement) are spec compliance matters — do NOT evaluate whether a route should or should not require authentication/roles
 - Verify Zustand stores follow the thin state pattern
 - Convention violation → issue (severity: warning)
-- _Standalone: read `routerMode` from `.claude/frontend-react-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions only_
+
+**Config-gated convention checks (additive — each fires ONLY when its config value is set; otherwise the check does not run and existing declarative/data + admin behavior is byte-identical):**
+
+- **`routerMode == "framework"` — route-module export shape (D10)**: each route module is a **thin wrapper** (`loader`/`clientLoader`, `meta`, `ErrorBoundary`, `HydrateFallback`, and a default export that delegates to an extracted **page-body component** receiving loader data as props). A route module carrying substantial JSX/business logic inline instead of delegating to the body component → issue (severity: warning).
+- **`routerMode == "framework"` — server-render safety (R1/D13)**: no server-only imports reachable from client components; loaders and `entry.server` code import **only** the D13 **base client** (never the browser wrapper with its JWT/localStorage interceptors). **No browser-only globals (`localStorage`, `window`, `document`) reachable in the server-render path** (loaders, and the module scope of `ssr`/`ssg` route modules) — such access → issue (severity: critical; it crashes the server render).
+- **`serverState == "tanstack-query"` — query/store layering (D9)**: server data must **not** live in Zustand stores (server list/entity/loading/error state belongs in the query cache; a store holding it is a convention violation → issue, severity: warning). Loader-fed queries carry an explicit `staleTime` (> 0) **and** `initialDataUpdatedAt` per D9 (a)–(c) — a loader-fed `useQuery`/`queryOptions` relying on the default `staleTime: 0` or omitting `initialDataUpdatedAt` → issue (severity: warning). (The companion "no `useEffect` fetching" rule is checked under dimension 1.2.)
+- **`formStack == "rhf-zod"` — form validation (D4)**: forms use `useForm` + `zodResolver(schema)` against the generated zod schema; ad-hoc / hand-rolled field validation instead of the schema resolver → issue (severity: warning).
+- **`appProfile == "ota"` — date convention (D12)**: date handling goes through **dayjs** (+ `locale`/`utc`/`timezone` plugins); hand-rolled date math (manual `Date` arithmetic for nights/ranges/hotel-local cutoffs) → issue (severity: warning). Currency stays `Intl.NumberFormat` in both profiles — do NOT flag it. (Admin profile keeps the Intl-only date convention — this check does not run.)
+
+- _Standalone: read `routerMode`, `serverState`, `formStack`, `appProfile` from `.claude/frontend-react-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions plus the config-gated checks above_
 
 #### 1.7 Architecture & Design
 

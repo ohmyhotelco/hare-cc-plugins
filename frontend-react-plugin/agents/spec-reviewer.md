@@ -93,6 +93,8 @@ Each issue MUST include the following fields:
 - Do NOT infer route permissions from navigation roles — menu visibility ≠ page access
 - Missing routes → issue (severity: critical, `planEntries` should reference `routes.entries` from plan.json)
 
+> Note: Route coverage is **router-mode-agnostic** — the same coverage logic applies whether routes are `declarative`/`data` (JSX `<Route>` / `RouteObject[]`) or `framework` (`routes.ts` route modules); no framework-mode branch is required here (considered for the OTA extension Phase 1, §5.7).
+
 ### Phase 2: Scoring
 
 Calculate per-dimension scores and compute the overall score.
