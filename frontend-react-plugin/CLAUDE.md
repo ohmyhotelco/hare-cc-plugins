@@ -2,6 +2,23 @@
 
 A Claude Code plugin that applies tech stack and coding conventions for frontend React development.
 
+## App Profiles
+
+The plugin serves two greenfield profiles, selected by `appProfile` in `.claude/frontend-react-plugin.json`
+(default `admin`). A profile only sets **defaults** for the individual stack knobs (`routerMode`,
+`serverState`, `formStack`, `e2eTool`, date convention); every knob stays independently overridable.
+
+| Profile | Target | Router | Server state | Forms | E2E | Dates |
+| --- | --- | --- | --- | --- | --- | --- |
+| **admin** (default) | B2B admin SPA | declarative / data (Vite SPA) | Zustand + Axios | native | agent-browser | Intl |
+| **ota** | SEO-critical consumer app | **framework** (per-route SSR/SSG/SPA) | **TanStack Query** + thin Zustand | **RHF + zod** | **Playwright** | **dayjs** |
+
+**Backward compatibility is a hard rule.** A config with none of the new keys reads as
+`appProfile=admin`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser` — every
+existing admin project behaves exactly as before. New behavior is gated behind the new config values; no
+existing branch changes. The full design and per-file spec is in
+`docs/design/ota-extension-phase1.md` (OTA extension, Phase 1).
+
 ## Tech Stack
 
 ### Runtime & Build
@@ -13,10 +30,11 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 ### Core Framework
 - React 19.x
 - Routing: React Router v7 — mode is determined by the `routerMode` setting in `.claude/frontend-react-plugin.json` (default: declarative)
-  - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>`
-  - data: uses `createBrowserRouter`, `RouterProvider`, loader/action
+  - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>` (Vite SPA)
+  - data: uses `createBrowserRouter`, `RouterProvider`, loader/action (Vite SPA)
+  - framework: file-based `routes.ts` + `react-router.config.ts`, per-route SSR/SSG/SPA (`react-router build`/`dev`, typegen). The ota-profile default. Build commands and test harness differ — see the **Router-mode command matrix** below.
   - import: `react-router` (not `react-router-dom`)
-  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:fe-init`)
+  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:fe-init`; `framework` → `react-router-framework-mode`)
 
 ### UI Layer
 - Tailwind CSS
@@ -24,11 +42,18 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Icons: Lucide (`lucide-react`), consider adding Simple Icons when brand logos are needed
 
 ### State & Data
-- Client State: Zustand (keep thin — auth token, user, permissions, etc.)
+- Client State: Zustand (keep thin — auth token, user, permissions, UI/client state)
+- Server State: determined by `serverState` (default `zustand-only`)
+  - `zustand-only` — server data flows through Axios services + Zustand stores (admin default, current behavior)
+  - `tanstack-query` — TanStack Query owns server state (caching, refetch, infinite lists, mutation + invalidation); Zustand holds **only** UI/client state, never server data (ota default). Layering + the loader↔query contract: `templates/server-state.md`.
 - HTTP: Axios
   - request interceptor: inject JWT Authorization header
   - response interceptor: 401 → logout/re-authenticate, 403 → sync permissions
-- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes
+  - **framework mode**: the Axios setup splits into a **base client** (baseURL + typed methods, no browser deps — loader/`entry.server`-safe) and a **browser wrapper** (adds the JWT/localStorage interceptors, client-only). Loaders import only the base client. `VITE_*` is client-public; server-only config uses non-`VITE_` `process.env`.
+- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes. Framework mode adds `{baseDir}/mocks/node.ts` for dev-time SSR-loader interception (see Mock-First below).
+- Forms: determined by `formStack` (default `native`)
+  - `native` — native form handling / manual validation (admin default, current behavior)
+  - `rhf-zod` — react-hook-form + zod (`@hookform/resolvers`); zod schemas derived from spec validation rules, `zodResolver`, shadcn Form primitives, `t()` error messages (ota default)
 - (Future consideration) Auto-generate types/client when REST OpenAPI is available
 
 ### Internationalization (i18n)
@@ -38,7 +63,8 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 - Namespace separation (common, menu, per-feature)
 - Lazy-load via Vite import.meta.glob
 - Language selection: stored in localStorage
-- Date/time: Intl.DateTimeFormat / Intl.RelativeTimeFormat (targeting latest Chrome)
+- Date/time: profile-aware — **admin**: `Intl.DateTimeFormat` / `Intl.RelativeTimeFormat` (targeting latest Chrome); **ota**: `dayjs` (+ `locale` ko/en/ja/vi, `utc`, `timezone` plugins) for check-in/out dates, hotel-local timezones, locale-aware ranges (D12). Currency is `Intl.NumberFormat` in both profiles.
+- **SSR i18n (framework mode)**: a **per-request** `i18next.createInstance()` in `entry.server` (a module-scope instance leaks locale across concurrent SSR requests); locale precedence URL prefix > cookie > `Accept-Language`; the resolved locale + initial resources are serialized to the client so hydration matches; `meta` title/description keys are translated server-side with the same request instance.
 
 ### Auth / RBAC
 - Server makes the final RBAC decision
@@ -48,7 +74,10 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 ### Testing
 - Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:fe-init`)
 - API mock with MSW server (Vitest integration) — reuse feature handlers in tests
-- E2E: agent-browser (AI-agent native browser automation)
+- E2E: determined by `e2eTool` (default `agent-browser`)
+  - `agent-browser` — AI-agent native browser automation (admin default). External skill `agent-browser`, permission `Bash(agent-browser *)`.
+  - `playwright` — Playwright test runner (ota default): `playwright.config.ts` `webServer` owns the dev server, trace-first failure reports (`npx playwright show-trace`, CLI-built-in), fixture-based auth/state setup. No loadable skill; permission `Bash(npx playwright *)`. Ported from the migration plugin's harness minus legacy dual-run. See `templates/e2e-playwright.md`.
+- Framework-mode page unit-tests target the extracted **page-body component** (Testing Library); `createRoutesStub` is used only for components using router hooks — never for route modules typed with generated `Route.*` types (RR documents that gap). The route module itself is covered by typegen + build + E2E smoke.
 
 ## Conventions
 - Use only shadcn/ui components (do not install alternative component libraries)
@@ -70,7 +99,7 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
 
 ### Performance & Composition
 - React performance patterns: see `.claude/skills/vercel-react-best-practices` (waterfall elimination, bundle optimization, re-render minimization)
-  - Note: server-side (RSC/SSR) rules do not apply to Vite SPA — agent auto-skips
+  - **Router-mode conditional**: in `declarative`/`data` (Vite SPA) the server-side (RSC/SSR) rules do not apply — agent auto-skips. In `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG), so the SSR/rendering-strategy rules **do apply** — do not skip them.
 - Component composition patterns: see `.claude/skills/vercel-composition-patterns` (no boolean props, compound component, React 19 API)
 - Web UI accessibility/design audit: see `.claude/skills/web-design-guidelines` (WebFetch latest guidelines during review)
 
@@ -101,12 +130,12 @@ A Claude Code plugin that applies tech stack and coding conventions for frontend
   - `test-reviewer` — test quality audit (assertion patterns, Testing Library, async, coverage, timing, anti-patterns)
   - `review-fixer` — TDD-disciplined review issue fixer (supports review and E2E fix modes)
   - `delta-modifier` — incremental spec change applier (modifies existing files per delta-plan.json)
-  - `e2e-test-runner` — E2E test execution via agent-browser
+  - `e2e-test-runner` — E2E test execution via `e2eTool` (agent-browser or Playwright)
   - `debugger` — systematic debugging
 - **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:pp-review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`, `/frontend-react-plugin:fe-progress` (pipeline status dashboard), `/frontend-react-plugin:fe-security` (security audit), `/frontend-react-plugin:fe-clean-code` (clean code audit), `/frontend-react-plugin:fe-test-review` (test quality audit)
-- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`) — installed by init
+- **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`; `framework` → `react-router-framework-mode`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`, installed only when `e2eTool == agent-browser`) — installed by init. Playwright ships no loadable skill (trace analysis is CLI-built-in).
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
-- **Templates**: `feature-module.md` (feature module structure), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (E2E testing patterns with agent-browser)
+- **Templates**: `feature-module.md` (feature module structure + framework-mode variants), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (agent-browser E2E patterns), `e2e-playwright.md` (Playwright E2E patterns), `framework-app-shell.md` (RR framework app shell: config/root/routes/entries), `server-state.md` (TanStack Query ↔ loader layering contract)
 
 ### Communication Language
 - Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
@@ -286,7 +315,7 @@ A principle applied across all agents and skills: **"Evidence before claims, alw
 
 #### Build Command Working Directory
 
-All build/test tool commands (`npx vite`, `npx vitest`, `npx tsc`, `npx eslint`) must run from `{appDir}` — the directory containing `vite.config.*` and `package.json`.
+All build/test tool commands (`npx vite`, `npx react-router`, `npx vitest`, `npx tsc`, `npx eslint`, `npx playwright`) must run from `{appDir}` — the directory containing `vite.config.*` / `react-router.config.ts` and `package.json`.
 
 - Read `appDir` from `.claude/frontend-react-plugin.json`
 - If `appDir` is `"."` or absent → run from project root (no prefix needed)
@@ -295,6 +324,31 @@ All build/test tool commands (`npx vite`, `npx vitest`, `npx tsc`, `npx eslint`)
 Example: `baseDir: "app/src"`, `appDir: "app"` → `cd {projectRoot}/app && npx vite build 2>&1`
 
 This applies to all agents and skills. Skills pass `appDir` to agents as a parameter.
+
+**Framework-mode path-base rule.** `react-router.config.ts` and the generated `.react-router/` types
+directory live in `{appDir}` (siblings of `vite.config.*`/`package.json`) — every scaffold, glob, check,
+and edit of them resolves against `{appDir}`, never the repo root. `routes.ts`, `root.tsx`, and the
+`entry.*.tsx` files live under `{baseDir}`.
+
+#### Router-mode command matrix (single source of truth)
+
+All agents/skills read this table instead of hard-coding a command; branch on `routerMode`.
+
+| Concern | `declarative` / `data` (Vite SPA) | `framework` (SSR/SSG) |
+| --- | --- | --- |
+| Dev server | `npx vite --port {port}` | `npx react-router dev --port {port}` |
+| Build | `npx vite build` | `npx react-router build` |
+| Typecheck | composite-aware `tsc -b` \| `tsc --noEmit` | `npx react-router typegen` **then** the composite-aware tsc |
+| Route integration target | `App.tsx` / `router.tsx` (JSX / `RouteObject[]`) | `{baseDir}/routes.ts` (+ `{appDir}/react-router.config.ts` `prerender` array) |
+| Loading state | in-page `loading` state | `HydrateFallback` + `useNavigation` pending UI |
+| Error state | in-page `error` state | route module `ErrorBoundary` |
+| Page unit-test target | page component (`MemoryRouter`) | page-body component via Testing Library; `createRoutesStub` only for router-hook components; route module via typegen/build + E2E |
+| SSR rules (vercel skill) | skip | apply |
+
+**Runtime assumptions (framework mode, Phase 1).** Node ≥ 22; the built app runs locally via
+`npx react-router-serve ./build/server/index.js`; server-only config comes from non-`VITE_`
+`process.env`. The plugin verifies up to a green build + a local serve smoke and configures **no**
+deployment target.
 
 #### TypeScript Check — Composite Config Detection
 
@@ -358,7 +412,11 @@ docs/            - Documentation
 `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`):
 ```json
 {
+  "appProfile": "admin",
   "routerMode": "declarative",
+  "serverState": "zustand-only",
+  "formStack": "native",
+  "e2eTool": "agent-browser",
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
@@ -366,8 +424,29 @@ docs/            - Documentation
 }
 ```
 
-- `routerMode`: `"declarative"` (default) | `"data"` — determines React Router v7 mode
+An **ota** config instead reads (with `renderingDefault` present only in framework mode):
+```json
+{
+  "appProfile": "ota",
+  "routerMode": "framework",
+  "serverState": "tanstack-query",
+  "formStack": "rhf-zod",
+  "e2eTool": "playwright",
+  "renderingDefault": "ssr",
+  "mockFirst": true,
+  "baseDir": "app/app",
+  "appDir": "app",
+  "eslintTemplate": true
+}
+```
+
+- `appProfile`: `"admin"` (default when absent) | `"ota"` — sets defaults for the knobs below; each stays overridable. See "App Profiles".
+- `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix).
+- `serverState`: `"zustand-only"` (default when absent) | `"tanstack-query"` — server-state strategy.
+- `formStack`: `"native"` (default when absent) | `"rhf-zod"` — form approach.
+- `e2eTool`: `"agent-browser"` (default when absent) | `"playwright"` — E2E runner.
+- `renderingDefault`: framework mode only — `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering for a page whose plan does not specify one. Per-page decisions live in `plan.json` `pages[].rendering`.
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
-- `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. When absent, falls back to `"src"` for backward compatibility.
-- `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip `/src` suffix from `baseDir` (`app/src` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
+- `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. Framework mode's RR source root is the `app/` dir (e.g. `app/app`). When absent, falls back to `"src"` for backward compatibility.
+- `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*` / `react-router.config.ts`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip a `/src` **or** `/app` suffix from `baseDir` (`app/src` → `app`, `app/app` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
