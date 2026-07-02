@@ -11,12 +11,24 @@
 Plugin Claude Code này tạo mã React sẵn sàng cho production từ đặc tả chức năng sử dụng phương pháp Test-Driven Development nghiêm ngặt. Plugin cung cấp một pipeline hoàn chỉnh từ lập kế hoạch triển khai đến sinh mã, xác minh, đánh giá và sửa lỗi — tất cả đều tuân thủ kỷ luật TDD.
 
 Các khả năng chính:
+- **Hai app profile** — `admin` (B2B admin SPA, mặc định và là hành vi hiện tại) và `ota` (ứng dụng người dùng cuối chú trọng SEO). Profile đặt giá trị mặc định cho các tùy chọn stack bên dưới; mỗi tùy chọn vẫn có thể ghi đè độc lập.
 - **Sinh mã TDD** — Pipeline 6 giai đoạn (foundation → API → store → component → page → integration) với chu trình Red-Green-Refactor nghiêm ngặt cho mỗi giai đoạn
 - **Lập kế hoạch dựa trên đặc tả** — Phân tích đặc tả chức năng (từ planning-plugin) và tạo kế hoạch triển khai có cấu trúc
 - **Chế độ độc lập** — Tạo kế hoạch mà không cần planning-plugin bằng cách thu thập yêu cầu tương tác
 - **Đánh giá tự động** — Đánh giá mã 2 giai đoạn (tuân thủ đặc tả + chất lượng) với 13 chiều chấm điểm
 - **Sửa lỗi TDD** — Sửa các vấn đề đánh giá với kỷ luật test-first cho các thay đổi hành vi
 - **Tính nhất quán trạng thái** — Cơ chế khóa, timestamp theo giai đoạn và phát hiện lỗi thời xuyên suốt pipeline
+
+### App Profile
+
+Chọn tại `fe-init` qua `appProfile` (mặc định `admin`). Cấu hình không có key mới nào sẽ hoạt động y hệt trước đây — tương thích ngược hoàn toàn.
+
+| Profile | Mục tiêu | Router | Server state | Form | E2E | Ngày tháng |
+|---|---|---|---|---|---|---|
+| **admin** (mặc định) | B2B admin SPA | declarative / data (Vite SPA) | Zustand + Axios | native | agent-browser | Intl |
+| **ota** | App người dùng chú trọng SEO | **framework** (SSR/SSG/SPA theo route) | **TanStack Query** + thin Zustand | **RHF + zod** | **Playwright** | **dayjs** |
+
+Chế độ framework build bằng `react-router build`/`typegen`, quyết định SSR/SSG/SPA theo trang trong `plan.json`, và mock SSR loader bằng hook MSW-node. Xem `docs/design/ota-extension-phase1.md`.
 
 ## Tổng quan kiến trúc
 
@@ -78,19 +90,21 @@ Loop 2 — E2E:
 
 ## Công nghệ sử dụng
 
-| Category | Technology |
-|----------|-----------|
-| Runtime | Node.js 22.x LTS (>= 22.12) |
-| Package Manager | pnpm |
-| Framework | React 19 + TypeScript (strict) |
-| Build | Vite |
-| Routing | React Router v7 (declarative or data mode) |
-| UI | Tailwind CSS + shadcn/ui + Lucide |
-| State | Zustand |
-| HTTP | Axios (JWT, 401/403 interceptors) |
-| Mock | MSW v2 (dev & test — network-level intercept) |
-| i18n | i18next + react-i18next (ko/en/ja/vi) |
-| Testing | Vitest + @testing-library/react + agent-browser (E2E) |
+| Category | admin profile | ota profile |
+|----------|-----------|-----------|
+| Runtime | Node.js 22.x LTS (>= 22.12) | như trên |
+| Package Manager | pnpm | như trên |
+| Framework | React 19 + TypeScript (strict) | như trên |
+| Build | Vite | React Router (framework: `react-router build`) |
+| Routing | React Router v7 (declarative / data) | React Router v7 framework (SSR/SSG/SPA theo route) |
+| UI | Tailwind CSS + shadcn/ui + Lucide | như trên |
+| Server state | Zustand + Axios | TanStack Query (+ thin Zustand cho UI state) |
+| Form | native | react-hook-form + zod |
+| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (an toàn cho loader) + browser wrapper |
+| Mock | MSW v2 (dev & test) | + MSW-node cho SSR loader |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + instance SSR theo request |
+| Ngày tháng | Intl | dayjs |
+| Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
 ## Cài đặt
 

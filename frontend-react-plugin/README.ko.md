@@ -11,12 +11,24 @@
 이 Claude Code 플러그인은 엄격한 Test-Driven Development를 적용하여 기능 명세서로부터 프로덕션 수준의 React 코드를 생성합니다. 구현 계획 수립부터 코드 생성, 검증, 리뷰, 수정까지 TDD 원칙에 따른 완전한 파이프라인을 제공합니다.
 
 주요 역량:
+- **두 가지 앱 프로필** — `admin`(B2B admin SPA, 기본값이자 기존 동작)과 `ota`(SEO가 중요한 소비자 앱). 프로필은 아래 스택 옵션들의 기본값을 정하며, 각 옵션은 개별적으로 재정의할 수 있습니다.
 - **TDD 코드 생성** — 6단계 파이프라인 (foundation → API → store → component → page → integration)으로 각 단계마다 엄격한 Red-Green-Refactor를 수행합니다
 - **명세서 기반 계획** — 기능 명세서(planning-plugin 출력)를 분석하여 구조화된 구현 계획을 생성합니다
 - **독립 실행 모드** — planning-plugin 없이 대화형 요구사항 수집을 통해 계획을 생성합니다
 - **자동 리뷰** — 2단계 코드 리뷰(명세서 준수 + 품질)로 13개 채점 차원을 평가합니다
 - **TDD 수정** — 동작 변경이 필요한 리뷰 이슈에 대해 테스트 우선 원칙으로 수정합니다
 - **상태 일관성** — 잠금 메커니즘, 단계별 타임스탬프, 파이프라인 전반의 변경 감지를 제공합니다
+
+### 앱 프로필
+
+`fe-init`에서 `appProfile`로 선택합니다(기본값 `admin`). 새 키가 하나도 없는 설정은 기존과 완전히 동일하게 동작합니다 — 완전한 하위 호환.
+
+| 프로필 | 대상 | 라우터 | 서버 상태 | 폼 | E2E | 날짜 |
+|---|---|---|---|---|---|---|
+| **admin** (기본) | B2B admin SPA | declarative / data (Vite SPA) | Zustand + Axios | native | agent-browser | Intl |
+| **ota** | SEO 중요 소비자 앱 | **framework** (라우트별 SSR/SSG/SPA) | **TanStack Query** + thin Zustand | **RHF + zod** | **Playwright** | **dayjs** |
+
+framework 모드는 `react-router build`/`typegen`으로 빌드하고, 페이지별 SSR/SSG/SPA를 `plan.json`에서 결정하며, SSR loader는 MSW-node 훅으로 목킹합니다. `docs/design/ota-extension-phase1.md` 참조.
 
 ## 아키텍처 개요
 
@@ -78,19 +90,21 @@ Loop 2 — E2E:
 
 ## 기술 스택
 
-| Category | Technology |
-|----------|-----------|
-| Runtime | Node.js 22.x LTS (>= 22.12) |
-| Package Manager | pnpm |
-| Framework | React 19 + TypeScript (strict) |
-| Build | Vite |
-| Routing | React Router v7 (declarative or data mode) |
-| UI | Tailwind CSS + shadcn/ui + Lucide |
-| State | Zustand |
-| HTTP | Axios (JWT, 401/403 interceptors) |
-| Mock | MSW v2 (dev & test — network-level intercept) |
-| i18n | i18next + react-i18next (ko/en/ja/vi) |
-| Testing | Vitest + @testing-library/react + agent-browser (E2E) |
+| Category | admin 프로필 | ota 프로필 |
+|----------|-----------|-----------|
+| Runtime | Node.js 22.x LTS (>= 22.12) | 동일 |
+| Package Manager | pnpm | 동일 |
+| Framework | React 19 + TypeScript (strict) | 동일 |
+| Build | Vite | React Router (framework 모드: `react-router build`) |
+| Routing | React Router v7 (declarative / data) | React Router v7 framework 모드 (라우트별 SSR/SSG/SPA) |
+| UI | Tailwind CSS + shadcn/ui + Lucide | 동일 |
+| 서버 상태 | Zustand + Axios | TanStack Query (+ UI 상태용 thin Zustand) |
+| 폼 | native | react-hook-form + zod |
+| HTTP | Axios (JWT, 401/403 인터셉터) | Axios base client (loader 안전) + 브라우저 래퍼 |
+| Mock | MSW v2 (dev & test) | + SSR loader용 MSW-node |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + 요청별 SSR 인스턴스 |
+| 날짜 | Intl | dayjs |
+| Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
 ## 설치
 
