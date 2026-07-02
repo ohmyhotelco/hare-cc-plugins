@@ -16,10 +16,11 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
-4. If the file does not exist:
+4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
+5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -190,10 +191,12 @@ Task(subagent_type: "review-fixer", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
+  - e2eTool: {e2eTool}
 
   Follow the process defined in agents/review-fixer.md.
   Read templates/tdd-rules.md for TDD rules.
-  {If fixMode is 'e2e': Read templates/e2e-testing.md for E2E patterns.}
+  {If fixMode is 'e2e' and e2eTool == 'agent-browser': Read templates/e2e-testing.md for E2E patterns. Failure evidence is the e2e-report.json per-scenario step logs and screenshots.}
+  {If fixMode is 'e2e' and e2eTool == 'playwright': Read templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code.}
   Save the fix report to docs/specs/{feature}/.implementation/frontend/fix-report.json.
 ")
 ```
