@@ -1,6 +1,6 @@
 # Design: OTA Extension — Phase 1 (Core Stack)
 
-> Status: **draft — independent Codex review folded in (12 findings)** — target version **v2.0.0**
+> Status: **draft — independent Codex review rounds 1-3 folded in** — target version **v2.0.0**
 > Scope: React Router v7 **framework mode** (per-route SSR/SSG/SPA) + **TanStack Query** + **RHF + zod**
 > + **Playwright E2E** (ota profile) + **dayjs** (ota profile)
 > Out of scope (later phases): design-system pipeline (Phase 2), SEO / visual-fidelity gates (Phase 3),
@@ -24,11 +24,11 @@ migration-specific machinery (no parity gates, no legacy analysis).
 | D2 | `routerMode` gains `"framework"` (existing: `declarative`, `data`). Profile defaults: admin → `declarative`, ota → `framework`. | SSR/SSG requires framework mode; library modes stay for admin SPAs. |
 | D3 | New config key `serverState: "zustand-only" \| "tanstack-query"`. Defaults: admin → `zustand-only` (today's behavior), ota → `tanstack-query`. | OTA needs server-state caching (search results, availability, infinite lists). Aligned with fm's stack. |
 | D4 | New config key `formStack: "native" \| "rhf-zod"`. Defaults: admin → `native` (today's behavior), ota → `rhf-zod`. | Booking/payment/guest forms need schema validation. Aligned with fm (RHF + zod). |
-| D5 | Per-page rendering decision lives in **plan.json** (`pages[].rendering: "ssr" \| "ssg" \| "spa"`), not in config. Config holds only `renderingDefault` (framework mode). SSG is realized via the `prerender` array in `react-router.config.ts`; SPA pages use `clientLoader` only. **Phase 1 constraint: `ssg` is allowed only for parameterless routes** — `prerender` needs concrete URLs and runs loaders at build time; dynamic-segment enumeration (`pages[].staticPaths`, reserved in the schema) is deferred (O5). | Mirrors fm's per-route SSR/SSG/SPA decision (migration plan §5), but driven by the spec instead of legacy. The static-only constraint caps Phase 1 scope without blocking dynamic SSG later. |
+| D5 | Per-page rendering decision lives in **plan.json** (`pages[].rendering: "ssr" \| "ssg" \| "spa"`), not in config. Config holds only `renderingDefault` (framework mode). SSG is realized via the `prerender` array in `react-router.config.ts`; SPA pages use `clientLoader` only. **Phase 1 constraint: `ssg` is allowed only for parameterless AND loader-less routes** (pure static shells) — `prerender` needs concrete URLs and **executes loaders at build time**, where the D8 MSW hook does not apply (it is dev-server-only); a loader-carrying ssg candidate is demoted to `ssr` by the planner. Dynamic-segment enumeration and build-time data sourcing (`pages[].staticPaths`) are deferred together (O5). | Mirrors fm's per-route SSR/SSG/SPA decision (migration plan §5), but driven by the spec instead of legacy. The static-shell-only constraint keeps mock-first builds green with no backend and caps Phase 1 scope without blocking dynamic SSG later. |
 | D6 | New config key `e2eTool: "agent-browser" \| "playwright"`, defaulted by profile: admin → `agent-browser` (today's behavior), ota → `playwright`. The Playwright realization ports fm's harness patterns (trace-first reports, auth/state setup, page-object reuse, MSW integration) **without** the migration-specific legacy dual-run and parity checks. | Decided (was O4): OTA needs `toHaveScreenshot` visual baselines later (Phase 3) and staging payment E2E (Phase 4) — both Playwright-only. Binding the switch to the profile now avoids generating agent-browser suites that get thrown away in Phase 3. |
 | D7 | Dependencies are **never auto-installed** (existing rule). fe-init and generators print the `pnpm add` command and skip gracefully. | Consistent with the ESLint template behavior. |
-| D8 | MSW in framework mode: browser worker unchanged for client fetches (bootstrapped in `entry.client.tsx` — the framework-mode equivalent of the `main.tsx` wiring); **dev-time server-side loaders** get MSW node via a guarded hook in `entry.server.tsx` only (`mocks/node.ts`, `VITE_ENABLE_MOCKS`). The hook is **module-scope and idempotent** (`globalThis` guard against HMR double-`listen()`), so `server.listen()` completes before any loader can run. Unit tests keep the existing `mocks/server.ts` (msw/node) — unchanged. | Without this, mock-first development breaks the moment a loader runs on the server (fm hardened the same surface in v0.5.0). The idempotency guard is required because Vite dev re-evaluates the server entry on HMR. |
-| D9 | TanStack Query ↔ loader layering (v1 convention, template-documented): **SSR/SSG routes** — loader fetches via the **server-safe** API service (D13) and returns data; the component consumes `loaderData`, passing it as `initialData` to `useQuery` only when live refetch is needed. The handoff is only sound with three accompanying rules (all enforced via `templates/server-state.md`): **(a)** loader and hook share the same `queryOptions` factory (one query key, one fetcher — never hand-written twice); **(b)** loader-fed queries set an explicit `staleTime` > 0 (default 60s) — with the TanStack default `staleTime: 0`, `initialData` is immediately stale and the hook refetches on mount, reintroducing the double-fetch this contract exists to prevent; **(c)** the loader passes `initialDataUpdatedAt` (its fetch timestamp) so a previously-populated cache entry is not overwritten by staler loader data. **SPA routes, mutations, infinite lists** — pure TanStack Query. Full `dehydrate`/`HydrationBoundary` hydration is deliberately deferred (open question O2); escalate to it when nested routes must share one cache entry. | Avoids double-fetch and hydration machinery in v1 while keeping one obvious home per data need — but only with rules (a)-(c); the bare `initialData` pattern without them is a known refetch/staleness trap. |
+| D8 | MSW in framework mode: browser worker unchanged for client fetches (bootstrapped in `entry.client.tsx` — the framework-mode equivalent of the `main.tsx` wiring); **dev-time server-side loaders** get MSW node via a guarded hook in `entry.server.tsx` only (`mocks/node.ts`, `VITE_ENABLE_MOCKS`). The hook is **module-scope and idempotent** (`globalThis` guard against HMR double-`listen()`), so `server.listen()` completes before any loader can run. **Fallback:** if the §8 interception assertion fails in any mode/build, move the MSW bootstrap to a custom dev-server entry (documented in the app-shell template) instead of weakening the guard. Unit tests keep the existing `mocks/server.ts` (msw/node) — unchanged. | Without this, mock-first development breaks the moment a loader runs on the server (fm hardened the same surface in v0.5.0). The idempotency guard is required because Vite dev re-evaluates the server entry on HMR; the ordering claim is an assumption about RR's server pipeline, hence the explicit fallback. |
+| D9 | TanStack Query ↔ loader layering (v1 convention, template-documented): **SSR/SSG routes** — loader fetches via the **server-safe** API service (D13) and returns data; the component consumes `loaderData`, passing it as `initialData` to `useQuery` only when live refetch is needed. The handoff is only sound with three accompanying rules (all enforced via `templates/server-state.md`): **(a)** loader and hook share the same `queryOptions` factory (one query key, one fetcher **definition** — never hand-written twice; the factory is **fetch-client-agnostic** and receives the D13 client as an argument: loaders inject the base client, hooks the browser wrapper — so rule (a) and D13's import boundary compose rather than conflict); **(b)** loader-fed queries set an explicit `staleTime` > 0 (default 60s) — with the TanStack default `staleTime: 0`, `initialData` is immediately stale and the hook refetches on mount, reintroducing the double-fetch this contract exists to prevent; **(c)** the loader passes `initialDataUpdatedAt` (its fetch timestamp) so a previously-populated cache entry is not overwritten by staler loader data. **SPA routes, mutations, infinite lists** — pure TanStack Query. Full `dehydrate`/`HydrationBoundary` hydration is deliberately deferred (open question O2); escalate to it when nested routes must share one cache entry. | Avoids double-fetch and hydration machinery in v1 while keeping one obvious home per data need — but only with rules (a)-(c); the bare `initialData` pattern without them is a known refetch/staleness trap. |
 | D10 | 4-state page pattern re-mapping in framework mode: `loading` → `HydrateFallback` + `useNavigation` pending UI; `error` → route module `ErrorBoundary`; `empty`/`success` unchanged inside the component. **Test split:** the route module is a **thin wrapper** (loader/meta/ErrorBoundary/HydrateFallback + a default export that delegates to an extracted page-body component taking loader data as props). page-tdd unit-tests the **body component** (plain Testing Library render; `createRoutesStub` only where router hooks are used — RR documents it as unsuitable for route modules with generated `Route.*` types); the route module itself is covered by typegen + `tsc` + build and the Playwright E2E smoke. | The 4 mandatory states survive; only their realization moves to route-module exports. The wrapper/body split keeps strict TDD possible where RR's test harness has a documented gap. |
 | D11 | Zustand scope under `tanstack-query`: stores hold **UI/client state only** (search-form input, locale, UI toggles) — server data never enters a store. The planner enforces this at plan time. | fm's "thin Zustand" principle; prevents the query cache and stores from fighting. |
 | D12 | **dayjs** (+ `locale` ko/en/ja/vi, `utc`, `timezone` plugins) is the date convention for the ota profile — check-in/out dates, hotel-local timezones, locale-aware ranges. The admin profile keeps the existing Intl-only convention. Currency stays `Intl.NumberFormat` in both profiles. | Decided (was O1): aligned with fm's stack; OTA date math (nights, ranges, hotel-local cutoffs) outgrows bare Intl, and the Phase 2 date-range picker will build on it. |
@@ -59,6 +59,11 @@ Every new behavior branches off a new value; no existing branch changes.
 inside the Vite project. New derivation rule (additive): if `baseDir` ends with `/app`, strip it for
 `appDir` (`app/app` → `app`, `web/app` → `web`, bare `app` → `"."`). The existing `/src` rule is untouched.
 
+**Path-base rule (framework mode):** `react-router.config.ts` and the generated `.react-router/` types
+directory live in **`{appDir}`** — the same directory as `vite.config.*`/`package.json`; every scaffold,
+glob, check, and edit of them resolves against `{appDir}`, never the repo root. `routes.ts`, `root.tsx`,
+and the entry files live under `{baseDir}`.
+
 **Dependency sets (print-only, per D7):**
 
 | Enabled by | Packages |
@@ -76,10 +81,10 @@ inside the Vite project. New derivation rule (additive): if `baseDir` ends with 
 - **`pages[]`** (currently `implementation-planner.md:715-731`): new fields
   - `rendering: "ssr" | "ssg" | "spa"` + `renderingReason` (one line).
     Planning heuristics: public, SEO-relevant content (search results, hotel/room detail, landing) → `ssr`;
-    **parameterless** content that changes rarely → `ssg` (D5 Phase 1 constraint — the planner must demote
-    a dynamic-segment ssg candidate to `ssr` and say so in `renderingReason`); authenticated/checkout/
-    my-page → `spa`. `staticPaths` is **reserved** in the schema for the future dynamic-SSG contract (O5)
-    and must stay unset in Phase 1.
+    **parameterless, loader-less** content that changes rarely → `ssg` (D5 Phase 1 constraint — the
+    planner must demote a dynamic-segment **or loader-carrying** ssg candidate to `ssr` and say so in
+    `renderingReason`); authenticated/checkout/my-page → `spa`. `staticPaths` is **reserved** in the
+    schema for the future dynamic-SSG contract (O5) and must stay unset in Phase 1.
   - `loader: { data: [apiRefs], params: [routeParams] } | null` — what the route loader fetches.
   - `meta: { titleKey }` — minimal `meta` export (full SEO gate is Phase 3).
 - **`api[]`** (`:667-684`): new sibling block per entity when `serverState=tanstack-query`:
@@ -111,7 +116,7 @@ inside the Vite project. New derivation rule (additive): if `baseDir` ends with 
 | NEW Step 2e/2f/2g | `serverState`, `formStack`, and `e2eTool` confirmations (pre-filled by profile; admin profile keeps them silent-default to preserve the current UX). |
 | Step 3 (L85-102) | Write new keys; apply the `/app` strip rule to `appDir` derivation (L88-91). |
 | Step 4 (L104-125) | Skill table row L115 already interpolates `react-router-{routerMode}-mode` — works for `framework` as-is; extend the reconfig cleanup (L108-111) to the framework skill dir. |
-| NEW Step 4b | **App shell check (framework only)**: glob `react-router.config.ts`, `{baseDir}/root.tsx`, `{baseDir}/routes.ts`. If absent, offer to scaffold from `templates/framework-app-shell.md` (§5.10) or point to `npx create-react-router@latest`. Print the dependency `pnpm add` lines (§3) for any missing packages — never install. |
+| NEW Step 4b | **App shell check (framework only)**: glob `{appDir}/react-router.config.ts` (path-base rule, §3), `{baseDir}/root.tsx`, `{baseDir}/routes.ts`. If absent, offer to scaffold from `templates/framework-app-shell.md` (§5.10) or point to `npx create-react-router@latest`. Print the dependency `pnpm add` lines (§3) for any missing packages — never install. |
 | Step 4 permissions (L127-148) | Keyed on `e2eTool`: `agent-browser` → `Bash(agent-browser *)` (as today); `playwright` → `Bash(npx playwright *)` instead. The version check (L150-158) becomes tool-aware (`npx playwright --version`). |
 | Step 5-6 | Echo the new config keys in the confirmation output. |
 
@@ -140,7 +145,11 @@ inside the Vite project. New derivation rule (additive): if `baseDir` ends with 
 - NEW: **Playwright harness, once per app** (when `e2eTool=playwright`, first feature only — fm's
   foundation pattern): `playwright.config.ts` (webServer = mode-aware dev command from §6 with
   `VITE_ENABLE_MOCKS=true`, trace `on-first-retry`, `e2e/` testDir) + `e2e/fixtures.ts` (auth/state-setup
-  helpers) — ported from fm's harness minus legacy dual-run.
+  helpers) — ported from fm's harness minus legacy dual-run. **Mock-state reset policy:** handlers are
+  stateless by default; the mutable fixture DB (`mockEntityDb`) is reset between tests via a dev-only
+  reset hook in the harness `beforeEach`, and specs that mutate mock state run serially (dedicated
+  project or `mode: 'serial'`) — the MSW-node instance is process-global, so parallel workers must not
+  share mutated state.
 - Deps (L74-89): print `pnpm add` lines for the §3 dependency sets when missing.
 
 ### 5.4 `agents/tdd-cycle-runner.md`
@@ -178,13 +187,17 @@ inside the Vite project. New derivation rule (additive): if `baseDir` ends with 
   `relative()` helper exists for hand-written configs; the generator does not need it because the planner
   already holds root-relative paths).
 - Step 3 (L80-99): central integration edits `{baseDir}/routes.ts` (import + spread; layout nesting via
-  `layout()` children). New: maintain the `prerender` array in `react-router.config.ts` from
-  `pages[].rendering == "ssg"` entries.
+  `layout()` children). New: maintain the `prerender` array in `{appDir}/react-router.config.ts` (path-base
+  rule, §3) from `pages[].rendering == "ssg"` entries (loader-less by D5).
 - NEW Step 6b (framework + mockFirst): wire the guarded MSW-node hook into `{baseDir}/entry.server.tsx`
   (module-scope so `server.listen()` precedes any loader, `import.meta.env.DEV && VITE_ENABLE_MOCKS`,
   idempotent via a `globalThis` flag — Vite dev re-evaluates the server entry on HMR); create from
   template if the file is absent. `entry.client.tsx` gets only the **browser** worker bootstrap (D8) —
   never the node hook.
+- NEW Step 6c (`serverState=tanstack-query`, **library modes**): wire the root `QueryClientProvider`
+  into `{baseDir}/main.tsx` (same guarded-edit + manual-fallback pattern as the MSW bootstrap). Framework
+  mode gets the provider via the app-shell `root.tsx` (§5.10). This closes the D1 override matrix — any
+  router mode may enable tanstack-query.
 - Step 8 verification (L171-220): build command becomes mode-aware — framework: `npx react-router build`;
   typecheck prefixed by `npx react-router typegen` (generated types in `.react-router/`). Library modes
   unchanged (`npx vite build`).
@@ -265,8 +278,10 @@ legacy dual-run, parity hooks, and staging payment gateways (payments arrive in 
   `queryOptions` sharing between loader and hook (rule a — one key, one fetcher), `initialData` +
   `initialDataUpdatedAt` handoff with explicit `staleTime` defaults (rules b/c — the bare `initialData`
   pattern is a refetch trap), mutation + invalidation map, infinite query pattern, "no useEffect
-  fetching" rule, the D13 base-client/browser-wrapper split for loader-safe fetching, and the escalation
-  criterion to `dehydrate`/`HydrationBoundary` (O2).
+  fetching" rule, the D13 base-client/browser-wrapper split for loader-safe fetching (with the
+  fetch-client injection contract — factories take the client as an argument, D9 rule a), the
+  `QueryClientProvider` wiring for both router-mode families (framework: app-shell `root.tsx`; library
+  modes: `main.tsx`, §5.5 Step 6c), and the escalation criterion to `dehydrate`/`HydrationBoundary` (O2).
 - **NEW `templates/e2e-playwright.md`** — ported from fm's `templates/e2e-testing.md` minus legacy
   dual-run and staging gateways: spec structure per TS-nnn, fixtures/auth setup, web-first assertions,
   trace-first failure reports. The existing `templates/e2e-testing.md` (agent-browser) remains for the
@@ -294,10 +309,9 @@ legacy dual-run, parity hooks, and staging payment gateways (payments arrive in 
 | Route integration target | `App.tsx` / `router.tsx` (JSX / RouteObject[]) | `{baseDir}/routes.ts` (+ `react-router.config.ts` prerender) |
 | Loading state | in-page `loading` state | `HydrateFallback` + `useNavigation` |
 | Error state | in-page `error` state | route `ErrorBoundary` (+ per-section states) |
-| Page test harness | `MemoryRouter` | `createRoutesStub` |
 | SSR rules (vercel skill) | skip | apply |
 | E2E runner¹ | agent-browser CLI (manual dev server) | `npx playwright test` (webServer-managed) |
-| Page unit-test target | page component (`MemoryRouter`) | page-body component (D10; route module via typegen/build + E2E) |
+| Page unit-test target | page component (`MemoryRouter`) | page-body component via Testing Library — `createRoutesStub` only for router-hook components; route module via typegen/build + E2E (D10) |
 
 ¹ The E2E row is keyed on `e2eTool` (profile default), not on `routerMode` — the columns show the
 default pairing (admin/declarative ↔ agent-browser, ota/framework ↔ playwright).
@@ -342,7 +356,9 @@ deliberately configures no deployment target (O3).
    for a `hotel-search` feature (ssr list page + ssg detail + spa checkout stub) → fe-gen → fe-verify →
    fe-e2e (Playwright suite green against the MSW-mocked webServer). Gate: typegen + build green,
    **first SSR request's loader is actually intercepted by MSW-node** (assert on the mock response, not
-   just "no error" — D8), i18n renders translated SSR HTML with the request's locale (R2), no
+   just "no error" — D8; if this fails, apply the D8 fallback), a **local serve smoke** — boot
+   `npx react-router-serve ./build/server/index.js`, GET one ssr page, assert HTTP 200 (closes the §6
+   runtime promise), i18n renders translated SSR HTML with the request's locale (R2), no
    `localStorage`/`window` access during server render (R1), traces produced on a forced failure
    (fe-fix input, §5.9).
 3. **Review pass**: fe-review on the dry-run output — SSR rules applied, no `useEffect` fetch, thin stores.
