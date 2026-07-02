@@ -38,6 +38,8 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   "blockers": [{ "candidate": "CouponService.calcMaxDiscount", "reason": "not extracted",
                  "action": "fm-extract" }],
   "requiredGates": ["e2e", "visual", "telemetry"],
+  "gateAcceptance": { "visual": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] } },
+                                            // REQUIRED — one entry per gate in requiredGates; see below
   "flagPlan": { "key": "v2_pc_booking_info", "guardsPath": "/hotel/booking-info",
                 "twoPr": ["code PR with flag OFF", "one-line flag-ON PR after parity passes"] },
   "e2eScenarios": [
@@ -54,6 +56,36 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
     { "phase": "page",       "creates": ["pages/BookingInfoPage.tsx"], "tests": 5 },
     { "phase": "integration","creates": ["routes.tsx", "i18n.ts"], "tests": 0 }
   ]
+}
+```
+
+## gateAcceptance (required)
+
+Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
+(`visual` / `e2e` / `contract` / `webview` / `telemetry`). A plan without `gateAcceptance` is
+**incomplete**: `fm-gen` and `fm-parity` Step 0 reject it and point back to `fm-plan`. Each entry:
+
+- `compares` — what is compared, against what reference.
+- `scope` — at what scope (full page incl. shell vs content area; viewports; languages).
+- `artifacts` — the evidence the gate must produce; comparison artifacts are **symmetric**
+  (same capture pattern/scope/harness on both legacy and new app).
+- `excludes` — what is explicitly out of scope. An exclusion not listed here does not exist,
+  no matter what any downstream prompt or report says; empty means nothing is excluded.
+
+**Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
+agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
+cannot be met is a failure or an explicit approval request, never a silent scope reduction.
+
+Example — a `visual` gate:
+
+```jsonc
+"gateAcceptance": {
+  "visual": {
+    "compares": "legacy render vs new render — style parity (layout, spacing, typography, color), not just content structure/text",
+    "scope": "full page including app shell for pilot pages; content-area style parity always; every supported language",
+    "artifacts": "same-pattern Playwright screenshots of BOTH apps (same viewport, fullPage, masking) + toHaveScreenshot fidelity assertions per pair",
+    "excludes": []          // e.g. ["animated carousel region (masked both sides)"]
+  }
 }
 ```
 

@@ -31,7 +31,9 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 `packagesDir`, `workingLanguage`.
 
 ### Step 4: Record
-1. Verify `migration-plan.json` exists and parses (`jq empty`).
+1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
+   **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry
+   makes the plan incomplete; re-run the planner before recording.
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
    plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
 3. Release the lock.

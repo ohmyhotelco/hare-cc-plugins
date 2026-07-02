@@ -11,11 +11,12 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.8.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.8.1)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
-> (`nginx` | `cloudfront`, v0.7.0), and the simplicity/over-engineering quality dimension +
-> GREEN-phase reuse ladder (v0.8.0)). Runtime
+> (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
+> GREEN-phase reuse ladder (v0.8.0), and the codified per-gate acceptance criteria
+> (`gateAcceptance`) hardening the parity gates against scope reinterpretation (v0.8.1)). Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -258,6 +259,11 @@ These apply to every agent and skill in this plugin.
 
   In this plugin a false pass is especially costly: `fm-e2e` and `fm-parity` are the only
   thing standing between a regression and production.
+- **Gate criteria are codified, not reinterpretable.** Each gate's acceptance criteria live in
+  `migration-plan.json.gateAcceptance` (`templates/migration-plan-schema.md`) and bind every
+  level verbatim — skill delegation prompt, verifier agent, orchestrator summary. A criterion
+  that cannot be met is a **fail or an explicit approval request — never a silent pass**; scope
+  reduction at any level is a gate failure.
 - **Communication language.** Read `workingLanguage` from config (default `ko`). All
   user-facing output — summaries, questions, next-step guidance — is in that language.
   Code, identifiers, and committed `.md` files are always English.
@@ -395,7 +401,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.8.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.8.1). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

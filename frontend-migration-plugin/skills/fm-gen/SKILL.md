@@ -16,7 +16,8 @@ output in `workingLanguage`.
 
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Require `docs/migration/{app}/{page}/migration-plan.json`
-(missing → run `fm-plan {page}`; stop). Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`,
+(missing → run `fm-plan {page}`; stop) **with `gateAcceptance`** (absent → the plan is incomplete;
+re-run `fm-plan {page}`; stop). Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`,
 `workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
 + `blockers`.
 
