@@ -1,6 +1,6 @@
 # Design: OTA Extension — Phase 1 (Core Stack)
 
-> Status: **draft — independent Codex review rounds 1-3 folded in** — target version **v2.0.0**
+> Status: **implementation-ready — independent Codex review, 4 rounds converged** — target version **v2.0.0**
 > Scope: React Router v7 **framework mode** (per-route SSR/SSG/SPA) + **TanStack Query** + **RHF + zod**
 > + **Playwright E2E** (ota profile) + **dayjs** (ota profile)
 > Out of scope (later phases): design-system pipeline (Phase 2), SEO / visual-fidelity gates (Phase 3),
@@ -353,7 +353,8 @@ deliberately configures no deployment target (O3).
    fe-verify → fe-review) on a sample admin feature with a no-new-keys config — must be byte-for-byte
    behavior-identical.
 2. **Dry run (ota profile)**: scaffold an RR framework app, then fe-init (ota) → fe-plan `--standalone`
-   for a `hotel-search` feature (ssr list page + ssg detail + spa checkout stub) → fe-gen → fe-verify →
+   for a `hotel-search` feature (ssr list + detail pages, one parameterless loader-less ssg landing
+   page, spa checkout stub) → fe-gen → fe-verify →
    fe-e2e (Playwright suite green against the MSW-mocked webServer). Gate: typegen + build green,
    **first SSR request's loader is actually intercepted by MSW-node** (assert on the mock response, not
    just "no error" — D8; if this fails, apply the D8 fallback), a **local serve smoke** — boot
@@ -375,4 +376,4 @@ Resolved: ~~O1~~ → dayjs adopted for the ota profile (D12). ~~O4~~ → E2E too
   beyond a green build + local serve smoke is out of plugin scope.
 - **O5** — dynamic-segment SSG (`pages[].staticPaths` enumeration contract: build-time data source,
   locale-variant URLs, failure behavior). Reserved in the plan schema; Phase 1 restricts `ssg` to
-  parameterless routes (D5).
+  parameterless, loader-less routes (D5).
