@@ -10,7 +10,7 @@ Key capabilities:
 - **TDD code generation** — 6-phase pipeline (foundation → API → store → component → page → integration) with strict Red-Green-Refactor per phase
 - **Spec-driven planning** — Analyze functional specs (from planning-plugin) and produce structured implementation plans
 - **Standalone mode** — Generate plans without planning-plugin by gathering requirements interactively
-- **Automated review** — 2-stage code review (spec compliance + quality) with 12 scoring dimensions
+- **Automated review** — 2-stage code review (spec compliance + quality) with 13 scoring dimensions
 - **TDD fix** — Fix review issues with test-first discipline for behavioral changes
 - **State consistency** — Lock mechanism, phase timestamps, and staleness detection across the pipeline
 
@@ -251,7 +251,7 @@ The planner agent analyzes:
 1. Acquires a lock to prevent concurrent operations
 2. Checks spec staleness (warns if spec was modified after generation)
 3. **Stage 1 — Spec Review**: spec-reviewer agent checks requirement coverage, UI fidelity, i18n completeness, accessibility, route coverage (5 dimensions, scored 1-10)
-4. **Stage 2 — Quality Review** (only when spec review passes): quality-reviewer agent checks single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, architecture (7 dimensions, scored 1-10)
+4. **Stage 2 — Quality Review** (only when spec review passes): quality-reviewer agent checks single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, architecture, simplicity/over-engineering (8 dimensions, scored 1-10)
 5. Saves review report with complete issue details (enriched with refs, fixHints, missingArtifact)
 6. Releases the lock and updates progress
 
@@ -441,9 +441,9 @@ Compares generated code against the functional spec. Evaluates requirement cover
 
 ### Quality Reviewer
 
-**Role**: Code quality review (7 dimensions).
+**Role**: Code quality review (8 dimensions).
 
-Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, and architecture. Supports pipeline mode (invoked by fe-review after spec review passes) and standalone mode (invoked by fe-clean-code for ad-hoc audits).
+Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, architecture, and simplicity/over-engineering (dead code, hand-rolled stdlib, single-implementation abstractions). Supports pipeline mode (invoked by fe-review after spec review passes) and standalone mode (invoked by fe-clean-code for ad-hoc audits).
 
 ### Security Auditor
 
@@ -502,7 +502,7 @@ Independent audit skills that run outside the pipeline. No progress tracking, no
 | Skill | Command | Description |
 |-------|---------|-------------|
 | Security | `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
-| Clean Code | `/frontend-react-plugin:fe-clean-code` | Clean code audit (7 quality dimensions — standalone mode of quality-reviewer) |
+| Clean Code | `/frontend-react-plugin:fe-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
 | Test Review | `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing gates) |
 
 Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`

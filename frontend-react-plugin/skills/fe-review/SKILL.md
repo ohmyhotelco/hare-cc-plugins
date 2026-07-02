@@ -172,6 +172,7 @@ Code Review Report for '{feature}':
       TypeScript Strictness: {score}/10
       Convention Compliance: {score}/10
       Architecture & Design: {score}/10
+      Simplicity & Over-engineering: {score}/10
     Issues: {totalIssues} ({criticalIssues} critical)
 
   Overall: {PASS/FAIL}

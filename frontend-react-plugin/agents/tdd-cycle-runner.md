@@ -136,6 +136,16 @@ npx vitest run {baseDir}/features/{feature}/__tests__/{testFile} --reporter=verb
 
 Replace stubs with real implementation. Write the simplest code to make all tests pass.
 
+**Reuse ladder — before writing any new logic, stop at the first rung that holds:**
+
+1. **Already in this codebase?** An existing helper, hook, type, or pattern (in the feature or the project) → reuse it. Look before you write — re-implementing what lives a few files over is the most common waste.
+2. **Standard library / platform built-in covers it?** `Intl.DateTimeFormat`, `URLSearchParams`, `structuredClone`, `Array.prototype` methods, CSS over JS → use it.
+3. **shadcn/ui or a native platform feature provides it?** `<input type="date">` over a picker lib, Dialog over a custom modal → use it.
+4. **An already-installed dependency solves it?** → use it. Never add a new dependency for what an installed one or a few lines can do.
+5. **Only then** write new code — the minimum that passes the tests.
+
+The ladder governs *how* to implement what the plan and tests demand — it never skips or trims planned behavior.
+
 **Phase-specific implementation:**
 
 **`api-tdd`** — API Services:
@@ -166,6 +176,7 @@ Replace stubs with real implementation. Write the simplest code to make all test
 **Rules during GREEN:**
 - Only implement what tests demand — no extra features
 - Follow plan.json exactly — no additions
+- Climb the reuse ladder before writing new logic — no hand-rolled stdlib, no single-implementation abstractions, no new dependencies
 - Do not refactor other code
 - Do not add tests (that's RED's job)
 

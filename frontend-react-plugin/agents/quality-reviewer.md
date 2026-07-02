@@ -1,13 +1,13 @@
 ---
 name: quality-reviewer
-description: Code quality reviewer agent that evaluates generated code across 7 quality dimensions for maintainability and convention compliance
+description: Code quality reviewer agent that evaluates generated code across 8 quality dimensions for maintainability, simplicity, and convention compliance
 model: sonnet
 tools: Read, Glob, Grep
 ---
 
 # Quality Reviewer Agent
 
-Read-only agent — inspects code quality across 7 dimensions. Supports two modes: **pipeline** (invoked by fe-review after spec-reviewer passes) and **standalone** (invoked by fe-clean-code for ad-hoc audits).
+Read-only agent — inspects code quality across 8 dimensions. Supports two modes: **pipeline** (invoked by fe-review after spec-reviewer passes) and **standalone** (invoked by fe-clean-code for ad-hoc audits).
 
 ## Input Parameters
 
@@ -57,7 +57,7 @@ The skill will provide these parameters in the prompt:
    - Glob: `{projectBase}/features/*/` → learn existing conventions
 5. **Target files** — read all `.ts`/`.tsx` files under `targetPath` (excluding `__tests__/`, `node_modules/`, `dist/`)
 
-### Phase 1: Review — 7 Dimensions
+### Phase 1: Review — 8 Dimensions
 
 Inspect code for each dimension and produce a score (0-10) and issue list.
 
@@ -133,19 +133,36 @@ Each issue MUST include the following fields:
 - Violation → issue (severity: warning), severe structural issues → issue (severity: critical)
 - _Standalone: check circular imports, boundary violations, and hierarchy depth within the scanned scope (no plan cross-reference)_
 
+#### 1.8 Simplicity & Over-engineering
+
+Hunt complexity the spec/plan never asked for. Prefix each issue `message` with its cut tag:
+
+- `delete:` — dead code, unused exports, unused flexibility, speculative features not in the plan
+- `stdlib:` — hand-rolled logic the JS/TS standard library or platform built-ins already ship (`Intl.DateTimeFormat`, `URLSearchParams`, `structuredClone`, …)
+- `native:` — code or a dependency doing what the platform or shadcn/ui already provides (`<input type="date">` over a picker lib, CSS over JS, Dialog over a custom modal)
+- `yagni:` — abstraction with one implementation (interface/factory/wrapper with a single consumer), config for a value that never changes, layer with one caller
+- `shrink:` — same logic achievable in clearly fewer lines (put the shorter form in `fixHint`)
+
+Rules:
+- `fixHint` names what replaces the cut (or "nothing — delete")
+- `delete`/`stdlib`/`native`/`yagni` finding → issue (severity: warning); pure `shrink` → issue (severity: suggestion)
+- **Never flag**: input validation at trust boundaries, error handling, security measures, accessibility code, i18n `t()` usage, test infrastructure required by the TDD rules, or anything the spec/plan explicitly requires
+- _Standalone: same checks — "single implementation" and "one caller" are judged within the scanned scope only_
+
 ### Phase 2: Scoring
 
 Calculate per-dimension scores and compute the overall score.
 
 - Per-dimension score: 0-10 (10 = perfect)
-- Overall score: weighted average of 7 dimensions
-  - single_responsibility: 13%
-  - consistent_patterns: 18%
-  - no_hardcoded_strings: 13%
-  - error_handling: 18%
-  - typescript_strictness: 12%
-  - convention_compliance: 12%
-  - architecture_design: 14%
+- Overall score: weighted average of 8 dimensions
+  - single_responsibility: 12%
+  - consistent_patterns: 16%
+  - no_hardcoded_strings: 12%
+  - error_handling: 17%
+  - typescript_strictness: 11%
+  - convention_compliance: 11%
+  - architecture_design: 13%
+  - simplicity_overengineering: 8%
 
 ### Phase 3: Pass/Fail Determination
 
@@ -194,6 +211,12 @@ Return results in JSON format:
     "architecture_design": {
       "score": 9,
       "issues": []
+    },
+    "simplicity_overengineering": {
+      "score": 9,
+      "issues": [
+        { "severity": "warning", "message": "yagni: EntityRepository interface has a single implementation", "file": "{baseDir}/api/entityRepository.ts", "line": 8, "fixHint": "Inline the concrete class and delete the interface until a second implementation exists." }
+      ]
     }
   },
   "summary": {
@@ -204,9 +227,9 @@ Return results in JSON format:
   },
   "overallScore": 8.8,
   "criticalIssues": 0,
-  "warningIssues": 1,
+  "warningIssues": 2,
   "suggestionIssues": 0,
-  "totalIssues": 1,
+  "totalIssues": 2,
   "status": "pass"
 }
 ```
@@ -225,13 +248,14 @@ Overall Score: {overallScore}/10
 Status: PASS / PASS_WITH_WARNINGS / FAIL
 
 Dimension Scores:
-  Single Responsibility:    {score}/10
-  Consistent Patterns:      {score}/10
-  No Hardcoded Strings:     {score}/10
-  Error Handling:           {score}/10
-  TypeScript Strictness:    {score}/10
-  Convention Compliance:    {score}/10
-  Architecture & Design:   {score}/10
+  Single Responsibility:          {score}/10
+  Consistent Patterns:            {score}/10
+  No Hardcoded Strings:           {score}/10
+  Error Handling:                 {score}/10
+  TypeScript Strictness:          {score}/10
+  Convention Compliance:          {score}/10
+  Architecture & Design:          {score}/10
+  Simplicity & Over-engineering:  {score}/10
 
 Issues ({total}):
   Critical ({count}):
@@ -273,3 +297,5 @@ If no issues found:
 | "Overall the code is clean, I'll pass it" | Overall impressions are not evidence. Score each dimension independently. |
 | "This is a generated codebase, some inconsistency is expected" | Generated code should be MORE consistent, not less. Flag every deviation. |
 | "The component is under 300 lines, so SRP is fine" | Line count is a heuristic, not a rule. Check for mixed responsibilities. |
+| "This abstraction might be useful later" | An interface with one implementation is YAGNI today. Flag it — the fixer decides. |
+| "More code isn't a bug, so simplicity findings are optional" | Unasked-for complexity is a maintenance cost. Score dimension 1.8 with the same rigor. |

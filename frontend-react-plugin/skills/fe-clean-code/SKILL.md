@@ -1,6 +1,6 @@
 ---
 name: fe-clean-code
-description: "Audit frontend code for clean code principles: single responsibility, consistent patterns, error handling, TypeScript strictness, and architecture."
+description: "Audit frontend code for clean code principles: single responsibility, consistent patterns, error handling, TypeScript strictness, architecture, and simplicity/over-engineering."
 argument-hint: "[file-or-directory-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Task
@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Task
 
 # Clean Code Audit
 
-Audit frontend React/TypeScript code for clean code principles across 7 quality dimensions.
+Audit frontend React/TypeScript code for clean code principles across 8 quality dimensions.
 
 ## Instructions
 
