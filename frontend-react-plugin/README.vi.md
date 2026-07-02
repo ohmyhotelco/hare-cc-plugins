@@ -14,7 +14,7 @@ Các khả năng chính:
 - **Sinh mã TDD** — Pipeline 6 giai đoạn (foundation → API → store → component → page → integration) với chu trình Red-Green-Refactor nghiêm ngặt cho mỗi giai đoạn
 - **Lập kế hoạch dựa trên đặc tả** — Phân tích đặc tả chức năng (từ planning-plugin) và tạo kế hoạch triển khai có cấu trúc
 - **Chế độ độc lập** — Tạo kế hoạch mà không cần planning-plugin bằng cách thu thập yêu cầu tương tác
-- **Đánh giá tự động** — Đánh giá mã 2 giai đoạn (tuân thủ đặc tả + chất lượng) với 12 chiều chấm điểm
+- **Đánh giá tự động** — Đánh giá mã 2 giai đoạn (tuân thủ đặc tả + chất lượng) với 13 chiều chấm điểm
 - **Sửa lỗi TDD** — Sửa các vấn đề đánh giá với kỷ luật test-first cho các thay đổi hành vi
 - **Tính nhất quán trạng thái** — Cơ chế khóa, timestamp theo giai đoạn và phát hiện lỗi thời xuyên suốt pipeline
 
@@ -255,7 +255,7 @@ Tác tử planner phân tích:
 1. Lấy khóa để ngăn các thao tác đồng thời
 2. Kiểm tra độ lỗi thời của đặc tả (cảnh báo nếu đặc tả được sửa đổi sau khi sinh mã)
 3. **Giai đoạn 1 — Đánh giá đặc tả**: tác tử Spec Reviewer kiểm tra mức độ bao phủ yêu cầu, độ trung thực UI, hoàn thiện i18n, khả năng tiếp cận, bao phủ route (5 chiều, chấm điểm 1-10)
-4. **Giai đoạn 2 — Đánh giá chất lượng** (chỉ khi đánh giá đặc tả đạt): tác tử Quality Reviewer kiểm tra nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước, kiến trúc (7 chiều, chấm điểm 1-10)
+4. **Giai đoạn 2 — Đánh giá chất lượng** (chỉ khi đánh giá đặc tả đạt): tác tử Quality Reviewer kiểm tra nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước, kiến trúc, tính đơn giản/thiết kế thừa (8 chiều, chấm điểm 1-10)
 5. Lưu báo cáo đánh giá với chi tiết vấn đề đầy đủ (được bổ sung refs, fixHints, missingArtifact)
 6. Giải phóng khóa và cập nhật tiến độ
 
@@ -445,9 +445,9 @@ So sánh mã sinh ra với đặc tả chức năng. Đánh giá mức độ bao
 
 ### Quality Reviewer
 
-**Vai trò**: Đánh giá chất lượng mã (7 chiều).
+**Vai trò**: Đánh giá chất lượng mã (8 chiều).
 
-Đánh giá nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước và kiến trúc. Hỗ trợ chế độ pipeline (được gọi bởi fe-review sau khi đánh giá đặc tả đạt) và chế độ standalone (được gọi bởi fe-clean-code cho kiểm tra ad-hoc).
+Đánh giá nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước, kiến trúc và tính đơn giản/thiết kế thừa (mã chết, tự viết lại thư viện chuẩn, abstraction chỉ có một triển khai). Hỗ trợ chế độ pipeline (được gọi bởi fe-review sau khi đánh giá đặc tả đạt) và chế độ standalone (được gọi bởi fe-clean-code cho kiểm tra ad-hoc).
 
 ### Security Auditor
 
@@ -506,7 +506,7 @@ Các skill kiểm tra độc lập chạy ngoài pipeline. Không cần theo dõ
 | Skill | Command | Mô tả |
 |-------|---------|-------------|
 | Security | `/frontend-react-plugin:fe-security` | Kiểm tra lỗ hổng bảo mật (XSS, token xác thực, bí mật, an toàn dữ liệu client-side) |
-| Clean Code | `/frontend-react-plugin:fe-clean-code` | Kiểm tra clean code (7 chiều chất lượng — chế độ standalone của quality-reviewer) |
+| Clean Code | `/frontend-react-plugin:fe-clean-code` | Kiểm tra clean code (8 chiều chất lượng — chế độ standalone của quality-reviewer) |
 | Test Review | `/frontend-react-plugin:fe-test-review` | Kiểm tra chất lượng test (assertion, Testing Library, pattern async, coverage, timing gate) |
 
 Cách dùng: `fe-security [đường dẫn]`, `fe-clean-code [đường dẫn]`, `fe-test-review [đường dẫn test]`

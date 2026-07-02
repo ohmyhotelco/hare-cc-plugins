@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-06-30)
+## Status (2026-07-02)
 
-- **Build complete — v0.7.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
+- **Build complete — v0.8.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every stage; design in
@@ -31,7 +31,15 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   tracker, 2-PR flow; only the edited ARTIFACT differs: nginx routing block + flag vs a
   version-controlled CloudFront behavior manifest `cloudfrontDir/<manifest>` that is PR'd, never
   pushed to AWS). Backward-compatible (absent `flipMechanism` → `nginx`); the per-app mechanism
-  **mapping is project config, never plugin-baked** (the plugin defaults every app to `nginx`).
+  **mapping is project config, never plugin-baked** (the plugin defaults every app to `nginx`);
+  v0.8.0 added the **simplicity / over-engineering** quality dimension (`quality-reviewer`
+  dimension 7 with the `delete`/`stdlib`/`native`/`yagni`/`shrink` tag taxonomy and a
+  legacy-parity guard — it judges *how* a behavior is implemented, never *whether* it should
+  exist) and the GREEN-phase **reuse ladder** in `tdd-cycle-runner` (`@omh/shared-*` → stdlib /
+  platform → shadcn/ui → installed dependency → new code; explicitly **no YAGNI rung** — legacy
+  parity is the requirement). Adapted from the review-tag/ladder ideas in the ponytail skill set
+  (DietrichGebert/ponytail); the always-on persona and test minimalism were deliberately not
+  adopted (they conflict with the strict TDD pipeline).
   Design-validated against a real two-edge production topology (public hosts flipping at a CDN, an
   IP-whitelisted partner host that must stay on an entry nginx; OMH `v2-migration-infra.md` §11.4,
   OMH-698/OMH-652) — the concrete which-app-uses-which mapping lives in the consuming project's

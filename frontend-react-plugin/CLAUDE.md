@@ -235,7 +235,7 @@ Independent audit skills that run outside the pipeline. No progress tracking, no
 | Skill | Purpose |
 |-------|---------|
 | `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
-| `/frontend-react-plugin:fe-clean-code` | Clean code audit (7 quality dimensions — standalone mode of quality-reviewer) |
+| `/frontend-react-plugin:fe-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
 | `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing) |
 
 Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`

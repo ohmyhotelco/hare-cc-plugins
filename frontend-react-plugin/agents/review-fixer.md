@@ -46,6 +46,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 | convention_compliance | direct | Convention adherence (no behavior change) |
 | architecture_design (critical) | tdd | Fundamental design issue affecting behavior |
 | architecture_design (warning) | direct | Structural reorganization |
+| simplicity_overengineering | direct | Simplification/deletion is behavior-preserving — existing tests must stay green. Issue `message` starts with a cut tag (`delete:`/`stdlib:`/`native:`/`yagni:`/`shrink:`) and `fixHint` names the replacement |
 | e2e | tdd or direct | E2E scenario failure — classified per root cause analysis (see E2E fix mode in Step 0) |
 
 ## Process
