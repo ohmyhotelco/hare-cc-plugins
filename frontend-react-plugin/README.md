@@ -7,12 +7,24 @@
 This Claude Code plugin generates production-ready React code from functional specifications using strict Test-Driven Development. It provides a complete pipeline from implementation planning through code generation, verification, review, and fix — all with TDD discipline.
 
 Key capabilities:
+- **Two app profiles** — `admin` (B2B admin SPA, the default and historical behavior) and `ota` (SEO-critical consumer app). The profile sets defaults for the stack knobs below; each stays independently overridable.
 - **TDD code generation** — 6-phase pipeline (foundation → API → store → component → page → integration) with strict Red-Green-Refactor per phase
 - **Spec-driven planning** — Analyze functional specs (from planning-plugin) and produce structured implementation plans
 - **Standalone mode** — Generate plans without planning-plugin by gathering requirements interactively
 - **Automated review** — 2-stage code review (spec compliance + quality) with 13 scoring dimensions
 - **TDD fix** — Fix review issues with test-first discipline for behavioral changes
 - **State consistency** — Lock mechanism, phase timestamps, and staleness detection across the pipeline
+
+### App Profiles
+
+Selected at `fe-init` via `appProfile` (default `admin`). A config with none of the new keys behaves exactly as before — full backward compatibility.
+
+| Profile | Target | Router | Server state | Forms | E2E | Dates |
+|---|---|---|---|---|---|---|
+| **admin** (default) | B2B admin SPA | declarative / data (Vite SPA) | Zustand + Axios | native | agent-browser | Intl |
+| **ota** | SEO-critical consumer app | **framework** (per-route SSR/SSG/SPA) | **TanStack Query** + thin Zustand | **RHF + zod** | **Playwright** | **dayjs** |
+
+Framework mode builds with `react-router build`/`typegen`, decides SSR/SSG/SPA per page in `plan.json`, and mocks SSR loaders with an MSW-node hook. See `docs/design/ota-extension-phase1.md`.
 
 ## Architecture Overview
 
@@ -74,19 +86,21 @@ Loop 2 — E2E:
 
 ## Tech Stack
 
-| Category | Technology |
-|----------|-----------|
-| Runtime | Node.js 22.x LTS (>= 22.12) |
-| Package Manager | pnpm |
-| Framework | React 19 + TypeScript (strict) |
-| Build | Vite |
-| Routing | React Router v7 (declarative or data mode) |
-| UI | Tailwind CSS + shadcn/ui + Lucide |
-| State | Zustand |
-| HTTP | Axios (JWT, 401/403 interceptors) |
-| Mock | MSW v2 (dev & test — network-level intercept) |
-| i18n | i18next + react-i18next (ko/en/ja/vi) |
-| Testing | Vitest + @testing-library/react + agent-browser (E2E) |
+| Category | admin profile | ota profile |
+|----------|-----------|-----------|
+| Runtime | Node.js 22.x LTS (>= 22.12) | same |
+| Package Manager | pnpm | same |
+| Framework | React 19 + TypeScript (strict) | same |
+| Build | Vite | React Router (framework mode: `react-router build`) |
+| Routing | React Router v7 (declarative or data) | React Router v7 framework mode (per-route SSR/SSG/SPA) |
+| UI | Tailwind CSS + shadcn/ui + Lucide | same |
+| Server state | Zustand + Axios | TanStack Query (+ thin Zustand for UI state) |
+| Forms | native | react-hook-form + zod |
+| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (loader-safe) + browser wrapper |
+| Mock | MSW v2 (dev & test) | + MSW-node for SSR loaders |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + per-request SSR instance |
+| Dates | Intl | dayjs |
+| Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
 ## Installation
 

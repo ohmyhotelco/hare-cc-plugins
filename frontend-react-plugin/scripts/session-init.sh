@@ -20,8 +20,12 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 0
 fi
 
-# Read configuration values
+# Read configuration values (new keys fall back to admin-profile defaults for backward compat)
+APP_PROFILE=$(jq -r '.appProfile // "admin"' "$CONFIG_FILE" 2>/dev/null || echo "admin")
 ROUTER_MODE=$(jq -r '.routerMode // "declarative"' "$CONFIG_FILE" 2>/dev/null || echo "declarative")
+SERVER_STATE=$(jq -r '.serverState // "zustand-only"' "$CONFIG_FILE" 2>/dev/null || echo "zustand-only")
+FORM_STACK=$(jq -r '.formStack // "native"' "$CONFIG_FILE" 2>/dev/null || echo "native")
+E2E_TOOL=$(jq -r '.e2eTool // "agent-browser"' "$CONFIG_FILE" 2>/dev/null || echo "agent-browser")
 MOCK_FIRST=$(jq -r '.mockFirst // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
 BASE_DIR=$(jq -r '.baseDir // "src"' "$CONFIG_FILE" 2>/dev/null || echo "src")
 APP_DIR=$(jq -r '.appDir // "."' "$CONFIG_FILE" 2>/dev/null || echo ".")
@@ -33,8 +37,11 @@ SKILLS=(
   "React Best Practices|$CWD/.claude/skills/vercel-react-best-practices"
   "Composition Patterns|$CWD/.claude/skills/vercel-composition-patterns"
   "Web Design Guidelines|$CWD/.claude/skills/web-design-guidelines"
-  "Agent Browser|$CWD/.claude/skills/agent-browser"
 )
+# Agent Browser skill is only expected when e2eTool is agent-browser (Playwright ships no skill)
+if [ "$E2E_TOOL" = "agent-browser" ]; then
+  SKILLS+=("Agent Browser|$CWD/.claude/skills/agent-browser")
+fi
 
 MISSING_SKILLS=()
 for entry in "${SKILLS[@]}"; do
@@ -48,7 +55,20 @@ done
 # Display current settings
 echo ""
 echo "[Frontend React Plugin] Configuration loaded:"
+# Only surface the new-stack knobs when they diverge from admin defaults (keeps admin session output byte-identical to pre-OTA)
+if [ "$APP_PROFILE" != "admin" ]; then
+  echo "  App profile: $APP_PROFILE"
+fi
 echo "  Router mode: $ROUTER_MODE"
+if [ "$SERVER_STATE" != "zustand-only" ]; then
+  echo "  Server state: $SERVER_STATE"
+fi
+if [ "$FORM_STACK" != "native" ]; then
+  echo "  Form stack: $FORM_STACK"
+fi
+if [ "$E2E_TOOL" != "agent-browser" ]; then
+  echo "  E2E tool: $E2E_TOOL"
+fi
 if [ "$MOCK_FIRST" = "true" ]; then
   echo "  Mock-first: enabled"
 else
@@ -80,12 +100,21 @@ if [ "$ESLINT_TEMPLATE" = "true" ]; then
   fi
 fi
 
-# Agent-browser CLI availability
-if command -v agent-browser >/dev/null 2>&1; then
-  AB_VERSION=$(agent-browser --version 2>&1 | head -1)
-  echo "  Agent-browser CLI: $AB_VERSION"
+# E2E CLI availability (keyed on e2eTool)
+if [ "$E2E_TOOL" = "playwright" ]; then
+  if npx --no-install playwright --version >/dev/null 2>&1; then
+    PW_VERSION=$(npx --no-install playwright --version 2>&1 | head -1)
+    echo "  Playwright CLI: $PW_VERSION"
+  else
+    echo "  Playwright CLI: not ready (run: pnpm add -D @playwright/test && npx playwright install)"
+  fi
 else
-  echo "  Agent-browser CLI: not installed (E2E testing requires it)"
+  if command -v agent-browser >/dev/null 2>&1; then
+    AB_VERSION=$(agent-browser --version 2>&1 | head -1)
+    echo "  Agent-browser CLI: $AB_VERSION"
+  else
+    echo "  Agent-browser CLI: not installed (E2E testing requires it)"
+  fi
 fi
 
 # Scan progress files for implementation issues

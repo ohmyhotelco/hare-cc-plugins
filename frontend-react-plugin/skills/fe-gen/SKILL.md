@@ -16,13 +16,16 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
-5. If the file does not exist:
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`. Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
+6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+
+**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as `skip` in generation-state (same mechanism as delta `deltaAction="skip"`) and log "Skipping store-tdd (no client-only store)". This is not an error — it is the expected shape under tanstack-query.
 
 ### Step 1: Validate Plan
 
@@ -429,6 +432,10 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
+  - routerMode: {routerMode}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - e2eTool: {e2eTool}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
@@ -479,6 +486,8 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
+  - serverState: {serverState}
+  - formStack: {formStack}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
@@ -541,6 +550,7 @@ Agent(subagent_type: "integration-generator", prompt: "
   - feature: {feature}
   - projectRoot: {cwd}
   - routerMode: {routerMode}
+  - serverState: {serverState}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}

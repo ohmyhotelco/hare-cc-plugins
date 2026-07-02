@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 # Verification Gate Skill
 
-Run TypeScript, ESLint, and Vite build verification on generated code.
+Run TypeScript, ESLint, and build verification on generated code (build is mode-aware: `vite build` for declarative/data, `react-router build` for framework — see the CLAUDE.md Router-mode command matrix).
 
 ## Instructions
 
@@ -82,6 +82,8 @@ Run the following 3 verifications sequentially.
 
 #### 2.1 TypeScript Check
 
+**Framework mode (`routerMode == "framework"`)**: first run `npx react-router typegen 2>&1` to generate the RR route types (into `{appDir}/.react-router/`) **before** the composite-aware tsc — see CLAUDE.md § Router-mode command matrix (typecheck row: `react-router typegen` **then** the composite-aware tsc). Library modes (`declarative`/`data`) skip this step; their behavior is unchanged.
+
 Detect composite tsconfig and use the correct command:
 
 1. Read `tsconfig.json` in `{appDir}` (e.g., `app/tsconfig.json` when `appDir` is `app`, or root `tsconfig.json` when `appDir` is `.`)
@@ -91,6 +93,9 @@ Detect composite tsconfig and use the correct command:
 All commands below run from `{appDir}`. If `appDir` is not `"."`, prefix each with `cd {appDir} &&`.
 
 ```bash
+# Framework mode only (routerMode == "framework"): generate route types first
+npx react-router typegen 2>&1
+
 # If tsconfig.json contains "references":
 npx tsc -b 2>&1
 
@@ -135,8 +140,14 @@ npx tsc --noEmit 2>&1
 
 #### 2.3 Build Check
 
+Build command is **mode-aware** — branch on `routerMode` per CLAUDE.md § Router-mode command matrix (build row). Run from `{appDir}` (prefix with `cd {appDir} &&` when `appDir` is not `"."`).
+
 ```bash
+# declarative / data (Vite SPA):
 npx vite build 2>&1
+
+# framework (SSR/SSG):
+npx react-router build 2>&1
 ```
 
 - exit code 0 → pass

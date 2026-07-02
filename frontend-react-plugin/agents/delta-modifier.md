@@ -22,9 +22,9 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — feature code directory (e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `specDir` — spec markdown path (for reference)
-- `routerMode` — `"declarative"` | `"data"`
+- `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build`, `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
 
 ## Change Classification
 
@@ -78,8 +78,8 @@ Each file operation from `delta-plan.json` is classified:
    - `api-tdd`: `.claude/skills/vitest/SKILL.md`
    - `store-tdd`: `.claude/skills/vitest/SKILL.md`
    - `component-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-composition-patterns/SKILL.md`
-   - `page-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-react-best-practices/SKILL.md` (skip RSC/SSR)
-   - `integration`: `.claude/skills/react-router-{routerMode}-mode/SKILL.md`
+   - `page-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-react-best-practices/SKILL.md` — **RSC/SSR rules are router-mode conditional** (CLAUDE.md § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA), **apply** them in `framework` mode (per-route SSR/SSG)
+   - `integration`: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (`framework` → `react-router-framework-mode`)
 
 6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test file structure
 
@@ -209,9 +209,9 @@ For each behavioral change:
 
 After all operations in this phase complete:
 
-1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection)
+1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
 2. `npx vitest run {baseDir}` → all feature tests pass
-3. If `phase` is `integration`: also run `npx vite build` → build check
+3. If `phase` is `integration`: also run the build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.
 

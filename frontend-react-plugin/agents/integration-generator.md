@@ -19,11 +19,17 @@ The coordinator skill provides:
 - `feature` — feature name
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
-- `routerMode` — `"declarative"` | `"data"`
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework switches the route-integration target to `{baseDir}/routes.ts` + the `prerender` array.
+- `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — gates the `QueryClientProvider` wiring.
+- `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
 - `mockFirst` — `true` | `false`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 - `skills` — list of external skill paths to read
+
+> **Backward compatibility.** New keys default to their pre-OTA values when absent
+> (`routerMode=declarative`, `serverState=zustand-only`); every new branch below is gated on a new value —
+> an admin-default config wires routes/i18n/MSW/build byte-identically to today.
 
 ## Process
 
@@ -70,9 +76,30 @@ export const {featureExportName}: RouteObject[] = [
 ];
 ```
 
+**Framework mode** (generate `{baseDir}/features/{feature}/routes.ts`) — a `RouteConfig[]` built with
+`route()`/`index()`/`layout()`/`prefix()` from `@react-router/dev/routes`. The config file carries only
+route wiring; **auth/permission wrapping stays inside the route-module components**
+(`ProtectedRoute`/`RoleRoute` in each `routes/*.tsx`), never in this config. See
+`templates/feature-module.md` (§ Framework Mode) and `templates/framework-app-shell.md`.
+```typescript
+import { type RouteConfig, route } from '@react-router/dev/routes';
+
+// paths are app-root-relative (exactly as recorded in plan.routes.entries[].file)
+export const {featureExportName}: RouteConfig = [
+  route('entities', 'features/{feature}/routes/list.tsx'),
+  route('entities/:id', 'features/{feature}/routes/detail.tsx'),
+  // ... other routes from plan.routes.entries
+];
+```
+**Path rule (framework)**: route-module `file` values are always **app-root-relative** (exactly as
+recorded in plan.json) — **never** relative to the fragment file. RR resolves split-config paths against
+the app root; emitting fragment-relative paths produces broken routes. (RR's `relative()` helper exists
+for hand-written configs; the generator does not need it — the planner already holds root-relative paths.)
+
 Rules:
 - Route entries from `plan.routes.entries`
-- Auth wrapping: `auth: true` → `<ProtectedRoute>`, `permissions` → `<RoleRoute>`
+- Auth wrapping: `auth: true` → `<ProtectedRoute>`, `permissions` → `<RoleRoute>` (library modes in the
+  fragment; framework mode **inside the route module**)
 - Page imports are relative (same feature directory)
 - Guard imports use project's path alias
 - Route paths: relative (no leading `/`) when nested under layout route
@@ -94,7 +121,23 @@ Rules:
       - Insert new layout route wrapper
    c. If no layout route:
       - Insert at top level before `insertAnchor`
-7. **Verify** — detect composite tsconfig and run the correct command:
+
+**Framework mode central integration** (`routerMode == framework`) — the central file is
+`{baseDir}/routes.ts` (a `RouteConfig` array), not `App.tsx`/`router.tsx`:
+- **Add import + spread**: `import { {featureExportName} } from './features/{feature}/routes';` then spread
+  it into the default-exported array (`...{featureExportName}`). Layout nesting is expressed via
+  `layout('...', [ ...children ])` children (the `layout()` route module wraps the feature routes) — not a
+  JSX `<Route>` wrapper.
+- **Maintain the `prerender` array** in `{appDir}/react-router.config.ts` (path-base rule — resolves
+  against `{appDir}`, never repo root): add the URL of every page with `plan.pages[].rendering == "ssg"`
+  (Phase 1: parameterless **and** loader-less only — D5; `prerender` executes loaders at build time where
+  the dev-only D8 MSW hook does not apply, so loader-carrying candidates were already demoted to `ssr` by
+  the planner). Do not add `ssr`/`spa` pages. Create the config from
+  `templates/framework-app-shell.md` if absent (never overwrite).
+
+7. **Verify** — mode-aware per the CLAUDE.md Router-mode command matrix. Framework mode runs
+   `npx react-router typegen 2>&1` first (generated types in `.react-router/`), then the composite-aware
+   tsc:
    - Read root `tsconfig.json`; if it contains `"references"` → `npx tsc -b 2>&1`, otherwise → `npx tsc --noEmit 2>&1`
    - If errors, attempt one fix
 
@@ -158,7 +201,34 @@ If `mocks.globalSetupNeeded` is `false` (subsequent features):
 
 If `mocks.devMocking.browserSetupNeeded` is `true`:
 - `{baseDir}/mocks/browser.ts` — `setupWorker(...handlers)`
-- Modify `{baseDir}/main.tsx` — conditional MSW bootstrap
+- **Library modes** (`declarative`/`data`): modify `{baseDir}/main.tsx` — conditional MSW bootstrap.
+- **Framework mode**: the browser worker bootstrap lives in `{baseDir}/entry.client.tsx` (there is no
+  `main.tsx`) — see Step 6b. The dev-time SSR-loader node hook lives in `{baseDir}/entry.server.tsx`.
+
+### Step 6b: Framework MSW Wiring (`routerMode == framework` + `mockFirst`)
+
+Only when `routerMode == framework` **and** `mockFirst`. The dev-server SSR-loader interception (D8) —
+`{baseDir}/mocks/node.ts` is generated by foundation-generator; this step wires the entries:
+
+- **`{baseDir}/entry.server.tsx`** — wire the guarded, idempotent, **module-scope** MSW-node hook so
+  `server.listen()` runs before any loader executes: gate on `import.meta.env.DEV &&
+  import.meta.env.VITE_ENABLE_MOCKS === 'true'`, guard against Vite HMR re-evaluation with a `globalThis`
+  flag (`__mswNodeStarted`), and `await import('./mocks/node')` then `server.listen({ onUnhandledRequest:
+  'bypass' })`. Guarded-edit an existing file; **create it from `templates/framework-app-shell.md` if
+  absent**. Never weaken the guard — if the §8 interception assertion fails, apply the D8 fallback (move
+  the bootstrap to a custom dev-server entry).
+- **`{baseDir}/entry.client.tsx`** — ensure it has **only** the browser MSW worker bootstrap
+  (`await import('./mocks/browser'); worker.start(...)`), never the node hook. Create from the template if
+  absent.
+
+### Step 6c: TanStack Query Provider (`serverState == tanstack-query`, LIBRARY modes only)
+
+Only when `serverState == tanstack-query` **and** `routerMode` is a library mode (`declarative`/`data`):
+wire the root `QueryClientProvider` into `{baseDir}/main.tsx` using the **same guarded-edit + manual
+fallback** pattern as the MSW bootstrap (module-scope singleton `QueryClient` with the D9 `staleTime:
+60_000` default; wrap the app root). In **framework mode** the provider comes from the app-shell `root.tsx`
+(scaffolded by foundation-generator) — do **not** touch `main.tsx` (there is none). This closes the D1
+override matrix: any router mode may enable `tanstack-query`. See `templates/server-state.md`.
 
 ### Step 7: Barrel Export
 
@@ -172,13 +242,17 @@ export { default as EntityListPage } from './pages/EntityListPage';
 
 Run all verification checks:
 
-**a. TypeScript** — detect composite tsconfig and use the correct command:
+**a. TypeScript** — mode-aware per the CLAUDE.md Router-mode command matrix; detect composite tsconfig:
 
-1. Read root `tsconfig.json` in the project directory
-2. If it contains a `"references"` array → use `tsc -b`
-3. Otherwise → use `tsc --noEmit`
+1. **Framework mode only**: run `npx react-router typegen 2>&1` first (generated types in `.react-router/`).
+2. Read root `tsconfig.json` in the project directory
+3. If it contains a `"references"` array → use `tsc -b`
+4. Otherwise → use `tsc --noEmit`
 
 ```bash
+# framework mode ONLY, before tsc:
+npx react-router typegen 2>&1
+
 # If root tsconfig.json contains "references":
 npx tsc -b 2>&1
 
@@ -212,9 +286,13 @@ npx tsc --noEmit 2>&1
 npx vitest run {baseDir}/features/{feature}/ --reporter=verbose 2>&1
 ```
 
-**d. Build:**
+**d. Build:** mode-aware per the CLAUDE.md Router-mode command matrix:
 ```bash
+# library modes (declarative / data — Vite SPA):
 npx vite build 2>&1
+
+# framework mode (SSR/SSG):
+npx react-router build 2>&1
 ```
 
 All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
@@ -237,9 +315,10 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
   ],
   "routeIntegration": {
     "status": "auto-integrated | manual-required",
-    "featureFile": "{baseDir}/features/{feature}/routes.tsx",
-    "centralFile": "{baseDir}/App.tsx",
-    "routesExported": 4
+    "featureFile": "{baseDir}/features/{feature}/routes.tsx (or routes.ts in framework mode)",
+    "centralFile": "{baseDir}/App.tsx (or {baseDir}/routes.ts in framework mode)",
+    "routesExported": 4,
+    "prerenderAdded": []
   },
   "i18nIntegration": {
     "status": "auto-integrated | manual-required",
@@ -249,9 +328,16 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
   },
   "msw": {
     "globalSetup": true,
-    "handlersUpdated": "{baseDir}/mocks/handlers.ts"
+    "handlersUpdated": "{baseDir}/mocks/handlers.ts",
+    "entryServerHook": "{baseDir}/entry.server.tsx (framework + mockFirst only)",
+    "entryClientWorker": "{baseDir}/entry.client.tsx (framework + mockFirst only)"
+  },
+  "queryProvider": {
+    "wiredIn": "{baseDir}/main.tsx (library modes) | root.tsx (framework, via app shell)",
+    "status": "wired | manual-required | n/a"
   },
   "verification": {
+    "typegen": "pass | fail | n/a",
     "tsc": "pass | fail",
     "eslint": "pass | fail | skipped",
     "vitest": "pass | fail",
@@ -261,14 +347,19 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 }
 ```
 
+> The `prerenderAdded`, `entryServerHook`, `entryClientWorker`, and `queryProvider` fields appear only when
+> the corresponding branch is active (`routerMode=framework` [+ `mockFirst` for the MSW hooks],
+> `serverState=tanstack-query`); `verification.typegen` is `n/a` in library modes.
+
 ## Convention Checklist
 
 ### Routes
-- [ ] Feature route file: `{baseDir}/features/{feature}/routes.tsx`
-- [ ] Route export: declarative → JSX fragment, data → `RouteObject[]`
+- [ ] Feature route file: `{baseDir}/features/{feature}/routes.tsx` (library modes) or `routes.ts` (framework mode)
+- [ ] Route export: declarative → JSX fragment, data → `RouteObject[]`, framework → `RouteConfig[]` via `route()`/`index()`/`layout()`/`prefix()`
+- [ ] Framework: route-module `file` values are app-root-relative (never fragment-relative); central target is `{baseDir}/routes.ts`; `prerender` array maintained in `{appDir}/react-router.config.ts` from `pages[].rendering=="ssg"`
 - [ ] Route paths: relative (no leading `/`) when nested under layout route
-- [ ] Auth wrapping at route level, not in page
-- [ ] Import from `react-router` (not `react-router-dom`)
+- [ ] Auth wrapping at route level (library modes) or inside the route module (framework), not in the page body
+- [ ] Import from `react-router` / `@react-router/dev/routes` (not `react-router-dom`)
 
 ### i18n
 - [ ] All user-facing text has i18n keys
@@ -279,10 +370,16 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 ### MSW Global
 - [ ] MSW v2 syntax throughout
 - [ ] Aggregator pattern: `{baseDir}/mocks/handlers.ts` imports all feature handlers
-- [ ] Conditional bootstrap in main.tsx: `VITE_ENABLE_MOCKS=true`
+- [ ] Library modes: conditional bootstrap in `main.tsx` — `VITE_ENABLE_MOCKS=true`
+- [ ] Framework mode + mockFirst: guarded idempotent module-scope MSW-node hook in `entry.server.tsx` (DEV && `VITE_ENABLE_MOCKS`, `globalThis` flag); browser-worker-only bootstrap in `entry.client.tsx`
 
-### RSC/SSR Skip
-- [ ] Vite SPA — ignore server component and SSR-related rules
+### TanStack Query Provider (serverState == tanstack-query)
+- [ ] Library modes: root `QueryClientProvider` wired into `main.tsx` (guarded-edit + manual fallback)
+- [ ] Framework mode: provider comes from app-shell `root.tsx` — `main.tsx` untouched (there is none)
+
+### RSC/SSR Skip (conditional on `routerMode`)
+- [ ] Library modes (`declarative`/`data`, Vite SPA): ignore server component and SSR-related rules
+- [ ] Framework mode (SSR/SSG): SSR rules **apply** — do not skip them (CLAUDE.md command matrix)
 
 ## Key Rules
 

@@ -18,14 +18,14 @@
     },
     {
       "name": "frontend-react-plugin",
-      "description": "Frontend React development plugin enforcing React 19, Vite, TypeScript, shadcn/ui, Zustand, and i18next conventions for Claude Code",
-      "version": "1.1.0",
+      "description": "Frontend React development plugin for Claude Code with two app profiles — admin (Vite SPA) and OTA (React Router framework mode, SSR/SSG, TanStack Query, RHF+zod, Playwright) — enforcing React 19, TypeScript, shadcn/ui, and i18next conventions",
+      "version": "2.0.0",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./frontend-react-plugin/",
       "category": "development",
-      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next", "routing", "vitest", "performance", "accessibility", "composition", "codegen", "spec-driven", "msw", "mock-first", "tdd", "testing", "e2e", "agent-browser", "debug", "code-review", "fix", "security", "clean-code", "test-review"]
+      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next", "routing", "react-router", "framework-mode", "ssr", "ssg", "tanstack-query", "react-hook-form", "zod", "dayjs", "ota", "vitest", "playwright", "performance", "accessibility", "composition", "codegen", "spec-driven", "msw", "mock-first", "tdd", "testing", "e2e", "agent-browser", "debug", "code-review", "fix", "security", "clean-code", "test-review"]
     },
     {
       "name": "homepage-plugin",
