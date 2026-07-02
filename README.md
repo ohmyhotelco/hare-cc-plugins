@@ -21,18 +21,20 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v1.0.6`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.0.0`
 
-Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing.
+Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 
 **Pipeline**: `fe-plan` → `fe-gen` (TDD) → `fe-verify` → `fe-review` ↔ `fe-fix` → `fe-e2e`
 
 **Key features**:
 - Strict Red-Green-Refactor TDD with per-phase agent isolation
-- 2-stage review: spec compliance (5 dimensions) + code quality (7 dimensions)
+- 2-stage review: spec compliance (5 dimensions) + code quality (8 dimensions, incl. simplicity/over-engineering)
 - Delta regeneration — incremental spec changes without full rebuild
-- E2E testing via agent-browser (headless Chromium)
-- React 19, Vite, TypeScript, shadcn/ui, Zustand, MSW v2, i18next
+- E2E testing via agent-browser (admin) or Playwright (ota)
+- **admin**: React Router v7 (declarative/data, Vite SPA), Zustand + Axios, native forms, Intl
+- **ota**: React Router v7 framework mode (per-route SSR/SSG/SPA), TanStack Query, RHF + zod, dayjs
+- React 19, TypeScript, shadcn/ui, MSW v2, i18next across both profiles
 
 ---
 
@@ -80,7 +82,7 @@ Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to R
 - Three legacy-parity gates: technical (build/tsc/vitest), Playwright E2E (legacy dual-run + staging payment gateways), and parity (visual regression/contract freeze/WebView/telemetry)
 - Strangler Fig route flip with 2-PR feature flags, refused until all gates pass
 - Incremental re-migration (`fm-delta`) on legacy drift; `shared-domain` secret boundary enforced by lint
-- Playwright for E2E + visual regression (a deliberate divergence from frontend-react-plugin's agent-browser)
+- Playwright for E2E + visual regression (matching frontend-react-plugin's ota profile; the admin profile there defaults to agent-browser)
 
 ---
 
