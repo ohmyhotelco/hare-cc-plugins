@@ -28,8 +28,11 @@ Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React t
    `sharedCandidates` + DTOs/types). Flag any candidate not yet extracted (run `fm-extract`).
 4. **Rendering mode.** Choose `ssr | ssg | spa` per the decision table (OMH-454 §5):
    CMS/marketing → SSG, hotel detail → SSR(ISR), auth/transactional/search-list → SPA. Hana → SPA.
-5. **Required gates.** Carry `requiredGates` from analysis (always `e2e`+`visual`; plus
-   `secret`/`sso`/`webview`/`telemetry` when triggered).
+5. **Required gates + acceptance.** Carry `requiredGates` from analysis (always `e2e`+`visual`;
+   plus `secret`/`sso`/`webview`/`telemetry` when triggered), and emit a `gateAcceptance` entry
+   for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
+   `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
+   `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
 7. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —

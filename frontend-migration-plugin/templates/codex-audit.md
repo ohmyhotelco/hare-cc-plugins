@@ -41,7 +41,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 | `gen` | generated diff + plan + `angular-to-react-mapping.md` refs | mapping fidelity to the catalog, idiomatic RR v7 / hooks / RHF+zod, anti-patterns, **`shared-domain` secret-boundary violations**, dead/incomplete code |
 | `verify` | generated code + test files + `verify` result | independent second opinion to `quality-reviewer`/`test-reviewer`; weak/missing assertions, untested branches, mocked-over behavior |
 | `e2e` | `e2e-report.json` + plan `e2eScenarios` + legacy behavior | **false-pass cross-check** — do the scenarios actually exercise the legacy flows? Any scenario weakened to pass? Dual-run gaps |
-| `parity` | `parity-report.json` + visual/contract/telemetry data + legacy baseline | regressions marked passed: visual diffs hidden by re-baselining, contract drift, WebView round-trip gaps, telemetry event/payload mismatches |
+| `parity` | `parity-report.json` + plan `gateAcceptance` + visual/contract/telemetry data + legacy baseline | regressions marked passed: **gate-name vs actually-compared-surface mismatch (a structural/text match presented as a visual pass)**, visual diffs hidden by re-baselining or asymmetric baselines, silent `gateAcceptance` scope reduction, contract drift, WebView round-trip gaps, telemetry event/payload mismatches |
 | `route` | full PR diff + all gate reports (`verify`/`e2e`/`parity` + prior `codex-audit.json`) | final independent sign-off before the irreversible flip; unresolved high-severity findings from earlier stages |
 
 ## Output schema (written to `codex-audit.json`, English)
