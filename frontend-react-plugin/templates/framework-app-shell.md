@@ -139,10 +139,13 @@ async function main() {
 main()
 ```
 
-## `{baseDir}/routes/{name}.tsx` — route module (thin wrapper) shape
+## Route module (thin wrapper) shape
 
-Per D10 the route module is a **thin wrapper**; the tested logic lives in an extracted page-body
-component under `features/{feature}/pages/`.
+Path convention: **feature** route modules live at `{baseDir}/features/{feature}/routes/{name}.tsx`
+(referenced by the `route()` config string as the app-root-relative `features/{feature}/routes/{name}.tsx`,
+without the `{baseDir}/` prefix). Only top-level, non-feature routes (e.g. `home`) live directly at
+`{baseDir}/routes/{name}.tsx`. Per D10 the route module is a **thin wrapper**; the tested logic lives in an
+extracted page-body component under `features/{feature}/pages/`.
 
 ```tsx
 import type { Route } from './+types/{name}'

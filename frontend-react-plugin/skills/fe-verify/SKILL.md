@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 # Verification Gate Skill
 
-Run TypeScript, ESLint, and Vite build verification on generated code.
+Run TypeScript, ESLint, and build verification on generated code (build is mode-aware: `vite build` for declarative/data, `react-router build` for framework — see the CLAUDE.md Router-mode command matrix).
 
 ## Instructions
 

@@ -25,7 +25,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build`, `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
 
 ## Issue Classification
 

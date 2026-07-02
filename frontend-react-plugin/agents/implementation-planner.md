@@ -662,7 +662,7 @@ admin/library-mode default so all appear with default values):
 - `renderingDefault` and each `pages[].rendering`/`renderingReason`/`loader`/`meta`/`routeModuleFile` — **framework mode only**.
 - `api[].queries` — **`serverState == tanstack-query` only**; under tanstack-query the paired `stores[]` entry drops server data (list/selected/loading/error) and holds UI/client state only, or is omitted entirely (then `store-tdd` is skipped).
 - `components[].formSchema` — **`formStack == rhf-zod` only**.
-- `routes.mode == "framework"` uses the `_routesFrameworkExample` shape instead of the declarative/data block.
+- `routes.mode` mirrors `routerMode` (pre-existing field: `declarative`/`data`, now also `framework`); it labels the `routes{}` block variant. Downstream agents branch on top-level `routerMode`, not on `routes.mode` — so `routes.mode == "framework"` simply signals the `_routesFrameworkExample` shape.
 
 ```json
 {

@@ -224,9 +224,10 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 - Interactions: Dialog, AlertDialog, Toast as specified
 
 *When `routerMode == framework`* (D10) — the page splits into two files:
-- A **thin route module** (`routes/{name}.tsx`): `loader`/`clientLoader` (SSR/SSG fetch via the D13 **base**
-  client — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description keys
-  translated server-side), `ErrorBoundary`, `HydrateFallback`, and a default export that renders the
+- A **thin route module** written at the plan's `pages[].routeModuleFile` (physical path
+  `{baseDir}/features/{feature}/routes/{name}.tsx`): `loader`/`clientLoader` (SSR/SSG fetch via the D13
+  **base** client — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description
+  keys translated server-side), `ErrorBoundary`, `HydrateFallback`, and a default export that renders the
   page-body with `loaderData`. **Not unit-tested here** — verified by typegen + tsc + build + E2E smoke.
 - An extracted **page-body component** (`pages/{Entity}...Page.tsx`) that receives loader data as props —
   **this is the TDD target**. Plain Testing Library render; `createRoutesStub` only when it uses router

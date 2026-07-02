@@ -55,9 +55,11 @@ done
 # Display current settings
 echo ""
 echo "[Frontend React Plugin] Configuration loaded:"
-echo "  App profile: $APP_PROFILE"
+# Only surface the new-stack knobs when they diverge from admin defaults (keeps admin session output byte-identical to pre-OTA)
+if [ "$APP_PROFILE" != "admin" ]; then
+  echo "  App profile: $APP_PROFILE"
+fi
 echo "  Router mode: $ROUTER_MODE"
-# Only surface the new-stack knobs when they diverge from admin defaults (keeps admin output unchanged)
 if [ "$SERVER_STATE" != "zustand-only" ]; then
   echo "  Server state: $SERVER_STATE"
 fi

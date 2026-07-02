@@ -545,8 +545,8 @@ Per D10 the page splits into a thin route module (wrapper) and a tested page-bod
   renders the page-body with `loaderData`.
 - **Page body** (`pages/{Entity}...Page.tsx`): a plain component taking loader data as props; holds the
   `empty`/`success` states and any `useQuery` refetch (with `initialData`/`initialDataUpdatedAt` per
-  `server-state.md`). **This is the TDD target** — unit-tested with Testing Library; `createRoutesStub`
-  only if it uses router hooks.
+  `server-state.md`). **The page body (not the route module) is the TDD target** — unit-tested with
+  Testing Library; `createRoutesStub` only if the body itself uses router hooks.
 
 The `rendering` per page (`ssr`/`ssg`/`spa`) comes from `plan.json pages[].rendering`; `spa` pages use
 `clientLoader` only and read no `localStorage`/`window` on the server path (R1).
