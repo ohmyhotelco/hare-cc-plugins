@@ -18,11 +18,15 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
 - `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
-- `routerMode` — `"declarative"` | `"data"`
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (framework = per-route SSR/SSG/SPA; see the Router-mode command matrix in CLAUDE.md)
+- `appProfile` — `"admin"` (default) | `"ota"` — copied into the plan so downstream agents need not re-read config
+- `serverState` — `"zustand-only"` (default) | `"tanstack-query"`
+- `formStack` — `"native"` (default) | `"rhf-zod"`
+- `renderingDefault` — framework mode only: `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering when a page's rendering cannot be inferred
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
-- `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
+- `baseDir` — base source directory (e.g., `"app/src"`, or framework `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
-- `appDir` — app directory containing `vite.config.*` and `package.json` (e.g., `"app"` or `"."`)
+- `appDir` — app directory containing `vite.config.*` / `react-router.config.ts` and `package.json` (e.g., `"app"` or `"."`)
 - `feature` — feature name
 - `outputFile` — plan output path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.
@@ -86,17 +90,19 @@ Identify existing project patterns so that generated code integrates naturally.
    - If no existing modules, use the canonical structure from templates/feature-module.md
 
 4. **Route file** — Identify and analyze existing route file for auto-integration
-   - Locate: `{baseDir}/App.tsx` or `{baseDir}/router.tsx` or `{baseDir}/routes/index.tsx`
+   - **Library modes (declarative / data)**: locate `{baseDir}/App.tsx` or `{baseDir}/router.tsx` or `{baseDir}/routes/index.tsx`
+   - **Framework mode**: the central route file is `{baseDir}/routes.ts` (RouteConfig array); the prerender source is `{appDir}/react-router.config.ts` (path-base rule — config lives in `appDir`, not the repo root)
    - Read the route file content and identify:
      - **Aggregation pattern**: Check if existing features export route arrays/fragments that are spread into the central file (e.g., `...dashboardRoutes`). If found, follow the same pattern.
      - **Insertion anchor**: The line before which new route imports/spreads should be inserted
        - Declarative: closing `</Routes>` or end of layout route children
        - Data: end of `children` array or `createBrowserRouter` array
-     - **Existing layout route**: search for `<Route path="{layoutRoute}"` or `{ path: "{layoutRoute}" }` — if found, new feature routes nest inside its children
+       - Framework: end of the exported `RouteConfig[]` array in `{baseDir}/routes.ts`; separately, the `prerender: [...]` array in `{appDir}/react-router.config.ts` for ssg entries
+     - **Existing layout route**: search for `<Route path="{layoutRoute}"` or `{ path: "{layoutRoute}" }` or `layout('...')` — if found, new feature routes nest inside its children
      - **Existing feature route imports**: list already-imported feature route modules (to avoid duplicates)
    - Set `autoIntegration` to `null` when:
      - No central route file found
-     - Route file structure is unrecognizable (no `<Routes>`, no `createBrowserRouter`)
+     - Route file structure is unrecognizable (no `<Routes>`, no `createBrowserRouter`, no `RouteConfig`)
      - Multiple route files exist and the correct one cannot be determined
    - Record findings in plan as `routes.autoIntegration`
 
@@ -212,9 +218,17 @@ Map each screen → page component:
 
 Navigation graph → route configuration:
 
-- Configuration per routerMode (declarative / data)
-- ProtectedRoute / RoleRoute wrapping
-- Insertion location in existing route file
+- Configuration per routerMode (declarative / data / framework)
+- ProtectedRoute / RoleRoute wrapping (framework mode: wrapping lives inside the route module component, not the config)
+- Insertion location in existing route file (framework: `{baseDir}/routes.ts` + `{appDir}/react-router.config.ts` prerender array)
+
+**Framework mode — per-page rendering decision.** For each page set `rendering` (`ssr` | `ssg` | `spa`) and a one-line `renderingReason`:
+- public, SEO-relevant content (search results, hotel/room detail, landing) → `ssr`
+- **parameterless AND loader-less** content that changes rarely → `ssg`. **Demote** any dynamic-segment (`:id`) OR loader-carrying candidate to `ssr` and say so in `renderingReason` — `prerender` runs loaders at build time where the dev-only MSW hook does not apply (D5). `staticPaths` stays unset (reserved, O5).
+- authenticated / checkout / my-page → `spa` (`clientLoader` only; no `localStorage`/`window` on the server path, R1)
+- If a page's rendering cannot be inferred, use `renderingDefault` from config.
+- Record `loader` ({ data:[apiRefs], params:[routeParams] } | null), `meta` ({ titleKey }), and `routeModuleFile` per page. `ssg` pages must have `loader: null`.
+- **Route-module path convention.** `routeModuleFile` is the **physical** path `{baseDir}/features/{feature}/routes/{name}.tsx` (the thin wrapper). The `routes{}.entries[].file` string is the **app-root-relative** path that `route()` takes — the same path **without** the `{baseDir}/` prefix (e.g. `features/{feature}/routes/{name}.tsx`), because RR resolves split-config paths against the app root (`{baseDir}`). The page-body component stays at `{baseDir}/features/{feature}/pages/{Name}Page.tsx`.
 
 #### 2.7 i18n
 
@@ -312,6 +326,11 @@ Each TDD phase specifies:
 - `verify[]` — verification commands to run
 
 Non-TDD phases (`tdd: false`) specify only `verify[]`.
+
+**Config-conditional adjustments (OTA Phase 1):**
+- `serverState == tanstack-query`: the `api-tdd` phase covers the axios service **and** `api/queries.ts` (query-key factory + queryOptions + hooks). If a page has no client-only state, the plan emits **no** store for it and the `store-tdd` phase is **skipped** (fe-gen already skips phases with no files — make it explicit: a feature with no `stores[]` entry has no `store-tdd` phase).
+- `formStack == rhf-zod`: `foundation` additionally emits `schemas/{entity}Schema.ts`; `component-tdd` forms use `zodResolver`.
+- `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the CLAUDE.md Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
 
@@ -637,12 +656,24 @@ Delta Plan for '{feature}':
 
 Save to the `outputFile` path in the following JSON structure.
 
+**Config-conditional fields** (present only under the matching config; the example below is the
+admin/library-mode default so all appear with default values):
+- `appProfile`/`serverState`/`formStack` — always written (copied from config; defaults `admin`/`zustand-only`/`native`).
+- `renderingDefault` and each `pages[].rendering`/`renderingReason`/`loader`/`meta`/`routeModuleFile` — **framework mode only**.
+- `api[].queries` — **`serverState == tanstack-query` only**; under tanstack-query the paired `stores[]` entry drops server data (list/selected/loading/error) and holds UI/client state only, or is omitted entirely (then `store-tdd` is skipped).
+- `components[].formSchema` — **`formStack == rhf-zod` only**.
+- `routes.mode == "framework"` uses the `_routesFrameworkExample` shape instead of the declarative/data block.
+
 ```json
 {
   "feature": "{feature}",
   "specStatus": "finalized",
   "workingLanguage": "ko",
+  "appProfile": "admin",
   "routerMode": "declarative",
+  "serverState": "zustand-only",
+  "formStack": "native",
+  "renderingDefault": "ssr",
   "projectStructure": "feature-based",
   "baseDir": "{baseDir}/features/{feature}",
   "localesDir": "{baseDir}/locales",
@@ -679,6 +710,14 @@ Save to the `outputFile` path in the following JSON structure.
       "errorMapping": [
         { "code": "E001", "condition": "Description", "httpStatus": 409 }
       ],
+      "queries": {
+        "keysFactory": "entityKeys",
+        "hooks": [
+          { "name": "entityListQuery", "type": "query", "source": "FR-001", "invalidates": [] },
+          { "name": "entityInfiniteQuery", "type": "infinite", "source": "FR-002", "invalidates": [] },
+          { "name": "createEntityMutation", "type": "mutation", "source": "FR-003", "invalidates": ["entityKeys.all"] }
+        ]
+      },
       "source": "FR-001 ~ FR-005"
     }
   ],
@@ -702,6 +741,13 @@ Save to the `outputFile` path in the following JSON structure.
       "validation": [
         { "field": "email", "rules": ["required", "email", "maxLength:255"], "source": "BR-001" }
       ],
+      "formSchema": {
+        "//": "formStack == rhf-zod only — zod field specs derived from validation + errorMapping",
+        "file": "{baseDir}/features/{feature}/schemas/entitySchema.ts",
+        "fields": [
+          { "name": "email", "zod": "z.string().min(1, 'entityForm.email.required').email('entityForm.email.invalid').max(255)" }
+        ]
+      },
       "source": "screens: entity-create, entity-edit"
     },
     {
@@ -726,6 +772,11 @@ Save to the `outputFile` path in the following JSON structure.
       "states": ["loading", "empty", "error", "success"],
       "interactions": ["delete-confirm-dialog"],
       "errorHandling": ["E002"],
+      "rendering": "ssr",
+      "renderingReason": "public, SEO-relevant list — server-rendered",
+      "loader": { "data": ["entityApi.getList"], "params": [] },
+      "meta": { "titleKey": "entityList.title" },
+      "routeModuleFile": "{baseDir}/features/{feature}/routes/entity-list.tsx",
       "source": "screen-entity-list.json"
     }
   ],
@@ -768,6 +819,28 @@ Save to the `outputFile` path in the following JSON structure.
       "existingFeatureImports": ["dashboardRoutes"],
       "featureExportName": "{feature}Routes",
       "featureImportPath": "@/features/{feature}/routes"
+    }
+  },
+  "_routesFrameworkExample": {
+    "//": "routes{} shape when routerMode == framework (replaces the declarative/data block above)",
+    "mode": "framework",
+    "routesFile": "{baseDir}/routes.ts",
+    "configFile": "{appDir}/react-router.config.ts",
+    "featureRouteFile": "{baseDir}/features/{feature}/routes.ts",
+    "entries": [
+      { "path": "entities", "file": "features/{feature}/routes/entity-list.tsx", "rendering": "ssr", "auth": true },
+      { "path": "entities/:id", "file": "features/{feature}/routes/entity-detail.tsx", "rendering": "ssr", "auth": true }
+    ],
+    "prerenderEntries": ["/landing"],
+    "autoIntegration": {
+      "routesFile": "{baseDir}/routes.ts",
+      "insertAnchor": "end of RouteConfig[] array",
+      "configFile": "{appDir}/react-router.config.ts",
+      "prerenderAnchor": "prerender: [ ... ]",
+      "existingLayoutRoute": "layout('layouts/MainLayout.tsx')",
+      "existingFeatureImports": ["dashboardRoutes"],
+      "featureExportName": "{feature}Routes",
+      "featureImportPath": "./features/{feature}/routes"
     }
   },
   "i18n": {

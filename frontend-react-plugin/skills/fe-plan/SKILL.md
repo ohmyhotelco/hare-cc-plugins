@@ -14,10 +14,11 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Pass all of these through to the planner so it can plan rendering / queries / form schemas.
 5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -189,6 +190,10 @@ Task(subagent_type: "implementation-planner", prompt: "
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
+  - appProfile: {appProfile}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - renderingDefault: {renderingDefault}
   - mockFirst: {mockFirst}
   - projectRoot: {cwd}
   - baseDir: {baseDir}
@@ -255,6 +260,10 @@ Task(subagent_type: "implementation-planner", prompt: "
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
+  - appProfile: {appProfile}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - renderingDefault: {renderingDefault}
   - mockFirst: {mockFirst}
   - projectRoot: {cwd}
   - baseDir: {baseDir}
