@@ -1,6 +1,6 @@
 ---
 name: quality-reviewer
-description: Audits generated React migration code for code quality — composition, naming, types, accessibility, re-render/performance, and convention compliance — independent of legacy parity. Read-only; writes a report.
+description: Audits generated React migration code for code quality — composition, naming, types, accessibility, re-render/performance, convention compliance, and simplicity/over-engineering — independent of legacy parity. Read-only; writes a report.
 tools: Read, Glob, Grep, Bash
 ---
 
@@ -38,6 +38,21 @@ dimension; skip any that are absent:
 6. **Convention compliance** — shadcn/ui only (no alt component libs); RHF + zod for forms; thin
    Zustand; i18next for text (no hardcoded strings); 2-space indent; functional components +
    hooks; mapping-catalog idioms applied correctly (Facade→hook, NgbModal→Dialog, etc.).
+7. **Simplicity / over-engineering** — no complexity that neither the plan nor the legacy source
+   asked for. Prefix each issue with its cut tag: `delete:` (dead code, unused exports,
+   speculative features absent from **both** the plan and the legacy source), `stdlib:`
+   (hand-rolled logic the standard library / platform built-ins ship — `Intl`, `URLSearchParams`,
+   …), `native:` (code or a dependency doing what the platform, shadcn/ui, or an existing
+   `@omh/shared-*` package already provides), `yagni:` (abstraction with one implementation,
+   config nobody sets, wrapper with one caller — unless it exists for legacy parity or planned
+   PC/Mobile/Hana divergence), `shrink:` (identical behavior — legacy edge cases included — in
+   clearly fewer lines; put the shorter form in the fix). Never flag validation at trust
+   boundaries, error handling, security, accessibility, or the TDD-required test infrastructure.
+   **Parity guard:** never flag code that exists to preserve legacy behavior — legacy parity is
+   the requirement, so this dimension judges *how* a behavior is implemented, never *whether* it
+   should exist. An incomplete plan never justifies a cut: the legacy source is the source of
+   truth. If unsure whether code backs a legacy behavior, check the page's
+   `analysis.json`/`migration-plan.json` **and the legacy source** before flagging.
 
 ## Output
 Write a report (`quality-report.json` next to the reviewed path, or stdout if a loose path) with
@@ -46,7 +61,8 @@ per-dimension findings and a score, each issue carrying `file:line` and a concre
 ```jsonc
 { "path": "...", "dimensions": {
     "composition": { "score": 0-5, "issues": [{ "anchor": "file:line", "issue": "...", "fix": "..." }] },
-    "naming": {...}, "types": {...}, "accessibility": {...}, "performance": {...}, "conventions": {...}
+    "naming": {...}, "types": {...}, "accessibility": {...}, "performance": {...}, "conventions": {...},
+    "simplicity": {...}
   }, "overall": 0-5, "reviewedAt": "ISO" }
 ```
 Final message (in `workingLanguage`): overall score, the top issues by severity, and whether the

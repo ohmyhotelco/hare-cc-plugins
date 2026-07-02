@@ -40,6 +40,14 @@ absent, proceed without it (the install is non-blocking).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
      `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX.
    - **page**: compose components, wire loader/route data, rendering mode per plan.
+   Before writing any new logic, climb the **reuse ladder** — stop at the first rung that holds:
+   an `@omh/shared-*` package or existing helper in the target app → the standard library /
+   platform built-ins (`Intl`, `URLSearchParams`, CSS over JS) → a shadcn/ui primitive → an
+   already-installed dependency → only then new code, the minimum that passes. Never add a new
+   dependency for what an installed one or a few lines can do. **There is no YAGNI rung here:**
+   never skip or trim a legacy behavior because it looks unnecessary — legacy parity is the
+   requirement, and the parity gates will catch the omission. The ladder governs *how* to
+   implement, never *whether*.
    Run vitest; **read the output and confirm it PASSES.**
 3. **Refactor.** Clean up; keep green.
 

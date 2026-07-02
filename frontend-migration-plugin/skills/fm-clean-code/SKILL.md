@@ -1,6 +1,6 @@
 ---
 name: fm-clean-code
-description: "Use to audit generated React migration code for quality (composition, naming, types, accessibility, performance, convention compliance) — a standalone review, independent of the pipeline, runnable on any path."
+description: "Use to audit generated React migration code for quality (composition, naming, types, accessibility, performance, convention compliance, simplicity/over-engineering) — a standalone review, independent of the pipeline, runnable on any path."
 argument-hint: "[path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Agent
