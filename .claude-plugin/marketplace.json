@@ -14,7 +14,17 @@
       },
       "source": "./planning-plugin/",
       "category": "productivity",
-      "keywords": ["planning", "specification", "multi-agent", "review", "multilingual", "design-system", "stitch", "wireframe", "layout"]
+      "keywords": [
+        "planning",
+        "specification",
+        "multi-agent",
+        "review",
+        "multilingual",
+        "design-system",
+        "stitch",
+        "wireframe",
+        "layout"
+      ]
     },
     {
       "name": "frontend-react-plugin",
@@ -25,7 +35,45 @@
       },
       "source": "./frontend-react-plugin/",
       "category": "development",
-      "keywords": ["frontend", "react", "typescript", "vite", "shadcn", "tailwind", "zustand", "i18next", "routing", "react-router", "framework-mode", "ssr", "ssg", "tanstack-query", "react-hook-form", "zod", "dayjs", "ota", "vitest", "playwright", "performance", "accessibility", "composition", "codegen", "spec-driven", "msw", "mock-first", "tdd", "testing", "e2e", "agent-browser", "debug", "code-review", "fix", "security", "clean-code", "test-review"]
+      "keywords": [
+        "frontend",
+        "react",
+        "typescript",
+        "vite",
+        "shadcn",
+        "tailwind",
+        "zustand",
+        "i18next",
+        "routing",
+        "react-router",
+        "framework-mode",
+        "ssr",
+        "ssg",
+        "tanstack-query",
+        "react-hook-form",
+        "zod",
+        "dayjs",
+        "ota",
+        "vitest",
+        "playwright",
+        "performance",
+        "accessibility",
+        "composition",
+        "codegen",
+        "spec-driven",
+        "msw",
+        "mock-first",
+        "tdd",
+        "testing",
+        "e2e",
+        "agent-browser",
+        "debug",
+        "code-review",
+        "fix",
+        "security",
+        "clean-code",
+        "test-review"
+      ]
     },
     {
       "name": "homepage-plugin",
@@ -36,7 +84,25 @@
       },
       "source": "./homepage-plugin/",
       "category": "development",
-      "keywords": ["homepage", "marketing", "astro", "seo", "tailwind", "shadcn", "figma", "design-tokens", "design-system", "mdx", "i18n", "lighthouse", "accessibility", "content", "landing-page", "islands", "static-site"]
+      "keywords": [
+        "homepage",
+        "marketing",
+        "astro",
+        "seo",
+        "tailwind",
+        "shadcn",
+        "figma",
+        "design-tokens",
+        "design-system",
+        "mdx",
+        "i18n",
+        "lighthouse",
+        "accessibility",
+        "content",
+        "landing-page",
+        "islands",
+        "static-site"
+      ]
     },
     {
       "name": "backend-springboot-plugin",
@@ -47,18 +113,61 @@
       },
       "source": "./backend-springboot-plugin/",
       "category": "development",
-      "keywords": ["backend", "spring-boot", "java", "gradle", "cqrs", "tdd", "jpa", "postgresql", "flyway", "checkstyle", "code-review", "build", "debug", "pipeline", "security", "spec-driven", "planning-plugin"]
+      "keywords": [
+        "backend",
+        "spring-boot",
+        "java",
+        "gradle",
+        "cqrs",
+        "tdd",
+        "jpa",
+        "postgresql",
+        "flyway",
+        "checkstyle",
+        "code-review",
+        "build",
+        "debug",
+        "pipeline",
+        "security",
+        "spec-driven",
+        "planning-plugin"
+      ]
     },
     {
       "name": "frontend-migration-plugin",
       "description": "Claude Code plugin that drives the Angular 15 to React Router v7 migration: Angular source analysis, framework-agnostic shared-package extraction, RR v7 page generation, legacy-parity gates (Playwright E2E, visual, contract, WebView, telemetry), and Strangler Fig progress tracking",
-      "version": "0.8.1",
+      "version": "0.8.2",
       "author": {
         "name": "Justin Choi"
       },
       "source": "./frontend-migration-plugin/",
       "category": "development",
-      "keywords": ["migration", "angular", "react", "react-router", "strangler-fig", "codegen", "playwright", "e2e", "visual-regression", "parity", "tdd", "shadcn", "zustand", "i18next", "vitest", "msw", "monorepo", "claude-code", "fix", "delta", "secret-audit", "clean-code", "test-review", "codex-audit"]
+      "keywords": [
+        "migration",
+        "angular",
+        "react",
+        "react-router",
+        "strangler-fig",
+        "codegen",
+        "playwright",
+        "e2e",
+        "visual-regression",
+        "parity",
+        "tdd",
+        "shadcn",
+        "zustand",
+        "i18next",
+        "vitest",
+        "msw",
+        "monorepo",
+        "claude-code",
+        "fix",
+        "delta",
+        "secret-audit",
+        "clean-code",
+        "test-review",
+        "codex-audit"
+      ]
     }
   ]
 }

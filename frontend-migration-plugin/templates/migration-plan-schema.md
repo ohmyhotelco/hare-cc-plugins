@@ -76,6 +76,13 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
 cannot be met is a failure or an explicit approval request, never a silent scope reduction.
 
+**Authoring is bound by the same rule.** `scope` coverage defaults to the FULL supported
+matrix — every language, device class, and viewport the product serves. Sampling or any
+coverage reduction (e.g. "representative languages only") is itself a decision: the planner
+records it as an open approval item with its rationale and the decision owner's sign-off —
+it never enters the criteria as a silent default. An author's cost/representativeness
+trade-off is not a decision.
+
 Example — a `visual` gate:
 
 ```jsonc

@@ -33,6 +33,9 @@ Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React t
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
    `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
+   Coverage in `scope` defaults to the FULL supported matrix (every language/device/viewport
+   the product serves); if sampling seems warranted, do NOT bake it into the criteria — record
+   it as an open approval item with rationale for the decision owner.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
 7. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
