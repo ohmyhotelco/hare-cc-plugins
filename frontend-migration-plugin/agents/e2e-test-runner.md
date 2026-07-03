@@ -67,6 +67,14 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 
 ## Rules
 - Legacy behavior is the source of truth — fix the implementation, never weaken a scenario.
+- **Long-running commands: detach + poll, never a foreground wait.** A single foreground
+  Bash call that stays silent past ~10 minutes (container capture runs, in-container
+  installs/builds) trips the agent-stream watchdog and kills the session mid-gate. Start such
+  commands detached (`nohup <cmd> > /tmp/<step>.log 2>&1 &`), then poll in SHORT separate calls
+  (`sleep 45; tail -20 /tmp/<step>.log; ps -p <pid> && echo RUNNING || echo DONE`) until done,
+  and read the results from the log file. Also: never run backtracking-regex greps against large
+  single-line minified assets (deployed CSS bundles) — use fixed-string grep / byte-range cuts
+  under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
 - Transactional scenarios run on staging only.
 - Read-modify-write the report; do not clobber other state.
 - A failing or unrun scenario means the gate has not passed — say so plainly.
