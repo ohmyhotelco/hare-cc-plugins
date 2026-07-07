@@ -37,10 +37,17 @@ Read `delta-plan.json.summary`. Present:
 otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
-- **Style drift check first.** If the delta touches styled elements — changed classes, markup
-  structure, or assets in the legacy `styleSurface` — re-run `/frontend-migration-plugin:fm-style-spec
-  {page}` before applying, so the delta builds to the **fresh** legacy style values (Read-Modify-Write
-  updates `style-spec.json`). A visual-only legacy change is itself a delta.
+- **Style refresh first (in-lock — do NOT nest `fm-style-spec`).** If `delta-plan.json.styleDrift`
+  is set (the incremental planner detected changed classes / structure / assets in `styleSurface`),
+  refresh the style answer key **without re-running the `fm-style-spec` skill** — that skill acquires
+  this same page `.lock` (this skill already holds it from Step 1), so nesting it would deadlock.
+  Instead launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way
+  `fm-style-spec` Step 2 does (config `stagingConfig.baseUrl` / app `domain` + `analysis.target.routePath`
+  / `legacyUrlCandidates`, or `null` → source-cascade fallback), and passing `app`, `page`,
+  `analysisPath`, `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`,
+  `legacyDir`, `targetDir`, `appDir`, `workingLanguage`. It Read-Modify-Writes `style-spec.json` so
+  the delta's style ops build to the **fresh** values. (A visual-only legacy change is a real delta —
+  the planner flags it via `styleDrift` even with no behavioral op.)
 - **Incremental** → launch `delta-modifier` (Agent) with only its params: `app`, `page`,
   `deltaPlanPath` = `docs/migration/{app}/{page}/delta-plan.json`,
   `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`, `appDir`,

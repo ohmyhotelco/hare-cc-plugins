@@ -33,7 +33,10 @@ SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integrati
     { "op": "create", "phase": "api", "file": "api/passport.ts", "...": "..." },
     { "op": "remove", "phase": "store", "file": "stores/legacyFlag.ts", "reason": "..." }
   ],
-  "cascade": ["types", "api", "component", "page"]
+  "cascade": ["types", "api", "component", "page"],
+  "styleDrift": { "changed": true, "elements": [".btn-promotion-tab"], "assets": [], "structure": [] }
+  //            ← set by the incremental planner when styleSurface drifted; fm-delta refreshes
+  //              style-spec.json (in-lock) before applying, so style ops build to fresh values
 }
 ```
 
