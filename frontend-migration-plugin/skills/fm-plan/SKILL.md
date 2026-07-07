@@ -22,11 +22,18 @@ Check `docs/migration/{app}/{page}/analysis.json`. If missing:
 > "Run /frontend-migration-plugin:fm-analyze {page} first."
 Stop.
 
+### Step 1b: Require style spec
+Check `docs/migration/{app}/{page}/style-spec.json`. If missing:
+> "Run /frontend-migration-plugin:fm-style-spec {page} first."
+Stop. (The planner binds each component's style targets and the `visual` gate probe set to it —
+without it, generation eyeballs styles. See `templates/style-spec.md`.)
+
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Plan
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
+`styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`,
 `outPath` = `docs/migration/{app}/{page}/migration-plan.json`, `targetDir`, `appDir`,
 `packagesDir`, `workingLanguage`.
 

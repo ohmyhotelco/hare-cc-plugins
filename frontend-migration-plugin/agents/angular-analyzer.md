@@ -31,7 +31,14 @@ Walk the target and its first-level dependencies. For each, record concrete find
   `ng-content`; `[prop]` / `(event)` bindings; custom directives (`inputPattern`, download,
   iframeResizer); `| i18next` keys; custom pipes (`safeHtml`, `minuteToHourMinute`,
   `numberToLocaleString`, `numberPad`).
-- `.scss`: note presence/scale only (style port is manual).
+- `.scss` + **style surface** — do NOT dismiss styles as "manual". Record the *map*
+  `fm-style-spec` needs to resolve values: for each rendered element, its tag + legacy classes, and
+  the in-scope stylesheets where those classes' rules actually live — **including the global sheets
+  (`base.css`, `_contents.scss`), not just the component `.scss` (which is often nearly empty)** —
+  plus the `background-image`/sprite/icon assets the classes reference, and the nesting/wrapper
+  structure (e.g. an `ngTemplateOutlet` box wrapping several blocks in one bordered container).
+  Emit as `styleSurface` (schema below). You record *where the styles are and what assets exist*;
+  `fm-style-spec` resolves the *values* from the live legacy render.
 
 ### 2. State & async
 - **Facade usage** — calls into `*.facade.ts` (`store.select` / `store.dispatch`). Record which
@@ -121,6 +128,13 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                                            "VI/ZH/EN": ["Google", "Apple", "Facebook"] },
                            "branchLogic": "referCode1 comma-locale-list includes(language) + prod allow-list",
                            "anchor": "file:line", "mustPreserve": true }],
+  "styleSurface": {
+    "elements": [{ "selector": ".btn-promotion-tab", "classes": ["btn-promotion-tab"],
+                   "sheets": ["_contents.scss", "base.css"],
+                   "assets": [{ "cssProp": "background-image", "url": "/assets/images/sprite-rate.png" }],
+                   "anchor": "event.component.html:42" }],
+    "structure": [{ "wrapper": ".promotion-detail", "wraps": ["iframe.marketing", ".recommend-products"],
+                    "anchor": "event.component.html:88 (ngTemplateOutlet)" }] },
   "sharedCandidates": [{ "name": "UtilDateService", "purity": "pure",
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
@@ -141,5 +155,8 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
 - Enumerate the **full** set for every conditional-render variant — the default-environment case
   (e.g. PC-KO) is not the full set. A variant you record only for the default locale/device is a
   silent regression waiting downstream; capture every branch in `behavioralVariants`.
+- Style is not "manual": record the `styleSurface` map (elements → classes → the **global** sheets
+  where the rules live → assets → nesting structure). `fm-style-spec` turns this map into live
+  computed values — but only if you point it at the right sheets and assets, so miss none.
 - Keep the final message to the coordinator short: target, risk, required gates, shared
   candidates count, and any open questions — in `workingLanguage`.

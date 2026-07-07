@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.8.4)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.9.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -22,7 +22,11 @@ orchestration and tracking**.
 > gap that let spacing/icon regressions pass (v0.8.3), and the analyze→plan behavioral-coverage
 > reconciliation (`behavioralVariants` + `openApprovals`) that stops the planner silently
 > narrowing an analysis-discovered variant set — e.g. a locale-filtered social-login provider
-> list — into the default-environment subset (v0.8.4)). Runtime
+> list — into the default-environment subset (v0.8.4), and the **`fm-style-spec` stage** that
+> extracts the legacy style answer key (live legacy computed values via a Playwright probe + asset
+> inventory + markup structure) up front so `fm-gen` builds to real values instead of eyeballing
+> them — closing the generation-side style gap that the v0.8.3 gate only caught after the fact
+> (v0.9.0)). Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -180,7 +184,7 @@ in later phases.
 [Phase 0]  /fm-secret-audit → /fm-analyze → /fm-extract       (shared packages)
 
 [per-page loop, repeated per page]
-  /fm-analyze → /fm-plan → /fm-gen → /fm-verify
+  /fm-analyze → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                         │ (fail → /fm-fix)
                               /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                               /fm-parity (visual / contract / WebView / telemetry; fail → /fm-fix)
@@ -201,8 +205,8 @@ Each migrated page advances through these states, tracked in `tracker.json` and 
 per-page state directory:
 
 ```
-analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done
-              ↓          ↓           ↓            ↓             ↓
+analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done
+                 ↓            ↓          ↓           ↓            ↓             ↓
           (each stage may enter) *-failed → fixing → (re-run the failed gate)
                                        ↓
                                   escalated   (needs manual intervention)
@@ -222,6 +226,7 @@ docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
 └── {app}/{page}/
     ├── analysis.json                  ← fm-analyze
+    ├── style-spec.json                ← fm-style-spec
     ├── migration-plan.json            ← fm-plan
     ├── generation-state.json          ← fm-gen (resume)
     ├── e2e-report.json                ← fm-e2e
@@ -398,6 +403,13 @@ The lint/format templates (`templates/eslint-config.md`, `templates/prettier-con
 monorepo's ESLint v9 flat config (composed per workspace, with the `shared-domain` secret boundary)
 and the Prettier 3 config; they drive the scaffolding and checks described in "Lint & Format Gate".
 
+The style template (`templates/style-spec.md`, v0.9.0) defines `style-spec.json` — the legacy style
+answer key `fm-style-spec` captures **before** generation (live legacy computed values via a
+Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real values instead of
+eyeballing them. It shares the visual axes with `templates/visual-parity-checklist.md`: the spec is
+the generation **target** (front), the checklist is the parity **gate** (back), one legacy-truth
+source. See `docs/design/style-spec-generation.md`.
+
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest, and ESLint (hard) pass from `appDir`; Prettier
   `--check` runs as an advisory warning (non-blocking). See "Lint & Format Gate".
@@ -415,6 +427,7 @@ the full build map.
 | --- | --- | --- |
 | `fm-init` | Initialize config + tracker | AA-40 |
 | `fm-analyze` | Analyze a legacy Angular target → analysis.json | AA-41 |
+| `fm-style-spec` | Extract the legacy style answer key (live computed + assets + structure) → style-spec.json | v0.9.0 |
 | `fm-extract` | Lift logic into framework-agnostic `packages/shared-*` | AA-42 |
 | `fm-plan` / `fm-gen` / `fm-verify` | Generate an RR v7 page via TDD | AA-43 |
 | `fm-fix` | Targeted repairs that close the gate loops | AA-44 |

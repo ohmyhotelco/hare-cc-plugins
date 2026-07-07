@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.8.4). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.9.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -107,6 +107,7 @@ After the prerequisites are met:
 /frontend-migration-plugin:fm-extract --from hotel-booking-info   # pure logic → packages/shared-*
 
 # 2. the per-page loop
+/frontend-migration-plugin:fm-style-spec hotel-booking-info   # → style-spec.json (live legacy computed values + assets)
 /frontend-migration-plugin:fm-plan hotel-booking-info     # → migration-plan.json (tree, rendering, gates, e2e scenarios)
 /frontend-migration-plugin:fm-gen hotel-booking-info      # RR v7 page via TDD → status: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info   # build/tsc/vitest → verified   (gate 1)
@@ -136,7 +137,7 @@ gate.
 /fm-extract <candidate>        pure logic → packages/shared-*
 
 [per-page loop]
-/fm-analyze <page>   → /fm-plan → /fm-gen → /fm-verify
+/fm-analyze <page>   → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                                │ fail → /fm-fix
                                      /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                                      /fm-parity (visual/contract/webview/telemetry; fail → /fm-fix)
@@ -162,8 +163,9 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | --- | --- |
 | `fm-init` | Initialize config + tracker |
 | `fm-analyze` | Analyze a legacy Angular target → analysis.json |
+| `fm-style-spec` | Extract the legacy style answer key (live computed + assets + structure) → style-spec.json |
 | `fm-extract` | Lift logic into framework-agnostic `packages/shared-*` |
-| `fm-plan` | analysis.json → migration-plan.json |
+| `fm-plan` | analysis.json + style-spec.json → migration-plan.json |
 | `fm-gen` | Generate the RR v7 page via per-phase TDD |
 | `fm-verify` | Technical gate: build / tsc / vitest / eslint (hard); prettier --check (advisory) |
 | `fm-fix` | Targeted repair loop for verify/e2e/parity failures |

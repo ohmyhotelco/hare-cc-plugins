@@ -37,10 +37,14 @@ Read `delta-plan.json.summary`. Present:
 otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
+- **Style drift check first.** If the delta touches styled elements — changed classes, markup
+  structure, or assets in the legacy `styleSurface` — re-run `/frontend-migration-plugin:fm-style-spec
+  {page}` before applying, so the delta builds to the **fresh** legacy style values (Read-Modify-Write
+  updates `style-spec.json`). A visual-only legacy change is itself a delta.
 - **Incremental** → launch `delta-modifier` (Agent) with only its params: `app`, `page`,
-  `deltaPlanPath` (= `delta-plan.json`), `targetDir`, `appDir`, `packagesDir`, `workingLanguage`
-  (create ops use `tdd-cycle-runner` semantics). It applies ops in cascade order and preserves
-  fm-fix edits.
+  `deltaPlanPath` (= `delta-plan.json`), `styleSpecPath` (= `style-spec.json`), `targetDir`,
+  `appDir`, `packagesDir`, `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics —
+  build to the style-spec, no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 - **Full** → tell the user to run `fm-gen {page}` (the skill stops here).
 
 ### Step 5: Record

@@ -24,10 +24,12 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 2: Run the verifier
 Launch `parity-verifier` (Agent) with only its params: `app`, `page`, `planPath`,
-`analysisPath`, `targetDir`, `appDir`, `legacyDir`/legacy base URL, `outPath` =
+`analysisPath`, `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`,
+`appDir`, `legacyDir`/legacy base URL, `outPath` =
 `docs/migration/{app}/{page}/parity-report.json`, `workingLanguage`. The verifier runs only the
-gates the plan requires (always visual + contract; webview/telemetry when triggered) and enforces
-`plan.gateAcceptance` verbatim. Ensure the Playwright permission exists (added by `fm-e2e`).
+gates the plan requires (always visual + contract; webview/telemetry when triggered), enforces
+`plan.gateAcceptance` verbatim, and reuses the `style-spec` legacy baseline for the visual probe set.
+Ensure the Playwright permission exists (added by `fm-e2e`).
 
 ### Step 3: Inspect the evidence (before recording)
 Do not trust the verdict string. Read `parity-report.json` and, per gate:

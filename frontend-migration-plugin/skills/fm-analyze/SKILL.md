@@ -67,4 +67,5 @@ Summarize in `workingLanguage`:
   for the pure ones during Phase 0.
 - God-component split seams, if any.
 - Open questions the analyzer raised.
-- Next step: `/frontend-migration-plugin:fm-plan {page}`.
+- Next step: `/frontend-migration-plugin:fm-style-spec {page}` (extract the legacy style answer key
+  before planning).

@@ -11,8 +11,10 @@ legacy Angular source has drifted. You make the **smallest** set of edits — ne
 regeneration — and you preserve fixes that earlier `fm-fix` runs applied.
 
 You receive (no session history): `app`, `page`, `deltaPlanPath` (`delta-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`,
-`migration-plan.json`, `templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`.
+`styleSpecPath` (`style-spec.json`, refreshed by `fm-delta` when style drifted), `targetDir`,
+`appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`, `migration-plan.json`,
+`templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`, and — for component/page ops —
+`style-spec.json` + `templates/style-spec.md` (build to its style values, never eyeball).
 
 For each op, Read the matching shared external skill under `.claude/skills/` (installed by
 `fm-init`) for that op's `phase` and follow its rules; skip any that are absent: `vitest` (all

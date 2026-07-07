@@ -68,7 +68,8 @@ fi
 # Map a page status to the next-step command.
 next_step() {
   case "$1" in
-    analyzed)       echo "fm-plan" ;;
+    analyzed)       echo "fm-style-spec" ;;
+    style-specced)  echo "fm-plan" ;;
     planned)        echo "fm-gen" ;;
     generated)      echo "fm-verify" ;;
     verified)       echo "fm-e2e" ;;

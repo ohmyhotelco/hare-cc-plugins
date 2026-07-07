@@ -6,6 +6,13 @@ to follow when a true legacy↔v2 pixel diff is impossible. This is the single s
 point at. `migration-planner` folds these axes into every page's `gateAcceptance.visual` so the plan
 codifies them up front.
 
+**Same axes, front and back.** These axes are also the shape of `templates/style-spec.md` — the
+legacy values `fm-style-spec` captures **before** generation as the target (`tdd-cycle-runner` builds
+to them). This checklist is the **back** (the gate re-probes the same values); the style-spec is the
+**front** (generation aims at them). One legacy-truth source, so a green gate means generation hit
+the target, not that a divergent v2 baseline was blessed. The gate reuses the spec's captured
+baseline rather than capturing a second, possibly divergent one.
+
 ## Why this exists — the cross-framework pixel trap
 
 The legacy apps are Angular; the v2 apps are React. Their DOM, font stacks, and sub-pixel rendering

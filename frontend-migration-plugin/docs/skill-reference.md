@@ -8,9 +8,10 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | Skill | Agent | Input → Output | State set |
 | --- | --- | --- | --- |
 | `fm-init` | — | detect layout → `.claude/frontend-migration-plugin.json` + `tracker.json` | — |
-| `fm-analyze` | `angular-analyzer` | legacy target → `analysis.json` | `analyzed` |
+| `fm-analyze` | `angular-analyzer` | legacy target → `analysis.json` (+ `styleSurface` map) | `analyzed` |
+| `fm-style-spec` | `style-spec-extractor` | `analysis.styleSurface` + live legacy URL → `style-spec.json` (computed values + assets + structure) | `style-specced` |
 | `fm-extract` | `package-extractor` | analysis candidates (+ `contractsDir` for `shared-types`/`shared-data`) → `packages/shared-*` (+ tests) | `tracker.packages` |
-| `fm-plan` | `migration-planner` | `analysis.json` + catalog → `migration-plan.json` | `planned` |
+| `fm-plan` | `migration-planner` | `analysis.json` + `style-spec.json` + catalog → `migration-plan.json` | `planned` |
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
 | `fm-verify` | — | build / tsc / vitest from `appDir` | `verified` / `verify-failed` |
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` |
@@ -36,9 +37,14 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
   `.extend()`) instead of reverse-engineering legacy `any`; legacy stays the anchor only for
   `shared-data` wiring and contract-excluded schemas (`DataLayerEvent` + tracker events). Falls
   back to legacy when `contractsDir` is unset.
-- **migration-planner** — plan (component tree, rendering, gates, flag, e2e scenarios) + an
-  incremental mode that emits `delta-plan.json`.
-- **foundation-generator** — types + MSW + per-app Playwright/Vitest/MSW harness (no TDD).
+- **style-spec-extractor** — extracts the legacy style answer key: live legacy render's per-element
+  `getComputedStyle` (standalone Playwright probe), source-cascade fallback (flagged
+  `source-derived`), asset inventory, markup structure; reuses the parity capture method, hoisted to
+  the front. Read-only against legacy; writes `style-spec.json`.
+- **migration-planner** — plan (component tree + `styleTargets`, rendering, gates, flag, e2e
+  scenarios) + an incremental mode that emits `delta-plan.json`.
+- **foundation-generator** — types + MSW + per-app Playwright/Vitest/MSW harness + copies the
+  `style-spec` assets into the app's public dir (no TDD).
 - **tdd-cycle-runner** — strict Red-Green per phase (api/store/component/page), applies the
   mapping catalog, imports `@omh/shared-*`.
 - **integration-generator** — RR v7 routes + i18n + MSW global (graceful manual-guidance fallback).
@@ -59,7 +65,9 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 ## Templates
 
 `angular-to-react-mapping.md`, `shared-package-spec.md`, `shared-package-conventions.md`,
-`migration-plan-schema.md`, `tdd-rules.md`, `e2e-testing.md`, `webview-bridge.md`, `hana-sso.md`,
-`strangler-fig.md`, `eslint-config.md` (ESLint v9 flat config, composed per workspace),
-`prettier-config.md` (Prettier 3, advisory), `codex-audit.md` (per-stage Codex audit rubric). See
-CLAUDE.md → "Lint & Format Gate" and "Codex Independent Audit".
+`migration-plan-schema.md`, `style-spec.md` (the legacy style answer key: axes shared with
+`visual-parity-checklist.md`, live-first rule), `visual-parity-checklist.md`, `tdd-rules.md`,
+`e2e-testing.md`, `webview-bridge.md`, `hana-sso.md`, `strangler-fig.md`, `eslint-config.md`
+(ESLint v9 flat config, composed per workspace), `prettier-config.md` (Prettier 3, advisory),
+`codex-audit.md` (per-stage Codex audit rubric). See CLAUDE.md → "Lint & Format Gate" and "Codex
+Independent Audit".
