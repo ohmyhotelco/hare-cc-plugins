@@ -17,7 +17,7 @@ page — preserving the fixes accumulated through earlier gate loops. All user-f
 ### Step 0: Config & state
 Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDir`, `packagesDir`,
 `legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
-a first migration → use `fm-analyze`/`fm-plan`/`fm-gen`).
+a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).

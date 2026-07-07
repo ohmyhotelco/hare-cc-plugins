@@ -24,8 +24,8 @@ Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
   app React mới; bạn "bóp nghẹt" app cũ từng route một, không viết lại kiểu big-bang. Điểm chuyển
   (flip) được cấu hình theo từng app — khối định tuyến **nginx** ở lớp app/entry, hoặc một behavior
   **CloudFront** (`flipMechanism`, mặc định `nginx`).
-- **Vòng lặp theo trang** — mỗi trang đi qua cùng một chuỗi: `analyze → plan → gen → verify →
-  e2e → parity → route`. Mỗi lần một trang.
+- **Vòng lặp theo trang** — mỗi trang đi qua cùng một chuỗi: `analyze → style-spec → plan → gen →
+  verify → e2e → parity → route`. Mỗi lần một trang.
 - **Ba cổng parity** — sau khi sinh, trang phải vượt qua theo thứ tự: `fm-verify` (kỹ thuật:
   build/types/unit test + ESLint; Prettier là advisory), `fm-e2e` (có hành xử như bản cũ?), `fm-parity` (có giống về giao
   diện/contract/tracking?). Route chỉ được chuyển khi cả ba đạt.

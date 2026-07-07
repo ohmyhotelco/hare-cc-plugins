@@ -24,8 +24,8 @@ New to the migration? These terms recur throughout:
   Angular app or the new React app; you "strangle" the old app one route at a time, never a
   big-bang rewrite. The flip happens at each app's configured edge — an app-layer / entry **nginx**
   routing block, or a **CloudFront** behavior — selected per app (`flipMechanism`, default `nginx`).
-- **The per-page loop** — every page goes through the same sequence: `analyze → plan → gen →
-  verify → e2e → parity → route`. One page at a time.
+- **The per-page loop** — every page goes through the same sequence: `analyze → style-spec → plan →
+  gen → verify → e2e → parity → route`. One page at a time.
 - **Three parity gates** — after a page is generated it must pass, in order: `fm-verify`
   (technical: build/types/unit tests + ESLint; Prettier is advisory), `fm-e2e` (does it behave
   like legacy?), `fm-parity`
