@@ -1,6 +1,6 @@
 ---
 name: fm-plan
-description: "Use after fm-analyze to turn a page's analysis.json into a migration-plan.json — the React component tree, shared-package deps, rendering mode, required gates, 2-PR flag plan, and E2E scenario list."
+description: "Use after fm-style-spec to turn a page's analysis.json + style-spec.json into a migration-plan.json — the React component tree (with style targets), shared-package deps, rendering mode, required gates, 2-PR flag plan, and E2E scenario list."
 argument-hint: "<page> [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Agent
@@ -8,7 +8,8 @@ allowed-tools: Read, Write, Glob, Grep, Agent
 
 # Plan a Page Migration
 
-Runs the `migration-planner` agent to produce `migration-plan.json` from a page's analysis.
+Runs the `migration-planner` agent to produce `migration-plan.json` from a page's analysis and
+style-spec.
 Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 
 ## Instructions
