@@ -11,7 +11,10 @@ legacy values `fm-style-spec` captures **before** generation as the target (`tdd
 to them). This checklist is the **back** (the gate re-probes the same values); the style-spec is the
 **front** (generation aims at them). One legacy-truth source, so a green gate means generation hit
 the target, not that a divergent v2 baseline was blessed. The gate reuses the spec's captured
-baseline rather than capturing a second, possibly divergent one.
+baseline — the computed-style values (always) and, on a live capture, the legacy screenshot at
+`legacySource.screenshot` — rather than capturing a second, possibly divergent one; it re-captures
+legacy only when the spec was a `source-fallback` (no screenshot) or to refresh a `source-derived`
+value.
 
 ## Why this exists — the cross-framework pixel trap
 

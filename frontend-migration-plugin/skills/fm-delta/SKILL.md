@@ -42,9 +42,10 @@ otherwise default to incremental. Let the user choose.
   {page}` before applying, so the delta builds to the **fresh** legacy style values (Read-Modify-Write
   updates `style-spec.json`). A visual-only legacy change is itself a delta.
 - **Incremental** → launch `delta-modifier` (Agent) with only its params: `app`, `page`,
-  `deltaPlanPath` (= `delta-plan.json`), `styleSpecPath` (= `style-spec.json`), `targetDir`,
-  `appDir`, `packagesDir`, `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics —
-  build to the style-spec, no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
+  `deltaPlanPath` = `docs/migration/{app}/{page}/delta-plan.json`,
+  `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`, `appDir`,
+  `packagesDir`, `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics — build to the
+  style-spec, no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 - **Full** → tell the user to run `fm-gen {page}` (the skill stops here).
 
 ### Step 5: Record

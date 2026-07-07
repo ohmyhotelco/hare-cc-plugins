@@ -36,6 +36,12 @@ the committed CSS. Each value carries a `confidence`:
 
 Never downgrade a `live-confirmed` value to a source value; live always wins.
 
+When captured live, the extractor also saves a **full-page legacy screenshot**
+(`legacySource.screenshot`) at the recorded viewport — the reusable legacy baseline `fm-parity`
+compares the v2 render against, so the visual gate does not re-capture a second, possibly divergent
+legacy baseline. On source-fallback there is no screenshot (`null`), and `fm-parity` captures legacy
+itself.
+
 ## Classname ≠ style evidence
 
 A legacy class name on a v2 element is **not** evidence its style was reproduced. The generation
@@ -90,6 +96,7 @@ and otherwise **fetches `liveUrl`**, so a live-only asset is never silently miss
     "url": "https://www.ohmyhotel.com/ko/event",   // the live URL probed, or null
     "capturedFrom": "live",                          // live | source-fallback
     "viewport": { "width": 1280, "height": 800 },
+    "screenshot": "docs/migration/pc/event/legacy-baseline.png",  // full-page legacy capture; null on source-fallback
     "capturedAt": "ISO-8601"
   },
   "elements": [

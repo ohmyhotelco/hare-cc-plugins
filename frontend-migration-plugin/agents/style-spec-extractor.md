@@ -49,7 +49,12 @@ later); `npx playwright` is verified by `fm-init`.
    `kind`, `usedBy`, `cssProp`, `action`. A live-only / CDN / cache-busted asset has no `localPath`,
    so `foundation-generator` MUST fetch it from `liveUrl`; recording only a local path would let it
    go missing. These are what `foundation-generator` copies/fetches and wires.
-4. Mark every value `confidence: "live-confirmed"`; set `legacySource.capturedFrom: "live"`.
+4. Capture a **full-page legacy screenshot** at the spec viewport, save it under the page dir
+   (e.g. `docs/migration/{app}/{page}/legacy-baseline.png`), and record its path in
+   `legacySource.screenshot`. This is the reusable legacy baseline `fm-parity`'s visual gate compares
+   the v2 render against — one legacy capture, used for both the computed-style pins and the
+   screenshot side-by-side, so the gate never re-captures a second, divergent baseline.
+5. Mark every value `confidence: "live-confirmed"`; set `legacySource.capturedFrom: "live"`.
 
 ## Path B — source-cascade fallback (when `legacyUrl` is null or unreachable)
 
@@ -58,7 +63,8 @@ Do NOT block. Resolve the cascade from source:
    `_contents.scss`, component `.scss`) for the matching rules and compose the effective value per
    axis. Remember the real rules are usually global, not in the component `.scss` (often empty).
 2. Record the same axes; mark each value `confidence: "source-derived"` and list its selector in
-   `unconfirmed[]`; set `legacySource.capturedFrom: "source-fallback"`, `url: null`.
+   `unconfirmed[]`; set `legacySource.capturedFrom: "source-fallback"`, `url: null`,
+   `screenshot: null` (no live render to capture — `fm-parity` will capture legacy itself).
 3. **Never run a backtracking regex against a large minified/single-line deployed CSS bundle** — use
    fixed-string grep / byte-range cuts under a short `timeout`, or you will hang the session.
 
@@ -85,7 +91,8 @@ analysis anchors so `fm-gen` and `fm-parity` can trace each value.
 - Evidence before claims (CLAUDE.md 5-step gate): a value you write must come from an actual probe
   read or an actual grepped rule — never a guess. If you can resolve neither, list the selector in
   `unconfirmed[]` with an empty/partial axis set, not an invented value.
-- Read-only against legacy source; the only file you write is `style-spec.json` (plus a throwaway
-  probe script under a temp path).
+- Read-only against legacy source; the files you write are `style-spec.json` and (on live capture)
+  the `legacy-baseline.png` screenshot under the page dir, plus a throwaway probe script under a temp
+  path.
 - Keep the final message short (in `workingLanguage`): element count, live-confirmed vs
   source-derived counts, asset count, any structure wrappers, and whether the live URL was reached.

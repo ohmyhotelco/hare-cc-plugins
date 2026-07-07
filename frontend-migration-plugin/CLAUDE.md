@@ -419,7 +419,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.8.3). The "Built in" column records the task that delivered each
+All skills are implemented (v0.9.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 
