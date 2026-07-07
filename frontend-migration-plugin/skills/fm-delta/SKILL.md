@@ -38,17 +38,24 @@ otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
 - **Style refresh first (in-lock — do NOT nest `fm-style-spec`).** If `delta-plan.json.styleDrift`
-  is set (the incremental planner detected changed classes / structure / assets in `styleSurface`),
-  refresh the style answer key **without re-running the `fm-style-spec` skill** — that skill acquires
-  this same page `.lock` (this skill already holds it from Step 1), so nesting it would deadlock.
-  Instead launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way
-  `fm-style-spec` Step 2 does (config `stagingConfig.baseUrl` / app `domain` + `analysis.target.routePath`
-  / `legacyUrlCandidates`, or `null` → source-cascade fallback), and passing the extractor's own
-  params (see `agents/style-spec-extractor.md`): `app`, `page`, `analysisPath`,
-  `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`, `targetDir`,
-  `appDir`, `workingLanguage`. It Read-Modify-Writes `style-spec.json` (its `outPath`) so the delta's
-  style ops build to the **fresh** values. (A visual-only legacy change is a real delta —
-  the planner flags it via `styleDrift` even with no behavioral op.)
+  is set (the incremental planner detected changed classes / structure / assets in `styleSurface`):
+  1. **Patch `analysis.json.styleSurface` BEFORE extracting.** The extractor reads
+     `analysis.json.styleSurface` to know which elements/states/assets to probe — but the baseline
+     `analysis.json` still holds the *old* surface (Step 5 only rebaselines after apply). So first
+     Read-Modify-Write the current surface from `delta-plan.json.styleDrift.styleSurface` (the
+     planner recorded it) into `analysis.json.styleSurface`, or the refresh would re-probe the stale
+     element set and miss the very elements that drifted.
+  2. Refresh the answer key **without re-running the `fm-style-spec` skill** — that skill acquires
+     this same page `.lock` (this skill already holds it from Step 1), so nesting it would deadlock.
+     Instead launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way
+     `fm-style-spec` Step 2 does (config `stagingConfig.baseUrl` / app `domain` +
+     `analysis.target.routePath` / `legacyUrlCandidates`, or `null` → source-cascade fallback), and
+     passing the extractor's own params (see `agents/style-spec-extractor.md`): `app`, `page`,
+     `analysisPath` (now holding the patched surface),
+     `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`,
+     `targetDir`, `appDir`, `workingLanguage`. It Read-Modify-Writes `style-spec.json` (its
+     `outPath`) so the delta's style ops build to the **fresh** values. (A visual-only legacy change
+     is a real delta — the planner flags it via `styleDrift` even with no behavioral op.)
 - **Incremental** → launch `delta-modifier` (Agent) with only its params: `app`, `page`,
   `deltaPlanPath` = `docs/migration/{app}/{page}/delta-plan.json`,
   `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`, `appDir`,

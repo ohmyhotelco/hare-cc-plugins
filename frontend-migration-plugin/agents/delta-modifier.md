@@ -34,9 +34,16 @@ SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integrati
     { "op": "remove", "phase": "store", "file": "stores/legacyFlag.ts", "reason": "..." }
   ],
   "cascade": ["types", "api", "component", "page"],
-  "styleDrift": { "changed": true, "elements": [".btn-promotion-tab"], "assets": [], "structure": [] }
-  //            ← set by the incremental planner when styleSurface drifted; fm-delta refreshes
-  //              style-spec.json (in-lock) before applying, so style ops build to fresh values
+  "styleDrift": {
+    "changed": true,
+    "elements": [".btn-promotion-tab"],          // the drifted element selectors (summary)
+    "assets": [], "structure": [],
+    "styleSurface": { "elements": [/* current styleSurface entries for the drifted elements,
+                                      same shape as analysis.json.styleSurface */], "structure": [] }
+    //  ↑ the CURRENT surface (classes/states/assets/structure) the planner recomputed from legacy.
+    //    fm-delta Read-Modify-Writes it into analysis.json.styleSurface BEFORE re-running the
+    //    extractor (in-lock), so the refresh probes the current element set — not the stale baseline.
+  }
 }
 ```
 
