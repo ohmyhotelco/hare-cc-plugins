@@ -35,7 +35,12 @@ Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React t
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
    Coverage in `scope` defaults to the FULL supported matrix (every language/device/viewport
    the product serves); if sampling seems warranted, do NOT bake it into the criteria — record
-   it as an open approval item with rationale for the decision owner.
+   it as an open approval item with rationale for the decision owner. For the `visual` gate,
+   `gateAcceptance.visual` MUST also enumerate the axes from
+   `templates/visual-parity-checklist.md` — frame, **inter-element spacing/gaps**, **icons/glyphs**,
+   alignment, control geometry, color/border, typography — so the verifier's probe set is required to
+   cover every axis (not a subset), and note that legacy(Angular)↔v2(React) cannot pixel-diff (per-side
+   baselines + computed-style probes, legacy is the reference, never the self-referential v2 baseline).
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
 7. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —

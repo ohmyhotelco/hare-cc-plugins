@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.8.2). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.8.3). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -207,7 +207,9 @@ tracker state it sets.
   context for picking the work back up.
 - `CLAUDE.md` — conventions, state-file & lock rules, design principles, and the mapping/gate index.
 - `templates/` — the Angular→React mapping catalog, shared-package spec/conventions, WebView
-  bridge, Hana SSO, Strangler Fig routing, TDD rules, the migration-plan schema, and the
-  ESLint/Prettier lint & format gate configs (`eslint-config.md`, `prettier-config.md`).
+  bridge, Hana SSO, Strangler Fig routing, TDD rules, the migration-plan schema, the
+  visual-parity checklist (`visual-parity-checklist.md` — the visual-gate axis list + the
+  cross-framework pixel-diff fallback protocol), and the ESLint/Prettier lint & format gate
+  configs (`eslint-config.md`, `prettier-config.md`).
 
 Localized: `README.ko.md`, `README.vi.md`.

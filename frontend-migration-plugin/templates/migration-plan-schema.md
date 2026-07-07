@@ -71,6 +71,10 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
   (same capture pattern/scope/harness on both legacy and new app).
 - `excludes` — what is explicitly out of scope. An exclusion not listed here does not exist,
   no matter what any downstream prompt or report says; empty means nothing is excluded.
+- `axes` (visual gate only) — the enumerated visual axes the gate must compare AND probe, from
+  `templates/visual-parity-checklist.md`: frame, inter-element spacing/gaps, icons/glyphs, alignment,
+  control geometry, color/border, typography. The verifier's computed-style probe set must cover
+  **every** listed axis (not a subset); a partial set is an incomplete gate = fail.
 
 **Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
@@ -88,9 +92,10 @@ Example — a `visual` gate:
 ```jsonc
 "gateAcceptance": {
   "visual": {
-    "compares": "legacy render vs new render — style parity (layout, spacing, typography, color), not just content structure/text",
+    "compares": "legacy render vs new render — style parity (layout, spacing, typography, color), not just content structure/text. Legacy(Angular)↔v2(React) cannot pixel-diff: per-side baselines + computed-style probes, legacy is the reference (never the self-referential v2 baseline)",
     "scope": "full page including app shell for pilot pages; content-area style parity always; every supported language",
-    "artifacts": "same-pattern Playwright screenshots of BOTH apps (same viewport, fullPage, masking) + toHaveScreenshot fidelity assertions per pair",
+    "artifacts": "same-pattern Playwright screenshots of BOTH apps (same viewport, fullPage, masking) compared side-by-side per axis + a computed-style probe per content-independent axis",
+    "axes": ["frame", "inter-element spacing/gaps", "icons/glyphs", "alignment", "control geometry", "color/border", "typography"],
     "excludes": []          // e.g. ["animated carousel region (masked both sides)"]
   }
 }

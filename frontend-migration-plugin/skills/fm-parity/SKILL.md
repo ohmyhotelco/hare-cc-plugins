@@ -35,10 +35,23 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
    and its `gateAcceptance` entry. A `visual` verdict must rest on a visual comparison of
    symmetric artifacts (same pattern/scope both apps); a content-structure/text match is not a
    visual pass.
-2. **Open the visual evidence** — Read the named screenshot/diff pairs yourself before recording
-   a pass. A pass recorded without inspecting the screenshots is invalid.
-3. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
-   **fail** unless the report records the user's explicit approval — never a silent pass.
+2. **Open the legacy and v2 screenshots SIDE BY SIDE** and compare them axis by axis against
+   `templates/visual-parity-checklist.md` — Read the *legacy* screenshot and the *v2* screenshot in
+   the same pass and diff the two **renders** (not each against its own baseline). Walk every axis:
+   frame, **inter-element spacing/gaps** (list↔pager, section, item — the most-missed), **icons/glyphs**
+   (existence + faithful render + position + size + open/active state), alignment, control geometry,
+   color/border, typography. A pass recorded without this side-by-side walk is invalid. Any axis that
+   differs is a diff to fix or explicitly accept — never a silent pass.
+3. **Cross-framework fallback rigor** — PC legacy(Angular)↔v2(React) cannot pixel-diff, so the gate
+   uses per-side baselines + computed-style probes. Two checks: (a) the v2 baseline is NOT treated as
+   the reference — it is valid only if it was checked against legacy in 2 above (a fresh
+   `--update-snapshots` capture is NOT that check); (b) the probe set covers **every** content-
+   independent axis in the checklist, not a subset — a page pinning color but not the pager gap or the
+   toggle icon is an **incomplete probe set = fail**.
+4. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
+   **fail** unless the report records the user's explicit approval — never a silent pass. In
+   particular, a lift-out delta covers only the shed shell, NOT axis diffs (spacing/icon/alignment)
+   inside the compared content-area.
 Any failed check overrides the report: treat the gate (and the page) as failed.
 
 ### Step 4: Record

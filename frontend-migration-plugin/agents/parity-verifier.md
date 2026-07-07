@@ -13,7 +13,8 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 `requiredGates`/`gateTriggers`/`gateAcceptance`), `analysisPath`, `targetDir`, `appDir`,
 `legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
-`templates/webview-bridge.md` and `templates/hana-sso.md` when those gates apply.
+`templates/visual-parity-checklist.md` for the visual gate (always), and `templates/webview-bridge.md`
+/ `templates/hana-sso.md` when those gates apply.
 
 ## Acceptance contract
 
@@ -26,12 +27,38 @@ comparison claim in the report names the exact artifact pair it rests on.
 
 ## Gates
 
-### 1. visual (always)
+### 1. visual (always) — read `templates/visual-parity-checklist.md` first
 Capture the **legacy** page with Playwright as the baseline, then compare the new page with
 `toHaveScreenshot` — symmetrically (same viewport, `fullPage` setting, masking on both sides), at
 the scope `gateAcceptance.visual` codifies. Compare **style** (layout, spacing, typography,
 color), not just content structure/text. Report diffs above tolerance as failures. Do not
 rebaseline on the new app to hide a regression — the legacy render is the reference.
+
+**Cross-framework reality (the trap that ships regressions).** Legacy is Angular, v2 is React; the
+two engines never rasterize identically, so a true `toHaveScreenshot(legacy) === toHaveScreenshot(v2)`
+pixel diff cannot pass. The legitimate fallback is **per-side baselines + computed-style probes** — but
+that fallback fails in two ways you must actively prevent (both are why a green visual gate shipped a
+real regression):
+- **Self-referential baseline.** Once v2 is captured to its own baseline, later runs compare v2
+  against *itself*, not legacy. A first capture that already diverges from legacy makes the gate green
+  forever. A v2 baseline is **never the reference — legacy is.** A first v2 capture is truth ONLY after
+  it has been checked axis-by-axis against the legacy render (below). Never let `--update-snapshots`
+  stand in for that check.
+- **Incomplete probe set.** Probes catch only what they assert. Pinning card color/radius/padding/fonts
+  while omitting inter-element spacing or icon rendering passes a page whose pager sits flush against
+  the list or whose toggle is the wrong glyph. **Pinning some axes is not pinning parity.**
+
+So the visual gate MUST, per `templates/visual-parity-checklist.md`:
+1. **Side-by-side compare** the legacy and v2 renders axis by axis (the two *renders*, not each against
+   its own baseline) — covering EVERY axis: frame/container, **inter-element spacing/gaps** (list↔pager,
+   section, item, title↔body — the most-missed axis), **icons/glyphs** (existence + faithful render +
+   position + size + open/active state), alignment, control geometry, color/border, typography.
+2. Add a **host-runnable computed-style probe for every content-independent axis** — not a subset — so
+   each is guarded deterministically in CI. A page that pins color but not the pager gap or the toggle
+   icon is an incomplete probe set = a `fail`, not a pass.
+3. Treat any axis diff **inside** the compared content-area (spacing, icon, alignment) as a parity item
+   to fix or explicitly accept — never fold it silently into a lift-out delta. A lift-out width change
+   moves centered controls' absolute position; itemize that, don't accept it by default.
 
 ### 2. contract (always)
 Diff the new page's API request/response usage against the legacy DTOs (from the analysis): same

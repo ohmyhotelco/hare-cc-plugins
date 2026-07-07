@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.8.2). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.8.3). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -176,6 +176,7 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 - `docs/build-context.md` — quá trình build, quyết định thiết kế, ngữ cảnh giữa các phiên
 - `CLAUDE.md` — quy ước, quy tắc state-file & lock, nguyên tắc thiết kế, chỉ mục mapping/gate
 - `templates/` — catalog ánh xạ, spec/quy ước shared package, WebView bridge, Hana SSO,
-  Strangler Fig, quy tắc TDD, schema migration-plan, cấu hình cổng lint & format ESLint/Prettier (`eslint-config.md`, `prettier-config.md`)
+  Strangler Fig, quy tắc TDD, schema migration-plan, checklist visual-parity (`visual-parity-checklist.md`
+  — danh sách trục của cổng visual + giao thức dự phòng khi không thể pixel-diff cross-framework), cấu hình cổng lint & format ESLint/Prettier (`eslint-config.md`, `prettier-config.md`)
 
 English: `README.md` · 한국어: `README.ko.md`
