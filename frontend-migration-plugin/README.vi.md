@@ -36,7 +36,7 @@ Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
 - **Feature flag 2-PR** — mỗi trang lên bằng hai PR: PR mã với flag **OFF** (người dùng vẫn dùng
   bản cũ), rồi PR một dòng bật flag **ON** sau khi qua cổng. Rollback = tắt flag.
 - **Máy trạng thái + tracker** — trạng thái mỗi trang nằm trong `docs/migration/tracker.json`
-  (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+  (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
 - **Kiểm toán độc lập bằng Codex** — khi bật (mặc định), mỗi giai đoạn nhận thêm một đánh giá độc
   lập từ **Codex** (advisory), ghi vào `codex-audit.json`. Không đổi trạng thái trang; soft gate duy
   nhất là `fm-route --flag-on` yêu cầu xác nhận (ack) các phát hiện high-severity chưa xử lý. Cần

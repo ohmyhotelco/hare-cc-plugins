@@ -29,11 +29,14 @@ comparison claim in the report names the exact artifact pair it rests on.
 ## Gates
 
 ### 1. visual (always) — read `templates/visual-parity-checklist.md` first
-Capture the **legacy** page with Playwright as the baseline, then compare the new page with
-`toHaveScreenshot` — symmetrically (same viewport, `fullPage` setting, masking on both sides), at
-the scope `gateAcceptance.visual` codifies. Compare **style** (layout, spacing, typography,
-color), not just content structure/text. Report diffs above tolerance as failures. Do not
-rebaseline on the new app to hide a regression — the legacy render is the reference.
+**Reuse the `style-spec` legacy baseline** `fm-style-spec` already captured (the legacy screenshot +
+`live-confirmed` computed values) — do not blindly re-capture a fresh legacy baseline. Compare the
+new page with `toHaveScreenshot` against it — symmetrically (same viewport, `fullPage` setting,
+masking on both sides), at the scope `gateAcceptance.visual` codifies. Compare **style** (layout,
+spacing, typography, color), not just content structure/text. Report diffs above tolerance as
+failures. Do not rebaseline on the new app to hide a regression — the legacy render is the reference.
+Recapture legacy **only** to (a) refresh a `source-derived` spec value against the live render, or
+(b) cover an axis/element the spec missed.
 
 **Reuse the style-spec baseline (one truth source).** `fm-style-spec` already captured the legacy
 computed values as the generation target (`style-spec.json`, per `gateAcceptance.visual`'s binding).

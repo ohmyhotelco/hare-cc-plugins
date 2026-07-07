@@ -28,9 +28,10 @@ Stop. (The extractor reads `analysis.json.styleSurface` — the element/class/as
 ### Step 2: Resolve the legacy URL
 The live render is the truth source (committed CSS can be stale). Resolve `legacyUrl` for this page:
 1. `--legacy-url` if given.
-2. Else `stagingConfig.baseUrl` (preferred — non-prod) or the app's `domain`, joined with the
-   page's legacy route path (from `analysis.json` target/route; if unknown, ask the user for the
-   path once).
+2. Else join `stagingConfig.baseUrl` (preferred — non-prod) or the app's `domain` with the page's
+   route path from **`analysis.json.target.routePath`** (or try each of
+   `analysis.json.target.legacyUrlCandidates` — the analyzer records the language-prefixed form on
+   PC). If the analyzer emitted neither field, ask the user for the path once.
 3. If none can be resolved or the environment has no legacy access, pass `legacyUrl: null` — the
    extractor falls back to the source cascade and flags those values `source-derived` (not a
    failure; `fm-parity` remains the backstop).

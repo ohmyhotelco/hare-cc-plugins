@@ -32,17 +32,23 @@ later); `npx playwright` is verified by `fm-init`.
 1. Write a throwaway probe script under a temp path: it launches chromium, navigates to `legacyUrl`
    at the spec viewport, waits for load, and for each `styleSurface` element runs
    `getComputedStyle` — reading the properties for each axis in `templates/style-spec.md`
-   (frame, spacing, icons, alignment, controlGeometry, colorBorder, typography), including state
-   variants where the element has them (hover/active/disabled via class or pseudo). Serialize to
-   JSON on stdout / a temp file.
+   (frame, spacing, icons, alignment, controlGeometry, colorBorder, typography). Probe **every state
+   listed in the element's `styleSurface.states`** (hover/active/disabled/open — drive it via the
+   state class or `:hover`/`:active` emulation) and **every instance its `instanceSelector` names**,
+   writing them into the axis `states`. A declared state/instance you cannot capture goes into
+   `unconfirmed[]` with the reason — **never silently dropped** (that is exactly how the wrong-glyph
+   active-tab regressions ship). Serialize to JSON on stdout / a temp file.
 2. Run it from `{appDir}` (or the monorepo root). **Long-running: detach + poll, never a silent
    foreground wait** — `nohup node probe.mjs > /tmp/style-probe.log 2>&1 &`, then poll in SHORT
    calls (`sleep 20; tail -5 /tmp/style-probe.log; ps -p <pid> && echo RUNNING || echo DONE`) until
    done, and read the result from the log/temp file. A single silent foreground call past the
    watchdog window kills the session.
 3. Inventory assets: for every `background-image` / sprite / icon-font the probed elements resolve
-   to, record its URL and the class that uses it in `assets[]` (kind, legacyUrl, usedBy, cssProp,
-   action). These are what `foundation-generator` copies and wires.
+   to, record in `assets[]` **both** the resolved **`liveUrl`** (the absolute URL the live render
+   loaded) **and** the mapped **`localPath`** under `legacyDir` when one exists (else `null`) — plus
+   `kind`, `usedBy`, `cssProp`, `action`. A live-only / CDN / cache-busted asset has no `localPath`,
+   so `foundation-generator` MUST fetch it from `liveUrl`; recording only a local path would let it
+   go missing. These are what `foundation-generator` copies/fetches and wires.
 4. Mark every value `confidence: "live-confirmed"`; set `legacySource.capturedFrom: "live"`.
 
 ## Path B — source-cascade fallback (when `legacyUrl` is null or unreachable)

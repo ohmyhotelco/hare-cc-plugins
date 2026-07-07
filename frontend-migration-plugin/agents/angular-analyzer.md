@@ -37,8 +37,12 @@ Walk the target and its first-level dependencies. For each, record concrete find
   (`base.css`, `_contents.scss`), not just the component `.scss` (which is often nearly empty)** —
   plus the `background-image`/sprite/icon assets the classes reference, and the nesting/wrapper
   structure (e.g. an `ngTemplateOutlet` box wrapping several blocks in one bordered container).
-  Emit as `styleSurface` (schema below). You record *where the styles are and what assets exist*;
-  `fm-style-spec` resolves the *values* from the live legacy render.
+  For each element also record the **state variants** it renders (`hover`/`active`/`disabled`/`open`
+  — e.g. an active vs inactive tab) and a **stable per-instance selector** (a state class or
+  `:nth-of-type`) so `fm-style-spec` can probe each state and instance deterministically — **a
+  variant you omit here is never probed and silently ships wrong**. Emit as `styleSurface` (schema
+  below). You record *where the styles are, what states/assets exist*; `fm-style-spec` resolves the
+  *values* from the live legacy render.
 
 ### 2. State & async
 - **Facade usage** — calls into `*.facade.ts` (`store.select` / `store.dispatch`). Record which
@@ -58,7 +62,10 @@ Walk the target and its first-level dependencies. For each, record concrete find
 
 ### 4. Routing / guards / init
 - Route registration (`createRoute`, `loadChildren`), `Resolve<T>` resolvers, module-constructor
-  `setCurrentRootUrl`.
+  `setCurrentRootUrl`. **Record the page's route path** into `target.routePath` and
+  `target.legacyUrlCandidates` (include the language-prefixed form on PC, e.g. `/ko/event`) — this
+  is what `fm-style-spec` joins with the config domain / staging base URL to reach the live legacy
+  render.
 - Guards (`CanActivate`) — note the **modal-open-vs-redirect** UX (AuthGuardService opens
   LoginModal rather than redirecting).
 - `APP_INITIALIZER` usage (language-prefix redirect on PC; Hana `?ts` SSO on mobile).
@@ -111,7 +118,8 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
 
 ```jsonc
 {
-  "target": { "app": "pc", "kind": "page", "path": "...", "analyzedAt": "ISO" },
+  "target": { "app": "pc", "kind": "page", "path": "...", "analyzedAt": "ISO",
+              "routePath": "/event", "legacyUrlCandidates": ["/ko/event", "/event"] },
   "components": [{ "file": "...", "loc": 1939, "isGodComponent": true,
                    "inputs": [], "outputs": [], "splitSeams": [] }],
   "dependencyGraph": { "facades": [], "services": [], "stores": [],
@@ -129,8 +137,9 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                            "branchLogic": "referCode1 comma-locale-list includes(language) + prod allow-list",
                            "anchor": "file:line", "mustPreserve": true }],
   "styleSurface": {
-    "elements": [{ "selector": ".btn-promotion-tab", "classes": ["btn-promotion-tab"],
-                   "sheets": ["_contents.scss", "base.css"],
+    "elements": [{ "selector": ".btn-promotion-tab", "instanceSelector": ".btn-promotion-tab:first-of-type",
+                   "classes": ["btn-promotion-tab"], "sheets": ["_contents.scss", "base.css"],
+                   "states": ["hover", "active", "disabled"],
                    "assets": [{ "cssProp": "background-image", "url": "/assets/images/sprite-rate.png" }],
                    "anchor": "event.component.html:42" }],
     "structure": [{ "wrapper": ".promotion-detail", "wraps": ["iframe.marketing", ".recommend-products"],

@@ -66,12 +66,15 @@ the flag is on → skip silently if off → never auto-install). You receive `es
 
 ### 5. Static assets (from style-spec)
 Read `style-spec.json.assets` (the inventory `fm-style-spec` produced). For each entry — sprites,
-`background-image` files, icon fonts, markers — **copy the file from `legacyDir` into the v2 app's
-public assets** (e.g. `{appDir}/public/assets/…`, mirroring the legacy path so the CSS URL resolves)
-and note the reference the component phase will use. A class rendered without its asset is invisible
-or flat (the star sprite, the tab-pill background) — this is the wholesale-omission trap (type B),
-so **copy every inventoried asset**; if a source file is missing, list it in the report (don't
-silently skip). Do not re-encode or "optimize" — copy the legacy bytes so the render matches.
+`background-image` files, icon fonts, markers — put the asset into the v2 app's public assets
+(e.g. `{appDir}/public/assets/…`, mirroring the legacy path so the CSS URL resolves) and note the
+reference the component phase will use. Resolve each in order: **(a)** copy `localPath` under
+`legacyDir` if present; **(b)** if `localPath` is `null`/missing (a live-only / CDN / cache-busted
+asset), **fetch `liveUrl`** and save it. A class rendered without its asset is invisible or flat (the
+star sprite, the tab-pill background) — the wholesale-omission trap (type B) — so **every inventoried
+asset must land**. If neither source resolves for a required asset, **fail the foundation phase and
+report the asset** (do NOT advance with it missing — a silent skip reintroduces exactly the bug this
+closes). Do not re-encode or "optimize" — save the original bytes so the render matches.
 
 ## Output
 - `{targetDir}` types, `mocks/`, copied assets under the app's public dir, and (if new) the app

@@ -24,8 +24,8 @@ Read `tracker.json`. For detail, read the per-page reports under `docs/migration
 ### Step 2: Render the dashboard
 In `workingLanguage`, show:
 - **Per app** (pc / mobile / hana): page count by status across the state machine
-  (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`,
-  plus `*-failed` / `fixing` / `escalated`).
+  (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped
+  → done`, plus `*-failed` / `fixing` / `escalated`).
 - **Per page** (for the active app or the named page): current status, `requiredGates`, the gate
   results (verify / e2e / parity: pass / fail / pending), rendering mode, flag key, and risk.
 - **Shared packages**: `tracker.packages` extraction status, and any pieces deferred to
@@ -35,7 +35,8 @@ In `workingLanguage`, show:
 
 ### Step 3: Next-step guidance
 For each in-flight page, print the exact next command (same mapping as the SessionStart hook):
-analyzed→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`, verified→`fm-e2e`,
-e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off`/`--flag-on`, `*-failed`→`fm-fix`.
+analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
+verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off`/`--flag-on`,
+`*-failed`→`fm-fix`.
 
 This skill is read-only — it never acquires the lock or mutates state.

@@ -17,7 +17,9 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` and `migration-plan.json`
 with `requiredGates`/`gateTriggers` (else point to `fm-e2e`). Require `plan.gateAcceptance`
-(absent → the plan is incomplete; point to `fm-plan {page}` and stop).
+(absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
+`docs/migration/{app}/{page}/style-spec.json` (the visual gate reuses its legacy baseline; absent →
+point to `fm-style-spec {page}` and stop).
 
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).

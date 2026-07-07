@@ -42,7 +42,7 @@ New to the migration? These terms recur throughout:
 - **2-PR feature flag** — a page ships in two PRs: a code PR with the flag **OFF** (users still
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
-  (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+  (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
 - **Codex independent audit** — when enabled (default), every stage also gets a second, independent
   review from **Codex** (advisory), recorded in `codex-audit.json`. It never changes a page's
   status; the only soft gate is `fm-route --flag-on`, which asks you to acknowledge any unresolved

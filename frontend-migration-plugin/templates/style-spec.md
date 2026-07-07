@@ -73,8 +73,11 @@ wrapper is a defect, not a style choice.
 
 Every `background-image` / sprite / icon-font the page's classes reference is inventoried so
 `foundation-generator` copies it into the v2 app and wires the reference — a class rendered without
-its asset (the star sprite, the tab pill background) is invisible or flat. An `icons`/`colorBorder`
-value that depends on an asset must have a matching `assets[]` entry.
+its asset (the star sprite, the tab pill background) is invisible or flat. Each entry records **both**
+`liveUrl` (what the live render loaded) and `localPath` (the file under `legacyDir`, or `null` when
+the asset is live-only / CDN / cache-busted): `foundation-generator` copies `localPath` when present
+and otherwise **fetches `liveUrl`**, so a live-only asset is never silently missed. An
+`icons`/`colorBorder` value that depends on an asset must have a matching `assets[]` entry.
 
 ## Shape
 
@@ -92,9 +95,11 @@ value that depends on an asset must have a matching `assets[]` entry.
   "elements": [
     {
       "selector": ".btn-promotion-tab",              // stable selector / legacy class
+      "instanceSelector": ".btn-promotion-tab.active",// the specific instance/state probed, when it matters
       "role": "city tab (pill button)",
       "legacyAnchor": "event.component.html:42",
       "confidence": "live-confirmed",                // live-confirmed | source-derived
+      "states": ["active", "inactive"],              // the state variants captured (from styleSurface.states)
       "axes": {
         "frame":           { "padding": "8px 16px" },
         "controlGeometry": { "borderRadius": "16px", "height": "32px" },
@@ -115,9 +120,10 @@ value that depends on an asset must have a matching `assets[]` entry.
     }
   ],
   "assets": [
-    { "kind": "sprite", "legacyUrl": "/assets/images/sprite-rate.png", "usedBy": ".rate-star",
-      "cssProp": "background-image",
-      "action": "copy to apps/web-pc/public/assets/images/ and reference" }
+    { "kind": "sprite", "liveUrl": "https://www.ohmyhotel.com/assets/images/sprite-rate.png",
+      "localPath": "apps/legacy-pc/src/assets/images/sprite-rate.png",   // null if live-only / CDN / cache-busted
+      "usedBy": ".rate-star", "cssProp": "background-image",
+      "action": "copy localPath (or fetch liveUrl) to apps/web-pc/public/assets/images/ and reference" }
   ],
   "structure": [
     { "wrapper": ".promotion-detail", "wraps": ["iframe.marketing", ".recommend-products"],
