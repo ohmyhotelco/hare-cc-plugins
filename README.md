@@ -75,7 +75,7 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
 
-**Pipeline**: `fm-init` → `fm-analyze` → `fm-extract` → (`fm-plan` → `fm-gen` → `fm-verify` → `fm-e2e` → `fm-parity` → `fm-route`) ↔ `fm-fix`
+**Pipeline**: `fm-init` → `fm-analyze` → `fm-extract` → (`fm-style-spec` → `fm-plan` → `fm-gen` → `fm-verify` → `fm-e2e` → `fm-parity` → `fm-route`) ↔ `fm-fix`
 
 **Key features**:
 - Angular→React mapping catalog grounded in the real source (Facade→hook, NgRx Effect→TanStack Query, NgbModal→shadcn Dialog, ControlValueAccessor→RHF, `| i18next`→`t()`)
