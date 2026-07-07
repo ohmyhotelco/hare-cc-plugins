@@ -68,8 +68,9 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 
 ## Invocation flow (in-loop, C-1)
 
-1. Each artifact-producing skill (`fm-analyze`, `fm-plan`, `fm-gen`, `fm-verify`, `fm-e2e`,
-   `fm-parity`) finishes its own Record step and **releases its page lock**.
+1. Each audited artifact-producing skill (`fm-analyze`, `fm-plan`, `fm-gen`, `fm-verify`, `fm-e2e`,
+   `fm-parity` — `fm-style-spec` is deliberately excluded; its answer key is re-checked when
+   `fm-parity` reuses the same baseline) finishes its own Record step and **releases its page lock**.
 2. If `codexAudit` is enabled and the Codex CLI/runtime is available, the skill spawns the
    `codex-auditor` agent (Agent tool) for the just-completed stage.
 3. The agent gathers the stage inputs (matrix above), builds the rubric-based English prompt, calls

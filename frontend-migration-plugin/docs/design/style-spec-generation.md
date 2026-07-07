@@ -2,8 +2,8 @@
 
 ## Problem
 
-`fm-parity` (v0.8.3, `visual-parity-checklist.md`) hardened the **gate** that catches wrong styles
-just before a route flip. But the gate runs at flip time, after the fact — if generation keeps
+`fm-parity`'s `visual-parity-checklist.md` (shipped in the prior release, v0.8.3) hardened the
+**gate** that catches wrong styles just before a route flip. But the gate runs at flip time, after the fact — if generation keeps
 producing wrong styles, every page burns a gate cycle on post-hoc fixes. The OMH-708 event page
 passed its gates yet diverged from legacy in ~a dozen places (tab pills flat, card radius 15 vs 25,
 rating stars invisible, iframe side padding, a flattened wrapper box).

@@ -361,10 +361,15 @@ to Codex), `templates/codex-audit.md` (per-stage rubric + schema), `codex-audit.
 state), tracker `pages[page].codexAudit` (per-stage verdict summary).
 
 **Coverage.** All seven stages: `analyze`, `plan`, `gen`, `verify`, `e2e`, `parity`, `route`.
+The `style-spec` stage (`fm-style-spec`, v0.9.0) is **deliberately not** in the audit set: its
+artifact is a legacy-extraction answer key whose correctness is re-checked downstream when
+`fm-parity` reuses the same baseline, so a separate Codex pass would be redundant. (Adding a
+`style-spec` audit stage remains a possible follow-up — see `docs/design/style-spec-generation.md`.)
 
-**In-loop invocation.** When `codexAudit` is enabled and Codex is available, each artifact-producing
-skill (`fm-analyze`/`fm-plan`/`fm-gen`/`fm-verify`/`fm-e2e`/`fm-parity`), **after** it records its
-own result and releases the lock, spawns `codex-auditor` for that stage. The auditor gathers the
+**In-loop invocation.** When `codexAudit` is enabled and Codex is available, each audited
+artifact-producing skill (`fm-analyze`/`fm-plan`/`fm-gen`/`fm-verify`/`fm-e2e`/`fm-parity` — not
+`fm-style-spec`, per Coverage above), **after** it records its own result and releases the lock,
+spawns `codex-auditor` for that stage. The auditor gathers the
 stage inputs, runs Codex, reads the real output, and Read-Modify-Writes `codex-audit.json` +
 the tracker. The skill surfaces the verdict (advisory) in its report.
 
