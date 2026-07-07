@@ -91,7 +91,13 @@ in `workingLanguage`.
 
 ## Incremental mode (fm-delta)
 
-When invoked with `mode: "incremental"` (by `fm-delta`), you do not write a full plan — you
+In this mode the coordinator (`fm-delta`) passes a **different** param set than the normal-mode one
+above: `mode: "incremental"`, `app`, `page`, `analysisPath` (the baseline `analysis.json`, incl. its
+`styleSurface`), `planPath` (the baseline `migration-plan.json`), `legacyDir` (the current legacy
+source to diff), `outPath` (`delta-plan.json`), and `workingLanguage`. (`styleSpecPath`/`targetDir`/
+`packagesDir` are not passed — you compute a diff, not a plan.)
+
+When invoked with `mode: "incremental"`, you do not write a full plan — you
 compute a **delta** against the page's existing baseline:
 1. Re-read the current legacy source and diff it against the page's `analysis.json` /
    `migration-plan.json` baseline (compare component fields, API calls, mapping decisions,
