@@ -34,9 +34,15 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
    **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry
    makes the plan incomplete; re-run the planner before recording.
-2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
+2. **Behavioral-coverage reconciliation.** For every `analysis.json.behavioralVariants` entry with
+   `mustPreserve: true`, confirm it is either represented in the plan (`componentTree` / `mapping` /
+   `e2eScenarios`) **or** recorded in the plan's `openApprovals[]` with a rationale and decision
+   owner. A `mustPreserve` variant silently absent from both makes the plan incomplete — re-run the
+   planner before recording (exactly like a missing `gateAcceptance` entry). Surface any
+   `openApprovals` in the report so the reduction reaches a human, not the next stage.
+3. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
    plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
-3. Release the lock.
+4. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
@@ -47,5 +53,7 @@ changes the page status. Surface its verdict in the report.
 
 ### Step 5: Report
 In `workingLanguage`: component count, rendering mode, shared deps, required gates, E2E scenario
-count, and **blockers** (unextracted shared candidates → run `fm-extract` first). Next step:
+count, **blockers** (unextracted shared candidates → run `fm-extract` first), and **open approvals**
+(any `openApprovals[]` coverage reductions awaiting a decision owner — call these out explicitly so
+the reduction is a human decision, not a silent scope-out). Next step:
 `/frontend-migration-plugin:fm-gen {page}`.

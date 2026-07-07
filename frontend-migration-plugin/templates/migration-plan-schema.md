@@ -37,6 +37,12 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
                  "@omh/shared-types:RsBookingTraveler"],
   "blockers": [{ "candidate": "CouponService.calcMaxDiscount", "reason": "not extracted",
                  "action": "fm-extract" }],
+  "openApprovals": [                        // coverage reductions awaiting a decision owner (never silent)
+    { "topic": "social-login provider set", "coversVariant": "social-login-buttons",
+      "decision": "reduce 6→4 (drop Line, Facebook)",
+      "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
+      "owner": "TBD", "status": "pending" }
+  ],
   "requiredGates": ["e2e", "visual", "telemetry"],
   "gateAcceptance": { "visual": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] } },
                                             // REQUIRED — one entry per gate in requiredGates; see below
@@ -85,7 +91,10 @@ matrix — every language, device class, and viewport the product serves. Sampli
 coverage reduction (e.g. "representative languages only") is itself a decision: the planner
 records it as an open approval item with its rationale and the decision owner's sign-off —
 it never enters the criteria as a silent default. An author's cost/representativeness
-trade-off is not a decision.
+trade-off is not a decision. The same discipline governs *functional* scope (which providers,
+locales, and branches the code implements) — see "Behavioral-coverage reconciliation" — and the
+gate `scope` is bound to the `behavioralVariants` dimensions the analysis discovered, so the two
+can never disagree.
 
 Example — a `visual` gate:
 
@@ -100,6 +109,25 @@ Example — a `visual` gate:
   }
 }
 ```
+
+## Behavioral-coverage reconciliation (required)
+
+Every `analysis.json.behavioralVariants` entry marked `mustPreserve` must survive into the plan:
+implemented in `componentTree` / `mapping` / `e2eScenarios`, **or** recorded in `openApprovals[]`
+with a rationale and decision owner. A `mustPreserve` variant silently absent from both makes the
+plan **incomplete** — `fm-plan` Step 4 rejects it back to the planner, exactly like a missing
+`gateAcceptance` entry.
+
+This is the functional-scope twin of the `gateAcceptance.scope` full-matrix rule: the gate rule
+protects *what the gates test*; this protects *what the code does*. The two must agree —
+`gateAcceptance.scope` is bound to the dimensions the analysis discovered (`behavioralVariants`),
+not to planner discretion, so a feature that varies across 5 locales can never carry a PC-KO-only
+gate scope. A source note ("ticket names 4", "SDK commented out") is input to a reduction decision,
+never authority for a silent one; the decision lives in `openApprovals` or it does not happen.
+
+`openApprovals[]` entries: `topic`, `coversVariant` (the `behavioralVariants.feature` it reduces),
+`decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`). `fm-plan` surfaces
+every `pending` entry in its report; a coverage reduction is a human decision, not a default.
 
 ## 2-PR flag plan
 

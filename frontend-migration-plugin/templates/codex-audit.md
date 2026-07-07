@@ -37,7 +37,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 | Stage | Inputs to give Codex | What Codex checks |
 | --- | --- | --- |
 | `analyze` | `analysis.json` + the legacy anchors it cites | missing dependencies/gates, mis-classified shared candidates, missing 3-app (PC/Mobile/Hana) divergence, under-stated risk |
-| `plan` | `migration-plan.json` + `analysis.json` | rendering-mode choice, component-tree soundness, **E2E-scenario coverage of legacy behavior**, blocker correctness, gate set completeness |
+| `plan` | `migration-plan.json` + `analysis.json` | rendering-mode choice, component-tree soundness, **E2E-scenario coverage of legacy behavior**, **`behavioralVariants` coverage — any `mustPreserve` variant (locale/device/flag branch, data-driven provider list) narrowed in the plan without an `openApprovals` entry, or a `gateAcceptance.scope` narrower than the analysis-discovered dimensions**, blocker correctness, gate set completeness |
 | `gen` | generated diff + plan + `angular-to-react-mapping.md` refs | mapping fidelity to the catalog, idiomatic RR v7 / hooks / RHF+zod, anti-patterns, **`shared-domain` secret-boundary violations**, dead/incomplete code |
 | `verify` | generated code + test files + `verify` result | independent second opinion to `quality-reviewer`/`test-reviewer`; weak/missing assertions, untested branches, mocked-over behavior |
 | `e2e` | `e2e-report.json` + plan `e2eScenarios` + legacy behavior | **false-pass cross-check** — do the scenarios actually exercise the legacy flows? Any scenario weakened to pass? Dual-run gaps |

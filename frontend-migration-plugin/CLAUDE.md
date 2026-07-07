@@ -11,15 +11,18 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.8.3)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.8.4)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
 > GREEN-phase reuse ladder (v0.8.0), the codified per-gate acceptance criteria
 > (`gateAcceptance`) hardening the parity gates against scope reinterpretation (v0.8.1), the
 > full-matrix coverage binding for gateAcceptance authoring — sampling needs explicit approval
-> (v0.8.2), and the visual-parity-checklist closing the cross-framework visual-gate completeness
-> gap that let spacing/icon regressions pass (v0.8.3)). Runtime
+> (v0.8.2), the visual-parity-checklist closing the cross-framework visual-gate completeness
+> gap that let spacing/icon regressions pass (v0.8.3), and the analyze→plan behavioral-coverage
+> reconciliation (`behavioralVariants` + `openApprovals`) that stops the planner silently
+> narrowing an analysis-discovered variant set — e.g. a locale-filtered social-login provider
+> list — into the default-environment subset (v0.8.4)). Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.

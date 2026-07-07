@@ -84,6 +84,20 @@ Compare the target against `counterpartDirs` (PC vs Mobile vs Hana). Classify ea
 `identical | near (<30% diff) | diverged`, and flag PC-only vs shared logic and Hana
 merchant-key / fork differences.
 
+### 8. Conditional-render coverage variants
+Flag any UI or behavior that **varies by a runtime dimension** — locale/language, device
+class, auth state, feature flag, A/B branch, or a data-driven allow-list. For each, record the
+**full enumerated set** and the branch logic — never just the case that renders in the default
+environment (e.g. PC-KO). These are the migration's highest silent-regression risk: a variant
+that only appears in a non-default locale/device is invisible to every later stage unless it is
+enumerated here, so the planner cannot narrow it away by accident.
+Example: a social-login list gated by `referCode1` (a comma-separated locale list) plus a
+hard-coded prod allow-list renders a *different provider subset per language* — record every
+provider in `fullSet` and every per-locale subset in `variantsBy`, with the branch logic and
+anchor. Emit as `behavioralVariants[]` (schema below); mark `mustPreserve: true` unless the
+source proves the branch is dead code. `fm-plan` reconciles the plan against this list — a
+`mustPreserve` variant the plan neither implements nor explicitly defers is a plan defect.
+
 ## Output — `analysis.json`
 
 Write to `outPath` (Read-Modify-Write if it exists). Shape:
@@ -100,6 +114,13 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "rxjs": { "subscriptions": [], "subjects": [], "silentCatch": ["file:line"] },
   "mappingNotes": [{ "angular": "NgbModal.open", "react": "shadcn Dialog",
                      "anchor": "file:line", "catalogRef": "modals" }],
+  "behavioralVariants": [{ "feature": "social-login-buttons", "dimension": "locale",
+                           "fullSet": ["Kakao", "Naver", "Google", "Apple", "Line", "Facebook"],
+                           "variantsBy": { "KO": ["Kakao", "Naver", "Google", "Apple"],
+                                           "JA": ["Google", "Apple", "Line", "Facebook"],
+                                           "VI/ZH/EN": ["Google", "Apple", "Facebook"] },
+                           "branchLogic": "referCode1 comma-locale-list includes(language) + prod allow-list",
+                           "anchor": "file:line", "mustPreserve": true }],
   "sharedCandidates": [{ "name": "UtilDateService", "purity": "pure",
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
@@ -117,5 +138,8 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   in `openQuestions` — do not invent it.
 - Consult `templates/angular-to-react-mapping.md` for the canonical `react` target of each
   `angular` idiom; put the catalog section id in `catalogRef`.
+- Enumerate the **full** set for every conditional-render variant — the default-environment case
+  (e.g. PC-KO) is not the full set. A variant you record only for the default locale/device is a
+  silent regression waiting downstream; capture every branch in `behavioralVariants`.
 - Keep the final message to the coordinator short: target, risk, required gates, shared
   candidates count, and any open questions — in `workingLanguage`.

@@ -49,12 +49,36 @@ Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React t
 8. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
    integration`, listing the files each phase creates and their test counts.
 
+## Coverage preservation (functional scope is not silently reducible)
+
+The plan must carry **every** `analysis.json.behavioralVariants` entry into the implementation:
+the full enumerated set and its per-dimension branching (locale filters, device forks, flag gates,
+data-driven allow-lists) become real component logic, mapping rows, and `e2eScenarios` — not just
+the case that renders in the default environment (e.g. PC-KO).
+
+Reducing a variant set — fewer providers, a dropped locale branch, "the confirmed-live default
+subset" — is **not** a planning shortcut. It is a scope decision, and like gate-scope sampling it
+is **never a silent default**: record it in `openApprovals[]` with the rationale, the evidence the
+reduction is safe, and the decision owner. A source note that "OMH-xxx names 4" or "SDK commented
+out" is *input to* that decision, not the decision itself — do not treat a ticket scope or a
+commented block as authority to drop a `mustPreserve` variant. A `mustPreserve` variant that is
+neither implemented nor recorded in `openApprovals` is a plan defect: `fm-plan` Step 4 rejects the
+plan back to you, exactly like a missing `gateAcceptance` entry.
+
+This is the functional-behavior twin of the `gateAcceptance.scope` full-matrix rule: one protects
+*what the gates test*, this protects *what the code does*. Bind `gateAcceptance.scope` to the
+dimensions the analysis actually discovered (the `behavioralVariants` dimensions), **never** to
+your own discretion — a feature that varies across 5 locales cannot ship with a PC-KO-only gate
+scope, or the gates go blind to exactly the variants you narrowed.
+
 ## Output
 
 Write `migration-plan.json` per `templates/migration-plan-schema.md`. Cross-reference analysis
-anchors so `fm-gen` and the gates can trace each decision. Keep the final message short:
-component count, rendering mode, shared deps, gates, E2E scenario count, and any blockers
-(unextracted shared candidates), in `workingLanguage`.
+anchors so `fm-gen` and the gates can trace each decision. Record any coverage reduction in
+`openApprovals[]` — never silently drop a `mustPreserve` variant. Keep the final message short:
+component count, rendering mode, shared deps, gates, E2E scenario count, any blockers
+(unextracted shared candidates), and any `openApprovals` (coverage reductions awaiting sign-off),
+in `workingLanguage`.
 
 ## Incremental mode (fm-delta)
 
@@ -75,5 +99,7 @@ delta is large (the skill recommends full `fm-gen` above ~60% of files).
 ## Rules
 - Decisions only — no production code. The single file you write is `migration-plan.json`.
 - Every mapping decision cites the catalog section and the analysis anchor.
+- Functional coverage is not silently reducible: every `mustPreserve` `behavioralVariant` is
+  implemented or recorded in `openApprovals` — see "Coverage preservation".
 - If a needed shared package is not yet extracted, record it in `blockers` and recommend
   `fm-extract` before `fm-gen`.
