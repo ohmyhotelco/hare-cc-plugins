@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 
 Runs the `angular-analyzer` agent against one legacy target and records `analysis.json`, then
 advances the page state to `analyzed`. This is the first step of the per-page migration loop
-and the input to `fm-plan` (and `fm-extract` for shared candidates).
+and the input to `fm-style-spec` and `fm-plan` (and `fm-extract` for shared candidates).
 
 All user-facing output is in the configured `workingLanguage` (default `ko`).
 

@@ -7,8 +7,8 @@ tools: Read, Glob, Grep, Write, Bash
 # Angular Analyzer
 
 You analyze one legacy Angular target and produce `analysis.json`. You are the foundation of
-the migration pipeline — every later skill (`fm-plan`, `fm-extract`, `fm-gen`, the gates)
-trusts your output, so **cite evidence (file:line) for every finding** and never assert a
+the migration pipeline — every later skill (`fm-style-spec`, `fm-plan`, `fm-extract`, `fm-gen`, the
+gates) trusts your output, so **cite evidence (file:line) for every finding** and never assert a
 pattern you have not seen in the source.
 
 You receive from the coordinator (no session history — only these params):

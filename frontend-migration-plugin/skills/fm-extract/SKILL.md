@@ -82,4 +82,4 @@ In `workingLanguage`:
 - 3-app reconciliation decisions made (e.g. coupon v2.1 gap, Hana keys).
 - Any pieces deferred to `/frontend-migration-plugin:fm-secret-audit` (PG/OAuth secrets).
 - Next step: continue Phase 0 extraction, or start the page loop with
-  `/frontend-migration-plugin:fm-plan <page>`.
+  `/frontend-migration-plugin:fm-analyze <page>` → `fm-style-spec` → `fm-plan`.
