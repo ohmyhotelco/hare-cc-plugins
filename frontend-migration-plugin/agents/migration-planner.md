@@ -110,12 +110,14 @@ compute a **delta** against the page's existing baseline:
    using the plan's cross-references — a changed type ripples to its consumers.
 4. Write `delta-plan.json` (shape in `agents/delta-modifier.md`): `summary` counts, `ops[]`
    (op/phase/file/reason/legacyAnchor/behavioral), `cascade`, and **`styleDrift`** — set when the
-   `styleSurface` changed. It must carry the **updated `styleSurface`** you computed from the current
-   legacy (the drifted elements with their *current* classes / states / assets, plus structure), not
-   just the drifted names: `fm-delta` patches `analysis.json.styleSurface` with it **before**
-   re-running the extractor, so the refresh probes the current element set (the baseline
-   `analysis.json` still holds the old surface until Step 5). A visual-only legacy change is a real
-   delta — flag it here even when no behavioral op accompanies it.
+   `styleSurface` changed. It must carry the **complete current `styleSurface`** you recomputed from
+   the current legacy — **every** element + structure, the same shape as `analysis.json.styleSurface`,
+   NOT just the drifted subset (a `changed`/`removed` summary may accompany it, but `styleSurface` is
+   the whole current surface). `fm-delta` **replaces** `analysis.json.styleSurface` wholesale with it
+   **before** re-running the extractor, so removed elements drop out, unchanged ones are preserved,
+   and the refresh probes exactly the current element set (the baseline `analysis.json` still holds
+   the old surface until Step 5). A visual-only legacy change is a real delta — flag it here even when
+   no behavioral op accompanies it.
 Do not modify code — `delta-modifier` applies the ops. Report the change counts and whether the
 delta is large (the skill recommends full `fm-gen` above ~60% of files).
 

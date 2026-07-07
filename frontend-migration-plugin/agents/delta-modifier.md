@@ -36,13 +36,15 @@ SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integrati
   "cascade": ["types", "api", "component", "page"],
   "styleDrift": {
     "changed": true,
-    "elements": [".btn-promotion-tab"],          // the drifted element selectors (summary)
+    "elements": [".btn-promotion-tab"],          // drifted/removed selectors — summary only
     "assets": [], "structure": [],
-    "styleSurface": { "elements": [/* current styleSurface entries for the drifted elements,
-                                      same shape as analysis.json.styleSurface */], "structure": [] }
-    //  ↑ the CURRENT surface (classes/states/assets/structure) the planner recomputed from legacy.
-    //    fm-delta Read-Modify-Writes it into analysis.json.styleSurface BEFORE re-running the
-    //    extractor (in-lock), so the refresh probes the current element set — not the stale baseline.
+    "styleSurface": { "elements": [/* the COMPLETE current analysis.json.styleSurface — EVERY
+                                      element, same shape — not just the drifted subset */],
+                      "structure": [/* complete current structure */] }
+    //  ↑ the whole current surface the planner recomputed from legacy. fm-delta REPLACES
+    //    analysis.json.styleSurface wholesale with this BEFORE re-running the extractor (in-lock),
+    //    so removed elements drop out and the refresh probes exactly the current element set —
+    //    a partial/drifted-only surface would leave the extractor reading a stale/truncated set.
   }
 }
 ```

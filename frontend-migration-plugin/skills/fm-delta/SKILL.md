@@ -39,12 +39,14 @@ otherwise default to incremental. Let the user choose.
 ### Step 4: Apply
 - **Style refresh first (in-lock — do NOT nest `fm-style-spec`).** If `delta-plan.json.styleDrift`
   is set (the incremental planner detected changed classes / structure / assets in `styleSurface`):
-  1. **Patch `analysis.json.styleSurface` BEFORE extracting.** The extractor reads
+  1. **Refresh `analysis.json.styleSurface` BEFORE extracting.** The extractor reads
      `analysis.json.styleSurface` to know which elements/states/assets to probe — but the baseline
      `analysis.json` still holds the *old* surface (Step 5 only rebaselines after apply). So first
-     Read-Modify-Write the current surface from `delta-plan.json.styleDrift.styleSurface` (the
-     planner recorded it) into `analysis.json.styleSurface`, or the refresh would re-probe the stale
-     element set and miss the very elements that drifted.
+     **replace `analysis.json.styleSurface` wholesale** with `delta-plan.json.styleDrift.styleSurface`
+     (the planner recorded the **complete current** surface there — every element, not just the
+     drifted subset). A wholesale replace, not a merge: removed elements must drop out and unchanged
+     ones stay, or the refresh re-probes a stale/truncated set and misses the very elements that
+     drifted.
   2. Refresh the answer key **without re-running the `fm-style-spec` skill** — that skill acquires
      this same page `.lock` (this skill already holds it from Step 1), so nesting it would deadlock.
      Instead launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way
@@ -61,7 +63,9 @@ otherwise default to incremental. Let the user choose.
   `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`, `appDir`,
   `packagesDir`, `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics — build to the
   style-spec, no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
-- **Full** → tell the user to run `fm-gen {page}` (the skill stops here).
+- **Full** → tell the user to run `fm-gen {page}` (the skill stops here). If `styleDrift` was set,
+  tell them to run `/frontend-migration-plugin:fm-style-spec {page}` first so the full re-gen builds
+  to the fresh legacy style values (the style-refresh above ran only on the incremental path).
 
 ### Step 5: Record
 - Patch `migration-plan.json`/`analysis.json` with the new baseline; archive the delta as
