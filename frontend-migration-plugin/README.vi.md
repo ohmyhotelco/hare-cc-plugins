@@ -37,8 +37,9 @@ Nếu mới làm quen, các thuật ngữ sau lặp lại xuyên suốt:
   bản cũ), rồi PR một dòng bật flag **ON** sau khi qua cổng. Rollback = tắt flag.
 - **Máy trạng thái + tracker** — trạng thái mỗi trang nằm trong `docs/migration/tracker.json`
   (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
-- **Kiểm toán độc lập bằng Codex** — khi bật (mặc định), mỗi giai đoạn nhận thêm một đánh giá độc
-  lập từ **Codex** (advisory), ghi vào `codex-audit.json`. Không đổi trạng thái trang; soft gate duy
+- **Kiểm toán độc lập bằng Codex** — khi bật (mặc định), mỗi giai đoạn được kiểm toán (analyze/plan/
+  gen/verify/e2e/parity/route — không gồm fm-style-spec) nhận thêm một đánh giá độc lập từ **Codex**
+  (advisory), ghi vào `codex-audit.json`. Không đổi trạng thái trang; soft gate duy
   nhất là `fm-route --flag-on` yêu cầu xác nhận (ack) các phát hiện high-severity chưa xử lý. Cần
   Codex CLI; tự bỏ qua nếu không có.
 

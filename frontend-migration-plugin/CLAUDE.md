@@ -350,7 +350,8 @@ shipped (OMH-477).
 ## Codex Independent Audit
 
 An **advisory** layer that uses **Codex as an independent auditor** of Claude's migration work. For
-every artifact the pipeline produces, Codex gives a second, independent review recorded alongside
+every **audited** artifact the pipeline produces (the seven stages in Coverage below — not
+`fm-style-spec`), Codex gives a second, independent review recorded alongside
 Claude's own gate results. Codex reads and evaluates only — it never migrates. This is **neither a
 port nor a bridge**: Claude runs the pipeline as always and calls Codex as a second opinion through
 the `codex` plugin's `codex-cli-runtime` contract (headless `codex exec`). Full design:
@@ -442,7 +443,7 @@ the full build map.
 | `fm-delta` | Incremental re-migration on legacy drift | AA-48 |
 | `fm-clean-code` / `fm-test-review` | Code-quality / test-quality audit | AA-49 |
 | `fm-secret-audit` | Secret inventory + relocation guidance | AA-50 |
-| `fm-audit-codex` | Independent Codex audit of each stage (advisory) | AA-53 |
+| `fm-audit-codex` | Independent Codex audit of each audited stage (the seven, not fm-style-spec; advisory) | AA-53 |
 
 ## File Structure
 

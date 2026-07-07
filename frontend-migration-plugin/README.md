@@ -43,8 +43,9 @@ New to the migration? These terms recur throughout:
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
   (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
-- **Codex independent audit** — when enabled (default), every stage also gets a second, independent
-  review from **Codex** (advisory), recorded in `codex-audit.json`. It never changes a page's
+- **Codex independent audit** — when enabled (default), every audited stage (analyze/plan/gen/verify/
+  e2e/parity/route — not fm-style-spec) also gets a second, independent review from **Codex**
+  (advisory), recorded in `codex-audit.json`. It never changes a page's
   status; the only soft gate is `fm-route --flag-on`, which asks you to acknowledge any unresolved
   high-severity Codex findings before flipping. Requires the Codex CLI; auto-skips if absent.
 
@@ -177,7 +178,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-clean-code` | Standalone code-quality audit |
 | `fm-test-review` | Standalone test-quality audit |
 | `fm-secret-audit` | Secret inventory + relocation guidance |
-| `fm-audit-codex` | Independent Codex audit of each stage (advisory second opinion) |
+| `fm-audit-codex` | Independent Codex audit of each audited stage — the seven, not fm-style-spec (advisory second opinion) |
 
 See `docs/skill-reference.md` for each skill's inputs/outputs, the agent it drives, and the
 tracker state it sets.
