@@ -29,7 +29,8 @@ This is deliberately **neither a port nor a bridge**:
 - Running any migration step in Codex.
 - Replacing Claude's own reviewers (`quality-reviewer`, `test-reviewer`) — Codex is an *additional*
   independent reviewer, not a substitute.
-- Changing the 8-state per-page FSM. The audit is a **parallel annotation**, not a new state.
+- Changing the per-page FSM (9 states with `style-specced`). The audit is a **parallel
+  annotation**, not a new state.
 
 ## Principles
 - **Subagent isolation** — the auditor agent receives only per-stage parameters and constructs a
