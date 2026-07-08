@@ -23,11 +23,14 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   "app": "pc",
   "page": "hotel-booking-info",
   "analysisRef": "docs/migration/pc/hotel-booking-info/analysis.json",
+  "styleSpecRef": "docs/migration/pc/hotel-booking-info/style-spec.json",   // the legacy style answer key
   "rendering": "spa",                       // ssr | ssg | spa
   "targetDir": "apps/web-pc/app/features/booking-info",
   "componentTree": [
-    { "name": "BookingInfoPage", "kind": "page", "fromGodSeam": "...", "children": ["TravelerForm", "CouponSelector"] },
-    { "name": "TravelerForm", "kind": "component", "form": true }
+    { "name": "BookingInfoPage", "kind": "page", "fromGodSeam": "...", "children": ["TravelerForm", "CouponSelector"],
+      "styleTargets": { "elements": [".promotion-detail"], "assets": [], "structure": [".promotion-detail wraps iframe+recommend"] } },
+    { "name": "TravelerForm", "kind": "component", "form": true,
+      "styleTargets": { "elements": [".btn-promotion-tab"], "assets": ["/assets/images/sprite-rate.png"], "structure": [] } }
   ],
   "mapping": [
     { "angular": "hotelFacade.getBookingTraveler$", "react": "useBookingTraveler() (TanStack Query)",
@@ -64,6 +67,16 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   ]
 }
 ```
+
+## Style targets (style-spec binding)
+
+`styleSpecRef` points at the page's `style-spec.json` (`fm-style-spec`, `templates/style-spec.md`) —
+the legacy style answer key. Each `componentTree` node carries `styleTargets`: the `style-spec`
+`elements` it renders (whose axis values it must reproduce), the `assets` it needs wired, and any
+`structure` wrapper it must preserve. Generation (`tdd-cycle-runner` component phase) builds to these
+values; a legacy class name is **not** evidence the style was reproduced. The `visual`
+`gateAcceptance` probe set pins the same `style-spec` `live-confirmed` values, so the generation
+target and the parity check share one legacy-truth source and cannot drift.
 
 ## gateAcceptance (required)
 

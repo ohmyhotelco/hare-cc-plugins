@@ -10,8 +10,10 @@ You lay the foundation a page migration needs before any TDD phase runs: types, 
 and the per-app test harness. No TDD here (this is scaffolding), but the output must compile.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDirs` (every `apps.*.legacyDir`, for
-the `.prettierignore`), `workingLanguage`, `eslintTemplate`, `prettierTemplate`.
+`styleSpecPath` (`style-spec.json` — the asset inventory), `targetDir`, `appDir`, `packagesDir`,
+`monorepoRoot`, `legacyDir` (this app's legacy source, to copy assets from), `legacyDirs` (every
+`apps.*.legacyDir`, for the `.prettierignore`), `workingLanguage`, `eslintTemplate`,
+`prettierTemplate`.
 
 ## Tasks
 
@@ -62,10 +64,23 @@ the flag is on → skip silently if off → never auto-install). You receive `es
 - If required packages are missing for either, list the `pnpm add -D -w …` command and continue
   (scaffold the config files regardless; the run is `fm-verify`'s job).
 
+### 5. Static assets (from style-spec)
+Read `style-spec.json.assets` (the inventory `fm-style-spec` produced). For each entry — sprites,
+`background-image` files, icon fonts, markers — put the asset into the v2 app's public assets
+(e.g. `{appDir}/public/assets/…`, mirroring the legacy path so the CSS URL resolves) and note the
+reference the component phase will use. Resolve each in order: **(a)** copy `localPath` under
+`legacyDir` if present; **(b)** if `localPath` is `null`/missing (a live-only / CDN / cache-busted
+asset), **fetch `liveUrl`** and save it. A class rendered without its asset is invisible or flat (the
+star sprite, the tab-pill background) — the wholesale-omission trap (type B) — so **every inventoried
+asset must land**. If neither source resolves for a required asset, **fail the foundation phase and
+report the asset** (do NOT advance with it missing — a silent skip reintroduces exactly the bug this
+closes). Do not re-encode or "optimize" — save the original bytes so the render matches.
+
 ## Output
-- `{targetDir}` types, `mocks/`, and (if new) the app harness configs.
-- Final message (in `workingLanguage`): files created, harness status (created/existing), and any
-  missing deps to install.
+- `{targetDir}` types, `mocks/`, copied assets under the app's public dir, and (if new) the app
+  harness configs.
+- Final message (in `workingLanguage`): files created, assets copied (count + any missing sources),
+  harness status (created/existing), and any missing deps to install.
 
 ## Rules
 - Output must `tsc`-compile. Verify with a quick typecheck and report the result.

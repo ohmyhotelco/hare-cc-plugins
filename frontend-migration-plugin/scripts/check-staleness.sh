@@ -33,11 +33,12 @@ if [ -n "$LEGACY_DIRS" ]; then
   done <<< "$LEGACY_DIRS"
 fi
 
-# 2) Edited analysis.json / migration-plan.json under docs/migration while the page has
-#    already advanced past 'generated' → the plan/analysis is out of sync with the code.
-if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|migration-plan)\.json$ ]]; then
+# 2) Edited analysis.json / style-spec.json / migration-plan.json under docs/migration while the
+#    page has already advanced past 'generated' → the artifact is out of sync with the code.
+if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migration-plan)\.json$ ]]; then
   APP="${BASH_REMATCH[1]}"
   PAGE="${BASH_REMATCH[2]}"
+  ARTIFACT="${BASH_REMATCH[3]}"
   TRACKER="$CWD/docs/migration/tracker.json"
   if [ -f "$TRACKER" ]; then
     STATUS=$(jq -r --arg a "$APP" --arg p "$PAGE" \
@@ -45,9 +46,9 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|migration-plan)\.
     case "$STATUS" in
       generated|verified|e2e-passed|parity-passed|flipped|done)
         echo ""
-        echo "[Frontend Migration Plugin] Warning: analysis/plan edited for [$APP/$PAGE] (status: $STATUS)."
+        echo "[Frontend Migration Plugin] Warning: $ARTIFACT edited for [$APP/$PAGE] (status: $STATUS)."
         echo "  Generated code may be out of sync. Run /frontend-migration-plugin:fm-delta $PAGE"
-        echo "  (incremental mode preserves accumulated fixes)."
+        echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
         ;;
     esac
   fi

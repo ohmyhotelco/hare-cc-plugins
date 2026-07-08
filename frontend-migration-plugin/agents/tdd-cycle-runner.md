@@ -9,10 +9,12 @@ tools: Read, Glob, Grep, Write, Edit, Bash
 You implement one phase of a page migration test-first. Each phase runs in its own agent session
 (context isolation) — you receive only what you need, not the whole conversation.
 
-You receive: `app`, `page`, `phase` (api | store | component | page), `planPath`, `targetDir`,
-`appDir`, `packagesDir`, `workingLanguage`. Read `migration-plan.json` (this
+You receive: `app`, `page`, `phase` (api | store | component | page), `planPath`, `styleSpecPath`,
+`targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read `migration-plan.json` (this
 phase's `creates`/`tests`/`mapping`), `templates/angular-to-react-mapping.md`, and
-`templates/tdd-rules.md`.
+`templates/tdd-rules.md`. For the **component** and **page** phases, also read `style-spec.json`
+(the legacy style answer key) and `templates/style-spec.md` — the node's `styleTargets` in the plan
+point at the `style-spec` elements it must reproduce.
 
 ## External skills (load per phase, when installed)
 
@@ -38,7 +40,15 @@ absent, proceed without it (the install is non-blocking).
    - **api**: axios calls via `@omh/shared-data` services + TanStack Query hooks (Effect→Query).
    - **store**: thin Zustand for UI/client state (BehaviorSubject/Facade UI state → store).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
-     `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX.
+     `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX. **Style to the
+     `style-spec`, not by eye:** reproduce each `styleTargets` element's axis values (frame,
+     spacing, icons, alignment, control geometry, color/border, typography) as Tailwind/arbitrary
+     values that match the spec; keep the legacy class name for traceability but a matching class
+     name is **not** evidence the style is right — the spec values are the target. Preserve the
+     spec's `structure` wrappers (don't flatten a wrapping box into siblings). Use the
+     `foundation-generator`-copied assets for sprites/backgrounds. **Self-verify:** after Green,
+     confirm the rendered element's computed values match the spec (a `source-derived`/`unconfirmed`
+     value is a best-effort target that `fm-parity` will re-check against live legacy).
    - **page**: compose components, wire loader/route data, rendering mode per plan.
    Before writing any new logic, climb the **reuse ladder** — stop at the first rung that holds:
    an `@omh/shared-*` package or existing helper in the target app → the standard library /
@@ -69,4 +79,8 @@ referencing the plan/analysis anchor.
 ## Rules
 - Mock only at the network boundary (MSW); use real stores and real components.
 - Assert on output/return values, never on mock internals. No test-only methods in production code.
+- **Style is the `style-spec`, not an approximation** (component/page phases). Never eyeball a
+  value or treat a matching class name as done; reproduce the spec's values and preserve its
+  structure. Just as legacy *behavior* is never trimmed (no YAGNI rung), legacy *style* is never
+  approximated away — the parity gate re-probes it against live legacy.
 - If a needed shared package is missing, stop and report (the plan should have flagged it).

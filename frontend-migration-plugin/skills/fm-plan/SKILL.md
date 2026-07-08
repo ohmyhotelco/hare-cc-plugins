@@ -1,6 +1,6 @@
 ---
 name: fm-plan
-description: "Use after fm-analyze to turn a page's analysis.json into a migration-plan.json — the React component tree, shared-package deps, rendering mode, required gates, 2-PR flag plan, and E2E scenario list."
+description: "Use after fm-style-spec to turn a page's analysis.json + style-spec.json into a migration-plan.json — the React component tree (with style targets), shared-package deps, rendering mode, required gates, 2-PR flag plan, and E2E scenario list."
 argument-hint: "<page> [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Agent
@@ -8,7 +8,8 @@ allowed-tools: Read, Write, Glob, Grep, Agent
 
 # Plan a Page Migration
 
-Runs the `migration-planner` agent to produce `migration-plan.json` from a page's analysis.
+Runs the `migration-planner` agent to produce `migration-plan.json` from a page's analysis and
+style-spec.
 Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 
 ## Instructions
@@ -22,11 +23,18 @@ Check `docs/migration/{app}/{page}/analysis.json`. If missing:
 > "Run /frontend-migration-plugin:fm-analyze {page} first."
 Stop.
 
+### Step 1b: Require style spec
+Check `docs/migration/{app}/{page}/style-spec.json`. If missing:
+> "Run /frontend-migration-plugin:fm-style-spec {page} first."
+Stop. (The planner binds each component's style targets and the `visual` gate probe set to it —
+without it, generation eyeballs styles. See `templates/style-spec.md`.)
+
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Plan
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
+`styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`,
 `outPath` = `docs/migration/{app}/{page}/migration-plan.json`, `targetDir`, `appDir`,
 `packagesDir`, `workingLanguage`.
 

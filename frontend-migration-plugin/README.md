@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.8.4). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.9.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -24,8 +24,8 @@ New to the migration? These terms recur throughout:
   Angular app or the new React app; you "strangle" the old app one route at a time, never a
   big-bang rewrite. The flip happens at each app's configured edge — an app-layer / entry **nginx**
   routing block, or a **CloudFront** behavior — selected per app (`flipMechanism`, default `nginx`).
-- **The per-page loop** — every page goes through the same sequence: `analyze → plan → gen →
-  verify → e2e → parity → route`. One page at a time.
+- **The per-page loop** — every page goes through the same sequence: `analyze → style-spec → plan →
+  gen → verify → e2e → parity → route`. One page at a time.
 - **Three parity gates** — after a page is generated it must pass, in order: `fm-verify`
   (technical: build/types/unit tests + ESLint; Prettier is advisory), `fm-e2e` (does it behave
   like legacy?), `fm-parity`
@@ -42,9 +42,10 @@ New to the migration? These terms recur throughout:
 - **2-PR feature flag** — a page ships in two PRs: a code PR with the flag **OFF** (users still
   get legacy), then a one-line flag-**ON** PR after the gates pass. Rollback = flip the flag back.
 - **State machine + tracker** — every page's status lives in `docs/migration/tracker.json`
-  (`analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
-- **Codex independent audit** — when enabled (default), every stage also gets a second, independent
-  review from **Codex** (advisory), recorded in `codex-audit.json`. It never changes a page's
+  (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done`).
+- **Codex independent audit** — when enabled (default), every audited stage (analyze/plan/gen/verify/
+  e2e/parity/route — not fm-style-spec) also gets a second, independent review from **Codex**
+  (advisory), recorded in `codex-audit.json`. It never changes a page's
   status; the only soft gate is `fm-route --flag-on`, which asks you to acknowledge any unresolved
   high-severity Codex findings before flipping. Requires the Codex CLI; auto-skips if absent.
 
@@ -107,6 +108,7 @@ After the prerequisites are met:
 /frontend-migration-plugin:fm-extract --from hotel-booking-info   # pure logic → packages/shared-*
 
 # 2. the per-page loop
+/frontend-migration-plugin:fm-style-spec hotel-booking-info   # → style-spec.json (live legacy computed values + assets)
 /frontend-migration-plugin:fm-plan hotel-booking-info     # → migration-plan.json (tree, rendering, gates, e2e scenarios)
 /frontend-migration-plugin:fm-gen hotel-booking-info      # RR v7 page via TDD → status: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info   # build/tsc/vitest → verified   (gate 1)
@@ -136,7 +138,7 @@ gate.
 /fm-extract <candidate>        pure logic → packages/shared-*
 
 [per-page loop]
-/fm-analyze <page>   → /fm-plan → /fm-gen → /fm-verify
+/fm-analyze <page>   → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                                │ fail → /fm-fix
                                      /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                                      /fm-parity (visual/contract/webview/telemetry; fail → /fm-fix)
@@ -162,8 +164,9 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | --- | --- |
 | `fm-init` | Initialize config + tracker |
 | `fm-analyze` | Analyze a legacy Angular target → analysis.json |
+| `fm-style-spec` | Extract the legacy style answer key (live computed + assets + structure) → style-spec.json |
 | `fm-extract` | Lift logic into framework-agnostic `packages/shared-*` |
-| `fm-plan` | analysis.json → migration-plan.json |
+| `fm-plan` | analysis.json + style-spec.json → migration-plan.json |
 | `fm-gen` | Generate the RR v7 page via per-phase TDD |
 | `fm-verify` | Technical gate: build / tsc / vitest / eslint (hard); prettier --check (advisory) |
 | `fm-fix` | Targeted repair loop for verify/e2e/parity failures |
@@ -175,7 +178,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-clean-code` | Standalone code-quality audit |
 | `fm-test-review` | Standalone test-quality audit |
 | `fm-secret-audit` | Secret inventory + relocation guidance |
-| `fm-audit-codex` | Independent Codex audit of each stage (advisory second opinion) |
+| `fm-audit-codex` | Independent Codex audit of each audited stage — the seven, not fm-style-spec (advisory second opinion) |
 
 See `docs/skill-reference.md` for each skill's inputs/outputs, the agent it drives, and the
 tracker state it sets.

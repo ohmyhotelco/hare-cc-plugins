@@ -29,7 +29,8 @@ This is deliberately **neither a port nor a bridge**:
 - Running any migration step in Codex.
 - Replacing Claude's own reviewers (`quality-reviewer`, `test-reviewer`) — Codex is an *additional*
   independent reviewer, not a substitute.
-- Changing the 8-state per-page FSM. The audit is a **parallel annotation**, not a new state.
+- Changing the per-page FSM (9 states with `style-specced`). The audit is a **parallel
+  annotation**, not a new state.
 
 ## Principles
 - **Subagent isolation** — the auditor agent receives only per-stage parameters and constructs a
@@ -68,8 +69,9 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 
 ## Invocation flow (in-loop, C-1)
 
-1. Each artifact-producing skill (`fm-analyze`, `fm-plan`, `fm-gen`, `fm-verify`, `fm-e2e`,
-   `fm-parity`) finishes its own Record step and **releases its page lock**.
+1. Each audited artifact-producing skill (`fm-analyze`, `fm-plan`, `fm-gen`, `fm-verify`, `fm-e2e`,
+   `fm-parity` — `fm-style-spec` is deliberately excluded; its answer key is re-checked when
+   `fm-parity` reuses the same baseline) finishes its own Record step and **releases its page lock**.
 2. If `codexAudit` is enabled and the Codex CLI/runtime is available, the skill spawns the
    `codex-auditor` agent (Agent tool) for the just-completed stage.
 3. The agent gathers the stage inputs (matrix above), builds the rubric-based English prompt, calls
@@ -112,7 +114,7 @@ Tracker summary: `pages[page].codexAudit = { "e2e": "pass", "parity": "concerns"
 
 ## Advisory semantics & route sign-off
 
-- **Default: non-blocking at every stage.** A `concerns`/`fail` verdict is surfaced prominently and
+- **Default: non-blocking at every audited stage.** A `concerns`/`fail` verdict is surfaced prominently and
   suggests `fm-fix`, but the FSM state is unchanged. The audit never sets a `*-failed` state.
 - **Route soft gate (the one exception).** `fm-route --flag-on` checks for **unresolved
   high-severity** Codex findings. It does **not** auto-block; instead it shows them and requires an

@@ -17,9 +17,10 @@ output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Require `docs/migration/{app}/{page}/migration-plan.json`
 (missing → run `fm-plan {page}`; stop) **with `gateAcceptance`** (absent → the plan is incomplete;
-re-run `fm-plan {page}`; stop). Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`,
-`workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder`
-+ `blockers`.
+re-run `fm-plan {page}`; stop). Require `docs/migration/{app}/{page}/style-spec.json` (missing → run
+`fm-style-spec {page}`; stop) — the foundation phase copies its assets and the component/page phases
+build to its style values. Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDir`,
+`workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder` + `blockers`.
 
 ### Step 1: Blockers
 If the plan has unresolved `blockers` (unextracted shared candidates), stop and tell the user to
@@ -37,9 +38,11 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 ### Step 4: Run phases (sequential)
 For each phase in `buildOrder`, launch the right agent (Agent tool), passing only its params
 (subagent isolation), and inspect the result before the next:
-- `foundation` → **foundation-generator** (types + MSW + harness + lint/format config scaffold;
-  pass `monorepoRoot`, `legacyDirs` (every `apps.*.legacyDir`), `eslintTemplate`, `prettierTemplate`)
-- `api` / `store` / `component` / `page` → **tdd-cycle-runner** (Red-Green per unit)
+- `foundation` → **foundation-generator** (types + MSW + harness + **style-spec assets copied** +
+  lint/format config scaffold; pass `styleSpecPath`, `legacyDir`, `monorepoRoot`, `legacyDirs`
+  (every `apps.*.legacyDir`), `eslintTemplate`, `prettierTemplate`)
+- `api` / `store` / `component` / `page` → **tdd-cycle-runner** (Red-Green per unit; pass
+  `styleSpecPath` — the component/page phases build to the legacy style values)
 - `integration` → **integration-generator** (routes + i18n + MSW global + ESLint on generated
   code; pass `monorepoRoot`, `eslintTemplate`)
 

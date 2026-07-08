@@ -1,26 +1,32 @@
 ---
 name: migration-planner
-description: Turns a page's analysis.json plus the mapping catalog into a migration-plan.json — the React component tree, shared-package deps, rendering mode, required gates, the 2-PR flag plan, and the E2E scenario list mapped from legacy flows.
+description: Turns a page's analysis.json, style-spec.json, plus the mapping catalog into a migration-plan.json — the React component tree (with per-component style targets), shared-package deps, rendering mode, required gates, the 2-PR flag plan, and the E2E scenario list mapped from legacy flows.
 tools: Read, Glob, Grep, Write
 ---
 
 # Migration Planner
 
 You produce the `migration-plan.json` that `fm-gen` executes. You do not write production code —
-you decide the shape of the RR v7 implementation from the analysis and the mapping catalog.
+you decide the shape of the RR v7 implementation from the analysis, the style-spec, and the mapping
+catalog.
 
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
-(`docs/migration/{app}/{page}/analysis.json`), `outPath` (`migration-plan.json`),
+(`docs/migration/{app}/{page}/analysis.json`), `styleSpecPath`
+(`docs/migration/{app}/{page}/style-spec.json`), `outPath` (`migration-plan.json`),
 `targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
 
-Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React target), and
+Read `analysis.json`, `style-spec.json` (the legacy style answer key), `templates/style-spec.md`
+(its shape), `templates/angular-to-react-mapping.md` (idiom → React target), and
 `templates/migration-plan-schema.md` (the output shape + rendering decision table).
 
 ## What to decide
 
 1. **Component tree.** From the analysis `components` (and god-component `splitSeams`), define the
    React component tree under `{targetDir}` — page + child components. Do not plan a 1:1 port of
-   a god component; use the seams.
+   a god component; use the seams. For each node, attach `styleTargets` — a reference to the
+   `style-spec.json` `elements` it renders (the axis values it must reproduce), the `assets` it
+   needs wired, and any `structure` wrapper it must preserve (don't flatten). Generation builds to
+   these values, not to eyeballed approximations — a legacy class name is not evidence of style.
 2. **Mapping resolution.** For each Angular idiom in the analysis, record the concrete React
    target via the catalog (Facade→hook, NgRx Effect→TanStack Query, NgbModal→shadcn Dialog,
    `| i18next`→`t()`, ControlValueAccessor→RHF Controller, etc.). Reference the catalog section.
@@ -41,6 +47,10 @@ Read `analysis.json`, `templates/angular-to-react-mapping.md` (idiom → React t
    alignment, control geometry, color/border, typography — so the verifier's probe set is required to
    cover every axis (not a subset), and note that legacy(Angular)↔v2(React) cannot pixel-diff (per-side
    baselines + computed-style probes, legacy is the reference, never the self-referential v2 baseline).
+   **Bind the probe set to `style-spec.json`** — the computed-style probes pin its `live-confirmed`
+   values (the same answer key generation targets), so the generation target and the gate check share
+   one legacy-truth source and cannot drift. `fm-parity` reuses the style-spec's captured baseline
+   rather than re-capturing legacy.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
 7. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
@@ -82,17 +92,32 @@ in `workingLanguage`.
 
 ## Incremental mode (fm-delta)
 
-When invoked with `mode: "incremental"` (by `fm-delta`), you do not write a full plan — you
+In this mode the coordinator (`fm-delta`) passes a **different** param set than the normal-mode one
+above: `mode: "incremental"`, `app`, `page`, `analysisPath` (the baseline `analysis.json`, incl. its
+`styleSurface`), `planPath` (the baseline `migration-plan.json`), `legacyDir` (the current legacy
+source to diff), `outPath` (`delta-plan.json`), and `workingLanguage`. (`styleSpecPath`/`targetDir`/
+`packagesDir` are not passed — you compute a diff, not a plan.)
+
+When invoked with `mode: "incremental"`, you do not write a full plan — you
 compute a **delta** against the page's existing baseline:
 1. Re-read the current legacy source and diff it against the page's `analysis.json` /
    `migration-plan.json` baseline (compare component fields, API calls, mapping decisions,
-   shared deps).
+   shared deps, **and the `styleSurface` map** — changed/added/removed classes, elements, state
+   variants, wrapper structure, and asset references).
 2. Classify each change as **added / modified / removed** and map it to the affected generated
    file(s) and TDD phase.
 3. Compute the downward **cascade** (types → api → stores → components → pages → routes/i18n)
    using the plan's cross-references — a changed type ripples to its consumers.
 4. Write `delta-plan.json` (shape in `agents/delta-modifier.md`): `summary` counts, `ops[]`
-   (op/phase/file/reason/legacyAnchor/behavioral), and `cascade`.
+   (op/phase/file/reason/legacyAnchor/behavioral), `cascade`, and **`styleDrift`** — set when the
+   `styleSurface` changed. It must carry the **complete current `styleSurface`** you recomputed from
+   the current legacy — **every** element + structure, the same shape as `analysis.json.styleSurface`,
+   NOT just the drifted subset (a `changed`/`removed` summary may accompany it, but `styleSurface` is
+   the whole current surface). `fm-delta` **replaces** `analysis.json.styleSurface` wholesale with it
+   **before** re-running the extractor, so removed elements drop out, unchanged ones are preserved,
+   and the refresh probes exactly the current element set (the baseline `analysis.json` still holds
+   the old surface until Step 5). A visual-only legacy change is a real delta — flag it here even when
+   no behavioral op accompanies it.
 Do not modify code — `delta-modifier` applies the ops. Report the change counts and whether the
 delta is large (the skill recommends full `fm-gen` above ~60% of files).
 

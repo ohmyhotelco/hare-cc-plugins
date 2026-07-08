@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 # Codex Independent Audit
 
 Runs Codex as an **independent auditor** of Claude's migration work for a page — a second opinion
-that cross-checks each stage, directly mitigating false-pass risk. Codex reads and evaluates only;
+that cross-checks each audited stage, directly mitigating false-pass risk. Codex reads and evaluates only;
 it never migrates. This is the manual / re-run entry point for the same audit that the pipeline
 skills invoke in-loop (advisory). See CLAUDE.md → "Codex Independent Audit" and the design at
 `docs/design/codex-audit-layer.md`.

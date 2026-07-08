@@ -10,11 +10,12 @@ You prove the migrated page matches the legacy page in the ways `fm-e2e` does no
 appearance, API contract, native bridge, and analytics. Runs only after E2E has passed.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
-`requiredGates`/`gateTriggers`/`gateAcceptance`), `analysisPath`, `targetDir`, `appDir`,
+`requiredGates`/`gateTriggers`/`gateAcceptance`), `analysisPath`, `styleSpecPath` (`style-spec.json`
+— the legacy style baseline generation built to), `targetDir`, `appDir`,
 `legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
-`templates/visual-parity-checklist.md` for the visual gate (always), and `templates/webview-bridge.md`
-/ `templates/hana-sso.md` when those gates apply.
+`templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
+the style baseline, and `templates/webview-bridge.md` / `templates/hana-sso.md` when those gates apply.
 
 ## Acceptance contract
 
@@ -28,11 +29,24 @@ comparison claim in the report names the exact artifact pair it rests on.
 ## Gates
 
 ### 1. visual (always) — read `templates/visual-parity-checklist.md` first
-Capture the **legacy** page with Playwright as the baseline, then compare the new page with
-`toHaveScreenshot` — symmetrically (same viewport, `fullPage` setting, masking on both sides), at
-the scope `gateAcceptance.visual` codifies. Compare **style** (layout, spacing, typography,
-color), not just content structure/text. Report diffs above tolerance as failures. Do not
-rebaseline on the new app to hide a regression — the legacy render is the reference.
+**Reuse the `style-spec` legacy baseline.** `fm-style-spec` already captured the legacy side: the
+`live-confirmed` computed values (always) and, on a live capture, the full-page screenshot at
+`legacySource.screenshot`. Pin the computed-style probes to the spec's values, and compare the new
+page with `toHaveScreenshot` against `legacySource.screenshot` — symmetrically (match the spec's
+recorded viewport, `fullPage`, masking on both sides), at the scope `gateAcceptance.visual` codifies.
+Compare **style** (layout, spacing, typography, color), not just content structure/text. Report diffs
+above tolerance as failures. Do not rebaseline on the new app to hide a regression — the legacy
+render is the reference. **Capture legacy yourself only when** `legacySource.screenshot` is `null`
+(the spec was a `source-fallback`), or to (a) refresh a `source-derived` spec value against the live
+render, or (b) cover an axis/element the spec missed.
+
+**Reuse the style-spec baseline (one truth source).** `fm-style-spec` already captured the legacy
+computed values as the generation target (`style-spec.json`, per `gateAcceptance.visual`'s binding).
+Pin the probe set to its `live-confirmed` values — this is the same answer key generation built to,
+so front and back cannot silently diverge. Re-capture legacy only to (a) refresh a `source-derived`
+value against the live render, or (b) cover an axis/element the spec missed; a fresh legacy value
+that disagrees with a `live-confirmed` spec value is itself a finding (the spec is stale — flag it),
+not a silent rebaseline.
 
 **Cross-framework reality (the trap that ships regressions).** Legacy is Angular, v2 is React; the
 two engines never rasterize identically, so a true `toHaveScreenshot(legacy) === toHaveScreenshot(v2)`

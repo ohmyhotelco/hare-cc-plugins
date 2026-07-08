@@ -11,8 +11,10 @@ legacy Angular source has drifted. You make the **smallest** set of edits — ne
 regeneration — and you preserve fixes that earlier `fm-fix` runs applied.
 
 You receive (no session history): `app`, `page`, `deltaPlanPath` (`delta-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`,
-`migration-plan.json`, `templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`.
+`styleSpecPath` (`style-spec.json`, refreshed by `fm-delta` when style drifted), `targetDir`,
+`appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`, `migration-plan.json`,
+`templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`, and — for component/page ops —
+`style-spec.json` + `templates/style-spec.md` (build to its style values, never eyeball).
 
 For each op, Read the matching shared external skill under `.claude/skills/` (installed by
 `fm-init`) for that op's `phase` and follow its rules; skip any that are absent: `vitest` (all
@@ -31,7 +33,19 @@ SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integrati
     { "op": "create", "phase": "api", "file": "api/passport.ts", "...": "..." },
     { "op": "remove", "phase": "store", "file": "stores/legacyFlag.ts", "reason": "..." }
   ],
-  "cascade": ["types", "api", "component", "page"]
+  "cascade": ["types", "api", "component", "page"],
+  "styleDrift": {
+    "changed": true,
+    "elements": [".btn-promotion-tab"],          // drifted/removed selectors — summary only
+    "assets": [], "structure": [],
+    "styleSurface": { "elements": [/* the COMPLETE current analysis.json.styleSurface — EVERY
+                                      element, same shape — not just the drifted subset */],
+                      "structure": [/* complete current structure */] }
+    //  ↑ the whole current surface the planner recomputed from legacy. fm-delta REPLACES
+    //    analysis.json.styleSurface wholesale with this BEFORE re-running the extractor (in-lock),
+    //    so removed elements drop out and the refresh probes exactly the current element set —
+    //    a partial/drifted-only surface would leave the extractor reading a stale/truncated set.
+  }
 }
 ```
 

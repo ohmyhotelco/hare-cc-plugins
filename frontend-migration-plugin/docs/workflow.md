@@ -13,7 +13,8 @@ Phase 0 — foundations
   /fm-extract <candidate>      packages/shared-data | domain | types | i18n
 
 Per-page loop (repeat per page)
-  /fm-analyze <page>           analysis.json
+  /fm-analyze <page>           analysis.json (incl. styleSurface map)
+  /fm-style-spec <page>        style-spec.json (live legacy computed values + assets + structure)
   /fm-plan <page>              migration-plan.json (tree, rendering, gates, flag, e2e scenarios)
   /fm-gen <page>               RR v7 page via TDD (foundation→api→store→component→page→integration)
   /fm-verify <page>            build / tsc / vitest / eslint (+prettier)  ── gate 1 (technical)
@@ -31,7 +32,8 @@ Anytime
   /fm-audit-codex <page>       independent Codex audit of a page's stages (advisory)
 ```
 
-When `codexAudit` is enabled (default), each stage also gets an **independent Codex audit** in-loop
+When `codexAudit` is enabled (default), each audited stage (analyze/plan/gen/verify/e2e/parity/route,
+not fm-style-spec) also gets an **independent Codex audit** in-loop
 (advisory) — a second opinion recorded in `codex-audit.json` that never changes the FSM state. The
 only soft gate is `fm-route --flag-on`, which requires acknowledging unresolved high-severity Codex
 findings. See CLAUDE.md → "Codex Independent Audit".
@@ -39,8 +41,8 @@ findings. See CLAUDE.md → "Codex Independent Audit".
 ## Per-page state machine
 
 ```
-analyzed → planned → generated → verified → e2e-passed → parity-passed → flipped → done
-              ↓          ↓           ↓            ↓             ↓
+analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done
+                 ↓            ↓          ↓           ↓            ↓             ↓
           (any stage) *-failed → fixing → (re-run the failed gate)
                                      ↓
                                 escalated   (manual intervention)

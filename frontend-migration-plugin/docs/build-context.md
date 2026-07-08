@@ -13,10 +13,10 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-02)
 
-- **Build complete — v0.8.0.** 16 `fm-*` skills, 15 agents, 12 templates, multilingual README,
+- **Build complete — v0.9.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
-  (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every stage; design in
+  (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
   `docs/design/`) plus shared external-skill injection (fe-init parity); v0.4.1 aligned the fm-*
   skill↔agent contracts (7 mismatches); v0.5.0 hardened the **Playwright E2E harness** (trace-first
   reports, flakiness prevention, SSR-loader mocking, auth/state-setup + page-object reuse); v0.6.0
@@ -44,6 +44,19 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   IP-whitelisted partner host that must stay on an entry nginx; OMH `v2-migration-infra.md` §11.4,
   OMH-698/OMH-652) — the concrete which-app-uses-which mapping lives in the consuming project's
   config, not here.
+  v0.8.1–v0.8.3 hardened the parity gates against scope reinterpretation (codified per-gate
+  `gateAcceptance` criteria; full-matrix coverage binding — sampling needs explicit approval; the
+  `visual-parity-checklist` closing the cross-framework visual-gate completeness gap that let
+  spacing/icon regressions pass); v0.8.4 added the analyze→plan **behavioral-coverage
+  reconciliation** (`behavioralVariants` + `openApprovals`) that stops the planner silently
+  narrowing an analysis-discovered variant set (e.g. a locale-filtered social-login provider list);
+  v0.9.0 added the **`fm-style-spec` stage** (new state `style-specced`; per-page FSM now 9 states)
+  — `style-spec-extractor` captures the legacy style answer key up front (live legacy
+  `getComputedStyle` + a full-page screenshot via a standalone Playwright probe; source-cascade
+  fallback flagged `source-derived`; asset inventory; markup structure) so `fm-gen` builds to real
+  values instead of eyeballing, and `fm-parity` reuses that same captured baseline (front=generation
+  target, back=gate). `fm-style-spec` is deliberately **not** in the Codex audit set (its answer key
+  is re-checked when `fm-parity` reuses the baseline).
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
@@ -91,7 +104,7 @@ Each task = one work branch (`AA-NN-desc`) → one PR to `main`. Each AA ticket 
   See CLAUDE.md → "Lint & Format Gate".
 - **Codex independent audit (v0.4.0)** — Codex used as an advisory **auditor**, not a port or
   bridge: Claude runs the pipeline and calls Codex (via the `codex` plugin's `codex-cli-runtime` /
-  headless `codex exec`) for an independent second review at every stage, recorded in
+  headless `codex exec`) for an independent second review at every audited stage, recorded in
   `codex-audit.json`. Default-on (`codexAudit`), auto-skips if Codex absent, never changes the FSM;
   the only soft gate is the high-severity acknowledgement at `fm-route --flag-on`. Design:
   `docs/design/codex-audit-layer.md`. See CLAUDE.md → "Codex Independent Audit".
