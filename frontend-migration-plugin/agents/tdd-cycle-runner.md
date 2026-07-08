@@ -79,6 +79,15 @@ referencing the plan/analysis anchor.
 ## Rules
 - Mock only at the network boundary (MSW); use real stores and real components.
 - Assert on output/return values, never on mock internals. No test-only methods in production code.
+- **Pure transforms are pinned to the legacy output, not spot-checked** (`tdd-rules.md` → "pure
+  transforms"). When a phase ports a sanitizer/formatter/serializer/URL-builder — any
+  input→string/DOM function — write a **golden / differential test** that fixes the **full legacy
+  output** for a representative input set as the target, not a few behavior assertions. Spot-checks
+  (dangerous tag removed, `javascript:` stripped) supplement it, never replace it: a port can pass
+  its own spot-checks and still reshape the output (`<body>` wrapper dropped, `outerHTML`→`innerHTML`,
+  array↔scalar, `null`↔`''`). **Port the legacy call's options verbatim** — a `RETURN_DOM`/
+  `WHOLE_DOCUMENT`/`FORCE_BODY` on a DOMPurify call is load-bearing (see `angular-to-react-mapping.md`
+  → pipes-directives). Record deliberately-agreed differences explicitly. Origin: OMH-708.
 - **Style is the `style-spec`, not an approximation** (component/page phases). Never eyeball a
   value or treat a matching class name as done; reproduce the spec's values and preserve its
   structure. Just as legacy *behavior* is never trimmed (no YAGNI rung), legacy *style* is never

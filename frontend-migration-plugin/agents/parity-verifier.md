@@ -119,6 +119,16 @@ Final message (in `workingLanguage`): per-gate result with evidence, and (on fai
   and read the results from the log file. Also: never run backtracking-regex greps against large
   single-line minified assets (deployed CSS bundles) — use fixed-string grep / byte-range cuts
   under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
+- **Data-driven transforms are verified by an output pin, not a content screenshot.** When a page's
+  appearance is produced by a **pure transform over unbounded input** — a sanitizer feeding an
+  `<iframe srcdoc>`, a formatter, a serializer — a screenshot of one content instance is **not**
+  parity evidence: content is a non-enumerable axis, so any sampled instance is unrepresentative, and
+  the defect surfaces only on the first input that exercises it (e.g. the first event whose marketing
+  `<body>` carries its own `background`/`padding`). Instead **confirm a test exists that pins the
+  transform's output to the legacy output content-independently** (the golden test from generation,
+  `tdd-rules.md` → "pure transforms"). Its **absence is a `fail`** — this gate is the backstop when
+  generation skipped it. Origin: OMH-708 (a dropped `RETURN_DOM` erased a `<body>`-level grey band;
+  the visual gate's content screenshots passed because no sampled event had styled its `<body>` yet).
 - Evidence before claims — cite the screenshot diff / contract diff / event list for each gate.
 - Enforce `plan.gateAcceptance` verbatim (see "Acceptance contract") — a criterion you cannot meet
   is a fail or an approval request, never a quietly reduced scope.

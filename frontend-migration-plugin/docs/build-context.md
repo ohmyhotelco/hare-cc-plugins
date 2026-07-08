@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-07-02)
+## Status (2026-07-08)
 
-- **Build complete — v0.9.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
+- **Build complete — v0.10.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -57,6 +57,19 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   values instead of eyeballing, and `fm-parity` reuses that same captured baseline (front=generation
   target, back=gate). `fm-style-spec` is deliberately **not** in the Codex audit set (its answer key
   is re-checked when `fm-parity` reuses the baseline).
+  v0.10.0 added the **transform-fidelity** rule — the logic-axis companion to `style-spec` (no new
+  stage/artifact; a rule reflected into three existing surfaces). A ported **pure transform**
+  (sanitizer/formatter/serializer/URL-builder) is pinned by a **golden / differential test** to the
+  legacy function's full output over a representative input set, not a few behavior spot-checks
+  (`tdd-rules.md` → "pure transforms" + `tdd-cycle-runner`); `angular-to-react-mapping.md` now
+  requires porting the DOMPurify options **verbatim** (`RETURN_DOM`/`WHOLE_DOCUMENT`/`FORCE_BODY`
+  change the output *shape*, not security strength — `RETURN_DOM`+`.outerHTML` keeps the `<body>`
+  wrapper, the default string return gives only `innerHTML`); and `parity-verifier` requires a
+  content-independent output-pin test for any data-driven transform (the backstop). Closes error
+  types G/H/I/J (library-option simplification, return-shape change, spot-check-only test,
+  data-dependent delayed exposure). Origin: OMH-708 — a dropped `RETURN_DOM` erased a `<body>`-level
+  grey band (`#f5f5f5`) on `/event/100221` while every gate stayed green; the defect surfaced only on
+  the first event that styled its own `<body>`. Design: `docs/design/transform-fidelity-generation.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

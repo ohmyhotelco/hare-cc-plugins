@@ -39,3 +39,14 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
 - Preserve legacy behavior exactly (parity is gated later by `fm-e2e`/`fm-parity`) — including
   the AuthGuard login-modal UX and the API response envelope handling.
 - Tag each test with a `// scenario` / `// analysis:file:line` comment for traceability.
+- **Pure transforms are pinned to the legacy output (golden test), not spot-checked.** When a phase
+  ports a **pure transform** — a sanitizer, formatter, serializer, URL builder, any
+  input→string/DOM function — the test target is the **full legacy output** over a **representative
+  input set** (a golden / differential test), not a handful of behavior assertions. Behavior
+  spot-checks (dangerous tag removed, `javascript:` stripped, script allowed) are a **supplement,
+  never a substitute**: a port can pass all of its own spot-checks and still reshape the output —
+  `<body>` wrapper dropped, `outerHTML`→`innerHTML`, array↔scalar, `null`↔`''`. "Passes its own
+  tests" and "produces the legacy output" are **different claims**; only the golden test proves the
+  second. Port the legacy call's options verbatim (`angular-to-react-mapping.md` → **pipes-directives**),
+  and record any deliberately-agreed difference (e.g. an `iframeResizer` script replaced by a React
+  binding) explicitly rather than letting it drift. Origin: OMH-708.
