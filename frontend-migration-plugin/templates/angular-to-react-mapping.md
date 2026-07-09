@@ -46,7 +46,7 @@ port 1:1. The analyzer proposes `splitSeams`; `fm-plan` finalizes the component 
 | `(event)="h($e)"` | `onEvent={h}` |
 | `[ngClass]="{…}"` | `className={cn(…)}` (`tailwind-merge`/`clsx`) |
 | `[style.x]="v"` | `style={{ x: v }}` |
-| `[innerHTML]="v | safeHtml"` | sanitized `dangerouslySetInnerHTML` |
+| `[innerHTML]="v | safeHtml"` | sanitized `dangerouslySetInnerHTML` — **port the DOMPurify options verbatim** (see **pipes-directives** note; `RETURN_DOM`+`.outerHTML` ≠ default string return) |
 
 Example: `pages/hotel/hotel.component.html` (named slots `mainContents`/`bottomContents`) →
 a layout component with slot props.
@@ -186,13 +186,31 @@ Google Sheets pipeline.
 | --- | --- |
 | `| i18next` | see **i18n** |
 | `| date` / `| currency` / `| number` | dayjs / `Intl.NumberFormat` util |
-| `safeHtml` (DomSanitizer) | sanitized `dangerouslySetInnerHTML` |
+| `safeHtml` (DomSanitizer) | sanitized `dangerouslySetInnerHTML` — **options are load-bearing, port verbatim** (see note below) |
 | `minuteToHourMinute` / `numberToLocaleString` / `numberPad` | `shared-domain` util functions |
 | custom directive `inputPattern` | input mask hook / controlled handler |
 | `download` / `iframeResizer` directives | custom hook |
 
 Anchors: `common/pipes/safe-html-pipe/safe-html.pipe.ts`,
 `common/pipes/minute-to-hour-minute-pipe/…`, `common/directive/input-pattern.directive.ts`.
+
+> **Sanitizer options change the output shape — port them verbatim, don't simplify to the common
+> case.** `safeHtml`/DomSanitizer usually wraps a `DOMPurify.sanitize(...)` call, and its options are
+> not security-strength knobs — they decide **what the function returns**:
+> - `RETURN_DOM: true` (legacy reads `.outerHTML` off the returned node) preserves the **`<body>`
+>   wrapper and its attributes** — e.g. `style="background:#f5f5f5;padding:24px 0"`. The default
+>   string return gives only `body.innerHTML`, silently **dropping that wrapper** and any
+>   background/padding on it.
+> - `WHOLE_DOCUMENT` / `FORCE_BODY` likewise decide how much of the document survives serialization.
+> - An `<iframe srcdoc>` host that injects a whole marketing document is **not** a plain
+>   `dangerouslySetInnerHTML` of a fragment — it needs the wrapper-preserving form.
+>
+> Carry **every** option the legacy call passes; a missing `RETURN_DOM`/`WHOLE_DOCUMENT`/`FORCE_BODY`
+> is a behavioral regression, not a harmless cleanup. General rule for any library call (sanitizer,
+> formatter, serializer, URL builder): **never simplify it to its common case — the options are part
+> of the contract.** Pin the result with a golden test against the legacy output (`tdd-rules.md` →
+> "pure transforms"). Origin: OMH-708 — a dropped `RETURN_DOM` erased a `<body>`-level grey band
+> (`#f5f5f5`) on `/event/100221` while every gate stayed green.
 
 ## analytics
 

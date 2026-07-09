@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.9.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.10.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -26,7 +26,14 @@ orchestration and tracking**.
 > extracts the legacy style answer key (live legacy computed values via a Playwright probe + asset
 > inventory + markup structure) up front so `fm-gen` builds to real values instead of eyeballing
 > them — closing the generation-side style gap that the v0.8.3 gate only caught after the fact
-> (v0.9.0)). Runtime
+> (v0.9.0), and the **transform-fidelity** rule (v0.10.0) — the logic-axis companion to `style-spec`:
+> a ported **pure transform** (sanitizer/formatter/serializer/URL-builder) is pinned by a **golden
+> test** to the legacy function's full output rather than a few behavior spot-checks, the mapping
+> catalog now ports DOMPurify options (`RETURN_DOM`/`WHOLE_DOCUMENT`/`FORCE_BODY` change output shape,
+> not security strength) **verbatim**, and `fm-parity` requires a content-independent output-pin test
+> for data-driven transforms — closing the generation-side logic gap where a dropped `RETURN_DOM`
+> silently changed a sanitizer's output shape and erased a `<body>`-level style while every gate
+> stayed green (OMH-708; design in `docs/design/transform-fidelity-generation.md`)). Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -409,6 +416,15 @@ The lint/format templates (`templates/eslint-config.md`, `templates/prettier-con
 monorepo's ESLint v9 flat config (composed per workspace, with the `shared-domain` secret boundary)
 and the Prettier 3 config; they drive the scaffolding and checks described in "Lint & Format Gate".
 
+**Transform fidelity (v0.10.0)** is the logic-axis companion to the style answer key: a ported
+**pure transform** (sanitizer/formatter/serializer/URL-builder) is pinned by a **golden test** to the
+legacy function's full output, not a few behavior spot-checks (`templates/tdd-rules.md` → "pure
+transforms", enforced by `tdd-cycle-runner`); the mapping catalog's `safeHtml`/DomSanitizer rows now
+require porting the DOMPurify options **verbatim** (`RETURN_DOM`/`WHOLE_DOCUMENT`/`FORCE_BODY` change
+the output *shape*, not security strength); and `parity-verifier` requires a content-independent
+output-pin test for any data-driven transform (the backstop). Design:
+`docs/design/transform-fidelity-generation.md`.
+
 The style template (`templates/style-spec.md`, v0.9.0) defines `style-spec.json` — the legacy style
 answer key `fm-style-spec` captures **before** generation (live legacy computed values via a
 Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real values instead of
@@ -425,7 +441,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.9.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.10.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 
