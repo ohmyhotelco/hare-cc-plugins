@@ -98,23 +98,22 @@ Detect layout shell patterns in `screens.md` and establish parent-child containm
 
 Since the spec does not include a data model, infer one from the screen definitions and functional requirements:
 
-1. **Check for legacy Data Model section**: If `screens.md` contains a `## 5. Data Model` section (from older spec versions), use it directly and skip inference.
-2. **Infer from components**: For each screen, examine the Components table:
+1. **Infer from components**: For each screen, examine the Components table:
    - Table components with column names → infer entity fields
    - Form components with input fields → infer entity fields and types
    - Badge/status fields → infer enum types
-3. **Infer from User Actions**: Actions like "Create", "Edit", "Delete" → infer CRUD entities
-4. **Infer from Functional Requirements**: Read BR-xxx and AC-xxx rules from `{feature}-spec.md` to identify:
+2. **Infer from User Actions**: Actions like "Create", "Edit", "Delete" → infer CRUD entities
+3. **Infer from Functional Requirements**: Read BR-xxx and AC-xxx rules from `{feature}-spec.md` to identify:
    - Validation rules → field constraints and types
    - Business rules → entity relationships
    - State transitions → status enum fields
-5. **Build entity definitions**: Consolidate inferred fields into entity definitions with:
+4. **Build entity definitions**: Consolidate inferred fields into entity definitions with:
    - Entity names (PascalCase)
    - Field names, types (`string`, `number`, `boolean`, `enum`, `UUID`, `ISO-8601`)
    - Required/optional flags
    - Relationships between entities
-6. Build a mapping of entity names to field definitions for use in `dataShape`
-7. **Infer entity relationships**: Identify foreign-key references:
+5. Build a mapping of entity names to field definitions for use in `dataShape`
+6. **Infer entity relationships**: Identify foreign-key references:
    - Field names ending with `_id` or matching `{entity}Id` pattern → add `ref` (e.g., `"Role.id"`)
    - BR-xxx rules mentioning "belongs to", "has many", "references" → create `ref` entries
    - Format: `"EntityName.fieldName"` (e.g., `"role_id": { "type": "UUID", "ref": "Role.id" }`)
@@ -276,7 +275,7 @@ Create `manifest.json`:
 2. **navigation**: Build from User Actions across all screens
    - For each action that navigates to another screen, create a navigation edge
    - Derive `trigger` from the action description (e.g., "Click edit button" → `click-edit-button`)
-3. **dataEntities**: List all entity names inferred during Step 2 (or read from legacy Data Model section)
+3. **dataEntities**: List all entity names inferred during Step 2
 4. **layouts**: Build from the layout shell detection in Step 1a/1b
    - For each layout screen, create an entry: `{ "id": "{layout-id}", "children": ["{child-id-1}", "{child-id-2}", ...] }`
    - For shared layouts resolved via `@layout:` directive, include `"source": "_shared"` in the layout entry

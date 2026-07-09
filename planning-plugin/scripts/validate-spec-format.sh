@@ -30,28 +30,13 @@ if [[ "$FILE_PATH" =~ docs/specs/ ]] && [[ ! "$FILE_PATH" =~ docs/specs/_shared/
   # Validate based on which file was edited
   if [[ "$BASENAME" =~ -spec\.md$ ]]; then
     # Overview/index file (includes Functional Requirements)
-    # Support both new format (8/9) and legacy format (9/10)
-    if grep -q "## 9. Open Questions" "$FILE_PATH"; then
-      REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 3. Functional Requirements" "## 9. Open Questions" "## 10. Review History")
-    else
-      REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 3. Functional Requirements" "## 8. Open Questions" "## 9. Review History")
-    fi
+    REQUIRED_SECTIONS=("## 1. Overview" "## 2. User Stories" "## 3. Functional Requirements" "## 8. Open Questions" "## 9. Review History")
     TEMPLATE="templates/spec-overview.md"
   elif [[ "$BASENAME" == "screens.md" ]]; then
-    # Support both new format (no Data Model) and legacy format (with Data Model)
-    if grep -q "## 5. Data Model" "$FILE_PATH"; then
-      REQUIRED_SECTIONS=("## 4. Screen Definitions" "## 5. Data Model" "## 6. Error Handling")
-    else
-      REQUIRED_SECTIONS=("## 4. Screen Definitions" "## 5. Error Handling")
-    fi
+    REQUIRED_SECTIONS=("## 4. Screen Definitions" "## 5. Error Handling")
     TEMPLATE="templates/screens.md"
   elif [[ "$BASENAME" == "test-scenarios.md" ]]; then
-    # Support both new format (6/7) and legacy format (7/8)
-    if grep -q "## 7. Non-Functional Requirements" "$FILE_PATH"; then
-      REQUIRED_SECTIONS=("## 7. Non-Functional Requirements" "## 8. Test Scenarios")
-    else
-      REQUIRED_SECTIONS=("## 6. Non-Functional Requirements" "## 7. Test Scenarios")
-    fi
+    REQUIRED_SECTIONS=("## 6. Non-Functional Requirements" "## 7. Test Scenarios")
     TEMPLATE="templates/test-scenarios.md"
   fi
 
@@ -76,25 +61,28 @@ fi
 
 # --- Notion sync stale detection ---
 # Extract feature and lang from the file path: docs/specs/{feature}/{lang}/...
-# Skip .progress directory — it is not a language directory
-if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]] && [[ ! "${BASH_REMATCH[2]}" =~ ^\. ]]; then
+# Capture BASH_REMATCH into variables immediately — a later [[ =~ ]] resets it.
+if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/([^/]+)/ ]]; then
   FEATURE="${BASH_REMATCH[1]}"
   LANG="${BASH_REMATCH[2]}"
 
-  # Derive project root from the spec path
-  PROJECT_ROOT="${FILE_PATH%%/docs/specs/*}"
-  PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
+  # Skip .progress directory — it is not a language directory
+  if [[ ! "$LANG" =~ ^\. ]]; then
+    # Derive project root from the spec path
+    PROJECT_ROOT="${FILE_PATH%%/docs/specs/*}"
+    PROGRESS_FILE="$PROJECT_ROOT/docs/specs/$FEATURE/.progress/$FEATURE.json"
 
-  if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then
-    SYNC_STATUS=$(jq -r ".notion.\"$LANG\".syncStatus // \"\"" "$PROGRESS_FILE" 2>/dev/null || echo "")
-    if [ "$SYNC_STATUS" = "synced" ]; then
-      # Mark as stale
-      UPDATED=$(jq ".notion.\"$LANG\".syncStatus = \"stale\"" "$PROGRESS_FILE" 2>/dev/null) && \
-        echo "$UPDATED" > "$PROGRESS_FILE"
-      echo ""
-      echo "[Planning Plugin] Notion sync is now STALE for $FEATURE ($LANG)."
-      echo "  The spec file was edited after the last Notion sync."
-      echo "  Run: /planning-plugin:pp-sync-notion $FEATURE --lang=$LANG"
+    if [ -f "$PROGRESS_FILE" ] && command -v jq &>/dev/null; then
+      SYNC_STATUS=$(jq -r ".notion.\"$LANG\".syncStatus // \"\"" "$PROGRESS_FILE" 2>/dev/null || echo "")
+      if [ "$SYNC_STATUS" = "synced" ]; then
+        # Mark as stale
+        UPDATED=$(jq ".notion.\"$LANG\".syncStatus = \"stale\"" "$PROGRESS_FILE" 2>/dev/null) && \
+          echo "$UPDATED" > "$PROGRESS_FILE"
+        echo ""
+        echo "[Planning Plugin] Notion sync is now STALE for $FEATURE ($LANG)."
+        echo "  The spec file was edited after the last Notion sync."
+        echo "  Run: /planning-plugin:pp-sync-notion $FEATURE --lang=$LANG"
+      fi
     fi
   fi
 fi
