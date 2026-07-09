@@ -461,7 +461,7 @@ Specifications Overview:
 1. 기존 `stitch-manifest.json`을 읽어 Stitch 프로젝트와 스크린 매핑을 확인합니다
 2. Stitch 스크린과 로컬 manifest를 비교합니다 (신규/삭제된 스크린 보고)
 3. 매칭된 각 스크린의 HTML 코드와 PNG 스크린샷을 다시 가져옵니다
-4. 업데이트된 콘텐츠로 `design-tokens.json`, `DESIGN.md`, `shadcn-mapping.json`을 재생성합니다
+4. 업데이트된 콘텐츠로 `DESIGN.md`(front-matter 토큰 + prose), `shadcn-mapping.json`을 재생성합니다
 5. 프로토타입이 존재하는 경우 번들을 `"stale"` 상태로 표시합니다
 
 **사용 구분**:
@@ -747,8 +747,7 @@ docs/specs/{feature}/
 │   └── screen-{id}.json                   ← 화면별 컴포넌트 정의
 ├── stitch-wireframes/                     ← Stitch 와이어프레임 출력물 (선택)
 │   ├── stitch-manifest.json               ← 화면 매핑 + Stitch 프로젝트 메타데이터
-│   ├── design-tokens.json                 ← 추출된 색상/폰트/간격 토큰
-│   ├── DESIGN.md                          ← 자연어 디자인 문서 (5개 차원)
+│   ├── DESIGN.md                          ← Google 포맷 디자인 문서 (YAML 토큰 front-matter + 8개 섹션 prose)
 │   ├── shadcn-mapping.json                ← Stitch HTML → shadcn/ui 매핑 힌트
 │   ├── {screen-id}.html                   ← 화면별 HTML/CSS 코드
 │   └── {screen-id}.png                    ← 화면별 PNG 스크린샷
@@ -807,7 +806,7 @@ skills/          Skill entry points (pp-init, pp-spec, pp-review, pp-translate, 
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
+templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, design-md-schema.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
 docs/specs/      Generated specifications (언어 디렉토리당 3개 파일 + ui-dsl/ + stitch-wireframes/)
 prototypes/  Generated React prototypes (기능별 독립형 Vite 프로젝트)
 ```

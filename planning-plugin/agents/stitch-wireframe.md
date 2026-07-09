@@ -22,8 +22,7 @@ Read these files from `dslDir`:
 Write all outputs to `docs/specs/{feature}/stitch-wireframes/`:
 ```
 ├── stitch-manifest.json     ← Screen mapping + Stitch project metadata + designTheme
-├── design-tokens.json       ← Extracted color/font/spacing tokens
-├── DESIGN.md                ← Natural-language design document (5 dimensions)
+├── DESIGN.md                ← Google-format design doc (YAML token front-matter + 8-section prose)
 ├── shadcn-mapping.json      ← Stitch HTML → shadcn/ui component mapping hints
 ├── {screen-id}.html         ← Per-screen HTML/CSS code
 └── {screen-id}.png          ← Per-screen PNG screenshots
@@ -171,7 +170,7 @@ For each screen:
    - Store `width` and `height` dimensions
    - Store `htmlCode.downloadUrl` and `screenshot.downloadUrl` for use in Step 6
 5. Track screen IDs returned by Stitch for later retrieval
-6. Also store the parsed design tokens from the first screen for use in Step 7 (design token extraction) and Step 7b (DESIGN.md generation)
+6. Also store the parsed design tokens from the first screen for use in Step 7 (DESIGN.md generation — front-matter tokens + prose)
 
 > **Note on `list_screens`**: Available for error recovery. If HTML or screenshot download fails for a screen, use `list_screens` to re-enumerate screens in the project before retrying.
 
@@ -195,99 +194,109 @@ For each generated screen, use the `htmlCode.downloadUrl` and `screenshot.downlo
    ```
    If a desktop-width screen (width >= 1440) produces a PNG under 100KB, log a warning: the image may be a low-resolution thumbnail. Consider re-downloading with an explicit `=w{width}` suffix.
 
-### Step 7: Extract Design Tokens (design-md logic)
+### Step 7: Generate DESIGN.md (Google format)
 
-Parse the generated HTML/CSS files to extract design tokens. Use the first-screen HTML (downloaded in Step 5) as the primary source, supplemented by additional screens for completeness.
+Produce a single `DESIGN.md` in the open **Google DESIGN.md** format — YAML front-matter with
+machine-readable design tokens plus a Markdown body with human-readable rationale. This file is
+the **single source of truth for design tokens** (there is no separate `design-tokens.json`); the
+prototype generator reads tokens from its front-matter. Read `templates/design-md-schema.md` for
+the exact schema, token types, and a full example before generating.
 
-1. **From first-screen HTML/CSS (primary)**: Parse CSS declarations to extract:
-   - Colors → `colors.primary`, `colors.secondary`, etc. (map by semantic role — most prominent accent color as primary, grays as muted/border, reds as destructive)
-   - Fonts → `typography.fontFamily`, `typography.fontSize`, `typography.fontWeight`
-   - Layouts → `spacing` scale values (unique margin/padding/gap values), `borderRadius` values
+**7a. Extract tokens (front-matter)** — parse the generated HTML/CSS. Use the first-screen HTML
+(downloaded in Step 5) as the primary source, supplemented by other screens for completeness:
 
-2. **From additional screens (supplementary)**: If the first screen lacks certain tokens:
-   - If `colors.destructive` is missing, scan other screens' CSS for red-toned colors
-   - If `spacing` scale is incomplete, extract unique margin/padding/gap values from other screens
-   - If `borderRadius` is missing, extract border-radius values from other screens' CSS
+1. **Colors** → `colors.*` semantic roles: `primary`, `secondary`, `accent`, `background`,
+   `foreground`, `muted`, `border`, `destructive` (most prominent accent → primary, grays →
+   muted/border, reds → destructive). If `destructive` is missing from the first screen, scan
+   other screens' CSS for red-toned colors.
+2. **Typography** → `typography.*` role objects (`h1`, `h2`, `h3`, `body-md`, `label`, `mono`).
+   Synthesize each role as a complete object — combine the parsed `fontFamily`, `fontSize`,
+   `fontWeight`, and `lineHeight` for that role. Do NOT emit bare scale maps.
+3. **Rounded** → `rounded.{sm,md,lg}` from parsed `border-radius` values.
+4. **Spacing** → `spacing.{sm,md,lg,xl}` from unique margin/padding/gap values.
+5. **Components** (may be minimal in this phase) → seed `components.*` token maps from prominent
+   UI elements (e.g. `button-primary`), referencing other tokens with `{path.to.token}`.
+6. **Merge and deduplicate** across all parsed HTML files. Front-matter values MUST reflect actual
+   parsed values — never fabricated.
 
-3. **Merge and deduplicate** across all parsed HTML files
+**7b. Write prose body (8 sections)** — synthesize from HTML/CSS analysis (primarily the first
+screen). For planning-plugin output consistency, emit all 8 `##` headings in this fixed order (a
+section may hold concise content when source data is thin, but must not be omitted). The upstream
+Google format permits omitting a section as long as those present stay in canonical order;
+planning-plugin requires all 8 for uniform downstream consumption:
 
-Write tokens to `docs/specs/{feature}/stitch-wireframes/design-tokens.json`:
+`Overview` → `Colors` → `Typography` → `Layout` → `Elevation & Depth` → `Shapes` → `Components` → `Do's and Don'ts`
 
-```json
-{
-  "colors": {
-    "primary": "#...",
-    "secondary": "#...",
-    "accent": "#...",
-    "background": "#...",
-    "foreground": "#...",
-    "muted": "#...",
-    "border": "#...",
-    "destructive": "#..."
-  },
-  "typography": {
-    "fontFamily": { "sans": "...", "mono": "..." },
-    "fontSize": { "xs": "...", "sm": "...", "base": "...", "lg": "...", "xl": "...", "2xl": "...", "3xl": "..." },
-    "fontWeight": { "normal": "...", "medium": "...", "semibold": "...", "bold": "..." }
-  },
-  "spacing": ["4px", "8px", "12px", "16px", "24px", "32px", "48px"],
-  "borderRadius": { "sm": "...", "md": "...", "lg": "..." }
-}
-```
+- **Overview**: mood, visual style, design philosophy (2-3 sentences).
+- **Colors**: each color with descriptive name + hex + functional role; reference tokens as `{colors.<role>}`.
+- **Typography**: headings / body / monospace in design terms; the type scale.
+- **Layout**: spacing rhythm, alignment, content width, navigation placement.
+- **Elevation & Depth**: shadow / layering language from parsed `box-shadow`.
+- **Shapes**: corner rounding & geometry — reference `templates/stitch-keywords.md` Shape & Geometry Translation table.
+- **Components**: visual character of cards, buttons, inputs, tables, badges; reference `components.*` tokens.
+- **Do's and Don'ts**: guardrails; seed from `design-system/MASTER.md` Critical / Recommended rules when present.
 
-### Step 7b: Generate DESIGN.md (design-md logic)
-
-Generate a natural-language design document that captures the visual identity of the wireframes. This document enables visual consistency across subsequent screens and informs the prototype generator.
-
-**Sources**: Synthesize from HTML/CSS analysis of the generated screens (primarily the first screen from Step 5).
-
-Write to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
+Write the combined file to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
 
 ```markdown
-# {Feature} Design Language
+---
+version: alpha
+name: {Feature}
+description: {one-line summary}
+colors:
+  primary: "#..."
+  secondary: "#..."
+  accent: "#..."
+  background: "#..."
+  foreground: "#..."
+  muted: "#..."
+  border: "#..."
+  destructive: "#..."
+typography:
+  h1:      { fontFamily: "...", fontSize: "...", fontWeight: ..., lineHeight: "..." }
+  body-md: { fontFamily: "...", fontSize: "...", fontWeight: ..., lineHeight: "..." }
+  label:   { fontFamily: "...", fontSize: "...", fontWeight: ..., letterSpacing: "..." }
+  mono:    { fontFamily: "...", fontSize: "...", fontWeight: ... }
+rounded:  { sm: "...", md: "...", lg: "..." }
+spacing:  { sm: "...", md: "...", lg: "...", xl: "..." }
+components:
+  button-primary:
+    backgroundColor: "{colors.primary}"
+    textColor: "{colors.background}"
+    rounded: "{rounded.md}"
+---
 
-## Visual Theme & Atmosphere
-{2-3 sentences describing the overall mood, visual style, and design philosophy.
-Use design language, not technical terms. Example: "A clean, professional interface with a calm blue-toned palette that conveys trust and efficiency. The design favors generous whitespace and clear visual hierarchy to reduce cognitive load."}
+## Overview
+{2-3 sentences on mood, visual style, design philosophy.}
 
-## Color Palette
-{List each color with descriptive name, hex code, and functional role. Example:
-- **Ocean Blue** (#2563EB) — Primary actions, interactive elements, active states
-- **Slate** (#64748B) — Secondary text, subtle borders, inactive icons
-- **Snow** (#FFFFFF) — Page backgrounds, card surfaces
-- **Charcoal** (#1E293B) — Headings, high-emphasis text
-- **Emerald** (#10B981) — Success confirmations, positive indicators
-- **Rose** (#EF4444) — Error states, destructive actions}
+## Colors
+{Each color: descriptive name + hex + functional role, e.g. "Ocean Blue ({colors.primary}) — interactive elements and active states".}
 
 ## Typography
-{Describe font choices in design terms. Example:
-- **Headings**: Inter, semi-bold weight, creating clear content hierarchy
-- **Body text**: Inter, regular weight, optimized for comfortable reading at small sizes
-- **Monospace**: JetBrains Mono for code snippets and technical identifiers
-- **Scale**: Large section titles step down through subheadings to compact body text}
+{Headings / body / monospace in design terms; the type scale.}
 
-## Component Styling
-{Describe the visual character of UI elements in natural language. Example:
-- **Cards**: Subtly rounded corners with a gentle shadow lift, creating layered depth
-- **Buttons**: Moderately rounded with solid fills for primary actions, ghost style for secondary
-- **Inputs**: Rounded borders with a soft gray outline, expanding focus ring in primary blue
-- **Tables**: Clean horizontal dividers, no outer border, hover-highlighted rows
-- **Badges**: Fully rounded pill shape with tinted backgrounds matching status semantics}
+## Layout
+{Spatial organization: spacing rhythm, alignment, content width, navigation placement.}
 
-## Layout Principles
-{Describe spatial organization in design terms. Example:
-- Comfortable spacing between major sections with tighter grouping within related elements
-- Content centered with a maximum width, generous side margins on wide screens
-- Consistent vertical rhythm: section gaps are 2x the intra-section element gaps
-- Fixed navigation at the top, scrollable content area below
-- Actions positioned at the right end of header rows, aligned with content boundaries}
+## Elevation & Depth
+{Shadow / layering language from parsed box-shadow.}
+
+## Shapes
+{Corner rounding & geometry; use Shape & Geometry Translation terminology.}
+
+## Components
+{Visual character of cards, buttons, inputs, tables, badges; reference {components.*} tokens.}
+
+## Do's and Don'ts
+{Guardrails seeded from design-system MASTER.md Critical / Recommended rules when present.}
 ```
 
 **Rules**:
-- Use descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`)
-- Reference `templates/stitch-keywords.md` Shape & Geometry Translation table for terminology
-- Every color entry must include descriptive name + hex + functional role
-- Base content on actual HTML/CSS analysis of generated screens — do not fabricate values
+- Front-matter values MUST reflect actual values parsed from the generated HTML/CSS — never fabricated.
+- Body prose uses descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`).
+- Token references (in prose or component tokens) use the `{path.to.token}` form and must resolve to a defined token.
+- Reference `templates/stitch-keywords.md` Shape & Geometry Translation table for terminology.
+- Every color entry in the Colors section must include descriptive name + hex + functional role.
 
 ### Step 8: Generate shadcn/ui Mapping Hints
 
@@ -365,7 +374,6 @@ Write `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
       "pngFile": null
     }
   ],
-  "designTokensFile": "design-tokens.json",
   "designDocFile": "DESIGN.md",
   "shadcnMappingFile": "shadcn-mapping.json"
 }
@@ -385,7 +393,6 @@ Return a summary:
   "screenCount": 5,
   "files": {
     "manifest": "stitch-manifest.json",
-    "designTokens": "design-tokens.json",
     "designDoc": "DESIGN.md",
     "shadcnMapping": "shadcn-mapping.json",
     "htmlFiles": ["user-list.html", "user-edit.html"],
@@ -413,8 +420,9 @@ Return a summary:
 - Call `get_project` after project creation/reuse to capture `designTheme` metadata
 - Call `get_screen` after each screen generation to capture resource path, width, height, `htmlCode.downloadUrl`, and `screenshot.downloadUrl`
 - Append `=w{width}` to Google CDN screenshot URLs for high-resolution downloads
-- Generate `DESIGN.md` using design language, not CSS values — reference `stitch-keywords.md` for terminology
-- Design tokens must reflect actual values from the generated HTML/CSS, not assumptions
+- Generate `DESIGN.md` in the Google DESIGN.md format — read `templates/design-md-schema.md` first. Front-matter carries machine-readable tokens; the body prose uses design language, not CSS values (reference `stitch-keywords.md` for terminology)
+- `DESIGN.md` is the single source of truth for design tokens — do NOT emit a separate `design-tokens.json`
+- Design tokens (front-matter) must reflect actual values from the generated HTML/CSS, not assumptions
 - shadcn/ui mapping hints are advisory — the prototype generator makes final component decisions
 - Do not modify DSL files or any existing spec files — this agent only writes to `stitch-wireframes/`
 - All timestamps use ISO 8601 UTC format
