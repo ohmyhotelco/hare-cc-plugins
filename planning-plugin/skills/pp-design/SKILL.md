@@ -46,8 +46,7 @@ All references are optional — agents fall back to defaults when design-system 
 
 | Stitch Output File | prototype-generator | Purpose |
 |--------------------|:---:|---------|
-| `design-tokens.json` | O | Extracted color/font/spacing tokens for Tailwind theme |
-| `DESIGN.md` | O | Natural-language design document for styling decisions |
+| `DESIGN.md` | O | Google-format design doc: YAML front-matter tokens (Tailwind theme) + 8-section prose (styling decisions) |
 | `shadcn-mapping.json` | O | Stitch HTML → shadcn/ui component mapping hints |
 | `{screen-id}.html` | O | Visual layout reference (flex, grid, spacing) |
 
@@ -165,7 +164,7 @@ Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for 
      }
    }
    ```
-   Stage 2 outputs now include `DESIGN.md` — a natural-language design document with 5 dimensions (Visual Theme, Color Palette, Typography, Component Styling, Layout Principles). This document is consumed by the prototype generator in Step 1c for Tailwind theming and component styling decisions.
+   Stage 2 outputs now include `DESIGN.md` in the open **Google DESIGN.md** format — YAML front-matter with machine-readable design tokens plus an 8-section prose body (Overview, Colors, Typography, Layout, Elevation & Depth, Shapes, Components, Do's and Don'ts). It is the single source of design tokens (no separate `design-tokens.json`), consumed by the prototype generator in Step 1c for Tailwind theming and component styling decisions.
 5. On failure or if agent returns `stitch_mcp_unavailable`, update `status: "skipped"` (skip for `_shared` — no progress file) and continue to Step 6
 
 6. **Review gate** (default run only): If no `--stage` flag was provided (i.e., this is a default dsl+stitch run) and stitch completed successfully, display the review gate message and stop:

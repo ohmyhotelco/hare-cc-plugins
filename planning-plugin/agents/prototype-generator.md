@@ -49,15 +49,17 @@ Before scaffolding, check if a design system exists at `design-system/pages/` (r
 Before scaffolding, check if Stitch wireframe outputs exist at `docs/specs/{feature}/stitch-wireframes/`:
 
 1. If `stitch-manifest.json` exists, read the screen mapping to understand which DSL screens have wireframes. For screens with `"source": "_shared"`, also check `docs/specs/_shared/stitch-wireframes/` for shared wireframe outputs
-2. If `design-tokens.json` exists, use the extracted tokens for the Tailwind theme configuration. Also check `docs/specs/_shared/stitch-wireframes/design-tokens.json` for shared design tokens. Priority: feature Stitch tokens > shared Stitch tokens > design-system tokens > default Tailwind
-3. If `DESIGN.md` exists, read it and use the natural-language design descriptions to inform. Also check `docs/specs/_shared/stitch-wireframes/DESIGN.md` for shared design language. Priority: feature DESIGN.md > shared DESIGN.md > design-system > default:
-   - Tailwind theme extension (color palette, typography, border-radius values)
-   - Component styling decisions (shadow depth, corner rounding, button variants)
-   - Layout principles (spacing density, content width, visual hierarchy)
-   - DESIGN.md provides design intent in human-readable form — translate its descriptions back to Tailwind utilities and shadcn/ui variants
-4. If `shadcn-mapping.json` exists, reference it when deciding component types and layout patterns
-5. For each screen, if `{screen-id}.html` exists, read it as a visual layout reference (flex directions, grid patterns, spacing ratios)
-6. If none of these files exist, proceed with the existing behavior (backward compatible)
+2. If `DESIGN.md` exists, it is the **single source of design tokens and design language** (there is no separate `design-tokens.json`). Read both layers:
+   - **a. Front-matter (machine-readable tokens)**: parse the YAML front-matter (`colors`, `typography`, `rounded`, `spacing`, `components`) and apply it to the Tailwind theme configuration. Resolve `{path.to.token}` references before use. Also check `docs/specs/_shared/stitch-wireframes/DESIGN.md` front-matter for shared tokens. Priority: feature front-matter > shared front-matter > design-system tokens > default Tailwind.
+   - **b. Body prose (design language)**: use the 8-section body (`Overview`, `Colors`, `Typography`, `Layout`, `Elevation & Depth`, `Shapes`, `Components`, `Do's and Don'ts`) to inform:
+     - Tailwind theme extension nuance (palette, typography, border-radius values)
+     - Component styling decisions (shadow depth, corner rounding, button variants)
+     - Layout principles (spacing density, content width, visual hierarchy)
+     - Translate the human-readable descriptions back to Tailwind utilities and shadcn/ui variants
+   - **Legacy note**: a `DESIGN.md` with no YAML front-matter is a pre-upgrade (prose-only) file — it yields no machine-readable tokens, so token priority falls through to design-system tokens / default Tailwind. Regenerate via `/planning-plugin:pp-sync-stitch {feature}` to obtain front-matter tokens.
+3. If `shadcn-mapping.json` exists, reference it when deciding component types and layout patterns
+4. For each screen, if `{screen-id}.html` exists, read it as a visual layout reference (flex directions, grid patterns, spacing ratios)
+5. If none of these files exist, proceed with the existing behavior (backward compatible)
 
 ### Step 2: Scaffold Vite Project
 

@@ -185,71 +185,67 @@ For each screen to sync:
 
 4. Track which screens were successfully synced
 
-### Step 5: Regenerate Design Tokens
+### Step 5: Regenerate DESIGN.md (Google format)
+
+Regenerate a single `DESIGN.md` in the open **Google DESIGN.md** format — YAML front-matter tokens
+plus an 8-section Markdown body. This file is the **single source of truth for design tokens**
+(there is no separate `design-tokens.json`). Read `templates/design-md-schema.md` for the exact
+schema and a full example before generating.
+
+**5a. Extract tokens (front-matter)** — parse all updated HTML files:
 
 1. Pick a representative screen (first layout screen if available, otherwise first synced screen)
-2. Parse all updated HTML files directly to extract design tokens:
-   - Scan CSS for color declarations → map to semantic roles (`primary`, `secondary`, `accent`, `background`, `foreground`, `muted`, `border`, `destructive`)
-   - Extract font-family, font-size, font-weight values
-   - Extract spacing (margin, padding, gap) and border-radius values
+2. Extract:
+   - **Colors** → `colors.*` semantic roles (`primary`, `secondary`, `accent`, `background`, `foreground`, `muted`, `border`, `destructive`)
+   - **Typography** → `typography.*` role objects (`h1`, `h2`, `h3`, `body-md`, `label`, `mono`), each combining font-family / font-size / font-weight / line-height
+   - **Rounded** → `rounded.{sm,md,lg}` from border-radius values
+   - **Spacing** → `spacing.{sm,md,lg,xl}` from margin/padding/gap values
+   - **Components** (may be minimal) → seed `components.*` maps referencing tokens with `{path.to.token}`
 3. If a single screen lacks certain tokens (e.g., `destructive`), scan additional screens' HTML for red-toned colors
 4. Merge and deduplicate across all parsed HTML files
-5. Write `docs/specs/{feature}/stitch-wireframes/design-tokens.json` in this format:
-```json
-{
-  "colors": {
-    "primary": "#...",
-    "secondary": "#...",
-    "accent": "#...",
-    "background": "#...",
-    "foreground": "#...",
-    "muted": "#...",
-    "border": "#...",
-    "destructive": "#..."
-  },
-  "typography": {
-    "fontFamily": { "sans": "...", "mono": "..." },
-    "fontSize": { "xs": "...", "sm": "...", "base": "...", "lg": "...", "xl": "...", "2xl": "...", "3xl": "..." },
-    "fontWeight": { "normal": "...", "medium": "...", "semibold": "...", "bold": "..." }
-  },
-  "spacing": ["4px", "8px", "12px", "16px", "24px", "32px", "48px"],
-  "borderRadius": { "sm": "...", "md": "...", "lg": "..." }
-}
-```
 
-### Step 6: Regenerate DESIGN.md
+**5b. Regenerate prose body (8 sections)** — synthesize from HTML/CSS analysis of the representative
+and other synced screens. Emit all 8 `##` headings in this fixed order:
 
-Generate a natural-language design document from the updated wireframes. Synthesize from HTML/CSS analysis of the representative and other synced screens.
+`Overview` → `Colors` → `Typography` → `Layout` → `Elevation & Depth` → `Shapes` → `Components` → `Do's and Don'ts`
 
-Write to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
+Write the combined file to `docs/specs/{feature}/stitch-wireframes/DESIGN.md`:
 
 ```markdown
-# {Feature} Design Language
+---
+version: alpha
+name: {Feature}
+description: {one-line summary}
+colors: { primary: "#...", secondary: "#...", accent: "#...", background: "#...", foreground: "#...", muted: "#...", border: "#...", destructive: "#..." }
+typography:
+  h1:      { fontFamily: "...", fontSize: "...", fontWeight: ..., lineHeight: "..." }
+  body-md: { fontFamily: "...", fontSize: "...", fontWeight: ..., lineHeight: "..." }
+  label:   { fontFamily: "...", fontSize: "...", fontWeight: ..., letterSpacing: "..." }
+  mono:    { fontFamily: "...", fontSize: "...", fontWeight: ... }
+rounded:  { sm: "...", md: "...", lg: "..." }
+spacing:  { sm: "...", md: "...", lg: "...", xl: "..." }
+components:
+  button-primary: { backgroundColor: "{colors.primary}", textColor: "{colors.background}", rounded: "{rounded.md}" }
+---
 
-## Visual Theme & Atmosphere
-{2-3 sentences describing the overall mood, visual style, and design philosophy.
-Use design language, not technical terms.}
-
-## Color Palette
-{List each color with descriptive name, hex code, and functional role.}
-
+## Overview
+## Colors
 ## Typography
-{Describe font choices in design terms — headings, body text, monospace, scale.}
-
-## Component Styling
-{Describe the visual character of UI elements in natural language — cards, buttons, inputs, tables, badges.}
-
-## Layout Principles
-{Describe spatial organization in design terms — spacing, alignment, rhythm, navigation placement.}
+## Layout
+## Elevation & Depth
+## Shapes
+## Components
+## Do's and Don'ts
 ```
 
 **Rules**:
-- Use descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`)
-- Every color entry must include descriptive name + hex + functional role
-- Base content on actual HTML/CSS analysis — do not fabricate values
-- If design system files exist at `design-system/pages/`, reference them for consistent terminology
+- Front-matter values MUST reflect actual values parsed from the updated HTML/CSS — never fabricated.
+- Body prose uses descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`).
+- Token references use the `{path.to.token}` form and must resolve to a defined token.
+- Every color entry in the Colors section must include descriptive name + hex + functional role.
+- If design system files exist at `design-system/pages/`, reference them for consistent terminology.
 
-### Step 7: Regenerate shadcn/ui Mapping
+### Step 6: Regenerate shadcn/ui Mapping
 
 Analyze the updated Stitch-generated HTML elements and map them to shadcn/ui components:
 
@@ -278,7 +274,7 @@ Write `docs/specs/{feature}/stitch-wireframes/shadcn-mapping.json`:
 }
 ```
 
-### Step 8: Update Manifest
+### Step 7: Update Manifest
 
 Read and update `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
 
@@ -287,10 +283,10 @@ Read and update `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
 3. For each synced screen, update:
    - `width` and `height` from `get_screen` response
    - `sourceScreen` resource path
-4. Keep `designTokensFile`, `designDocFile`, and `shadcnMappingFile` references unchanged
+4. Keep `designDocFile` and `shadcnMappingFile` references unchanged
 5. Write the updated manifest
 
-### Step 9: Update Progress File
+### Step 8: Update Progress File
 
 1. Read the progress file at `docs/specs/{feature}/.progress/{feature}.json`
 2. Set `design.stages.stitch.status` to `"completed"`
@@ -300,7 +296,7 @@ Read and update `docs/specs/{feature}/stitch-wireframes/stitch-manifest.json`:
    - Set `design.stages.prototype.bundleStatus` to `"stale"` (prototype needs rebuild with updated wireframes)
 6. Write the updated progress file
 
-### Step 10: Report Summary
+### Step 9: Report Summary
 
 Display a summary:
 
@@ -331,8 +327,7 @@ Note: {n} new and {m} deleted screens detected in Stitch.
 
 Updated artifacts:
   - HTML/PNG wireframes: docs/specs/{feature}/stitch-wireframes/
-  - Design tokens: design-tokens.json
-  - Design language: DESIGN.md
+  - Design doc (tokens + prose): DESIGN.md
   - shadcn mapping: shadcn-mapping.json
   - Manifest: stitch-manifest.json
 

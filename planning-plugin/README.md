@@ -457,7 +457,7 @@ Default run executes Stage 1→2 then stops with a review gate — review wirefr
 1. Reads the existing `stitch-manifest.json` to find the Stitch project and screen mappings
 2. Compares Stitch screens with the local manifest (reports new/deleted screens)
 3. Re-fetches HTML code and PNG screenshots for each matched screen
-4. Regenerates `design-tokens.json`, `DESIGN.md`, and `shadcn-mapping.json` from the updated content
+4. Regenerates `DESIGN.md` (front-matter tokens + prose) and `shadcn-mapping.json` from the updated content
 5. Marks the prototype bundle as `"stale"` if a prototype exists
 
 **When to use which**:
@@ -743,8 +743,7 @@ docs/specs/{feature}/
 │   └── screen-{id}.json                   ← Per-screen component definitions
 ├── stitch-wireframes/                     ← Stitch wireframe outputs (optional)
 │   ├── stitch-manifest.json               ← Screen mapping + Stitch project metadata
-│   ├── design-tokens.json                 ← Extracted color/font/spacing tokens
-│   ├── DESIGN.md                          ← Natural-language design document (5 dimensions)
+│   ├── DESIGN.md                          ← Google-format design doc (YAML token front-matter + 8-section prose)
 │   ├── shadcn-mapping.json                ← Stitch HTML → shadcn/ui mapping hints
 │   ├── {screen-id}.html                   ← Per-screen HTML/CSS code
 │   └── {screen-id}.png                    ← Per-screen PNG screenshots
@@ -803,7 +802,7 @@ skills/          Skill entry points (pp-init, pp-spec, pp-review, pp-translate, 
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts + bundle-artifact.sh (Vite → single HTML bundler)
 data/            Curated CSV databases (data/design-system/*.csv — styles, colors, typography, components, patterns, industry-rules, icons)
-templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
+templates/       Spec templates + UI DSL schema + Stitch prompt/keyword references + Notion page template + review discipline rules (spec-overview.md, screens.md, test-scenarios.md, ui-dsl-schema.json, stitch-prompt-template.md, stitch-keywords.md, design-md-schema.md, notion-page-template.md, verification-rules.md, review-reception-rules.md)
 docs/specs/      Generated specifications (3 files per lang dir + ui-dsl/ + stitch-wireframes/)
 prototypes/  Generated React prototypes (standalone Vite projects per feature)
 ```
