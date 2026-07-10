@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.10.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.11.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does

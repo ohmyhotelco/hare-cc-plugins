@@ -79,6 +79,19 @@ Diff the new page's API request/response usage against the legacy DTOs (from the
 endpoints, same request shape, same response envelope `{ succeedYn, errorMessage, result, ... }`.
 Any drift is a failure (the backend contract is frozen during migration).
 
+**Verify the request body against the live/staging backend, not just the doc or a mock.** The
+static/mock gates cannot see a body that violates its own schema — a field the endpoint `.omit()`s
+from the root, re-added by a `...getCommonRequestParams()` spread, is invisible to TypeScript
+(excess-property check does not cross a spread) and to MSW (the mock accepts anything). Only the
+real backend strict-rejects it (`400 error.common.schema.invalid.request`). So when a real or
+staging backend is reachable, **send each request-body-building flow's actual body and confirm it is
+accepted**; a contract doc's prose claim ("field X is sent-but-ignored / optional") is **not**
+evidence — OMH-748's `requests/user-auth.md` said "ignored" while the backend rejected it. Confirm a
+**body-shape test** exists that pins the omitted field absent at the top level (the generation-side
+pin, `tdd-rules.md` → "request bodies"); its absence for an `.omit()`-schema endpoint is a `fail`.
+Origin: OMH-748 — a login body carried the root `stationTypeCode` a strict backend rejected while
+typecheck, MSW-vitest, and MSW/legacy e2e all passed green.
+
 ### 3. webview (mobile / hana, when triggered)
 Per `templates/webview-bridge.md`, verify the native round-trip is preserved: UA detection
 (`wv`/`ww`), `universal-link` schemes, `sessionStorage` tokens (e.g. `cnoUser`), and any explicit

@@ -50,3 +50,14 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
   second. Port the legacy call's options verbatim (`angular-to-react-mapping.md` → **pipes-directives**),
   and record any deliberately-agreed difference (e.g. an `iframeResizer` script replaced by a React
   binding) explicitly rather than letting it drift. Origin: OMH-708.
+- **Request bodies must obey their own schema — pin the shape, don't trust the type** (`api` phase).
+  A body assembled from `...getCommonRequestParams()` (or any spread) can carry a field the endpoint
+  schema `.omit()`s from the root — TypeScript's excess-property check **only fires on object
+  literals**, so a spread-reintroduced field slips past the compiler while the type claims it is
+  gone. The runtime body then contradicts its own type, and **only the real backend rejects it**
+  (400 `error.common.schema.invalid.request`) — every static/mock gate passes. Two things prevent
+  it: (1) the builder **returns its body parsed through the endpoint `RqSchema`** so non-strict zod
+  strips the stray key; (2) a **body-shape test** asserts the omitted field is **absent at the top
+  level** and present where it belongs (e.g. inside `condition`). Keep the request schema non-strict
+  so `.parse()` filters rather than throws. Origin: OMH-748 — a login body spread the root
+  `stationTypeCode` back in and the backend rejected it 400.

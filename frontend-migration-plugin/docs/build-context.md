@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-07-08)
+## Status (2026-07-09)
 
-- **Build complete — v0.10.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
+- **Build complete — v0.11.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -70,6 +70,19 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   data-dependent delayed exposure). Origin: OMH-708 — a dropped `RETURN_DOM` erased a `<body>`-level
   grey band (`#f5f5f5`) on `/event/100221` while every gate stayed green; the defect surfaced only on
   the first event that styled its own `<body>`. Design: `docs/design/transform-fidelity-generation.md`.
+  v0.11.0 added the **request-schema fidelity** rule — the request-body companion to `style-spec` /
+  `transform-fidelity` (again no new stage/artifact; a rule reflected into existing surfaces). A
+  generated request-body builder **returns its body parsed through the endpoint's zod schema**
+  (`RqSchema.parse({ ...getCommonRequestParams(), … })`; non-strict, so zod **strips** a root field
+  the schema `.omit()`s) and is pinned by a **body-shape test** asserting the omitted field is absent
+  at the top level (`tdd-rules.md` → "request bodies", `shared-package-spec.md` → shared-data,
+  `tdd-cycle-runner` api phase); `parity-verifier`'s contract gate verifies the actual body against
+  the **live/staging backend**, not a contract doc's prose (a doc can be wrong about behavior). Closes
+  error types K/L/M/N (spread-reintroduced field, type-without-runtime-enforcement, missing body-shape
+  test, wrong contract prose). Origin: OMH-748 — a v2 login body spread the root `stationTypeCode`
+  back in and a strict backend rejected it (`400 error.common.schema.invalid.request`) while
+  typecheck, MSW-vitest, and MSW/legacy e2e all passed; TypeScript's excess-property check does not
+  see a field re-added by a `...spread`. Design: `docs/design/request-schema-fidelity-generation.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

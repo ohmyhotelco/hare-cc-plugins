@@ -38,6 +38,11 @@ absent, proceed without it (the install is non-blocking).
    from `{appDir}`; **read the output and confirm it FAILS.**
 2. **Green.** Write the minimal implementation to pass — applying the mapping catalog:
    - **api**: axios calls via `@omh/shared-data` services + TanStack Query hooks (Effect→Query).
+     **A request-body builder returns its body parsed through the endpoint's zod schema**
+     (`RqSchema.parse({ ...getCommonRequestParams(), … })`) — so a schema that `.omit()`s a root
+     field actually drops it at runtime (TS excess-property check does not see fields re-added by a
+     `...spread`; only the real backend rejects the stray field with a 400). Keep request schemas
+     non-strict so `.parse()` strips rather than throws. See `angular-to-react-mapping.md` → http.
    - **store**: thin Zustand for UI/client state (BehaviorSubject/Facade UI state → store).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
      `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX. **Style to the
@@ -88,6 +93,13 @@ referencing the plan/analysis anchor.
   array↔scalar, `null`↔`''`). **Port the legacy call's options verbatim** — a `RETURN_DOM`/
   `WHOLE_DOCUMENT`/`FORCE_BODY` on a DOMPurify call is load-bearing (see `angular-to-react-mapping.md`
   → pipes-directives). Record deliberately-agreed differences explicitly. Origin: OMH-708.
+- **A request body must obey its own schema — pin its shape** (`api` phase, `tdd-rules.md` →
+  "request bodies"). When a builder assembles a body from `...getCommonRequestParams()` (or any
+  spread) and the endpoint schema `.omit()`s a root field, TS **cannot** catch the spread re-adding
+  it — so return the body **parsed through the endpoint schema** and write a test asserting the
+  omitted field is **absent at the top level** (and present where it belongs, e.g. inside
+  `condition`). This class only surfaces on the real backend (400 strict-reject); the test is what
+  makes generation catch it. Origin: OMH-748.
 - **Style is the `style-spec`, not an approximation** (component/page phases). Never eyeball a
   value or treat a matching class name as done; reproduce the spec's values and preserve its
   structure. Just as legacy *behavior* is never trimmed (no YAGNI rung), legacy *style* is never
