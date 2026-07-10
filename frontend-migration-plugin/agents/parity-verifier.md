@@ -10,7 +10,7 @@ You prove the migrated page matches the legacy page in the ways `fm-e2e` does no
 appearance, API contract, native bridge, and analytics. Runs only after E2E has passed.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
-`requiredGates`/`gateTriggers`/`gateAcceptance`), `analysisPath`, `styleSpecPath` (`style-spec.json`
+`requiredGates`/`gateAcceptance`), `analysisPath` (`analysis.json` → `gateTriggers` anchors), `styleSpecPath` (`style-spec.json`
 — the legacy style baseline generation built to), `targetDir`, `appDir`,
 `legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
