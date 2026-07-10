@@ -132,11 +132,27 @@ See **http** and `templates/shared-package-spec.md` for where each lands.
 | `usertoken` header injection | axios request interceptor |
 | `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor |
 | `HttpHelperService` session-expiry (`'Invalid Session Token'`/`'Session Expired'` → remove token + LoginModal) | axios response interceptor with a UX callback (modal on PC / route on mobile) |
-| `getCommonRequestParams()` (localStorage `locale`) spread into body | `shared-data` request builder reading the locale store |
+| `getCommonRequestParams()` (localStorage `locale`) spread into body | `shared-data` request builder reading the locale store — **parse the assembled body through its endpoint `RqSchema` at runtime** (see note below) |
 | response envelope `{ succeedYn, errorMessage, result, transactionSetId, errorCode }` | typed in `shared-types` (zod); unwrap in the query layer |
 
 Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.service.ts:28`,
 `core/models/condition.model.ts:5` (`getCommonRequestParams`).
+
+> **A request body must obey its own schema at runtime — not just at the type level.** The common
+> builder (`getCommonRequestParams()`) returns the shared envelope (e.g.
+> `{ stationTypeCode, currency, country, language }`), but some endpoints **omit** a root field from
+> that envelope — a login body is `CommonRequestParamsRqSchema.omit({ stationTypeCode: true })`
+> (`stationTypeCode` lives inside `condition`, not at root). The trap: TypeScript's excess-property
+> check fires **only on object literals**, so a field re-introduced by a **spread**
+> (`...getCommonRequestParams()`) is *not* caught — the type says "omitted" while the runtime body
+> carries it. The real backend strict-rejects the extra root field (`400
+> error.common.schema.invalid.request`) even though every static/mock gate passed.
+> **Fix at generation:** build the body, then return it **parsed through the endpoint's zod schema** —
+> `return RqUserLoginParamsSchema.parse({ ...getCommonRequestParams(), condition: {…} })`. Default
+> (non-`.strict()`) zod **strips** keys not in the schema, so an omitted root field is removed
+> automatically; keep the request schemas non-strict so `.parse()` filters rather than throws. Pin it
+> with a body-shape test (`tdd-rules.md` → "request bodies"). Origin: OMH-748 — a login body spread
+> the root `stationTypeCode` back in and the backend rejected it 400.
 
 ## routing
 

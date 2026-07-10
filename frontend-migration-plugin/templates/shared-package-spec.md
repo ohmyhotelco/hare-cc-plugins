@@ -35,6 +35,15 @@ configured, both packages fall back to legacy reverse-extraction as before (no r
 other four packages (`config`/`i18n`/`domain`/`ui`) are unaffected — they always extract from
 legacy.
 
+> **Authoritative ≠ infallible — the live backend is the final arbiter.** A contract doc can be
+> wrong (OMH-748: `requests/user-auth.md` described the login envelope as "sent-but-ignored" when the
+> real backend strict-rejects an extra root field). Transcribe the contract as the schema source, but
+> a behavioral claim in prose ("field X is ignored / optional / tolerated") is **not** verified until
+> a real or staging backend confirms it — `fm-parity`'s contract gate checks the request/response
+> shape against the live backend, not the doc's prose (see `parity-verifier`). When live and doc
+> disagree, the live response wins and the doc is flagged for correction by the OMH-607 contract
+> owner.
+
 ## Placement rules
 
 A candidate goes to a package by **what it is**, gated by **purity**:
@@ -67,7 +76,13 @@ Observed candidates:
 - session-expiry interceptor (`'Invalid Session Token'` / `'Session Expired'`) taking a **UX
   callback** (PC opens a modal, Mobile navigates) — mirrors `HttpHelperService`.
 - `getCommonRequestParams()` builder (locale from store) — shapes the request body that extends
-  `CommonRequestParamsRqSchema`.
+  `CommonRequestParamsRqSchema`. **A per-endpoint builder must return its body parsed through that
+  endpoint's `RqSchema`** (`RqSchema.parse({ ...getCommonRequestParams(), … })`), so a schema that
+  `.omit()`s a root field (e.g. login omits `stationTypeCode`) actually drops it at runtime. Reason:
+  TS excess-property check does not see fields re-added by a `...spread`, so the type says "omitted"
+  while the body still carries it — only the real backend rejects it (400). Keep request schemas
+  **non-strict** so `.parse()` strips the extra key instead of throwing. (OMH-748; see
+  `angular-to-react-mapping.md` → **http**.)
 - DTO schemas — **transcribed from the contracts** (`{contractsDir}/responses` + `requests`,
   authoritative), **not** reverse-engineered from the legacy `apis/models` `any` (~70 paths,
   retired). Falls back to `apis/models` only when `contractsDir` is unconfigured.

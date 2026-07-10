@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.10.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.11.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -33,7 +33,16 @@ orchestration and tracking**.
 > not security strength) **verbatim**, and `fm-parity` requires a content-independent output-pin test
 > for data-driven transforms — closing the generation-side logic gap where a dropped `RETURN_DOM`
 > silently changed a sanitizer's output shape and erased a `<body>`-level style while every gate
-> stayed green (OMH-708; design in `docs/design/transform-fidelity-generation.md`)). Runtime
+> stayed green (OMH-708; design in `docs/design/transform-fidelity-generation.md`), and the
+> **request-schema fidelity** rule (v0.11.0) — the request-body companion: a generated request-body
+> builder returns its body **parsed through the endpoint's zod schema** (non-strict, so it strips a
+> field the schema `.omit()`s) and is pinned by a **body-shape test**, because a
+> `...getCommonRequestParams()` spread can re-add an omitted root field that TypeScript's
+> excess-property check never sees; `fm-parity`'s contract gate verifies the actual body against the
+> **live/staging backend**, not a contract doc's prose — closing the gap where a login body carried a
+> root `stationTypeCode` the real backend strict-rejected (400) while typecheck, MSW-vitest, and
+> MSW/legacy e2e all passed (OMH-748; design in `docs/design/request-schema-fidelity-generation.md`)).
+> Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
 > source-confirmed corrections, see `docs/build-context.md`.
@@ -425,6 +434,15 @@ the output *shape*, not security strength); and `parity-verifier` requires a con
 output-pin test for any data-driven transform (the backstop). Design:
 `docs/design/transform-fidelity-generation.md`.
 
+**Request-schema fidelity (v0.11.0)** is the request-body companion: a generated request-body builder
+**returns its body parsed through the endpoint's zod schema** (non-strict, so it strips a field the
+schema `.omit()`s) and is pinned by a **body-shape test** (`templates/tdd-rules.md` → "request
+bodies", `shared-package-spec.md` → shared-data, enforced by `tdd-cycle-runner` api phase) — because a
+`...getCommonRequestParams()` spread can re-add an omitted root field that TypeScript's
+excess-property check never sees. `parity-verifier`'s contract gate verifies the actual body against
+the **live/staging backend**, not a contract doc's prose (a doc can be wrong about behavior; the live
+backend is the arbiter). Design: `docs/design/request-schema-fidelity-generation.md`.
+
 The style template (`templates/style-spec.md`, v0.9.0) defines `style-spec.json` — the legacy style
 answer key `fm-style-spec` captures **before** generation (live legacy computed values via a
 Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real values instead of
@@ -441,7 +459,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.10.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.11.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 
