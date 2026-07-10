@@ -23,8 +23,9 @@ You receive (no session history): `app`, `page`, `action` (flag-off | flag-on | 
 `flagPlan` (`{ key, guardsPath }` from `migration-plan.json`), `domain`, `port` (the new app's),
 `legacyPort`, **`flipMechanism`** (`nginx` | `cloudfront`; **absent → `nginx`**) and its artifact
 target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the gate state for the
-precondition — the page's `verified` status from `tracker.json` plus the `e2e-report.json` /
-`parity-report.json` paths (under `docs/migration/{app}/{page}/`), `workingLanguage`. See
+precondition — the page's `parity-passed` status + `verifiedAt` from `tracker.json` plus the
+`e2e-report.json` / `parity-report.json` paths (under `docs/migration/{app}/{page}/`),
+`workingLanguage`. See
 `templates/strangler-fig.md` for both templates.
 
 ## Actions (mechanism-independent semantics)
@@ -39,10 +40,12 @@ This is the state the code PR merges with.
   **not yet active** (prepared/off). Do not activate it.
 
 ### flag-on (the one-line flip PR) — guarded
-**Precondition (hard):** confirm the page is `verified` in `tracker.json`, and that
-`e2e-report.json` and `parity-report.json` both have `result: pass` for this page (verify records
-its pass as the tracker status, not a report file). If any is missing or failing, **refuse** and
-report which gate blocks the flip — do not flip.
+**Precondition (hard):** confirm the page `status` is `parity-passed` in `tracker.json` (the
+monotonic chain guarantees verify and e2e passed first — the single `status` field has since been
+overwritten past `verified`/`e2e-passed`) and `verifiedAt` is present (verify's durable trace —
+verify records its pass as `verifiedAt`, not a report file), and that `e2e-report.json` and
+`parity-report.json` both have `result: pass` for this page. If any is missing or failing,
+**refuse** and report which gate blocks the flip — do not flip.
 When all pass, activate the prepared rule for `guardsPath` (on `domain`); unmatched paths still hit
 the legacy app (`legacyPort`).
 - `nginx`: flip `flagPlan.key` to ON so nginx routes `guardsPath` to the new app (`port`).

@@ -27,10 +27,12 @@ nginx `location` *and* the CloudFront path-pattern). Determine `action` from the
 (`--flag-off` | `--flag-on` | `--revert`).
 
 ### Step 1: Gate guard (flag-on only)
-For `--flag-on`, read `tracker.json` (for the `verified` status — verify has no report file) and
-`docs/migration/{app}/{page}/e2e-report.json` + `parity-report.json`. Require `verified` +
-`e2e-passed` + `parity-passed` (the two reports show `result: pass`). If any is not satisfied,
-stop and report the blocking gate — do not flip.
+For `--flag-on`, read `tracker.json` and `docs/migration/{app}/{page}/e2e-report.json` +
+`parity-report.json`. Require the page `status` to be `parity-passed` (the monotonic chain
+guarantees `verified` and `e2e-passed` were reached first — the single `status` field has since been
+overwritten to `parity-passed`), `verifiedAt` present (verify's durable trace — verify has no report
+file), and both reports show `result: pass`. If any is not satisfied, stop and report the blocking
+gate — do not flip.
 
 ### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
@@ -45,8 +47,8 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 ### Step 3: Orchestrate
 Launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
 `flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
-(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `verified` tracker
-status + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
+(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `parity-passed` tracker
+status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
