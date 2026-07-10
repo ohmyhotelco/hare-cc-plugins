@@ -67,7 +67,7 @@ Observed candidates:
 
 > **Security boundary (hard).** `shared-domain/payment/` holds only `gateway-selector`,
 > `payment-form-validators`, `display-formatting`. The PG hash builders (`createFgkey`,
-> `createNicePayData`, `createNpAlipayData`) and any `environment.*.merchantKey` /
+> `createNicePayData`, `createNpAlipayData`, `createEximbayData`) and any `environment.*.merchantKey` /
 > `kakaoLoginSecretKey` read are **forbidden** here — they move server-side (plan §5/§11.9,
 > OMH-477). Lint must block these imports.
 

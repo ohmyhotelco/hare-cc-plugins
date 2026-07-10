@@ -75,7 +75,7 @@ Always include `e2e`, `visual`, and `contract` (the API-contract parity gate —
 always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trigger is present, with anchors:
 - **`secret`** — `environment.nicePay.{simple,aliAuth,hana}.merchantKey`,
   `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
-  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()`. (→ server-side relocation;
+  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`. (→ server-side relocation;
   see `fm-secret-audit`.)
 - **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
   `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.)
