@@ -19,7 +19,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → passed / `generated` / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipped` (flag-on, gate-guarded) |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
-| `fm-delta` | `migration-planner` (incremental) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
+| `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
 | `fm-test-review` | `test-reviewer` | generated tests → test-quality report (read-only) | — |
 | `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` → `secret-audit-report.json` (read-only) | — |
