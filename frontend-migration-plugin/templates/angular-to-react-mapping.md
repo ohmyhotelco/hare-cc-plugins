@@ -247,7 +247,7 @@ These idioms set `analysis.json.requiredGates` / `gateTriggers` (drive `fm-e2e`/
 
 | Trigger | Detect | Gate / action |
 | --- | --- | --- |
-| **secret** | `environment.nicePay.{simple,aliAuth,hana}.merchantKey`, `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()` | server-side relocation; `fm-secret-audit`. Anchors: `hotel-payment.component.ts:504,541,623`; `social-connect.component.ts:257,303` |
+| **secret** | `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`, `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()` | server-side relocation; `fm-secret-audit`. Anchors: `hotel-payment.component.ts:504,541,623`; `social-connect.component.ts:257,303` |
 | **sso** | `initApp()` `?ts`, `AuthHanaService`/`AuthHanaTSService`, `passAuth`, `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0` | `parity` SSO check + `templates/hana-sso.md`. Anchors: `app.module.ts:50`, `auth-hana.service.ts:28-84` |
 | **webview** | `navigator.userAgent.includes('wv'|'ww')`, `universal-link.service`, `sessionStorage 'cnoUser'`, URL-scheme intents | `parity` WebView round-trip + `templates/webview-bridge.md`. Anchors: `app.component.ts:409`, `universal-link.service.ts:87` |
 | **telemetry** | `DataLayerService` / `dataLayer.push`, pixel services | `parity` telemetry dual-fire (plan §11.8) |

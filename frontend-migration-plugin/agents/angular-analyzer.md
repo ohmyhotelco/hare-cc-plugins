@@ -73,7 +73,7 @@ Walk the target and its first-level dependencies. For each, record concrete find
 ### 5. Migration-gate triggers (set `requiredGates`)
 Always include `e2e`, `visual`, and `contract` (the API-contract parity gate — always run, so it
 always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trigger is present, with anchors:
-- **`secret`** — `environment.nicePay.{simple,aliAuth,hana}.merchantKey`,
+- **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
   `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
   `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`. (→ server-side relocation;
   see `fm-secret-audit`.)
