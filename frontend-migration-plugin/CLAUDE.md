@@ -439,7 +439,9 @@ output-pin test for any data-driven transform (the backstop). Design:
 schema `.omit()`s) and is pinned by a **body-shape test** (`templates/tdd-rules.md` → "request
 bodies", `shared-package-spec.md` → shared-data, enforced by `tdd-cycle-runner` api phase) — because a
 `...getCommonRequestParams()` spread can re-add an omitted root field that TypeScript's
-excess-property check never sees. `parity-verifier`'s contract gate verifies the actual body against
+excess-property check never sees. The mapping catalog's `getCommonRequestParams()` row
+(`angular-to-react-mapping.md` → http) spells out this spread/excess-property trap and the
+non-strict-parse fix (the specific hole). `parity-verifier`'s contract gate verifies the actual body against
 the **live/staging backend**, not a contract doc's prose (a doc can be wrong about behavior; the live
 backend is the arbiter). Design: `docs/design/request-schema-fidelity-generation.md`.
 
