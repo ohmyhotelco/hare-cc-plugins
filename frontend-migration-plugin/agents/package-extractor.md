@@ -13,7 +13,7 @@ with tests, so the three React apps can import it. You work **test-first** and p
 You receive from the coordinator (no session history — only these params):
 - `candidate` — one `sharedCandidates[]` entry from the analysis, passed through verbatim:
   `{ name, anchor (file:line), purity (pure|partial|coupled), package
-  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui), reason, apis[] }`
+  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui|shared-config), reason, apis[] }`
 - `legacyDir`, `counterpartDirs` (same logic in the other apps), `packagesDir`,
   `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 - `contractsDir` — **optional**, passed **only** for `shared-types` / `shared-data` candidates

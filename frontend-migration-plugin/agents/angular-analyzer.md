@@ -90,6 +90,7 @@ For each piece of logic, classify per `templates/shared-package-spec.md`:
 - `shared-types` — DTO/zod, the response envelope, event enums.
 - `shared-i18n` — translation keys.
 - `shared-ui` — primitives / headless domain hooks.
+- `shared-config` — env-derived public config / public ids (NO secrets).
 Mark each candidate `pure | partial | coupled` with the reason and its `anchor`; for `shared-data`
 candidates, list `apis[]` (the `POST_*` / `GET_*` methods it wraps). This is the exact shape
 `fm-extract` hands to `package-extractor`, so emit every field that agent consumes.
