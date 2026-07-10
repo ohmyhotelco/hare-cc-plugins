@@ -33,8 +33,9 @@ Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "
 (record `previousStatus`).
 
 ### Step 4: Run the fixer
-Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath`, `app`, `page`,
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
+Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath` (the failing
+`e2e-report.json`/`parity-report.json`; omit for `verify-fix` — verify writes no report, its failing
+summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
 
 ### Step 5: Resolve outcome
 Read `fix-report.json`:
