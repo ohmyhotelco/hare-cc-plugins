@@ -34,7 +34,7 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    `sharedCandidates` + DTOs/types). Flag any candidate not yet extracted (run `fm-extract`).
 4. **Rendering mode.** Choose `ssr | ssg | spa` per the decision table (OMH-454 §5):
    CMS/marketing → SSG, hotel detail → SSR(ISR), auth/transactional/search-list → SPA. Hana → SPA.
-5. **Required gates + acceptance.** Carry `requiredGates` from analysis (always `e2e`+`visual`;
+5. **Required gates + acceptance.** Carry `requiredGates` from analysis (always `e2e`+`visual`+`contract`;
    plus `secret`/`sso`/`webview`/`telemetry` when triggered), and emit a `gateAcceptance` entry
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
    `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without

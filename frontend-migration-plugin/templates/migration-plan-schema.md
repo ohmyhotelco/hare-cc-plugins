@@ -46,7 +46,7 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
       "owner": "TBD", "status": "pending" }
   ],
-  "requiredGates": ["e2e", "visual", "telemetry"],
+  "requiredGates": ["e2e", "visual", "contract", "telemetry"],
   "gateAcceptance": { "visual": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] } },
                                             // REQUIRED — one entry per gate in requiredGates; see below
   "flagPlan": { "key": "v2_pc_booking_info", "guardsPath": "/hotel/booking-info",
@@ -81,7 +81,7 @@ target and the parity check share one legacy-truth source and cannot drift.
 ## gateAcceptance (required)
 
 Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
-(`visual` / `e2e` / `contract` / `webview` / `telemetry`). A plan without `gateAcceptance` is
+(`visual` / `e2e` / `contract` / `secret` / `sso` / `webview` / `telemetry`). A plan without `gateAcceptance` is
 **incomplete**: `fm-gen` and `fm-parity` Step 0 reject it and point back to `fm-plan`. Each entry:
 
 - `compares` — what is compared, against what reference.

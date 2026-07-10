@@ -71,7 +71,8 @@ Walk the target and its first-level dependencies. For each, record concrete find
 - `APP_INITIALIZER` usage (language-prefix redirect on PC; Hana `?ts` SSO on mobile).
 
 ### 5. Migration-gate triggers (set `requiredGates`)
-Always include `e2e` and `visual`. Add a gate when its trigger is present, with anchors:
+Always include `e2e`, `visual`, and `contract` (the API-contract parity gate — always run, so it
+always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trigger is present, with anchors:
 - **`secret`** — `environment.nicePay.{simple,aliAuth,hana}.merchantKey`,
   `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
   `createFgkey()` / `createNicePayData()` / `createNpAlipayData()`. (→ server-side relocation;
@@ -147,7 +148,7 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "sharedCandidates": [{ "name": "UtilDateService", "purity": "pure",
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
-  "requiredGates": ["e2e", "visual", "telemetry"],
+  "requiredGates": ["e2e", "visual", "contract", "telemetry"],
   "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],
   "threeAppDiff": [{ "file": "...", "vsMobile": "near", "vsHana": "diverged", "note": "..." }],
   "risk": "low | medium | high",
