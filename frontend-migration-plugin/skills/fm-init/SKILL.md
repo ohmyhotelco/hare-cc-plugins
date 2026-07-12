@@ -45,7 +45,7 @@ For each surface (`pc`, `mobile`, `hana`), gather:
 
 - `legacyDir`, `targetDir`, `appDir` (the dir holding `vite.config.*`/`tsconfig.json`/
   `package.json`; defaults to `targetDir`)
-- `domain`, `port`
+- `domain`, `port` (new-app upstream), `legacyPort` (legacy-app upstream for fall-through routing)
 - `ssr` — `mixed` (PC, Mobile) | `spa` (Hana)
 - `webview` — `false` (PC) | `true` (Mobile) | `"unknown"` (Hana, pending confirmation)
 - `sso` — `true` (Hana) | `false`

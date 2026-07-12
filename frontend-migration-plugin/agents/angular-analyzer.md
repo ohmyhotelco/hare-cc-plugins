@@ -71,10 +71,11 @@ Walk the target and its first-level dependencies. For each, record concrete find
 - `APP_INITIALIZER` usage (language-prefix redirect on PC; Hana `?ts` SSO on mobile).
 
 ### 5. Migration-gate triggers (set `requiredGates`)
-Always include `e2e` and `visual`. Add a gate when its trigger is present, with anchors:
-- **`secret`** — `environment.nicePay.{simple,aliAuth,hana}.merchantKey`,
+Always include `e2e`, `visual`, and `contract` (the API-contract parity gate — always run, so it
+always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trigger is present, with anchors:
+- **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
   `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
-  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()`. (→ server-side relocation;
+  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`. (→ server-side relocation;
   see `fm-secret-audit`.)
 - **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
   `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.)
@@ -89,6 +90,7 @@ For each piece of logic, classify per `templates/shared-package-spec.md`:
 - `shared-types` — DTO/zod, the response envelope, event enums.
 - `shared-i18n` — translation keys.
 - `shared-ui` — primitives / headless domain hooks.
+- `shared-config` — env-derived public config / public ids (NO secrets).
 Mark each candidate `pure | partial | coupled` with the reason and its `anchor`; for `shared-data`
 candidates, list `apis[]` (the `POST_*` / `GET_*` methods it wraps). This is the exact shape
 `fm-extract` hands to `package-extractor`, so emit every field that agent consumes.
@@ -147,7 +149,7 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "sharedCandidates": [{ "name": "UtilDateService", "purity": "pure",
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
-  "requiredGates": ["e2e", "visual", "telemetry"],
+  "requiredGates": ["e2e", "visual", "contract", "telemetry"],
   "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],
   "threeAppDiff": [{ "file": "...", "vsMobile": "near", "vsHana": "diverged", "note": "..." }],
   "risk": "low | medium | high",

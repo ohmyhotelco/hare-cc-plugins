@@ -14,8 +14,8 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 ## Instructions
 
 ### Step 0: Config
-Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `workingLanguage`.
-Confirm the page is at least `generated` in `tracker.json`.
+Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
+`workingLanguage`. Confirm the page is at least `generated` in `tracker.json`.
 
 ### Step 1: Lock
 This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale after

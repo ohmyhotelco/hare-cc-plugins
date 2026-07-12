@@ -13,7 +13,7 @@ with tests, so the three React apps can import it. You work **test-first** and p
 You receive from the coordinator (no session history — only these params):
 - `candidate` — one `sharedCandidates[]` entry from the analysis, passed through verbatim:
   `{ name, anchor (file:line), purity (pure|partial|coupled), package
-  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui), reason, apis[] }`
+  (shared-domain|shared-data|shared-types|shared-i18n|shared-ui|shared-config), reason, apis[] }`
 - `legacyDir`, `counterpartDirs` (same logic in the other apps), `packagesDir`,
   `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 - `contractsDir` — **optional**, passed **only** for `shared-types` / `shared-data` candidates
@@ -70,7 +70,7 @@ Diff PC vs Mobile vs Hana for this logic. Decide the single shared implementatio
 ### 3. Enforce the secret boundary (hard gate)
 If `package` is `shared-domain` and the source reads a secret
 (`environment.*.merchantKey`, `environment.eximbay.key`, `environment.kakaoLoginSecretKey`) or
-is a PG hash builder (`createFgkey`, `createNicePayData`, `createNpAlipayData`):
+is a PG hash builder (`createFgkey`, `createNicePayData`, `createNpAlipayData`, `createEximbayData`):
 - **Do not extract it.** These move server-side (plan §5/§11.9, OMH-477).
 - Extract only the client-safe neighbours (gateway-selector, form-validators, display-format).
 - Report the rejected piece so the coordinator routes it to `fm-secret-audit`.

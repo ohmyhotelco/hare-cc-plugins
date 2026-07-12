@@ -76,7 +76,9 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   (`RqSchema.parse({ ...getCommonRequestParams(), … })`; non-strict, so zod **strips** a root field
   the schema `.omit()`s) and is pinned by a **body-shape test** asserting the omitted field is absent
   at the top level (`tdd-rules.md` → "request bodies", `shared-package-spec.md` → shared-data,
-  `tdd-cycle-runner` api phase); `parity-verifier`'s contract gate verifies the actual body against
+  `tdd-cycle-runner` api phase); `angular-to-react-mapping.md` (http → `getCommonRequestParams()` row,
+  the specific hole) spells out the spread/excess-property trap and the non-strict-parse fix;
+  `parity-verifier`'s contract gate verifies the actual body against
   the **live/staging backend**, not a contract doc's prose (a doc can be wrong about behavior). Closes
   error types K/L/M/N (spread-reintroduced field, type-without-runtime-enforcement, missing body-shape
   test, wrong contract prose). Origin: OMH-748 — a v2 login body spread the root `stationTypeCode`

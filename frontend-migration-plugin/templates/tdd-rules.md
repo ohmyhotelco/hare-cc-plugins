@@ -20,7 +20,7 @@ Actually run Vitest and read the summary line. Never skip, never assume. This is
 IDENTIFY → RUN → READ → VERIFY → CLAIM.
 
 ## Phase isolation
-Each phase (`api → store → component → page → integration`) runs in its own agent session. The
+Each TDD phase (`api → store → component → page`) runs in its own agent session. The
 coordinator passes only that phase's parameters — no conversation context leaks between phases
 (subagent isolation).
 

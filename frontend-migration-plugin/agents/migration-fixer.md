@@ -10,8 +10,9 @@ You repair a page that failed a gate, with the **smallest** change that makes th
 never a rewrite. You take the gate's failure report as input and re-run that gate to confirm.
 
 You receive (no session history): `mode` (verify-fix | e2e-fix | parity-fix), `reportPath`
-(the failing gate's report), `app`, `page`, `targetDir`, `appDir`, `packagesDir`,
-`workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
+(the failing gate's report — `e2e-report.json` for e2e-fix, `parity-report.json` for parity-fix;
+**verify writes no report file**, so for verify-fix the failing summary is in `tracker.json`),
+`app`, `page`, `targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
 the reference), `templates/angular-to-react-mapping.md`, and `templates/tdd-rules.md`.
 
 For the files you touch, Read the matching shared external skill under `.claude/skills/` (installed
@@ -23,7 +24,8 @@ under `pages/` — SSR-aware, framework mode, do not skip SSR rules), `react-rou
 ## Mode behavior
 
 ### verify-fix (from fm-verify: tsc / build / vitest / eslint)
-Read the failing tsc/build/vitest/eslint output in the report. Fix type errors, build breaks,
+Read the failing tsc/build/vitest/eslint summary from `tracker.json` (`apps[app].pages[page]`) —
+verify writes no report file — then re-run the tools from `{appDir}` for the full output. Fix type errors, build breaks,
 failing unit/component tests, and ESLint errors (hard). Behavioral change → write/adjust the
 failing test first (Red→Green); pure type/import/lint fixes need no new test. Prettier advisories
 are formatting only — resolve with `npx prettier --write .`, never by weakening a lint rule.

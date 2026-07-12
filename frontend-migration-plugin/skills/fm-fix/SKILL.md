@@ -18,7 +18,9 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 `appDir`, `packagesDir`, `workingLanguage`.
 
 ### Step 1: Detect fix mode
-If `--mode` is given, use it. Otherwise auto-detect from the **most recently modified** failure
+If `--mode` is given, normalize its short form to the `-fix` value the fixer expects
+(`verify`→`verify-fix`, `e2e`→`e2e-fix`, `parity`→`parity-fix`; an already-suffixed value passes
+through). Otherwise auto-detect from the **most recently modified** failure
 report under `docs/migration/{app}/{page}/`:
 - `parity-report.json` (fail) → `parity-fix`
 - `e2e-report.json` (fail) → `e2e-fix`
@@ -33,8 +35,9 @@ Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "
 (record `previousStatus`).
 
 ### Step 4: Run the fixer
-Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath`, `app`, `page`,
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
+Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath` (the failing
+`e2e-report.json`/`parity-report.json`; omit for `verify-fix` — verify writes no report, its failing
+summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
 
 ### Step 5: Resolve outcome
 Read `fix-report.json`:
