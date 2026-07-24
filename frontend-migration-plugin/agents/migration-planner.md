@@ -53,10 +53,23 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    rather than re-capturing legacy.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
-7. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
+7. **Copy bindings.** Carry every `analysis.json.copySources` entry into `copyBindings[]`: the
+   mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), the key or map
+   module + codes, the `renderMode` (`text` vs `html` — a value carrying `<br/>`/`<a href>` must
+   render as HTML), and the component that binds it. Never resolve a failure message to the response
+   `errorMessage` unless a `server-message` entry explicitly says so — the backend resolves that
+   field in a hardcoded EN locale (OMH-784). A `mustPreserve` copy source not bound here must appear
+   in `openApprovals[]`, or `fm-plan` Step 4 rejects the plan. See `templates/i18n-copy-parity.md`.
+8. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
    names + steps + which are transactional (staging gateways). `fm-e2e` (AA-45) realizes these as
    Playwright specs; you only enumerate them.
-8. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
+   **Failure branches are not optional.** Happy-path-only scenario sets are why copy regressions
+   reached production: a wrong error string never appears in a successful flow. Derive one scenario
+   per `copySources` failure point — every place legacy sets a form error flag, opens an alert, or
+   shows an inline message — and mark it `assertsCopy: true` so the dual-run compares the **displayed
+   text**, not just navigation. Where those surfaces exist, at minimum: wrong password, OTP/
+   verification-code failure, and blocked/duplicate email.
+9. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
    integration`, listing the files each phase creates and their test counts.
 
 ## Coverage preservation (functional scope is not silently reducible)

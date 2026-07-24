@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.11.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.12.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -41,7 +41,18 @@ orchestration and tracking**.
 > excess-property check never sees; `fm-parity`'s contract gate verifies the actual body against the
 > **live/staging backend**, not a contract doc's prose — closing the gap where a login body carried a
 > root `stationTypeCode` the real backend strict-rejected (400) while typecheck, MSW-vitest, and
-> MSW/legacy e2e all passed (OMH-748; design in `docs/design/request-schema-fidelity-generation.md`)).
+> MSW/legacy e2e all passed (OMH-748; design in `docs/design/request-schema-fidelity-generation.md`),
+> and the **i18n copy fidelity** rule (v0.12.0) — the fourth axis, the words the user reads: a new
+> `i18n` config block declares the product's copy surface (`localesDir` / `languages` / `lookupFns`),
+> which is what `gateAcceptance.scope`'s "every supported language" finally **resolves to**;
+> `foundation-generator` scaffolds a per-app **key-coverage spec** that `fm-verify`'s existing vitest
+> step turns into a hard gate (missing key / locale gap / missing `{{param}}`, with dynamic keys
+> counted as `uncheckable`); `copySources[]` → `copyBindings[]` records where each screen's text comes
+> from so a generator stops rendering the EN-hardcoded response `errorMessage` (OMH-784); failure
+> branches become `assertsCopy` dual-run scenarios that compare displayed text; and the visual gate
+> captures every planned **state** (error shown, session expired) across the language set — closing
+> the axis where a raw `tl.login.otp-subject` shipped in an email subject and broke password reset
+> while every gate stayed green (OMH-748; design in `docs/design/i18n-copy-fidelity-generation.md`)).
 > Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
@@ -109,6 +120,12 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   "contractsDir": "docs/migration/api-contracts",   // optional; recorded only when the dir exists
   "currentApp": "pc",
   "workingLanguage": "ko",
+  "i18n": {                                         // the PRODUCT's copy surface (not workingLanguage)
+    "localesDir": "packages/shared-i18n/src/locales",
+    "languages": ["KO", "EN", "JA", "ZH", "VI"],    // what "every supported language" resolves to
+    "lookupFns": ["t", "tl"],
+    "keyPrefix": "tl."
+  },
   "externalSkills": true,
   "eslintTemplate": true,
   "prettierTemplate": true,
@@ -140,6 +157,15 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   four packages (`config`/`i18n`/`domain`/`ui`) ignore this and extract from legacy as before.
   See "Mapping Catalog & Gate Definitions", `templates/shared-package-spec.md`, and `fm-extract`.
 - `workingLanguage` — `ko` | `en` | `vi`. All user-facing skill output is in this language.
+  **Not** the set of languages the product serves — that is `i18n.languages`.
+- `i18n` — **optional but gate-relevant**. Declares the product's copy surface so the gates can check
+  it: `localesDir` (translation resources), `languages` (the supported set), `lookupFns` (the i18n
+  lookup helpers whose key literals are checked, default `["t","tl"]`), `keyPrefix` (key convention,
+  e.g. `tl.`). `languages` is what `gateAcceptance.scope`'s "every supported language" **resolves
+  to** — without this block that criterion cannot be enforced. The helper names are per-app project
+  config, never plugin-baked (same principle as `flipMechanism`). When the block is absent,
+  `foundation-generator` skips the i18n key-coverage spec and `fm-verify` reports it as `skipped`
+  (never a silent pass). See "i18n Copy Parity" and `templates/i18n-copy-parity.md`.
 - `externalSkills` — when `true` (default), `fm-init` installs the shared skills via
   `npx skills add … --copy` (same mechanism as `frontend-react-plugin`): **React Router framework
   mode** (`remix-run/agent-skills`), **Vitest** (`antfu/skills`), and **Vercel React best-practices
@@ -449,6 +475,31 @@ non-strict-parse fix (the specific hole). `parity-verifier`'s contract gate veri
 the **live/staging backend**, not a contract doc's prose (a doc can be wrong about behavior; the live
 backend is the arbiter). Design: `docs/design/request-schema-fidelity-generation.md`.
 
+## i18n Copy Parity
+
+The copy axis of legacy parity (v0.12.0) — `templates/i18n-copy-parity.md` is the contract. The i18n
+lookup resolves `language → fallback → the key itself` and **never throws**; that is deliberate
+legacy-i18next parity, so the runtime is never "fixed" — the checks live in generation and the gates.
+Four placements:
+
+- **verify** — `foundation-generator` scaffolds a **key-coverage spec once per app** (every literal
+  key resolves in **all** `i18n.languages`; `{{param}}` values get params; dynamic keys counted as
+  `uncheckable`). `fm-verify`'s existing `npx vitest run` makes it hard; `fm-verify` only asserts the
+  spec exists and reports the `uncheckable` count. No separate gate step.
+- **plan** — `analysis.json.copySources[]` → `migration-plan.json.copyBindings[]` records where each
+  surface's text comes from (`localized-key` / `errorCode-map` / `empty-string` / `server-message`)
+  plus `renderMode`. A `mustPreserve` copy source must be bound or land in `openApprovals[]` — the
+  same reconciliation `behavioralVariants` uses. This is what stops a generator rendering the
+  response `errorMessage`, which the backend resolves in a hardcoded EN locale (OMH-784).
+- **e2e** — failure branches are required scenarios, marked `assertsCopy`, and the legacy dual-run
+  compares the **displayed text** per language, not just navigation.
+- **parity** — the visual gate compares every axis in every planned **state**
+  (`gateAcceptance.visual.states`: default, error shown, session expired, empty) across
+  `.languages`; an uncaptured planned state is an incomplete gate.
+
+Coverage across states × languages defaults to the full matrix; any reduction is an `openApprovals`
+item, never an author's default. Design: `docs/design/i18n-copy-fidelity-generation.md`.
+
 The style template (`templates/style-spec.md`, v0.9.0) defines `style-spec.json` — the legacy style
 answer key `fm-style-spec` captures **before** generation (live legacy computed values via a
 Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real values instead of
@@ -465,7 +516,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.11.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.12.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

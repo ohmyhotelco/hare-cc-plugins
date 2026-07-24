@@ -48,6 +48,14 @@ value against the live render, or (b) cover an axis/element the spec missed; a f
 that disagrees with a `live-confirmed` spec value is itself a finding (the spec is stale — flag it),
 not a silent rebaseline.
 
+**Capture every planned state, not just the default render.** `gateAcceptance.visual.states` lists
+the states each axis must be compared in (default + error-shown per failure surface + session
+expired + empty/zero-result). Drive the page into each one — symmetrically on both apps — before
+capturing. A state you never drove into is a state you never checked: error and session-expired copy
+are invisible to a default-only capture, which is how a literal `<br/>` shipped in a session-expired
+title (OMH-748). Run the matrix across `gateAcceptance.visual.languages` (= config `i18n.languages`);
+a narrowing must already exist in `openApprovals` — never decide it here.
+
 **Cross-framework reality (the trap that ships regressions).** Legacy is Angular, v2 is React; the
 two engines never rasterize identically, so a true `toHaveScreenshot(legacy) === toHaveScreenshot(v2)`
 pixel diff cannot pass. The legitimate fallback is **per-side baselines + computed-style probes** — but
@@ -73,6 +81,10 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
 3. Treat any axis diff **inside** the compared content-area (spacing, icon, alignment) as a parity item
    to fix or explicitly accept — never fold it silently into a lift-out delta. A lift-out width change
    moves centered controls' absolute position; itemize that, don't accept it by default.
+4. Run 1–3 in **every state** in `gateAcceptance.visual.states` and every language in
+   `gateAcceptance.visual.languages`. A planned state left uncaptured is an incomplete gate = `fail`,
+   the same as a partial probe set — and unlike a probe gap it is unrecoverable after the fact, since
+   the pixels for that state were never taken.
 
 ### 2. contract (always)
 Diff the new page's API request/response usage against the legacy DTOs (from the analysis): same
@@ -109,7 +121,10 @@ event parity; the time window is operational.
 {
   "page": "...",
   "gates": {
-    "visual":    { "result": "pass|fail", "diffs": [], "evidence": "..." },
+    "visual":    { "result": "pass|fail", "diffs": [], "evidence": "...",
+                   "coverage": { "states": ["default", "login failure shown", "session expired"],
+                                 "languages": ["KO", "EN", "JA", "ZH", "VI"],
+                                 "uncaptured": [] } },   // non-empty = incomplete gate = fail
     "contract":  { "result": "pass|fail", "drift": [], "evidence": "..." },
     "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
     "telemetry": { "result": "pass|fail|skipped", "missingEvents": [], "evidence": "..." }

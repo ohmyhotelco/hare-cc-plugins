@@ -45,6 +45,21 @@ If the app's harness is absent, scaffold it in `{appDir}`:
 Do not auto-install npm deps — if packages are missing, list the `pnpm add -D …` command and
 note it; scaffold the config regardless.
 
+### 3b. i18n key-coverage spec (once per app) — read `templates/i18n-copy-parity.md`
+If the config has an `i18n` block and the app has no key-coverage spec yet, generate one next to
+the harness. It collects the string-literal keys at every `i18n.lookupFns` call site in the app
+source and asserts each resolves in **all** `i18n.languages` resources under `i18n.localesDir`;
+asserts a value containing `{{param}}` gets a params argument at the call site; and tallies
+dynamically-assembled keys as `uncheckable` with `file:line` + a printed count (never a silent
+pass — but they do not fail the run, only what was actually checked does). Failure output names the
+key, the languages missing it, and the calling `file:line`.
+
+This is an **app-wide invariant**, so it lives with the harness (once per app), not per page —
+`fm-verify`'s existing `npx vitest run` then makes it a hard gate on every page, with no separate
+gate step. Do **not** change the i18n runtime to throw or warn: the `language → fallback → key`
+resolution reproduces legacy i18next and is required for parity. If the `i18n` block is absent,
+skip this spec and say so in the report (`fm-verify` records `skipped`).
+
 ### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
 Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
 the flag is on → skip silently if off → never auto-install). You receive `eslintTemplate` and

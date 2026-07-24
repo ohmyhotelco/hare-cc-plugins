@@ -44,6 +44,13 @@ Run the same scenario against the legacy Angular app (its base URL) and the new 
 compare the observable behavior (navigation, key outputs, success/failure paths). Record
 differences as failures — the legacy behavior is the reference.
 
+**Copy assertions (`assertsCopy: true` scenarios).** For a scenario the plan marks `assertsCopy`,
+also capture and diff the **text the user sees** on both sides — the flow matching is not enough. A
+navigation-only comparison passes an English backend string on a Korean screen, a raw `tl.*` key, or
+a literal `<br/>`; that is precisely how those shipped (OMH-748). Run these in each language the
+plan's `gateAcceptance.scope` covers, and record the observed strings per side in the report so a
+diff is inspectable rather than a bare fail. See `templates/i18n-copy-parity.md`.
+
 ### 5. Run and read
 Run Playwright from `{appDir}` with trace/screenshot/video retained on failure (config in
 `foundation-generator`). Read the full output (passed/failed counts, failing traces). For every
@@ -57,6 +64,8 @@ pass you did not observe (CLAUDE.md 5-step gate).
   "page": "...", "tool": "playwright",
   "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail",
                   "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff" },
+                  "copyParity": { "language": "KO", "legacyText": "비밀번호가 일치하지 않습니다.",
+                                  "newText": "This password is wrong.", "result": "diff" },
                   "artifacts": { "trace": "path/to/trace.zip", "video": "...", "screenshot": "..." },
                   "evidence": "...summary line..." }],
   "result": "pass | fail", "ranAt": "ISO"

@@ -71,7 +71,21 @@ details — they can be refined when those phases begin.
   zod schema source for `shared-types`/`shared-data` only. If the directory is absent, **omit the
   key** — `fm-extract` falls back to the existing legacy reverse-extraction (no regression). See
   CLAUDE.md → "Configuration".
-- `workingLanguage` — `ko` (default) | `en` | `vi`.
+- `workingLanguage` — `ko` (default) | `en` | `vi`. This is the language of **skill output**
+  (summaries, questions) — it is *not* the set of languages the product serves. That set is `i18n`
+  below; never conflate the two.
+- `i18n` — the **product's** copy surface, so the gates can check it. Detect, then confirm:
+  - `localesDir` — glob for the translation resources (e.g. `packages/shared-i18n/src/locales`).
+  - `languages` — derive from that directory's per-language subdirs/files (e.g.
+    `["KO","EN","JA","ZH","VI"]`). **This is what `gateAcceptance.scope`'s "every supported
+    language" resolves to** — without it that rule cannot be enforced.
+  - `lookupFns` — the i18n lookup helpers whose key literals get checked (default `["t","tl"]`).
+    Confirm against the app: helper names differ per app, so never hardcode them in the plugin.
+  - `keyPrefix` — optional key convention (e.g. `tl.`) used to spot key-shaped literals.
+
+  If `localesDir` cannot be found, **omit the whole `i18n` key** and warn that the i18n key-coverage
+  spec (`templates/i18n-copy-parity.md`) will be skipped — do not fail setup. See CLAUDE.md →
+  "Configuration" and "i18n Copy Parity".
 - `externalSkills` — default `true` (install Playwright, Vitest, React Router skills in
   Step 6).
 - `eslintTemplate` — default `true`. When `true`, generators auto-scaffold `eslint.config.js`

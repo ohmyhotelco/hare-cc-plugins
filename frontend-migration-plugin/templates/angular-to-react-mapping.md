@@ -133,10 +133,24 @@ See **http** and `templates/shared-package-spec.md` for where each lands.
 | `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor |
 | `HttpHelperService` session-expiry (`'Invalid Session Token'`/`'Session Expired'` → remove token + LoginModal) | axios response interceptor with a UX callback (modal on PC / route on mobile) |
 | `getCommonRequestParams()` (localStorage `locale`) spread into body | `shared-data` request builder reading the locale store — **parse the assembled body through its endpoint `RqSchema` at runtime** (see note below) |
-| response envelope `{ succeedYn, errorMessage, result, transactionSetId, errorCode }` | typed in `shared-types` (zod); unwrap in the query layer |
+| response envelope `{ succeedYn, errorMessage, result, transactionSetId, errorCode }` | typed in `shared-types` (zod); unwrap in the query layer — **`errorMessage` is not display copy** (see note) |
 
 Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.service.ts:28`,
 `core/models/condition.model.ts:5` (`getCommonRequestParams`).
+
+> **The response `errorMessage` is not display copy — do not render it.** The backend resolves that
+> field against a **hardcoded EN locale** (OMH-784), so drawing it puts English on a Korean (or JA/
+> ZH/VI) screen. It sits right there in the unwrapped envelope, which is exactly why a generator
+> reaches for it — but legacy never displays it: its login call does not even carry the server
+> message back on failure (`auth.service.ts:144` returns `of(false)`). Legacy resolves failure copy
+> one of two ways, and the plan records which per surface (`copyBindings[]`):
+> - a fixed localized key via a form-error flag — `login-password.component.ts:114` →
+>   `.html:21` renders `tl.login.fail-message`;
+> - an `errorCode` → i18n-key lookup table — `new-password.component.ts:141` +
+>   `common/utils/password-error.util.ts` (6 codes).
+>
+> Use `errorMessage` only where the plan carries an explicit `server-message` binding. See
+> `templates/i18n-copy-parity.md` (K2) and `migration-plan-schema.md` → Copy-source reconciliation.
 
 > **A request body must obey its own schema at runtime — not just at the type level.** The common
 > builder (`getCommonRequestParams()`) returns the shared envelope (e.g.

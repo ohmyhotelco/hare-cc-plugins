@@ -114,6 +114,24 @@ anchor. Emit as `behavioralVariants[]` (schema below); mark `mustPreserve: true`
 source proves the branch is dead code. `fm-plan` reconciles the plan against this list — a
 `mustPreserve` variant the plan neither implements nor explicitly defers is a plan defect.
 
+### 9. Copy sources (where user-visible text comes from)
+For every point the legacy screen shows the user text — form error flags, alert/toast calls,
+inline messages, modal titles, and any string handed to a backend that selects a template (an OTP
+email subject) — record **where the copy comes from**, not just that it exists. Read
+`templates/i18n-copy-parity.md` first. Mechanisms:
+`localized-key` (a fixed i18n key) · `errorCode-map` (response `errorCode` → key via a lookup
+table; record the table's file and the code list) · `empty-string` (send nothing; the backend
+supplies its default) · `server-message` (render the server's text verbatim — rare, and never
+assume it).
+The response `errorMessage` is **not** display copy: the backend resolves it against a hardcoded
+EN locale (OMH-784), so rendering it puts English on every non-English screen — legacy does not
+display it (its login call returns `of(false)`, not the server message). Also note, per key, whether
+the copy value carries **markup** (`<br/>`, `<a href>`) — that decides the render mode and whether a
+path inside the value must follow the migration's route scheme.
+Emit as `copySources[]` (schema below) with `mustPreserve: true` unless the source proves the branch
+is dead. `fm-plan` reconciles the plan against this list exactly as it does `behavioralVariants` — a
+`mustPreserve` copy source the plan neither binds nor explicitly defers is a plan defect.
+
 ## Output — `analysis.json`
 
 Write to `outPath` (Read-Modify-Write if it exists). Shape:
@@ -138,6 +156,18 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                                            "VI/ZH/EN": ["Google", "Apple", "Facebook"] },
                            "branchLogic": "referCode1 comma-locale-list includes(language) + prod allow-list",
                            "anchor": "file:line", "mustPreserve": true }],
+  "copySources": [{ "surface": "login failure message", "trigger": "POST /user/login fails",
+                    "mechanism": "localized-key",      // localized-key | errorCode-map | empty-string | server-message
+                    "key": "tl.login.fail-message", "hasMarkup": false,
+                    "anchor": "login-password.component.ts:114 + .html:21", "mustPreserve": true },
+                  { "surface": "password reset error", "trigger": "POST new-password fails",
+                    "mechanism": "errorCode-map", "mapFile": "common/utils/password-error.util.ts",
+                    "codes": ["…6 codes…"], "hasMarkup": false,
+                    "anchor": "new-password.component.ts:141", "mustPreserve": true },
+                  { "surface": "OTP email subject", "trigger": "send verification code",
+                    "mechanism": "empty-string",       // reset uses a dedicated key; login sends ""
+                    "note": "backend picks its default template; a raw key breaks OTP validation",
+                    "anchor": "verify-code.component.ts:155", "mustPreserve": true }],
   "styleSurface": {
     "elements": [{ "selector": ".btn-promotion-tab", "instanceSelector": ".btn-promotion-tab:first-of-type",
                    "classes": ["btn-promotion-tab"], "sheets": ["_contents.scss", "base.css"],
@@ -169,5 +199,9 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
 - Style is not "manual": record the `styleSurface` map (elements → classes → the **global** sheets
   where the rules live → assets → nesting structure). `fm-style-spec` turns this map into live
   computed values — but only if you point it at the right sheets and assets, so miss none.
+- Copy is not "obvious": record `copySources[]` for every user-visible text point, especially on
+  **failure** paths. "The response has an `errorMessage` field" is not evidence that legacy shows
+  it — check what the legacy component actually renders (usually a localized key or an `errorCode`
+  map). An unrecorded copy rule is re-derived wrongly on every screen (`templates/i18n-copy-parity.md`).
 - Keep the final message to the coordinator short: target, risk, required gates, shared
   candidates count, and any open questions — in `workingLanguage`.
