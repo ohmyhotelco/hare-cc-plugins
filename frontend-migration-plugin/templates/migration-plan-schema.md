@@ -46,6 +46,15 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
       "owner": "TBD", "status": "pending" }
   ],
+  "copyBindings": [                         // from analysis.copySources — where each screen's text comes from
+    { "surface": "login failure message", "mechanism": "localized-key",
+      "key": "tl.login.fail-message", "renderMode": "text",   // text | html (the value carries markup)
+      "boundIn": "LoginForm", "analysisAnchor": "login-password.component.ts:114" },
+    { "surface": "password reset error", "mechanism": "errorCode-map",
+      "mapModule": "app/lib/auth/password-error.ts", "codes": ["…6 codes…"],
+      "renderMode": "text", "boundIn": "NewPasswordForm",
+      "analysisAnchor": "new-password.component.ts:141" }
+  ],
   "requiredGates": ["e2e", "visual", "contract", "telemetry"],
   "gateAcceptance": { "visual": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] } },
                                             // REQUIRED — one entry per gate in requiredGates; see below
@@ -54,6 +63,10 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   "e2eScenarios": [
     { "name": "fill traveler form and proceed to payment", "transactional": false,
       "steps": ["..."], "legacyAnchor": "file:line" },
+    { "name": "login with wrong password shows the failure message", "transactional": false,
+      "assertsCopy": true,                  // dual-run compares the DISPLAYED TEXT, not just the flow
+      "coversCopyBinding": "login failure message",
+      "steps": ["..."], "legacyAnchor": "login-password.component.ts:114" },
     { "name": "complete card payment", "transactional": true, "gateway": "nicepay",
       "steps": ["..."] }
   ],
@@ -94,6 +107,14 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
   `templates/visual-parity-checklist.md`: frame, inter-element spacing/gaps, icons/glyphs, alignment,
   control geometry, color/border, typography. The verifier's computed-style probe set must cover
   **every** listed axis (not a subset); a partial set is an incomplete gate = fail.
+- `states` (visual gate only) — the rendered states each axis is compared in, derived from
+  `copyBindings` + the analysis: `default` plus every state whose content only appears when driven
+  there (error shown per failure surface, session expired, empty/zero-result). A default-only capture
+  can never see error or session-expired copy, so omitting a planned state is an incomplete gate,
+  not a smaller one.
+- `languages` — the languages the gate runs in. Defaults to the full `i18n.languages` set from
+  config; that config block is what "every supported language" **resolves to**. Any narrowing is an
+  `openApprovals` item.
 
 **Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
@@ -118,6 +139,8 @@ Example — a `visual` gate:
     "scope": "full page including app shell for pilot pages; content-area style parity always; every supported language",
     "artifacts": "same-pattern Playwright screenshots of BOTH apps (same viewport, fullPage, masking) compared side-by-side per axis + a computed-style probe per content-independent axis",
     "axes": ["frame", "inter-element spacing/gaps", "icons/glyphs", "alignment", "control geometry", "color/border", "typography"],
+    "states": ["default", "login failure shown", "session expired", "empty result"],
+    "languages": ["KO", "EN", "JA", "ZH", "VI"],   // = config i18n.languages; narrowing → openApprovals
     "excludes": []          // e.g. ["animated carousel region (masked both sides)"]
   }
 }
@@ -142,6 +165,23 @@ never authority for a silent one; the decision lives in `openApprovals` or it do
 `decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`). `fm-plan` surfaces
 every `pending` entry in its report; a coverage reduction is a human decision, not a default.
 
+## Copy-source reconciliation (required)
+
+The same rule, applied to the copy axis. Every `analysis.json.copySources[]` entry marked
+`mustPreserve` must survive into `copyBindings[]` — **or** be recorded in `openApprovals[]` with a
+rationale and decision owner. A `mustPreserve` copy source silently absent from both makes the plan
+**incomplete** (`fm-plan` Step 4 rejects it back to the planner, exactly like a missing
+`gateAcceptance` entry).
+
+Why it needs pinning: where a screen's text comes from is a **legacy rule**, not a generator choice.
+The response envelope carries an `errorMessage` field, so a generator with no recorded rule will
+naturally render it — and the backend resolves that field against a hardcoded EN locale (OMH-784),
+putting English on every non-English screen. Legacy instead uses a fixed localized key or maps
+`errorCode` through a lookup table. Unrecorded, the same mistake is re-derived independently on every
+screen (it was, on three). `renderMode` is part of the binding: a value carrying markup (`<br/>`,
+`<a href>`) must render as HTML rather than JSX text, and a path inside such a value still follows
+the migration's route scheme. See `templates/i18n-copy-parity.md`.
+
 ## 2-PR flag plan
 
 Every page migration ships as two PRs (Git Branch Strategy + migration plan §12):
@@ -160,3 +200,11 @@ Every page migration ships as two PRs (Git Branch Strategy + migration plan §12
 `e2eScenarios[]` enumerates the legacy user flows that must hold on the new page. The planner
 maps them from the analysis; `fm-e2e` (AA-45) realizes them as Playwright specs, runs the
 legacy dual-run, and (for `transactional: true`) runs against staging gateways.
+
+**Failure branches are required, not optional.** Derive one scenario per `copyBindings` failure
+surface (every place legacy sets a form-error flag, opens an alert, or shows an inline message) and
+mark it `assertsCopy: true` with `coversCopyBinding` naming the binding it covers — the dual-run
+then compares the **displayed text** on both apps, not just navigation. A happy-path-only suite
+cannot see a wrong error string, a raw `tl.*` key, or a literal `<br/>`, because none of them appear
+in a successful flow. Where those surfaces exist, cover at minimum: wrong password, OTP/
+verification-code failure, and blocked/duplicate email. See `templates/i18n-copy-parity.md`.

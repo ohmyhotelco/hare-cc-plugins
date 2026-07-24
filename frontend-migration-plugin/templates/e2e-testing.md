@@ -46,6 +46,19 @@ Run the same scenario against the legacy Angular app (its base URL) and the new 
 compare observable behavior (navigation, key outputs, success/error paths). The **legacy
 behavior is the source of truth** — a divergence is a new-app failure, not a scenario to relax.
 
+**Compare the displayed text, not just the flow.** For any scenario the plan marks
+`assertsCopy: true` (every `copyBindings` failure surface), assert the **message the user actually
+sees** on both sides and diff it. A flow can navigate identically while showing the wrong words:
+an English backend string on a Korean screen, a raw `tl.*` key, or a literal `<br/>`. Those pass a
+navigation-only comparison, which is exactly how they reached production (OMH-748). Run the copy
+assertions in each language the scenario's plan scope covers (`gateAcceptance.scope` →
+`i18n.languages`); a reduction there is an `openApprovals` item, not a default.
+
+**Failure branches are first-class scenarios.** A wrong error string never appears in a successful
+flow, so a happy-path-only suite is blind to the entire copy axis. Run the plan's failure scenarios
+— wrong password, OTP/verification-code failure, blocked or duplicate email — on both apps. See
+`templates/i18n-copy-parity.md`.
+
 ## Trace-first diagnostics
 Playwright is configured (in `foundation-generator`) to retain **trace + video + screenshot on
 failure** (`trace: 'retain-on-failure'`). A failed run is then a rich, structured artifact —

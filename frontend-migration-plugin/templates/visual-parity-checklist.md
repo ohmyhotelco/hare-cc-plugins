@@ -48,6 +48,24 @@ That fallback has TWO failure modes this checklist exists to prevent:
 4. Only after the side-by-side + probes agree the v2 render matches legacy (or the diffs are recorded
    as accepted deltas) is the v2 baseline allowed to stand.
 
+## States — the axes are compared in every planned state, not just the default render
+
+A screenshot captures whatever state the page happened to be in. Error text, a session-expired
+title, and an empty-list message never appear in the default render, so a default-only capture is
+blind to them **permanently** — no amount of axis coverage helps if the pixels were never taken.
+That is how a literal `<br/>` shipped in a session-expired modal title (OMH-748).
+
+So drive the page into each state the plan records (`gateAcceptance.visual.states`, derived from
+`copyBindings` + the analysis) and capture there, symmetrically on both apps. Typical states:
+default, **error shown** (per failure surface), **session expired**, empty/zero-result, and loading
+where it is a distinct rendered state. Every axis below applies within each state.
+
+Coverage is the full matrix — states × the languages in `gateAcceptance.scope` (→ `i18n.languages`).
+Capturing every state in every language is expensive, so a reduction is a legitimate thing to ask
+for and an **illegitimate thing to assume**: record it in `openApprovals[]` with its rationale and
+decision owner, exactly as with any other scope reduction. An author's cost trade-off is not a
+decision.
+
 ## The axes — every one must be compared AND (where content-independent) probed
 
 - **Frame & container** — width, max-width, centering (`margin:auto`), outer padding. (The 1200px

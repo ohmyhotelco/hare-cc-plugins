@@ -48,9 +48,15 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
    owner. A `mustPreserve` variant silently absent from both makes the plan incomplete — re-run the
    planner before recording (exactly like a missing `gateAcceptance` entry). Surface any
    `openApprovals` in the report so the reduction reaches a human, not the next stage.
-3. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
+3. **Copy-source reconciliation.** For every `analysis.json.copySources` entry with
+   `mustPreserve: true`, confirm it is either bound in the plan's `copyBindings[]` (mechanism + key
+   or map module + `renderMode`) **or** recorded in `openApprovals[]` with a rationale and decision
+   owner. Silently absent from both makes the plan incomplete — re-run the planner (same rule as
+   above). This is what stops a generator from rendering the response `errorMessage`, which the
+   backend resolves in a hardcoded EN locale (OMH-784). See `templates/i18n-copy-parity.md`.
+4. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
    plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
-4. Release the lock.
+5. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`

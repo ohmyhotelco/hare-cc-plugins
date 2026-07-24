@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-07-09)
+## Status (2026-07-10)
 
-- **Build complete — v0.11.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
+- **Build complete — v0.12.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -85,6 +85,26 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   back in and a strict backend rejected it (`400 error.common.schema.invalid.request`) while
   typecheck, MSW-vitest, and MSW/legacy e2e all passed; TypeScript's excess-property check does not
   see a field re-added by a `...spread`. Design: `docs/design/request-schema-fidelity-generation.md`.
+  v0.12.0 added the **i18n copy fidelity** rule — the fourth axis (the words the user reads), plus the
+  first new config block since `flipMechanism`: `i18n` (`localesDir` / `languages` / `lookupFns` /
+  `keyPrefix`), which is what `gateAcceptance.scope`'s pre-existing "every supported language" finally
+  **resolves to** (that criterion had no referent and was unenforceable). Four placements:
+  `foundation-generator` scaffolds a per-app **key-coverage spec** (every literal key resolves in all
+  `i18n.languages`; `{{param}}` values get params; dynamic keys tallied `uncheckable`) that
+  `fm-verify`'s existing `npx vitest run` turns into a hard gate — no new gate step, and `fm-verify`
+  only asserts the spec exists; `angular-analyzer.copySources[]` → `migration-plan.copyBindings[]` +
+  a copy-source reconciliation in `fm-plan` Step 4 (reusing the `behavioralVariants` machinery)
+  records where each surface's text comes from, so a generator stops rendering the response
+  `errorMessage` (backend resolves it in a hardcoded EN locale, OMH-784); failure branches become
+  required `assertsCopy` dual-run scenarios comparing **displayed text** per language; and the visual
+  gate captures every planned **state** (`gateAcceptance.visual.states`: error shown, session expired,
+  empty) across `.languages`, with reductions riding the existing `openApprovals` rule. The i18n
+  runtime is deliberately **not** touched — its `language → fallback → key` resolution reproduces
+  legacy i18next, so the checks belong in generation/gates. Closes K1–K6 (missing key, wrong copy
+  source, wrong render mode, path inside copy, locale gap, missing parameter). Origin: OMH-748 — a raw
+  `tl.login.otp-subject` shipped in a verification-email subject and broke password reset outright,
+  an English backend string appeared on Korean screens, and a session-expired title rendered `<br/>`
+  literally, all with verify/e2e/parity green. Design: `docs/design/i18n-copy-fidelity-generation.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
