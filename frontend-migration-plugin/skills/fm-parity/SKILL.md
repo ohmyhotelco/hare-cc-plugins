@@ -36,27 +36,43 @@ Ensure the Playwright permission exists (added by `fm-e2e`).
 
 ### Step 3: Inspect the evidence (before recording)
 Do not trust the verdict string. Read `parity-report.json` and, per gate:
-1. **Name vs compared surface** — check the report's what-was-compared against the gate's name
+1. **Provenance of each cited artifact** — for every artifact the report rests on, read its recorded
+   `provenance` and confirm `side` resolves from `origin`'s host:port against config
+   (`apps.*.legacyPort` / `apps.*.port` / the declared legacy host + the path's flip state), per
+   `templates/capture-provenance.md`. A `legacy-*` filename, a `legacy-captures/` directory, and a
+   report sentence saying "legacy baseline" are **not** evidence of side. An artifact whose side does
+   not resolve counts as absent: the axes it was to carry are uncovered → the gate is incomplete
+   (**fail**), and re-capture is the fix. This check comes first because everything below compares
+   those artifacts — a wrong-side baseline makes the remaining checks pass on the wrong pair, which is
+   how two gates issued passes that had to be retracted (OMH-758). New captures only: artifacts
+   predating the rule stay origin-unknown and are not retro-filled or re-adjudicated.
+2. **Name vs compared surface** — check the report's what-was-compared against the gate's name
    and its `gateAcceptance` entry. A `visual` verdict must rest on a visual comparison of
    symmetric artifacts (same pattern/scope both apps); a content-structure/text match is not a
    visual pass.
-2. **Open the legacy and v2 screenshots SIDE BY SIDE** and compare them axis by axis against
+3. **Open the legacy and v2 screenshots SIDE BY SIDE** and compare them axis by axis against
    `templates/visual-parity-checklist.md` — Read the *legacy* screenshot and the *v2* screenshot in
    the same pass and diff the two **renders** (not each against its own baseline). Walk every axis:
    frame, **inter-element spacing/gaps** (list↔pager, section, item — the most-missed), **icons/glyphs**
    (existence + faithful render + position + size + open/active state), alignment, control geometry,
    color/border, typography. A pass recorded without this side-by-side walk is invalid. Any axis that
    differs is a diff to fix or explicitly accept — never a silent pass.
-3. **Cross-framework fallback rigor** — PC legacy(Angular)↔v2(React) cannot pixel-diff, so the gate
+4. **Cross-framework fallback rigor** — PC legacy(Angular)↔v2(React) cannot pixel-diff, so the gate
    uses per-side baselines + computed-style probes. Two checks: (a) the v2 baseline is NOT treated as
-   the reference — it is valid only if it was checked against legacy in 2 above (a fresh
+   the reference — it is valid only if it was checked against legacy in 3 above (a fresh
    `--update-snapshots` capture is NOT that check); (b) the probe set covers **every** content-
    independent axis in the checklist, not a subset — a page pinning color but not the pager gap or the
    toggle icon is an **incomplete probe set = fail**.
-4. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
+5. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
    **fail** unless the report records the user's explicit approval — never a silent pass. In
    particular, a lift-out delta covers only the shed shell, NOT axis diffs (spacing/icon/alignment)
    inside the compared content-area.
+6. **Amended criteria** — a gate entry marked `amendedCriterion: true` is legitimate only if the plan's
+   criterion actually carries a `criterionAmendment` block (`templates/migration-plan-schema.md`) with
+   its `coverageUnchanged` statement and `priorDecisionLocation`. A pass claiming an amendment the plan
+   does not record is a **fail**: that is a self-granted criterion change wearing the amendment's
+   clothes. Check `priorDecisionLocation` in particular — a cited decision that has not reached the
+   branch the citation implies makes the amendment's basis weaker than it reads.
 Any failed check overrides the report: treat the gate (and the page) as failed.
 
 ### Step 4: Record

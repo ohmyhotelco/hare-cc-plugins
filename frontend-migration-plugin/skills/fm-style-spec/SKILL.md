@@ -47,11 +47,15 @@ Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `anal
 ### Step 5: Record
 1. Verify `style-spec.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
-   plus `styleSpec` = `{ capturedFrom, elements, liveConfirmed, sourceDerived, assets }` counts and
-   `updatedAt`.
+   plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
+   — the first three copied from `legacySource.provenance`, not restated in prose
+   (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
+   `fm-parity` reads it to decide whether the baseline is reusable at all.
 3. Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`: element count, **live-confirmed vs source-derived** counts (and whether the
-live URL was reached), asset count, structure wrappers, and any `unconfirmed` selectors that will
-need live confirmation later. Next step: `/frontend-migration-plugin:fm-plan {page}`.
+live URL was reached), the baseline's **resolved `side`** (`legacy` / `unresolved` — an unresolved
+baseline is not reusable at `fm-parity`, so surface it here), asset count, structure wrappers, and any
+`unconfirmed` selectors that will need live confirmation later. Next step:
+`/frontend-migration-plugin:fm-plan {page}`.

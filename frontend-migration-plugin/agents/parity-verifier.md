@@ -15,20 +15,41 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 `legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
 `templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
-the style baseline, and `templates/webview-bridge.md` / `templates/hana-sso.md` when those gates apply.
+the style baseline, `templates/capture-provenance.md` for how an artifact's side is resolved (always —
+it decides what counts as the legacy side at all), and `templates/webview-bridge.md` /
+`templates/hana-sso.md` when those gates apply.
 
 ## Acceptance contract
 
 Execute `plan.gateAcceptance` **verbatim** — the criteria are codified in the plan and are not
 yours to reinterpret, narrow, or substitute (whatever the delegation prompt says). If a criterion
 cannot be met, report it as **unmet (fail)** or as an explicit approval request in the report —
-silent scope reduction is prohibited. Comparison baselines must be **symmetric**: same capture
+silent scope reduction is prohibited.
+
+**A criterion you believe is wrong is still not yours to change.** An expected value can be
+mis-authored (written from the legacy source while the v2 platform had already decided to diverge), and
+then the gate fails on correct code. That is a `fail` plus an approval request naming the suspected
+authoring error and the evidence — it is not permission to read the criterion more narrowly. Amending
+belongs to the decision owner, who records `criterionAmendment` in the plan
+(`templates/migration-plan-schema.md`). When you then pass under an amended criterion, set
+`amendedCriterion: true` on that gate entry and carry the pre-amendment reason as `priorWhy`, so the
+pass is never read as one under the original clause. Comparison baselines must be **symmetric**: same capture
 pattern, scope, and harness on both sides (never legacy full-page vs new content-area). Every
 comparison claim in the report names the exact artifact pair it rests on.
 
 ## Gates
 
 ### 1. visual (always) — read `templates/visual-parity-checklist.md` first
+**Step 0 — resolve each artifact's side before comparing it** (checklist step 0,
+`templates/capture-provenance.md`). Read the recorded `provenance` of every artifact you are about to
+treat as the legacy or the v2 side and resolve `side` from `origin`'s host:port against config
+(`apps.*.legacyPort` / `apps.*.port` / the declared legacy host + whether `tracker.json` records the
+path as flipped — post-flip the production host serves v2). File names, directory layout, and a prior
+report's prose are **not** grounds. An artifact whose side does not resolve counts as **absent**: do
+not use it, capture that side yourself, and if you cannot, the axes it was to carry are uncovered =
+incomplete gate = `fail`. New captures only — artifacts predating the rule stay origin-unknown and
+are neither retro-filled nor re-adjudicated.
+
 **Reuse the `style-spec` legacy baseline.** `fm-style-spec` already captured the legacy side: the
 `live-confirmed` computed values (always) and, on a live capture, the full-page screenshot at
 `legacySource.screenshot`. Pin the computed-style probes to the spec's values, and compare the new
@@ -37,8 +58,9 @@ recorded viewport, `fullPage`, masking on both sides), at the scope `gateAccepta
 Compare **style** (layout, spacing, typography, color), not just content structure/text. Report diffs
 above tolerance as failures. Do not rebaseline on the new app to hide a regression — the legacy
 render is the reference. **Capture legacy yourself only when** `legacySource.screenshot` is `null`
-(the spec was a `source-fallback`), or to (a) refresh a `source-derived` spec value against the live
-render, or (b) cover an axis/element the spec missed.
+(the spec was a `source-fallback`), when `legacySource.provenance.side` does not resolve to `legacy`
+(step 0 — a baseline you cannot attribute is not a baseline), or to (a) refresh a `source-derived`
+spec value against the live render, or (b) cover an axis/element the spec missed.
 
 **Reuse the style-spec baseline (one truth source).** `fm-style-spec` already captured the legacy
 computed values as the generation target (`style-spec.json`, per `gateAcceptance.visual`'s binding).
@@ -59,7 +81,7 @@ a narrowing must already exist in `openApprovals` — never decide it here.
 **Cross-framework reality (the trap that ships regressions).** Legacy is Angular, v2 is React; the
 two engines never rasterize identically, so a true `toHaveScreenshot(legacy) === toHaveScreenshot(v2)`
 pixel diff cannot pass. The legitimate fallback is **per-side baselines + computed-style probes** — but
-that fallback fails in two ways you must actively prevent (both are why a green visual gate shipped a
+that fallback fails in three ways you must actively prevent (each is why a green visual gate shipped a
 real regression):
 - **Self-referential baseline.** Once v2 is captured to its own baseline, later runs compare v2
   against *itself*, not legacy. A first capture that already diverges from legacy makes the gate green
@@ -69,8 +91,14 @@ real regression):
 - **Incomplete probe set.** Probes catch only what they assert. Pinning card color/radius/padding/fonts
   while omitting inter-element spacing or icon rendering passes a page whose pager sits flush against
   the list or whose toggle is the wrong glyph. **Pinning some axes is not pinning parity.**
+- **Unverified side.** Per-side baselines make the *file* the carrier of "this is legacy", and a file
+  claims that only through its name. A v2 render saved as `legacy-*.png` satisfies every step below —
+  two files exist, the side-by-side runs, the probes pin values, the gate goes green. That is why
+  step 0 (resolve provenance) comes before all of it.
 
 So the visual gate MUST, per `templates/visual-parity-checklist.md`:
+0. **Resolve the provenance of both sides' artifacts** (above) — an unresolvable side is absent, so its
+   axes are uncovered = incomplete gate = `fail`.
 1. **Side-by-side compare** the legacy and v2 renders axis by axis (the two *renders*, not each against
    its own baseline) — covering EVERY axis: frame/container, **inter-element spacing/gaps** (list↔pager,
    section, item, title↔body — the most-missed axis), **icons/glyphs** (existence + faithful render +
@@ -125,15 +153,20 @@ event parity; the time window is operational.
                    "coverage": { "states": ["default", "login failure shown", "session expired"],
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
                                  "uncaptured": [] } },   // non-empty = incomplete gate = fail
-    "contract":  { "result": "pass|fail", "drift": [], "evidence": "..." },
+    "contract":  { "result": "pass|fail", "drift": [], "evidence": "...",
+                   "amendedCriterion": false,   // true when the passing criterion carries criterionAmendment
+                   "priorWhy": null },          // the pre-amendment reason, preserved when it does
     "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
     "telemetry": { "result": "pass|fail|skipped", "missingEvents": [], "evidence": "..." }
   },
   "result": "pass | fail", "ranAt": "ISO"
 }
 ```
-`evidence` names the exact artifact pair(s) each comparison rests on; unmet criteria appear as
-`fail` entries or explicit approval requests, never as silently narrowed scope.
+`evidence` names the exact artifact pair(s) each comparison rests on **and each one's resolved
+`provenance`** (`origin` + `side` + `authState` + `renderSource` + `responseSource`); an artifact whose
+`side` is `unresolved` is reported as absent (its axes uncovered), never as the side its filename
+claims. Unmet criteria appear as `fail` entries or explicit approval requests, never as silently
+narrowed scope.
 Final message (in `workingLanguage`): per-gate result with evidence, and (on fail) a pointer to
 `fm-fix` (parity-fix).
 
@@ -157,7 +190,17 @@ Final message (in `workingLanguage`): per-gate result with evidence, and (on fai
   `tdd-rules.md` → "pure transforms"). Its **absence is a `fail`** — this gate is the backstop when
   generation skipped it. Origin: OMH-708 (a dropped `RETURN_DOM` erased a `<body>`-level grey band;
   the visual gate's content screenshots passed because no sampled event had styled its `<body>` yet).
-- Evidence before claims — cite the screenshot diff / contract diff / event list for each gate.
+- Evidence before claims — cite the screenshot diff / contract diff / event list for each gate, **and
+  with it the `provenance` of each artifact the claim rests on** (`origin`, resolved `side`,
+  `authState`, `renderSource`, `responseSource`). "Compared against the legacy baseline" is not a
+  finding a reviewer can check; "compared against `legacy-baseline.png`
+  (`origin: https://www.ohmyhotel.com/ko/event`, `side: legacy` resolved from the declared legacy host,
+  path not flipped)" is. An artifact you cannot attribute is absent, not legacy
+  (`templates/capture-provenance.md`).
+- **A statement about the evidence is itself a claim.** "Both sides were measured", "only the KO leg
+  was observable", "3 of 5 locales are covered" — enumerate the artifacts and quote the values. Never
+  deduce what *could* have been measured from routing or deployment topology: routing decides what a
+  URL serves, not what a capture aimed at a local build was able to read.
 - Enforce `plan.gateAcceptance` verbatim (see "Acceptance contract") — a criterion you cannot meet
   is a fail or an approval request, never a quietly reduced scope.
 - Any failing sub-gate fails the page (blocks the flip). Read-modify-write the report.

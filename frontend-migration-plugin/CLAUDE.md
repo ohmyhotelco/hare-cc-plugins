@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.13.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -64,7 +64,22 @@ orchestration and tracking**.
 > one-shot **mutation check** ends the TDD Green step (break the just-written behavior, confirm red,
 > revert — a hollow test dies here); and `fm-plan` calls for confirming scope before generation —
 > closing the structural gap where OMH-749 passed every gate yet shipped 5 defects (design in
-> `docs/design/self-confirmation-hardening.md`)).
+> `docs/design/self-confirmation-hardening.md`), and **artifact provenance + answer-key sourcing**
+> (v0.14.0) — the layer under the gates' *judgement basis*: the 5-step gate and the
+> no-reinterpretation rule both address command execution, so a **captured artifact** passed them by
+> existing and opening, with its file name standing in for a statement of origin (measured: 561
+> captured png, 139 named `legacy*`, **5** with a recorded origin; `capturedFrom` defined 2 values and
+> carried 5 hand-written ones). Three defenses: (A) every capture carries a `provenance` block written
+> by the capturing code (`templates/capture-provenance.md`) and its `side` is **resolved** from
+> host:port + flip state, never from the filename — an artifact that does not resolve counts as
+> **absent**, not as the side it is named after (new captures only; no retro-fill, no re-adjudication);
+> (B) statements about the *evidence itself* ("both sides measured", "M of N locales") are claims under
+> the same 5-step gate — deducing evidence scope from routing/topology is not observation; (C)
+> `gateAcceptance` gains `expectedValueSource` (a criterion asserting a v2-side expected value cites
+> where that value comes from, "searched, none found" included) plus a formal `criterionAmendment`
+> block, because a wrong answer key fails the gate on **correct** code and that manufactures the
+> reinterpretation pressure the verbatim rule forbids — closing the gap where two gates issued passes
+> that had to be retracted (OMH-758; design in `docs/design/artifact-provenance.md`)).
 > Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
@@ -316,6 +331,26 @@ These apply to every agent and skill in this plugin.
   5-step gate: **IDENTIFY** the target → **RUN** the tool → **READ** the full output (exit
   code, counts) → **VERIFY** the output matches the claim → **CLAIM** citing evidence.
 
+  **The gate is not limited to tool output.** A statement about the *state of the evidence* —
+  "both sides were measured", "only one side was observed", "M of N locales are covered" — is
+  itself a claim, so it needs the same treatment: enumerate the artifacts and quote their values.
+  Deducing evidence coverage from configuration or deployment topology is **not** observation
+  (routing decides what a URL serves; it does not decide what a capture aimed at a local build was
+  able to measure).
+
+  **Provenance first — a file name is not evidence of origin.** Which side a captured artifact
+  counts as evidence for (`legacy` or `v2`) is decided **only** by its recorded provenance. File
+  names, directory locations, and report prose are not grounds. Every capture artifact records
+  `origin` (URL incl. host:port), `side`, `authState`, `renderSource`, `responseSource`,
+  `captureMode`, and `capturedAt`, and those values are written by the **code that performs the
+  capture** — not by the agent that later reports on it. Gates resolve `side` from the host:port
+  against config (`apps.*.legacyPort` / `apps.*.port` / declared hosts) and the path's flip state,
+  never from the name. An artifact whose side does not resolve is treated as **absent**, not as the
+  side its name claims. The full field set, the ordered resolution rules, and the
+  new-captures-only scope are in `templates/capture-provenance.md`; this rule governs captures taken
+  from here on — existing artifacts are not retro-filled and already-passed pages are not
+  re-adjudicated.
+
   Verification red flags (these thoughts mean you are rationalizing):
 
   | Thought | Reality |
@@ -325,6 +360,10 @@ These apply to every agent and skill in this plugin.
   | "I already verified earlier" | Code changed since. Verify again. |
   | "tsc passed, so the build will too" | Different tools catch different errors. |
   | "Tests passed, so it matches legacy" | Parity is a separate gate. Run it. |
+  | "The file is named `legacy-*`, so it is a legacy render" | A file name is a claim. Read the recorded provenance. |
+  | "The file exists and opens, so I observed it" | Existence is not origin. Opening an artifact and confirming where it came from are different acts. |
+  | "Routing sends only /ko to v2, so only /ko could be measured" | Routing decides what a URL serves. It does not decide what a capture against a local build can measure. |
+  | "I know what is in that artifact without opening it" | A coverage statement is a claim. Enumerate the files and quote the values. |
 
   In this plugin a false pass is especially costly: `fm-e2e` and `fm-parity` are the only
   thing standing between a regression and production.
@@ -547,9 +586,40 @@ Gate definitions (owning task):
 - **parity** (AA-46): visual regression vs legacy baseline, API contract freeze diff,
   WebView bridge round-trip, telemetry dual-fire parity.
 
+## Artifact Provenance & Answer-key Sourcing
+
+The gates' **judgement basis** (v0.14.0) — one layer under the four fidelity axes and the
+self-confirmation defenses. Those all assume the object being compared is the right object and the
+criterion states the right expectation. OMH-758 broke both assumptions, and the existing rules did not
+catch it because they address command execution: a command's exit code proves its own origin, while a
+`.png` proves nothing beyond existing and opening. Measured: 561 captured png artifacts, 139 named
+`legacy*`, **5** with a recorded origin. Design: `docs/design/artifact-provenance.md`.
+
+- **A (provenance decides side).** `templates/capture-provenance.md` defines one `provenance` block —
+  `origin` / `side` / `authState` / `renderSource` / `responseSource` / `captureMode` / `capturedAt` /
+  `viewport` / `partial` — written by the **capturing code**. `side` is **resolved** (localhost +
+  `apps.*.legacyPort`/`port`; a declared legacy host only while `tracker.json` shows the path un-flipped,
+  since the production host serves v2 afterwards), never read off a filename. An artifact that does not
+  resolve is **absent**, so its axes are uncovered = incomplete gate. Applied by
+  `style-spec.md`/`style-spec-extractor` (`legacySource.provenance`; `capturedFrom` deprecated →
+  `renderSource` + `authState` + `partial`), `visual-parity-checklist` **step 0**, `parity-verifier`,
+  `e2e-testing`/`e2e-test-runner` (per dual-run leg), `fm-parity` check 1, `fm-style-spec` tracker
+  record. **New captures only** — no retro-fill, no re-adjudication of passed pages.
+- **B (evidence-state statements are claims).** "Both sides measured", "M of N locales" fall under the
+  same 5-step gate: enumerate artifacts, quote values. Deducing evidence scope from routing or
+  deployment topology is not observation.
+- **C (answer-key sourcing + amendment).** `gateAcceptance.expectedValueSource` is required when a
+  criterion asserts a v2-side expected value (cite the prior decision and the branch it lives on;
+  "searched, none found" counts, unrecorded searching does not) — `fm-plan` Step 4 returns a plan
+  without it. A mis-authored criterion is corrected by the decision owner through `criterionAmendment`
+  (13 fields incl. `coverageUnchanged`, `priorDecisionLocation`, `fence`), never narrowed by the
+  executor who hits it; a pass under one carries `amendedCriterion: true` + `priorWhy`. Rationale: a
+  wrong answer key fails the gate on **correct** code, which manufactures exactly the reinterpretation
+  pressure the verbatim-enforcement rule forbids.
+
 ## Skills
 
-All skills are implemented (v0.13.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.14.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

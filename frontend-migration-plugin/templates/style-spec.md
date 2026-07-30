@@ -42,6 +42,24 @@ compares the v2 render against, so the visual gate does not re-capture a second,
 legacy baseline. On source-fallback there is no screenshot (`null`), and `fm-parity` captures legacy
 itself.
 
+## Provenance — what makes this the legacy side (`templates/capture-provenance.md`)
+
+`legacySource` carries the `provenance` block defined in `templates/capture-provenance.md`, written
+by the probe as it captures: `origin` (the URL it actually loaded, host:port included), `side`,
+`authState`, `renderSource`, `responseSource`, `captureMode`, `capturedAt`, `viewport`, and `partial`.
+This is what makes the values and the screenshot count as **legacy** evidence — the file's location
+and the `legacy-` prefix on its name do not. `fm-parity` re-resolves `side` before it reuses this
+baseline, and an unresolved side means the baseline is treated as absent (the gate captures legacy
+itself, or reports the axis as uncovered).
+
+The enums are closed. The old `capturedFrom` field is **deprecated**: it packed reach and auth state
+into one string, so pages invented values for it (five distinct hand-written values against two
+defined ones, including a full sentence, which is how a `null`-URL entry came to read as an
+authenticated capture). Read `capturedFrom` when an older spec has it; never write it. What it
+carried now lives in three places — reach in `renderSource`, session in `authState`, and "partial"
+in the `partial` object, which records **what was not reached and why** instead of hiding it in a
+value name.
+
 ## Classname ≠ style evidence
 
 A legacy class name on a v2 element is **not** evidence its style was reproduced. The generation
@@ -94,10 +112,18 @@ and otherwise **fetches `liveUrl`**, so a live-only asset is never silently miss
   "analysisRef": "docs/migration/pc/event/analysis.json",
   "legacySource": {
     "url": "https://www.ohmyhotel.com/ko/event",   // the live URL probed, or null
-    "capturedFrom": "live",                          // live | source-fallback
-    "viewport": { "width": 1280, "height": 800 },
     "screenshot": "docs/migration/pc/event/legacy-baseline.png",  // full-page legacy capture; null on source-fallback
-    "capturedAt": "ISO-8601"
+    "provenance": {                                // templates/capture-provenance.md — written by the probe
+      "origin": "https://www.ohmyhotel.com/ko/event",   // full URL incl. host:port; on fallback, the URL attempted
+      "side": "legacy",                            // legacy | v2 | unresolved (resolved from host:port + flip state)
+      "authState": "anonymous",                    // anonymous | authenticated
+      "renderSource": "live",                      // live | source-fallback
+      "responseSource": "backend",                 // backend | stubbed
+      "captureMode": "playwright-probe",           // playwright-probe | playwright-screenshot | playwright-route-intercept | source-cascade
+      "capturedAt": "ISO-8601",
+      "viewport": { "width": 1280, "height": 800 },
+      "partial": null                              // else { reached, notReached, why }
+    }
   },
   "elements": [
     {

@@ -115,6 +115,18 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
 - `languages` — the languages the gate runs in. Defaults to the full `i18n.languages` set from
   config; that config block is what "every supported language" **resolves to**. Any narrowing is an
   `openApprovals` item.
+- `expectedValueSource` — **required whenever the criterion asserts a v2-side expected value** (the
+  answer key: "the body sends `currency` derived from the URL locale", "the response envelope carries
+  `succeedYn`", "this label reads X"). Cite where that expectation comes from: a prior page's
+  `acceptedDeltas` / `openApprovals`, an ADR, a shared-module commit, a BE confirmation, or the legacy
+  source line — with the anchor, and with **where the decision lives** (a commit on `develop` but not
+  yet on `master` must say so; "on develop, not yet on master" is the accurate citation). Record
+  `"searched: <what>; no prior v2 decision found"` when that is the answer — an unrecorded search is
+  indistinguishable from no search. A criterion asserting a v2 expected value with no
+  `expectedValueSource` is **incomplete**, returned to the planner exactly like a missing
+  `gateAcceptance` entry (`fm-plan` Step 4).
+- `criterionAmendment` — present only when the criterion was corrected after authoring; see
+  "Criterion amendment" below.
 
 **Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
@@ -130,6 +142,24 @@ locales, and branches the code implements) — see "Behavioral-coverage reconcil
 gate `scope` is bound to the `behavioralVariants` dimensions the analysis discovered, so the two
 can never disagree.
 
+**The answer key is bound too — cite where the expected value comes from.** Coverage is only half of a
+criterion; the other half is what the gate expects to *see*, and that half has been unbound. A
+criterion asserting a v2-side expected value records its `expectedValueSource` (above). In particular,
+when the expectation is "same as legacy", confirm and cite that the v2 platform has not **already
+decided to diverge** on that axis: search the prior pages' `acceptedDeltas` / `openApprovals`, the
+ADRs, and the git log of the shared module that owns the value — and record the search either way,
+including "found nothing".
+
+Why this is not bureaucracy: a wrong answer key does not fail safe. It **fails the gate on correct
+code**, and a gate failing on correct code puts pressure on the executor to read the criterion more
+narrowly — the exact behavior "Executors enforce these criteria verbatim" exists to forbid. The
+authoring error manufactures the reinterpretation pressure. That happened on the first page whose
+contract gate compared an actual request body field-by-field: the criterion said three locale-derived
+fields, written from the legacy source alone, while the v2 platform had already decided (on `develop`)
+that only one of them follows the URL locale and the other two preserve the user's locale-modal choice.
+Coverage was right; the answer key was wrong; the gate produced a false FAIL. Expect this on every page
+that asserts a v2-side value, not just request bodies.
+
 Example — a `visual` gate:
 
 ```jsonc
@@ -141,10 +171,41 @@ Example — a `visual` gate:
     "axes": ["frame", "inter-element spacing/gaps", "icons/glyphs", "alignment", "control geometry", "color/border", "typography"],
     "states": ["default", "login failure shown", "session expired", "empty result"],
     "languages": ["KO", "EN", "JA", "ZH", "VI"],   // = config i18n.languages; narrowing → openApprovals
+    "expectedValueSource": "style-spec.json legacySource.provenance (side: legacy, live-confirmed computed values); searched prior pages' acceptedDeltas + packages/shared-ui git log for an approved v2 divergence on these axes — none found (2026-07-30)",
     "excludes": []          // e.g. ["animated carousel region (masked both sides)"]
   }
 }
 ```
+
+## Criterion amendment (when the answer key itself was wrong)
+
+A criterion whose expected value turns out to be wrong is fixed by **amending the criterion**, and that
+is a decision-owner act — not the executor's. Keep the two apart in writing, or a reviewer reading the
+report cannot tell a correction from the silent scope reduction the gate rules prohibit. An executor who
+believes a criterion is wrong raises it (a `fail` plus an approval request); the owner amends.
+
+An amendment records, in the criterion, under `criterionAmendment`:
+
+| Field | What goes in it |
+| --- | --- |
+| `amendedAt` / `amendedBy` | Date, and the decision owner (a person, with their standing for this page's gates) |
+| `via` | How the error surfaced — the approval request, report, or review that raised it |
+| `clauseBefore` / `clauseAfter` | The criterion text verbatim on both sides of the change |
+| `coverageUnchanged` | The explicit statement that nothing was narrowed: what `scope` still requires, and which other clauses are untouched. An amendment that also shrinks coverage is two changes; the reduction goes through `openApprovals` on its own |
+| `whyTheOriginalClauseWasWrong` | The authoring error, named (typically: legacy's behavior encoded as v2's requirement without checking whether v2 had already decided otherwise) |
+| `priorDecision` | The v2 decision the amended clause now follows, cited — ticket, commit, ADR, with the wording it actually used |
+| `priorDecisionLocation` | **Where that decision lives**, verified: which branch carries it, and whether it has reached `master`. A decision on `develop` but not on `master` must say exactly that — this is the field most easily overstated and the one a reviewer checks first |
+| `beConfirmation` | The backend/platform confirmation, when the amendment rests on one, with its date, artifact, and the endpoints it covers |
+| `fence` | What the amendment does **not** cover — the pages, endpoints, or axes it must not be read as clearing. Without this an amendment drifts into a repo-wide precedent |
+| `whatThisDoesNotClose` | Which findings and tickets remain open regardless. An amendment dispositions a divergence; it does not remove it |
+| `evidenceBase` | The artifacts the amendment rests on, enumerated (both sides, all locales, file paths) — the same standard as any gate claim |
+
+A gate that passes under an amended criterion records `amendedCriterion: true` in its report entry and
+preserves the pre-amendment reason as `priorWhy`, so the pass is never mistaken for one under the
+original clause and the history survives in the artifact rather than in a PR thread.
+
+Field names are the ones the first real amendment used (`docs/migration/pc/delete-account` on the
+OMH-758 branch) — promoted, not re-invented, so existing reports keep parsing.
 
 ## Behavioral-coverage reconciliation (required)
 

@@ -62,9 +62,18 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
    owner. Silently absent from both makes the plan incomplete — re-run the planner (same rule as
    above). This is what stops a generator from rendering the response `errorMessage`, which the
    backend resolves in a hardcoded EN locale (OMH-784). See `templates/i18n-copy-parity.md`.
-4. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
+4. **Answer-key sourcing.** For every `gateAcceptance` criterion that asserts a v2-side expected value
+   (what the gate expects to *see*, not just what it compares), confirm `expectedValueSource` is
+   present and names a real anchor — a prior page's `acceptedDeltas`/`openApprovals`, an ADR, a
+   shared-module commit (with the branch it lives on), a BE confirmation, or an explicit
+   `"searched: …; no prior v2 decision found"`. Missing → the plan is incomplete; re-run the planner
+   (same rule as above). A wrong expected value fails the gate on correct code, and that pressures the
+   executor into reinterpreting the criterion — see `templates/migration-plan-schema.md` → "The answer
+   key is bound too". Corrections after the fact are the decision owner's `criterionAmendment`, not an
+   executor's narrowing.
+5. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
    plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
-5. Release the lock.
+6. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`

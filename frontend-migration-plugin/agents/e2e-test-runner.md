@@ -12,7 +12,8 @@ route flip is not allowed until it passes.
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
 `e2eScenarios`), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
 (payment-gateway test endpoints), `outPath` (`e2e-report.json`), `workingLanguage`. Read
-`templates/e2e-testing.md`.
+`templates/e2e-testing.md`, plus `templates/capture-provenance.md` for the `provenance` block each
+dual-run leg records.
 
 ## Procedure
 
@@ -44,6 +45,15 @@ Run the same scenario against the legacy Angular app (its base URL) and the new 
 compare the observable behavior (navigation, key outputs, success/failure paths). Record
 differences as failures — the legacy behavior is the reference.
 
+**Each leg records its own `provenance`** (`templates/capture-provenance.md`): the spec writes
+`origin` (the base URL it actually drove, host:port included), the `side` resolved from that host:port
+against config (`apps[app].legacyPort` → `legacy`, `apps[app].port` → `v2`, else `unresolved`),
+`authState`, `renderSource`, `responseSource` (`stubbed` for MSW/`route.fulfill` runs, `backend` on
+staging), `captureMode`, and `capturedAt` — into `dualRun.legacy`/`dualRun.new` in the report. The two
+legs usually differ only by port, so which run produced which artifact is exactly the thing that gets
+mixed up; a leg whose side does not resolve is reported as **one leg observed, not two** (`parity`
+cannot be `match`), never as a dual-run on the strength of a label.
+
 **Copy assertions (`assertsCopy: true` scenarios).** For a scenario the plan marks `assertsCopy`,
 also capture and diff the **text the user sees** on both sides — the flow matching is not enough. A
 navigation-only comparison passes an English backend string on a Korean screen, a raw `tl.*` key, or
@@ -63,7 +73,13 @@ pass you did not observe (CLAUDE.md 5-step gate).
 {
   "page": "...", "tool": "playwright",
   "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail",
-                  "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff" },
+                  "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff",
+                               // per-leg provenance — templates/capture-provenance.md
+                               "legacyProvenance": { "origin": "http://localhost:30210/ko/login", "side": "legacy",
+                                                     "authState": "anonymous", "renderSource": "live",
+                                                     "responseSource": "stubbed", "captureMode": "playwright-route-intercept",
+                                                     "capturedAt": "ISO-8601" },
+                               "newProvenance":    { "origin": "http://localhost:30220/ko/login", "side": "v2", "…": "…" } },
                   "copyParity": { "language": "KO", "legacyText": "비밀번호가 일치하지 않습니다.",
                                   "newText": "This password is wrong.", "result": "diff" },
                   "artifacts": { "trace": "path/to/trace.zip", "video": "...", "screenshot": "..." },
