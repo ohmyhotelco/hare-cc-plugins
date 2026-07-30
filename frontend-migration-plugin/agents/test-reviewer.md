@@ -20,7 +20,11 @@ You receive (no session history): `testPath` (file or dir), `appDir`, `workingLa
    where a role exists; `userEvent` over raw fire where appropriate.
 3. **Async** — proper `await` / `findBy*` / `waitFor`; no arbitrary sleeps; act warnings resolved.
 4. **Coverage** — the planned scenarios/edge cases are tested; the 4-state coverage for pages
-   (loading/empty/error/success) where relevant; each test traces a scenario/analysis anchor.
+   (loading/empty/error/success) where relevant; each test carries a `// scenario` anchor, and a
+   test **asserting legacy behavior** carries a `// legacy: <path>:<line>` anchor into the legacy
+   source (not `analysis`/`plan`). Spot-check a few: open the cited legacy line and confirm the
+   test's assumed condition actually matches it — a wrong reading is invisible here otherwise. A
+   v2-only-structure test legitimately has no legacy anchor; do not flag its absence.
 5. **Timing / flakiness** — deterministic (MSW for non-transactional); no time-dependent flakes;
    Playwright auto-waiting used instead of fixed timeouts.
 6. **Anti-patterns** — no test-only methods in production code; no incomplete mocks (MSW responses

@@ -19,6 +19,14 @@ Actually run Vitest and read the summary line. Never skip, never assume. This is
 "evidence before claims" 5-step gate applied to tests:
 IDENTIFY → RUN → READ → VERIFY → CLAIM.
 
+## Green must survive a mutation (the test earns its green)
+After a unit goes green, break the **one behavior you just made pass** in the production code —
+delete the guard, invert the condition, or stop passing the prop — rerun Vitest, confirm the test
+goes **red**, then revert. A test that stays green asserts nothing about that behavior; strengthen
+the assertion before moving on. Scope is the just-written behavior only (one mutation, seconds), not
+the whole file. This is the cheapest defense against the false-green class where a wrong reading of
+the legacy source produces a test and an implementation that agree with each other (OMH-749).
+
 ## Phase isolation
 Each TDD phase (`api → store → component → page`) runs in its own agent session. The
 coordinator passes only that phase's parameters — no conversation context leaks between phases
@@ -38,7 +46,14 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
 - Import extracted logic from `@omh/shared-*`; never re-implement what `fm-extract` produced.
 - Preserve legacy behavior exactly (parity is gated later by `fm-e2e`/`fm-parity`) — including
   the AuthGuard login-modal UX and the API response envelope handling.
-- Tag each test with a `// scenario` / `// analysis:file:line` comment for traceability.
+- Tag each test with a `// scenario` comment, and — for any test that **asserts legacy behavior** —
+  a `// legacy: <path>:<line>` anchor pointing at the **legacy source itself**, not `analysis`/`plan`
+  (those are derivatives of one reading; an anchor into them can't catch a misreading). A legacy
+  anchor makes the reading checkable: a reviewer or Codex can open that exact line and confirm the
+  condition the test assumes (e.g. `dirty` vs `touched`). Scope it to legacy-behavior tests only —
+  tests of v2-only structure (routing, loading states) have no legacy line, so do not force an anchor
+  there (a formalistic anchor is worse than none). Origin: OMH-749 (a misread `control.dirty` → a
+  test asserting the wrong condition, green).
 - **Pure transforms are pinned to the legacy output (golden test), not spot-checked.** When a phase
   ports a **pure transform** — a sanitizer, formatter, serializer, URL builder, any
   input→string/DOM function — the test target is the **full legacy output** over a **representative

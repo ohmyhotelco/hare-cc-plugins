@@ -37,7 +37,7 @@ missing key must be caught at the **gate/generation** stage instead. Three layer
 | --- | --- | --- |
 | K1 missing key | key absent from the locales → the raw key renders | `tl.login.otp-subject`, `tl.non-member.otp-subject` |
 | K2 wrong copy source | legacy uses a localized key; v2 renders the backend `errorMessage` | login / OTP / password-reset failures |
-| K3 wrong render mode | HTML-bearing copy rendered as plain text (or the reverse) | `<br/>` in the session-expired title |
+| K3 wrong render mode | markup- **or entity**-bearing copy rendered as plain text (or the reverse) | `<br/>` in the session-expired title (OMH-748); `&apos;` in `tl.bh-change-subscriber.phone-pattern` rendered literally (OMH-749) |
 | K4 path inside copy | an `<a href>` inside a copy value ignores the migration's path scheme | terms / privacy links |
 | K5 locale gap | key exists in some languages only → that language shows fallback or the raw key | not yet hit; structurally possible |
 | K6 missing parameter | `{{name}}` placeholder rendered with no value passed | not yet hit; structurally possible |
@@ -63,6 +63,13 @@ What it must assert:
    literal, concatenation) cannot be resolved statically. Tally these as `uncheckable` with their
    `file:line` and print the count. A growing count is a visible signal, never a silent pass. Do
    **not** fail on them — fail only on what was actually checked.
+4. **Render mode matches the value's content (K3).** For each resolved key whose value contains
+   markup (`<…>`) **or an HTML entity** (`&…;`), assert the call site renders it through the
+   sanitized HTML path, not as JSX text. A markup/entity value on the plain-text path **fails** —
+   this is the K3 defect made machine-checked rather than left as prose (a markup-only human rule
+   let `&apos;` through on OMH-749). A value that intends a literal `&`/`<` on screen is a rare,
+   deliberate exception: record it in `openApprovals[]`, do not weaken the check. (Where the render
+   path cannot be resolved statically, count it under `uncheckable` per item 3 — never a silent pass.)
 
 Failure output names, per finding: the **key**, the **languages missing it**, and the calling
 **`file:line`** — enough to fix without re-investigating.
@@ -99,11 +106,14 @@ decision, never a default.
 
 ## Render mode and paths (K3, K4)
 
-- A copy value containing markup (`<br/>`, `<a>`, `<b>`) must be rendered as HTML, not JSX text —
-  and one that does not must stay plain text. The same component often mixes both, and nothing in
-  the code says which is which: decide per key by **inspecting the value in the locale resource**,
-  and keep HTML-bearing keys rendered through the sanitized HTML path (see
-  `angular-to-react-mapping.md` → **pipes-directives** for the sanitizer options).
+- A copy value containing markup (`<br/>`, `<a>`, `<b>`) **or an HTML entity** (`&apos;`, `&nbsp;`,
+  `&#39;`, `&amp;`) must be rendered as HTML, not JSX text — and one that has neither must stay plain
+  text. The entity case is the easy one to miss: an entity has no `<`, so a markup-only rule lets it
+  through, and JSX then escapes it so the user sees the literal `&apos;`. The same component often
+  mixes both kinds, and nothing in the code says which is which: decide per key by **inspecting the
+  value in the locale resource**, and keep any value that carries markup or an entity rendered
+  through the sanitized HTML path (see `angular-to-react-mapping.md` → **pipes-directives** for the
+  sanitizer options).
 - A path inside a copy value (`<a href="/privacy">`) is still a route: it must follow the
   migration's language-prefix/path scheme like any other link. Links hidden inside translation
   values escape code review — check them when the value carries markup.

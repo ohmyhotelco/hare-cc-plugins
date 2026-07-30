@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.12.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.13.0)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -52,7 +52,19 @@ orchestration and tracking**.
 > branches become `assertsCopy` dual-run scenarios that compare displayed text; and the visual gate
 > captures every planned **state** (error shown, session expired) across the language set — closing
 > the axis where a raw `tl.login.otp-subject` shipped in an email subject and broke password reset
-> while every gate stayed green (OMH-748; design in `docs/design/i18n-copy-fidelity-generation.md`)).
+> while every gate stayed green (OMH-748; design in `docs/design/i18n-copy-fidelity-generation.md`),
+> and the **self-confirmation hardening** set (v0.13.0) — the mechanism under all four prior axes:
+> tests and implementation are generated from one reading of the legacy source, so a misreading makes
+> them agree and the gate stays green. Four defenses + a scope note: (A) the i18n render-mode rule
+> now covers HTML **entities** (`&apos;`) not just markup, and is machine-checked in the generated
+> key-coverage spec rather than left as prose; (B) tests asserting legacy behavior carry a
+> `// legacy: file:line` anchor into the **legacy source** (not analysis/plan), scoped to
+> legacy-behavior tests; (C) the Codex `gen`/`verify` audits receive the legacy source at those
+> anchors and check whether each cited line's real condition matches the test's assumption; (D) a
+> one-shot **mutation check** ends the TDD Green step (break the just-written behavior, confirm red,
+> revert — a hollow test dies here); and `fm-plan` calls for confirming scope before generation —
+> closing the structural gap where OMH-749 passed every gate yet shipped 5 defects (design in
+> `docs/design/self-confirmation-hardening.md`)).
 > Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
@@ -500,6 +512,27 @@ Four placements:
 Coverage across states × languages defaults to the full matrix; any reduction is an `openApprovals`
 item, never an author's default. Design: `docs/design/i18n-copy-fidelity-generation.md`.
 
+## Self-confirmation Hardening
+
+Tests and implementation are both generated from **one reading** of the legacy source, so a
+misreading makes them agree and the gate goes green (the plugin names this bias in
+`templates/i18n-copy-parity.md`). v0.13.0 adds four defenses that make the reading checkable, plus a
+scope note — design in `docs/design/self-confirmation-hardening.md`:
+
+- **A (entity render, machine-checked).** `i18n-copy-parity.md` render-mode covers markup **or HTML
+  entity**; the generated key-coverage spec (`foundation-generator` 3b) fails a markup/entity value
+  on the plain-text path. Was prose-only, which is why `&apos;` shipped (OMH-749).
+- **B (legacy anchors).** A test asserting legacy behavior carries `// legacy: file:line` into the
+  legacy source, not `analysis`/`plan` — scoped to legacy-behavior tests (`tdd-cycle-runner`,
+  `tdd-rules`, `test-reviewer`).
+- **C (Codex cross-read).** `codex-audit.md` `gen`/`verify` receive the legacy source at those
+  anchors; `verify` states whether each cited line's condition matches the test's assumption. B+C
+  interlock (B makes the reading an artifact, C is the second reader).
+- **D (one-shot mutation).** End of TDD Green: break the just-written behavior, confirm red, revert
+  (`tdd-cycle-runner`, `tdd-rules`). A hollow test dies here. Scoped to the one behavior, not a suite.
+
+The i18n runtime fallback is untouched (legacy-i18next parity); all defenses live in generation/gates.
+
 The style template (`templates/style-spec.md`, v0.9.0) defines `style-spec.json` — the legacy style
 answer key `fm-style-spec` captures **before** generation (live legacy computed values via a
 Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real values instead of
@@ -516,7 +549,7 @@ Gate definitions (owning task):
 
 ## Skills
 
-All skills are implemented (v0.12.0). The "Built in" column records the task that delivered each
+All skills are implemented (v0.13.0). The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

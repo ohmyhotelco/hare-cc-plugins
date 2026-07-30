@@ -64,11 +64,22 @@ absent, proceed without it (the install is non-blocking).
    requirement, and the parity gates will catch the omission. The ladder governs *how* to
    implement, never *whether*.
    Run vitest; **read the output and confirm it PASSES.**
+   **Then a one-shot mutation check (the test earns its green).** Break the single behavior you just
+   made pass — delete the guard, invert the condition, or stop passing the prop — rerun vitest, and
+   confirm the test goes **red**; then revert. If it stays green, the test asserts nothing about that
+   behavior: strengthen the assertion before moving on. This targets **only the behavior just
+   written**, not the whole file — one mutation, a few seconds. It is the cheapest catch for the
+   false-green class where a wrong reading produces a test and code that agree (OMH-749).
 3. **Refactor.** Clean up; keep green.
 
 Never write implementation before a failing test. Actually run the tool and read the output —
-evidence before claims (CLAUDE.md 5-step gate). Track each test with a `// scenario` comment
-referencing the plan/analysis anchor.
+evidence before claims (CLAUDE.md 5-step gate). Tag each test with a `// scenario` comment; and for
+any test that **asserts legacy behavior**, add a `// legacy: <path>:<line>` anchor pointing at the
+**legacy source itself** (not `analysis`/`plan`, which are derivatives of one reading — an anchor
+into them can't reveal a misreading). The legacy anchor makes your reading checkable: a reviewer or
+Codex can open that line and confirm the assumed condition (`dirty` vs `touched`, etc.). Scope it to
+legacy-behavior tests only; v2-only structure (routing/loading) has no legacy line — don't force one.
+See `templates/tdd-rules.md`.
 
 ## Conventions (shared with frontend-react-plugin)
 - shadcn/ui only; functional components + hooks; 2-space indent; TS interface for all props.
