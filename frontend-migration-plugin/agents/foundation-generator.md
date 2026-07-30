@@ -49,10 +49,13 @@ note it; scaffold the config regardless.
 If the config has an `i18n` block and the app has no key-coverage spec yet, generate one next to
 the harness. It collects the string-literal keys at every `i18n.lookupFns` call site in the app
 source and asserts each resolves in **all** `i18n.languages` resources under `i18n.localesDir`;
-asserts a value containing `{{param}}` gets a params argument at the call site; and tallies
-dynamically-assembled keys as `uncheckable` with `file:line` + a printed count (never a silent
-pass — but they do not fail the run, only what was actually checked does). Failure output names the
-key, the languages missing it, and the calling `file:line`.
+asserts a value containing `{{param}}` gets a params argument at the call site; asserts that a value
+carrying **markup (`<…>`) or an HTML entity (`&…;`)** is rendered through the sanitized HTML path,
+not as JSX text (K3 — a plain-text render of such a value fails; entity-only values are the missed
+case, OMH-749); and tallies dynamically-assembled keys (and any call site whose render path can't be
+resolved statically) as `uncheckable` with `file:line` + a printed count (never a silent pass — but
+they do not fail the run, only what was actually checked does). Failure output names the key, the
+languages missing it (or the wrong render mode), and the calling `file:line`.
 
 This is an **app-wide invariant**, so it lives with the harness (once per app), not per page —
 `fm-verify`'s existing `npx vitest run` then makes it a hard gate on every page, with no separate

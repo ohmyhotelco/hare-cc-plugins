@@ -35,9 +35,9 @@ Read `tsconfig.json` in `{appDir}`:
 
 ### Step 4a: i18n key coverage (presence check — the run itself is Step 4)
 The key-coverage spec `foundation-generator` scaffolds (`templates/i18n-copy-parity.md`) runs inside
-Step 4's `npx vitest run`, so a missing/locale-gapped key already **fails the gate** there — there is
-no separate command here. What this step adds is that the spec **exists**, so the check cannot be
-silently removed:
+Step 4's `npx vitest run`, so a missing/locale-gapped key — or a markup/entity value rendered as
+plain text (K3) — already **fails the gate** there; there is no separate command here. What this
+step adds is that the spec **exists**, so the check cannot be silently removed:
 - Config has an `i18n` block and the app has the spec → note it as `present` and surface its
   `uncheckable` (dynamic-key) count from the vitest output. A rising count is a signal, not a pass.
 - Config has an `i18n` block but the spec is **absent** → **gate failure**; point at

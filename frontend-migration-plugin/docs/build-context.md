@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.12.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
+- **Build complete — v0.13.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -105,6 +105,23 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   `tl.login.otp-subject` shipped in a verification-email subject and broke password reset outright,
   an English backend string appeared on Korean screens, and a session-expired title rendered `<br/>`
   literally, all with verify/e2e/parity green. Design: `docs/design/i18n-copy-fidelity-generation.md`.
+  v0.13.0 added the **self-confirmation hardening** set — the mechanism under all four prior axes:
+  tests and implementation are generated from **one reading** of the legacy source, so a misreading
+  makes them agree and the gate goes green (the plugin already named this bias in
+  `i18n-copy-parity.md`). Four defenses + a scope note, all in existing surfaces (no new
+  stage/artifact, runtime untouched): (A) the i18n render-mode rule now covers HTML **entities**
+  (`&apos;`) not just markup and is **machine-checked** in the generated key-coverage spec
+  (`foundation-generator` 3b) rather than prose — 17 entity-bearing locale values, 0 caught by the
+  old markup-only rule; (B) tests asserting legacy behavior carry a `// legacy: file:line` anchor into
+  the **legacy source** (not analysis/plan), scoped to legacy-behavior tests (`tdd-cycle-runner`,
+  `tdd-rules`, `test-reviewer`); (C) the Codex `gen`/`verify` audits (`codex-audit.md`) receive the
+  legacy source **at those anchors** and `verify` states whether each cited line's condition matches
+  the test's assumption — B+C interlock (B makes the reading an artifact, C is the second reader);
+  (D) a one-shot **mutation check** ends TDD Green (break the just-written behavior, confirm red,
+  revert — a hollow test dies here; `tdd-cycle-runner`, `tdd-rules`); and `fm-plan` calls for
+  confirming scope before generation. Origin: OMH-749 — passed verify/e2e/parity, deployed to dev,
+  then 5 defects found by eye (misread `control.dirty`, missing disabled state, literal `&apos;`,
+  unapproved pager re-query, page reset on submit). Design: `docs/design/self-confirmation-hardening.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

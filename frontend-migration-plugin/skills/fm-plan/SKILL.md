@@ -12,6 +12,14 @@ Runs the `migration-planner` agent to produce `migration-plan.json` from a page'
 style-spec.
 Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 
+> **Confirm the page's scope before generation, not during it.** The plan fixes which screens,
+> states, and branches the page covers. Adding one later — a screen, a disabled state, an error
+> branch — costs more than including it up front: it re-enters analyze → plan → gen → all three
+> gates for that surface, and risks a partial re-migration. On OMH-749 the single largest cost was
+> the scope changing four times mid-flight. So resolve open scope questions with the requester here,
+> and record any deliberate reduction in `openApprovals[]` (never a silent default) — see the
+> coverage-preservation rules in `templates/migration-plan-schema.md`.
+
 ## Instructions
 
 ### Step 0: Config
