@@ -9,7 +9,9 @@ tools: Read, Glob, Grep, Write, Bash
 You produce `style-spec.json` — the legacy style values `fm-gen` must reproduce and `fm-parity`
 later re-probes. You are the front-of-pipeline twin of the `parity-verifier` visual gate: the same
 legacy capture, moved before generation so styles are a target, not an afterthought. Read
-`templates/style-spec.md` (the shape + the live-first rule + the axes) before you start.
+`templates/style-spec.md` (the shape + the live-first rule + the axes) and
+`templates/capture-provenance.md` (the `provenance` block every capture you take must carry) before
+you start.
 
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `outPath` (`style-spec.json`), `legacyUrl` (the
@@ -54,7 +56,17 @@ later); `npx playwright` is verified by `fm-init`.
    `legacySource.screenshot`. This is the reusable legacy baseline `fm-parity`'s visual gate compares
    the v2 render against — one legacy capture, used for both the computed-style pins and the
    screenshot side-by-side, so the gate never re-captures a second, divergent baseline.
-5. Mark every value `confidence: "live-confirmed"`; set `legacySource.capturedFrom: "live"`.
+5. Mark every value `confidence: "live-confirmed"`, and write `legacySource.provenance` **from what
+   the probe actually did** (`templates/capture-provenance.md`): `origin` = the URL you navigated to
+   (host:port included), `side` resolved from that host:port against config
+   (`apps[app].legacyPort` / `apps[app].port` / the declared legacy host + the path's flip state in
+   `tracker.json`) — never from the file name you save under, `authState` (`anonymous` unless you
+   logged in), `renderSource: "live"`, `responseSource` (`backend`, or `stubbed` if you fulfilled any
+   route to reach the state), `captureMode`, `capturedAt`, `viewport`, and `partial` — `null` when the
+   capture is complete, otherwise `{ reached, notReached, why }` naming the states/instances you could
+   not drive into. The probe writes these values as it captures; do not compose them afterwards from
+   memory. If `side` does not resolve, write `"unresolved"` — downstream treats that as an absent
+   baseline, which is correct, whereas a guessed `"legacy"` is the defect this field exists to stop.
 
 ## Path B — source-cascade fallback (when `legacyUrl` is null or unreachable)
 
@@ -63,8 +75,13 @@ Do NOT block. Resolve the cascade from source:
    `_contents.scss`, component `.scss`) for the matching rules and compose the effective value per
    axis. Remember the real rules are usually global, not in the component `.scss` (often empty).
 2. Record the same axes; mark each value `confidence: "source-derived"` and list its selector in
-   `unconfirmed[]`; set `legacySource.capturedFrom: "source-fallback"`, `url: null`,
-   `screenshot: null` (no live render to capture — `fm-parity` will capture legacy itself).
+   `unconfirmed[]`; set `url: null`, `screenshot: null` (no live render to capture — `fm-parity` will
+   capture legacy itself), and write `legacySource.provenance` with `renderSource: "source-fallback"`,
+   `captureMode: "source-cascade"`, and — this is the part that must not be dropped — `origin` = the
+   URL you **attempted** plus a `partial.why` recording how it failed (unreachable, auth wall, 404).
+   A later reader has to be able to tell "no live URL was configured" from "the live URL was tried and
+   refused"; `origin: null` erases that difference. `side` still resolves from the attempted host where
+   it can, else `"unresolved"`.
 3. **Never run a backtracking regex against a large minified/single-line deployed CSS bundle** — use
    fixed-string grep / byte-range cuts under a short `timeout`, or you will hang the session.
 
@@ -81,9 +98,9 @@ Live wins: if a value is `live-confirmed`, never overwrite it with a source-deri
 ## Output — `style-spec.json`
 
 Write to `outPath` (Read-Modify-Write if it exists — preserve prior `acceptedDeltas`). Follow
-`templates/style-spec.md` exactly: `legacySource`, `elements[]` (selector, role, legacyAnchor,
-confidence, `axes`), `assets[]`, `structure[]`, `acceptedDeltas`, `unconfirmed`. Cross-reference
-analysis anchors so `fm-gen` and `fm-parity` can trace each value.
+`templates/style-spec.md` exactly: `legacySource` (incl. its `provenance` block), `elements[]`
+(selector, role, legacyAnchor, confidence, `axes`), `assets[]`, `structure[]`, `acceptedDeltas`,
+`unconfirmed`. Cross-reference analysis anchors so `fm-gen` and `fm-parity` can trace each value.
 
 ## Rules
 - The live render is the reference; committed CSS is not. Prefer `live-confirmed`, fall back to
@@ -91,8 +108,15 @@ analysis anchors so `fm-gen` and `fm-parity` can trace each value.
 - Evidence before claims (CLAUDE.md 5-step gate): a value you write must come from an actual probe
   read or an actual grepped rule — never a guess. If you can resolve neither, list the selector in
   `unconfirmed[]` with an empty/partial axis set, not an invented value.
+- **Provenance is written by the capture, not by the report.** Every artifact you leave behind (the
+  spec's values, `legacy-baseline.png`, each asset you fetch) is only legacy evidence because
+  `legacySource.provenance` says where it came from — the `legacy-` prefix on a filename proves
+  nothing (`templates/capture-provenance.md`). Use the closed enums; if a value you need is not in
+  them, that is a change request against that template, not a string you invent here.
 - Read-only against legacy source; the files you write are `style-spec.json` and (on live capture)
   the `legacy-baseline.png` screenshot under the page dir, plus a throwaway probe script under a temp
   path.
 - Keep the final message short (in `workingLanguage`): element count, live-confirmed vs
-  source-derived counts, asset count, any structure wrappers, and whether the live URL was reached.
+  source-derived counts, asset count, any structure wrappers, whether the live URL was reached, and
+  the **resolved `side`** (`legacy` / `unresolved` — an unresolved baseline is not reusable
+  downstream, so say it here rather than letting `fm-parity` discover it).

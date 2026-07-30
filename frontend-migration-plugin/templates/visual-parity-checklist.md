@@ -13,7 +13,8 @@ to them). This checklist is the **back** (the gate re-probes the same values); t
 the target, not that a divergent v2 baseline was blessed. The gate reuses the spec's captured
 baseline — the computed-style values (always) and, on a live capture, the legacy screenshot at
 `legacySource.screenshot` — rather than capturing a second, possibly divergent one; it re-captures
-legacy only when the spec was a `source-fallback` (no screenshot) or to refresh a `source-derived`
+legacy only when the spec was a `source-fallback` (no screenshot), when the spec's
+`legacySource.provenance.side` does not resolve to `legacy` (step 0), or to refresh a `source-derived`
 value.
 
 ## Why this exists — the cross-framework pixel trap
@@ -24,7 +25,7 @@ pass** at any sane tolerance — the two engines never rasterize identically. So
 falls back to **per-side baselines plus computed-style probes**: legacy is captured to `legacy-*.png`,
 v2 to its own `*.png`, and legacy-derived CSS tokens are pinned by `getComputedStyle` probes.
 
-That fallback has TWO failure modes this checklist exists to prevent:
+That fallback has THREE failure modes this checklist exists to prevent:
 
 1. **The self-referential baseline.** Once v2 is captured to its own baseline, every later run compares
    v2 against **itself**, not against legacy. If that first capture already encodes a divergence from
@@ -35,10 +36,29 @@ That fallback has TWO failure modes this checklist exists to prevent:
    set that pins card color, radius, padding, and fonts but omits inter-element spacing or icon
    rendering will pass a page whose pager sits flush against the list or whose accordion toggle is the
    wrong glyph. **Pinning some axes is not pinning parity.** Every axis below must be covered.
+3. **The unverified side.** Per-side baselines make the *file* the carrier of "this is the legacy
+   render" — and a file only claims that through its name. A v2 render saved as `legacy-ko-1440.png`
+   satisfies every later step: step 1 has its two files, the side-by-side compares them, the probes
+   pin values, the gate goes green. Nothing in the axis list ever asks whether the legacy-side
+   artifact came from legacy. It has already passed that way twice (a contract gate reading a v2
+   capture as legacy; a visual gate passing on three non-legacy "legacy screenshots"). **A file name
+   is a claim, not provenance** — hence step 0 below.
 
 ## Protocol when a pixel diff is impossible (the normal PC case)
 
-1. Capture legacy and v2 to per-side baselines (symmetric viewport / scope / masking).
+0. **Resolve both sides' provenance before comparing anything.** For each artifact you are about to
+   treat as the legacy side and the v2 side, read its recorded `provenance`
+   (`templates/capture-provenance.md`) and resolve `side` from `origin`'s host:port against config
+   (`apps.*.legacyPort` / `apps.*.port` / the declared legacy host, plus whether `tracker.json` records
+   the path as flipped — after a flip the production host serves v2, so the host alone no longer
+   decides). Do not infer the side from the file name, the directory, or a previous report's prose.
+   An artifact whose side does not resolve is **absent**: the axes it was supposed to carry are
+   uncovered, which is an incomplete gate (`fail`) — the same verdict as an unprobed axis — and the
+   fix is to capture that side yourself, not to accept the file on the strength of its name. Applies
+   to captures taken from here on; artifacts predating the rule stay origin-unknown and are not
+   retro-filled or re-adjudicated.
+1. Capture legacy and v2 to per-side baselines (symmetric viewport / scope / masking), each carrying
+   its own `provenance` block written at capture time.
 2. **Side-by-side compare** the legacy screenshot and the v2 screenshot, axis by axis, against the
    checklist below. This is a human-or-probe comparison of the two *renders*, not each render against
    its own baseline. A difference on any axis is a diff to itemize (fix, or explicitly-accepted delta).

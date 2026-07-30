@@ -51,6 +51,19 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    values (the same answer key generation targets), so the generation target and the gate check share
    one legacy-truth source and cannot drift. `fm-parity` reuses the style-spec's captured baseline
    rather than re-capturing legacy.
+   **Cite the source of every v2-side expected value (`expectedValueSource`).** Coverage is only half a
+   criterion; the other half is what the gate expects to see, and writing that half from the legacy
+   source alone is how a criterion comes out wrong. Before you assert "v2 sends / shows / returns X":
+   search for an existing v2 decision on that axis — the prior pages' `migration-plan.json`
+   `acceptedDeltas` and `openApprovals`, the ADRs, and `git log` on the shared module that owns the
+   value (`packages/shared-*`) — then record what you found in `expectedValueSource` with the anchor
+   **and where the decision lives** (a commit on `develop` that has not reached `master` must be cited
+   that way). Record the search when it comes up empty too
+   (`"searched: …; no prior v2 decision found"`): an unrecorded search cannot be told apart from no
+   search. A wrong expected value does not fail safe — it fails the gate on correct code and pushes the
+   executor toward reading the criterion narrowly, which is the behavior the verbatim-enforcement rule
+   forbids. If the value turns out wrong later, it is amended by the decision owner via
+   `criterionAmendment` (schema template), never quietly narrowed by whoever hits it.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    one-line flag-ON PR). See the schema template.
 7. **Copy bindings.** Carry every `analysis.json.copySources` entry into `copyBindings[]`: the
@@ -137,6 +150,9 @@ delta is large (the skill recommends full `fm-gen` above ~60% of files).
 ## Rules
 - Decisions only — no production code. The single file you write is `migration-plan.json`.
 - Every mapping decision cites the catalog section and the analysis anchor.
+- Every `gateAcceptance` criterion that asserts a v2-side expected value carries
+  `expectedValueSource` — including the "searched, none found" case. `fm-plan` Step 4 returns the plan
+  without it.
 - Functional coverage is not silently reducible: every `mustPreserve` `behavioralVariant` is
   implemented or recorded in `openApprovals` — see "Coverage preservation".
 - If a needed shared package is not yet extracted, record it in `blockers` and recommend

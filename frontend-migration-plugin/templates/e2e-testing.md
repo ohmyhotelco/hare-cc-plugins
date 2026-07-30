@@ -46,6 +46,15 @@ Run the same scenario against the legacy Angular app (its base URL) and the new 
 compare observable behavior (navigation, key outputs, success/error paths). The **legacy
 behavior is the source of truth** — a divergence is a new-app failure, not a scenario to relax.
 
+**Each leg records its own provenance.** Whatever the dual-run captures as evidence — a screenshot, an
+intercepted request body, a rendered message — carries the `provenance` block from
+`templates/capture-provenance.md` (`origin` incl. host:port, resolved `side`, `authState`,
+`renderSource`, `responseSource`, `captureMode`, `capturedAt`), written by the spec as it captures. A
+dual-run whose legacy leg cannot be attributed to legacy is **not a dual-run**: report it as one leg
+observed, not two. This is the same rule the visual gate applies at
+`templates/visual-parity-checklist.md` step 0, for the same reason — a filename is a claim, and both
+legs here often run from the same harness against hosts that differ only by port.
+
 **Compare the displayed text, not just the flow.** For any scenario the plan marks
 `assertsCopy: true` (every `copyBindings` failure surface), assert the **message the user actually
 sees** on both sides and diff it. A flow can navigate identically while showing the wrong words:

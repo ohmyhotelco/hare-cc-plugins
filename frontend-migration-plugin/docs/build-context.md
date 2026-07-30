@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.13.0.** 17 `fm-*` skills, 16 agents, 14 templates, multilingual README,
+- **Build complete — v0.14.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -122,6 +122,34 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   confirming scope before generation. Origin: OMH-749 — passed verify/e2e/parity, deployed to dev,
   then 5 defects found by eye (misread `control.dirty`, missing disabled state, literal `&apos;`,
   unapproved pager re-query, page reset on submit). Design: `docs/design/self-confirmation-hardening.md`.
+  v0.14.0 added **artifact provenance + answer-key sourcing** — the layer under the gates' *judgement
+  basis*. Both existing guards ("Evidence before claims", "gate criteria are not reinterpretable")
+  address command execution, and a command's exit code proves its own origin; a captured artifact does
+  not, so a `.png` satisfied "READ the output" by existing and opening while its **file name** stood in
+  for a statement of origin. Measured on one page set: 561 captured png, 139 named `legacy*`, **5** with
+  a recorded origin — and the one provenance-ish field (`legacySource.capturedFrom`) defined 2 values
+  while carrying 5 hand-written ones, one of them a sentence on an object whose `url`/`screenshot` were
+  both `null`. Three defenses: (A) every capture carries a `provenance` block written by the **capturing
+  code** (`templates/capture-provenance.md`: `origin`/`side`/`authState`/`renderSource`/
+  `responseSource`/`captureMode`/`capturedAt`/`viewport`/`partial`), and `side` is **resolved** from
+  host:port against config plus the path's flip state (`apps.*.domain` serves legacy before a flip and
+  v2 after, so host alone cannot decide) — an artifact that does not resolve counts as **absent**, not as
+  the side its name claims, which is what makes a fabricated capture fail on its own; applied in
+  `style-spec.md`/`style-spec-extractor`, `visual-parity-checklist` step 0, `parity-verifier`,
+  `e2e-testing`/`e2e-test-runner`, `fm-parity`, `fm-style-spec`, with **new captures only** (no
+  retro-fill, no re-adjudication — the original sessions are gone, so a filled value would be the guess
+  the rule forbids); (B) statements about the **evidence itself** ("both sides measured", "M of N
+  locales") are claims under the same 5-step gate, and deducing evidence scope from routing/topology is
+  not observation; (C) `gateAcceptance` gains `expectedValueSource` (required when a criterion asserts a
+  v2-side expected value; cite the prior decision **and the branch it lives on**, "searched, none found"
+  included — `fm-plan` Step 4 returns a plan without it) plus a formal `criterionAmendment` block (13
+  fields promoted verbatim from the first real amendment, incl. `coverageUnchanged`,
+  `priorDecisionLocation`, `fence`), because a wrong answer key does not fail safe: it fails the gate on
+  **correct** code and pressures the executor into the narrow reading the verbatim rule forbids. Origin:
+  OMH-758 — two gates issued passes that had to be retracted (a v2 capture read as legacy; three
+  non-legacy "legacy screenshots"), plus a false FAIL from a criterion written off the legacy source
+  while the v2 platform had already decided otherwise on `develop`. Design:
+  `docs/design/artifact-provenance.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
