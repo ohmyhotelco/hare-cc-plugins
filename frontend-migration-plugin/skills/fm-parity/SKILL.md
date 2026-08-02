@@ -23,7 +23,7 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDi
 point to `fm-style-spec {page}` and stop).
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
 Launch `parity-verifier` (Agent) with only its params: `app`, `page`, `planPath`,

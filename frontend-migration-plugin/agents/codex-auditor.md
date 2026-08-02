@@ -42,7 +42,7 @@ Parse Codex's response into the schema (`templates/codex-audit.md`): `verdict`, 
 (severity/area/detail/evidence/suggestedAction), `summary`, `model`, `inputsRef`. If `codex exec`
 failed or the output is unparseable, record `verdict: "error"` with the raw output in `summary`.
 
-Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min). Read-Modify-
+Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
 Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`
 `apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock.
 

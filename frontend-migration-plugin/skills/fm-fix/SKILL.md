@@ -28,7 +28,7 @@ report under `docs/migration/{app}/{page}/`:
 Compare timestamps; the newest failing report wins. Report the chosen mode.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Mark fixing
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"`

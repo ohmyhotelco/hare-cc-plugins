@@ -127,6 +127,11 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
   `gateAcceptance` entry (`fm-plan` Step 4).
 - `criterionAmendment` — present only when the criterion was corrected after authoring; see
   "Criterion amendment" below.
+- `budgetSeconds` (optional) — a wall-clock cap for this gate's capture. On overrun the verifier
+  records `result: "not-run"` + `reason: "budget exceeded"` and proceeds — it never fails the gate and
+  never hard-kills a running capture (`parity-verifier` → Rules). Per-gate, not per-round: `visual`
+  runs long across the language set by design; a `contract` overrun usually signals nothing to freeze.
+  Omitted → the plugin's default cap applies. Set generous first values and tighten from measured runs.
 
 **Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
