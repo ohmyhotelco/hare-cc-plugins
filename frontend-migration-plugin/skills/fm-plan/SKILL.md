@@ -38,7 +38,7 @@ Stop. (The planner binds each component's style targets and the `visual` gate pr
 without it, generation eyeballs styles. See `templates/style-spec.md`.)
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Plan
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,

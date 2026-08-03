@@ -20,7 +20,7 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDi
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Compute the delta (planner incremental mode)
 Launch `migration-planner` (Agent) with only its params: `mode: "incremental"`, `app`, `page`,

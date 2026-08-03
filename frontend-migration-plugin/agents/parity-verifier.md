@@ -115,6 +115,36 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
    the pixels for that state were never taken.
 
 ### 2. contract (always)
+
+**Before the response-DTO capture, confirm there is a v2 shape to freeze.** The response-DTO diff
+below (and its baseline capture) freezes the page's **v2 response shape** against the legacy DTOs from
+`analysis` (present whenever `fm-analyze` ran), so its one real premise is: **the page's response
+hooks are typed (not `unknown`)**. `contractsDir` is **not** a precondition — it is optional infra used
+upstream by `fm-extract`, and the diff's reference is the legacy analysis DTOs, not a `contractsDir`
+doc; requiring it would skip the response diff on every page of a project that has no
+`docs/migration/api-contracts/`, which is exactly the required check going missing.
+
+When the response hooks are typed → run the diff. When they are `unknown`, split on **why**:
+
+- The plan **explicitly records** the untyped deferral (an `openApprovals[]` item, or the plan's
+  typing note — e.g. booking-history's `D2-BH` "response DTO typing NOT required because the member
+  hooks are untyped `unknown` by the existing pattern"). Then there is genuinely nothing to diff:
+  record the response-diff sub-check as `result: "not-run"` with `reason: "typing deferred: <ref>"`
+  and move on. Not a `fail`, and not a plan-`skipped` either — an unmeasurable check, a
+  measured-and-wrong check, and a plan-excluded check are three different facts; keep them apart (same
+  discipline as the report's `resultScope` vs attempted-but-unfinished split). When the deferral later
+  resolves and the DTOs become typed, the premise is met and the capture runs again with no one
+  editing a plan — a precondition tracks reality, a manual exemption flag rots.
+- The plan does **not** record it. Then an `unknown` response hook is a **defect, not a premise**: the
+  gate cannot tell a deliberate deferral from a generator that skipped typing, and the safe reading is
+  the loud one. Record `result: "fail"` (or an explicit approval request), never a silent `not-run` —
+  an untyped write page the plan never signed off on must not be absorbed as "nothing to freeze".
+
+**This premise gates only the response-DTO diff.** The request-body-against-the-live-backend check
+below does **not** depend on typed response DTOs — it still runs on every page that builds a request
+body (OMH-748). A write page whose response typing is `unknown` is never a reason to skip it; skipping
+it there would re-open exactly the hole `request-schema fidelity` (v0.11.0) closed.
+
 Diff the new page's API request/response usage against the legacy DTOs (from the analysis): same
 endpoints, same request shape, same response envelope `{ succeedYn, errorMessage, result, ... }`.
 Any drift is a failure (the backend contract is frozen during migration).
@@ -153,7 +183,8 @@ event parity; the time window is operational.
                    "coverage": { "states": ["default", "login failure shown", "session expired"],
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
                                  "uncaptured": [] } },   // non-empty = incomplete gate = fail
-    "contract":  { "result": "pass|fail", "drift": [], "evidence": "...",
+    "contract":  { "result": "pass|fail|not-run", "drift": [], "evidence": "...",
+                   "reason": null,              // set when result is "not-run" (e.g. "typing deferred: D2-BH", "budget exceeded"); an unrecorded unknown-typed write page is a fail, not not-run
                    "amendedCriterion": false,   // true when the passing criterion carries criterionAmendment
                    "priorWhy": null },          // the pre-amendment reason, preserved when it does
     "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
@@ -180,6 +211,14 @@ Final message (in `workingLanguage`): per-gate result with evidence, and (on fai
   and read the results from the log file. Also: never run backtracking-regex greps against large
   single-line minified assets (deployed CSS bundles) — use fixed-string grep / byte-range cuts
   under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
+- **A gate that overruns its budget is recorded, not killed and not failed.** When a gate declares
+  `gateAcceptance.{gate}.budgetSeconds` (optional; the plugin's default when omitted), and the capture
+  passes it, stop that gate and record `result: "not-run"` + `reason: "budget exceeded"`, then move to
+  the next gate. Do **not** mark it `fail` (a measurement not taken is not a measurement that failed —
+  the same three-way split as the contract premise above), and do **not** hard-kill a running capture
+  (a half-written artifact can be misread as evidence next round). The budget is **per-gate, not
+  per-round**: `visual` legitimately runs long across the language set, whereas a `contract` capture
+  that overruns is usually a signal something is wrong (e.g. nothing to freeze — see the premise above).
 - **Data-driven transforms are verified by an output pin, not a content screenshot.** When a page's
   appearance is produced by a **pure transform over unbounded input** — a sanitizer feeding an
   `<iframe srcdoc>`, a formatter, a serializer — a screenshot of one content instance is **not**

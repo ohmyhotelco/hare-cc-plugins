@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -150,6 +150,32 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   non-legacy "legacy screenshots"), plus a false FAIL from a criterion written off the legacy source
   while the v2 platform had already decided otherwise on `develop`. Design:
   `docs/design/artifact-provenance.md`.
+  v0.14.1 added **gate cost & preconditions** — a different axis from all the above: those are accuracy
+  ("green gate, defect shipped"), this is cost ("accurate gate that starts work it cannot finish").
+  Measured on OMH-749's fm-parity confirm round: the **contract** gate ran a capture for ~45 min over
+  two rounds (07-30 overran a self-chosen 900s budget; 07-31 a human stopped it) on booking-history —
+  a page whose response DTOs are deferred-`unknown` (nothing to freeze) and whose `requiredGates` does
+  not list contract — because `parity-verifier.md`'s contract section went from its heading straight
+  into the diff with no premise check, and the held `.lock` blocked a ready fix meanwhile. Three
+  doc-only fixes: (A) the contract gate confirms its premise — **typed v2 response hooks** (not
+  `unknown`); the diff freezes against the legacy analysis DTOs so `contractsDir` is **not** required
+  (requiring it, as the proposal did, would `not-run` the diff on every page of a project without
+  `docs/migration/api-contracts/`) — before the response-DTO capture, then on an `unknown` hook records
+  `not-run` + `reason` only when the plan recorded the deferral and `fail` when it did not (a
+  lazily-untyped write page must surface, not mask itself). A precondition that re-enables itself when
+  the deferral resolves, not a plan flag that rots. **Two corrections over the raw proposal:** gate the
+  response-DTO diff **only** — the request-body-vs-live-backend check (OMH-748) needs no typed response
+  DTO and must keep running on `unknown`-typed write pages or v0.11.0's hole re-opens — and drop the
+  `contractsDir` conjunct that would have made the required check silently vanish; (B) the `.lock` gains a schema
+  (`holder`/`pid`/ISO-8601 `acquiredAt`) so the "stale after 30 min" rule — asserted in ~11 places but
+  computable from no defined field, and written date-only in OMH-749 — actually computes, with an
+  unparseable timestamp treated as immediately stale so a malformed lock is not a permanent deadlock;
+  (C) an optional per-gate `gateAcceptance.{gate}.budgetSeconds` records `not-run` on overrun rather
+  than failing or hard-killing (per-gate, not per-round). Deliberately left alone: the gate-set
+  derivation and the "always visual + contract" wording — deriving the set from `requiredGates` would
+  drop contract on the 10-of-12 monorepo plans that omit it yet must freeze a contract (a separate
+  plan-quality axis). Origin: OMH-749 (second proposal). Design:
+  `docs/design/gate-cost-and-preconditions.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
