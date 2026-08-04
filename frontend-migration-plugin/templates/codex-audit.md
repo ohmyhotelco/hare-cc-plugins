@@ -59,7 +59,13 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
         "area": "<short area tag>",
         "detail": "<what is wrong / risky>",
         "evidence": "<file:line or report ref>",
-        "suggestedAction": "<e.g. fm-fix parity ...>"
+        "suggestedAction": "<e.g. fm-fix parity ...>",
+        "adjudication": {                    // OPTIONAL, written after discovery — absent = open
+          "state": "open | closed | rejected",
+          "when": "<ISO-8601>",
+          "by": "fm-fix | human | pre-pr-verify",
+          "basis": "<one line: closed → the commit/file:line that fixed it; rejected → why it is not a defect>"
+        }
       }
     ],
     "summary": "<one-paragraph independent assessment>",
@@ -72,6 +78,16 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 - `error` — `codex exec` failed or returned unparseable output (capture the raw output in
   `summary`); advisory, non-blocking.
 - `skipped` — Codex CLI/runtime unavailable, or the stage is excluded by `codexAuditStages`.
+- `adjudication` — **optional, and never written by the discovering audit.** Codex reports what it
+  finds; whether the finding was later fixed or dismissed is a separate fact recorded downstream
+  (by `fm-fix` after a repair, or a human). A finding with **no** `adjudication` block is read as
+  **`open`** — the safe default, so an unrecorded finding is never silently treated as handled.
+  `state` distinguishes `closed` (fixed) from `rejected` (judged not a defect): collapsing the two
+  makes the next audit round re-raise a `rejected` item. `basis` is **required** whenever `state` is
+  `closed` or `rejected` — a `closed` with no basis is a declaration, not an adjudication.
+  Existing `codex-audit.json` files predating this field are **not** retro-filled (they read as all
+  `open`, the honest current state) — the same no-retro-adjudication decision
+  `templates/capture-provenance.md` made for provenance applies here unchanged.
 
 ## Rules
 - Independence: never pass Codex the Claude session's reasoning — only artifacts + legacy source.

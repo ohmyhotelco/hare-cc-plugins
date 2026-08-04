@@ -32,6 +32,13 @@ In `workingLanguage`, show:
   `fm-secret-audit`.
 - **Blockers**: pages in `*-failed` / `fixing` / `escalated`, and any unextracted shared
   candidates blocking `fm-gen`.
+- **Stale evidence**: `parity-passed` (awaiting flip) pages whose gate evidence has been outdated by
+  later commits — for each such page, if any commit since a `gateEvidence.{gate}.commit`
+  (CLAUDE.md → "Gate Result Accounting") touched the page's watch paths (its own source **plus** the
+  `migration-plan.json` `shared-package deps`), list it with the expired gate(s). This is the early
+  warning for a `packages/shared-*` change silently outdating many queued pages at once; it mirrors the
+  freshness check `fm-route --flag-on` enforces (Step 1a). Pages with no `gateEvidence` are shown as
+  `unverifiable`, not stale. Read-only — flags, never re-runs.
 
 ### Step 3: Next-step guidance
 For each in-flight page, print the exact next command (same mapping as the SessionStart hook):

@@ -34,9 +34,26 @@ overwritten to `parity-passed`), `verifiedAt` present (verify's durable trace �
 file), and both reports show `result: pass`. If any is not satisfied, stop and report the blocking
 gate — do not flip.
 
+### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
+A gate PASS proves nothing about code committed after it. For each gate with a
+`gateEvidence.{gate}.commit` in `tracker.json`, check whether any commit between that SHA and `HEAD`
+touched the page's **watch paths** — the page's own source (its generated files under `appDir`) **plus
+the `shared-package deps` the `migration-plan.json` records** (a `packages/shared-*` change outdates
+the evidence of every page that imports it, and the gate is per-page so nothing else catches it). Use
+e.g. `git log --oneline <sha>..HEAD -- <path>...`. Any gate with an intervening commit on a watch path
+is **expired**: list the expired gates and require the user to re-run them before flipping — do not
+silently flip on stale evidence. Two carve-outs, both honest-state not retro-judgment:
+- A gate whose `gateEvidence` is **absent** (page verified before this field existed) is recorded as
+  **`unverifiable`** freshness and does **not** block — no retro-adjudication (same principle as
+  `templates/capture-provenance.md`).
+- A `<sha>+dirty` commit value means the pass was recorded against an uncommitted tree; treat it as
+  expired (the exact code cannot be located) and require a clean re-run.
+
 ### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
-across all stages. If any exist, present them and **require the user's explicit acknowledgement**
+across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
+`adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
+If any exist, present them and **require the user's explicit acknowledgement**
 before continuing — this is a soft gate, not an auto-block: Codex is advisory, so a human may
 acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or Codex is
 unavailable, skip this step.

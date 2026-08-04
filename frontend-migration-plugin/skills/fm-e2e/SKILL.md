@@ -36,7 +36,11 @@ server the runner needs.
 
 ### Step 4: Record
 Read `e2e-report.json`. Update `tracker.json` (Read-Modify-Write):
-- `result: pass` → `apps[app].pages[page].status = "e2e-passed"`.
+- `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
+  `gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on (see
+  CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
+  `git status --porcelain` is non-empty, record `<sha>+dirty`. Keep `e2ePassedAt` for backward
+  compatibility.
 - `result: fail` → `e2e-failed`.
 Release the lock.
 

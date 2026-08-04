@@ -200,6 +200,21 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   an `outPath` and required to emit `secret-audit-report.json` — Phase 0's first stage produced no
   artifact. Also removed: leaked tool-call markup (`</content>`, `</invoke>`) committed at the end
   of `fm-verify/SKILL.md`. Origin: journey-consistency audit, 2026-08-05.
+- **Gate result accounting (v0.14.3).** The same missing-decision-field pattern as v0.14.1's lock, in
+  two more places: a gate holds a judgement rule but the artifact has no field for the *basis*, so the
+  rule falls to per-session ad-hoc fields (measured on my-coupon: 48 Codex findings, 14 `high`, 2
+  adjudicated; four resolution fields used, 0 defined in the plugin). Three doc-only fixes: (D) each
+  Codex finding gains an optional `adjudication` (`open`/`closed`/`rejected`, absent = `open`, written
+  by `fm-fix` Step 5 or a human, never the discovering audit) so `fm-route`'s "unresolved
+  high-severity" is countable instead of re-surfacing every finding forever; (E)
+  `fm-verify`/`fm-e2e`/`fm-parity` record `gateEvidence.{gate}` with an ISO-8601 `at` + `commit`
+  (`<sha>+dirty` on a dirty tree; legacy `*At` fields kept), and `fm-route --flag-on` Step 1a expires a
+  gate whose commit is behind `HEAD` on the page's watch paths — a PASS proves nothing about later
+  commits (OMH-754 PR #184 shipped a `visual: PASS` 21 commits stale); (F) the watch paths include the
+  plan's shared-package deps and `fm-progress` surfaces `parity-passed` pages a `packages/shared-*`
+  change has outdated. Codex stays advisory (D counts, does not veto); no existing artifact is
+  retro-filled (absent `gateEvidence` = `unverifiable`, non-blocking). Origin: OMH-754. Design:
+  `docs/design/gate-result-accounting.md`.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
