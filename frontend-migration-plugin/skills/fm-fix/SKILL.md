@@ -43,13 +43,20 @@ summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDi
 Read `fix-report.json`:
 - `regenRequired: true` → set status `generated` and tell the user to re-run `fm-gen` (large
   delta), then continue the pipeline.
-- gate re-run `pass` → set status back to the gate's passed state (`verified` / `e2e-passed` /
-  `parity-passed`).
+- gate re-run `pass` → set status back to the failed gate's **entry** state, so the gate itself can
+  run again: `verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`.
+  **Never set the gate's passed state here.** The fixer's own re-run is a repair signal, not a gate
+  result: the gate report on disk still records the old `fail` (the fixer writes `fix-report.json`
+  only), and a passed state the gate did not issue is the fixer confirming its own work. The gate
+  owns its passed state and rewrites its own report — `fm-fix` only returns the page to where that
+  gate can be entered.
 - gate re-run still `fail` → keep `fixing`; if repeated failures, escalate (`escalated`) for
-  manual intervention.
+  manual intervention. A page left at `fixing` is re-entered through `fm-fix`, not through a gate.
 Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`: mode, files changed, the gate re-run result with evidence, and the next
 step — re-run the failed gate (`fm-verify` / `fm-e2e` / `fm-parity`) to confirm, or `fm-gen` if
-regeneration was recommended.
+regeneration was recommended. That re-run is **required, not advisory**: until the gate runs and
+rewrites its own report, the page's report still reads `fail` and `fm-route --flag-on` will refuse
+the flip.

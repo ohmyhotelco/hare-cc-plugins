@@ -47,7 +47,9 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
                                      ↓
                                 escalated   (manual intervention)
 ```
-- A gate failure sets `{stage}-failed`; `fm-fix` → `fixing` → back to the gate's passed state.
+- A gate failure sets `{stage}-failed`; `fm-fix` → `fixing` → back to that gate's **entry** state
+  (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`). Re-running the
+  gate is what issues the passed state and rewrites the gate's report; `fm-fix` never issues it.
 - `fm-delta` resets a drifted page to `generated` to re-pass the gates.
 - `fm-gen` over a verified/later page warns (demotion) before resetting to `generated`.
 

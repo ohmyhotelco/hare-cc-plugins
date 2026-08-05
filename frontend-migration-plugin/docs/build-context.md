@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.3.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -183,6 +183,23 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   drop contract on the 10-of-12 monorepo plans that omit it yet must freeze a contract (a separate
   plan-quality axis). Origin: OMH-749 (second proposal). Design:
   `docs/design/gate-cost-and-preconditions.md`.
+- **Pipeline blockers (v0.14.3).** A journey-level audit — walking each documented path as an
+  executor rather than reviewing files in isolation — found three instructions that could not run
+  as written. All three predate v0.14.2 and none were reachable by a per-file review, because each
+  is a contradiction *between* two files that are individually consistent. (1) `fm-fix` promoted a
+  repaired page straight to the gate's passed state, but the gate report on disk still read `fail`
+  (the fixer writes `fix-report.json` only) and the gate's own Step 0 then refused the page — its
+  entry precondition was already passed. So the documented `fixing → re-run the failed gate` loop
+  dead-ended, and `fm-route --flag-on`, which reads both reports, refused the flip with no
+  non-manual exit. `fm-fix` now restores the gate's **entry** state (`verify-fix` → `generated`,
+  `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`) and never issues a passed state: the gate
+  owns that verdict and rewrites its own report. This also closes a self-confirmation seam — the
+  fixer was grading its own repair, the pattern the v0.13.0 axis exists to stop. (2) `fm-plan`
+  declared no `Bash` yet its Step 4.1 completeness check runs `jq empty`; the two sibling skills
+  doing the same check already carried it. (3) `secret-auditor` declared no `Write` yet is handed
+  an `outPath` and required to emit `secret-audit-report.json` — Phase 0's first stage produced no
+  artifact. Also removed: leaked tool-call markup (`</content>`, `</invoke>`) committed at the end
+  of `fm-verify/SKILL.md`. Origin: journey-consistency audit, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
