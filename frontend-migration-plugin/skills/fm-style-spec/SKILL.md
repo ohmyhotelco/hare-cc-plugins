@@ -36,6 +36,11 @@ The live render is the truth source (committed CSS can be stale). Resolve `legac
    extractor falls back to the source cascade and flags those values `source-derived` (not a
    failure; `fm-parity` remains the backstop).
 
+### Step 2a: Refuse a flipped page
+If `tracker.json` shows the page at `flipped`, stop and point the user at
+`/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
+tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
+
 ### Step 2b: Ensure Playwright run permission
 `style-spec-extractor` runs the legacy probe as a **sub-agent**, so session approvals do not
 transfer — this is the pipeline's *first* sub-agent Playwright run, three stages before `fm-e2e`.
@@ -60,7 +65,7 @@ Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `anal
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
    (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
-   `fm-parity` reads it to decide whether the baseline is reusable at all.
+   it is the at-a-glance record for `fm-progress` and for a human scanning the tracker.
 3. Release the lock.
 
 ### Step 6: Report

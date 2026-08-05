@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+# jq is required for every tracker read below. Without it this hook would abort under
+# `set -e` before printing anything — including the "run /fm-init" guidance a new project needs.
+if ! command -v jq >/dev/null 2>&1; then
+  echo "  Info: [frontend-migration-plugin] jq not found — skipping migration status."
+  exit 0
+fi
+
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
@@ -75,8 +82,9 @@ next_step() {
     generated)      echo "fm-verify" ;;
     verified)       echo "fm-e2e" ;;
     e2e-passed)     echo "fm-parity" ;;
-    parity-passed)  echo "fm-route" ;;
+    parity-passed)  echo "fm-route" ;;   # --flag-off, or --flag-on once routePrepared
     fixing)         echo "fm-fix" ;;
+    gen-failed)     echo "fm-gen" ;;
     *-failed)       echo "fm-fix" ;;
     escalated)      echo "fm-fix" ;;
     flipped|done)   echo "" ;;
@@ -117,6 +125,11 @@ if [ -n "$PAGES" ]; then
     esac
     STEP=$(next_step "$status")
     FLAGS=$(next_flags "$status")
+    # parity-passed splits on routePrepared: the code PR (--flag-off) comes first, the flip second.
+    if [ "$status" = "parity-passed" ]; then
+      PREPARED=$(jq -r --arg a "$app" --arg p "$page"         '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
+      [ "$PREPARED" = "true" ] && FLAGS=" --flag-on"
+    fi
     NOTE=$(next_note "$status")
     if [ -n "$STEP" ]; then
       LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS"

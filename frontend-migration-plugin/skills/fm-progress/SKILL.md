@@ -30,7 +30,8 @@ In `workingLanguage`, show:
   results (verify / e2e / parity: pass / fail / pending), rendering mode, flag key, and risk.
 - **Shared packages**: `tracker.packages` extraction status, and any pieces deferred to
   `fm-secret-audit`.
-- **Blockers**: pages in `*-failed` / `fixing` / `escalated`, and any unextracted shared
+- **Blockers**: pages in `*-failed` / `fixing` / `escalated` (a `gen-failed` page goes back to
+  `fm-gen`, which resumes the incomplete phase — not to `fm-fix`, which has no generation mode), and any unextracted shared
   candidates blocking `fm-gen`.
 - **Stale evidence**: `parity-passed` (awaiting flip) pages whose gate evidence has been outdated by
   later commits. For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`

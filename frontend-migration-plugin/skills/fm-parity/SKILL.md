@@ -87,7 +87,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+`codex-auditor`
 (Agent) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
 `parityReportPath` + `planPath` (→ `gateAcceptance`) + the legacy baseline,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`,

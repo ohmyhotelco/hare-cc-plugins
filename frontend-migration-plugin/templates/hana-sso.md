@@ -71,7 +71,7 @@ All Hana routes nest under this layout. Hana ships **SPA** (no SEO surface; exte
 4. **Dev `test` backdoor.** `import.meta.env.DEV && ts === "test"` mirrors the legacy dev
    shortcut. Decide whether to keep or drop it for v2.
 
-## Gate criteria (parity-verifier, sso)
+## Behavior criteria (e2e scenarios)
 The SSO loader verifies against staging external SSO; the four decisions above are recorded as
 the page's `openQuestions` until signed off. Do **not** port the dead Mobile-OMH `?ts` capture —
 no OMH flow sets `?ts` (plan §7).

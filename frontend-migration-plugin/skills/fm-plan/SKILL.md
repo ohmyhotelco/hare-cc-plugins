@@ -37,6 +37,11 @@ Check `docs/migration/{app}/{page}/style-spec.json`. If missing:
 Stop. (The planner binds each component's style targets and the `visual` gate probe set to it —
 without it, generation eyeballs styles. See `templates/style-spec.md`.)
 
+### Step 1c: Refuse a flipped page
+If `tracker.json` shows the page at `flipped`, stop and point the user at
+`/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
+tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
+
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
@@ -81,7 +86,8 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 6. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+`codex-auditor`
 (Agent) for the `plan` stage (params: `app`, `page`, `stage="plan"`, `appDir`, `legacyDir`,
 `planPath` + `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Records `codex-audit.json` + tracker `codexAudit.plan`. Advisory — never

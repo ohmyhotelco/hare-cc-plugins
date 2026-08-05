@@ -45,6 +45,8 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "decision": "reduce 6→4 (drop Line, Facebook)",
       "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
       "owner": "TBD", "status": "pending" }
+    // coversVariant links to a behavioralVariants.feature; use coversCopySource for a
+    // copySources[] surface, so a copy-side reduction is traceable to what it reduced
   ],
   "copyBindings": [                         // from analysis.copySources — where each screen's text comes from
     { "surface": "login failure message", "mechanism": "localized-key",
@@ -67,7 +69,9 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "assertsCopy": true,                  // dual-run compares the DISPLAYED TEXT, not just the flow
       "coversCopyBinding": "login failure message",
       "steps": ["..."], "legacyAnchor": "login-password.component.ts:114" },
-    { "name": "complete card payment", "transactional": true, "gateway": "nicepay",
+    { "name": "complete card payment", "transactional": true, "gateway": "nicePay",
+      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | eximbay | kakaoPay);
+      // no case normalization is performed, so "nicepay" reads as an unconfigured gateway
       "steps": ["..."] }
   ],
   "buildOrder": [
@@ -94,7 +98,10 @@ target and the parity check share one legacy-truth source and cannot drift.
 ## gateAcceptance (required)
 
 Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
-(`visual` / `e2e` / `contract` / `secret` / `sso` / `webview` / `telemetry`). A plan without `gateAcceptance` is
+(`e2e` / `visual` / `contract` / `webview` / `telemetry` — the complete set; `parity-verifier`
+implements no other check and `parity-report.json` has no other slot, so a plan naming anything else
+is rejected by `fm-plan` Step 4.1. `secret` and `sso` are **not** gates: they are `gateTriggers[]`
+entries routed to `fm-secret-audit` and to `e2eScenarios` + `templates/hana-sso.md` respectively). A plan without `gateAcceptance` is
 **incomplete**: `fm-gen` and `fm-parity` Step 0 reject it and point back to `fm-plan`. Each entry:
 
 - `compares` — what is compared, against what reference.
@@ -137,11 +144,20 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
   records `result: "not-run"` + `reason: "budget exceeded"` and proceeds — it never fails the gate and
   never hard-kills a running capture (`parity-verifier` → Rules). Per-gate, not per-round: `visual`
   runs long across the language set by design; a `contract` overrun usually signals nothing to freeze.
-  Omitted → the plugin's default cap applies. Set generous first values and tighten from measured runs.
+  **Omitted → no cap.** There is no plugin-wide default: an unset `budgetSeconds` means the gate runs
+  to completion, and only an explicit value creates a budget. (An unspecified "default cap" would be
+  a number the executor has to invent, which is the improvisation the codified criteria exist to
+  remove.) Set generous first values and tighten from measured runs.
 
 **Executors enforce these criteria verbatim.** No level — skill delegation prompt, verifier
 agent, orchestrator summary — may reinterpret, narrow, or substitute them. A criterion that
 cannot be met is a failure or an explicit approval request, never a silent scope reduction.
+
+The one carve-out is `budgetSeconds`, and it is not an exception to this rule but an application of
+it: an overrun records `not-run` + `reason`, which is precisely *not* a silent pass — the criterion
+is reported as unmeasured, with the budget named, and the gate's `result` cannot be `pass` on the
+strength of it. What the rule forbids is quietly declaring an unmet criterion satisfied; recording
+honestly that it was never measured is the behavior it asks for.
 
 **Authoring is bound by the same rule.** `scope` coverage defaults to the FULL supported
 matrix — every language, device class, and viewport the product serves. Sampling or any

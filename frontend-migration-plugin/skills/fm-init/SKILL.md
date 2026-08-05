@@ -168,5 +168,5 @@ Summarize in `workingLanguage`:
 - Tracker location.
 - Any missing external skills / CLIs with install hints.
 - Next step: `Run /frontend-migration-plugin:fm-analyze <target>` once the analyzer
-  (AA-41) is available, or `/frontend-migration-plugin:fm-secret-audit` for the Phase 0
+  or `/frontend-migration-plugin:fm-secret-audit` for the Phase 0
   security pre-work.

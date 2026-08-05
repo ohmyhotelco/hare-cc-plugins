@@ -44,10 +44,15 @@ Read `e2e-report.json`. Update `tracker.json` (Read-Modify-Write):
   `git status --porcelain` is non-empty, record `<sha>+dirty`. Keep `e2ePassedAt` for backward
   compatibility.
 - `result: fail` → `e2e-failed`.
+- A report whose top-level `result` is `pass` but that contains any scenario at `result: "not-run"`
+  → still `e2e-passed`, but surface every `not-run` scenario and its `reason` in the report. A
+  not-run scenario is an **unmeasured** one, not a passing one; `fm-route --flag-on` shows them
+  beside the Codex findings so the human flipping the path knows which flows were never exercised.
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+`codex-auditor`
 (Agent) for the `e2e` stage (params: `app`, `page`, `stage="e2e"`, `appDir`, `legacyDir`,
 `e2eReportPath` + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). The Codex cross-check here targets **false passes** — whether the scenarios

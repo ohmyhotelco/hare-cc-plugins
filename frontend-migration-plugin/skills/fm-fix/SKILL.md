@@ -25,6 +25,12 @@ report under `docs/migration/{app}/{page}/`:
 - `parity-report.json` (fail) → `parity-fix`
 - `e2e-report.json` (fail) → `e2e-fix`
 - otherwise (verify-failed / build/tsc/vitest) → `verify-fix`
+
+**`gen-failed` is not a fix mode — stop and redirect.** If the page status is `gen-failed`, a
+generation phase never completed, so there is no gate failure to repair and no verify summary to
+read. Tell the user to re-run `/frontend-migration-plugin:fm-gen {page}`, which resumes from the
+last incomplete phase (its Step 2). Falling through to `verify-fix` here would let a "pass" set the
+page to `generated` — declaring generation complete for a page whose phases never ran.
 Compare timestamps; the newest failing report wins. Report the chosen mode.
 
 ### Step 2: Lock

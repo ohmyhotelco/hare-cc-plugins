@@ -5,6 +5,11 @@
 
 set -euo pipefail
 
+# jq is required below; without it this hook would abort under `set -e` and print nothing.
+if ! command -v jq >/dev/null 2>&1; then
+  exit 0
+fi
+
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""')

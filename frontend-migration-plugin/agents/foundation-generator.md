@@ -104,7 +104,7 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 ## Output
 - `{targetDir}` types, `mocks/`, copied assets under the app's public dir, and (if new) the app
   harness configs.
-- Final message (in `workingLanguage`): files created, assets copied (count + any missing sources),
+- Final message (in `workingLanguage`) — keep it short; the report is the record: files created, assets copied (count + any missing sources),
   harness status (created/existing), and any missing deps to install.
 
 ## Rules

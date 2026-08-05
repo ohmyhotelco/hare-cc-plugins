@@ -20,7 +20,10 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDi
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 **Refuse a `flipped` page.** If the status is `flipped`, stop and tell the user to run
-`/frontend-migration-plugin:fm-route {page} --flag-off` first. Step 5 resets the status to
+`/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
+flag-off keeps the current status (`fm-route` Step 4), so it would leave the page at `flipped` and
+this refusal would repeat with no exit. `--revert` is the rollback that returns it to
+`parity-passed`. Step 5 resets the status to
 `generated` while the edge flag stays ON — nothing here touches routing — so the tracker would say
 "not flipped" while the production domain serves v2. Provenance resolves a capture's `side` from
 exactly that status (`templates/capture-provenance.md`), so the next capture from the production
@@ -41,7 +44,7 @@ legacy source against the `analysis.json` / `migration-plan.json` baseline and w
 ### Step 3: Offer incremental vs full
 Read `delta-plan.json.summary`. Present:
 - the change counts (added/modified/removed);
-- **if the delta touches > 60% of the page files**, recommend full regeneration (`fm-gen`)
+- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration (`fm-gen`)
   instead;
 otherwise default to incremental. Let the user choose.
 

@@ -81,5 +81,6 @@ flag-ON PR. Rollback = flip OFF / remove the behavior.
 
 ## Three apps
 
-PC-first. Mobile adds the WebView parity gate; Hana adds the SSO gate (`?ts` → clientLoader) and
-ships all routes SPA. The shared packages (Phase 0) are extracted once and reused by all three.
+PC-first. Mobile adds the WebView parity gate. Hana's `?ts` SSO is **not** a gate — no verifier and
+no report slot — it is a `gateTriggers[]` entry that becomes an `e2eScenarios` entry and is built to
+`templates/hana-sso.md` (`?ts` → clientLoader); Hana also ships all routes SPA. The shared packages (Phase 0) are extracted once and reused by all three.

@@ -217,7 +217,9 @@ event parity; the time window is operational.
 {
   "page": "...",
   "gates": {
-    "visual":    { "result": "pass|fail", "diffs": [], "evidence": "...",
+    "visual":    { "result": "pass|fail|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null,
+                   "diffs": [], "evidence": "...",
                    "coverage": { "states": ["default", "login failure shown", "session expired"],
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
                                  // or "not-run" when config has no i18n block — then set languagesReason
@@ -227,8 +229,11 @@ event parity; the time window is operational.
                    "reason": null,              // set when result is "not-run" (e.g. "typing deferred: <openApprovals ref>", "budget exceeded"); an unknown/any-typed write page with no APPROVED openApprovals deferral is a fail, not not-run
                    "amendedCriterion": false,   // true when the passing criterion carries criterionAmendment
                    "priorWhy": null },          // the pre-amendment reason, preserved when it does
-    "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
-    "telemetry": { "result": "pass|fail|skipped", "missingEvents": [], "evidence": "..." }
+    "webview":   { "result": "pass|fail|skipped|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null, "evidence": "..." },
+    "telemetry": { "result": "pass|fail|skipped|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null,
+                   "missingEvents": [], "evidence": "..." }
   },
   "result": "pass | fail", "ranAt": "ISO"
 }
@@ -238,7 +243,7 @@ event parity; the time window is operational.
 `side` is `unresolved` is reported as absent (its axes uncovered), never as the side its filename
 claims. Unmet criteria appear as `fail` entries or explicit approval requests, never as silently
 narrowed scope.
-Final message (in `workingLanguage`): per-gate result with evidence, and (on fail) a pointer to
+Final message (in `workingLanguage`) — keep it short; the report is the record: per-gate result with evidence, and (on fail) a pointer to
 `fm-fix` (parity-fix).
 
 ## Rules

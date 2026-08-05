@@ -73,7 +73,8 @@ Update `tracker.json` (Read-Modify-Write):
 Release the lock.
 
 ### Step 6b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+`codex-auditor`
 (Agent) for the `verify` stage (params: `app`, `page`, `stage="verify"`, `appDir`, `legacyDir`,
 generated code + test paths + the verify summary, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`) — an independent second opinion to Claude's own reviewers. Advisory — never

@@ -54,7 +54,9 @@ differences as failures — the legacy behavior is the reference.
 `origin` (the base URL it actually drove, host:port included), the `side` resolved from that host:port
 against config (`apps[app].legacyPort` → `legacy`, `apps[app].port` → `v2`, else `unresolved`),
 `authState`, `renderSource`, `responseSource` (`stubbed` for MSW/`route.fulfill` runs, `backend` on
-staging), `captureMode`, and `capturedAt` — into `dualRun.legacy`/`dualRun.new` in the report. The two
+staging), `captureMode`, and `capturedAt` — into `dualRun.legacyProvenance`/`dualRun.newProvenance` in the
+report. (`dualRun.legacy` and `dualRun.new` are that leg's pass/fail **result**, not its provenance;
+writing a provenance object into them would collide with the schema.) The two
 legs usually differ only by port, so which run produced which artifact is exactly the thing that gets
 mixed up; a leg whose side does not resolve is reported as **one leg observed, not two** (`parity`
 cannot be `match`), never as a dual-run on the strength of a label.
@@ -63,8 +65,15 @@ cannot be `match`), never as a dual-run on the strength of a label.
 also capture and diff the **text the user sees** on both sides — the flow matching is not enough. A
 navigation-only comparison passes an English backend string on a Korean screen, a raw `tl.*` key, or
 a literal `<br/>`; that is precisely how those shipped (OMH-748). Run these in each language the
-plan's `gateAcceptance.scope` covers, and record the observed strings per side in the report so a
-diff is inspectable rather than a bare fail. See `templates/i18n-copy-parity.md`.
+plan's `gateAcceptance` criteria cover, one `copyParity[]` entry per language, and record the
+observed strings per side so a diff is inspectable rather than a bare fail.
+
+When config has **no `i18n` block** the plan omits `languages` by design
+(`templates/migration-plan-schema.md`), so there is no language set to iterate: run the copy
+assertions once at the app's single served locale and record that entry with
+`language: "not-run"` + `reason: "no i18n block configured"`. Do not invent a locale identifier and
+do not claim multi-language coverage — the same absent-`i18n` handling `fm-verify`,
+`foundation-generator`, and `parity-verifier` apply. See `templates/i18n-copy-parity.md`.
 
 ### 4b. Enforce `gateAcceptance.e2e` verbatim
 The plan codifies this gate's criteria the same way it does the parity gates, and they bind you the
@@ -89,22 +98,27 @@ pass you did not observe (CLAUDE.md 5-step gate).
   "page": "...", "tool": "playwright",
   "criteriaCompliance": { "gate": "e2e", "enforcedVerbatim": true, "deviations": [] },
   // deviations MUST be empty; a narrowed criterion is a gate failure, not a note
-  "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail",
+  "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail|not-run",
+                  "reason": null,   // required when result is "not-run" (e.g. "staging gateway not configured: nicePay")
                   "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff",
+                               // "legacy"/"new" are that leg's RESULT; each leg's origin/side/etc. go in
+                               // its *Provenance object below — do not write provenance into these two
                                // per-leg provenance — templates/capture-provenance.md
                                "legacyProvenance": { "origin": "http://localhost:30210/ko/login", "side": "legacy",
                                                      "authState": "anonymous", "renderSource": "live",
                                                      "responseSource": "stubbed", "captureMode": "playwright-route-intercept",
                                                      "capturedAt": "ISO-8601" },
                                "newProvenance":    { "origin": "http://localhost:30220/ko/login", "side": "v2", "…": "…" } },
-                  "copyParity": { "language": "KO", "legacyText": "비밀번호가 일치하지 않습니다.",
-                                  "newText": "This password is wrong.", "result": "diff" },
+                  // one entry PER LANGUAGE the criteria cover — a single object cannot hold a
+                  // multi-language matrix, and overwriting it would silently drop every language but the last
+                  "copyParity": [{ "language": "KO", "legacyText": "비밀번호가 일치하지 않습니다.",
+                                   "newText": "This password is wrong.", "result": "diff" }],
                   "artifacts": { "trace": "path/to/trace.zip", "video": "...", "screenshot": "..." },
                   "evidence": "...summary line..." }],
   "result": "pass | fail", "ranAt": "ISO"
 }
 ```
-Final message (in `workingLanguage`): scenarios run, pass/fail with evidence, any behavior diffs
+Final message (in `workingLanguage`) — keep it short; the report is the record: scenarios run, pass/fail with evidence, any behavior diffs
 vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 
 ## Rules

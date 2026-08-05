@@ -56,10 +56,10 @@ from): the rule lives in the instructions, the basis is missing from the output.
   distinguish them — the exact path by which a soft gate becomes a rubber stamp.
 
   *Surviving a re-audit.* Placing the field on the finding means a re-run of that stage would
-  overwrite it: `codex-auditor` rewrites `stages.{stage}.findings[]` wholesale, so every closed
+  overwrite it: `codex-auditor` rewrites `{stage}.findings[]` wholesale, so every closed
   finding would reopen on the next `fm-audit-codex` and the field would defeat its own purpose. So
   the auditor carries adjudications across the rewrite — matched on `area` + `evidence`, with any
-  unmatched adjudicated finding preserved verbatim under `stages.{stage}.priorAdjudicated[]` — and
+  unmatched adjudicated finding preserved verbatim under `{stage}.priorAdjudicated[]` — and
   is barred from authoring or clearing one. The matching is intentionally weak: Codex is an LLM and
   its `detail` prose does not reproduce word for word, so `area` + `evidence` is the most identity a
   re-run can honestly assert. Rather than invent a fingerprint that would silently mis-match, a

@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.7)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.8)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -230,9 +230,15 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   `e2e-passed`) so the gate can be re-run. Only the gate issues its own passed state — a fixer that
   promoted the page itself would leave the gate's report reading `fail` while the status claimed
   otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
+- **No skill writes a status over `flipped`.** `fm-gen`, `fm-delta`, `fm-analyze`, `fm-style-spec`,
+  and `fm-plan` each refuse and point at `fm-route --revert`. The tracker's `flipped` and the edge
+  flag must agree — provenance resolves a capture's `side` from that status — and `--revert` is the
+  only transition that changes both. `--flag-off` prepares the routing artifact and deliberately
+  keeps the status, so it is never the way out of `flipped`.
 - No gate accepts `fixing` as an entry state. A page at `fixing` is re-entered through `fm-fix`
   (or `escalated` for manual intervention) — never by invoking a gate directly.
-- `fm-delta` re-enters from `planned`/`generated` when legacy source drifts.
+- `fm-delta` re-enters from `generated` or beyond when legacy source drifts (a `planned` page has
+  no generated files to modify — use `fm-gen`).
 - `escalated` requires manual intervention, then re-entry via `fm-fix`/`fm-gen`.
 - `flipped` is where the `fm-*` pipeline ends: `fm-route --flag-on` sets it and no skill advances
   past it. **`done` is set by hand**, once the legacy page is deleted — retiring legacy code is
@@ -247,6 +253,9 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
+├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
+│                                        page `.lock` below, but guards `packages/shared-*` work,
+│                                        which is not page-scoped)
 └── {app}/{page}/
     ├── analysis.json                  ← fm-analyze
     ├── style-spec.json                ← fm-style-spec
@@ -336,6 +345,12 @@ These apply to every agent and skill in this plugin.
   level verbatim — skill delegation prompt, verifier agent, orchestrator summary. A criterion
   that cannot be met is a **fail or an explicit approval request — never a silent pass**; scope
   reduction at any level is a gate failure.
+  Scope moves in both directions. Reduction is the failure this rule was written for; widening is the
+  same failure mirrored — do not add gates, criteria, files, or behavior the plan does not call for,
+  and do not apply your own judgement about what the task should have been. In a parity migration an
+  unrequested addition is not merely extra work, it is a divergence from legacy, which is the thing
+  the gates exist to catch. If the plan looks wrong, say so in a sentence and execute it as written;
+  amending it is the decision owner's job (`criterionAmendment`), never the executor's.
 - **Communication language.** Read `workingLanguage` from config (default `ko`). All
   user-facing output — summaries, questions, next-step guidance — is in that language.
   Code, identifiers, and committed `.md` files are always English.
@@ -344,9 +359,14 @@ These apply to every agent and skill in this plugin.
   the complete record — the final message is a readout of it, not a second copy of it.
 - **SKILL.md frontmatter.** Every skill declares `name`, `description`, `argument-hint`,
   `user-invocable`, `allowed-tools`.
-- **Agent vs Task.** Use the `Agent` tool for strictly sequential, dependent phases
-  (TDD steps where each depends on the previous). Use `Task` for independent work that can
-  run in parallel.
+- **Delegation is named, not improvised.** Every phase that delegates names its agent explicitly
+  (`fm-gen` → the `buildOrder` agents, `fm-parity` → `parity-verifier`, and so on); launch it with
+  the `Agent` tool and only its declared params. Do not spawn an agent the skill did not name — in
+  particular, never spawn a reviewer or a second agent to verify or double-check work a gate already
+  covers. Verification belongs to the gate that owns it; `fm-clean-code` and `fm-test-review` are
+  standalone audits a human invokes, not steps a pipeline phase adds for itself. When a skill does
+  name several independent agents (e.g. `fm-audit-codex` across stages), send them in one message so
+  they run concurrently, and keep the count to what the skill lists.
 
 ## Build Command Working Directory
 
@@ -431,10 +451,18 @@ artifact is a legacy-extraction answer key whose correctness is re-checked downs
 `fm-parity` reuses the same baseline, so a separate Codex pass would be redundant. (Adding a
 `style-spec` audit stage remains a possible follow-up — see `docs/design/style-spec-generation.md`.)
 
-**In-loop invocation.** When `codexAudit` is enabled and Codex is available, each audited
-artifact-producing skill (`fm-analyze`/`fm-plan`/`fm-gen`/`fm-verify`/`fm-e2e`/`fm-parity` — not
-`fm-style-spec`, per Coverage above), **after** it records its own result and releases the lock,
-spawns `codex-auditor` for that stage. The auditor gathers the
+**In-loop invocation.** When `codexAudit` is enabled **and the stage is listed in
+`codexAuditStages`**, each audited artifact-producing skill (`fm-analyze`/`fm-plan`/`fm-gen`/
+`fm-verify`/`fm-e2e`/`fm-parity` — not `fm-style-spec`, per Coverage above), **after** it records its
+own result and releases the lock, spawns `codex-auditor` for that stage. A stage the config excludes
+is not spawned at all — `codexAuditStages` is the narrowing knob, and a skill that checks only
+`codexAudit` would run every stage regardless of it.
+
+**Availability is the auditor's call, not the caller's.** The skill spawns whenever config allows;
+it does not pre-check whether the Codex CLI is installed. `codex-auditor` step 1 does that check and,
+when Codex is absent, records `verdict: "skipped"` for the stage under the page lock. If the caller
+short-circuited instead, no artifact would be written and `codex-audit.json` would silently have no
+entry for that stage — indistinguishable from "never audited". The auditor gathers the
 stage inputs, runs Codex, reads the real output, and Read-Modify-Writes `codex-audit.json` +
 the tracker. The skill surfaces the verdict (advisory) in its report.
 
@@ -646,7 +674,7 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   re-run and every closed finding would reopen — the exact failure it exists to prevent. Re-running a
   stage rewrites its `findings[]`, so `codex-auditor` reads the prior array first: an `adjudication`
   moves onto a new finding matching on `area` + `evidence`, and any prior adjudicated finding that
-  matches nothing is preserved verbatim under `stages.{stage}.priorAdjudicated[]`. Matching is
+  matches nothing is preserved verbatim under `{stage}.priorAdjudicated[]`. Matching is
   deliberately conservative — Codex is an LLM, its `detail` prose will not reproduce word for word —
   so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
   entries next to the current findings and lets the human judge, which is where that judgement

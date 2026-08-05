@@ -66,7 +66,8 @@ retro-judgment:
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
 `adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
-Also read each stage's `priorAdjudicated[]` — adjudicated findings a re-audit could not match to a
+Also read each stage's `{stage}.priorAdjudicated[]` (stages are top-level keys in
+`codex-audit.json`; there is no `stages` wrapper) — adjudicated findings a re-audit could not match to a
 current one — and present any `high` entries alongside, labelled **`unmatched`**. They are neither
 open nor confirmed resolved: the code moved and identity could not be asserted. Show them rather than
 resolving them either way; this gate is already a human acknowledgement, so the judgement belongs
@@ -90,11 +91,17 @@ strategy from `flipMechanism`; the gate precondition is identical for both.
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → `apps[app].pages[page].status = "flipped"`, `flippedAt`.
-- `--revert` → set status back to `parity-passed`, note the rollback.
+- `--revert` → set status back to `parity-passed`, **clear `flippedAt`**, note the rollback. Clearing
+  it matters: `templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
+  `flippedAt` is present without a `flipped` status, because that combination normally means the
+  tracker and the edge have drifted. A completed revert is the one case where it does *not* — the
+  edge really is serving legacy again — so leaving `flippedAt` behind would make the production host
+  permanently unusable as legacy evidence for this page.
 Release the lock.
 
 ### Step 4b: Codex audit (advisory; --flag-off only) — see CLAUDE.md → "Codex Independent Audit"
-After preparing the code PR (`--flag-off`), if `codexAudit` is enabled and Codex is available,
+After preparing the code PR (`--flag-off`), if `codexAudit` is enabled and `route` is in
+`codexAuditStages`,
 spawn `codex-auditor` (Agent) for the `route` stage (params: `app`, `page`, `stage="route"`,
 `appDir`, `legacyDir`, the full PR diff + all gate reports + `codex-audit.json`,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`) — Codex's final
@@ -113,4 +120,4 @@ path/flag/app:port mapping, gate-guard result, and next step:
   behavior active); rollback = `fm-route {page} --revert`.
 - for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest and opens a PR — it
   **does not push to AWS**; applying the behavior change is the deployment owner's step (OMH-502).
-- mark the page complete (`done`) once stable.
+- mark the page `done` by hand once the legacy page is deleted (CLAUDE.md → Per-page State Machine).

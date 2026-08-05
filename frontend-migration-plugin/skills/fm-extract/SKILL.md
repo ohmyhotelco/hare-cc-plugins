@@ -21,6 +21,9 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 1. Read `.claude/frontend-migration-plugin.json`. If absent → tell the user to run `fm-init`; stop.
 2. Resolve `app` (`--app` or `currentApp`), `legacyDir`, the other apps' `legacyDir`
    (`counterpartDirs`), `packagesDir`, `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
+   A shared package is not an app, so there is no `appDir` here: verification for this skill runs
+   from `{monorepoRoot}/{packagesDir}/shared-<name>` (the extracted package's own directory), or
+   from `{monorepoRoot}` for workspace-wide commands.
 3. Resolve `contractsDir` (optional). If the config has `contractsDir`, confirm the directory
    exists (with `responses/`+`requests/`); if the key is absent, leave it unset. This is the
    **authoritative** zod schema source for `shared-types`/`shared-data` only — when unset those
@@ -66,7 +69,8 @@ The agent works test-first and writes `packages/shared-*/src` + tests. If it **r
 for the secret boundary (shared-domain payment secrets / hash builders), collect it for Step 5.
 
 ### Step 4: Verify
-From the workspace / package `appDir`: run `tsc` (composite-aware: `tsc -b` if `references`,
+From the package directory resolved in Step 0 (`{monorepoRoot}/{packagesDir}/shared-<name>`), or
+`{monorepoRoot}` for workspace-wide commands: run `tsc` (composite-aware: `tsc -b` if `references`,
 else `--noEmit`) and `vitest run`. Read the output. Confirm the package imports cleanly with no
 React/Angular dependency (grep). Report exit codes as evidence.
 

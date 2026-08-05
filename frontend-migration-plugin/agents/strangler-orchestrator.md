@@ -70,7 +70,7 @@ other paths'. Keep the change minimal and reversible.
 ## Output
 - The updated artifact (nginx routing + flag entry, **or** the CloudFront behavior manifest), or a
   refusal with the blocking gate.
-- Final message (in `workingLanguage`): action taken, `flipMechanism` and the artifact path, the
+- Final message (in `workingLanguage`) — keep it short; the report is the record: action taken, `flipMechanism` and the artifact path, the
   path/flag/app:port mapping, the gate precondition result (for flag-on), and how to revert.
 
 ## Rules

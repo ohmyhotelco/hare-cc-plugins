@@ -50,7 +50,7 @@ This is deliberately **neither a port nor a bridge**:
 | Agent | `agents/codex-auditor.md` | Claude subagent. Gathers stage inputs → delegates to Codex via `codex exec` → reads/parses Codex's structured output → writes `codex-audit.json`. |
 | Rubric template | `templates/codex-audit.md` | Per-stage review lens, severity definitions, and the output schema — keeps Codex prompts consistent and grounded. |
 | State file | `docs/migration/{app}/{page}/codex-audit.json` | Per-stage audit verdicts, accumulated (Read-Modify-Write). |
-| Tracker field | `tracker.json` → `pages[page].codexAudit` | `{ stage: verdict }` summary for `fm-progress`. |
+| Tracker field | `tracker.json` → `apps[app].pages[page].codexAudit` | `{ stage: verdict }` summary for `fm-progress`. |
 
 Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 `tools: Read, Glob, Grep, Bash, Write`.
@@ -81,8 +81,9 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 5. The originating skill surfaces the verdict in its user-facing report (in `workingLanguage`),
    advisory.
 6. `fm-audit-codex` is the manual / re-run entry point for the same logic (`--all` for a sweep,
-   `--stage` for one). `fm-fix` re-audits the affected stage after addressing concerns; `fm-delta`
-   re-audits only the changed stages.
+   `--stage` for one). Neither `fm-fix` nor `fm-delta` re-audits on its own — re-auditing happens when
+   the gate's own skill runs again (each in-loop skill spawns the auditor for its stage), or when the
+   user invokes `fm-audit-codex` explicitly.
 
 ## Output schema — `codex-audit.json` (English)
 

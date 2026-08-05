@@ -3,7 +3,8 @@
 Every `fm-*` skill, the agent it drives, its key inputs/outputs, and the tracker state it sets.
 State files live under `docs/migration/{app}/{page}/`; the global tracker is
 `docs/migration/tracker.json`. Skills that mutate state take the page `.lock` (stale after
-30 min); audits and `fm-progress` are read-only and take no lock.
+30 min). `fm-progress` is read-only and takes no lock; the Codex audit **is not** — it writes
+`codex-audit.json` and the tracker's `codexAudit` field, and takes the page lock for those writes.
 
 | Skill | Agent | Input → Output | State set |
 | --- | --- | --- | --- |
@@ -16,7 +17,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-verify` | — | build / tsc / vitest from `appDir` | `verified` / `verify-failed` |
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` |
-| `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → passed / `generated` / `escalated` |
+| `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → the failed gate's entry state (the gate itself issues the passed state) / `generated` / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipped` (flag-on, gate-guarded) |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
 | `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
@@ -63,6 +64,11 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
   pipeline state. See CLAUDE.md → "Codex Independent Audit".
 
 ## Templates
+
+| Template | What it defines |
+| --- | --- |
+| `capture-provenance.md` | The `provenance` block every capture records; how `side` is resolved |
+| `i18n-copy-parity.md` | The copy axis contract — key coverage, render mode, copy bindings |
 
 `angular-to-react-mapping.md`, `shared-package-spec.md`, `shared-package-conventions.md`,
 `migration-plan-schema.md`, `style-spec.md` (the legacy style answer key: axes shared with

@@ -32,7 +32,11 @@ run `/frontend-migration-plugin:fm-extract` first.
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.
 - **`flipped` is refused, not warned.** If the page status is `flipped`, stop and tell the user to
-  run `/frontend-migration-plugin:fm-route {page} --flag-off` first. The path is serving production
+  run `/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
+  flag-off prepares the routing artifact with the flag OFF and *keeps the current status*
+  (`fm-route` Step 4), so it would leave the page at `flipped` and this refusal would repeat forever.
+  `--revert` is the rollback that takes the path out of rotation and returns the page to
+  `parity-passed`. The path is serving production
   traffic, so regenerating it is a rewrite under live load — and the status reset would desync the
   two facts that must agree: the tracker's `flipped` and the edge flag `fm-route` owns. Provenance
   resolves a capture's `side` from that status (`templates/capture-provenance.md`), so a demoted-but-
@@ -73,8 +77,8 @@ becomes `gen-failed`.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available and generation succeeded, after the lock is
-released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
+If `codexAudit` is enabled, this stage is in `codexAuditStages`, and generation succeeded, after the
+lock is released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
 `appDir`, `legacyDir`, the generated diff + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Codex checks mapping fidelity, RR v7 idioms, and secret-boundary violations.
 Advisory — never changes the page status. Surface its verdict in the report.

@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.7.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.8.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -317,6 +317,51 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   (anti-fabrication, not self-verification), the one-shot mutation check (an empirical procedure
   self-verification cannot replace), and the reviewers' severity handling (already
   report-everything-filter-downstream). Origin: journey-consistency and prompt audits, 2026-08-05.
+- **Triple-audit round (v0.14.8).** A three-way independent re-audit of the whole plugin —
+  a Claude journey walk, a Codex (`codex exec`) pass, and a prompt review against Anthropic's
+  published Opus 5 guidance. ~43 unique findings; the two structural audits converged independently
+  on 10, which is the signal that matters most. **Five were regressions introduced by the v0.14.3–
+  v0.14.7 fixes themselves**, and that is the lesson worth recording: each round closed real defects
+  and opened new ones a per-file review could not see, because the damage was always a contradiction
+  *between* files.
+
+  The blocker was one of those. v0.14.6 made `fm-gen`/`fm-delta` refuse a `flipped` page and told the
+  user to run `fm-route --flag-off` first — but flag-off prepares the routing artifact and
+  deliberately *keeps* the status, so the refusal repeated forever and drift could never be applied
+  to a live page. `--revert` is the transition that leaves `flipped`; both call sites now say so, and
+  `--revert` additionally clears `flippedAt`, without which the v0.14.6 provenance fail-safe made a
+  correctly rolled-back page's production host permanently `unresolved` as legacy evidence. The other
+  four: the v0.14.4 carry-forward rule wrote to `stages.{stage}.priorAdjudicated[]` when stages are
+  top-level keys and no `stages` object exists anywhere (so the `unmatched` entries the D defense
+  exists to surface would vanish at the one human gate that reads them); `migration-plan-schema.md`
+  and `docs/workflow.md` still declared `secret`/`sso` gates after v0.14.6 removed them, contradicting
+  the analyzer the planner also reads; and the `flipped` guard reached 2 of the 5 skills that write a
+  status — `fm-analyze`, `fm-style-spec`, and `fm-plan` could still demote a live page.
+
+  Codex found what the journey walk did not, mostly in serialization: `budgetSeconds` mandates
+  `not-run` for any parity sub-gate but only `contract`'s enum allowed it, and `amendedCriterion`/
+  `priorWhy` were likewise contract-only, so an amended or budget-capped visual/WebView/telemetry
+  result had nowhere to go; `e2e-report.json` had no `not-run` for the staging-gateway case v0.14.7
+  had just introduced, one `copyParity` object for a per-language matrix, and prose writing provenance
+  into the `dualRun.legacy`/`new` result fields; `fm-analyze` Step 4 said "merge only the changed
+  fields" and then assigned a fresh five-field page object, which would delete `sourcePaths`,
+  `gateEvidence`, `codexAudit`, and every route field on re-analysis; `codex-auditor`'s
+  Codex-unavailable path mutated state before taking the lock; `codexAuditStages` was defined and
+  consulted by nothing; `budgetSeconds` deferred to a "plugin default cap" that does not exist; and
+  the plan's `nicepay` did not match config's `nicePay`.
+
+  The prompt review's headline was that the surface is already clean — zero hits across every dated-
+  pattern signal. Its one high-confidence finding was a fossil with teeth: `CLAUDE.md` still told
+  executors to use a **`Task` tool**, which no skill declares and which no longer exists (it was
+  renamed `Agent`), and that dead line was the plugin's only cross-cutting delegation guidance — in a
+  16-agent plugin, on a model documented to delegate more readily than its predecessors. Replaced
+  with named-delegation-only guidance that forbids spawning a reviewer to double-check a gate. Also
+  added: the scope rule now binds in both directions (Opus 5's documented new failure mode is
+  *widening*, and in a parity migration an unrequested addition is a divergence), and the
+  final-message length calibration reached all 16 agents rather than the coordinator layer alone,
+  since this plugin's own design principle is that subagents inherit nothing.
+
+  Origin: journey + Codex + prompt audits, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

@@ -45,15 +45,26 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 `targetPath`, `outPath` = `docs/migration/{app}/{page}/analysis.json`, `counterpartDirs`,
 `workingLanguage`. Do not pass session history.
 
+### Step 3b: Refuse a flipped page
+If `tracker.json` shows the page at `flipped`, stop and tell the user to run
+`/frontend-migration-plugin:fm-route {page} --revert` first. Re-analyzing rewrites the page's status,
+which would desync it from the edge flag that is still routing production traffic to v2 — see
+CLAUDE.md → Per-page State Machine. (Analysis of a *new* page is unaffected; this only guards a page
+already recorded as flipped.)
+
 ### Step 4: Record state
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
-2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, merge only the
-   changed fields, write the whole object): set `apps[app].pages[page]` to
-   `{ "status": "analyzed", "kind": ..., "requiredGates": [...], "risk": ..., "updatedAt": ISO }`.
+2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
+   fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,
+   `requiredGates`, `risk`, `updatedAt`. **Merge, never replace the page object.** A re-analysis that
+   assigned a fresh five-field object would delete everything else the record accumulates —
+   `sourcePaths`, `gateEvidence`, `codexAudit`, `flippedAt`, `flagKey`, `routePrepared`, `verifiedAt`
+   — silently resetting the page's freshness and audit history (CLAUDE.md → Read-Modify-Write rule).
 3. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+`codex-auditor`
 (Agent) for the `analyze` stage (params: `app`, `page`, `stage="analyze"`, `appDir`, `legacyDir`,
 `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`). It
 records `codex-audit.json` + tracker `codexAudit.analyze`. Advisory — never changes the page

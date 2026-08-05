@@ -65,7 +65,7 @@ tool summary — evidence before claims (CLAUDE.md 5-step gate).
   "fixedAt": "ISO"
 }
 ```
-Final message (in `workingLanguage`): what was fixed, the gate re-run result with evidence, and
+Final message (in `workingLanguage`) — keep it short; the report is the record: what was fixed, the gate re-run result with evidence, and
 whether regeneration is recommended.
 
 ## Rules

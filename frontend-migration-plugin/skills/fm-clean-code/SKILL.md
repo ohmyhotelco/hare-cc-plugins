@@ -15,8 +15,9 @@ output in `workingLanguage`.
 ## Instructions
 
 ### Step 0: Config
-Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `appDir`,
-`workingLanguage`.
+Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
+(`--app`/`currentApp`) and, from that app's entry, `appDir` and `targetDir`, plus `workingLanguage`.
+Both app-scoped paths must be resolved before Step 1 — the default review target is `targetDir`.
 
 ### Step 1: Resolve the target
 - If `[path]` is given, review it.
