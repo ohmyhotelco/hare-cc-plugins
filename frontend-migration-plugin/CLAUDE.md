@@ -86,10 +86,11 @@ orchestration and tracking**.
 > deferred-`unknown` (nothing to freeze) and whose `requiredGates` omits contract — the instructions
 > went from the contract heading straight into the diff with no premise check. Three fixes, all docs:
 > (A) the contract gate confirms its premise (a **concrete** v2 DTO shape — not `unknown`, not vacuous
-> `any`; `contractsDir` not required) before the response-DTO capture and records `not-run`/`reason` only
-> under a sign-off-gated `openApprovals` deferral (a bare plan note is not enough), else `fail` — gating
-> the **response-DTO diff only**, so the
-> request-body-vs-live-backend check (OMH-748) still runs on `unknown`-typed write pages; (B) the
+> `any`; `contractsDir` not required) before the response-DTO capture and records `not-run`/`reason`
+> only under an `openApprovals` entry that is `status: "approved"` with a named `owner` (a `pending`
+> entry the pipeline writes itself, or a bare plan note, is not enough), else `fail` — gating the
+> **response-DTO diff only**, so the request-body-vs-live-backend check (OMH-748) still runs on
+> `unknown`-typed write pages; (B) the
 > `.lock` gets a schema (`holder`/`pid`/ISO-8601 `acquiredAt`) so the "stale after 30 min" rule is
 > computable and a malformed timestamp is immediately stale, not a permanent deadlock; (C) an optional
 > per-gate `gateAcceptance.{gate}.budgetSeconds` records `not-run` on overrun rather than failing or
@@ -657,16 +658,19 @@ section went from its heading straight into the diff. Three doc-only fixes — d
   legacy analysis DTOs, so its one premise is a **concrete v2 DTO shape** — not `unknown`, and not a
   vacuous `any` (`any` passes a naive typed-check but the diff against it matches everything, a false
   pass; treat it like `unknown`). `contractsDir` is optional infra and is **not** required (requiring it
-  would `not-run` the diff on every page of a project without `docs/migration/api-contracts/`). Concrete
-  → run. `unknown`/`any` → split on why: a **sign-off-gated** deferral (an `openApprovals[]` item with a
-  decision owner, e.g. `D2-BH`) → `result: "not-run"` + `reason` (a fourth honest fact alongside
-  skipped-by-plan / attempted-but-unfinished); no such deferral → `result: "fail"`, never a silent
-  `not-run`. A bare free-text typing note is **not** enough — a contract skip is a coverage reduction,
-  and this plugin routes every coverage reduction through `openApprovals` sign-off, never a
-  self-authored default, so the pipeline cannot excuse its own skip. A precondition, not a plan flag: it
-  runs again on its own when the deferral resolves. Gates the
-  **response-DTO diff only** — the request-body-vs-live-backend check (OMH-748) does not depend on typed
-  response DTOs and keeps running on every write page.
+  would `not-run` the diff on every page of a project without `docs/migration/api-contracts/`). The
+  premise is read off the `api` phase response hooks; a concrete DTO carrying an `any`-typed **field**
+  stays concrete (diff runs, that field excluded and named in `evidence`). Concrete → run.
+  `unknown`/`any` → split on why: an **approved sign-off** (an `openApprovals[]` entry with
+  `status: "approved"` and a named `owner`, not `TBD`) → `result: "not-run"` + `reason` (a fourth
+  honest fact alongside skipped-by-plan / attempted-but-unfinished); no such entry → `result: "fail"`,
+  never a silent `not-run`. A `pending` entry and a bare free-text typing note are **equally** not
+  enough — `fm-plan` writes `pending` entries itself, so either would let the pipeline approve its own
+  skip; a contract skip is a coverage reduction, and this plugin routes every coverage reduction
+  through an approved `openApprovals` entry. A precondition, not a plan flag: it runs again on its own
+  when the deferral resolves, and a plan carrying the deferral only as a typing note must promote it to
+  an approved entry first. Gates the **response-DTO diff only** — the request-body-vs-live-backend
+  check (OMH-748) does not depend on typed response DTOs and keeps running on every write page.
 - **B (lock schema).** `.lock` is JSON with `holder` / `pid` / ISO-8601 `acquiredAt` (see "Lock file").
   The "stale after 30 min" rule computes off `acquiredAt`; a date-only or unparseable timestamp is
   immediately stale, so a malformed lock is never a permanent deadlock.

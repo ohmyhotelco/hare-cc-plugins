@@ -45,15 +45,16 @@ The plan deferred response-DTO typing (D2-BH) on purpose, so the *possible* axis
   response shape against the legacy DTOs from `analysis`, so its one real premise is that the response
   hooks carry a concrete DTO shape — **not `unknown`, and not a vacuous `any`** (`any` passes a naive
   typed-check but the diff against it matches everything, a false pass; treat it like `unknown`). When
-  concrete → run. When `unknown`/`any`, split on **why**: a **sign-off-gated** deferral —
-  an `openApprovals[]` item with a decision owner (e.g. booking-history's `D2-BH`) → `result:
-  "not-run"` + `reason: "typing deferred: <openApprovals ref>"` and proceed; no such deferral →
-  `result: "fail"` (or an explicit approval request), never a silent `not-run`. A **bare free-text
-  typing note is not sufficient**: skipping a contract sub-check is a coverage reduction, and this
-  plugin routes every coverage reduction through `openApprovals` sign-off, never a self-authored
-  default — otherwise the pipeline could excuse its own skip. A precondition, not a plan flag: when the
-  deferral resolves and the DTOs become typed, the capture runs again with no one editing a plan.
-  `parity-report.json`'s contract entry gains `not-run` + `reason`.
+  concrete → run. When `unknown`/`any`, split on **why**: an **approved sign-off** — an
+  `openApprovals[]` entry with `status: "approved"` and a named `owner` (not `TBD`) → `result:
+  "not-run"` + `reason: "typing deferred: <openApprovals ref>"` and proceed; no such entry →
+  `result: "fail"` (or an explicit approval request), never a silent `not-run`. A **`pending` entry
+  and a bare free-text typing note are equally insufficient**: skipping a contract sub-check is a
+  coverage reduction, and this plugin routes every coverage reduction through an approved
+  `openApprovals` entry, never a self-authored default — otherwise the pipeline could excuse its own
+  skip. A precondition, not a plan flag: when the deferral resolves and the DTOs become typed, the
+  capture runs again with no one editing a plan. `parity-report.json`'s contract entry gains
+  `not-run` + `reason`.
 
   **Two corrections over the raw proposal (recorded decisions).**
 
@@ -83,13 +84,32 @@ The plan deferred response-DTO typing (D2-BH) on purpose, so the *possible* axis
     `openApprovals[]` item **or** the plan's typing note". The second channel was softer than this
     plugin's universal rule — every coverage reduction goes through `openApprovals` with a decision
     owner's sign-off (`migration-plan-schema.md`), never a self-authored default. A free-text typing
-    note the pipeline can write itself let it excuse its own skip. Now only a sign-off-gated
+    note the pipeline can write itself let it excuse its own skip. Now only an approved
     `openApprovals` deferral permits `not-run`; a bare note is treated as "not recorded" → `fail`.
+
+    *Which entries count* — the sign-off is `status: "approved"` **and** an `owner` that names a real
+    decision owner (not `TBD`). Naming the entry alone is not enough: `status` is
+    `pending | approved | rejected` and **`fm-plan` writes `pending` entries itself** (the schema's own
+    example is `"owner": "TBD", "status": "pending"`), so "an `openApprovals` item exists" would have
+    left the self-approval seam open one indirection further along — the pipeline writing its own
+    pending entry instead of its own note. `pending` and `rejected` read as "not recorded", same as a
+    note.
+
+    *Transition* — a deferral carried only as a free-text typing note (booking-history's `D2-BH`, the
+    known case) must be promoted to an approved `openApprovals` entry before that page's next parity
+    run; until then the premise records `fail`. Consistent with the precondition framing: it reads
+    present reality rather than re-judging pages that already passed.
   - *Exclude vacuous `any`.* The premise "typed (not `unknown`)" let an `any`-typed hook through, and
     the diff against `any` matches every legacy shape — a **false pass** (worse than an honest skip: it
     claims verification that never happened). The premise now requires a concrete DTO shape and treats
     `any` like `unknown`. Lower probability in v2 (zod/`unknown` dominate), but the failure mode is a
     silent green, so it is worth excluding explicitly.
+
+    *How it is read* — from the `api` phase output (the TanStack Query hooks over `@omh/shared-data`
+    services): `unknown`, `any`, or an alias/generic resolving to either is not concrete. A concrete
+    DTO with an `any`-typed **field** stays concrete — the diff runs, that field is excluded and named
+    in `evidence`. Stating this matters because "not vacuous `any`" alone leaves the nested case to the
+    executing session, which is the improvisation the premise exists to remove.
 
 - **B — the lock carries a parseable timestamp.** The "stale after 30 minutes" rule lived in ~11
   places but no file defined the lock's fields; `acquiredAt` appeared nowhere in the plugin, and the
@@ -141,15 +161,18 @@ consistency:
 1. `parity-verifier.md` contract section states the premise is a concrete v2 DTO shape alone —
    not `unknown`, not vacuous `any` (`contractsDir` not required) — gates the response-DTO diff
    **only**, and the request-body check runs regardless of response typing. An `unknown`/`any` hook is
-   `not-run` only under a sign-off-gated `openApprovals` deferral (a bare plan note is not enough),
-   `fail` otherwise.
+   `not-run` only under an `openApprovals` entry with `status: "approved"` and a named `owner`;
+   `pending`, `rejected`, a `TBD` owner, and a bare plan note are all `fail`.
 2. `parity-report.json` contract result enum includes `not-run` with a `reason` (and an `unknown`/`any`
-   write page with no sign-off-gated deferral is a `fail`, not `not-run`).
-3. `budgetSeconds` documented in `migration-plan-schema.md` and its overrun behavior in
+   write page with no **approved** `openApprovals` deferral is a `fail`, not `not-run`).
+3. `parity-verifier.md` states where the premise is read from (the `api` phase response hooks) and how
+   a nested `any` **field** is handled (diff runs, field excluded and named in `evidence`); the
+   free-text-note transition for existing plans is recorded.
+4. `budgetSeconds` documented in `migration-plan-schema.md` and its overrun behavior in
    `parity-verifier.md` Rules agree (not-run + reason, per-gate, no kill, no fail).
-4. `CLAUDE.md` lock schema (`holder`/`pid`/ISO-8601 `acquiredAt`) present; unparseable = immediately
+5. `CLAUDE.md` lock schema (`holder`/`pid`/ISO-8601 `acquiredAt`) present; unparseable = immediately
    stale; the 5 skills + `codex-auditor` reference it.
-5. Gate-set derivation, the "always" sentence, and existing plans are untouched.
+6. Gate-set derivation, the "always" sentence, and existing plans are untouched.
 
 ## Follow-up (out of scope, separate axis)
 

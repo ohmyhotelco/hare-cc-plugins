@@ -162,15 +162,18 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   false pass); the diff freezes against the legacy analysis DTOs so `contractsDir` is **not** required
   (requiring it, as the proposal did, would `not-run` the diff on every page of a project without
   `docs/migration/api-contracts/`) — before the response-DTO capture, then on an `unknown`/`any` hook
-  records `not-run` + `reason` only under a **sign-off-gated `openApprovals` deferral** (a bare
-  free-text plan note is not enough — a contract skip is a coverage reduction, and the plugin routes
-  those through `openApprovals` sign-off, so the pipeline cannot excuse its own skip) and `fail`
-  otherwise. A precondition that re-enables itself when the deferral resolves, not a plan flag that
+  records `not-run` + `reason` only under an **approved `openApprovals` entry** (`status: "approved"`
+  with a named `owner`, not `TBD`) and `fail` otherwise. A `pending` entry does not qualify: `fm-plan`
+  writes those itself, so accepting one would move the self-approval seam one indirection along rather
+  than close it — a bare free-text plan note and a self-written `pending` entry are equally "not
+  recorded". A precondition that re-enables itself when the deferral resolves, not a plan flag that
   rots. **Corrections over the raw proposal:** gate the response-DTO diff **only** — the
   request-body-vs-live-backend check (OMH-748) needs no typed response DTO and must keep running on
   `unknown`-typed write pages or v0.11.0's hole re-opens — drop the `contractsDir` conjunct that would
-  have made the required check silently vanish, and (post-merge review, v0.14.2) require sign-off for
-  the skip and exclude vacuous `any`; (B) the `.lock` gains a schema
+  have made the required check silently vanish, and (post-merge review, v0.14.2) require an approved
+  sign-off for the skip, exclude vacuous `any`, and state where the premise is read from (the `api`
+  phase response hooks; a nested `any` **field** leaves the DTO concrete but is excluded from the diff
+  and named in `evidence`); (B) the `.lock` gains a schema
   (`holder`/`pid`/ISO-8601 `acquiredAt`) so the "stale after 30 min" rule — asserted in ~11 places but
   computable from no defined field, and written date-only in OMH-749 — actually computes, with an
   unparseable timestamp treated as immediately stale so a malformed lock is not a permanent deadlock;
