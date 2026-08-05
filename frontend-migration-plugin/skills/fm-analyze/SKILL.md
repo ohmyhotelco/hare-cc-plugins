@@ -39,18 +39,18 @@ Per the plugin `CLAUDE.md` lock convention, acquire
 `docs/migration/{app}/{page}/.lock` (stale after 30 min). If held and fresh, report who holds
 it and stop.
 
+### Step 2b: Refuse a flipped page
+If `tracker.json` shows the page at `flipped`, stop and tell the user to run
+`/frontend-migration-plugin:fm-route {page} --revert` first. This must come **before** the analyzer
+runs: the agent overwrites `analysis.json`, which is the baseline `fm-delta` diffs a live page
+against, so a guard placed after the launch would already have destroyed it. (A page not yet in the
+tracker is unaffected — this only guards one recorded as flipped.)
+
 ### Step 3: Run the analyzer
 Launch the `angular-analyzer` agent (use the `Agent` tool — this is a single analysis step)
 with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `targetKind`,
 `targetPath`, `outPath` = `docs/migration/{app}/{page}/analysis.json`, `counterpartDirs`,
 `workingLanguage`. Do not pass session history.
-
-### Step 3b: Refuse a flipped page
-If `tracker.json` shows the page at `flipped`, stop and tell the user to run
-`/frontend-migration-plugin:fm-route {page} --revert` first. Re-analyzing rewrites the page's status,
-which would desync it from the edge flag that is still routing production traffic to v2 — see
-CLAUDE.md → Per-page State Machine. (Analysis of a *new* page is unaffected; this only guards a page
-already recorded as flipped.)
 
 ### Step 4: Record state
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).

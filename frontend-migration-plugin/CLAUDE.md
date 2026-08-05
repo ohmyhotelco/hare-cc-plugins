@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.8)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.9)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -231,7 +231,10 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   promoted the page itself would leave the gate's report reading `fail` while the status claimed
   otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
 - **No skill writes a status over `flipped`.** `fm-gen`, `fm-delta`, `fm-analyze`, `fm-style-spec`,
-  and `fm-plan` each refuse and point at `fm-route --revert`. The tracker's `flipped` and the edge
+  `fm-plan`, `fm-verify`, and `fm-fix` each refuse and point at `fm-route --revert`. `fm-e2e` and
+  `fm-parity` need no guard — their entry preconditions are exact matches (`verified`, `e2e-passed`),
+  which `flipped` fails; `fm-verify`'s "at least `generated`" is the one monotonic comparison, so it
+  guards explicitly. The tracker's `flipped` and the edge
   flag must agree — provenance resolves a capture's `side` from that status — and `--revert` is the
   only transition that changes both. `--flag-off` prepares the routing artifact and deliberately
   keeps the status, so it is never the way out of `flipped`.
@@ -268,7 +271,9 @@ docs/migration/
     └── .lock                          ← held by a writing skill
 ```
 
-**Read-Modify-Write rule.** When updating any state JSON:
+### Read-Modify-Write rule
+
+When updating any state JSON:
 1. Read the **latest** file content immediately before writing — never use data cached
    earlier in the session.
 2. Merge only the fields being changed; preserve all existing fields.
@@ -683,7 +688,10 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   <ISO-8601>, commit: <sha> }` in `tracker.json` (`commit` = `git rev-parse --short HEAD`; a dirty tree
   → `<sha>+dirty`, honest imprecision over a clean-looking lie). Legacy `verifiedAt`/`e2ePassedAt`/
   `parityPassedAt` stay for compatibility; `gateEvidence` wins when present. `fm-route --flag-on`
-  Step 1a expires any gate with an intervening commit on the page's watch paths — a PASS proves nothing
+  Step 1a surfaces any gate with an intervening commit on the page's watch paths as **stale** and
+  requires the operator's acknowledgement — a soft gate, never an auto-block: the gates run before
+  the code PR exists, so a blocking reading would fire on every page and re-running could not clear
+  it. A PASS proves nothing
   about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits stale). `at` is
   ISO-8601 with time, the same regulation as the lock schema; a date-only value is a rule violation.
 - **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files

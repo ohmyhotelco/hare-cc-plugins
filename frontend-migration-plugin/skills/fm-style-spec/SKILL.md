@@ -57,7 +57,9 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 ### Step 4: Extract
 Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `analysisPath`,
 `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`, `targetDir`,
-`appDir`, `workingLanguage`.
+`appDir`, the app's `legacyPort` / `port` / `domain` and the page's flip state (the extractor resolves
+each capture's `provenance.side` from those — `templates/capture-provenance.md`; without them the
+side is `unresolved`, which counts as absent and fails the gate), `workingLanguage`.
 
 ### Step 5: Record
 1. Verify `style-spec.json` exists and parses (`jq empty`).
@@ -65,7 +67,9 @@ Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `anal
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
    (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
-   it is the at-a-glance record for `fm-progress` and for a human scanning the tracker.
+   it is a reporting surface only — `fm-progress` and a human scanning the tracker read it; the
+   reusability decision itself is made from `style-spec.json`'s own `legacySource.provenance`
+   (`fm-parity`, `parity-verifier`), never from here.
 3. Release the lock.
 
 ### Step 6: Report

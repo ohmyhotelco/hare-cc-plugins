@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.8.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.9.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -362,6 +362,52 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   since this plugin's own design principle is that subagents inherit nothing.
 
   Origin: journey + Codex + prompt audits, 2026-08-05.
+- **Re-audit round (v0.14.9).** The verification pass on v0.14.8 found a blocker in the freshness
+  rule the accounting work introduced, and it is the clearest example yet of the pattern these rounds
+  keep producing: a rule that is coherent in the file that defines it and impossible against the
+  pipeline it governs.
+
+  `fm-route --flag-on` Step 1a **expired all three gates on every page, by construction**. The gates
+  run on generated code *before* it is committed (`fm-gen` → verify → e2e → parity → `--flag-off`
+  opens PR1, the code PR), so every gate records `<sha>+dirty`, which the rule treated as expired;
+  and PR1's merge commit touches every path in `sourcePaths[]` by definition, which the rule also
+  treated as expired. Re-running could not clear either, since a re-run writes its own report files
+  into the repo and records `+dirty` again. The plugin's terminal transition was unreachable.
+
+  The rule had also been implemented two ways: `fm-progress` surfaces staleness ("flags, never
+  re-runs") while `fm-route` blocked on it — and the design doc and CLAUDE.md both say the goal is
+  "visibility before flip, **not** forced re-verification". Step 1a is now a soft gate with the same
+  shape as the Codex acknowledgement beside it: stale gates are listed with the commits that outdated
+  them and the operator acknowledges. That still serves the case the rule was written from (OMH-754
+  PR #184's `visual: PASS` standing 21 commits stale) — the operator is told, and decides — without
+  making the flip unreachable. `+dirty` is reported as `unlocatable` rather than stale, since it is
+  the normal state for a first flip and says nothing about whether anything changed.
+
+  Six more majors, several of them half-landed fixes from v0.14.8: `parity-verifier` and the design
+  doc still deferred to the `budgetSeconds` "plugin default" the schema had just declared
+  non-existent, so the verifier would invent a cap and record `not-run` on a long-running visual
+  matrix — a silent coverage reduction at the last gate before a flip. The `not-run` E2E value added
+  for the staging-gateway case was contradicted by the agent's own Rules and by `e2e-testing.md`
+  ("a failing or unrun scenario means the gate has not passed"), which made the new `fm-e2e` branch
+  unreachable and left an empty `paymentGateways` config in an `fm-fix` loop with no exit. `--revert`
+  cleared `flippedAt` (the v0.14.8 fix) but not `routePrepared`, so the SessionStart hook told the
+  operator to re-flip the page they had just rolled back. `foundation-generator` is required to read
+  four `i18n.*` values that `fm-gen` never passed it, making the key-coverage spec ungenerable on a
+  project that *has* i18n configured — and `fm-verify` treats an absent spec as a hard failure whose
+  only remedy is the phase that cannot produce it. The three capture agents must resolve
+  `provenance.side` from `legacyPort`/`port`/`domain` and were never given them. And `fm-verify`'s
+  "at least `generated`" is a monotonic comparison that `flipped` satisfies, so the v0.14.8 guard
+  count missed it and `fm-fix`; both now refuse, bringing the guard to all seven status writers.
+
+  Minors: `fm-analyze`'s new guard ran *after* the analyzer had already overwritten the baseline
+  `fm-delta` diffs against, so it moved ahead of the launch; `check-staleness.sh` ignored every
+  failure state and recommended `fm-delta` for a flipped page (which `fm-delta` refuses) — both
+  verified by running the hook against a synthetic tracker; `fm-progress` Step 3 claimed to mirror a
+  hook mapping it contradicted; `codex-audit-layer.md` is now explicitly subordinate to
+  `templates/codex-audit.md`, which is the authority for the input set and schema; and the
+  Read-Modify-Write citation became a real heading, the same defect v0.14.7 fixed for "Lock file".
+
+  Origin: journey re-verification, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

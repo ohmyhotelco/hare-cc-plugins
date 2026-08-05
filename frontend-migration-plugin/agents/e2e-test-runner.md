@@ -133,4 +133,8 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
   under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
 - Transactional scenarios run on staging only.
 - Read-modify-write the report; do not clobber other state.
-- A failing or unrun scenario means the gate has not passed — say so plainly.
+- A **failing** scenario means the gate has not passed — say so plainly. A scenario recorded
+  `not-run` with a `reason` (the staging-gateway case in step 3) is *unmeasured*, not failed: it does
+  not by itself set the top-level `result` to `fail`. Report it prominently and carry the `reason` —
+  `fm-e2e` Step 4 keeps the page at `e2e-passed` and surfaces it, and `fm-route --flag-on` shows it
+  to the operator. Never let a `not-run` scenario read as a pass.

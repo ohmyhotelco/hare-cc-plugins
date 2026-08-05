@@ -45,7 +45,10 @@ In `workingLanguage`, show:
   axis was checked rather than reporting a bare "fresh". Read-only — flags, never re-runs.
 
 ### Step 3: Next-step guidance
-For each in-flight page, print the exact next command (same mapping as the SessionStart hook):
+For each in-flight page, print the exact next command, using the same mapping as the SessionStart
+hook — including its carve-outs: `gen-failed` → `fm-gen` (not `fm-fix`), `escalated` → manual
+intervention then `fm-fix`, `flipped` → no command (mark `done` by hand once the legacy page is
+deleted), and `parity-passed` → `--flag-on` when `routePrepared` is set, else `--flag-off`:
 analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
 verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off`/`--flag-on`,
 `*-failed`→`fm-fix`.

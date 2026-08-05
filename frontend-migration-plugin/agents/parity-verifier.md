@@ -257,7 +257,8 @@ Final message (in `workingLanguage`) — keep it short; the report is the record
   single-line minified assets (deployed CSS bundles) — use fixed-string grep / byte-range cuts
   under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
 - **A gate that overruns its budget is recorded, not killed and not failed.** When a gate declares
-  `gateAcceptance.{gate}.budgetSeconds` (optional; the plugin's default when omitted), and the capture
+  `gateAcceptance.{gate}.budgetSeconds` (optional; **omitted → no cap**; there is no plugin-wide default (`migration-plan-schema.md`), so an unset
+value means the gate runs to completion — never invent a number), and the capture
   passes it, stop that gate and record `result: "not-run"` + `reason: "budget exceeded"`, then move to
   the next gate. Do **not** mark it `fail` (a measurement not taken is not a measurement that failed —
   the same three-way split as the contract premise above), and do **not** hard-kill a running capture

@@ -31,7 +31,10 @@ an earlier session or on another machine.
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Run the gate
-Launch `e2e-test-runner` (Agent) with only its params: `app`, `page`, `planPath`, `targetDir`,
+Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
+`domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
+(`templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
+`app`, `page`, `planPath`, `targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `stagingConfig`, `outPath` =
 `docs/migration/{app}/{page}/e2e-report.json`, `workingLanguage`. The skill starts/stops any dev
 server the runner needs.

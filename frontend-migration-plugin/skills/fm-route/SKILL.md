@@ -49,9 +49,29 @@ which files belong to the page:
    per-page so nothing else catches it.
 
 Then `git log --oneline <sha>..HEAD -- <path>...` over the union. Any gate with an intervening commit
-on a watch path is **expired**: list the expired gates and require the user to re-run them before
-flipping — do not silently flip on stale evidence. Three carve-outs, all honest-state not
-retro-judgment:
+on a watch path is **stale**.
+
+**This is a soft gate: surface, acknowledge, proceed — never an automatic refusal.** Present the
+stale gates with the commits that outdated them and require the user's explicit acknowledgement,
+exactly as Step 1b does for Codex findings. Do not block the flip and do not demand a re-run. Two
+reasons, and the second is the load-bearing one:
+
+- It is what the rule is *for*. CLAUDE.md → "Gate Result Accounting" and
+  `docs/design/gate-result-accounting.md`: "the goal is visibility before flip, **not** forced
+  re-verification" — re-running every gate on every shared-package change is unaffordable.
+  `fm-progress` already reads it this way ("flags, never re-runs").
+- Blocking would make this transition **unreachable by construction**. The gates run on the
+  generated code *before* it is committed — `fm-gen` → `fm-verify` → `fm-e2e` → `fm-parity` →
+  `--flag-off` opens PR1, the code PR — so every gate records `<sha>+dirty`, and PR1's merge commit
+  touches every path in `sourcePaths[]` by definition. Both conditions therefore fire on every page,
+  and re-running the gates cannot clear them: the re-run writes its own report files into the repo
+  and records `+dirty` again. A rule that fires on every page and cannot be satisfied is not a gate,
+  it is a deadlock.
+
+What the acknowledgement is for is the case the rule was written from: OMH-754 PR #184 shipped a
+`visual: PASS` standing on a screenshot 21 commits stale. Under this reading that page still reaches
+the flip, but the operator is told "visual evidence is 21 commits behind HEAD, on these paths" and
+decides. Three carve-outs, all honest-state not retro-judgment:
 - A gate whose `gateEvidence` is **absent** (page verified before this field existed) is recorded as
   **`unverifiable`** freshness and does **not** block — no retro-adjudication (same principle as
   `templates/capture-provenance.md`).
@@ -59,8 +79,10 @@ retro-judgment:
   on axis 1; still check axis 2, which needs only the plan. Report which axis was checkable rather
   than reporting a bare "fresh" — a freshness claim covering one of two axes is a scope statement,
   and CLAUDE.md → Design Principles makes evidence-scope statements claims in their own right.
-- A `<sha>+dirty` commit value means the pass was recorded against an uncommitted tree; treat it as
-  expired (the exact code cannot be located) and require a clean re-run.
+- A `<sha>+dirty` commit value means the pass was recorded against an uncommitted tree, so the exact
+  code it rests on cannot be located. Report it as **`unlocatable`** rather than stale — it is the
+  normal state for a first flip, since the gates run before the code PR exists, and it carries no
+  information about whether anything changed since. Do not treat it as a reason to re-run.
 
 ### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
@@ -91,7 +113,11 @@ strategy from `flipMechanism`; the gate precondition is identical for both.
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → `apps[app].pages[page].status = "flipped"`, `flippedAt`.
-- `--revert` → set status back to `parity-passed`, **clear `flippedAt`**, note the rollback. Clearing
+- `--revert` → set status back to `parity-passed`, **clear `flippedAt` and `routePrepared`**, and
+  record `revertedAt`. Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
+  splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
+  the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert
+  *removes* the manifest entry (`strangler-orchestrator`), leaving nothing prepared to activate. Clearing
   it matters: `templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
   `flippedAt` is present without a `flipped` status, because that combination normally means the
   tracker and the edge have drifted. A completed revert is the one case where it does *not* — the

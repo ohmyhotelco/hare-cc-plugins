@@ -24,7 +24,8 @@ Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
-(`--app`/`currentApp`), `targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
+(`--app`/`currentApp`), `targetDir`, `appDir`, `packagesDir`, `legacyDir` (Step 4b hands it to the
+Codex auditor), `workingLanguage`.
 
 ### Step 1: Require analysis
 Check `docs/migration/{app}/{page}/analysis.json`. If missing:

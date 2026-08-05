@@ -14,7 +14,7 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-extract` | `package-extractor` | analysis candidates (+ `contractsDir` for `shared-types`/`shared-data`) → `packages/shared-*` (+ tests) | `tracker.packages` |
 | `fm-plan` | `migration-planner` | `analysis.json` + `style-spec.json` + catalog → `migration-plan.json` | `planned` |
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
-| `fm-verify` | — | build / tsc / vitest from `appDir` | `verified` / `verify-failed` |
+| `fm-verify` | — | build / tsc / vitest / eslint (hard) from `appDir`, Prettier advisory | `verified` / `verify-failed` |
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → the failed gate's entry state (the gate itself issues the passed state) / `generated` / `escalated` |

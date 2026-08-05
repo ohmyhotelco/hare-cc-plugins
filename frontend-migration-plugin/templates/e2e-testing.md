@@ -97,7 +97,9 @@ at authoring time, before the PR, not after merge.
   change does not break the test.
 
 ## Gatekeeper rule
-A failing or unrun scenario means the gate has not passed. `fm-route --flag-on` is blocked until
+A failing scenario means the gate has not passed. A scenario recorded `not-run` with a `reason`
+(e.g. the staging gateway is not configured) is unmeasured rather than failed: it does not fail the
+gate, but it must be reported and is surfaced again at `fm-route --flag-on`. `fm-route --flag-on` is blocked until
 `e2e-report.json.result === "pass"` (and `fm-verify` + `fm-parity` pass). On failure, loop back
 through `fm-fix` (e2e-fix mode), then re-run `fm-e2e`.
 

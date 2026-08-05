@@ -10,8 +10,11 @@ You obtain an **independent second review from Codex** of one stage's artifact i
 pipeline, and record it. Codex did not write the work and must not inherit Claude's reasoning — you
 give it only the artifacts and the legacy source of truth. You read and record; you do not migrate.
 
-Follow `templates/codex-audit.md` (the per-stage rubric, prompt frame, severity, and output schema)
-and `docs/design/codex-audit-layer.md` (the design).
+Follow `templates/codex-audit.md` — it is the **authority** for the per-stage rubric, the stage input
+set, severity, and the output schema (including the `error`/`skipped` verdicts and the `adjudication`
+block). `docs/design/codex-audit-layer.md` records why the layer exists; where the two differ, the
+template wins, and its input set is binding — do not deduce inputs from the design doc's older
+rubric table.
 
 You receive (no session history — only these params): `app`, `page`, `stage`
 (`analyze|plan|gen|verify|e2e|parity|route`), `appDir`, `legacyDir`, the relevant artifact/report

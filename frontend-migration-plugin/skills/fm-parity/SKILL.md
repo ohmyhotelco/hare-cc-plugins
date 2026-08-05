@@ -26,7 +26,10 @@ point to `fm-style-spec {page}` and stop).
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
-Launch `parity-verifier` (Agent) with only its params: `app`, `page`, `planPath`,
+Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
+`domain` and the page's flip state, which the verifier needs to resolve each capture's
+`provenance.side` (`templates/capture-provenance.md`; an unresolved side counts as absent and fails
+the gate): `app`, `page`, `planPath`,
 `analysisPath`, `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `outPath` =
 `docs/migration/{app}/{page}/parity-report.json`, `workingLanguage`. The verifier runs only the

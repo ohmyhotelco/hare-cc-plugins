@@ -120,8 +120,9 @@ The plan deferred response-DTO typing (D2-BH) on purpose, so the *possible* axis
   `codex-auditor` point at the schema on their Acquire line. Harmless today (serial sessions), a
   deadlock the moment sessions run in parallel.
 
-- **C — gates have a per-gate cost cap.** `gateAcceptance.{gate}.budgetSeconds` (optional; a plugin
-  default when omitted). On overrun the verifier records `result: "not-run"` +
+- **C — gates have a per-gate cost cap.** `gateAcceptance.{gate}.budgetSeconds` (optional; **omitted
+  → no cap** — there is no plugin-wide default to fall back on, because an unspecified default is a
+  number the executor would have to invent). On overrun the verifier records `result: "not-run"` +
   `reason: "budget exceeded"` and proceeds — never `fail` (a measurement not taken ≠ a measurement
   that failed), never a hard-kill (a half-written artifact reads as evidence next round). Per-gate,
   not per-round: `visual` runs long by design; a `contract` overrun usually means there was nothing

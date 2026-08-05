@@ -58,6 +58,13 @@ For each phase in `buildOrder`, launch the right agent (Agent tool), passing onl
 - `integration` → **integration-generator** (routes + i18n + MSW global + ESLint on generated
   code; pass `monorepoRoot`, `eslintTemplate`)
 
+Pass the config's **`i18n` block** to `foundation-generator` along with its other params. Its task 3b
+(the key-coverage spec) reads `localesDir`, `languages`, `lookupFns`, and `keyPrefix`, and cannot
+infer any of them: unlike the plan-derived `languages` that `parity-verifier` and `e2e-test-runner`
+can read, these exist only in config. Omitting them would skip the spec on a project that *has* i18n
+configured, and `fm-verify` Step 4a makes an absent spec a hard failure whose only remedy is
+re-running this phase — which would fail the same way.
+
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
 `done`/`failed`, record `currentPhase`. On a phase failure, stop and report — the page status
 becomes `gen-failed`.

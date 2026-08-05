@@ -15,7 +15,11 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
-`workingLanguage`. Confirm the page is at least `generated` in `tracker.json`.
+`legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
+at `flipped`**: "at least `generated`" is a monotonic comparison and `flipped`/`done` satisfy it, so
+without this guard a re-verify would write `verified` over a live page and desync the tracker from
+the edge flag (CLAUDE.md → Per-page State Machine). Point the user at
+`/frontend-migration-plugin:fm-route {page} --revert` first.
 
 ### Step 1: Lock
 This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale after
@@ -61,7 +65,8 @@ Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
-  `formatWarnings`. Also record `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha> }` — the
+  `formatWarnings` (both are reporting surfaces for `fm-progress` and a human reading the tracker —
+  no gate branches on either; a Prettier advisory never fails anything). Also record `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha> }` — the
   code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see
   CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
   `git status --porcelain` is non-empty, record `<sha>+dirty` (the working tree differs from the SHA —

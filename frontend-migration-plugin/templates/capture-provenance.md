@@ -64,6 +64,13 @@ exists to stop.
 
 ## Resolving `side` (ordered — first match wins)
 
+The capturing agent needs config to do this, so the launching skill passes it: `legacyPort`, `port`,
+and `domain` for the app, plus the page's flip state from `tracker.json`. An agent that was not given
+them cannot resolve a side, and an unresolved side counts as **absent** (below) — so the gate fails
+on correct code. `fm-style-spec`, `fm-e2e`, and `fm-parity` each include these in the params they
+hand their capture agent.
+
+
 Host alone is not sufficient, because the production domain serves legacy **before** a path is
 flipped and v2 **after** it. So:
 

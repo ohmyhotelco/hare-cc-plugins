@@ -36,9 +36,14 @@ Compare timestamps; the newest failing report wins. Report the chosen mode.
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
+### Step 2b: Refuse a flipped page
+If the status is `flipped`, stop and point the user at
+`/frontend-migration-plugin:fm-route {page} --revert` — Step 3 would write `fixing` over a live page.
+
 ### Step 3: Mark fixing
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"`
-(record `previousStatus`).
+(record `previousStatus` — the state to return to, and the audit trail for a page that ends up
+`escalated`; no skill branches on it).
 
 ### Step 4: Run the fixer
 Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath` (the failing

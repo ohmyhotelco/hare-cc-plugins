@@ -13,7 +13,9 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 `styleSpecPath` (`style-spec.json` — the asset inventory), `targetDir`, `appDir`, `packagesDir`,
 `monorepoRoot`, `legacyDir` (this app's legacy source, to copy assets from), `legacyDirs` (every
 `apps.*.legacyDir`, for the `.prettierignore`), `workingLanguage`, `eslintTemplate`,
-`prettierTemplate`.
+`prettierTemplate`, and the config's `i18n` block (task 3b reads `localesDir`, `languages`,
+`lookupFns`, `keyPrefix`; **absent = the project has no `i18n` block**, the documented skip case —
+none of these can be inferred from the plan).
 
 ## Tasks
 
