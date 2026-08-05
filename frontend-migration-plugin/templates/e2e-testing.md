@@ -102,6 +102,12 @@ A failing or unrun scenario means the gate has not passed. `fm-route --flag-on` 
 through `fm-fix` (e2e-fix mode), then re-run `fm-e2e`.
 
 ## Permissions
-The runner executes as a sub-agent; session approvals do not transfer. `fm-e2e` ensures
-`.claude/settings.json` `permissions.allow` includes the Playwright command
-(`Bash(npx playwright *)`).
+Every Playwright run in this pipeline happens inside a sub-agent, and session approvals do not
+transfer to one. So `.claude/settings.json` `permissions.allow` must include the Playwright command
+(`Bash(npx playwright *)`) before the **first** such run — which is `fm-style-spec`'s legacy probe
+(Step 2b), three stages ahead of `fm-e2e`, not `fm-e2e` itself. `fm-style-spec`, `fm-e2e` (Step 1),
+`fm-parity`, and `fm-delta` (which launches the extractor directly, bypassing `fm-style-spec`) each
+ensure it, so whichever runs first in a session provisions it. The failure is silent where it
+matters: without the permission the style probe degrades to the `source-derived` cascade and the
+spec still parses, so nothing errors — the gates simply stop comparing against the live legacy
+render.

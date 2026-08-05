@@ -142,7 +142,7 @@ When the response hooks carry a concrete DTO → run the diff. When they are `un
   genuinely nothing to diff: record the response-diff sub-check as `result: "not-run"` with
   `reason: "typing deferred: <openApprovals ref>"` and move on. Not a `fail`, and not a plan-`skipped`
   either — an unmeasurable check, a measured-and-wrong check, and a plan-excluded check are three
-  different facts; keep them apart (same discipline as the report's `resultScope` vs
+  different facts; keep them apart (same discipline as the report's `result: "skipped"` vs
   attempted-but-unfinished split). When the deferral later resolves and the DTOs become typed, the
   premise is met and the capture runs again with no one editing a plan — a precondition tracks reality,
   a manual exemption flag rots.

@@ -32,7 +32,8 @@ Launch `parity-verifier` (Agent) with only its params: `app`, `page`, `planPath`
 `docs/migration/{app}/{page}/parity-report.json`, `workingLanguage`. The verifier runs only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered), enforces
 `plan.gateAcceptance` verbatim, and reuses the `style-spec` legacy baseline for the visual probe set.
-Ensure the Playwright permission exists (added by `fm-e2e`).
+Ensure the Playwright permission exists — normally added by `fm-style-spec` (Step 2b) or `fm-e2e`
+(Step 1); add it here if neither ran in this session.
 
 ### Step 3: Inspect the evidence (before recording)
 Do not trust the verdict string. Read `parity-report.json` and, per gate:

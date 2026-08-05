@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.4.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.5.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -224,6 +224,27 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   gained `Bash`, which its `git log` check needs). Codex stays advisory (D counts, does not veto); no
   existing artifact is retro-filled (absent `gateEvidence` = `unverifiable`, non-blocking). Origin:
   OMH-754. Design: `docs/design/gate-result-accounting.md`.
+- **Audit follow-ups, mechanical set (v0.14.5).** Four more findings from the same journey audit
+  that produced v0.14.3 — each an instruction whose target does not exist, so each fails silently
+  rather than erroring. (1) `migration-planner` declared no `Bash` but its mandated answer-key
+  search runs `git log` on `packages/shared-*`; without it the planner could only ever record the
+  "searched, none found" branch, which `migration-plan-schema.md` says is indistinguishable from not
+  searching. (2) The same search was pointed at `migration-plan.json.acceptedDeltas`, a field that
+  does not exist there — agreed visual exceptions live in **`style-spec.json`**, `openApprovals` in
+  the plan. The search therefore always came back empty, manufacturing the wrong-answer-key false
+  FAIL the rule exists to prevent; corrected in `migration-planner`, `fm-plan`, and both
+  `migration-plan-schema.md` references. (3) `resultScope` was cited in `parity-verifier` and the
+  v0.14.1 design doc as an existing `parity-report.json` field; it is defined nowhere. The three
+  facts it was said to keep apart are actually carried by distinct mechanisms — `result: "skipped"`
+  (excluded by the plan), `result: "fail"` with the shortfall named (attempted but unfinished, e.g.
+  a non-empty `uncaptured[]`), and no entry at all (not started) — so both references now name those.
+  (4) Playwright run permission was provisioned by `fm-e2e`, but the pipeline's **first** sub-agent
+  Playwright run is `fm-style-spec`'s legacy probe, three stages earlier (and `fm-delta` launches the
+  extractor directly, bypassing the skill). Missing permission does not fail: the extractor falls
+  back to the `source-derived` cascade and the spec still parses, so v0.9.0's "live legacy render is
+  the answer key" premise was lost on page one with nothing surfacing it. Provisioning moved to
+  `fm-style-spec` Step 2b and added to `fm-delta`; `fm-e2e`/`fm-parity`/`e2e-testing.md` now check
+  rather than assume an earlier stage did it. Origin: journey-consistency audit, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
