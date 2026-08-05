@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.2)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.3)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -301,8 +301,13 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
                                   escalated   (needs manual intervention)
 ```
 
-- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success,
-  back to the gate's passed state. Large fixes (>60% files) suggest full `fm-gen`.
+- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, back to that
+  gate's **entry** state (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` →
+  `e2e-passed`) so the gate can be re-run. Only the gate issues its own passed state — a fixer that
+  promoted the page itself would leave the gate's report reading `fail` while the status claimed
+  otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
+- No gate accepts `fixing` as an entry state. A page at `fixing` is re-entered through `fm-fix`
+  (or `escalated` for manual intervention) — never by invoking a gate directly.
 - `fm-delta` re-enters from `planned`/`generated` when legacy source drifts.
 - `escalated` requires manual intervention, then re-entry via `fm-fix`/`fm-gen`.
 

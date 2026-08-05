@@ -80,5 +80,3 @@ In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the e
 counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `skipped`), the
 Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
 `/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`.
-</content>
-</invoke>
