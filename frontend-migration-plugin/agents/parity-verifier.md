@@ -78,6 +78,18 @@ are invisible to a default-only capture, which is how a literal `<br/>` shipped 
 title (OMH-748). Run the matrix across `gateAcceptance.visual.languages` (= config `i18n.languages`);
 a narrowing must already exist in `openApprovals` — never decide it here.
 
+**Confirm the language axis has a premise before running it.** `gateAcceptance.visual.languages`
+resolves from the **optional** `i18n` config block, so on a project without one there is no set —
+and you are forbidden from choosing a narrowing yourself, which would otherwise leave you inventing
+the very scope decision the rule protects. When `languages` is absent because config has no `i18n`
+block, record the language axis as `languages: "not-run"` with
+`reason: "no i18n block configured"` and run the gate over `states` at the app's single served
+locale. This is the same premise-before-capture shape the contract gate uses, and the same absent-
+`i18n` handling `fm-verify` and `foundation-generator` already apply. Do **not** claim multi-language
+coverage you did not check, and do not invent a placeholder locale identifier to fill the field —
+`not-run` with a reason is the honest record. A `languages` set that *is* present is still binding:
+an uncaptured planned language remains an incomplete gate = `fail`.
+
 **Cross-framework reality (the trap that ships regressions).** Legacy is Angular, v2 is React; the
 two engines never rasterize identically, so a true `toHaveScreenshot(legacy) === toHaveScreenshot(v2)`
 pixel diff cannot pass. The legitimate fallback is **per-side baselines + computed-style probes** — but
@@ -208,6 +220,8 @@ event parity; the time window is operational.
     "visual":    { "result": "pass|fail", "diffs": [], "evidence": "...",
                    "coverage": { "states": ["default", "login failure shown", "session expired"],
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
+                                 // or "not-run" when config has no i18n block — then set languagesReason
+                                 "languagesReason": null,   // e.g. "no i18n block configured"
                                  "uncaptured": [] } },   // non-empty = incomplete gate = fail
     "contract":  { "result": "pass|fail|not-run", "drift": [], "evidence": "...",
                    "reason": null,              // set when result is "not-run" (e.g. "typing deferred: <openApprovals ref>", "budget exceeded"); an unknown/any-typed write page with no APPROVED openApprovals deferral is a fail, not not-run

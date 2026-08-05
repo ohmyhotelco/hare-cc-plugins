@@ -114,7 +114,11 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
   not a smaller one.
 - `languages` — the languages the gate runs in. Defaults to the full `i18n.languages` set from
   config; that config block is what "every supported language" **resolves to**. Any narrowing is an
-  `openApprovals` item.
+  `openApprovals` item. The `i18n` block is **optional**: when config has none there is no set to
+  default to, so omit `languages` rather than inventing one — the verifier records the language axis
+  as `not-run` with a reason and runs the gate at the app's single served locale. Omitting it is only
+  legitimate for that reason; with an `i18n` block present, a missing `languages` is an incomplete
+  criterion.
 - `expectedValueSource` — **required whenever the criterion asserts a v2-side expected value** (the
   answer key: "the body sends `currency` derived from the URL locale", "the response envelope carries
   `succeedYn`", "this label reads X"). Cite where that expectation comes from: a prior page's

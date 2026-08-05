@@ -19,6 +19,15 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDi
 `legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
+**Refuse a `flipped` page.** If the status is `flipped`, stop and tell the user to run
+`/frontend-migration-plugin:fm-route {page} --flag-off` first. Step 5 resets the status to
+`generated` while the edge flag stays ON — nothing here touches routing — so the tracker would say
+"not flipped" while the production domain serves v2. Provenance resolves a capture's `side` from
+exactly that status (`templates/capture-provenance.md`), so the next capture from the production
+host would be labelled `legacy` and accepted as the legacy baseline. Beyond the provenance damage,
+applying a delta to a page under live traffic is a change in production; taking it out of rotation
+first is the correct order.
+
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 

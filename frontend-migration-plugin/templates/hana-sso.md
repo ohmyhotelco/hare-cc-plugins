@@ -1,7 +1,9 @@
 # Hana SSO → React Router v7
 
 How the Hana `?ts` external SSO (~140 LOC of Angular) ports to a single RR v7 `clientLoader` on a
-`hana` layout route. Used when a page's `sso` gate is triggered (hana only). Migration plan §7.
+`hana` layout route. Used when the analysis records an `sso` entry in `gateTriggers[]` (hana only) —
+as the **generation** contract for that port. `sso` is deliberately not a parity gate (no executor,
+no report slot); the flow is verified as behavior through the page's `e2eScenarios`. Migration plan §7.
 
 ## Legacy surface (anchors)
 - `initApp()` in `app.module.ts:50-59` — captures `?ts`, decodes it, calls

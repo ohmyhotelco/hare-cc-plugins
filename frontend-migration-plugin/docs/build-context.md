@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.5.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.6.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -245,6 +245,43 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   the answer key" premise was lost on page one with nothing surfacing it. Provisioning moved to
   `fm-style-spec` Step 2b and added to `fm-delta`; `fm-e2e`/`fm-parity`/`e2e-testing.md` now check
   rather than assume an earlier stage did it. Origin: journey-consistency audit, 2026-08-05.
+- **Audit follow-ups, decided set (v0.14.6).** The three journey-audit findings that needed a call
+  rather than a mechanical fix.
+
+  **`sso` / `secret` are no longer derived as gates.** `angular-analyzer` put both in
+  `requiredGates` and `migration-plan-schema.md` then *required* a `gateAcceptance` entry for each —
+  but `parity-verifier` implements neither check and `parity-report.json` has no slot for either, so
+  a Hana `?ts` page carried a criterion nobody evaluated and recorded `pass`: the silent pass the
+  Design Principles forbid. Decision: **`requiredGates` may only name a gate an executor implements**
+  (`visual`, `contract`, `webview`, `telemetry`, plus `e2e`). Neither concern is dropped — both were
+  already covered elsewhere and are now routed there explicitly. `secret` → `fm-secret-audit`
+  (Phase 0 posture) plus the hard `shared-domain` ESLint boundary; a parity gate would have had
+  nothing to compare, since a leaked key is wrong on both sides. `sso` → `templates/hana-sso.md` as
+  the generation contract and an `e2eScenarios` entry for the behavior, because an SSO entry is a
+  user flow and that is the `e2e` gate's job. Both stay detected in `gateTriggers[]`, which already
+  existed as a separate array.
+
+  **A `flipped` page can no longer be demoted.** `fm-gen` and `fm-delta` refuse it and direct the
+  user to `fm-route --flag-off` first. The two facts that must agree — the tracker's `flipped` and
+  the edge flag `fm-route` owns — were held in different places, and `fm-delta` reset the status
+  while never touching routing. Provenance resolves a capture's `side` from that status, so a
+  demoted-but-still-flipped page made a capture from the production domain (serving v2) resolve as
+  `legacy` — worse than `unresolved`, which is treated as absent, because a wrong `legacy` is
+  *accepted as evidence*. Refusing the demotion also reflects the operational truth that
+  regenerating a page under live traffic is a change in production. As a fail-safe if the two ever
+  drift anyway, `capture-provenance.md` rule 2 now resolves `apps[app].domain` to `legacy` only when
+  the page has **never** been flipped (no `flippedAt`); `flippedAt` present with a non-`flipped`
+  status → `unresolved`.
+
+  **The visual gate confirms its language premise.** `gateAcceptance.visual.languages` resolves from
+  the **optional** `i18n` block, so without one the verifier had no set, was forbidden from choosing
+  a narrowing, and faced "uncaptured = fail" — which in practice means the session invents a set.
+  Now the language axis records `not-run` + reason and the gate runs `states` at the app's single
+  served locale, the same premise-before-capture shape the contract gate uses and the same absent-
+  `i18n` handling `fm-verify` and `foundation-generator` already had. Rejected: making `i18n`
+  required (reverses a deliberate decision, breaks single-locale projects) and injecting a
+  placeholder locale (invents an identifier the product does not have and claims coverage).
+  Origin: journey-consistency audit, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
