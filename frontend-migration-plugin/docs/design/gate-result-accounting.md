@@ -55,6 +55,17 @@ from): the rule lives in the instructions, the basis is missing from the output.
   today pushes all findings (fixed and open alike) at the human, who then acknowledges with no basis to
   distinguish them — the exact path by which a soft gate becomes a rubber stamp.
 
+  *Surviving a re-audit.* Placing the field on the finding means a re-run of that stage would
+  overwrite it: `codex-auditor` rewrites `stages.{stage}.findings[]` wholesale, so every closed
+  finding would reopen on the next `fm-audit-codex` and the field would defeat its own purpose. So
+  the auditor carries adjudications across the rewrite — matched on `area` + `evidence`, with any
+  unmatched adjudicated finding preserved verbatim under `stages.{stage}.priorAdjudicated[]` — and
+  is barred from authoring or clearing one. The matching is intentionally weak: Codex is an LLM and
+  its `detail` prose does not reproduce word for word, so `area` + `evidence` is the most identity a
+  re-run can honestly assert. Rather than invent a fingerprint that would silently mis-match, a
+  non-match is recorded as **"could not be matched"** and surfaced at Step 1b next to the current
+  findings — the human is already acknowledging there, so that is the right place to resolve it.
+
 - **E — a gate PASS records the commit it rests on.** `fm-verify` / `fm-e2e` / `fm-parity` add
   `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha> }` to their `tracker.json` record. `commit`
   = `git rev-parse --short HEAD`; a dirty tree records `<sha>+dirty` (honest imprecision over a
@@ -72,12 +83,30 @@ from): the rule lives in the instructions, the basis is missing from the output.
   visual/contract evidence of *every* page that imports it, and nothing per-page catches it — the
   monorepo CI is typecheck/lint/unit/build only, no visual, no e2e on PR. E's freshness check closes
   half of this (a commit on the page's own source), leaving the case where the outdating commit lives
-  outside the page, under `packages/`. So E's watch paths are `{page source} + {the migration-plan's
-  shared-package deps}` — `fm-plan` already records those deps, so this reuses an existing field, no
-  new one. `fm-progress` gains a **stale-evidence** view: `parity-passed` pages whose evidence a later
-  commit on a watch path has outdated. The goal is **not** forced re-verification (re-running every
-  gate on every shared change is unaffordable) — it is that "this evidence is stale" is visible to a
-  human just before flip, instead of passing silently. Depends on E; done with it.
+  outside the page, under `packages/`. So E's watch paths are `{page source} + {shared-package deps}`,
+  and both halves must resolve from a **recorded** field — a check that asks the session to work out
+  which files belong to the page reintroduces the improvisation this whole axis exists to remove.
+
+  *Own source.* Nothing recorded it. `componentTree` carries component **names**, not paths, and
+  `generation-state.json` tracks phase status only. So `fm-gen` Step 5 records `sourcePaths[]` (the
+  files its phases wrote under `appDir`) and `fm-delta` refreshes it. Both also **clear
+  `gateEvidence`** on the way through: a regenerated page's prior PASSes stand on code that no longer
+  exists, and leaving the evidence would let a later check compare against a pre-generation commit
+  and read as fresh. A page with no `sourcePaths` (generated before the field) is `unverifiable` on
+  this axis — the same honest-state treatment absent `gateEvidence` gets — and the consumer must say
+  which axis it checked rather than reporting a bare "fresh".
+
+  *Shared deps.* `migration-plan.json` `sharedDeps[]` already records them, so this half genuinely
+  reuses an existing field — but the entries are `@omh/<package>:<symbol>`, not paths, so each maps
+  to the directory `{packagesDir}/<package>` and the symbol is dropped. Naming the field and its
+  shape matters: an instruction saying "the plan's shared-package deps" leaves the executor to guess
+  both which field and what its values mean.
+
+  `fm-progress` gains a **stale-evidence** view: `parity-passed` pages whose evidence a later commit
+  on a watch path has outdated, resolved identically to Step 1a. The goal is **not** forced
+  re-verification (re-running every gate on every shared change is unaffordable) — it is that "this
+  evidence is stale" is visible to a human just before flip, instead of passing silently. Depends
+  on E; done with it.
 
 ## What was deliberately not done
 
@@ -103,12 +132,21 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    `open`, `basis` required for `closed`/`rejected`, no retro-fill.
 2. `fm-route` Step 1b defines `unresolved` as adjudication-absent-or-`open`; `fm-fix` Step 5 records
    the adjudication when a fix closes a finding.
-3. `fm-verify` / `fm-e2e` / `fm-parity` each record `gateEvidence.{gate}` with ISO-8601 `at` +
-   `commit`, `<sha>+dirty` on a dirty tree, legacy `*At` fields kept.
-4. `fm-route` Step 1a expires a gate whose watch paths (page source + plan shared-package deps) have a
-   commit after `gateEvidence.{gate}.commit`; absent `gateEvidence` = `unverifiable`, non-blocking.
-5. `fm-progress` lists `parity-passed` pages with stale evidence on the same watch-path basis.
-6. Codex stays advisory (`CLAUDE.md` unchanged on that point); no existing artifact is retro-filled.
+2a. `codex-auditor` carries adjudications across a stage rewrite (matched on `area` + `evidence`),
+   preserves unmatched ones under `priorAdjudicated[]`, and is barred from authoring or clearing one;
+   `fm-route` Step 1b surfaces `priorAdjudicated` `high` entries as `unmatched`.
+3. `fm-verify` / `fm-e2e` / `fm-parity` each record `apps[app].pages[page].gateEvidence.{gate}` with
+   ISO-8601 `at` + `commit`, `<sha>+dirty` on a dirty tree, legacy `*At` fields kept.
+4. `fm-route` Step 1a expires a gate whose watch paths have a commit after
+   `gateEvidence.{gate}.commit`, resolving them from `tracker.json` `sourcePaths[]` plus each
+   `sharedDeps[]` entry mapped `@omh/<package>:<symbol>` → `{packagesDir}/<package>`; absent
+   `gateEvidence` = `unverifiable`, non-blocking; absent `sourcePaths` = `unverifiable` on that axis
+   only, and the report names which axis it checked.
+5. `fm-progress` lists `parity-passed` pages with stale evidence on the same watch-path basis, and
+   declares `allowed-tools` that include `Bash` (the check runs `git log`).
+6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`; `fm-delta` Step 5 refreshes and
+   clears the same, so a regenerated page never carries a PASS for code that no longer exists.
+7. Codex stays advisory (`CLAUDE.md` unchanged on that point); no existing artifact is retro-filled.
 
 ## Follow-up (out of scope, separate axis)
 

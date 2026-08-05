@@ -37,15 +37,28 @@ gate — do not flip.
 ### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code committed after it. For each gate with a
 `gateEvidence.{gate}.commit` in `tracker.json`, check whether any commit between that SHA and `HEAD`
-touched the page's **watch paths** — the page's own source (its generated files under `appDir`) **plus
-the `shared-package deps` the `migration-plan.json` records** (a `packages/shared-*` change outdates
-the evidence of every page that imports it, and the gate is per-page so nothing else catches it). Use
-e.g. `git log --oneline <sha>..HEAD -- <path>...`. Any gate with an intervening commit on a watch path
-is **expired**: list the expired gates and require the user to re-run them before flipping — do not
-silently flip on stale evidence. Two carve-outs, both honest-state not retro-judgment:
+touched the page's **watch paths**. Resolve those paths from two recorded fields — never by guessing
+which files belong to the page:
+
+1. **The page's own source** — `tracker.json` `apps[app].pages[page].sourcePaths[]`, the repo-relative
+   files `fm-gen` recorded as generated (see `fm-gen` Step 5).
+2. **Its shared-package dependencies** — `migration-plan.json` `sharedDeps[]`. Entries are
+   `@omh/<package>:<symbol>` (e.g. `@omh/shared-data:useBookingDetail`), so map each to the package
+   **directory** `{packagesDir}/<package>` and drop the symbol — the symbol is not a path. A
+   `packages/shared-*` change outdates the evidence of every page that imports it, and the gate is
+   per-page so nothing else catches it.
+
+Then `git log --oneline <sha>..HEAD -- <path>...` over the union. Any gate with an intervening commit
+on a watch path is **expired**: list the expired gates and require the user to re-run them before
+flipping — do not silently flip on stale evidence. Three carve-outs, all honest-state not
+retro-judgment:
 - A gate whose `gateEvidence` is **absent** (page verified before this field existed) is recorded as
   **`unverifiable`** freshness and does **not** block — no retro-adjudication (same principle as
   `templates/capture-provenance.md`).
+- A page with no `sourcePaths` (generated before that field existed) is likewise **`unverifiable`**
+  on axis 1; still check axis 2, which needs only the plan. Report which axis was checkable rather
+  than reporting a bare "fresh" — a freshness claim covering one of two axes is a scope statement,
+  and CLAUDE.md → Design Principles makes evidence-scope statements claims in their own right.
 - A `<sha>+dirty` commit value means the pass was recorded against an uncommitted tree; treat it as
   expired (the exact code cannot be located) and require a clean re-run.
 
@@ -53,6 +66,11 @@ silently flip on stale evidence. Two carve-outs, both honest-state not retro-jud
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
 `adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
+Also read each stage's `priorAdjudicated[]` — adjudicated findings a re-audit could not match to a
+current one — and present any `high` entries alongside, labelled **`unmatched`**. They are neither
+open nor confirmed resolved: the code moved and identity could not be asserted. Show them rather than
+resolving them either way; this gate is already a human acknowledgement, so the judgement belongs
+here and not in the auditor.
 If any exist, present them and **require the user's explicit acknowledgement**
 before continuing — this is a soft gate, not an auto-block: Codex is advisory, so a human may
 acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or Codex is

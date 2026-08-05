@@ -78,7 +78,7 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 ### Step 4: Record
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
-  `gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on, so a
+  `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on, so a
   later `packages/`/page change that outdates this evidence is visible at flip (see CLAUDE.md → "Gate
   Result Accounting"). `commit` = `git rev-parse --short HEAD`; if `git status --porcelain` is
   non-empty, record `<sha>+dirty`. Keep `parityPassedAt` for backward compatibility.

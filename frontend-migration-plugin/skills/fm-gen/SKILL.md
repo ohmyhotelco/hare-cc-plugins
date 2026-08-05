@@ -53,7 +53,16 @@ becomes `gen-failed`.
 ### Step 5: Record
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
-2. Release the lock.
+2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
+   created or modified under `appDir`, collected from each phase's own report. This is the page's
+   **watch-path** set: `fm-route --flag-on` (Step 1a) and `fm-progress` diff it against a gate's
+   recorded commit to tell a still-fresh PASS from a stale one, and neither can derive it otherwise
+   — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
+   removed file leaves it (see CLAUDE.md → "Gate Result Accounting").
+3. Clear any `apps[app].pages[page].gateEvidence` — the page's code has been regenerated, so every
+   prior gate PASS now rests on code that no longer exists. Leaving it would let a later freshness
+   check compare against a commit that predates this generation and read as fresh.
+4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and Codex is available and generation succeeded, after the lock is

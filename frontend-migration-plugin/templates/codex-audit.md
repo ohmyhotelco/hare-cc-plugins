@@ -63,7 +63,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
         "adjudication": {                    // OPTIONAL, written after discovery — absent = open
           "state": "open | closed | rejected",
           "when": "<ISO-8601>",
-          "by": "fm-fix | human | pre-pr-verify",
+          "by": "fm-fix | human",
           "basis": "<one line: closed → the commit/file:line that fixed it; rejected → why it is not a defect>"
         }
       }
@@ -88,6 +88,17 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
   Existing `codex-audit.json` files predating this field are **not** retro-filled (they read as all
   `open`, the honest current state) — the same no-retro-adjudication decision
   `templates/capture-provenance.md` made for provenance applies here unchanged.
+- **A re-audit must carry adjudications across.** Re-running a stage rewrites its `findings[]`, so
+  without this the field would be wiped on the next `fm-audit-codex` run and every closed finding
+  would reopen — the failure the field exists to prevent. `codex-auditor` therefore reads the prior
+  `findings[]` before writing: an `adjudication` moves onto a new finding matching on **`area` +
+  `evidence`**, and any prior adjudicated finding that matches nothing is preserved verbatim under
+  `stages.{stage}.priorAdjudicated[]`. Matching is deliberately conservative — Codex is an LLM and
+  its `detail` prose will not reproduce word for word, so `area` + `evidence` is the most identity a
+  re-run can honestly assert. A non-match therefore means *"could not be matched"*, **not**
+  *"resolved"* or *"gone"*: `priorAdjudicated[]` keeps the record and `fm-route` Step 1b shows it to
+  the human alongside the current findings, which is the right place for the judgement since that
+  gate is already a human acknowledgement.
 
 ## Rules
 - Independence: never pass Codex the Claude session's reasoning — only artifacts + legacy source.

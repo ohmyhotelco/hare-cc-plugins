@@ -46,6 +46,21 @@ Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 mi
 Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`
 `apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock.
 
+**Carry adjudications forward — a re-audit must not erase them.** Rewriting the `{stage}` entry
+replaces that stage's `findings[]`, and an `adjudication` block (`templates/codex-audit.md`) is a
+downstream fact written by `fm-fix` or a human, never by you. Dropping it silently reopens a finding
+that was already fixed or dismissed, which is exactly what the field exists to prevent. So **before**
+writing the new entry, read the stage's existing `findings[]` and:
+
+- For each new finding, if a prior finding in the same stage carries an `adjudication` and matches on
+  **`area` + `evidence`**, copy that `adjudication` block onto the new finding verbatim.
+- Preserve every prior adjudicated finding that matched nothing under
+  `stages.{stage}.priorAdjudicated[]` (the whole finding object, adjudication included). The code may
+  have moved, so a non-match is not proof the finding is gone — keep the record and let `fm-route`
+  Step 1b surface it to the human rather than discarding it here.
+
+You never author, edit, or clear an `adjudication`; you only carry existing ones across the rewrite.
+
 ## Output
 - `codex-audit.json` updated with the `{stage}` entry; tracker `codexAudit[stage]` set.
 - Final message (in `workingLanguage`): the verdict, high/med finding counts, and the one-line
@@ -54,6 +69,9 @@ Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages.
 ## Rules
 - **Advisory only.** Never change the per-page FSM status (`analyzed`…`done`) or any gate report.
   Your only writes are `codex-audit.json` and the tracker `codexAudit` field.
+- **Never author or clear an `adjudication`.** Resolution is a downstream fact (`fm-fix`, or a
+  human); the discovering audit does not know it. On a re-audit you carry existing adjudications
+  across the stage rewrite — see the carry-forward rule in step 4.
 - **Independence.** Codex gets artifacts + legacy source, never Claude's reasoning.
 - **Evidence before claims.** Record the verdict from Codex's actual output/exit code; cite it.
 - **Auto-skip, never fail.** Codex unavailable or erroring is `skipped`/`error`, not a gate failure.

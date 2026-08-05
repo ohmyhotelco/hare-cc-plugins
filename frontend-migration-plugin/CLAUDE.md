@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.3)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.4)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -718,6 +718,15 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   `closed` (fixed) is kept apart from `rejected` (not a defect) so the next audit round does not re-raise
   a dismissed one; `basis` is required for both. Existing `codex-audit.json` are not retro-filled (all
   read `open` — the honest state), the same no-retro decision `capture-provenance.md` made.
+  **A re-audit carries adjudications across**, or the field would be wiped the next time a stage is
+  re-run and every closed finding would reopen — the exact failure it exists to prevent. Re-running a
+  stage rewrites its `findings[]`, so `codex-auditor` reads the prior array first: an `adjudication`
+  moves onto a new finding matching on `area` + `evidence`, and any prior adjudicated finding that
+  matches nothing is preserved verbatim under `stages.{stage}.priorAdjudicated[]`. Matching is
+  deliberately conservative — Codex is an LLM, its `detail` prose will not reproduce word for word —
+  so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
+  entries next to the current findings and lets the human judge, which is where that judgement
+  belongs: the gate is already a human acknowledgement.
 - **E (gate-pass commit).** `fm-verify`/`fm-e2e`/`fm-parity` record `gateEvidence.{gate} = { at:
   <ISO-8601>, commit: <sha> }` in `tracker.json` (`commit` = `git rev-parse --short HEAD`; a dirty tree
   → `<sha>+dirty`, honest imprecision over a clean-looking lie). Legacy `verifiedAt`/`e2ePassedAt`/
@@ -725,11 +734,19 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   Step 1a expires any gate with an intervening commit on the page's watch paths — a PASS proves nothing
   about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits stale). `at` is
   ISO-8601 with time, the same regulation as the lock schema; a date-only value is a rule violation.
-- **F (shared-dependency freshness).** The gate is per-page, so a `packages/shared-*` change outdates
-  the evidence of every page importing it and nothing per-page catches it. E's watch paths therefore
-  include the `migration-plan.json` **shared-package deps** (an existing field, reused), and
-  `fm-progress` gains a stale-evidence view listing `parity-passed` pages a watch-path commit has
-  outdated. The goal is visibility before flip, not forced re-verification. Depends on E.
+- **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files
+  belong to the page, and nothing recorded that: `componentTree` carries component *names*, not
+  paths. So `fm-gen` Step 5 (and `fm-delta` Step 5) now record `sourcePaths[]` — the files the
+  generation phases wrote under `appDir` — and both regenerating skills **clear `gateEvidence`**,
+  since a rewritten page's prior PASSes rest on code that no longer exists. The second axis is the
+  shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
+  every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
+  already records them as `@omh/<package>:<symbol>`, so each maps to the directory
+  `{packagesDir}/<package>` — the symbol is not a path. Watch paths are the union; `fm-route`
+  Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
+  `unverifiable` on axis 1 and still checkable on axis 2, and must report which axis it checked —
+  a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
+  claim (see Design Principles). The goal is visibility before flip, not forced re-verification.
 
 Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
 veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no
