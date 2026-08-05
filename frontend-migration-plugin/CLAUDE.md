@@ -11,108 +11,15 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.6)** — all `fm-*` skills, agents, and templates are
-> implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
-> (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
-> (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
-> GREEN-phase reuse ladder (v0.8.0), the codified per-gate acceptance criteria
-> (`gateAcceptance`) hardening the parity gates against scope reinterpretation (v0.8.1), the
-> full-matrix coverage binding for gateAcceptance authoring — sampling needs explicit approval
-> (v0.8.2), the visual-parity-checklist closing the cross-framework visual-gate completeness
-> gap that let spacing/icon regressions pass (v0.8.3), and the analyze→plan behavioral-coverage
-> reconciliation (`behavioralVariants` + `openApprovals`) that stops the planner silently
-> narrowing an analysis-discovered variant set — e.g. a locale-filtered social-login provider
-> list — into the default-environment subset (v0.8.4), and the **`fm-style-spec` stage** that
-> extracts the legacy style answer key (live legacy computed values via a Playwright probe + asset
-> inventory + markup structure) up front so `fm-gen` builds to real values instead of eyeballing
-> them — closing the generation-side style gap that the v0.8.3 gate only caught after the fact
-> (v0.9.0), and the **transform-fidelity** rule (v0.10.0) — the logic-axis companion to `style-spec`:
-> a ported **pure transform** (sanitizer/formatter/serializer/URL-builder) is pinned by a **golden
-> test** to the legacy function's full output rather than a few behavior spot-checks, the mapping
-> catalog now ports DOMPurify options (`RETURN_DOM`/`WHOLE_DOCUMENT`/`FORCE_BODY` change output shape,
-> not security strength) **verbatim**, and `fm-parity` requires a content-independent output-pin test
-> for data-driven transforms — closing the generation-side logic gap where a dropped `RETURN_DOM`
-> silently changed a sanitizer's output shape and erased a `<body>`-level style while every gate
-> stayed green (OMH-708; design in `docs/design/transform-fidelity-generation.md`), and the
-> **request-schema fidelity** rule (v0.11.0) — the request-body companion: a generated request-body
-> builder returns its body **parsed through the endpoint's zod schema** (non-strict, so it strips a
-> field the schema `.omit()`s) and is pinned by a **body-shape test**, because a
-> `...getCommonRequestParams()` spread can re-add an omitted root field that TypeScript's
-> excess-property check never sees; `fm-parity`'s contract gate verifies the actual body against the
-> **live/staging backend**, not a contract doc's prose — closing the gap where a login body carried a
-> root `stationTypeCode` the real backend strict-rejected (400) while typecheck, MSW-vitest, and
-> MSW/legacy e2e all passed (OMH-748; design in `docs/design/request-schema-fidelity-generation.md`),
-> and the **i18n copy fidelity** rule (v0.12.0) — the fourth axis, the words the user reads: a new
-> `i18n` config block declares the product's copy surface (`localesDir` / `languages` / `lookupFns`),
-> which is what `gateAcceptance.scope`'s "every supported language" finally **resolves to**;
-> `foundation-generator` scaffolds a per-app **key-coverage spec** that `fm-verify`'s existing vitest
-> step turns into a hard gate (missing key / locale gap / missing `{{param}}`, with dynamic keys
-> counted as `uncheckable`); `copySources[]` → `copyBindings[]` records where each screen's text comes
-> from so a generator stops rendering the EN-hardcoded response `errorMessage` (OMH-784); failure
-> branches become `assertsCopy` dual-run scenarios that compare displayed text; and the visual gate
-> captures every planned **state** (error shown, session expired) across the language set — closing
-> the axis where a raw `tl.login.otp-subject` shipped in an email subject and broke password reset
-> while every gate stayed green (OMH-748; design in `docs/design/i18n-copy-fidelity-generation.md`),
-> and the **self-confirmation hardening** set (v0.13.0) — the mechanism under all four prior axes:
-> tests and implementation are generated from one reading of the legacy source, so a misreading makes
-> them agree and the gate stays green. Four defenses + a scope note: (A) the i18n render-mode rule
-> now covers HTML **entities** (`&apos;`) not just markup, and is machine-checked in the generated
-> key-coverage spec rather than left as prose; (B) tests asserting legacy behavior carry a
-> `// legacy: file:line` anchor into the **legacy source** (not analysis/plan), scoped to
-> legacy-behavior tests; (C) the Codex `gen`/`verify` audits receive the legacy source at those
-> anchors and check whether each cited line's real condition matches the test's assumption; (D) a
-> one-shot **mutation check** ends the TDD Green step (break the just-written behavior, confirm red,
-> revert — a hollow test dies here); and `fm-plan` calls for confirming scope before generation —
-> closing the structural gap where OMH-749 passed every gate yet shipped 5 defects (design in
-> `docs/design/self-confirmation-hardening.md`), and **artifact provenance + answer-key sourcing**
-> (v0.14.0) — the layer under the gates' *judgement basis*: the 5-step gate and the
-> no-reinterpretation rule both address command execution, so a **captured artifact** passed them by
-> existing and opening, with its file name standing in for a statement of origin (measured: 561
-> captured png, 139 named `legacy*`, **5** with a recorded origin; `capturedFrom` defined 2 values and
-> carried 5 hand-written ones). Three defenses: (A) every capture carries a `provenance` block written
-> by the capturing code (`templates/capture-provenance.md`) and its `side` is **resolved** from
-> host:port + flip state, never from the filename — an artifact that does not resolve counts as
-> **absent**, not as the side it is named after (new captures only; no retro-fill, no re-adjudication);
-> (B) statements about the *evidence itself* ("both sides measured", "M of N locales") are claims under
-> the same 5-step gate — deducing evidence scope from routing/topology is not observation; (C)
-> `gateAcceptance` gains `expectedValueSource` (a criterion asserting a v2-side expected value cites
-> where that value comes from, "searched, none found" included) plus a formal `criterionAmendment`
-> block, because a wrong answer key fails the gate on **correct** code and that manufactures the
-> reinterpretation pressure the verbatim rule forbids — closing the gap where two gates issued passes
-> that had to be retracted (OMH-758; design in `docs/design/artifact-provenance.md`)), and **gate
-> cost & preconditions** (v0.14.1) — the cost axis (the fidelity axes are all accuracy: "green gate,
-> defect shipped"; this is "accurate gate that starts work it cannot finish"). OMH-749's fm-parity
-> ran a **contract** capture for ~45 min across two rounds on a page whose response DTOs are
-> deferred-`unknown` (nothing to freeze) and whose `requiredGates` omits contract — the instructions
-> went from the contract heading straight into the diff with no premise check. Three fixes, all docs:
-> (A) the contract gate confirms its premise (a **concrete** v2 DTO shape — not `unknown`, not vacuous
-> `any`; `contractsDir` not required) before the response-DTO capture and records `not-run`/`reason`
-> only under an `openApprovals` entry that is `status: "approved"` with a named `owner` (a `pending`
-> entry the pipeline writes itself, or a bare plan note, is not enough), else `fail` — gating the
-> **response-DTO diff only**, so the request-body-vs-live-backend check (OMH-748) still runs on
-> `unknown`-typed write pages; (B) the
-> `.lock` gets a schema (`holder`/`pid`/ISO-8601 `acquiredAt`) so the "stale after 30 min" rule is
-> computable and a malformed timestamp is immediately stale, not a permanent deadlock; (C) an optional
-> per-gate `gateAcceptance.{gate}.budgetSeconds` records `not-run` on overrun rather than failing or
-> hard-killing. The gate-set derivation and the "always visual + contract" wording are deliberately
-> left alone (design in `docs/design/gate-cost-and-preconditions.md`)), and **gate result accounting**
-> (v0.14.3) — the same missing-decision-field pattern as the v0.14.1 lock, in two more places: a gate
-> holds a judgement rule but the artifact has no field to record the *basis*, so the rule falls to
-> ad-hoc fields invented per session (measured on my-coupon: 48 Codex findings, 14 `high`, 2
-> adjudicated; four ad-hoc fields, 0 defined in the plugin). Three doc-only fixes: (D) each Codex
-> finding gains an optional `adjudication` (`open`/`closed`/`rejected`, absent = `open`, written by
-> `fm-fix`/human not the discovering audit) so `fm-route`'s "unresolved high-severity" is countable
-> instead of re-surfacing every finding forever; (E) `fm-verify`/`fm-e2e`/`fm-parity` record
-> `gateEvidence.{gate}` with an ISO-8601 `at` + a `commit` (`<sha>+dirty` on a dirty tree), and
-> `fm-route --flag-on` expires a gate whose commit is behind `HEAD` on the page's watch paths — a PASS
-> proves nothing about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits
-> stale); (F) the watch paths include the plan's shared-package deps and `fm-progress` surfaces
-> `parity-passed` pages whose evidence a `packages/shared-*` change has outdated — Codex stays advisory
-> and no existing artifact is retro-filled (design in `docs/design/gate-result-accounting.md`).
-> Runtime
-> execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
-> and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
-> source-confirmed corrections, see `docs/build-context.md`.
+> Status: **feature-complete tooling (v0.14.7)** — all `fm-*` skills, agents, and templates are
+> implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
+> project scaffolds; the PC end-to-end validation is the open follow-up.
+>
+> The version-by-version history that used to sit here lives in `docs/build-context.md`, which
+> already carried the same narrative — along with the full build map, the decisions behind each
+> rule, and the source-confirmed corrections. The **rules** those versions introduced are stated
+> in their own sections below: "i18n Copy Parity", "Self-confirmation Hardening", "Artifact
+> Provenance & Answer-key Sourcing", "Gate Cost & Preconditions", and "Gate Result Accounting".
 
 ## Target Stack
 
@@ -247,9 +154,13 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   upstream port for this surface. `fm-route` resolves both and passes them to
   `strangler-orchestrator`, which routes `guardsPath` to `port` on flag-on and lets unmatched paths
   fall through to `legacyPort` (the legacy app). Values mirror `templates/strangler-fig.md`.
-- `apps.*.webview` — `true` for surfaces loaded inside a native WebView (mobile),
-  `false` for PC, `"unknown"` for Hana (pending stakeholder confirmation).
-- `apps.*.sso` — `true` for Hana (external `?ts` SSO; migration plan §7).
+- `apps.*.webview` / `apps.*.sso` / `apps.*.ssr` — **informational only; no skill or agent reads
+  them.** Recorded at `fm-init` as project notes (`webview`: `true` for mobile, `false` for PC,
+  `"unknown"` for Hana pending stakeholder confirmation; `sso`: `true` for Hana's external `?ts`
+  flow, migration plan §7). The authoritative sources are elsewhere and must not be second-guessed
+  from config: the **gate set** comes from `analysis.json` `requiredGates`/`gateTriggers`, and the
+  **rendering mode** is decided per page in `migration-plan.json` (an app is `"mixed"`, so a
+  single app-level `ssr` value cannot be right). Do not branch on these three.
 - `apps.*.flipMechanism` — `nginx` (default) | `cloudfront`. Which edge layer the Strangler Fig
   route flip is prepared at **for this app**. Per-app because one migration can flip different
   surfaces at different layers — an app-layer / entry nginx vs a CDN (CloudFront). The flip
@@ -323,6 +234,11 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   (or `escalated` for manual intervention) — never by invoking a gate directly.
 - `fm-delta` re-enters from `planned`/`generated` when legacy source drifts.
 - `escalated` requires manual intervention, then re-entry via `fm-fix`/`fm-gen`.
+- `flipped` is where the `fm-*` pipeline ends: `fm-route --flag-on` sets it and no skill advances
+  past it. **`done` is set by hand**, once the legacy page is deleted — retiring legacy code is
+  outside this plugin's scope, so nothing here can honestly claim it. `fm-progress` and the
+  SessionStart hook therefore treat `flipped` as the last actionable state and print no next command
+  for it.
 
 ## State Files & Lock Convention
 
@@ -349,7 +265,9 @@ docs/migration/
 2. Merge only the fields being changed; preserve all existing fields.
 3. Write the complete merged object.
 
-**Lock file.** A skill that mutates state acquires `{app}/{page}/.lock` before work and
+### Lock file
+
+A skill that mutates state acquires `{app}/{page}/.lock` before work and
 releases it on completion or failure. The lock is JSON with at least these fields:
 
 ```json
@@ -403,7 +321,7 @@ These apply to every agent and skill in this plugin.
   | --- | --- |
   | "Should work" / "probably fine" | Run the tool. Evidence or silence. |
   | "The change is small, no need to verify" | Small changes cause big bugs. |
-  | "I already verified earlier" | Code changed since. Verify again. |
+  | "I already verified earlier" | That observation is stale — the code changed since. Cite a current run, not a remembered one. |
   | "tsc passed, so the build will too" | Different tools catch different errors. |
   | "Tests passed, so it matches legacy" | Parity is a separate gate. Run it. |
   | "The file is named `legacy-*`, so it is a legacy render" | A file name is a claim. Read the recorded provenance. |
@@ -421,6 +339,9 @@ These apply to every agent and skill in this plugin.
 - **Communication language.** Read `workingLanguage` from config (default `ko`). All
   user-facing output — summaries, questions, next-step guidance — is in that language.
   Code, identifiers, and committed `.md` files are always English.
+  Keep that output to the length the result needs: lead with the outcome (gate pass/fail, what
+  changed, what is blocked), then the evidence it rests on, then the next step. The JSON report is
+  the complete record — the final message is a readout of it, not a second copy of it.
 - **SKILL.md frontmatter.** Every skill declares `name`, `description`, `argument-hint`,
   `user-invocable`, `allowed-tools`.
 - **Agent vs Task.** Use the `Agent` tool for strictly sequential, dependent phases

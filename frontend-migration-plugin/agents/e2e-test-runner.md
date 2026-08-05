@@ -39,6 +39,11 @@ before the gate run — a single failure across runs means it is flaky; fix it n
   (deterministic). Use `VITE_ENABLE_MOCKS=true` (or the app's flag).
 - **transactional** (`transactional: true`, payment funnel) → run against **staging** with the
   real payment gateway test endpoints from `stagingConfig` (OMH-459). Never hit production.
+  `stagingConfig.paymentGateways` is **scaffolded empty** by `fm-init` and filled in when the first
+  transactional page is reached. If the gateway a scenario needs is empty or absent, record that
+  scenario as `result: "not-run"` with `reason: "staging gateway not configured: <name>"` — never
+  silently fall back to MSW, which would turn the one scenario that must exercise a real gateway
+  into a mock run that always passes.
 
 ### 4. Legacy dual-run (behavior parity)
 Run the same scenario against the legacy Angular app (its base URL) and the new RR v7 app, and
@@ -61,6 +66,16 @@ a literal `<br/>`; that is precisely how those shipped (OMH-748). Run these in e
 plan's `gateAcceptance.scope` covers, and record the observed strings per side in the report so a
 diff is inspectable rather than a bare fail. See `templates/i18n-copy-parity.md`.
 
+### 4b. Enforce `gateAcceptance.e2e` verbatim
+The plan codifies this gate's criteria the same way it does the parity gates, and they bind you the
+same way (`templates/migration-plan-schema.md`; `parity-verifier` states the rule for its own gates).
+Execute `plan.gateAcceptance.e2e` **as written** — the scenario set, the languages, the dual-run
+scope, the exclusions. You may not narrow a criterion because a scenario is slow, an environment is
+awkward, or a flow looks equivalent: a criterion that cannot be met is a **fail or an explicit
+approval request, never a silent pass**. Record the outcome in `criteriaCompliance` with
+`deviations: []`; a non-empty `deviations` is a gate failure, not an annotation. Without this the
+`e2e` gate was the one gate whose codified criteria nothing checked against its report.
+
 ### 5. Run and read
 Run Playwright from `{appDir}` with trace/screenshot/video retained on failure (config in
 `foundation-generator`). Read the full output (passed/failed counts, failing traces). For every
@@ -72,6 +87,8 @@ pass you did not observe (CLAUDE.md 5-step gate).
 ```jsonc
 {
   "page": "...", "tool": "playwright",
+  "criteriaCompliance": { "gate": "e2e", "enforcedVerbatim": true, "deviations": [] },
+  // deviations MUST be empty; a narrowed criterion is a gate failure, not a note
   "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail",
                   "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff",
                                // per-leg provenance — templates/capture-provenance.md

@@ -65,7 +65,8 @@ if [ ! -f "$TRACKER" ]; then
   exit 0
 fi
 
-# Map a page status to the next-step command.
+# Map a page status to the next-step skill NAME only (no args, no prose) -
+# the caller composes the full command. Empty means "no command to suggest".
 next_step() {
   case "$1" in
     analyzed)       echo "fm-style-spec" ;;
@@ -74,13 +75,30 @@ next_step() {
     generated)      echo "fm-verify" ;;
     verified)       echo "fm-e2e" ;;
     e2e-passed)     echo "fm-parity" ;;
-    parity-passed)  echo "fm-route --flag-off (then --flag-on)" ;;
-    flipped)        echo "(done — mark complete)" ;;
-    fixing)         echo "fm-fix (in progress) → re-run the failed gate" ;;
+    parity-passed)  echo "fm-route" ;;
+    fixing)         echo "fm-fix" ;;
     *-failed)       echo "fm-fix" ;;
-    escalated)      echo "manual intervention, then fm-fix / fm-gen" ;;
-    done)           echo "" ;;
+    escalated)      echo "fm-fix" ;;
+    flipped|done)   echo "" ;;
     *)              echo "" ;;
+  esac
+}
+
+# Trailing flags for statuses whose next command takes one.
+next_flags() {
+  case "$1" in
+    parity-passed)  echo " --flag-off" ;;
+    *)              echo "" ;;
+  esac
+}
+
+# Human note printed alongside (or instead of) the command.
+next_note() {
+  case "$1" in
+    fixing)     echo "fix in progress; re-run the failed gate after it completes" ;;
+    escalated)  echo "needs manual intervention first" ;;
+    flipped)    echo "flipped and serving; mark 'done' once the legacy page is removed" ;;
+    *)          echo "" ;;
   esac
 }
 
@@ -98,8 +116,14 @@ if [ -n "$PAGES" ]; then
       done|"") continue ;;
     esac
     STEP=$(next_step "$status")
+    FLAGS=$(next_flags "$status")
+    NOTE=$(next_note "$status")
     if [ -n "$STEP" ]; then
-      echo "  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page"
+      LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS"
+      [ -n "$NOTE" ] && LINE="$LINE  ($NOTE)"
+      echo "$LINE"
+    elif [ -n "$NOTE" ]; then
+      echo "  Info: [$app/$page] status '$status' — $NOTE"
     fi
   done <<< "$PAGES"
 fi

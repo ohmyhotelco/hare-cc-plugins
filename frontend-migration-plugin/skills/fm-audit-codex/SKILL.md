@@ -26,8 +26,13 @@ skipped (with the install hint) and stop without error.
 
 ### Step 1: Resolve stages
 - `--stage <s>` → audit just that stage.
-- `--all` (default) → audit every stage in `codexAuditStages` (default: all seven) for which the
-  page has an artifact present in `docs/migration/{app}/{page}/` (skip stages with no artifact yet).
+- `--all` (default) → audit every stage in `codexAuditStages` (default: all seven) whose inputs are
+  available (skip the rest). For six stages that means the stage's artifact exists under
+  `docs/migration/{app}/{page}/`. **`route` is the exception**: its inputs are the routing artifact and
+  the flag diff (`templates/codex-audit.md`), which live in the app's `infraDir`/`cloudfrontDir`, not
+  the page directory — so gate it on the page being at `parity-passed` or beyond with a routing
+  artifact prepared, never on a page-directory file. An artifact-only filter makes `route`
+  permanently unreachable from this entry point.
 
 ### Step 2: Run the audit(s)
 For each resolved stage, launch the `codex-auditor` agent (Agent tool) with only its params

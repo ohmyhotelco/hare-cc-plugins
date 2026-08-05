@@ -63,6 +63,13 @@ gate step. Do **not** change the i18n runtime to throw or warn: the `language �
 resolution reproduces legacy i18next and is required for parity. If the `i18n` block is absent,
 skip this spec and say so in the report (`fm-verify` records `skipped`).
 
+**Use `i18n.keyPrefix` to catch an unresolved key rendered as text.** The lookup never throws — it
+falls back to returning the key itself — so a missing translation reaches the screen as a literal
+`tl.login.otp-subject`, which is exactly how one shipped in an email subject (OMH-748). When
+`keyPrefix` is configured, assert that no rendered string matches it: a value starting with the
+prefix is an unresolved key, not copy. Without this the field was collected by `fm-init` and read by
+nothing.
+
 ### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
 Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
 the flag is on → skip silently if off → never auto-install). You receive `eslintTemplate` and

@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.6.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.7.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -282,6 +282,41 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   required (reverses a deliberate decision, breaks single-locale projects) and injecting a
   placeholder locale (invents an identifier the product does not have and claims coverage).
   Origin: journey-consistency audit, 2026-08-05.
+- **Audit follow-ups, minor set + prompt calibration (v0.14.7).** The audit's remaining minor
+  findings, none of which blocked the pipeline but each of which left an instruction pointing at
+  nothing. `done` was unreachable — no skill set it — so the FSM diagram promised a state that could
+  not be entered; it is now documented as a **manual** marker for "legacy page deleted", which is
+  outside this plugin's scope, and `flipped` is stated as where the `fm-*` pipeline ends.
+  `session-init.sh` composed its "exact next command" by concatenating prose into the command string
+  (`/frontend-migration-plugin:(done — mark complete) <page>`); the status map now returns a bare
+  skill name, with flags and human notes composed separately, and every status produces a runnable
+  command or a note alone. `migration-fixer` was the only agent given no `outPath` while still
+  required to produce `fix-report.json`. `apps.*.webview`/`.sso`/`.ssr` are read by nothing and are
+  now labelled informational, naming the authoritative source for each (gate set → `analysis.json`;
+  rendering → `migration-plan.json`, since an app is `"mixed"` and no single app-level value can be
+  right). An empty `stagingConfig.paymentGateways` now yields `not-run` + reason rather than a
+  silent MSW fallback, which would turn the one scenario that must exercise a real gateway into a
+  mock run that always passes. `gateAcceptance.e2e` is now enforced verbatim with a
+  `criteriaCompliance` slot — `e2e` had been the only gate whose codified criteria nothing checked
+  against its report. `fm-audit-codex --all` gated every stage on a page-directory artifact, making
+  `route` (whose inputs are the routing artifact and flag diff) permanently unreachable.
+  `i18n.keyPrefix` was collected by `fm-init` and read by nothing; it now drives a key-coverage
+  assertion that a rendered string never starts with the prefix — an unresolved key reaching the
+  screen is exactly the OMH-748 defect. And "CLAUDE.md → Lock file", cited by six documents, was a
+  bold paragraph rather than a heading; it is now `### Lock file`.
+
+  Also applied the prompt audit's three calibrations for Opus 5. The 89-line version-history
+  blockquote at the top of `CLAUDE.md` — 15 commits of accreted `, and the **X** rule (vN.N.N)`
+  clauses — moved out: this file already pointed at `docs/build-context.md` for the same narrative,
+  and every rule it recounted is stated in its own section below. The standing re-verification
+  imperative ("Verify again.") became a statement that a remembered observation is not current
+  evidence, keeping the anti-fabrication meaning without instructing a model that already verifies
+  unprompted to verify more. And the `Communication language` principle now calibrates final-message
+  length — the only unbounded output surface in the plugin, which the JSON reports already record in
+  full. The audit's other candidates were examined and deliberately kept: the 5-step evidence gate
+  (anti-fabrication, not self-verification), the one-shot mutation check (an empirical procedure
+  self-verification cannot replace), and the reviewers' severity handling (already
+  report-everything-filter-downstream). Origin: journey-consistency and prompt audits, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
