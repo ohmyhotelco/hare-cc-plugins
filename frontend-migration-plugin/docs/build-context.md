@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.14.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -157,16 +157,23 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   a page whose response DTOs are deferred-`unknown` (nothing to freeze) and whose `requiredGates` does
   not list contract — because `parity-verifier.md`'s contract section went from its heading straight
   into the diff with no premise check, and the held `.lock` blocked a ready fix meanwhile. Three
-  doc-only fixes: (A) the contract gate confirms its premise — **typed v2 response hooks** (not
-  `unknown`); the diff freezes against the legacy analysis DTOs so `contractsDir` is **not** required
+  doc-only fixes: (A) the contract gate confirms its premise — a **concrete v2 DTO shape** (not
+  `unknown`, and not a vacuous `any`, which would pass a naive typed-check yet diff-match everything = a
+  false pass); the diff freezes against the legacy analysis DTOs so `contractsDir` is **not** required
   (requiring it, as the proposal did, would `not-run` the diff on every page of a project without
-  `docs/migration/api-contracts/`) — before the response-DTO capture, then on an `unknown` hook records
-  `not-run` + `reason` only when the plan recorded the deferral and `fail` when it did not (a
-  lazily-untyped write page must surface, not mask itself). A precondition that re-enables itself when
-  the deferral resolves, not a plan flag that rots. **Two corrections over the raw proposal:** gate the
-  response-DTO diff **only** — the request-body-vs-live-backend check (OMH-748) needs no typed response
-  DTO and must keep running on `unknown`-typed write pages or v0.11.0's hole re-opens — and drop the
-  `contractsDir` conjunct that would have made the required check silently vanish; (B) the `.lock` gains a schema
+  `docs/migration/api-contracts/`) — before the response-DTO capture, then on an `unknown`/`any` hook
+  records `not-run` + `reason` only under an **approved `openApprovals` entry** (`status: "approved"`
+  with a named `owner`, not `TBD`) and `fail` otherwise. A `pending` entry does not qualify: `fm-plan`
+  writes those itself, so accepting one would move the self-approval seam one indirection along rather
+  than close it — a bare free-text plan note and a self-written `pending` entry are equally "not
+  recorded". A precondition that re-enables itself when the deferral resolves, not a plan flag that
+  rots. **Corrections over the raw proposal:** gate the response-DTO diff **only** — the
+  request-body-vs-live-backend check (OMH-748) needs no typed response DTO and must keep running on
+  `unknown`-typed write pages or v0.11.0's hole re-opens — drop the `contractsDir` conjunct that would
+  have made the required check silently vanish, and (post-merge review, v0.14.2) require an approved
+  sign-off for the skip, exclude vacuous `any`, and state where the premise is read from (the `api`
+  phase response hooks; a nested `any` **field** leaves the DTO concrete but is excluded from the diff
+  and named in `evidence`); (B) the `.lock` gains a schema
   (`holder`/`pid`/ISO-8601 `acquiredAt`) so the "stale after 30 min" rule — asserted in ~11 places but
   computable from no defined field, and written date-only in OMH-749 — actually computes, with an
   unparseable timestamp treated as immediately stale so a malformed lock is not a permanent deadlock;

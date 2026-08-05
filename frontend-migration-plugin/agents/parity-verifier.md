@@ -119,26 +119,52 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
 **Before the response-DTO capture, confirm there is a v2 shape to freeze.** The response-DTO diff
 below (and its baseline capture) freezes the page's **v2 response shape** against the legacy DTOs from
 `analysis` (present whenever `fm-analyze` ran), so its one real premise is: **the page's response
-hooks are typed (not `unknown`)**. `contractsDir` is **not** a precondition — it is optional infra used
-upstream by `fm-extract`, and the diff's reference is the legacy analysis DTOs, not a `contractsDir`
-doc; requiring it would skip the response diff on every page of a project that has no
-`docs/migration/api-contracts/`, which is exactly the required check going missing.
+hooks carry a concrete DTO shape** — not `unknown`, and **not a vacuous `any`**. `any` passes a naive
+"is it typed?" test but the diff against it matches every legacy shape, so it produces a **false pass**
+(worse than an honest skip: it claims a contract was verified when nothing was compared); treat an
+`any`-typed response hook exactly like `unknown` below. `contractsDir` is **not** a precondition — it
+is optional infra used upstream by `fm-extract`, and the diff's reference is the legacy analysis DTOs,
+not a `contractsDir` doc; requiring it would skip the response diff on every page of a project that has
+no `docs/migration/api-contracts/`, which is exactly the required check going missing.
 
-When the response hooks are typed → run the diff. When they are `unknown`, split on **why**:
+**How to read the premise.** Read the page's response hooks from the `api` phase output — the
+TanStack Query hooks over the `@omh/shared-data` services (`tdd-cycle-runner`, phase `api`). A
+response type is **not concrete** when it is `unknown`, `any`, or an alias/generic that resolves to
+either. A concrete DTO that carries an `any`-typed **field** is still concrete: run the diff, exclude
+that field from the comparison, and name it in `evidence` — a field that cannot be compared must
+never be counted as compared.
 
-- The plan **explicitly records** the untyped deferral (an `openApprovals[]` item, or the plan's
-  typing note — e.g. booking-history's `D2-BH` "response DTO typing NOT required because the member
-  hooks are untyped `unknown` by the existing pattern"). Then there is genuinely nothing to diff:
-  record the response-diff sub-check as `result: "not-run"` with `reason: "typing deferred: <ref>"`
-  and move on. Not a `fail`, and not a plan-`skipped` either — an unmeasurable check, a
-  measured-and-wrong check, and a plan-excluded check are three different facts; keep them apart (same
-  discipline as the report's `resultScope` vs attempted-but-unfinished split). When the deferral later
-  resolves and the DTOs become typed, the premise is met and the capture runs again with no one
-  editing a plan — a precondition tracks reality, a manual exemption flag rots.
-- The plan does **not** record it. Then an `unknown` response hook is a **defect, not a premise**: the
-  gate cannot tell a deliberate deferral from a generator that skipped typing, and the safe reading is
-  the loud one. Record `result: "fail"` (or an explicit approval request), never a silent `not-run` —
-  an untyped write page the plan never signed off on must not be absorbed as "nothing to freeze".
+When the response hooks carry a concrete DTO → run the diff. When they are `unknown` (or vacuous
+`any`), split on **why**:
+
+- An **approved sign-off** records the untyped deferral — an `openApprovals[]` entry whose `status`
+  is **`approved`** and whose `owner` names a real decision owner (**not `TBD`**). Then there is
+  genuinely nothing to diff: record the response-diff sub-check as `result: "not-run"` with
+  `reason: "typing deferred: <openApprovals ref>"` and move on. Not a `fail`, and not a plan-`skipped`
+  either — an unmeasurable check, a measured-and-wrong check, and a plan-excluded check are three
+  different facts; keep them apart (same discipline as the report's `resultScope` vs
+  attempted-but-unfinished split). When the deferral later resolves and the DTOs become typed, the
+  premise is met and the capture runs again with no one editing a plan — a precondition tracks reality,
+  a manual exemption flag rots.
+
+  **`status: "pending"` is not a sign-off.** `fm-plan` writes `pending` entries itself
+  (`migration-plan-schema.md`: `status` is `pending | approved | rejected`, and its own example entry
+  reads `"owner": "TBD", "status": "pending"`), so accepting one would let the pipeline approve its
+  own skip — the exact seam this premise closes. `pending`, `rejected`, an `owner` still reading
+  `TBD`, and a **bare free-text typing note in the plan** are all treated as "not recorded" (next
+  bullet): skipping a contract sub-check is a coverage reduction, and this plugin routes every
+  coverage reduction through an **approved** `openApprovals` entry, never a self-authored default.
+- No approved `openApprovals` deferral exists. Then an `unknown`/`any` response hook is a **defect,
+  not a premise**: the gate cannot tell a deliberate deferral from a generator that skipped typing, and
+  the safe reading is the loud one. Record `result: "fail"` (or an explicit approval request), never a
+  silent `not-run` — an untyped write page no decision owner signed off on must not be absorbed as
+  "nothing to freeze".
+
+**Transition (existing plans).** A deferral recorded only as a free-text typing note — booking-history's
+`D2-BH` is the known case — does **not** satisfy this rule. Promote it to an approved `openApprovals`
+entry before that page's next parity run; until then the premise check records `fail`, not `not-run`.
+This is a precondition reading present reality, not retro-adjudication: already-passed pages are not
+re-judged.
 
 **This premise gates only the response-DTO diff.** The request-body-against-the-live-backend check
 below does **not** depend on typed response DTOs — it still runs on every page that builds a request
@@ -184,7 +210,7 @@ event parity; the time window is operational.
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
                                  "uncaptured": [] } },   // non-empty = incomplete gate = fail
     "contract":  { "result": "pass|fail|not-run", "drift": [], "evidence": "...",
-                   "reason": null,              // set when result is "not-run" (e.g. "typing deferred: D2-BH", "budget exceeded"); an unrecorded unknown-typed write page is a fail, not not-run
+                   "reason": null,              // set when result is "not-run" (e.g. "typing deferred: <openApprovals ref>", "budget exceeded"); an unknown/any-typed write page with no APPROVED openApprovals deferral is a fail, not not-run
                    "amendedCriterion": false,   // true when the passing criterion carries criterionAmendment
                    "priorWhy": null },          // the pre-amendment reason, preserved when it does
     "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
