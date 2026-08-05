@@ -87,6 +87,11 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   Result Accounting"). `commit` = `git rev-parse --short HEAD`; if `git status --porcelain` is
   non-empty, record `<sha>+dirty`. Keep `parityPassedAt` for backward compatibility.
 - `result: fail` or any Step 3 override → `parity-failed`.
+- `result: not-run` → keep the page at `e2e-passed` (it did not pass parity) and report which gates
+  were unmeasured and why, from `notRunGates`. Do **not** set `parity-passed`: an unmeasured gate is
+  not a passed one, and `fm-route --flag-on` requires `parity-passed`, so the flip stays blocked
+  until the premise is met or the budget raised. Do not route to `fm-fix` either — there is no
+  failure to repair.
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"

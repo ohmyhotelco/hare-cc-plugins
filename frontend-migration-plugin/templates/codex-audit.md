@@ -68,6 +68,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
         }
       }
     ],
+    "reason": null,   // required when verdict is "skipped" or "error"; null otherwise
     "summary": "<one-paragraph independent assessment>",
     "auditedAt": "<ISO-8601>",
     "inputsRef": ["<artifacts reviewed>"]
@@ -77,7 +78,11 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 
 - `error` — `codex exec` failed or returned unparseable output (capture the raw output in
   `summary`); advisory, non-blocking.
-- `skipped` — Codex CLI/runtime unavailable, or the stage is excluded by `codexAuditStages`.
+- `skipped` — Codex CLI/runtime unavailable, or the stage is excluded by `codexAuditStages`. Record
+  why in the stage's `reason` field (a sibling of `verdict`, e.g. `"Codex unavailable"` or
+  `"excluded by codexAuditStages"`); `error` uses the same field for its failure summary. Without a
+  defined slot each implementation would improvise one, which is how the ad-hoc fields this layer
+  already accumulated got there.
 - `adjudication` — **optional, and never written by the discovering audit.** Codex reports what it
   finds; whether the finding was later fixed or dismissed is a separate fact recorded downstream
   (by `fm-fix` after a repair, or a human). A finding with **no** `adjudication` block is read as

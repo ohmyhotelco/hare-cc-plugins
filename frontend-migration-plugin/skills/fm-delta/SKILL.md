@@ -78,15 +78,22 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
   Then continue to Step 5.
-- **Full** → **release the page `.lock` first** (do NOT fall through to Step 5 holding it — the
-  skills you point the user to need that same lock), then tell the user to run `fm-gen {page}`; if
-  `styleDrift` was set, run `/frontend-migration-plugin:fm-style-spec {page}` first — it reads the
-  now-patched `analysis.json.styleSurface`, so the full re-gen builds to fresh style values. The
-  skill **stops here**; Step 5 (which records an applied incremental delta) does not run.
+- **Full** → the page needs re-planning, not just re-generation. **Release the page `.lock` first**
+  (do NOT fall through to Step 5 holding it — the skills you point the user to need that same lock),
+  then tell the user to re-run the chain from the stage the drift invalidated:
+  `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
+  `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: on this path no updated
+  baseline was written (incremental mode is what produces one), so `fm-gen` would build from the
+  pre-drift `migration-plan.json` — regenerating the page against the plan the drift just
+  invalidated. The skill **stops here**; Step 5 (which records an applied incremental delta) does not
+  run.
 
 ### Step 5: Record (incremental path only)
-- Patch `migration-plan.json`/`analysis.json` with the new baseline (the `styleSurface` is already
-  current from Step 4); archive the delta as `delta-plan.{timestamp}.json`.
+- Persist the new baseline: `migration-planner` (incremental mode) writes the revised
+  `migration-plan.json` and the revised `analysis.json` sections alongside `delta-plan.json`, so
+  verify both parse and reflect the applied ops rather than re-deriving them here (the `styleSurface`
+  is already current from Step 4). If either is missing, the delta is incomplete — re-run the planner
+  before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh `sourcePaths` for any file the delta created or
   removed, and **clear `gateEvidence`** — the page's code changed, so every prior gate PASS now
@@ -97,4 +104,5 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
 In `workingLanguage`: ops applied, tests pass/fail with evidence, confirmation that prior fixes
 were preserved, and the re-entry point — `/frontend-migration-plugin:fm-verify {page}` → fm-e2e →
 fm-parity. (On the **Full** path the skill already ended in Step 4 after releasing the lock and
-printing the `fm-style-spec`/`fm-gen` next-steps — that instruction is its report.)
+printing the `fm-analyze` → `fm-style-spec` → `fm-plan` → `fm-gen --force` next-steps — that
+instruction is its report.)

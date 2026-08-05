@@ -31,7 +31,14 @@ generation phase never completed, so there is no gate failure to repair and no v
 read. Tell the user to re-run `/frontend-migration-plugin:fm-gen {page}`, which resumes from the
 last incomplete phase (its Step 2). Falling through to `verify-fix` here would let a "pass" set the
 page to `generated` — declaring generation complete for a page whose phases never ran.
-Compare timestamps; the newest failing report wins. Report the chosen mode.
+Compare timestamps; the newest failing report wins. **But the page's status is the authority, not the
+file mtime.** Gate reports are not cleared by regeneration, so a page now at `verify-failed` can
+still carry an older failing `parity-report.json`; picking `parity-fix` there would repair the wrong
+thing and return the page to `e2e-passed`, silently stepping over the current verify failure. So
+derive the mode from the status first — `verify-failed` → `verify-fix`, `e2e-failed` → `e2e-fix`,
+`parity-failed` → `parity-fix` — and use report mtime only to break a tie or when the status is
+`fixing` (a re-entry, where the status no longer names the gate). Report the chosen mode and what
+selected it.
 
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
@@ -53,8 +60,11 @@ summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDi
 
 ### Step 5: Resolve outcome
 Read `fix-report.json`:
-- `regenRequired: true` → set status `generated` and tell the user to re-run `fm-gen` (large
-  delta), then continue the pipeline.
+- `regenRequired: true` → the fixer stopped **without changing code**, so generation has not been
+  redone: keep the page at its current `*-failed` status, record `regenRequiredAt`, and tell the user
+  to re-run `/frontend-migration-plugin:fm-gen {page} --force` (a full regeneration; the resume path
+  would otherwise see a complete `generation-state.json` and do nothing). Setting `generated` here
+  would claim a generation that never ran and point the session hook at `fm-verify`.
 - gate re-run `pass` → set status back to the failed gate's **entry** state, so the gate itself can
   run again: `verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`.
   **Never set the gate's passed state here.** The fixer's own re-run is a repair signal, not a gate

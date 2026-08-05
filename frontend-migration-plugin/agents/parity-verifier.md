@@ -17,7 +17,9 @@ gates the plan requires (always visual + contract; webview/telemetry when trigge
 `templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
 the style baseline, `templates/capture-provenance.md` for how an artifact's side is resolved (always —
 it decides what counts as the legacy side at all), and `templates/webview-bridge.md` /
-`templates/hana-sso.md` when those gates apply.
+when the `webview` gate applies. (There is no `sso` gate — `templates/hana-sso.md` is a generation
+contract and the `?ts` flow is verified through the page's `e2eScenarios`, so do not look for an
+`sso` entry in `requiredGates`.)
 
 ## Acceptance contract
 
@@ -235,7 +237,11 @@ event parity; the time window is operational.
                    "amendedCriterion": false, "priorWhy": null,
                    "missingEvents": [], "evidence": "..." }
   },
-  "result": "pass | fail", "ranAt": "ISO"
+  // Aggregate: "pass" only when every required sub-gate passed. Any sub-gate at "not-run" (premise
+  // absent / budget exceeded) makes the aggregate "not-run" — never "pass" (a criterion was not
+  // measured) and never "fail" (nothing was measured and found wrong). "skipped" sub-gates are
+  // plan-excluded and do not affect it.
+  "result": "pass | fail | not-run", "notRunGates": [], "ranAt": "ISO"
 }
 ```
 `evidence` names the exact artifact pair(s) each comparison rests on **and each one's resolved

@@ -1,7 +1,7 @@
 ---
 name: fm-gen
 description: "Use after fm-plan to generate the RR v7 page from migration-plan.json via a strict per-phase TDD pipeline (foundation -> api -> store -> component -> page -> integration), with resume and demotion safety."
-argument-hint: "<page> [--app pc|mobile|hana]"
+argument-hint: "<page> [--app pc|mobile|hana] [--force]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -27,7 +27,9 @@ If the plan has unresolved `blockers` (unextracted shared candidates), stop and 
 run `/frontend-migration-plugin:fm-extract` first.
 
 ### Step 2: Resume / demotion
-- If `generation-state.json` exists, offer to resume from the last incomplete phase.
+- If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
+  (how `fm-fix` sends a page back after `regenRequired`), ignore it and regenerate every phase from
+  the start — a completed state file would otherwise make the resume path a no-op.
 - Demotion warning: if the page status is `verified`/`e2e-passed`/`parity-passed`, warn that
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.

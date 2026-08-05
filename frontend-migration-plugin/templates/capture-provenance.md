@@ -80,8 +80,10 @@ flipped and v2 **after** it. So:
    `tracker.json` does not yet record as `flipped`) → `legacy`. If the path **is** flipped, the same
    host now serves v2 → `unresolved`, not `legacy`.
 
-   For `apps[app].domain` this holds **only when the page has never been flipped** — i.e. no
-   `flippedAt` in its tracker record. If `flippedAt` is present but the status is not `flipped`, the
+   For `apps[app].domain` this holds **only when the page has never been flipped and no flip is in
+   flight** — i.e. neither `flippedAt` nor `flipPrOpenedAt` in its tracker record. `flipPrOpenedAt`
+   present means PR2 is open but not yet merged/deployed/propagated: the host may be serving either
+   side and nothing here can tell which, so resolve **`unresolved`**. If `flippedAt` is present but the status is not `flipped`, the
    page was flipped at some point and has since been moved back through the FSM, so the status no
    longer tells you what the edge is serving: resolve **`unresolved`**, never `legacy`. `fm-gen` and
    `fm-delta` refuse to demote a `flipped` page precisely to keep the two in step, but this clause

@@ -41,7 +41,8 @@ else
 fi
 
 # Shared external-skill installation checks (when externalSkills is enabled).
-EXTERNAL_SKILLS=$(jq -r '.externalSkills // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
+# `// true` would swallow an explicit `false` (jq treats false as empty), so test for null instead.
+EXTERNAL_SKILLS=$(jq -r 'if .externalSkills == null then true else .externalSkills end' "$CONFIG_FILE" 2>/dev/null || echo "true")
 if [ "$EXTERNAL_SKILLS" != "false" ]; then
   SKILLS=(
     "React Router framework mode|$CWD/.claude/skills/react-router-framework-mode"
@@ -125,12 +126,19 @@ if [ -n "$PAGES" ]; then
     esac
     STEP=$(next_step "$status")
     FLAGS=$(next_flags "$status")
-    # parity-passed splits on routePrepared: the code PR (--flag-off) comes first, the flip second.
-    if [ "$status" = "parity-passed" ]; then
-      PREPARED=$(jq -r --arg a "$app" --arg p "$page"         '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
-      [ "$PREPARED" = "true" ] && FLAGS=" --flag-on"
-    fi
     NOTE=$(next_note "$status")
+    # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;
+    # flip PR already open -> waiting on merge+deploy, then --flag-on --confirm-live.
+    if [ "$status" = "parity-passed" ]; then
+      PREPARED=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
+      FLIPPR=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
+      if [ -n "$FLIPPR" ]; then
+        FLAGS=" --flag-on --confirm-live"
+        NOTE="flip PR open since $FLIPPR; run only after it is merged and deployed"
+      elif [ "$PREPARED" = "true" ]; then
+        FLAGS=" --flag-on"
+      fi
+    fi
     if [ -n "$STEP" ]; then
       LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS"
       [ -n "$NOTE" ] && LINE="$LINE  ($NOTE)"

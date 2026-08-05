@@ -21,8 +21,12 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
 (`--app`/`currentApp`), `appDir`, `legacyDir`, `workingLanguage`, `codexAudit`, `codexAuditStages`.
-Confirm the Codex CLI / `codex` plugin runtime is available — if not, report that auditing is
-skipped (with the install hint) and stop without error.
+**Do not pre-check whether the Codex CLI is installed.** Spawn the auditor regardless and let its
+step 1 detect the absence and record `verdict: "skipped"` for the stage under the page lock. Stopping
+here would leave `codex-audit.json` with no entry for that stage — indistinguishable from never
+having audited it, which is the state the persisted `skipped` verdict exists to rule out
+(CLAUDE.md → Codex Independent Audit). Surface the auditor's `skipped` verdict, with the install
+hint, in the report.
 
 ### Step 1: Resolve stages
 - `--stage <s>` → audit just that stage.

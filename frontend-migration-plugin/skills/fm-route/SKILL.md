@@ -1,7 +1,7 @@
 ---
 name: fm-route
 description: "Use to manage the Strangler Fig route flip for a migrated page at the app's configured edge layer (nginx or CloudFront) — --flag-off prepares the routing artifact + flag (default OFF) for the code PR, --flag-on flips the path to the new app once verify/e2e/parity all pass."
-argument-hint: "<page> --flag-off | --flag-on | --revert [--app pc|mobile|hana]"
+argument-hint: "<page> --flag-off | --flag-on [--confirm-live] | --revert [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -33,6 +33,12 @@ guarantees `verified` and `e2e-passed` were reached first — the single `status
 overwritten to `parity-passed`), `verifiedAt` present (verify's durable trace — verify has no report
 file), and both reports show `result: pass`. If any is not satisfied, stop and report the blocking
 gate — do not flip.
+
+### Step 1-pre: Require the code PR first (flag-on only)
+`--flag-on` is the second PR of a mandatory two-PR flow (`templates/strangler-fig.md`), so refuse it
+unless `tracker.json` records `routePrepared: true` from a prior `--flag-off`. Without this the flip
+can be raised on a page whose code PR was never prepared, skipping the route-stage Codex audit that
+runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 
 ### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code committed after it. For each gate with a
@@ -88,6 +94,12 @@ decides. Three carve-outs, all honest-state not retro-judgment:
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
 `adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
+Read `e2e-report.json` too: list every scenario at `result: "not-run"` with its `reason` and require
+the same acknowledgement. A `not-run` scenario is unmeasured, and the page reached `e2e-passed` on a
+top-level `pass` that does not account for it — the operator flipping the path must be told which
+flows were never exercised (the staging-gateway case makes this the *transactional* flow, which is
+exactly the one that must not ship untested).
+
 Also read each stage's `{stage}.priorAdjudicated[]` (stages are top-level keys in
 `codex-audit.json`; there is no `stages` wrapper) — adjudicated findings a re-audit could not match to a
 current one — and present any `high` entries alongside, labelled **`unmatched`**. They are neither
@@ -112,7 +124,16 @@ strategy from `flipMechanism`; the gate precondition is identical for both.
 ### Step 4: Record
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
-- `--flag-on` (succeeded) → `apps[app].pages[page].status = "flipped"`, `flippedAt`.
+- `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits an
+  in-repo artifact and opens PR2 — `strangler-orchestrator` never deploys, reloads nginx, or applies a
+  CloudFront distribution. Between opening PR2 and the change actually propagating there is a review,
+  a merge, a deploy, and cache propagation, and through all of it the edge is still serving legacy.
+  Writing `flipped` there would break the invariant that the tracker and the edge agree, and
+  provenance resolves a capture's `side` from exactly that status — so a capture from the production
+  host would be labelled `v2` while the host still serves legacy: the wrong-side baseline inverted.
+- `--flag-on --confirm-live` (run by the operator **after** PR2 is merged and the change is deployed
+  and propagated) → `apps[app].pages[page].status = "flipped"`, `flippedAt`, clear `flipPrOpenedAt`.
+  This is the only transition that claims the edge is serving v2, and only a human can observe that.
 - `--revert` → set status back to `parity-passed`, **clear `flippedAt` and `routePrepared`**, and
   record `revertedAt`. Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
@@ -142,8 +163,10 @@ path/flag/app:port mapping, gate-guard result, and next step:
   block + flag entry (default OFF), for `cloudfront` the manifest entry mapping `guardsPath` to the
   v2 origin but **not yet active**. When review passes, run `fm-route {page} --flag-on` for the
   one-line flip PR.
-- after `--flag-on`: the path now serves the new app (nginx flag ON, or the CloudFront path-pattern
-  behavior active); rollback = `fm-route {page} --revert`.
+- after `--flag-on`: the flip **PR is open**, not live. The path keeps serving legacy until that PR
+  is merged and the change is deployed and propagated — this skill edits an in-repo artifact and
+  never deploys. Once the operator has confirmed it is live, `fm-route {page} --flag-on
+  --confirm-live` records `flipped`. Rollback = `fm-route {page} --revert`.
 - for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest and opens a PR — it
   **does not push to AWS**; applying the behavior change is the deployment owner's step (OMH-502).
 - mark the page `done` by hand once the legacy page is deleted (CLAUDE.md → Per-page State Machine).

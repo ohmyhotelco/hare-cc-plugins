@@ -153,7 +153,13 @@ Do not modify code — `delta-modifier` applies the ops. Report the change count
 delta is large (the skill recommends full `fm-gen` above ~60% of files).
 
 ## Rules
-- Decisions only — no production code. The single file you write is `migration-plan.json`.
+- Decisions only — no production code. In normal (full-plan) mode the file you write is
+  `migration-plan.json`. In **incremental mode** you write `delta-plan.json` at `outPath` **and** the
+  updated baseline: the revised `migration-plan.json` and the revised `analysis.json` sections the
+  delta changes (new API calls, gates, `e2eScenarios`, `sharedDeps`, component metadata). The ops
+  list alone is not a baseline — `fm-delta` Step 5 is instructed to persist the new baseline and has
+  no other producer for it, so leaving it out means the next `fm-delta` diffs against a stale
+  reference.
 - Every mapping decision cites the catalog section and the analysis anchor.
 - Every `gateAcceptance` criterion that asserts a v2-side expected value carries
   `expectedValueSource` — including the "searched, none found" case. `fm-plan` Step 4 returns the plan

@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.14.9.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.15.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -262,7 +262,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   existed as a separate array.
 
   **A `flipped` page can no longer be demoted.** `fm-gen` and `fm-delta` refuse it and direct the
-  user to `fm-route --flag-off` first. The two facts that must agree — the tracker's `flipped` and
+  user to `fm-route --revert` first (v0.14.6 said `--flag-off`, which keeps the status — corrected in
+  v0.14.9). The two facts that must agree — the tracker's `flipped` and
   the edge flag `fm-route` owns — were held in different places, and `fm-delta` reset the status
   while never touching routing. Provenance resolves a capture's `side` from that status, so a
   demoted-but-still-flipped page made a capture from the production domain (serving v2) resolve as
@@ -408,6 +409,42 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   Read-Modify-Write citation became a real heading, the same defect v0.14.7 fixed for "Lock file".
 
   Origin: journey re-verification, 2026-08-05.
+- **Codex round + full sweep (v0.15.0).** The Codex arm of the triple audit returned 3 blockers,
+  8 majors and 4 minors; six were already closed by v0.14.9, and the rest are here. This round also
+  changed *how* the work is done, because the previous rounds had a repeating failure the findings
+  finally made undeniable: **each fix was correct in the file it edited and contradicted a different
+  file nobody re-read.** Six defects across v0.14.3–v0.14.9 were self-inflicted that way. Every
+  invariant touched here was therefore swept across all 63 documents and both scripts, not just the
+  file being edited — and that sweep found four more (a `--flag-off` remediation still recorded in
+  `build-context.md`, `fm-route`'s post-flip prose, `parity-verifier` still naming an `sso` gate, and
+  a `gen-failed` rule present in the hook and `fm-progress` but absent from CLAUDE.md, the
+  conventions file).
+
+  **The tracker claimed a live flip before anything was deployed.** `--flag-on` edits an in-repo
+  routing artifact and opens PR2; `strangler-orchestrator` never deploys, reloads nginx, or applies a
+  CloudFront distribution. Recording `flipped` there broke the invariant that the tracker and the
+  edge agree, across review, merge, deploy and propagation — and provenance resolves a capture's
+  `side` from that status, so a production capture would be labelled `v2` while the host still served
+  legacy. `--flag-on` now records `flipPrOpenedAt` and leaves the page at `parity-passed`; only
+  `--flag-on --confirm-live`, run by a human who has observed the deploy, sets `flipped`. Provenance
+  treats the in-flight window as `unresolved`, and the SessionStart hook now distinguishes three
+  sub-states of `parity-passed` (not prepared → `--flag-off`, prepared → `--flag-on`, PR open →
+  `--confirm-live`), verified by running it over all 15 statuses.
+
+  The rest: an unrun E2E scenario could reach a flip because `fm-route` never performed the
+  scenario-level surfacing it promised; `--flag-on` did not require `routePrepared`, so it could skip
+  `--flag-off` and its route-stage Codex audit; parity's top-level result had no `not-run` even
+  though sub-gates mandate one, leaving a budget-capped or premise-absent gate with no representable
+  aggregate; `angular-to-react-mapping.md` — which the analyzer and planner consult — still mandated
+  a `parity` SSO check; `fm-delta` was told to persist a new baseline no producer wrote, and its Full
+  branch sent the user to `fm-gen` against the pre-drift plan; manual `fm-audit-codex` pre-checked
+  Codex availability and stopped, losing the `skipped` record the in-loop path was just fixed to
+  preserve; `fm-fix` picked its mode from report mtime, so a stale parity report could hijack a
+  current verify failure; `regenRequired` set `generated` before any regeneration ran; the Codex skip
+  reason had no schema slot; and `jq '.externalSkills // true'` swallowed an explicit `false`
+  (reproduced, then fixed with an explicit null test and re-verified end to end).
+
+  Origin: Codex verification audit + full-plugin sweep, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

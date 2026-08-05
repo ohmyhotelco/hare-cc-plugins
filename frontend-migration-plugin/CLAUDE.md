@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.9)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.15.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -225,11 +225,22 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
                                   escalated   (needs manual intervention)
 ```
 
+- **`gen-failed` is not a gate failure and `fm-fix` has no mode for it.** A generation phase that
+  never completed goes back to `fm-gen` (which resumes from the incomplete phase); routing it to
+  `fm-fix` would fall through to `verify-fix`, find no verify summary, and on a "pass" declare the
+  page `generated` when its phases never ran. The SessionStart hook and `fm-progress` both carve it
+  out ahead of the `*-failed` wildcard.
 - A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, back to that
   gate's **entry** state (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` →
   `e2e-passed`) so the gate can be re-run. Only the gate issues its own passed state — a fixer that
   promoted the page itself would leave the gate's report reading `fail` while the status claimed
   otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
+- **`flipped` means the edge is serving v2, not that a PR exists.** `fm-route --flag-on` edits the
+  in-repo routing artifact and opens PR2; it records `flipPrOpenedAt` and leaves the status at
+  `parity-passed`. Only `--flag-on --confirm-live`, run by a human after the merge and deploy have
+  propagated, sets `flipped`. Nothing in this plugin deploys, so nothing in it can observe that the
+  flip is live — and provenance resolves a capture's `side` from this status, so claiming it early
+  would label a production capture `v2` while the host still serves legacy.
 - **No skill writes a status over `flipped`.** `fm-gen`, `fm-delta`, `fm-analyze`, `fm-style-spec`,
   `fm-plan`, `fm-verify`, and `fm-fix` each refuse and point at `fm-route --revert`. `fm-e2e` and
   `fm-parity` need no guard — their entry preconditions are exact matches (`verified`, `e2e-passed`),
@@ -243,8 +254,9 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
 - `fm-delta` re-enters from `generated` or beyond when legacy source drifts (a `planned` page has
   no generated files to modify — use `fm-gen`).
 - `escalated` requires manual intervention, then re-entry via `fm-fix`/`fm-gen`.
-- `flipped` is where the `fm-*` pipeline ends: `fm-route --flag-on` sets it and no skill advances
-  past it. **`done` is set by hand**, once the legacy page is deleted — retiring legacy code is
+- `flipped` is where the `fm-*` pipeline ends: `fm-route --flag-on --confirm-live` sets it (after a
+  human has confirmed the flip PR is merged and deployed — `--flag-on` alone only opens that PR) and
+  no skill advances past it. **`done` is set by hand**, once the legacy page is deleted — retiring legacy code is
   outside this plugin's scope, so nothing here can honestly claim it. `fm-progress` and the
   SessionStart hook therefore treat `flipped` as the last actionable state and print no next command
   for it.
