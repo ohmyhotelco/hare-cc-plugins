@@ -72,6 +72,14 @@ flipped and v2 **after** it. So:
 2. **A declared legacy host** (a legacy staging host, or `apps[app].domain` for a path that
    `tracker.json` does not yet record as `flipped`) → `legacy`. If the path **is** flipped, the same
    host now serves v2 → `unresolved`, not `legacy`.
+
+   For `apps[app].domain` this holds **only when the page has never been flipped** — i.e. no
+   `flippedAt` in its tracker record. If `flippedAt` is present but the status is not `flipped`, the
+   page was flipped at some point and has since been moved back through the FSM, so the status no
+   longer tells you what the edge is serving: resolve **`unresolved`**, never `legacy`. `fm-gen` and
+   `fm-delta` refuse to demote a `flipped` page precisely to keep the two in step, but this clause
+   makes the resolution fail safe if they ever drift anyway — an honest absence instead of a
+   confident wrong side.
 3. **A declared v2 host** (the v2 preview/staging host, or `apps[app].domain` for a path
    `tracker.json` records as `flipped`) → `v2`.
 4. Anything else → `unresolved`.

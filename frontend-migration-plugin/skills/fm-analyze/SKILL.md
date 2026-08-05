@@ -61,8 +61,12 @@ status. Surface its verdict in the report.
 
 ### Step 5: Report
 Summarize in `workingLanguage`:
-- Target, risk, and `requiredGates` (call out `secret` / `sso` / `webview` / `telemetry` when
-  present — these change the gate set later).
+- Target, risk, and `requiredGates` (call out `webview` / `telemetry` when present — these change
+  the gate set later). Report any `secret` / `sso` entry in `gateTriggers[]` separately and say where
+  it goes: `secret` → `/frontend-migration-plugin:fm-secret-audit` plus the hard `shared-domain`
+  ESLint boundary; `sso` → an `e2eScenarios` entry at plan time, built to `templates/hana-sso.md`.
+  Neither is a gate — `parity-verifier` implements no check for them, so naming one in
+  `requiredGates` would record a pass nobody evaluated.
 - Shared-package candidates (count by package) → suggest `/frontend-migration-plugin:fm-extract`
   for the pure ones during Phase 0.
 - God-component split seams, if any.

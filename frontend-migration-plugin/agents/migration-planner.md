@@ -35,7 +35,11 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
 4. **Rendering mode.** Choose `ssr | ssg | spa` per the decision table (OMH-454 §5):
    CMS/marketing → SSG, hotel detail → SSR(ISR), auth/transactional/search-list → SPA. Hana → SPA.
 5. **Required gates + acceptance.** Carry `requiredGates` from analysis (always `e2e`+`visual`+`contract`;
-   plus `secret`/`sso`/`webview`/`telemetry` when triggered), and emit a `gateAcceptance` entry
+   plus `webview`/`telemetry` when triggered — those four plus `e2e` are the only gates an executor
+   implements, so never add one `parity-verifier` has no check for). A `sso` entry in the analysis's
+   `gateTriggers[]` is not a gate: emit an `e2eScenarios` entry covering the `?ts` SSO entry instead,
+   and build to `templates/hana-sso.md`. A `secret` trigger is Phase 0 posture (`fm-secret-audit`) plus
+   the hard `shared-domain` ESLint boundary — it needs nothing in the plan. Emit a `gateAcceptance` entry
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
    `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).

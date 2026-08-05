@@ -31,6 +31,14 @@ run `/frontend-migration-plugin:fm-extract` first.
 - Demotion warning: if the page status is `verified`/`e2e-passed`/`parity-passed`, warn that
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.
+- **`flipped` is refused, not warned.** If the page status is `flipped`, stop and tell the user to
+  run `/frontend-migration-plugin:fm-route {page} --flag-off` first. The path is serving production
+  traffic, so regenerating it is a rewrite under live load — and the status reset would desync the
+  two facts that must agree: the tracker's `flipped` and the edge flag `fm-route` owns. Provenance
+  resolves a capture's `side` from that status (`templates/capture-provenance.md`), so a demoted-but-
+  still-flipped page makes a capture from the production domain — which is serving v2 — resolve as
+  `legacy`. That is the wrong-side baseline the v0.14.0 provenance layer exists to stop, and unlike
+  `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).

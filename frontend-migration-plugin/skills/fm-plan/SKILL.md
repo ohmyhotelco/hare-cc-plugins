@@ -49,7 +49,11 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 ### Step 4: Record
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
    **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry
-   makes the plan incomplete; re-run the planner before recording.
+   makes the plan incomplete; re-run the planner before recording. Also confirm `requiredGates` names
+   only gates an executor implements (`e2e`, `visual`, `contract`, `webview`, `telemetry`); a gate
+   with no verifier cannot fail, so it would record a pass nobody evaluated. `gateAcceptance.visual`
+   requires `languages` **only when config has an `i18n` block** — without one there is no set to
+   resolve, and the verifier records that axis as `not-run` (see `migration-plan-schema.md`).
 2. **Behavioral-coverage reconciliation.** For every `analysis.json.behavioralVariants` entry with
    `mustPreserve: true`, confirm it is either represented in the plan (`componentTree` / `mapping` /
    `e2eScenarios`) **or** recorded in the plan's `openApprovals[]` with a rationale and decision

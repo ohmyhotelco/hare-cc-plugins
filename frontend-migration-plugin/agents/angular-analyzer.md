@@ -73,15 +73,30 @@ Walk the target and its first-level dependencies. For each, record concrete find
 ### 5. Migration-gate triggers (set `requiredGates`)
 Always include `e2e`, `visual`, and `contract` (the API-contract parity gate — always run, so it
 always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trigger is present, with anchors:
-- **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
-  `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
-  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`. (→ server-side relocation;
-  see `fm-secret-audit`.)
-- **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
-  `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.)
 - **`webview`** — UA detection `navigator.userAgent.includes('wv'|'ww')`,
   `universal-link.service`, `sessionStorage 'cnoUser'`, URL-scheme intents. (mobile/hana.)
 - **`telemetry`** — `DataLayerService` / `dataLayer.push`, pixel services (Meta/Naver/Kakao).
+
+**`requiredGates` may only name a gate `parity-verifier` implements** — `visual`, `contract`,
+`webview`, `telemetry` (plus `e2e`, which `fm-e2e` owns). A gate the verifier has no check and no
+report slot for cannot fail, so naming it would make the page record `pass` for a criterion nobody
+evaluated — a silent pass, which CLAUDE.md → Design Principles forbids outright.
+
+Two triggers are therefore **detected but never promoted to a gate**. Record each in
+`gateTriggers[]` with its anchors, and route it to the consumer that actually acts on it:
+
+- **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
+  `environment.eximbay.key`, `environment.kakaoLoginSecretKey`; hash builders
+  `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`.
+  Consumed by **`fm-secret-audit`** (Phase 0 posture audit + relocation guidance) and enforced at
+  generation time by the `shared-domain` ESLint secret boundary, which is a **hard** rejection (see
+  CLAUDE.md → Lint & Format Gate). A per-page parity gate would add nothing: there is no legacy-vs-v2
+  comparison to make — a leaked key is wrong on both sides.
+- **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
+  `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.) Consumed by
+  `templates/hana-sso.md` as the **generation** contract (the `?ts` flow ports to a `clientLoader`),
+  and verified as **behavior** through `e2eScenarios` — an SSO entry is a user flow, which is the
+  `e2e` gate's job. Record the trigger so the planner emits the scenario; do not add a gate.
 
 ### 6. Shared-package candidates
 For each piece of logic, classify per `templates/shared-package-spec.md`:
