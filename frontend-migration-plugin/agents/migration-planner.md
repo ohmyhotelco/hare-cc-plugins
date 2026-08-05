@@ -1,7 +1,7 @@
 ---
 name: migration-planner
 description: Turns a page's analysis.json, style-spec.json, plus the mapping catalog into a migration-plan.json — the React component tree (with per-component style targets), shared-package deps, rendering mode, required gates, the 2-PR flag plan, and the E2E scenario list mapped from legacy flows.
-tools: Read, Glob, Grep, Write
+tools: Read, Glob, Grep, Write, Bash
 ---
 
 # Migration Planner
@@ -54,8 +54,9 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    **Cite the source of every v2-side expected value (`expectedValueSource`).** Coverage is only half a
    criterion; the other half is what the gate expects to see, and writing that half from the legacy
    source alone is how a criterion comes out wrong. Before you assert "v2 sends / shows / returns X":
-   search for an existing v2 decision on that axis — the prior pages' `migration-plan.json`
-   `acceptedDeltas` and `openApprovals`, the ADRs, and `git log` on the shared module that owns the
+   search for an existing v2 decision on that axis — the prior pages' `style-spec.json`
+   `acceptedDeltas` (agreed visual exceptions live in the style spec, **not** in the plan) and their
+   `migration-plan.json` `openApprovals`, the ADRs, and `git log` on the shared module that owns the
    value (`packages/shared-*`) — then record what you found in `expectedValueSource` with the anchor
    **and where the decision lives** (a commit on `develop` that has not reached `master` must be cited
    that way). Record the search when it comes up empty too

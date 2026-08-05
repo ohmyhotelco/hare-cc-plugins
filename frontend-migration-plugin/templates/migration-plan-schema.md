@@ -118,7 +118,9 @@ Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
 - `expectedValueSource` — **required whenever the criterion asserts a v2-side expected value** (the
   answer key: "the body sends `currency` derived from the URL locale", "the response envelope carries
   `succeedYn`", "this label reads X"). Cite where that expectation comes from: a prior page's
-  `acceptedDeltas` / `openApprovals`, an ADR, a shared-module commit, a BE confirmation, or the legacy
+  `style-spec.json` `acceptedDeltas` or its `migration-plan.json` `openApprovals` (different
+  artifacts — the visual exceptions live in the style spec), an ADR, a shared-module commit, a BE
+  confirmation, or the legacy
   source line — with the anchor, and with **where the decision lives** (a commit on `develop` but not
   yet on `master` must say so; "on develop, not yet on master" is the accurate citation). Record
   `"searched: <what>; no prior v2 decision found"` when that is the answer — an unrecorded search is
@@ -151,7 +153,8 @@ can never disagree.
 criterion; the other half is what the gate expects to *see*, and that half has been unbound. A
 criterion asserting a v2-side expected value records its `expectedValueSource` (above). In particular,
 when the expectation is "same as legacy", confirm and cite that the v2 platform has not **already
-decided to diverge** on that axis: search the prior pages' `acceptedDeltas` / `openApprovals`, the
+decided to diverge** on that axis: search the prior pages' `style-spec.json` `acceptedDeltas` and
+`migration-plan.json` `openApprovals`, the
 ADRs, and the git log of the shared module that owns the value — and record the search either way,
 including "found nothing".
 

@@ -23,7 +23,9 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDi
 The runner executes as a sub-agent, so session approvals do not transfer. Ensure
 `.claude/settings.json` `permissions.allow` includes the Playwright command
 (e.g. `Bash(npx playwright *)`). If missing, add it (Read-Modify-Write the settings file) and
-note it in the report.
+note it in the report. Normally `fm-style-spec` (Step 2b) already added it — it runs the first
+sub-agent probe — but check rather than assume: a page can reach this gate on a spec captured in
+an earlier session or on another machine.
 
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).

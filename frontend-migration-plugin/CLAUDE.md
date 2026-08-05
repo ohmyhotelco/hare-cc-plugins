@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.4)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.5)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +

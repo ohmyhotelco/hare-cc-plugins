@@ -148,10 +148,13 @@ The plan deferred response-DTO typing (D2-BH) on purpose, so the *possible* axis
 
 ## Preserved (do not regress)
 
-`parity-report.json` already keeps three facts apart without collapsing them: `resultScope`
-(skipped by plan) vs attempted-but-unfinished vs not-started. A's and C's `not-run` is an extension
-of that split — a fourth honest fact ("premise absent / budget spent"), not a replacement. This is
-the `SKILL.md` Step 3-5 rule (a silent scope reduction is a fail) working as intended.
+`parity-report.json` already keeps three facts apart without collapsing them, each by a distinct
+mechanism in the schema: **excluded by the plan** is `result: "skipped"`; **attempted but
+unfinished** is `result: "fail"` with the shortfall named (`uncaptured[]` on visual — a non-empty
+list is an incomplete gate, which is a fail); **not started** is the gate having no entry in the
+report at all. A's and C's `not-run` is an extension of that split — a fourth honest fact ("premise
+absent / budget spent"), not a replacement. This is the `SKILL.md` Step 3-5 rule (a silent scope
+reduction is a fail) working as intended.
 
 ## Acceptance
 

@@ -36,6 +36,16 @@ The live render is the truth source (committed CSS can be stale). Resolve `legac
    extractor falls back to the source cascade and flags those values `source-derived` (not a
    failure; `fm-parity` remains the backstop).
 
+### Step 2b: Ensure Playwright run permission
+`style-spec-extractor` runs the legacy probe as a **sub-agent**, so session approvals do not
+transfer — this is the pipeline's *first* sub-agent Playwright run, three stages before `fm-e2e`.
+Ensure `.claude/settings.json` `permissions.allow` includes the Playwright command (e.g.
+`Bash(npx playwright *)`); if missing, add it (Read-Modify-Write the settings file) and note it in
+the report. Without it the probe cannot launch and the extractor silently falls back to the
+`source-derived` cascade — the spec still parses, so nothing fails, but the "live legacy render is
+the answer key" premise (v0.9.0) is lost on the very first page and every downstream gate compares
+against eyeballed values.
+
 ### Step 3: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 

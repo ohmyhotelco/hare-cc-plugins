@@ -47,7 +47,11 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
 
 - **Incremental** →
   1. **Refresh the answer key in-lock — do NOT nest the `fm-style-spec` skill** (it acquires this
-     same page `.lock`, which this skill holds from Step 1 → deadlock). When `styleDrift` was set,
+     same page `.lock`, which this skill holds from Step 1 → deadlock). Because the skill is bypassed,
+     its **Step 2b is bypassed too**: ensure `.claude/settings.json` `permissions.allow` includes the
+     Playwright command (e.g. `Bash(npx playwright *)`) here, or the sub-agent probe cannot launch and
+     the refresh silently degrades to `source-derived` — defeating the point of refreshing the answer
+     key. When `styleDrift` was set,
      launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way `fm-style-spec`
      Step 2 does (config `stagingConfig.baseUrl` / app `domain` + `analysis.target.routePath` /
      `legacyUrlCandidates`, or `null` → source-cascade fallback), passing the extractor's own params
