@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.15.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.15.1)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -106,7 +106,11 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 }
 ```
 
-- `currentApp` — the active surface for skills that operate on one app. PC-first.
+- `currentApp` — the active surface for skills that operate on one app. PC-first. **A skill that
+  resolves an app must confirm `apps[app]` exists and carries the keys it is about to use** (at
+  minimum `appDir`; plus `targetDir`/`legacyDir`/ports for the stage it runs). Config-file presence
+  is not app presence: a `--app hana` on a config scaffolded for `pc` only would otherwise fail deep
+  inside an agent with an unresolved path rather than at Step 0 with a clear message.
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
   (default `docs/migration/api-contracts`, OMH-604/606/607) that are the **authoritative**
   schema source for **`shared-types` and `shared-data` only** (migration plan §5 — the legacy
@@ -146,7 +150,8 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 - `codexAudit` — when `true` (default), the pipeline runs an independent **Codex audit** of each
   stage's artifact (advisory). Auto-skips if the Codex CLI/runtime is absent, so default-on is
   safe. See "Codex Independent Audit".
-- `codexAuditStages` — which stages the in-loop Codex audit covers (default: all seven).
+- `codexAuditStages` — which stages the in-loop Codex audit covers. **Absent → all seven** (the key
+  narrows; it never means "none"). Every consumer applies that default.
 - `apps.*.appDir` — the directory containing each app's `vite.config.*`, `tsconfig.json`,
   `package.json`. All build/test commands run from this directory (see "Build Command
   Working Directory"). Per-app because this is a monorepo with multiple target apps.
@@ -241,7 +246,9 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   propagated, sets `flipped`. Nothing in this plugin deploys, so nothing in it can observe that the
   flip is live — and provenance resolves a capture's `side` from this status, so claiming it early
   would label a production capture `v2` while the host still serves legacy.
-- **No skill writes a status over `flipped`.** `fm-gen`, `fm-delta`, `fm-analyze`, `fm-style-spec`,
+- **No skill writes a status over `flipped` except `fm-route --revert`,** which is the sanctioned
+  rollback and must be able to leave the state. Every other status writer refuses: `fm-gen`,
+  `fm-delta`, `fm-analyze`, `fm-style-spec`,
   `fm-plan`, `fm-verify`, and `fm-fix` each refuse and point at `fm-route --revert`. `fm-e2e` and
   `fm-parity` need no guard — their entry preconditions are exact matches (`verified`, `e2e-passed`),
   which `flipped` fails; `fm-verify`'s "at least `generated`" is the one monotonic comparison, so it
@@ -672,7 +679,7 @@ freeze a contract. That is a separate plan-quality axis.
 
 ## Gate Result Accounting
 
-The **accounting** axis (v0.14.3) — the same missing-decision-field pattern as the v0.14.1 lock, in
+The **accounting** axis (v0.14.4) — the same missing-decision-field pattern as the v0.14.1 lock, in
 two more places. A gate holds a judgement rule (`unresolved` findings, gate freshness), but the
 artifact has no field to record the *basis*, so the rule falls to the executing session's improvisation
 (measured on my-coupon: 48 Codex findings, 14 `high`, only 2 adjudicated; four resolution fields used

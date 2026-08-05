@@ -87,6 +87,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   Result Accounting"). `commit` = `git rev-parse --short HEAD`; if `git status --porcelain` is
   non-empty, record `<sha>+dirty`. Keep `parityPassedAt` for backward compatibility.
 - `result: fail` or any Step 3 override → `parity-failed`.
+- Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
+  coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.
 - `result: not-run` → keep the page at `e2e-passed` (it did not pass parity) and report which gates
   were unmeasured and why, from `notRunGates`. Do **not** set `parity-passed`: an unmeasured gate is
   not a passed one, and `fm-route --flag-on` requires `parity-passed`, so the flip stays blocked

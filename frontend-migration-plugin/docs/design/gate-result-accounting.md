@@ -1,4 +1,4 @@
-# Gate result accounting (v0.14.3)
+# Gate result accounting (v0.14.4)
 
 Source: OMH-754 (my-coupon) PR-eve verification, measured 2026-08-02. Sibling of the gate cost &
 preconditions work (v0.14.1) and named by that doc's own follow-up. A **different axis** again: the
@@ -73,7 +73,10 @@ from): the rule lives in the instructions, the basis is missing from the output.
   `e2ePassedAt` / `parityPassedAt` stay for backward compatibility; `gateEvidence` wins when present.
   `fm-route --flag-on` Step 1a then checks, per gate, whether any commit between
   `gateEvidence.{gate}.commit` and `HEAD` touched the page's watch paths; if so, that PASS is expired
-  and must be re-run. This has already been realized once by hand: OMH-754 PR #184 shipped a
+  and is **surfaced for acknowledgement, not re-run** — `fm-route` Step 1a is a soft gate (the gates
+  run before the code PR exists, so a blocking reading fires on every page and cannot be cleared).
+  A `<sha>+dirty` value is reported `unlocatable` rather than stale. This has already been realized
+  once by hand: OMH-754 PR #184 shipped a
   `visual: PASS` standing on a screenshot 21 commits stale — the reviewer caught it by counting commits
   the tracker could not name. `at` is ISO-8601 with time, the same regulation the v0.14.1 lock schema
   set — a date-only value is a rule violation, not a shortcut.

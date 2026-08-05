@@ -4,7 +4,7 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 플러그인입니다. 개정된 v2 마이그레이션 계획을 따릅니다. **완전 독립형**(자체 에이전트·파이프라인)
 이지만, 생성 결과의 일관성을 위해 `frontend-react-plugin`의 스택 컨벤션을 공유합니다.
 
-> 상태: 기능 완성 툴링(v0.15.0). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
+> 상태: 기능 완성 툴링(v0.15.1). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
 > 프로젝트가 스캐폴딩하는 v2 모노레포(`apps/` + `packages/`)를 대상으로 동작합니다.
 
 ## 무엇을 하나
@@ -46,6 +46,8 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 
 - **v2 모노레포**: `apps/legacy-*`(마이그레이션 대상 Angular 앱), `apps/web-*`(신규 RR v7 앱),
   `packages/`(공유 패키지)
+- **`contractsDir`**(선택, 기본 `docs/migration/api-contracts/`) — 확정된 백엔드 계약이 있으면
+  `shared-types`/`shared-data`의 **정본** 스키마 소스가 됩니다(없으면 레거시 역추출로 폴백).
 - **Node + pnpm**(pnpm workspaces), E2E·시각 게이트용 **Playwright 브라우저**(`npx playwright
   install`)
 - 분석 가능한 **레거시 Angular 소스**
@@ -105,6 +107,7 @@ Playwright로 실행합니다.
 # 3. 라우트 플립 (2개 PR)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-off   # 코드 PR (플래그 OFF)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-on    # 한 줄 플립 PR (게이트 전부 통과 시)
+/frontend-migration-plugin:fm-route hotel-booking-info --flag-on --confirm-live   # 그 PR 이 머지되고 배포까지 끝난 뒤 → flipped
 
 # 언제든: 모든 페이지 현황
 /frontend-migration-plugin:fm-progress

@@ -40,7 +40,10 @@ Launch `e2e-test-runner` (Agent) with only its params — including the app's `l
 server the runner needs.
 
 ### Step 4: Record
-Read `e2e-report.json`. Update `tracker.json` (Read-Modify-Write):
+Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
+failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
+that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
+`tracker.json` (Read-Modify-Write):
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on (see
   CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if

@@ -15,8 +15,9 @@ you start.
 
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `outPath` (`style-spec.json`), `legacyUrl` (the
-resolved live legacy URL for this page, or `null`), `legacyDir`, `targetDir`, `appDir`,
-`workingLanguage`.
+resolved live legacy URL for this page, or `null`), `legacyDir`, `targetDir`, `appDir`, the app's
+`legacyPort` / `port` / `domain` and the page's flip state (you resolve each capture's
+`provenance.side` from these — `templates/capture-provenance.md`), `workingLanguage`.
 
 ## Inputs — the map from analysis
 

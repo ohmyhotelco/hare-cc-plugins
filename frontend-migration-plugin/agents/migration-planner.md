@@ -13,7 +13,10 @@ catalog.
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `styleSpecPath`
 (`docs/migration/{app}/{page}/style-spec.json`), `outPath` (`migration-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
+`targetDir`, `appDir`, `packagesDir`, the config's `i18n` block (its `languages` set is what
+`gateAcceptance.visual.languages` resolves to — you cannot derive it from the analysis or the style
+spec; **absent means the project has no `i18n` block**, in which case omit `languages` per
+`templates/migration-plan-schema.md`), and `workingLanguage`.
 
 Read `analysis.json`, `style-spec.json` (the legacy style answer key), `templates/style-spec.md`
 (its shape), `templates/angular-to-react-mapping.md` (idiom → React target), and

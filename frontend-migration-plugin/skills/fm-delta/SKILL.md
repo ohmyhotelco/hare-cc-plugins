@@ -69,7 +69,11 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
      `legacyUrlCandidates`, or `null` → source-cascade fallback), passing the extractor's own params
      (see `agents/style-spec-extractor.md`): `app`, `page`, `analysisPath` (now holding the patched
      surface), `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`,
-     `targetDir`, `appDir`, `workingLanguage`. It refreshes `style-spec.json` so the delta's style
+     `targetDir`, `appDir`, the app's `legacyPort` / `port` / `domain` and the page's flip state
+     (the extractor resolves each capture's `provenance.side` from those —
+     `templates/capture-provenance.md`; bypassing `fm-style-spec` bypasses its param list too, and an
+     unresolved side counts as absent, so the refreshed baseline would be unusable by `fm-parity`),
+     `workingLanguage`. It refreshes `style-spec.json` so the delta's style
      ops build to **fresh** values. (Skip when `styleDrift` is unset.)
   2. Launch `delta-modifier` (Agent) with only its params: `app`, `page`, `deltaPlanPath` =
      `docs/migration/{app}/{page}/delta-plan.json`, `styleSpecPath` =
@@ -95,7 +99,8 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   is already current from Step 4). If either is missing, the delta is incomplete — re-run the planner
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
-  the gates), record `deltaAppliedAt`, refresh `sourcePaths` for any file the delta created or
+  the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
+  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
   removed, and **clear `gateEvidence`** — the page's code changed, so every prior gate PASS now
   rests on superseded code and must not read as fresh (CLAUDE.md → "Gate Result Accounting").
 - Release the lock.

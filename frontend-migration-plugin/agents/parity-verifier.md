@@ -12,11 +12,12 @@ appearance, API contract, native bridge, and analytics. Runs only after E2E has 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
 `requiredGates`/`gateAcceptance`), `analysisPath` (`analysis.json` → `gateTriggers` anchors), `styleSpecPath` (`style-spec.json`
 — the legacy style baseline generation built to), `targetDir`, `appDir`,
-`legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
+`legacyDir` / legacy base URL, `outPath` (`parity-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip
+state (for `provenance.side` resolution), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
 `templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
 the style baseline, `templates/capture-provenance.md` for how an artifact's side is resolved (always —
-it decides what counts as the legacy side at all), and `templates/webview-bridge.md` /
+it decides what counts as the legacy side at all), and `templates/webview-bridge.md`
 when the `webview` gate applies. (There is no `sso` gate — `templates/hana-sso.md` is a generation
 contract and the `?ts` flow is verified through the page's `e2eScenarios`, so do not look for an
 `sso` entry in `requiredGates`.)

@@ -22,6 +22,7 @@ Per-page loop (repeat per page)
   /fm-parity <page>            visual / contract / webview / telemetry   ── gate 3 (legacy equiv.)
   /fm-route <page> --flag-off  code PR (flag OFF)
   /fm-route <page> --flag-on   one-line flip PR (only if all gates pass)
+  /fm-route <page> --flag-on --confirm-live   after that PR is merged AND deployed → flipped
         any gate fails → /fm-fix <page> → re-run that gate
 
 On legacy drift

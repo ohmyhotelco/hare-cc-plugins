@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.15.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.15.1). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -118,6 +118,7 @@ After the prerequisites are met:
 # 3. flip the route (two PRs)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-off   # code PR (flag OFF)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-on    # one-line flip PR (only if all gates pass)
+/frontend-migration-plugin:fm-route hotel-booking-info --flag-on --confirm-live   # after that PR is merged AND deployed → flipped
 
 # anytime: see where every page stands
 /frontend-migration-plugin:fm-progress

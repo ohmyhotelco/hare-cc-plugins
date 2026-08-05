@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.15.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.15.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -445,6 +445,43 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   (reproduced, then fixed with an explicit null test and re-verified end to end).
 
   Origin: Codex verification audit + full-plugin sweep, 2026-08-05.
+- **Exhaustive double audit (v0.15.1).** Both auditors were given the 69-file inventory by name and
+  required to produce a per-file coverage table and a per-invariant verdict, because the previous
+  rounds' defects all came from sampling. Both read all 69 files in full. Together: 1 blocker,
+  ~12 majors, ~20 minors — **28 unique fixes**, and the two agreed independently on the great
+  majority, which is the strongest signal in the set.
+
+  Both auditors also converged, unprompted, on the same diagnosis: most blocker/major findings were
+  **a prior fix that was correct in the file it edited and never carried to the sibling the
+  plugin's own text says mirrors it.** `fm-progress` was the densest case — told to mirror both
+  `fm-route` Step 1a and the SessionStart hook, and diverging from both: it passed a `<sha>+dirty`
+  value straight to `git log` (a fatal "unknown revision" on essentially every `parity-passed` page,
+  since `+dirty` is the normal pre-code-PR state) and it lacked the third `parity-passed` sub-state,
+  so a page with an open flip PR was told to run plain `--flag-on` again.
+
+  The blocker was the same shape one stage earlier than v0.14.9's: `migration-planner` must write
+  `gateAcceptance.visual.languages`, which resolves from config `i18n.languages`, and neither
+  `fm-plan` nor the agent's input contract passed the `i18n` block. `fm-plan` Step 4.1 then rejects
+  the plan as incomplete and instructs a re-run of the planner that still cannot know the set — a
+  loop the executor can only break by inventing the scope decision the schema forbids inventing.
+
+  Also closed: `--revert` cleared `flippedAt` and `routePrepared` but not `flipPrOpenedAt`, so the
+  hook (which checks that field first) told the operator to confirm-live the flip they had just
+  rolled back — the v0.14.9 defect reproduced one field along. `fm-delta` launched
+  `style-spec-extractor` directly without the provenance params, so a drifted page's refreshed answer
+  key resolved `unresolved`. The three capture agents' receive lists still omitted those params.
+  `docs/skill-reference.md` and `gate-result-accounting.md` each still stated a superseded rule that
+  `fm-route` cites as its authority. `--confirm-live` was missing from all six overview surfaces.
+
+  Codex found four the journey audit marked clean, the sharpest being `templates/e2e-testing.md`
+  routing **SSO assertions to `fm-parity`** — the one gate that has no SSO executor and no report
+  slot, so following it drops the Hana `?ts` flow from E2E and hands it to something that cannot run
+  it. Also: the Codex design doc's output schema still lacked `error`/`skipped`/`reason`/
+  `adjudication`; CLAUDE.md's categorical "no skill writes a status over `flipped`" omitted the one
+  legal exception (`fm-route --revert`), which a maintainer enforcing it could have "fixed" away;
+  and app-scoped skills validated config-file presence but never `apps[app]` presence.
+
+  Origin: exhaustive journey + Codex audits, 2026-08-05.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
@@ -539,5 +576,5 @@ These corrected initial assumptions and are baked into the mapping catalog / ana
 ## Open follow-up
 
 Run the pipeline end-to-end on a real PC page (e.g. a Phase-1 CMS page) inside the v2 monorepo to
-validate it, then move AA-39 `Verification → Done`. Mobile WebView and Hana SSO gates are
+validate it, then move AA-39 `Verification → Done`. The Mobile WebView gate and the Hana `?ts` SSO flow (an e2e scenario, not a gate) are
 scaffolded but unvalidated.

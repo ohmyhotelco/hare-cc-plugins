@@ -52,7 +52,10 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
       generated|verified|e2e-passed|parity-passed|flipped|done|gen-failed|verify-failed|e2e-failed|parity-failed|fixing|escalated)
         echo ""
         echo "[Frontend Migration Plugin] Warning: $ARTIFACT edited for [$APP/$PAGE] (status: $STATUS)."
-        if [ "$STATUS" = "flipped" ]; then
+        if [ "$STATUS" = "gen-failed" ]; then
+          echo "  Generation never completed for this page. Run /frontend-migration-plugin:fm-gen $PAGE"
+          echo "  (fm-delta needs a completed generation to modify)."
+        elif [ "$STATUS" = "flipped" ]; then
           echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
           echo "  Run /frontend-migration-plugin:fm-route $PAGE --revert first, then fm-delta $PAGE"
         else

@@ -81,7 +81,10 @@ primary evidence `fm-fix` (e2e-fix) reads to self-correct — open it with `npx 
 - Tag each spec with the scenario name + `legacyAnchor` for traceability.
 - Stable selectors (role/label/test-id), not brittle CSS chains.
 - Preserve the legacy AuthGuard **login-modal** UX in auth scenarios (modal, not hard redirect).
-- WebView/SSO/telemetry assertions belong to `fm-parity` (AA-46), not here — this gate is
+- WebView and telemetry assertions belong to `fm-parity` (AA-46), not here. **SSO is the exception:
+  it is not a parity gate** (no verifier, no report slot) — the Hana `?ts` flow is a user flow, so it
+  belongs *here* as an `e2eScenarios` entry built to `templates/hana-sso.md`. Sending it to parity
+  would drop it from E2E and hand it to a gate that cannot run it. This gate is
   behavior/flow.
 
 ## Flakiness prevention

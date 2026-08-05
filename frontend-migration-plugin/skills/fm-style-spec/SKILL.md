@@ -67,7 +67,7 @@ side is `unresolved`, which counts as absent and fails the gate), `workingLangua
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
    (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
-   it is a reporting surface only — `fm-progress` and a human scanning the tracker read it; the
+   it is a durable record for a human scanning the tracker; no skill reads it; the
    reusability decision itself is made from `style-spec.json`'s own `legacySource.provenance`
    (`fm-parity`, `parity-verifier`), never from here.
 3. Release the lock.

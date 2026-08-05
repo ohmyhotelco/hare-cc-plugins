@@ -38,7 +38,10 @@ In `workingLanguage`, show:
   Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
   `git log --oneline <gateEvidence.{gate}.commit>..HEAD -- <path>...` and list the page with the
-  expired gate(s). See CLAUDE.md → "Gate Result Accounting". This is the early warning for a
+  stale gate(s). **Skip any gate whose commit is `<sha>+dirty` — do not pass that value to `git`**
+  (`git log 04dc1c2+dirty..HEAD` is a fatal "unknown revision", and `+dirty` is the normal state for
+  a page that has not had its code PR yet, i.e. most of this view's population). Report those as
+  `unlocatable`, the same label `fm-route` Step 1a uses. See CLAUDE.md → "Gate Result Accounting". This is the early warning for a
   `packages/shared-*` change silently outdating many queued pages at once. Pages with no
   `gateEvidence` are shown as `unverifiable`, not stale; a page with no `sourcePaths` is
   `unverifiable` on its own-source axis but still checkable on its shared-package axis — say which
@@ -48,7 +51,9 @@ In `workingLanguage`, show:
 For each in-flight page, print the exact next command, using the same mapping as the SessionStart
 hook — including its carve-outs: `gen-failed` → `fm-gen` (not `fm-fix`), `escalated` → manual
 intervention then `fm-fix`, `flipped` → no command (mark `done` by hand once the legacy page is
-deleted), and `parity-passed` → `--flag-on` when `routePrepared` is set, else `--flag-off`:
+deleted), and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on
+--confirm-live` (the flip PR is already open; re-running plain `--flag-on` would open a second one),
+else `routePrepared` set → `--flag-on`, else `--flag-off`:
 analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
 verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off`/`--flag-on`,
 `*-failed`→`fm-fix`.

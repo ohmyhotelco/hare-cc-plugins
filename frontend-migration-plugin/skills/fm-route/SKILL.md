@@ -124,7 +124,9 @@ strategy from `flipMechanism`; the gate precondition is identical for both.
 ### Step 4: Record
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
-- `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits an
+- `--flag-on` (succeeded) → tell the user to open the flip PR from the edited artifact (this skill
+  edits the in-repo file; opening the PR is the user's step, exactly as it is for the code PR on
+  `--flag-off`), then record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits an
   in-repo artifact and opens PR2 — `strangler-orchestrator` never deploys, reloads nginx, or applies a
   CloudFront distribution. Between opening PR2 and the change actually propagating there is a review,
   a merge, a deploy, and cache propagation, and through all of it the edge is still serving legacy.
@@ -134,7 +136,8 @@ Update `tracker.json` (Read-Modify-Write):
 - `--flag-on --confirm-live` (run by the operator **after** PR2 is merged and the change is deployed
   and propagated) → `apps[app].pages[page].status = "flipped"`, `flippedAt`, clear `flipPrOpenedAt`.
   This is the only transition that claims the edge is serving v2, and only a human can observe that.
-- `--revert` → set status back to `parity-passed`, **clear `flippedAt` and `routePrepared`**, and
+- `--revert` → set status back to `parity-passed`, **clear `flippedAt`, `routePrepared`, and
+  `flipPrOpenedAt`**, and
   record `revertedAt`. Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
   the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert

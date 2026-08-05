@@ -114,7 +114,11 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
    (nginx: routing block + flag entry, default OFF; cloudfront: manifest behavior `active: false`).
    The RR v7 code merges; users still get legacy.
 2. **Flag-ON PR** — `fm-route <page> --flag-on`: one-line flip, **only after `fm-verify` +
-   `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise).
+   `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise). This edits the artifact
+   and records `flipPrOpenedAt`; the page stays `parity-passed`.
+2b. **Confirm live** — `fm-route <page> --flag-on --confirm-live`, run once that PR is merged **and
+   deployed and propagated**. Only this sets `flipped`. Nothing in the plugin deploys, so only a
+   human can observe that the edge is actually serving v2.
 3. **Rollback** — `fm-route <page> --revert`: nginx flag OFF, or remove the cloudfront behavior.
    Soft rollback, target 5–10 min (CloudFront propagation is minutes-grade — still within target).
 

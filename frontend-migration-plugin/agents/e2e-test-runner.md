@@ -11,7 +11,8 @@ route flip is not allowed until it passes.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
 `e2eScenarios`), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
-(payment-gateway test endpoints), `outPath` (`e2e-report.json`), `workingLanguage`. Read
+(payment-gateway test endpoints), `outPath` (`e2e-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip state
+(each dual-run leg resolves its `provenance.side` from these), `workingLanguage`. Read
 `templates/e2e-testing.md`, plus `templates/capture-provenance.md` for the `provenance` block each
 dual-run leg records.
 
@@ -111,7 +112,8 @@ pass you did not observe (CLAUDE.md 5-step gate).
                                "newProvenance":    { "origin": "http://localhost:30220/ko/login", "side": "v2", "…": "…" } },
                   // one entry PER LANGUAGE the criteria cover — a single object cannot hold a
                   // multi-language matrix, and overwriting it would silently drop every language but the last
-                  "copyParity": [{ "language": "KO", "legacyText": "비밀번호가 일치하지 않습니다.",
+                  "copyParity": [{ "language": "KO",  // or "not-run" with a reason, when config has no i18n block
+                                   "reason": null, "legacyText": "비밀번호가 일치하지 않습니다.",
                                    "newText": "This password is wrong.", "result": "diff" }],
                   "artifacts": { "trace": "path/to/trace.zip", "video": "...", "screenshot": "..." },
                   "evidence": "...summary line..." }],

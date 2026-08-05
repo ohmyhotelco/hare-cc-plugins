@@ -61,7 +61,8 @@ summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDi
 ### Step 5: Resolve outcome
 Read `fix-report.json`:
 - `regenRequired: true` → the fixer stopped **without changing code**, so generation has not been
-  redone: keep the page at its current `*-failed` status, record `regenRequiredAt`, and tell the user
+  redone. Step 3 already wrote `fixing`, so restore the `previousStatus` it recorded there (the
+  `*-failed` state this run entered from) and record `regenRequiredAt`, and tell the user
   to re-run `/frontend-migration-plugin:fm-gen {page} --force` (a full regeneration; the resume path
   would otherwise see a complete `generation-state.json` and do nothing). Setting `generated` here
   would claim a generation that never ran and point the session hook at `fm-verify`.

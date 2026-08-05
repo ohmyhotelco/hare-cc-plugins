@@ -50,7 +50,9 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema —
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
 `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`,
 `outPath` = `docs/migration/{app}/{page}/migration-plan.json`, `targetDir`, `appDir`,
-`packagesDir`, `workingLanguage`.
+`packagesDir`, the config's `i18n` block (the planner writes `gateAcceptance.visual.languages` from
+its `languages` set and can derive it from nothing else; omitting it makes Step 4.1 reject the plan
+in a loop the planner cannot break), `workingLanguage`.
 
 ### Step 4: Record
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
