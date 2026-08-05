@@ -3,7 +3,7 @@ name: fm-progress
 description: "Use any time to see migration progress — a read-only dashboard from tracker.json: per-app/per-page status, gate state (verify/e2e/parity), shared-package extraction, and the suggested next step per in-flight page."
 argument-hint: "[--app pc|mobile|hana] [page]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Migration Progress Dashboard
@@ -32,6 +32,16 @@ In `workingLanguage`, show:
   `fm-secret-audit`.
 - **Blockers**: pages in `*-failed` / `fixing` / `escalated`, and any unextracted shared
   candidates blocking `fm-gen`.
+- **Stale evidence**: `parity-passed` (awaiting flip) pages whose gate evidence has been outdated by
+  later commits. For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`
+  Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
+  mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
+  `git log --oneline <gateEvidence.{gate}.commit>..HEAD -- <path>...` and list the page with the
+  expired gate(s). See CLAUDE.md → "Gate Result Accounting". This is the early warning for a
+  `packages/shared-*` change silently outdating many queued pages at once. Pages with no
+  `gateEvidence` are shown as `unverifiable`, not stale; a page with no `sourcePaths` is
+  `unverifiable` on its own-source axis but still checkable on its shared-package axis — say which
+  axis was checked rather than reporting a bare "fresh". Read-only — flags, never re-runs.
 
 ### Step 3: Next-step guidance
 For each in-flight page, print the exact next command (same mapping as the SessionStart hook):

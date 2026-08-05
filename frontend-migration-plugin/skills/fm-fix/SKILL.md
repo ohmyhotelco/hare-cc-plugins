@@ -52,6 +52,14 @@ Read `fix-report.json`:
   gate can be entered.
 - gate re-run still `fail` → keep `fixing`; if repeated failures, escalate (`escalated`) for
   manual intervention. A page left at `fixing` is re-entered through `fm-fix`, not through a gate.
+
+If this fix closed (or dismissed) a Codex finding recorded in `codex-audit.json`, record the
+adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"` for a fix (or
+`"rejected"` if judged not a defect), with `by: "fm-fix"`, `when` (ISO-8601), and a required `basis`
+— the commit/`file:line` that closed it, or why it is not a defect. This is what lets
+`fm-route --flag-on` (Step 1b) tell an already-fixed finding from a still-open one instead of
+re-surfacing every finding forever. See `templates/codex-audit.md`.
+
 Release the lock.
 
 ### Step 6: Report

@@ -61,7 +61,11 @@ Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
-  `formatWarnings`.
+  `formatWarnings`. Also record `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha> }` — the
+  code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see
+  CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
+  `git status --porcelain` is non-empty, record `<sha>+dirty` (the working tree differs from the SHA —
+  honest imprecision over a clean-looking lie). Keep `verifiedAt` for backward compatibility.
 - any hard tool fails (tsc / build / vitest / eslint), or the spec is **absent while `i18n` is
   configured** → `verify-failed`, with the failing summary. A Prettier advisory alone never sets
   `verify-failed`.

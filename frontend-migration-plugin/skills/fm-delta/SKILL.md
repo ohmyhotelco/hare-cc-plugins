@@ -72,7 +72,9 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
 - Patch `migration-plan.json`/`analysis.json` with the new baseline (the `styleSurface` is already
   current from Step 4); archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
-  the gates), record `deltaAppliedAt`.
+  the gates), record `deltaAppliedAt`, refresh `sourcePaths` for any file the delta created or
+  removed, and **clear `gateEvidence`** — the page's code changed, so every prior gate PASS now
+  rests on superseded code and must not read as fresh (CLAUDE.md → "Gate Result Accounting").
 - Release the lock.
 
 ### Step 6: Report (incremental path)

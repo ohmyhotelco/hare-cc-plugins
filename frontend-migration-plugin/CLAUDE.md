@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.14.3)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.14.4)** — all `fm-*` skills, agents, and templates are
 > implemented (JIRA epic **AA-39**, tasks AA-40–AA-51, plus the post-build Codex audit layer
 > (AA-53), Playwright E2E harness hardening (AA-61), the per-app route-flip mechanism
 > (`nginx` | `cloudfront`, v0.7.0), the simplicity/over-engineering quality dimension +
@@ -95,7 +95,20 @@ orchestration and tracking**.
 > computable and a malformed timestamp is immediately stale, not a permanent deadlock; (C) an optional
 > per-gate `gateAcceptance.{gate}.budgetSeconds` records `not-run` on overrun rather than failing or
 > hard-killing. The gate-set derivation and the "always visual + contract" wording are deliberately
-> left alone (design in `docs/design/gate-cost-and-preconditions.md`).
+> left alone (design in `docs/design/gate-cost-and-preconditions.md`)), and **gate result accounting**
+> (v0.14.3) — the same missing-decision-field pattern as the v0.14.1 lock, in two more places: a gate
+> holds a judgement rule but the artifact has no field to record the *basis*, so the rule falls to
+> ad-hoc fields invented per session (measured on my-coupon: 48 Codex findings, 14 `high`, 2
+> adjudicated; four ad-hoc fields, 0 defined in the plugin). Three doc-only fixes: (D) each Codex
+> finding gains an optional `adjudication` (`open`/`closed`/`rejected`, absent = `open`, written by
+> `fm-fix`/human not the discovering audit) so `fm-route`'s "unresolved high-severity" is countable
+> instead of re-surfacing every finding forever; (E) `fm-verify`/`fm-e2e`/`fm-parity` record
+> `gateEvidence.{gate}` with an ISO-8601 `at` + a `commit` (`<sha>+dirty` on a dirty tree), and
+> `fm-route --flag-on` expires a gate whose commit is behind `HEAD` on the page's watch paths — a PASS
+> proves nothing about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits
+> stale); (F) the watch paths include the plan's shared-package deps and `fm-progress` surfaces
+> `parity-passed` pages whose evidence a `packages/shared-*` change has outdated — Codex stays advisory
+> and no existing artifact is retro-filled (design in `docs/design/gate-result-accounting.md`).
 > Runtime
 > execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds,
 > and the PC end-to-end validation is the open follow-up. For the full build map, decisions, and
@@ -687,6 +700,57 @@ section went from its heading straight into the diff. Three doc-only fixes — d
 Deliberately untouched: the gate-set derivation and the "always visual + contract" wording — changing
 them would drop contract on the 10-of-12 monorepo plans that omit it from `requiredGates` yet must
 freeze a contract. That is a separate plan-quality axis.
+
+## Gate Result Accounting
+
+The **accounting** axis (v0.14.3) — the same missing-decision-field pattern as the v0.14.1 lock, in
+two more places. A gate holds a judgement rule (`unresolved` findings, gate freshness), but the
+artifact has no field to record the *basis*, so the rule falls to the executing session's improvisation
+(measured on my-coupon: 48 Codex findings, 14 `high`, only 2 adjudicated; four resolution fields used
+in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
+`docs/design/gate-result-accounting.md`:
+
+- **D (finding adjudication).** Each Codex finding gains an optional `adjudication`
+  (`state: open|closed|rejected`, `when`, `by`, `basis`) in `templates/codex-audit.md`. It is **never
+  written by the discovering audit** — Codex reports; resolution is a downstream fact written by
+  `fm-fix` (Step 5, when a repair closes a finding) or a human. Absent `adjudication` reads as **`open`**
+  (the safe default), and `fm-route --flag-on` Step 1b defines `unresolved` = absent or `state: open`.
+  `closed` (fixed) is kept apart from `rejected` (not a defect) so the next audit round does not re-raise
+  a dismissed one; `basis` is required for both. Existing `codex-audit.json` are not retro-filled (all
+  read `open` — the honest state), the same no-retro decision `capture-provenance.md` made.
+  **A re-audit carries adjudications across**, or the field would be wiped the next time a stage is
+  re-run and every closed finding would reopen — the exact failure it exists to prevent. Re-running a
+  stage rewrites its `findings[]`, so `codex-auditor` reads the prior array first: an `adjudication`
+  moves onto a new finding matching on `area` + `evidence`, and any prior adjudicated finding that
+  matches nothing is preserved verbatim under `stages.{stage}.priorAdjudicated[]`. Matching is
+  deliberately conservative — Codex is an LLM, its `detail` prose will not reproduce word for word —
+  so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
+  entries next to the current findings and lets the human judge, which is where that judgement
+  belongs: the gate is already a human acknowledgement.
+- **E (gate-pass commit).** `fm-verify`/`fm-e2e`/`fm-parity` record `gateEvidence.{gate} = { at:
+  <ISO-8601>, commit: <sha> }` in `tracker.json` (`commit` = `git rev-parse --short HEAD`; a dirty tree
+  → `<sha>+dirty`, honest imprecision over a clean-looking lie). Legacy `verifiedAt`/`e2ePassedAt`/
+  `parityPassedAt` stay for compatibility; `gateEvidence` wins when present. `fm-route --flag-on`
+  Step 1a expires any gate with an intervening commit on the page's watch paths — a PASS proves nothing
+  about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits stale). `at` is
+  ISO-8601 with time, the same regulation as the lock schema; a date-only value is a rule violation.
+- **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files
+  belong to the page, and nothing recorded that: `componentTree` carries component *names*, not
+  paths. So `fm-gen` Step 5 (and `fm-delta` Step 5) now record `sourcePaths[]` — the files the
+  generation phases wrote under `appDir` — and both regenerating skills **clear `gateEvidence`**,
+  since a rewritten page's prior PASSes rest on code that no longer exists. The second axis is the
+  shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
+  every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
+  already records them as `@omh/<package>:<symbol>`, so each maps to the directory
+  `{packagesDir}/<package>` — the symbol is not a path. Watch paths are the union; `fm-route`
+  Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
+  `unverifiable` on axis 1 and still checkable on axis 2, and must report which axis it checked —
+  a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
+  claim (see Design Principles). The goal is visibility before flip, not forced re-verification.
+
+Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
+veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no
+retro-adjudication.
 
 ## Skills
 
