@@ -78,10 +78,12 @@ Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
 `regenRequired` and which is the audit trail for a page that ends up `escalated`.
 
-**Write `previousStatus` only when the current status is not already `fixing`.** A re-entry is
-explicitly supported (Step 1 uses report mtime to pick the mode "when the status is `fixing`"), and
-on that path the current status *is* `fixing`, so writing it unconditionally would overwrite the
-original `*-failed` value with `"fixing"`. Step 5 would then restore `fixing`, leaving the tracker
+**Write `previousStatus` only when the current status is neither `fixing` nor `escalated`.** Both
+are re-entry states that do not name a gate: Step 1 derives the mode from `previousStatus` on both
+paths, and Step 5 restores it on `regenRequired`. Writing it unconditionally would overwrite the
+original `*-failed` value with `"fixing"` or `"escalated"` — and `"escalated"` is worse than useless,
+because it *is* "recorded", so the `else report mtime` fallback never fires and the mode selector is
+left with a value naming no gate. Step 5 would then restore `fixing`, leaving the tracker
 saying "fix in progress" while this skill's own report tells the user to run `fm-gen --force` — two
 different next steps for one page. Preserve the existing value instead.
 
@@ -115,6 +117,13 @@ adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"
 — the commit/`file:line` that closed it, or why it is not a defect. This is what lets
 `fm-route --flag-on` (Step 1b) tell an already-fixed finding from a still-open one instead of
 re-surfacing every finding forever. See `templates/codex-audit.md`.
+
+**Refresh `sourcePaths` from `fix-report.json.filesChanged`** (Read-Modify-Write: add files the
+fixer created, drop ones it removed). `sourcePaths[]` is axis 1 of the page's watch paths, and
+only `fm-gen`/`fm-delta` used to maintain it — so a fixer refactor that renamed files left the
+gate watching paths that no longer exist and *not* watching the replacements. When every
+recorded path disappears that way, `fm-route` Step 1a blocks (correctly, but on a page nobody
+changed maliciously); keeping the list current is what stops that.
 
 Release the lock.
 

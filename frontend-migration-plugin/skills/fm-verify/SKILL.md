@@ -82,10 +82,12 @@ Update `tracker.json` (Read-Modify-Write):
   inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
 
   ```sh
-  mkdir -p {monorepoRoot}/docs/migration/{app}/{page}/gate-tree
-  {pluginRoot}/scripts/gate-tree-hash.sh <watch path>...
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest <watch path>... \
-      > {monorepoRoot}/docs/migration/{app}/{page}/gate-tree/verify.tsv
+  REPO=$(git rev-parse --show-toplevel)
+  MAN="$REPO/docs/migration/{app}/{page}/gate-tree/verify.tsv"
+  mkdir -p "$(dirname "$MAN")"
+  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv <watch path>...
+  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+      --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv <watch path>... > "$MAN"
   ```
 
   **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
@@ -93,8 +95,11 @@ Update `tracker.json` (Read-Modify-Write):
   `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
   hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
-  The script is cwd-independent — but **the redirect target is not**, so write it through
-  `{monorepoRoot}` and create the directory first. This skill runs from `{appDir}`, and a
+  The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
+  make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
+  directory this skill is standing in. Derive the destination from
+  `git rev-parse --show-toplevel`, the same anchor the script itself uses, and create the
+  directory first. This skill runs from `{appDir}`, and a
   repo-relative redirect would land the manifest at `{appDir}/docs/migration/…` where
   `fm-route` does not look. That is the same cwd assumption that made the v0.15.2 hash a
   constant, one line further down.

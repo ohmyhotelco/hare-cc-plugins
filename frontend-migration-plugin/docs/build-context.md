@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.15.4.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.15.5.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -605,6 +605,48 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   first.
 
   Origin: audit of the v0.15.3 round, 2026-08-06.
+- **Fifth audit round (v0.15.5).** Both auditors read all 70 files (10,224 lines) and between them
+  reported 11 blockers. The two that both found independently were **the two consecutive `elif`
+  branches v0.15.4 added to the hash script**, and they failed the same way: each predicate also
+  matched a neighbouring case it was never meant to own.
+
+  - The **sparse-checkout** branch keyed on "the index can resolve `:$f`" — which is true of *every*
+    cached path — so an ordinary working-tree **deletion** fell into it and was reported with its
+    stale index blob. The file looked present, the aggregate did not move, and the hard gate saw a
+    fresh page: a **false pass at the irreversible step**, and the `DELETED` branch that worked in
+    v0.15.3 became dead code. Now keyed on the actual `skip-worktree` flag.
+  - The **gitlink** branch ran `git -C "$f" rev-parse HEAD`. On an *uninitialized* submodule — the
+    default after a plain `git clone` — that directory is empty and `git -C` walks **up**, returning
+    the **parent repository's** HEAD. Every unrelated parent commit then moved the gate hash:
+    permanent deadlock, on a gate with no acknowledgement path. Now the parent's index gitlink is
+    recorded, which is identical whether or not the submodule is checked out.
+
+  **And the manifest redirect was still not absolute.** v0.15.4 "fixed" it by prefixing
+  `{monorepoRoot}` — whose default is `"."`. Three rounds running, the same cwd assumption survived
+  in the line beside the thing it had already broken. The destination is now derived from
+  `git rev-parse --show-toplevel`, the same anchor the script uses.
+
+  Also closed: the `**/gate-tree/*.tsv` glob exclusion could hide legitimate source files (git
+  exclusions override explicit includes) — replaced by a caller-supplied literal `--exclude`; a
+  `git ls-files` failure was indistinguishable from "zero entries", i.e. from `unverifiable`; a
+  leading-dash symlink target failed into an empty record; a watch path literally named `--manifest`
+  was consumed as the flag (now `--` terminates options); `fm-route` acknowledged-and-proceeded when
+  a page **with** a recorded `tree` recomputed to `unverifiable`, which is the one case where the
+  evidence is provably stale (every `sourcePaths[]` entry renamed) — so `fm-fix` now refreshes
+  `sourcePaths` from `filesChanged`, and route blocks; entering `fm-fix` from `escalated` overwrote
+  `previousStatus` with `"escalated"`, a value naming no gate that also defeated the mtime fallback.
+
+  **`pluginRoot` was moved from impossible to under-specified, and is now derived.** v0.15.4 asked
+  `fm-init` to "locate this skill's own plugin directory" with no command — improvisation, in a
+  plugin whose adjacent rule forbids it — and the cache path is version-pinned, so a value written
+  once dead-ends at the next release. `scripts/session-init.sh` is *inside* the install, so it now
+  derives the path from its own location and refreshes it every session.
+
+  The meta-lesson this round: v0.15.4's verification list was entirely true and entirely one-sided —
+  "sparse == full", "moved by a submodule advance" — each claim tested the half of the space that
+  passes. A predicate is not verified until the neighbouring case it also matches has been run.
+
+  Origin: audit of the v0.15.4 round, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

@@ -1,73 +1,81 @@
 #!/usr/bin/env bash
 # Gate-evidence content hash over a page's watch paths.
 #
-# WHY THIS IS A SCRIPT AND NOT A RECIPE IN A DOCUMENT
-# ---------------------------------------------------
+# WHY THIS IS A SCRIPT
+# --------------------
 # `gateEvidence.{gate}.tree` is only meaningful if the producer (fm-verify / fm-e2e /
 # fm-parity) and the consumer (fm-route Step 1a, fm-progress) compute it the SAME way.
-# v0.15.2 shipped this as a shell pipeline printed in CLAUDE.md for five call sites to
-# reproduce. It hashed the empty set from `appDir` (a constant a hard gate reads as a
-# pass on any code). v0.15.3 made it an executable — and left four more environment
-# inputs in it, each of which makes two honest runs disagree:
+# It began as a shell pipeline printed in CLAUDE.md for five call sites to reproduce and
+# has since been corrected once per round. Every defect had the same shape: a predicate
+# that also matched a neighbouring case it was never meant to own.
 #
-#   locale      `sort` collates by LC_COLLATE, so a ko_KR laptop and a C-locale CI
-#               container ordered identically-named files differently -> different
-#               hashes -> an unclearable hard block. Pinned below.
-#   symlinks    `git hash-object` follows them, so a link out of the repo made the
-#               hash depend on content the repo does not contain.
-#   sparse      a file in the index but not on disk was recorded DELETED, so a sparse
-#               checkout disagreed with a full one at the same commit.
-#   gitlinks    `git hash-object` cannot hash a directory: submodules emitted a bare
-#               `fatal:` under exit 0 and a CONSTANT record, so advancing a submodule
-#               was invisible to the gate. That is the false pass this file exists to stop.
+#   v0.15.2  cwd-relative     -> hashed the empty set from appDir: a CONSTANT a hard gate
+#                               reads as a pass on any code.
+#   v0.15.3  locale, symlinks, sparse, gitlinks, partial-failure stdout, newline paths,
+#            glob pathspecs, manifest self-reference.
+#   v0.15.4  the sparse branch swallowed ordinary DELETION (stale index blob reported as
+#            present = false pass); the gitlink branch ran `git -C` on an *empty*
+#            uninitialized submodule, which walks UP and returns the PARENT's HEAD, so
+#            every unrelated parent commit moved the hash = permanent deadlock.
 #
-# The rule now: every record is derived from git's own object model, never from
-# following the filesystem, and anything that cannot be resolved is a loud failure
-# rather than an empty field.
+# The rules that follow from that history:
+#   1. Resolve from git's own object model, never by following the filesystem.
+#   2. Decide each case on an explicit discriminator, never on "whatever else matches".
+#   3. Anything unresolved is a loud failure or an explicit marker — never an empty field,
+#      never a silently reduced file set, never a constant.
 #
 # USAGE
-#   gate-tree-hash.sh [--manifest] <watch-path>...
+#   gate-tree-hash.sh [--manifest] [--exclude <repo-relative-path>]... [--] <watch-path>...
 #
 #   <watch-path>  repo-relative paths (the page's tracker `sourcePaths[]` plus each
 #                 migration-plan `sharedDeps[]` entry mapped @omh/<pkg>:<sym> ->
-#                 {packagesDir}/<pkg>). Interpreted from the repo root regardless of
-#                 the caller's working directory, and matched LITERALLY — a `*` or `?`
-#                 in a recorded filename watches that file, not a glob of its siblings.
-#   --manifest    print the per-file records instead of the aggregate hash. Accepted in
-#                 any argument position. Gate skills save this beside the report so
-#                 fm-route can answer "which files differ" with a real diff.
+#                 {packagesDir}/<pkg>). Resolved from the repo root regardless of the
+#                 caller's working directory, and matched LITERALLY.
+#   --manifest    print the per-file records instead of the aggregate hash.
+#   --exclude P   drop path P from the set. Callers pass the manifest file they are about
+#                 to write, so the evidence never describes itself. Literal, repeatable.
+#   --            end of options; every later argument is a watch path, even `--manifest`.
 #
 # OUTPUT / EXIT
 #   0  the aggregate hash (or, with --manifest, the records) on stdout
-#   2  the single token `unverifiable` on stdout — no watch paths given, or none of
-#      them resolved. NEVER a hash: the empty set hashes to a constant, and a constant
-#      presented as evidence is a false pass.
-#   1  a real error — not a git repo, or a path that could not be resolved at all.
-#      Never a partial hash: a hash that silently omits a file is worse than no hash.
+#   2  the single token `unverifiable` on stdout — no watch paths, or none resolved.
+#      NEVER a hash: the empty set hashes to a constant, and a constant presented as
+#      evidence is a false pass. NOTE for consumers: `unverifiable` from a page that HAS
+#      a recorded `tree` is a change, not an absence — see fm-route Step 1a.
+#   1  a real error. Nothing is written to stdout: a caller doing TREE=$(...) must never
+#      capture a partial value.
 
 set -euo pipefail
 
-# Collation must not depend on the caller's environment. `sort` is the only
+# Collation must not depend on the caller's environment; `sort` is the only
 # locale-sensitive step, and producer and consumer routinely run in different locales.
 export LC_ALL=C
 
 MANIFEST=0
 PATHS=()
-for arg in "$@"; do
-  if [ "$arg" = "--manifest" ]; then
-    MANIFEST=1
-  else
-    PATHS+=("$arg")
+EXCLUDES=()
+END_OPTS=0
+while [ "$#" -gt 0 ]; do
+  if [ "$END_OPTS" -eq 0 ]; then
+    case $1 in
+      --manifest) MANIFEST=1; shift; continue ;;
+      --exclude)  [ "$#" -ge 2 ] || { echo "gate-tree-hash: --exclude needs a path" >&2; exit 1; }
+                  EXCLUDES+=("$2"); shift 2; continue ;;
+      --)         END_OPTS=1; shift; continue ;;
+    esac
   fi
+  PATHS+=("$1"); shift
 done
 
 command -v git >/dev/null 2>&1 || { echo "gate-tree-hash: git not found" >&2; exit 1; }
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || true)
 [ -n "$ROOT" ] || { echo "gate-tree-hash: not inside a git repository" >&2; exit 1; }
 
-# No watch paths at all -> unverifiable. Without this guard `git ls-files` with an empty
-# pathspec lists the ENTIRE repository, so a page with no recorded sourcePaths and no
-# sharedDeps would hash the whole monorepo and be outdated by every unrelated commit.
+# No watch paths -> unverifiable. Without this, `git ls-files` with an empty pathspec
+# lists the ENTIRE repository, so a page with no sourcePaths and no sharedDeps would hash
+# the whole monorepo and be outdated by every unrelated commit.
+# (`${#PATHS[@]}` is safe on an empty array under `set -u`; `"${PATHS[@]}"` is NOT on
+# bash 3.2, which macOS ships — this guard has to come first.)
 if [ "${#PATHS[@]}" -eq 0 ]; then
   echo "unverifiable"
   exit 2
@@ -75,70 +83,87 @@ fi
 
 cd "$ROOT"
 
-# `:(literal)` — a recorded source path is a filename, not a pattern. Shell quoting
-# stops the SHELL globbing; git would still expand `*` itself.
-# `:(exclude)` — the manifests this script's own callers write live under the page's
-# docs directory. If a watch path ever covers it, writing the manifest would change the
-# next hash: the evidence would describe itself. Excluded unconditionally.
-SPECS=(":(exclude,glob)**/gate-tree/*.tsv")
+# `:(literal)` — a recorded source path is a filename, not a pattern; shell quoting stops
+# the SHELL globbing but git would still expand `*` itself.
+# Exclusions are literal and caller-supplied. An earlier revision excluded the glob
+# `**/gate-tree/*.tsv` to stop the manifest describing itself; git exclusions override
+# explicit includes, so that also silently hid any real source file matching the pattern.
+SPECS=()
+for e in ${EXCLUDES[@]+"${EXCLUDES[@]}"}; do SPECS+=(":(exclude,literal)$e"); done
 for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 
-list_files() {
-  git ls-files --cached --others --exclude-standard --full-name -z -- "${SPECS[@]}"
-}
+TMPDIR_BASE=${TMPDIR:-/tmp}
+LIST=$(mktemp "$TMPDIR_BASE/gate-tree-list.XXXXXX")
+RECS=$(mktemp "$TMPDIR_BASE/gate-tree-recs.XXXXXX")
+trap 'rm -f "$LIST" "$RECS"' EXIT
 
-# Entry count without decoding paths (filenames may contain newlines).
-if [ "$(list_files | tr -dc '\0' | wc -c | tr -d '[:space:]')" -eq 0 ]; then
+# Enumerate once, into a file, with the exit status checked. Piping this into a counter
+# would hide a git failure as "zero entries", i.e. as `unverifiable`.
+if ! git ls-files --cached --others --exclude-standard --full-name -z -- "${SPECS[@]}" > "$LIST"; then
+  echo "gate-tree-hash: git ls-files failed" >&2
+  exit 1
+fi
+
+if [ "$(tr -dc '\0' < "$LIST" | wc -c | tr -d '[:space:]')" -eq 0 ]; then
   echo "unverifiable"
   exit 2
 fi
 
-# Records are newline-terminated so the manifest stays diffable. A path containing a
-# newline would make the format ambiguous, so it is refused rather than silently
-# producing a record set nobody can compare.
-records() {
-  while IFS= read -r -d '' f; do
-    case $f in
-      *"
+# Records are newline-terminated so the manifest stays diffable; a path containing a
+# newline would make the format ambiguous and is refused rather than silently split.
+while IFS= read -r -d '' f; do
+  case $f in
+    *"
 "*) echo "gate-tree-hash: path contains a newline, cannot record: $f" >&2; exit 1 ;;
-    esac
-    if [ -L "$f" ]; then
-      # git stores the link TARGET, not the pointed-to bytes. Following it would make
-      # the hash depend on files outside the repo (or fail on a dangling link).
-      printf 'SYMLINK %s -> %s\n' "$f" "$(readlink "$f")"
-    elif [ -f "$f" ]; then
-      if ! h=$(git hash-object -- "$f" 2>/dev/null); then
-        echo "gate-tree-hash: cannot hash working-tree file: $f" >&2
-        exit 1
-      fi
-      printf '%s %s\n' "$h" "$f"
-    elif [ -d "$f" ] && s=$(git -C "$f" rev-parse HEAD 2>/dev/null) && [ -n "$s" ]; then
-      # A submodule gitlink. Record the submodule's CURRENT HEAD, not the parent's index
-      # entry: the gate ran against whatever was checked out there, and the parent's
-      # pointer lags until someone stages it. Reading the index would let a moved
-      # submodule pass as unchanged.
-      printf 'GITLINK %s %s\n' "$s" "$f"
-    elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
-      # In the index but not on disk: a sparse checkout. Use the index blob so a sparse
-      # working tree and a full one agree at the same commit.
-      printf '%s %s\n' "$o" "$f"
-    else
-      printf 'DELETED %s\n' "$f"
-    fi
-  done < <(list_files | sort -z)
-}
+  esac
 
-# Materialize the records before emitting anything. Piping `records` straight into
-# `git hash-object` would print a hash over the PARTIAL stream even when a record failed
-# — pipefail sets the exit status, but a caller writing `TREE=$(...)` without checking it
-# would store that partial value as evidence. Nothing reaches stdout unless every record
-# resolved.
-TMP=$(mktemp "${TMPDIR:-/tmp}/gate-tree-hash.XXXXXX")
-trap 'rm -f "$TMP"' EXIT
-records > "$TMP"
+  # Decide on an explicit discriminator, in this order. `mode` comes from the index, so a
+  # submodule is identified as one whether or not it happens to be checked out.
+  mode=$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}')
+  flag=$(git ls-files -v -- ":(literal)$f" 2>/dev/null | cut -c1 | head -n1)
+
+  if [ "$mode" = "160000" ]; then
+    # Submodule. Record the PARENT's index gitlink — the pointer this repository actually
+    # stores. Reading the submodule's own HEAD instead would make the value depend on
+    # local checkout state (and, on an uninitialized submodule, `git -C` walks up and
+    # returns the parent's HEAD, so unrelated parent commits moved the hash).
+    if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
+      echo "gate-tree-hash: cannot resolve gitlink: $f" >&2; exit 1
+    fi
+    printf 'GITLINK %s %s\n' "$o" "$f"
+  elif [ -L "$f" ]; then
+    # git stores the link TARGET, not the pointed-to bytes. Following it would make the
+    # hash depend on files outside the repo, or fail on a dangling link.
+    if ! t=$(readlink -- "$f" 2>/dev/null) || [ -z "$t" ]; then
+      echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1
+    fi
+    printf 'SYMLINK %s -> %s\n' "$f" "$t"
+  elif [ -f "$f" ]; then
+    if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
+      echo "gate-tree-hash: cannot hash working-tree file: $f" >&2; exit 1
+    fi
+    printf '%s %s\n' "$h" "$f"
+  elif [ "$flag" = "S" ]; then
+    # skip-worktree: a sparse checkout deliberately omits it. Use the index blob so a
+    # sparse tree and a full tree agree at the same commit. This branch is keyed on the
+    # skip-worktree flag, NOT on "the index can resolve it" — every cached path can, so
+    # the looser test swallowed ordinary deletion and reported a deleted file as present.
+    if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
+      echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
+    fi
+    printf '%s %s\n' "$o" "$f"
+  elif [ -d "$f" ]; then
+    # A nested git repository that this repo does not track as a submodule: git lists it
+    # as one untracked entry and knows nothing about its contents. Recording its HEAD
+    # would import another repo's local state, so mark it and hash nothing.
+    printf 'NESTED-REPO %s\n' "$f"
+  else
+    printf 'DELETED %s\n' "$f"
+  fi
+done < <(sort -z < "$LIST") > "$RECS"
 
 if [ "$MANIFEST" -eq 1 ]; then
-  cat "$TMP"
+  cat "$RECS"
 else
-  git hash-object --stdin < "$TMP"
+  git hash-object --stdin < "$RECS"
 fi

@@ -25,6 +25,29 @@ if [ ! -f "$CONFIG_FILE" ]; then
   exit 0
 fi
 
+# Refresh `pluginRoot` — the absolute path the fm-verify / fm-e2e / fm-parity / fm-route /
+# fm-progress skills use to locate scripts/gate-tree-hash.sh.
+#
+# This hook is the only place in the plugin that can know it. A skill's Bash shell does not
+# get ${CLAUDE_PLUGIN_ROOT} (Claude Code expands that for hooks/hooks.json only), and no path
+# built from `monorepoRoot` reaches the marketplace cache the plugin is installed in. This
+# script, however, IS in that install — so its own location is the answer, with no env var
+# and no filesystem search. Writing it every session also survives a plugin upgrade: the
+# cache path is version-pinned, so a value recorded once at fm-init dead-ends on the next
+# release and silently degrades every freshness check to `unverifiable`.
+PLUGIN_ROOT=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)
+if [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/scripts/gate-tree-hash.sh" ]; then
+  RECORDED=$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
+  if [ "$RECORDED" != "$PLUGIN_ROOT" ]; then
+    TMP_CFG=$(mktemp "${TMPDIR:-/tmp}/fm-config.XXXXXX")
+    if jq --arg p "$PLUGIN_ROOT" '.pluginRoot = $p' "$CONFIG_FILE" > "$TMP_CFG" 2>/dev/null; then
+      mv "$TMP_CFG" "$CONFIG_FILE"
+    else
+      rm -f "$TMP_CFG"
+    fi
+  fi
+fi
+
 CURRENT_APP=$(jq -r '.currentApp // "pc"' "$CONFIG_FILE" 2>/dev/null || echo "pc")
 WORKING_LANG=$(jq -r '.workingLanguage // "ko"' "$CONFIG_FILE" 2>/dev/null || echo "ko")
 

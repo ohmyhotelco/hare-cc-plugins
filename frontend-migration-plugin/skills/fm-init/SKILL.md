@@ -24,15 +24,15 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
 ### Step 2: Detect the Monorepo Layout
 
 1. Determine `monorepoRoot` (default: current directory `.`).
-1a. **Record `pluginRoot`** — the absolute path this plugin is installed at, so the skills that
-   shell out to `scripts/gate-tree-hash.sh` can find it. A Claude Code plugin lives in the
-   marketplace cache, **not** in the user's monorepo, so no path built from `monorepoRoot` can
-   reach it. `hooks/hooks.json` gets `${CLAUDE_PLUGIN_ROOT}` expanded by Claude Code; a skill's
-   Bash shell does **not**, so the value has to be captured once and stored. Resolve it by locating
-   this skill's own plugin directory (the one containing `scripts/gate-tree-hash.sh`) and write the
-   absolute path to config. Verify the script exists and is executable; if it does not, say so —
-   `fm-verify`/`fm-e2e`/`fm-parity` will then record no `tree` and the freshness gate degrades to
-   `unverifiable` rather than failing obscurely.
+1a. **`pluginRoot` is written by the SessionStart hook, not here.** The five skills that shell
+   out to `scripts/gate-tree-hash.sh` read it from config, but this skill cannot compute it: a
+   Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
+   reaches it, and `${CLAUDE_PLUGIN_ROOT}` is expanded only for `hooks/hooks.json`, never in a
+   skill's shell. `scripts/session-init.sh` *is* inside the install, so it derives the value
+   from its own location and refreshes it on every session — which also survives the plugin
+   upgrades that would otherwise dead-end a once-written, version-pinned path. Do **not**
+   improvise a filesystem search here. If the key is still missing after the next session
+   start, report that the freshness gate will run as `unverifiable` and why.
 2. Glob for candidate app directories and shared packages:
    - Legacy Angular: directories containing `angular.json` or `src/app/` with Angular
      modules (e.g. `apps/legacy-pc`, `apps/legacy-mobile`).

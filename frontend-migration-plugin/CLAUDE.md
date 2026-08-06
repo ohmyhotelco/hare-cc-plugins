@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.15.4)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.15.5)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -112,12 +112,15 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   minimum `appDir`; plus `targetDir`/`legacyDir`/ports for the stage it runs). Config-file presence
   is not app presence: a `--app hana` on a config scaffolded for `pc` only would otherwise fail deep
   inside an agent with an unresolved path rather than at Step 0 with a clear message.
-- `pluginRoot` — the **absolute** path this plugin is installed at, recorded by `fm-init`. It is
+- `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
+  SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
   how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
   `scripts/gate-tree-hash.sh`. A plugin lives in the marketplace cache, **not** in the user's
   monorepo, so no path built from `monorepoRoot` reaches it; and `${CLAUDE_PLUGIN_ROOT}`, which
   Claude Code expands in `hooks/hooks.json`, is **not** exported into a skill's Bash shell. The
-  value therefore has to be captured once at init and read from config afterwards. Absent →
+  hook derives it from its own location and rewrites it every session — refreshing rather than
+  capturing once, because the cache path is version-pinned and a value written at `fm-init`
+  would dead-end at the next plugin release. Absent →
   those skills record no `tree` and report the freshness axis as `unverifiable`; they must not
   improvise an inline hash pipeline, which is the failure this script exists to prevent.
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
@@ -775,15 +778,28 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   every working directory.
 
   It exits **2** printing the single token `unverifiable` when no watch paths are given or none
-  resolve to a file — never a hash, because the empty set hashes to a constant and a constant
-  presented as evidence is exactly the false pass this machinery exists to stop. Untracked
-  (non-ignored) files are included on purpose: at gate time the generated page is usually not yet
-  committed. A file in the index but missing from the working tree is recorded `DELETED <path>`,
-  so a deletion moves the aggregate instead of emitting a bare `fatal:` under a zero exit.
+  resolve — never a hash, because the empty set hashes to a constant and a constant presented as
+  evidence is exactly the false pass this machinery exists to stop. Note that `unverifiable` on a
+  page that **has** a recorded `tree` is a *change*, not an absence: `fm-route` Step 1a blocks on it
+  and only grandfathers the never-recorded case. On any real error the script exits **1** and writes
+  **nothing** to stdout, so a caller doing `TREE=$(…)` can never capture a partial value.
 
-  Gate skills also save the `--manifest` output to
-  `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`, which is what lets `fm-route` name **which
-  files** differ instead of only reporting that the aggregate moved.
+  Per-entry records come from git's object model, each on an explicit discriminator: a working-tree
+  file by content; a symlink by its target string (following it would import bytes the repo does not
+  contain); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
+  uninitialized submodule `git -C` walks up and returns the *parent's* HEAD); a `skip-worktree` entry
+  by its index blob, so a sparse checkout and a full one agree; a missing entry as `DELETED <path>`.
+  That last one is keyed on the skip-worktree flag rather than "the index can resolve it", because
+  every cached path can — the looser test reported deleted files as present. Untracked (non-ignored)
+  files are included on purpose: at gate time the generated page is usually not yet committed.
+
+  Gate skills also save the `--manifest` output, which is what lets `fm-route` name **which files**
+  differ instead of only reporting that the aggregate moved. Write it to
+  `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv`, creating the
+  directory first, and pass that repo-relative path back as `--exclude` so the evidence never
+  describes itself. **The redirect target is not cwd-independent even though the script's output is**,
+  and `{monorepoRoot}` does not fix it — its default is `"."`. Gate skills run from `{appDir}`, so
+  anything short of the real repo root lands the manifest where `fm-route` does not look.
 
   **Why content and not commits.** An earlier revision compared `gateEvidence.{gate}.commit`
   against `HEAD` with `git log -- <watch paths>`, and had to be a soft gate because it fired on every

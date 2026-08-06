@@ -122,12 +122,18 @@ because there is nothing to compare against:
   still hash axis 2, which needs only the plan. Report which axis was covered rather than a bare
   "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
-- A recompute that prints **`unverifiable`** (exit 2 — no watch path resolved now, e.g. every
-  `sourcePaths[]` entry was renamed by a refactor `fm-fix` does not re-record) is **not** a
-  mismatch. There is nothing to compare, so it is `unverifiable` on the same acknowledge-and-proceed
-  terms as an absent `tree`. Never compare the literal token against the stored hash and read the
-  inequality as "stale": that would hard-block, with no acknowledgement path, on a page whose
-  evidence was never contradicted.
+- A recompute that prints **`unverifiable`** (exit 2) is not a *mismatch*, but what it means depends
+  on whether there was evidence to begin with:
+  - **No `tree` recorded** → `unverifiable`, acknowledge and proceed. Nothing was ever claimed.
+  - **A `tree` IS recorded and the recompute now resolves nothing** → **block**. The gate hashed a
+    non-empty file set; that set has since vanished from the working tree and the index, which is a
+    change to the watched surface, not an absence of evidence. The usual cause is a refactor that
+    renamed every `sourcePaths[]` entry — and since the replacements are not in `sourcePaths[]`,
+    they are not watched at all. Send the user to re-run the gates (which re-records `sourcePaths`
+    via `fm-gen`/`fm-delta`). Treating this as acknowledge-and-proceed would wave through the one
+    case where the evidence is provably stale.
+  Never compare the literal token against the stored hash and read the inequality as "stale" — the
+  distinction above is the judgement, not string inequality.
 - Likewise a recompute that **fails** (exit 1 — an unhashable or unreadable watch-path file) is not
   a mismatch and not a pass: report the script's message and stop. A gate cannot be judged on
   evidence that could not be computed.

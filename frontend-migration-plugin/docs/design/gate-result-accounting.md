@@ -94,7 +94,9 @@ from): the rule lives in the instructions, the basis is missing from the output.
   and passes cleanly, while a page whose code or shared package actually changed does not. That
   makes `fm-route --flag-on` Step 1a a **hard** gate again: a `tree` mismatch blocks. Naming *which*
   files moved needs more than the aggregate, so each gate also saves the script's `--manifest` output
-  to `docs/migration/{app}/{page}/gate-tree/{gate}.tsv` and Step 1a diffs against it. A record with no `tree` (written before this field) stays `unverifiable` —
+  under `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv` — an
+  absolute destination, because the gate skills run from `{appDir}` and `{monorepoRoot}` defaults
+  to `"."` — passing that repo-relative path back as `--exclude`. Step 1a diffs against it. A record with no `tree` (written before this field) stays `unverifiable` —
   acknowledged, non-blocking, no retro-adjudication.
 
   The legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` stay for backward compatibility;
