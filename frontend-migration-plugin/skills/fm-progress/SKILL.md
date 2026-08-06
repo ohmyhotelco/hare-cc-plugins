@@ -16,7 +16,8 @@ changes nothing. All user-facing output in `workingLanguage`.
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `workingLanguage`, `monorepoRoot`, and
 `packagesDir` (the stale-evidence check maps `sharedDeps[]` through it and shells out to
-`scripts/gate-tree-hash.sh`; without them that check cannot run). **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). Optional `--app` / `page`
+`scripts/gate-tree-hash.sh`; without them that check cannot run). **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → report the freshness
+axis as `unverifiable` and skip the check. This skill records nothing; it is read-only). Optional `--app` / `page`
 narrow the view — when `--app` is given, **confirm `apps[app]` exists** (CLAUDE.md → Configuration)
 rather than silently reporting an empty view for a name that was never configured.
 

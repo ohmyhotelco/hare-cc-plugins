@@ -110,7 +110,11 @@ from): the rule lives in the instructions, the basis is missing from the output.
   visual/contract evidence of *every* page that imports it, and nothing per-page catches it — the
   monorepo CI is typecheck/lint/unit/build only, no visual, no e2e on PR. E's freshness check closes
   half of this (a commit on the page's own source), leaving the case where the outdating commit lives
-  outside the page, under `packages/`. So E's watch paths are `{page source} + {shared-package deps}`,
+  outside the page, under `packages/`. A third case sits outside both: the page's
+  `migration-plan.json` decides the route that gets flipped (`flagPlan.guardsPath`), the criteria
+  the executors enforced (`gateAcceptance`), which gates ran (`requiredGates`) and what e2e tested
+  (`e2eScenarios`) — edit it after the gates pass and the reports describe work that no longer
+  matches what ships. So E's watch paths are `{page source} + {shared-package deps} + {the plan}`,
   and both halves must resolve from a **recorded** field — a check that asks the session to work out
   which files belong to the page reintroduces the improvisation this whole axis exists to remove.
 

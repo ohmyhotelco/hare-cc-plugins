@@ -47,7 +47,7 @@ server the runner needs.
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
-`tracker.json` (Read-Modify-Write):
+`tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }` —
   the code state the pass rests on (see CLAUDE.md → "Gate Result Accounting"). `commit` =
@@ -64,11 +64,13 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
       --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
   `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
+**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
+scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
   The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
   make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
   directory this skill is standing in. Derive the destination from

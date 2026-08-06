@@ -78,8 +78,11 @@ configured, and `fm-verify` Step 4a makes an absent spec a hard failure whose on
 re-running this phase — which would fail the same way.
 
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
-`done`/`failed`, record `currentPhase`. On a phase failure, stop and report — the page status
-becomes `gen-failed`.
+`done`/`failed`, record `currentPhase`. On a phase failure, **stop running further phases and
+continue to Step 5** — do not return from the skill here. Step 5 is what writes `gen-failed`,
+records `sourcePaths` for the files the completed phases did write, clears the stale gate fields,
+and **releases the lock**. Returning from this step instead would leave the page at `planned` over
+modified code, with the Step 3 lock held for 30 minutes.
 
 ### Step 5: Record
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
@@ -87,8 +90,8 @@ becomes `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
    created or modified under `appDir`, collected from each phase's own report. This is the page's
    **axis 1** of its watch paths — axis 2 is the plan's `sharedDeps[]` mapped to
-   `{packagesDir}/<package>`, and every hash is taken over the **union** of the two (CLAUDE.md →
-   "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
+   `{packagesDir}/<package>` and axis 3 is the page's `migration-plan.json` itself, and every hash is
+   taken over the **union of all three** (CLAUDE.md → "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
    tell a still-fresh PASS from a stale one, and neither can derive axis 1 otherwise
    — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
    removed file leaves it.
@@ -102,7 +105,7 @@ becomes `gen-failed`.
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
-4. Release the lock.
+4. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled, this stage is in `codexAuditStages` (**absent → all seven**; the key

@@ -19,7 +19,7 @@ promotes); the global tracker is
 | `fm-verify` | — | build / tsc / vitest / eslint (hard) from `appDir`, Prettier advisory | `verified` / `verify-failed` |
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` / stays `e2e-passed` on `not-run` |
-| `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → the failed gate's entry state (the gate itself issues the passed state) / `generated` / `escalated` |
+| `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
 | `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |

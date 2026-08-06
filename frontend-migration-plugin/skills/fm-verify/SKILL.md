@@ -25,6 +25,8 @@ point the user at `/frontend-migration-plugin:fm-route {page} --revert` first. F
 not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no rollback
 target); reopening it is a manual decision.
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Lock
@@ -67,7 +69,7 @@ CLAIM. Do not report a pass you did not observe. Capture the failing output verb
 fails.
 
 ### Step 6: Record
-Update `tracker.json` (Read-Modify-Write):
+Update `tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
@@ -90,11 +92,13 @@ Update `tracker.json` (Read-Modify-Write):
       --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
   `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
+**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
+scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
   The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
   make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
   directory this skill is standing in. Derive the destination from

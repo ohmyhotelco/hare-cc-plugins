@@ -43,16 +43,25 @@ host would be labelled `legacy` and accepted as the legacy baseline. Beyond the 
 applying a delta to a page under live traffic is a change in production; taking it out of rotation
 first is the correct order.
 
-**Clear any stale staging first.** If `migration-plan.next.json` or `analysis.next.json` already
-exists, an earlier delta aborted or crashed between Step 2 and Step 5. Delete both. Step 5's
+**Stale staging is cleared in Step 2, under the lock — not here.** Deleting it before the lock
+would let a second session destroy the staged baseline of a delta that is *currently running*: that
+run then reaches Step 5, finds its files gone, and aborts having already rewritten the code, leaving
+a page whose tracker still says `parity-passed` over code the delta changed. Step 5's
 integrity check is that they *exist*, so an abandoned pair from a previous run would sail through it
 and promote a baseline describing a delta nobody applied — the same reason the Full branch deletes
 them, which is the only abort path that was covered.
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). If it is held and fresh, report who holds it and stop — do not delete anything, and do not wait.
 
-### Step 2: Compute the delta (planner incremental mode)
+### Step 2: Clear stale staging, then compute the delta (planner incremental mode)
+**Under the lock**, delete any `migration-plan.next.json` / `analysis.next.json` left by an earlier
+run that aborted between Step 2 and Step 5. Holding the lock is what makes this safe: the only
+staged files that can exist here are orphans, because any live delta holds this lock. Step 5's
+integrity check is that the staged pair *exists*, so an abandoned pair would otherwise sail
+through it and promote a baseline describing a delta nobody applied.
+
+Then launch the planner:
 Launch `migration-planner` (Agent) with only its params: `mode: "incremental"`, `app`, `page`,
 `analysisPath`, `planPath` (= `migration-plan.json`, the baseline), `legacyDir`,
 `outPath = docs/migration/{app}/{page}/delta-plan.json`, `workingLanguage`. It diffs the current
@@ -120,7 +129,7 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   a user who chose full regeneration, or a run that failed in Step 4, leaves the reference untouched.
   If either staged file is missing, the delta is incomplete — re-run the planner
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
-- Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
+- Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
   key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
   removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /

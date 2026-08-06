@@ -51,6 +51,9 @@ set -euo pipefail
 # locale-sensitive step, and producer and consumer routinely run in different locales.
 export LC_ALL=C
 
+# The hash of zero bytes; used to tell "no local changes" from "changes".
+EMPTY_BLOB=e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+
 MANIFEST=0
 PATHS=()
 EXCLUDES=()
@@ -93,10 +96,12 @@ for e in ${EXCLUDES[@]+"${EXCLUDES[@]}"}; do SPECS+=(":(exclude,literal)$e"); do
 for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 
 TMPDIR_BASE=${TMPDIR:-/tmp}
+# The trap is installed before the 2nd and 3rd mktemp, so a failure of either still cleans up.
+LIST=""; RECS=""; SORTED=""
+trap 'rm -f "$LIST" "$RECS" "$SORTED"' EXIT
 LIST=$(mktemp "$TMPDIR_BASE/gate-tree-list.XXXXXX")
 RECS=$(mktemp "$TMPDIR_BASE/gate-tree-recs.XXXXXX")
 SORTED=$(mktemp "$TMPDIR_BASE/gate-tree-sorted.XXXXXX")
-trap 'rm -f "$LIST" "$RECS" "$SORTED"' EXIT
 
 # Enumerate once, into a file, with the exit status checked. Piping this into a counter
 # would hide a git failure as "zero entries", i.e. as `unverifiable`.
@@ -130,25 +135,21 @@ while IFS= read -r -d '' f; do
   # Decide on an explicit discriminator, cheapest first. A present regular file needs one
   # git call, not three: `mode`/`flag` are only consulted for the cases that require them.
   if [ -L "$f" ]; then
-    # git stores the link TARGET, not the pointed-to bytes; following it would make the
-    # hash depend on files outside the repo, or fail on a dangling link. Prefer the index
-    # blob, which is git's own byte-exact record. For an untracked symlink fall back to
-    # hashing the target string — `$( )` strips trailing newlines, so a target that ends
-    # in one is indistinguishable from one that does not, and embedded newlines would
-    # break the record format outright; both are refused rather than silently collapsed.
-    if o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
+    # git stores the link TARGET, not the pointed-to bytes; following it would make the hash
+    # depend on files outside the repo, or fail on a dangling link. Hash the target from the
+    # WORKING TREE, because that is what every other file kind here uses and what the gate
+    # actually ran against: an earlier revision preferred the index blob, so a tracked symlink
+    # retargeted-but-unstaged hashed identically and the gate was blind to it — a false pass,
+    # and an inconsistency with the regular-file branch two lines down.
+    # `readlink | git hash-object --stdin` is a PIPE on purpose: `$( )` strips trailing
+    # newlines, which would collapse a target ending in one onto a target that does not.
+    if th=$(readlink -- "$f" 2>/dev/null | git hash-object --stdin 2>/dev/null) && [ -n "$th" ]; then
+      printf 'SYMLINK %s %s\n' "$th" "$f"
+    elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
+      # Unreadable link but present in the index — record what git has rather than nothing.
       printf 'SYMLINK %s %s\n' "$o" "$f"
     else
-      t=$(readlink -- "$f" 2>/dev/null || true)
-      case $t in
-        *"
-"*) echo "gate-tree-hash: symlink target contains a newline: $f" >&2; exit 1 ;;
-      esac
-      [ -n "$t" ] || { echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1; }
-      if ! th=$(printf '%s' "$t" | git hash-object --stdin 2>/dev/null) || [ -z "$th" ]; then
-        echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1
-      fi
-      printf 'SYMLINK %s %s\n' "$th" "$f"
+      echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1
     fi
   elif [ -f "$f" ]; then
     if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
@@ -168,12 +169,21 @@ while IFS= read -r -d '' f; do
       if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
         echo "gate-tree-hash: cannot resolve gitlink: $f" >&2; exit 1
       fi
-      if [ -e "$f/.git" ] && s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null) \
-         && [ -n "$s_head" ] && [ "$s_head" != "$o" ]; then
-        printf 'GITLINK %s moved:%s %s\n' "$o" "$s_head" "$f"
-      else
-        printf 'GITLINK %s %s\n' "$o" "$f"
+      sub=""
+      if [ -e "$f/.git" ]; then
+        s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null || true)
+        [ -n "$s_head" ] && [ "$s_head" != "$o" ] && sub=" moved:$s_head"
+        # Local, uncommitted work inside the submodule moves neither the parent's pointer nor
+        # the submodule's HEAD, so without this the gate ran against bytes it could not name.
+        # `diff HEAD` carries the tracked content; the porcelain listing adds untracked PATHS
+        # (their contents are out of scope — a submodule is another repository's business).
+        if d=$( { git -C "$f" diff HEAD 2>/dev/null; git -C "$f" status --porcelain -uall 2>/dev/null; } \
+                | git hash-object --stdin 2>/dev/null ) \
+           && [ -n "$d" ] && [ "$d" != "$EMPTY_BLOB" ]; then
+          sub="$sub dirty:$d"
+        fi
       fi
+      printf 'GITLINK %s%s %s\n' "$o" "$sub" "$f"
     else
       # An untracked nested git repository: git lists it as one opaque entry and knows
       # nothing about its contents, so any record here is a CONSTANT — changes inside it

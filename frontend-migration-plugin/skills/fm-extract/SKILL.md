@@ -78,9 +78,14 @@ React/Angular dependency (grep). Report exit codes as evidence.
 
 ### Step 5: Record state
 1. Update `docs/migration/tracker.json` (Read-Modify-Write): under `packages`, set each
-   extracted package/candidate to `{ "status": "extracted", "candidates": [...], "updatedAt": ISO }`.
+   extracted package/candidate to `{ "status": "extracted", "candidates": [...], "updatedAt": ISO }`
+   — **only when the extraction actually passed**: `package-extractor` reports its own tsc/Vitest
+   result, and `extracted` is a passed state, so a run whose tests failed records
+   `{ "status": "failed", "reason": ... }` instead. Writing `extracted` on a failed run is the same
+   defect the gates guard against — a passed state nobody earned — and here it also unblocks
+   `fm-gen`, whose Step 1 refuses only while a candidate is *unextracted*.
 2. For secret-boundary rejections, note them under `packages.<pkg>.deferredToSecretAudit`.
-3. Release the lock.
+3. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 
 ### Step 6: Report
 In `workingLanguage`:

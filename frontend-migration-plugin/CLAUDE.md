@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.16.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.17.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -249,11 +249,16 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   `fm-fix` would fall through to `verify-fix`, find no verify summary, and on a "pass" declare the
   page `generated` when its phases never ran. The SessionStart hook and `fm-progress` both carve it
   out ahead of the `*-failed` wildcard.
-- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, back to that
-  gate's **entry** state (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` →
-  `e2e-passed`) so the gate can be re-run. Only the gate issues its own passed state — a fixer that
-  promoted the page itself would leave the gate's report reading `fail` while the status claimed
-  otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
+- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, to
+  **`generated`** — the whole chain re-runs from `fm-verify`, and `fm-fix` clears `gateEvidence`,
+  the legacy `*At` fields and `routePrepared`/`flagKey` exactly as `fm-gen` and `fm-delta` do.
+  **A fix changes code, so it invalidates every gate, not just the one it repaired.** Returning the
+  page to the failed gate's *entry* state was unreachable by construction: gate evidence is
+  content-keyed, so the upstream gates were always stale afterwards and `fm-route` Step 1a — a hard
+  gate with no acknowledgement path — blocked every post-fix flip. Only the gate issues its own
+  passed state: a fixer that promoted the page would leave the gate's report reading `fail` while
+  the status claimed otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files)
+  suggest full `fm-gen`.
 - **`flipped` means the edge is serving v2, not that a PR exists.** `fm-route --flag-on` edits the
   in-repo routing artifact **for** PR2 — the user opens the PR, as they do for the code PR on
   `--flag-off`; it records `flipPrOpenedAt` (the hand-over moment, not proof a PR exists) and leaves the status at
@@ -348,6 +353,28 @@ When updating any state JSON:
 
 A skill that mutates state acquires `{app}/{page}/.lock` before work and
 releases it on completion or failure. The lock is JSON with at least these fields:
+
+**Three lock scopes, and one of them is not optional.**
+
+| Lock | Scope | Held by |
+| --- | --- | --- |
+| `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
+| `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
+| **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
+
+The page lock does **not** protect `tracker.json`. Eleven writers Read-Modify-Write that single
+shared file, and `fm-extract` does so while holding only the packages lock — so **no lock is common
+to a page skill and `fm-extract`, and two page locks do not exclude each other.** Two pages in
+flight is a supported state (`fm-progress` renders in-flight pages plural), so two concurrent RMWs of
+one file is a supported state too. A lost update silently drops a status transition or a
+`gateEvidence` record — and a dropped `gateEvidence` is exactly the input that makes
+`fm-route` Step 1a acknowledge instead of block.
+
+**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.tracker.lock`.**
+Never the reverse, or two sessions deadlock. Hold `.tracker.lock` only across the read-modify-write
+itself — open it, re-read `tracker.json`, apply your change, write, release — never across an agent
+launch, a gate run, or any other long step. Same JSON schema and same 30-minute staleness rule as
+the other two.
 
 ```json
 { "holder": "fm-parity", "pid": 49402, "acquiredAt": "2026-07-31T15:21:04+09:00" }
@@ -835,9 +862,20 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
   every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
   already records them as `@omh/<package>:<symbol>`, so each maps to the directory
-  `{packagesDir}/<package>` — the symbol is not a path. Watch paths are the union; `fm-route`
+  `{packagesDir}/<package>` — the symbol is not a path.
+
+  **Axis 3 is the page's `migration-plan.json`.** The plan decides what the gates were *for*:
+  `flagPlan.guardsPath` is the production path that gets flipped, `gateAcceptance` is the criteria
+  the executors enforced verbatim, `requiredGates` is which gates had to run, and `e2eScenarios`
+  is what e2e tested. All four sit outside `sourcePaths[]` and `sharedDeps[]`, so without this
+  axis the plan could be edited after the gates passed — `/tested` → `/untested` — without moving
+  the hash, and `fm-route` would flip a path no report ever evaluated. The cost is that any plan
+  edit, including a cosmetic one, invalidates the page's gates; that is the right side of the
+  trade against flipping an unevaluated route.
+
+  Watch paths are the union of all three; `fm-route`
   Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
-  `unverifiable` on axis 1 and still checkable on axis 2, and must report which axis it checked —
+  `unverifiable` on axis 1 and still checkable on axes 2 and 3, and must report which axes it checked —
   a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
   claim (see Design Principles). Because the two axes are hashed as one set, `tree` covers both.
 

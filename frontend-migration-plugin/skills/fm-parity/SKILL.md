@@ -85,7 +85,7 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
 Any failed check overrides the report: treat the gate (and the page) as failed.
 
 ### Step 4: Record
-Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
+Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence
@@ -104,11 +104,13 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
   `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
+**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
+scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
   The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
   make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
   directory this skill is standing in. Derive the destination from

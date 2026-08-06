@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # PostToolUse (Write|Edit) hook for frontend-migration-plugin.
+#
+# SCOPE LIMIT, stated because the plugin advertises this as drift detection: it fires only on the
+# Write and Edit tools. A legacy file changed by `git checkout`, a Bash command, an IDE, or a
+# `git pull` is invisible here. Drift detection is therefore best-effort notification, never a
+# guarantee — the guarantee lives in the gate-evidence content hash, which is recomputed from the
+# working tree at flip time regardless of who changed it.
 # Warns when legacy Angular source changes after a page has been migrated (stale -> delta),
 # or when an analysis/plan file is edited after generation has advanced.
 
@@ -27,7 +33,9 @@ LEGACY_DIRS=$(jq -r '.apps // {} | to_entries[] | .value.legacyDir // empty' "$C
 if [ -n "$LEGACY_DIRS" ]; then
   while IFS= read -r legacy; do
     [ -z "$legacy" ] && continue
-    if [[ "$REL_PATH" == "$legacy"/* ]] || [[ "$FILE_PATH" == *"/$legacy/"* ]]; then
+    # Match the repo-relative path only. An earlier `*"/$legacy/"*` test on the ABSOLUTE path
+    # also fired for files outside this project that merely contained the same directory name.
+    if [[ "$REL_PATH" == "$legacy"/* ]]; then
       echo ""
       echo "[Frontend Migration Plugin] Warning: legacy Angular source changed: $REL_PATH"
       echo "  Migrated or in-flight pages depending on it may be stale."

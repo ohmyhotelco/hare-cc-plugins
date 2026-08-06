@@ -43,6 +43,8 @@ If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
@@ -75,7 +77,7 @@ side is `unresolved`, which counts as absent and fails the gate), `workingLangua
 
 ### Step 5: Record
 1. Verify `style-spec.json` exists and parses (`jq empty`).
-2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
+2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`, **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
    (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:

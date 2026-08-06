@@ -45,6 +45,8 @@ If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
@@ -101,7 +103,7 @@ omitting it makes Step 4.1 reject the plan in a loop the planner cannot break), 
    executor into reinterpreting the criterion — see `templates/migration-plan-schema.md` → "The answer
    key is bound too". Corrections after the fact are the decision owner's `criterionAmendment`, not an
    executor's narrowing.
-5. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
+5. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`, **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
    plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
 6. Release the lock.
 

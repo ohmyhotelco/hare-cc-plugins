@@ -18,7 +18,10 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
 `port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
-`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives). **Absent → the freshness
+check cannot run at all**, so decide by what is recorded: if any gate has a `gateEvidence.{gate}.tree`,
+**block** — there is evidence that cannot be checked, which is not the same as no evidence; if no
+gate has one, treat it as `unverifiable` and acknowledge. Never improvise an inline pipeline. `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
 **absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
@@ -123,7 +126,7 @@ because there is nothing to compare against:
   existed), is **`unverifiable`** — surfaced for explicit acknowledgement, not blocked. No
   retro-adjudication, the same principle as `templates/capture-provenance.md`.
 - A page with no `sourcePaths` (generated before that field existed) is `unverifiable` on axis 1;
-  still hash axis 2, which needs only the plan. Report which axis was covered rather than a bare
+  still hash axes 2 and 3, which need only the plan. Report which axis was covered rather than a bare
   "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
 - A recompute that prints **`unverifiable`** (exit 2) is not a *mismatch*, but what it means depends
@@ -168,6 +171,12 @@ acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or 
 unavailable, skip this step.
 
 ### Step 2: Lock
+**The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
+prompt a human, and a lock must never be held across a prompt — but it means the state can move
+between the check and the write. **Re-verify Step 0a's precondition and Step 1's gate guard once
+the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
+demote the page while the operator is reading the Step 1b findings, and the whole point of those
+guards is that a flip never proceeds from a status the page no longer has.
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
@@ -183,7 +192,7 @@ status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `wor
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
-Update `tracker.json` (Read-Modify-Write):
+Update `tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
   the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for

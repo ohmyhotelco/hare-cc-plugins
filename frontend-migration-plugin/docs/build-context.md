@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-06)
 
-- **Build complete — v0.16.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.17.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -686,6 +686,46 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   run — which is the gate this document already set for itself.
 
   Origin: audit of the v0.15.5 round + release review, 2026-08-06.
+- **Seventh round — the execution-order audit (v0.17.0).** The sixth round ended with a finding no
+  cross-file sweep could have produced, so this round changed the question the auditors were asked:
+  not *"do these documents agree?"* but ***"in what order do they run, and what is true at each
+  point?"*** Both auditors read all 70 files (10,508 lines) and returned 10 blockers and 12 majors —
+  **and more than half of the non-minor findings were invisible to agreement checking, because the
+  documents agreed.** The defects were in the composition.
+
+  Three were design gaps, decided deliberately rather than patched:
+
+  - **`tracker.json` had no lock.** Eleven writers Read-Modify-Write one shared file; ten hold a
+    *page* lock and `fm-extract` holds `.packages.lock`, so **no lock was common to any two of them**.
+    Two pages in flight is a supported state, so two concurrent RMWs was too, and a lost update drops
+    a `gateEvidence` record — which is exactly the input that makes `fm-route` acknowledge instead of
+    block. Added `docs/migration/.tracker.lock`, ordered strictly after the page/packages lock and
+    held only across the RMW.
+  - **`fm-fix` left the flip unreachable.** It changes code by definition but never cleared
+    `gateEvidence`, so after any fix the upstream gates were content-stale and `fm-route` Step 1a — a
+    hard gate with no acknowledgement path — blocked **every** post-fix flip; the only documented
+    escape, re-running `fm-verify`, silently demoted the page. `fm-fix` now returns the page to
+    `generated` and clears what `fm-gen`/`fm-delta` clear, including `routePrepared`/`flagKey` (a
+    fixed page was otherwise skipping its own code PR and route-stage audit). The real added cost is
+    one e2e run after a `parity-fix`.
+  - **`migration-plan.json` sat outside the gate evidence.** It decides `flagPlan.guardsPath` — the
+    production path that gets flipped — plus `gateAcceptance`, `requiredGates` and `e2eScenarios`.
+    Editing `/tested` to `/untested` after the gates passed moved no hash. It is now watch-path axis 3.
+
+  The rest, in the same shape: `fm-delta` deleted another running delta's staged baseline **before**
+  taking the lock; `fm-gen`'s "stop and report" on a phase failure leaked the Step 3 lock; `fm-route`
+  validated and prompted a human across Steps 0a–1b and only then locked; `fm-extract` could rewrite
+  `packages/shared-*` — axis 2 — while a gate was capturing; four skills demoted a gate-passed page
+  with no warning where `fm-gen` asks first; and the SessionStart hook swallowed every `pluginRoot`
+  write failure in silence, which disables the freshness gate permanently and invisibly.
+
+  Script fixes this round: a tracked symlink was recorded from the **index**, so retargeting one
+  without staging was invisible to the gate — every other file kind uses the working tree; a target
+  ending in a newline collapsed onto one that did not (`$( )` strips it — now a pipe); and
+  uncommitted work **inside** a checked-out submodule moved neither the parent pointer nor the
+  submodule HEAD, so the gate ran against bytes it could not name.
+
+  Origin: execution-order audit of v0.16.0, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
