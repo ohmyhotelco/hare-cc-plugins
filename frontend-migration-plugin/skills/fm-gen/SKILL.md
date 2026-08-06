@@ -55,7 +55,7 @@ run `/frontend-migration-plugin:fm-extract` first.
   `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)
 For each phase in `buildOrder`, launch the right agent (Agent tool), passing **the agent's full

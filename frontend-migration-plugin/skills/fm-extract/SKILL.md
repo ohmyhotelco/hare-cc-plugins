@@ -41,7 +41,7 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 - Present the resolved candidate list (name → target package → purity) and confirm.
 
 ### Step 2: Acquire the lock
-Acquire a package-scope lock `docs/migration/.packages.lock` (stale after 30 min). If held and
+Acquire a package-scope lock `docs/migration/.packages.lock` (stale only when its holder is gone — CLAUDE.md → Lock file). If held and
 fresh, report and stop.
 
 ### Step 3: Extract each candidate
@@ -92,7 +92,21 @@ entirely. Take it before the write, not after: a sentence read in order is the i
    defect the gates guard against — a passed state nobody earned — and here it also unblocks
    `fm-gen`, whose Step 1 refuses only while a candidate is *unextracted*.
 2. For secret-boundary rejections, note them under `packages.<pkg>.deferredToSecretAudit`.
-3. **Invalidate every page that imports what this run rewrote.** `packages/shared-*` is watch-path
+3. **Invalidate every page that imports what this run rewrote — and do it twice.** Resolve the
+   dependent set (below) and clear it **before** `package-extractor` writes a single byte, then
+   clear it **again** here. `.packages.lock` does not exclude a page's gates, so a gate running
+   concurrently can otherwise test package version A, this skill can write version B, and the gate
+   can then record B's hash as the code it passed on — a pass on bytes nothing tested. Clearing
+   first means such a gate re-records over an already-invalid page; clearing again after means a
+   gate that finished before the first clear does not survive it. Neither clear alone closes the
+   window.
+
+   **A page with `flipPrOpenedAt` set needs more than a clear.** `--flag-on --confirm-live` requires
+   only the status and that timestamp, so a rewritten package would otherwise reach production
+   through a flip prepared against the old one. For those pages also clear `flipPrOpenedAt` and say
+   so loudly: the operator must re-run `--flag-off`/`--flag-on` after the gates pass again.
+
+   The mechanics: `packages/shared-*` is watch-path
    axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package
    outdates those pages' `gateEvidence` exactly as regenerating their own code would. For each such
    page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and

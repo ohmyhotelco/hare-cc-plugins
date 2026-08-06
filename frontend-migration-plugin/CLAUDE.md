@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.17.1)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.17.2)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -383,8 +383,15 @@ the other two.
 - `acquiredAt` — ISO-8601 **with time**, not date-only. The 30-minute rule below is computed from
   this field, so a date-only or unparseable `acquiredAt` is treated as **immediately stale** — a
   malformed timestamp must never let a lock become a permanent deadlock.
-- `pid` — the holder's process id, to tell a live holder from a dead session's ghost lock. When
-  absent, fall back to `acquiredAt` alone.
+- `pid` — the id of a process that lives as long as the work does. **A skill's Bash call exits
+  immediately, so `$$` from a one-shot command is useless — it names a pid that is already dead and
+  soon recycled.** Record the id of the enclosing session process (or omit `pid` entirely, which is
+  honest); a wrong pid is worse than none, because it either resurrects a ghost lock or matches an
+  unrelated process. When `pid` is absent, `acquiredAt` alone decides.
+- **Guard against pid reuse.** A live pid alone does not prove the holder is alive — ids are
+  recycled. Confirm the running process is plausibly the holder (its command matches `holder`);
+  if it clearly is not, treat the lock as holder-less and apply the age rule. Without this,
+  a recycled id pins a lock forever.
 - **The 30-minute rule is a ghost-lock sweep, not a timeout. Never break a lock whose `pid` is
   still alive, however old it is.** Gates legitimately run past 30 minutes — `parity-verifier`
   states outright that an omitted `budgetSeconds` means no cap and that visual runs long — so an
@@ -393,7 +400,10 @@ the other two.
   dead does `acquiredAt` decide.
 - Optional context (`purpose`, `precondition`, `app`, `page`) — recommended, not required.
 
-A lock whose `acquiredAt` is older than **30 minutes** is stale and may be removed. Interrupt-style
+A lock may be removed only when its **holder is gone**: `pid` absent, or no live process with that
+id, or a live process whose identity does not match `holder`. `acquiredAt` older than **30 minutes**
+is the *additional* condition for removing a holder-less lock — never a reason on its own. See the
+`pid` bullet above; the two rules are one rule, and age alone never breaks a live gate. Interrupt-style
 skills (e.g. a future `fm-debug`) are the only exception and do not take the lock.
 
 ## Design Principles

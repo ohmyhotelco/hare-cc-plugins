@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-06)
 
-- **Build complete — v0.17.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.17.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -749,6 +749,39 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   than a full one because the two branches emitted different record shapes.
 
   Origin: round 8 of the convergence loop, 2026-08-06.
+- **Round 9 (v0.17.2).** The first round in nine where one auditor returned **zero blockers**. The
+  two headline round-8 changes — watch-path axis 3 and the hash script — both survived an
+  adversarial pass, axis 3 proven by execution: all five call sites now compute the identical hash,
+  and a deliberately 2-axis control run differs, so the fix is load-bearing rather than decorative.
+
+  The severity judgement split sharply (0 blockers vs 8), and the union was fixed regardless. Four
+  findings both auditors reached independently, and **every one was inside round 8's own fix**:
+  `fm-delta`'s Full branch cleared the gate authorization and deleted the staged baseline *after*
+  releasing the page lock — the same "instruction pasted after the thing it protects" shape round 8
+  had just corrected elsewhere; the tracker-lock block reached all 12 files but was scoped "in this
+  step" and `fm-fix`'s real record step is Step 5, which performs the most consequential clear in
+  the pipeline unprotected; the new pid-first lock rule was contradicted by the closing sentence of
+  its own section three lines later, and never said *which* pid to record (a Bash call's `$$` is
+  dead and recyclable the moment it returns) nor guarded against reuse; and the pre-0.17 "re-run
+  that gate" recovery text survived in all three READMEs, with `README.md` contradicting itself
+  between its quickstart and its troubleshooting entry.
+
+  Closed from the concurrency lens: `fm-extract` now invalidates dependents **before and after**
+  writing a package — one clear alone leaves a window where a gate tests version A and records
+  version B's hash — and clears `flipPrOpenedAt` on dependents, since `--confirm-live` needs only
+  the status and that timestamp and would otherwise ship a flip prepared against the old package.
+  `fm-delta` now clears authorization at Step 2, so an abort at any later step cannot leave a page
+  route-authorized over code the drift already invalidated. `fm-route` re-verifies `routePrepared`
+  and the Step 1a hashes under the lock, not only the status.
+
+  Script: a sparse gitlink now keeps its `GITLINK` record shape (it was falling through to the bare
+  form, so sparse and full checkouts disagreed on an unchanged submodule); the submodule dirty
+  digest includes `submodule status --recursive`, so a nested submodule's movement is no longer
+  flattened; and a symlink target with trailing newlines is refused rather than silently collapsed —
+  though macOS normalises such a target at creation, so that guard is only reachable on GNU systems,
+  which is stated rather than claimed as tested.
+
+  Origin: round 9 of the convergence loop, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

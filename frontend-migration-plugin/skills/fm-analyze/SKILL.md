@@ -57,7 +57,7 @@ tracker is unaffected — this only guards one recorded as flipped.)
 
 ### Step 2: Acquire the lock
 Per the plugin `CLAUDE.md` lock convention, acquire
-`docs/migration/{app}/{page}/.lock` (stale after 30 min). If held and fresh, report who holds
+`docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file). If held and fresh, report who holds
 it and stop.
 
 ### Step 3: Run the analyzer

@@ -66,7 +66,7 @@ the answer key" premise (v0.9.0) is lost on the very first page and every downst
 against eyeballed values.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 4: Extract
 Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `analysisPath`,

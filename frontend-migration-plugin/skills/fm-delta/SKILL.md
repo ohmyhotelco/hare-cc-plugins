@@ -52,10 +52,16 @@ and promote a baseline describing a delta nobody applied — the same reason the
 them, which is the only abort path that was covered.
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). If it is held and fresh, report who holds it and stop — do not delete anything, and do not wait.
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). If it is held and fresh, report who holds it and stop — do not delete anything, and do not wait.
 
 ### Step 2: Clear stale staging, then compute the delta (planner incremental mode)
-**Under the lock**, delete any `migration-plan.next.json` / `analysis.next.json` left by an earlier
+**Under the lock**, first **clear the page's gate authorization** — `gateEvidence`, the legacy
+`verifiedAt`/`e2ePassedAt`/`parityPassedAt`, `routePrepared`/`flagKey` (take `.tracker.lock`). Do it
+*now*, before anything is computed or applied: from this point the page is known to be drifted, and
+an abort at any later step must not leave it route-authorized over code the drift already
+invalidated. Step 5 re-clears the same set; clearing twice is harmless, clearing late is not.
+
+Then delete any `migration-plan.next.json` / `analysis.next.json` left by an earlier
 run that aborted between Step 2 and Step 5. Holding the lock is what makes this safe: the only
 staged files that can exist here are orphans, because any live delta holds this lock. Step 5's
 integrity check is that the staged pair *exists*, so an abandoned pair would otherwise sail
@@ -113,21 +119,26 @@ after the user has chosen it.
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
   Then continue to Step 5.
-- **Full** → the page needs re-planning, not just re-generation. **Release the page `.lock` first**
-  (do NOT fall through to Step 5 holding it — the skills you point the user to need that same lock),
-  **clear the page's gate authorization** — `gateEvidence`, the legacy
-  `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and `routePrepared`/`flagKey` (take
-  `.tracker.lock` for that write) — because the drift that brought you here means the recorded
-  passes describe legacy the page no longer matches, and legacy source is **not** a watch-path
-  axis, so nothing else will notice. Then tell the user to re-run the chain from the stage the
-  drift invalidated:
-  `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
-  `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: the canonical baseline is
-  still the pre-drift one — the planner staged its proposal as `migration-plan.next.json` /
-  `analysis.next.json` and only Step 5 promotes those — so `fm-gen` would regenerate the page
-  against the plan the drift just invalidated. **Delete the two `.next.json` files** on the way out
-  so a later run cannot mistake an abandoned proposal for a current one. The skill **stops here**;
-  Step 5 (which records an applied incremental delta) does not run.
+- **Full** → the page needs re-planning, not just re-generation. Do all of this **while still holding
+  the page `.lock`**, in this order:
+  1. **Clear the page's gate authorization** — `gateEvidence`, the legacy
+     `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and `routePrepared`/`flagKey` (take `.tracker.lock`
+     for that write). The drift that brought you here means the recorded passes describe legacy the
+     page no longer matches, and **legacy source is not a watch-path axis**, so nothing else will
+     notice. Until this write lands the page is still route-authorized over known-stale code.
+  2. **Delete `migration-plan.next.json` and `analysis.next.json`** so a later run cannot mistake an
+     abandoned proposal for a current one.
+  3. **Only then release the page `.lock`** — the skills you point the user to need it. Releasing
+     first would leave both mutations unprotected: a second `fm-delta` could take the lock, clear
+     what it correctly reads as stale staging, and start applying its own delta while this run is
+     still deleting files and writing the tracker underneath it.
+  4. Tell the user to re-run the chain from the stage the drift invalidated:
+     `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
+     `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: the canonical baseline is
+     still the pre-drift one — the planner staged its proposal and only Step 5 promotes it — so
+     `fm-gen` would regenerate against the plan the drift just invalidated.
+
+  The skill **stops here**; Step 5 does not run.
 
 ### Step 5: Record
 

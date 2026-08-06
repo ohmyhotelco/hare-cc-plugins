@@ -180,11 +180,11 @@ unavailable, skip this step.
 ### Step 2: Lock
 **The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
 prompt a human, and a lock must never be held across a prompt — but it means the state can move
-between the check and the write. **Re-verify Step 0a's precondition and Step 1's gate guard once
-the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
+between the check and the write. **Re-verify Step 0a's precondition, Step 1's gate guard, Step 1-pre's
+`routePrepared`, and Step 1a's hashes once the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
 demote the page while the operator is reading the Step 1b findings, and the whole point of those
 guards is that a flip never proceeds from a status the page no longer has.
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
 `--confirm-live` mutates no artifact: the routing rule was already activated by the `--flag-on` run

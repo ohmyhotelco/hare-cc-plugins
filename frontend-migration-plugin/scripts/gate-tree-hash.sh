@@ -149,7 +149,16 @@ while IFS= read -r -d '' f; do
     # resolves the same link through the index branch below.
     # A target that itself ends in a newline is indistinguishable here; BSD `readlink` normalises
     # it away regardless, so this is documented rather than defended.
-    if lt=$(readlink -- "$f" 2>/dev/null) && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) \
+    # `$( )` strips trailing newlines, so a target ending in one would hash the same as one that
+    # does not. Compare the raw byte count against the stripped value and refuse the difference
+    # rather than record a value two distinct links share.
+    if lt=$(readlink -- "$f" 2>/dev/null); then
+      raw=$(readlink -- "$f" 2>/dev/null | wc -c | tr -d '[:space:]')
+      if [ "$raw" -gt "$(( ${#lt} + 1 ))" ]; then
+        echo "gate-tree-hash: symlink target has trailing newline(s), cannot record: $f" >&2; exit 1
+      fi
+    fi
+    if [ -n "${lt+x}" ] && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) \
        && [ -n "$th" ]; then
       printf 'SYMLINK %s %s\n' "$th" "$f"
     elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
@@ -187,6 +196,7 @@ while IFS= read -r -d '' f; do
         # revision hashed only the untracked *paths*, so editing an existing untracked file inside
         # the submodule left the digest unmoved while the build consumed the new bytes.
         if d=$( { git -C "$f" diff HEAD
+                  git -C "$f" submodule status --recursive 2>/dev/null
                   git -C "$f" ls-files --others --exclude-standard -z \
                     | LC_ALL=C sort -z \
                     | while IFS= read -r -d '' u; do
@@ -222,11 +232,11 @@ while IFS= read -r -d '' f; do
         # Same RECORD SHAPE the on-disk branches use, or a sparse checkout and a full one
         # disagree on an unchanged file: mode 120000 is a symlink, and its index blob is
         # already the target string that the working-tree branch hashes.
-        if [ "$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}')" = "120000" ]; then
-          printf 'SYMLINK %s %s\n' "$o" "$f"
-        else
-          printf '%s %s\n' "$o" "$f"
-        fi ;;
+        case $(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}') in
+          120000) printf 'SYMLINK %s %s\n'  "$o" "$f" ;;
+          160000) printf 'GITLINK %s %s\n'  "$o" "$f" ;;   # a sparse gitlink keeps its shape too
+          *)      printf '%s %s\n'          "$o" "$f" ;;
+        esac ;;
       *) printf 'DELETED %s\n' "$f" ;;
     esac
   fi

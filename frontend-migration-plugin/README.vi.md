@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.17.1). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.17.2). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -120,7 +120,8 @@ Sau khi đã đủ điều kiện tiên quyết:
 ```
 
 Mỗi bước ghi sản phẩm vào `docs/migration/{app}/{page}/` và đẩy trạng thái trong tracker. Nếu một
-cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng) rồi chạy lại cổng đó.
+cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). Trang quay về `generated`, nên chạy lại
+# toàn bộ chuỗi: fm-verify → fm-e2e → fm-parity.
 
 ## Luồng làm việc
 
@@ -165,7 +166,8 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 ## Xử lý sự cố / FAQ
 
 - **Một cổng fail.** Chạy `/frontend-migration-plugin:fm-fix <page>` — tự nhận diện mode
-  (verify/e2e/parity) từ report fail mới nhất, sửa tối thiểu rồi chạy lại cổng. Sau đó chạy lại cổng để xác nhận.
+  (verify/e2e/parity) từ report fail mới nhất, sửa tối thiểu. Vì mã thay đổi nên mọi bằng chứng
+  cổng bị vô hiệu: trang quay về `generated` và phải chạy lại toàn bộ chuỗi từ fm-verify.
 - **Trang cũ thay đổi sau khi đã di trú.** Chạy `/frontend-migration-plugin:fm-delta <page>` —
   chỉ di trú lại phần thay đổi và giữ các sửa đổi đã tích lũy (delta lớn sẽ fallback `fm-gen`).
   Hook PostToolUse sẽ cảnh báo.

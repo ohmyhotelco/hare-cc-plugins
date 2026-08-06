@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.17.1). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v0.17.2). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -127,8 +127,8 @@ After the prerequisites are met:
 ```
 
 Each step writes its artifact under `docs/migration/{app}/{page}/` and advances the page's status
-in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate) and re-run that
-gate.
+in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate). The page then
+returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`.
 
 ## Workflow
 

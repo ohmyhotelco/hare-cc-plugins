@@ -4,7 +4,7 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 플러그인입니다. 개정된 v2 마이그레이션 계획을 따릅니다. **완전 독립형**(자체 에이전트·파이프라인)
 이지만, 생성 결과의 일관성을 위해 `frontend-react-plugin`의 스택 컨벤션을 공유합니다.
 
-> 상태: 기능 완성 툴링(v0.17.1). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
+> 상태: 기능 완성 툴링(v0.17.2). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
 > 프로젝트가 스캐폴딩하는 v2 모노레포(`apps/` + `packages/`)를 대상으로 동작합니다.
 
 ## 무엇을 하나
@@ -116,7 +116,8 @@ Playwright로 실행합니다.
 ```
 
 각 단계는 `docs/migration/{app}/{page}/`에 산출물을 쓰고 트래커 상태를 진행시킵니다. 게이트
-실패 시 `fm-fix <page>`(어느 게이트인지 자동 감지) 후 해당 게이트 재실행.
+실패 시 `fm-fix <page>`(어느 게이트인지 자동 감지). 수정 후 페이지는 `generated`로 돌아가므로
+# fm-verify → fm-e2e → fm-parity 체인 전체를 다시 실행합니다.
 
 ## 워크플로우
 
@@ -161,7 +162,8 @@ Playwright로 실행합니다.
 ## 문제 해결 / FAQ
 
 - **게이트가 실패했다.** `/frontend-migration-plugin:fm-fix <page>` — 최신 실패 리포트에서
-  모드(verify/e2e/parity) 자동 감지, 최소 수정 후 게이트 재실행. 이후 해당 게이트 재실행으로 확인.
+  모드(verify/e2e/parity) 자동 감지, 최소 수정. 코드가 바뀌므로 모든 게이트 증거가 무효화되어
+  페이지는 `generated`로 돌아가고, fm-verify부터 체인 전체를 다시 실행해 확인합니다.
 - **마이그레이션 후 레거시 페이지가 바뀌었다.** `/frontend-migration-plugin:fm-delta <page>` —
   변경분만 재마이그레이션하고 누적 수정 보존(대규모 시 전체 `fm-gen` 폴백). PostToolUse 훅이 경고.
 - **`fm-gen`이 중단됐다.** 다시 실행 — `generation-state.json`으로 마지막 미완료 단계부터 resume.

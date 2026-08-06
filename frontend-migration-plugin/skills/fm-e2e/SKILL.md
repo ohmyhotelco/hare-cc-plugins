@@ -32,7 +32,7 @@ sub-agent probe — but check rather than assume: a page can reach this gate on 
 an earlier session or on another machine.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
