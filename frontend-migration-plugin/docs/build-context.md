@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-07-10)
+## Status (2026-08-06)
 
-- **Build complete — v0.15.5.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.16.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -647,6 +647,45 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   passes. A predicate is not verified until the neighbouring case it also matches has been run.
 
   Origin: audit of the v0.15.4 round, 2026-08-06.
+- **Sixth audit round + 1.0 readiness review (v0.16.0).** Both auditors read all 70 files (10,362
+  lines). **The hash script itself survived — 24 adversarial cases, first clean round.** Everything
+  else did not.
+
+  Codex found six defects the journey audit missed, all in the script's newest branches:
+  a failing `sort` fed the loop a SHORTER record set that was hashed and printed under exit 0 —
+  `e69de29b…`, the v0.15.2 empty-blob constant returning through a third door; `git ls-files -v`
+  lowercases its tag when an entry is *also* assume-unchanged, so a sparse file read `s`, missed the
+  `S` match, and was recorded DELETED (now `-t`, which has no case ambiguity); the `--` option
+  terminator was added to the script and to none of its six call sites; `readlink` through `$( )`
+  silently strips a trailing newline, so two distinct symlink targets collapsed to one record (now
+  the index blob, which is git's own byte-exact record); an untracked nested repository was recorded
+  as a CONSTANT marker — the same false-pass shape the file condemns for submodules — and is now
+  refused; and fixing the *uninitialized* submodule half in v0.15.5 broke the *initialized* half,
+  because the parent's index pointer lags a local move. Both halves are now recorded.
+
+  **The pattern moved out of the script and into the 23 lines added beside it.** `session-init.sh`
+  gained a `jq | mv` under `set -e` with no trap, no mode preservation and no error path, placed
+  above every `echo` in the file — so a read-only `.claude/` directory returned rc=1 with *zero*
+  output, taking the entire session guidance down with it. It also rewrote the config to 0600, leaked
+  a temp file per failure, and silently did nothing when invoked through a symlink.
+
+  **And the sharpest finding was an ordering bug, not a logic bug.** Every line was individually
+  correct: the hook returns early when there is no config; `fm-init` correctly refuses to guess
+  `pluginRoot`; the skills correctly degrade to `unverifiable`; `fm-route` correctly acknowledges a
+  never-recorded `tree`. Composed, they meant **the freshness gate was off for the first session of
+  every new project** and the flip was waved through. Five rounds of cross-file sweeps could not see
+  it, because a sweep asks "do these documents agree?" and never "in what order do they run?".
+
+  **1.0.0 was reviewed and deferred.** Both auditors returned NO-GO on the same ground: the plugin
+  has never once executed its own pipeline, and this file says so. Everything else they listed was
+  fixed here — MIT `LICENSE` plus `license`/`homepage`/`repository` in both manifests (there was no
+  license grant at all, which alone made it undistributable), `git` and `jq` added to the
+  prerequisites in all three READMEs, the marketplace's own description corrected (it was a verbatim
+  copy of `planning-plugin`'s), and the stale `v0.14.0` and `2026-07-10` markers a version-keyed
+  bump could never have caught. 1.0.0 is now reserved for the commit that lands the PC end-to-end
+  run — which is the gate this document already set for itself.
+
+  Origin: audit of the v0.15.5 round + release review, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

@@ -40,7 +40,6 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
      (e.g. `apps/web-pc`, `apps/web-mobile`, `apps/web-hana`). These may not exist yet —
      that is expected before the migration starts.
    - `packagesDir` (default `packages`).
-   - `pluginRoot` — the absolute path from Step 2.1a (this plugin's install directory).
    - **Backend verification contracts** (`contractsDir`): check whether
      `docs/migration/api-contracts/` exists with `responses/` and `requests/` subdirectories
      (the confirmed OMH-604/606/607 zod-in-markdown contracts). If present, this is the
@@ -173,6 +172,11 @@ routing/integration). If a skill or its CLI is missing, list it with its install
 fail setup — an absent skill is skipped, not an error.
 
 ### Step 7: Report
+
+**Tell the user to restart the session before running the gates.** `pluginRoot` is written by
+the SessionStart hook, which has already run for *this* session — so `fm-verify`/`fm-e2e`/
+`fm-parity` executed now would record no `tree` and the freshness gate would report
+`unverifiable` for those runs. Analysis and planning are unaffected.
 
 Summarize in `workingLanguage`:
 - Config path and key values (apps, currentApp, workingLanguage).

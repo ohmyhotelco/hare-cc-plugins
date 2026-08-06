@@ -16,7 +16,7 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). the app's `legacyPort` / `port` / `domain`,
+gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`,
 `workingLanguage`, and `stagingConfig` (payment-gateway test endpoints). Require the page at
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
 `fm-verify`/`fm-plan`).
@@ -59,9 +59,9 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/e2e.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv <watch path>...
+  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv <watch path>... > "$MAN"
+      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN"
   ```
 
   **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`

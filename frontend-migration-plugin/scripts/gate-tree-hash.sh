@@ -95,7 +95,8 @@ for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 TMPDIR_BASE=${TMPDIR:-/tmp}
 LIST=$(mktemp "$TMPDIR_BASE/gate-tree-list.XXXXXX")
 RECS=$(mktemp "$TMPDIR_BASE/gate-tree-recs.XXXXXX")
-trap 'rm -f "$LIST" "$RECS"' EXIT
+SORTED=$(mktemp "$TMPDIR_BASE/gate-tree-sorted.XXXXXX")
+trap 'rm -f "$LIST" "$RECS" "$SORTED"' EXIT
 
 # Enumerate once, into a file, with the exit status checked. Piping this into a counter
 # would hide a git failure as "zero entries", i.e. as `unverifiable`.
@@ -109,6 +110,15 @@ if [ "$(tr -dc '\0' < "$LIST" | wc -c | tr -d '[:space:]')" -eq 0 ]; then
   exit 2
 fi
 
+# Sort into a file with the status checked. Feeding `sort` through a process substitution
+# would put its exit status outside the loop's: a failing `sort` yielded a SHORTER record
+# set (in the limit, none) that was then hashed and printed under exit 0 — the empty-blob
+# constant `e69de29b…` again, which is the original false pass wearing a different hat.
+if ! sort -z < "$LIST" > "$SORTED"; then
+  echo "gate-tree-hash: sort failed" >&2
+  exit 1
+fi
+
 # Records are newline-terminated so the manifest stays diffable; a path containing a
 # newline would make the format ambiguous and is refused rather than silently split.
 while IFS= read -r -d '' f; do
@@ -117,50 +127,78 @@ while IFS= read -r -d '' f; do
 "*) echo "gate-tree-hash: path contains a newline, cannot record: $f" >&2; exit 1 ;;
   esac
 
-  # Decide on an explicit discriminator, in this order. `mode` comes from the index, so a
-  # submodule is identified as one whether or not it happens to be checked out.
-  mode=$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}')
-  flag=$(git ls-files -v -- ":(literal)$f" 2>/dev/null | cut -c1 | head -n1)
-
-  if [ "$mode" = "160000" ]; then
-    # Submodule. Record the PARENT's index gitlink — the pointer this repository actually
-    # stores. Reading the submodule's own HEAD instead would make the value depend on
-    # local checkout state (and, on an uninitialized submodule, `git -C` walks up and
-    # returns the parent's HEAD, so unrelated parent commits moved the hash).
-    if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
-      echo "gate-tree-hash: cannot resolve gitlink: $f" >&2; exit 1
+  # Decide on an explicit discriminator, cheapest first. A present regular file needs one
+  # git call, not three: `mode`/`flag` are only consulted for the cases that require them.
+  if [ -L "$f" ]; then
+    # git stores the link TARGET, not the pointed-to bytes; following it would make the
+    # hash depend on files outside the repo, or fail on a dangling link. Prefer the index
+    # blob, which is git's own byte-exact record. For an untracked symlink fall back to
+    # hashing the target string — `$( )` strips trailing newlines, so a target that ends
+    # in one is indistinguishable from one that does not, and embedded newlines would
+    # break the record format outright; both are refused rather than silently collapsed.
+    if o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
+      printf 'SYMLINK %s %s\n' "$o" "$f"
+    else
+      t=$(readlink -- "$f" 2>/dev/null || true)
+      case $t in
+        *"
+"*) echo "gate-tree-hash: symlink target contains a newline: $f" >&2; exit 1 ;;
+      esac
+      [ -n "$t" ] || { echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1; }
+      if ! th=$(printf '%s' "$t" | git hash-object --stdin 2>/dev/null) || [ -z "$th" ]; then
+        echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1
+      fi
+      printf 'SYMLINK %s %s\n' "$th" "$f"
     fi
-    printf 'GITLINK %s %s\n' "$o" "$f"
-  elif [ -L "$f" ]; then
-    # git stores the link TARGET, not the pointed-to bytes. Following it would make the
-    # hash depend on files outside the repo, or fail on a dangling link.
-    if ! t=$(readlink -- "$f" 2>/dev/null) || [ -z "$t" ]; then
-      echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1
-    fi
-    printf 'SYMLINK %s -> %s\n' "$f" "$t"
   elif [ -f "$f" ]; then
     if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
       echo "gate-tree-hash: cannot hash working-tree file: $f" >&2; exit 1
     fi
     printf '%s %s\n' "$h" "$f"
-  elif [ "$flag" = "S" ]; then
-    # skip-worktree: a sparse checkout deliberately omits it. Use the index blob so a
-    # sparse tree and a full tree agree at the same commit. This branch is keyed on the
-    # skip-worktree flag, NOT on "the index can resolve it" — every cached path can, so
-    # the looser test swallowed ordinary deletion and reported a deleted file as present.
-    if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
-      echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
-    fi
-    printf '%s %s\n' "$o" "$f"
   elif [ -d "$f" ]; then
-    # A nested git repository that this repo does not track as a submodule: git lists it
-    # as one untracked entry and knows nothing about its contents. Recording its HEAD
-    # would import another repo's local state, so mark it and hash nothing.
-    printf 'NESTED-REPO %s\n' "$f"
+    mode=$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}' || true)
+    if [ "$mode" = "160000" ]; then
+      # Submodule. The PARENT's index gitlink is the deterministic record — identical
+      # whether or not the submodule is checked out, which is what an uninitialized clone
+      # needs. But the parent pointer LAGS a local move, and the checkout is what the gate
+      # actually built against, so a checked-out submodule whose HEAD differs from the
+      # pointer appends that HEAD. Recording only one of the two was wrong in both
+      # directions across successive rounds: the pointer alone hides a local move, the
+      # HEAD alone makes an uninitialized clone disagree with an initialized one.
+      if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
+        echo "gate-tree-hash: cannot resolve gitlink: $f" >&2; exit 1
+      fi
+      if [ -e "$f/.git" ] && s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null) \
+         && [ -n "$s_head" ] && [ "$s_head" != "$o" ]; then
+        printf 'GITLINK %s moved:%s %s\n' "$o" "$s_head" "$f"
+      else
+        printf 'GITLINK %s %s\n' "$o" "$f"
+      fi
+    else
+      # An untracked nested git repository: git lists it as one opaque entry and knows
+      # nothing about its contents, so any record here is a CONSTANT — changes inside it
+      # would be invisible to the gate. That is the false-pass shape this file exists to
+      # stop, so refuse rather than emit a marker that looks like evidence.
+      echo "gate-tree-hash: watch path contains an untracked nested git repository: $f" >&2
+      echo "  Track it as a submodule, or exclude it with --exclude." >&2
+      exit 1
+    fi
   else
-    printf 'DELETED %s\n' "$f"
+    # Not on disk. Skip-worktree (a sparse checkout deliberately omits it) or deleted.
+    # Use `-t`, not `-v`: `-v` LOWERCASES its tag when the entry is ALSO assume-unchanged
+    # (skip-worktree reads `S`, both bits read `s`), so a case-sensitive match on `S` alone
+    # reported a sparse file as DELETED. `-t` reports `S` for skip-worktree either way.
+    flag=$(git ls-files -t -- ":(literal)$f" 2>/dev/null | cut -c1 | head -n1 || true)
+    case $flag in
+      S)
+        if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
+          echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
+        fi
+        printf '%s %s\n' "$o" "$f" ;;
+      *) printf 'DELETED %s\n' "$f" ;;
+    esac
   fi
-done < <(sort -z < "$LIST") > "$RECS"
+done < "$SORTED" > "$RECS"
 
 if [ "$MANIFEST" -eq 1 ]; then
   cat "$RECS"

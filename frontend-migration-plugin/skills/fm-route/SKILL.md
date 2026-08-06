@@ -88,10 +88,14 @@ page's **watch paths** from two recorded fields — never by guessing which file
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
 ```sh
-{pluginRoot}/scripts/gate-tree-hash.sh <watch path>...
+{pluginRoot}/scripts/gate-tree-hash.sh \
+    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
 ```
 
 A gate whose recomputed hash differs from its recorded `gateEvidence.{gate}.tree` is **stale**.
+**Pass the same `--exclude` and `--` that gate passed.** The producer excluded its own manifest so
+the evidence would not describe itself; a consumer omitting either flag hashes a different set, and
+every comparison then fails as a permanent hard block on correct code.
 
 **This is a hard gate: a stale gate blocks the flip.** Name the stale gates **and the files that
 moved** — re-run the script with `--manifest` and diff it against the manifest that gate saved at

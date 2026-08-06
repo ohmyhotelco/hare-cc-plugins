@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.15.5)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.16.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -764,9 +764,16 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   (F below), and every producer and consumer gets it from **one executable**:
 
   ```sh
-  {pluginRoot}/scripts/gate-tree-hash.sh <watch path>...            # → the hash
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest <watch path>... # → per-file records
+  {pluginRoot}/scripts/gate-tree-hash.sh \
+      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → hash
+  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → records
   ```
+
+  Producers and consumers pass the **same `--exclude` and the same `--`**. The exclusion keeps a
+  gate's manifest out of the evidence it describes; `--` stops a watch path beginning with a dash
+  from being parsed as a flag. Either flag present on one side and absent on the other makes the
+  two hashes incomparable — a permanent hard block on correct code.
 
   **Never reimplement it inline.** This was a shell pipeline printed here and reproduced by five call
   sites, and prose could not hold it: `git ls-files` prints paths **relative to the current
@@ -840,7 +847,7 @@ retro-adjudication.
 
 ## Skills
 
-All skills are implemented (v0.14.0). The "Built in" column records the task that delivered each
+All skills are implemented. The "Built in" column records the task that delivered each
 (provenance) — see `docs/skill-reference.md` for inputs/outputs and `docs/build-context.md` for
 the full build map.
 

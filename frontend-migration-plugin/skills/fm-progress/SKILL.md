@@ -41,7 +41,9 @@ In `workingLanguage`, show:
   Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
   re-compute the watch-path content hash by running
-  `{pluginRoot}/scripts/gate-tree-hash.sh <watch path>...` (never an inline pipeline —
+  `{pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv
+  -- <watch path>...` — the same `--exclude` and `--` that gate passed, or the sets differ and
+  every page reads stale (never an inline pipeline —
   CLAUDE.md → "Gate Result Accounting") and compare it against each `gateEvidence.{gate}.tree`. A
   gate whose hash moved is **stale**; list the page with those gate(s). A page for which the script
   prints `unverifiable` is shown as such, never as fresh and never as stale. **Never pass `gateEvidence.{gate}.commit` to `git`** —

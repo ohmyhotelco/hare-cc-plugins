@@ -1,6 +1,6 @@
 {
   "name": "ohmyhotelco",
-  "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
+  "description": "Claude Code plugin marketplace for the OhMyHotel engineering org: planning, frontend React, Angular-to-React-Router-v7 migration, marketing homepage, and Spring Boot backend plugins.",
   "owner": {
     "name": "Justin Choi"
   },
@@ -136,7 +136,7 @@
     {
       "name": "frontend-migration-plugin",
       "description": "Claude Code plugin that drives the Angular 15 to React Router v7 migration: Angular source analysis, framework-agnostic shared-package extraction, RR v7 page generation, legacy-parity gates (Playwright E2E, visual, contract, WebView, telemetry), and Strangler Fig progress tracking",
-      "version": "0.15.5",
+      "version": "0.16.0",
       "author": {
         "name": "Justin Choi"
       },
@@ -167,7 +167,10 @@
         "clean-code",
         "test-review",
         "codex-audit"
-      ]
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/frontend-migration-plugin",
+      "repository": "https://github.com/ohmyhotelco/hare-cc-plugins"
     }
   ]
 }

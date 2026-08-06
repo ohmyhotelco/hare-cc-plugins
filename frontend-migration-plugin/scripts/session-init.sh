@@ -17,35 +17,53 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
 CONFIG_FILE="$CWD/.claude/frontend-migration-plugin.json"
 
+# Refresh `pluginRoot` — the absolute path the fm-verify / fm-e2e / fm-parity / fm-route /
+# fm-progress skills use to locate scripts/gate-tree-hash.sh.
+#
+# This hook is the only component that can know it. A skill's Bash shell does not get
+# ${CLAUDE_PLUGIN_ROOT} (Claude Code expands that for hooks/hooks.json only), and no path
+# built from `monorepoRoot` reaches the marketplace cache the plugin is installed in. This
+# script IS in that install, so its own location is the answer. Rewriting it every session
+# also survives a plugin upgrade: the cache path is version-pinned, so a value recorded
+# once would dead-end at the next release and silently degrade every freshness check.
+#
+# This runs BEFORE the no-config early return below, and writes only when the config
+# already exists. Placing it after that return meant a project's FIRST session — the one
+# where fm-init creates the config — never recorded it, so every gate in that session
+# stored no `tree` and the flip was waved through as "unverifiable". The value is still
+# not available until the session AFTER fm-init, which fm-init Step 7 tells the user.
+write_plugin_root() {
+  [ -f "$CONFIG_FILE" ] || return 0
+  root=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || return 0
+  [ -n "$root" ] && [ -x "$root/scripts/gate-tree-hash.sh" ] || {
+    # Reached when the hook is invoked through a symlink: $0's directory is not the
+    # install. Say so — the only other symptom is `unverifiable` on every gate forever.
+    echo "  Info: [frontend-migration-plugin] could not locate the plugin install from \$0;"
+    echo "        gate freshness will report 'unverifiable'. Invoke the hook by its real path."
+    return 0
+  }
+  [ "$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")" = "$root" ] && return 0
+  # Same-directory temp file so `mv` is atomic; mode copied from the original so a shared
+  # checkout does not silently become 0600; every failure is swallowed because this is a
+  # convenience refresh and must never take the hook's real output down with it.
+  tmp="$CONFIG_FILE.fm-tmp.$$"
+  if jq --arg p "$root" '.pluginRoot = $p' "$CONFIG_FILE" > "$tmp" 2>/dev/null; then
+    chmod --reference="$CONFIG_FILE" "$tmp" 2>/dev/null \
+      || chmod "$(stat -f '%Lp' "$CONFIG_FILE" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true
+    mv "$tmp" "$CONFIG_FILE" 2>/dev/null || rm -f "$tmp"
+  else
+    rm -f "$tmp"
+  fi
+  return 0
+}
+write_plugin_root || true
+
 # No config → suggest init and stop.
 if [ ! -f "$CONFIG_FILE" ]; then
   echo ""
   echo "[Frontend Migration Plugin] No configuration found."
   echo "Run /frontend-migration-plugin:fm-init to set up the plugin for this project."
   exit 0
-fi
-
-# Refresh `pluginRoot` — the absolute path the fm-verify / fm-e2e / fm-parity / fm-route /
-# fm-progress skills use to locate scripts/gate-tree-hash.sh.
-#
-# This hook is the only place in the plugin that can know it. A skill's Bash shell does not
-# get ${CLAUDE_PLUGIN_ROOT} (Claude Code expands that for hooks/hooks.json only), and no path
-# built from `monorepoRoot` reaches the marketplace cache the plugin is installed in. This
-# script, however, IS in that install — so its own location is the answer, with no env var
-# and no filesystem search. Writing it every session also survives a plugin upgrade: the
-# cache path is version-pinned, so a value recorded once at fm-init dead-ends on the next
-# release and silently degrades every freshness check to `unverifiable`.
-PLUGIN_ROOT=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd || true)
-if [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/scripts/gate-tree-hash.sh" ]; then
-  RECORDED=$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
-  if [ "$RECORDED" != "$PLUGIN_ROOT" ]; then
-    TMP_CFG=$(mktemp "${TMPDIR:-/tmp}/fm-config.XXXXXX")
-    if jq --arg p "$PLUGIN_ROOT" '.pluginRoot = $p' "$CONFIG_FILE" > "$TMP_CFG" 2>/dev/null; then
-      mv "$TMP_CFG" "$CONFIG_FILE"
-    else
-      rm -f "$TMP_CFG"
-    fi
-  fi
 fi
 
 CURRENT_APP=$(jq -r '.currentApp // "pc"' "$CONFIG_FILE" 2>/dev/null || echo "pc")

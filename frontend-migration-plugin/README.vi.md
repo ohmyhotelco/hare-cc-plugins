@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.15.5). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.16.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -52,6 +52,8 @@ Plugin này là **tooling**; giả định dự án di trú đã chuẩn bị wo
 - **`contractsDir`** (tuỳ chọn, mặc định `docs/migration/api-contracts/`) — nếu có hợp đồng backend
   đã xác nhận, đó là nguồn schema **chính thức** cho `shared-types`/`shared-data` (không có thì
   fallback về trích xuất ngược từ legacy).
+- **`git`** (hash bằng chứng cổng và cả hai session hook đều dùng) và **`jq`** (cả hai hook đọc
+  tracker qua nó; thiếu nó thì hook lặng lẽ ngừng hoạt động).
 - **Node + pnpm** (pnpm workspaces), và **trình duyệt Playwright** đã cài (`npx playwright
   install`) cho cổng E2E và visual.
 - **Mã nguồn Angular cũ** có thể truy cập để phân tích.
