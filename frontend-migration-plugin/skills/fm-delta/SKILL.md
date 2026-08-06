@@ -19,14 +19,35 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDi
 `legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
-**Refuse a `flipped` page.** If the status is `flipped`, stop and tell the user to run
-`/frontend-migration-plugin:fm-route {page} --flag-off` first. Step 5 resets the status to
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+**Refuse `fixing` and `escalated` too.** A fix is in progress or awaiting manual intervention;
+Step 5 resets the page to `generated`, which discards the accumulated repairs and the
+`previousStatus` the fix loop needs. Send the user to `fm-fix` (after the manual step, for
+`escalated`) and let the gate re-run first.
+
+**Refuse a `flipped` page, a `done` page, or one with a flip prepared and handed over.** `done` is past
+`flipped` — the legacy page has been deleted, so there is no legacy source left to diff a delta
+against and no rollback target; refuse and require manual intervention — **not** `--revert`, which
+refuses a `done` page too. A present `flipPrOpenedAt` means the flip artifact is prepared and PR2
+handed over against the current code: refuse and point at `fm-route --revert` first.
+If the status is `flipped`, stop and tell the user to run
+`/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
+flag-off keeps the current status (`fm-route` Step 4), so it would leave the page at `flipped` and
+this refusal would repeat with no exit. `--revert` is the rollback that returns it to
+`parity-passed`. Step 5 resets the status to
 `generated` while the edge flag stays ON — nothing here touches routing — so the tracker would say
 "not flipped" while the production domain serves v2. Provenance resolves a capture's `side` from
 exactly that status (`templates/capture-provenance.md`), so the next capture from the production
 host would be labelled `legacy` and accepted as the legacy baseline. Beyond the provenance damage,
 applying a delta to a page under live traffic is a change in production; taking it out of rotation
 first is the correct order.
+
+**Clear any stale staging first.** If `migration-plan.next.json` or `analysis.next.json` already
+exists, an earlier delta aborted or crashed between Step 2 and Step 5. Delete both. Step 5's
+integrity check is that they *exist*, so an abandoned pair from a previous run would sail through it
+and promote a baseline describing a delta nobody applied — the same reason the Full branch deletes
+them, which is the only abort path that was covered.
 
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
@@ -41,7 +62,7 @@ legacy source against the `analysis.json` / `migration-plan.json` baseline and w
 ### Step 3: Offer incremental vs full
 Read `delta-plan.json.summary`. Present:
 - the change counts (added/modified/removed);
-- **if the delta touches > 60% of the page files**, recommend full regeneration (`fm-gen`)
+- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration (`fm-gen`)
   instead;
 otherwise default to incremental. Let the user choose.
 
@@ -66,7 +87,11 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
      `legacyUrlCandidates`, or `null` → source-cascade fallback), passing the extractor's own params
      (see `agents/style-spec-extractor.md`): `app`, `page`, `analysisPath` (now holding the patched
      surface), `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`,
-     `targetDir`, `appDir`, `workingLanguage`. It refreshes `style-spec.json` so the delta's style
+     `targetDir`, `appDir`, the app's `legacyPort` / `port` / `domain` and the page's flip state
+     (the extractor resolves each capture's `provenance.side` from those —
+     `templates/capture-provenance.md`; bypassing `fm-style-spec` bypasses its param list too, and an
+     unresolved side counts as absent, so the refreshed baseline would be unusable by `fm-parity`),
+     `workingLanguage`. It refreshes `style-spec.json` so the delta's style
      ops build to **fresh** values. (Skip when `styleDrift` is unset.)
   2. Launch `delta-modifier` (Agent) with only its params: `app`, `page`, `deltaPlanPath` =
      `docs/migration/{app}/{page}/delta-plan.json`, `styleSpecPath` =
@@ -75,23 +100,41 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
   Then continue to Step 5.
-- **Full** → **release the page `.lock` first** (do NOT fall through to Step 5 holding it — the
-  skills you point the user to need that same lock), then tell the user to run `fm-gen {page}`; if
-  `styleDrift` was set, run `/frontend-migration-plugin:fm-style-spec {page}` first — it reads the
-  now-patched `analysis.json.styleSurface`, so the full re-gen builds to fresh style values. The
-  skill **stops here**; Step 5 (which records an applied incremental delta) does not run.
+- **Full** → the page needs re-planning, not just re-generation. **Release the page `.lock` first**
+  (do NOT fall through to Step 5 holding it — the skills you point the user to need that same lock),
+  then tell the user to re-run the chain from the stage the drift invalidated:
+  `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
+  `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: the canonical baseline is
+  still the pre-drift one — the planner staged its proposal as `migration-plan.next.json` /
+  `analysis.next.json` and only Step 5 promotes those — so `fm-gen` would regenerate the page
+  against the plan the drift just invalidated. **Delete the two `.next.json` files** on the way out
+  so a later run cannot mistake an abandoned proposal for a current one. The skill **stops here**;
+  Step 5 (which records an applied incremental delta) does not run.
 
 ### Step 5: Record (incremental path only)
-- Patch `migration-plan.json`/`analysis.json` with the new baseline (the `styleSurface` is already
-  current from Step 4); archive the delta as `delta-plan.{timestamp}.json`.
+- **Promote the staged baseline.** `migration-planner` (incremental mode) wrote its proposal to
+  `migration-plan.next.json` and `analysis.next.json`; verify both parse and reflect the applied ops
+  rather than re-deriving them here (the `styleSurface` is already current from Step 4), then move
+  them over the canonical `migration-plan.json` / `analysis.json` and delete the staged copies. This
+  is the only step that advances the baseline, and it runs **after** the delta actually applied — so
+  a user who chose full regeneration, or a run that failed in Step 4, leaves the reference untouched.
+  If either staged file is missing, the delta is incomplete — re-run the planner
+  before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
-  the gates), record `deltaAppliedAt`, refresh `sourcePaths` for any file the delta created or
-  removed, and **clear `gateEvidence`** — the page's code changed, so every prior gate PASS now
-  rests on superseded code and must not read as fresh (CLAUDE.md → "Gate Result Accounting").
+  the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
+  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
+  removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
+  `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
+  and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
+  Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
+  flip. **Clear `routePrepared` and `flagKey` on the same pass**, or Step 1-pre still reads the page
+  as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (CLAUDE.md → "Gate Result
+  Accounting").
 - Release the lock.
 
 ### Step 6: Report (incremental path)
 In `workingLanguage`: ops applied, tests pass/fail with evidence, confirmation that prior fixes
 were preserved, and the re-entry point — `/frontend-migration-plugin:fm-verify {page}` → fm-e2e →
 fm-parity. (On the **Full** path the skill already ended in Step 4 after releasing the lock and
-printing the `fm-style-spec`/`fm-gen` next-steps — that instruction is its report.)
+printing the `fm-analyze` → `fm-style-spec` → `fm-plan` → `fm-gen --force` next-steps — that
+instruction is its report.)

@@ -50,7 +50,7 @@ designed to be public — list them as non-secret.
   "crossEnvReuse": [{ "field": "...", "sameValue": true }],
   "auditedAt": "ISO" }
 ```
-Final message (in `workingLanguage`): client-exposed secret count, the highest-impact items, the
+Final message (in `workingLanguage`) — keep it short; the report is the record: client-exposed secret count, the highest-impact items, the
 cross-env reuse risks, and a pointer to OMH-477 for remediation.
 
 ## Rules

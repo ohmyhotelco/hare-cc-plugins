@@ -18,6 +18,8 @@ no lock. All user-facing output in `workingLanguage`.
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve the
 `legacyDir`(s) to scan (`--app` or all apps), `workingLanguage`.
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Resolve scope
 Locate `src/environments/*.ts` under the legacy dir(s) (or use `[env-path]` if given) and the
 `src/app/**` + `server.ts` readers.

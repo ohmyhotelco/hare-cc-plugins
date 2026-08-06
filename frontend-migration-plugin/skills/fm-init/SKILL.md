@@ -24,6 +24,15 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
 ### Step 2: Detect the Monorepo Layout
 
 1. Determine `monorepoRoot` (default: current directory `.`).
+1a. **`pluginRoot` is written by the SessionStart hook, not here.** The five skills that shell
+   out to `scripts/gate-tree-hash.sh` read it from config, but this skill cannot compute it: a
+   Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
+   reaches it, and `${CLAUDE_PLUGIN_ROOT}` is expanded only for `hooks/hooks.json`, never in a
+   skill's shell. `scripts/session-init.sh` *is* inside the install, so it derives the value
+   from its own location and refreshes it on every session — which also survives the plugin
+   upgrades that would otherwise dead-end a once-written, version-pinned path. Do **not**
+   improvise a filesystem search here. If the key is still missing after the next session
+   start, report that the freshness gate will run as `unverifiable` and why.
 2. Glob for candidate app directories and shared packages:
    - Legacy Angular: directories containing `angular.json` or `src/app/` with Angular
      modules (e.g. `apps/legacy-pc`, `apps/legacy-mobile`).
@@ -77,8 +86,9 @@ details — they can be refined when those phases begin.
 - `i18n` — the **product's** copy surface, so the gates can check it. Detect, then confirm:
   - `localesDir` — glob for the translation resources (e.g. `packages/shared-i18n/src/locales`).
   - `languages` — derive from that directory's per-language subdirs/files (e.g.
-    `["KO","EN","JA","ZH","VI"]`). **This is what `gateAcceptance.scope`'s "every supported
-    language" resolves to** — without it that rule cannot be enforced.
+    `["KO","EN","JA","ZH","VI"]`). **This is what "every supported language" resolves to**; the
+    planner writes it into `gateAcceptance.visual.languages` and `gateAcceptance.e2e.languages`, the
+    fields the executors read (`scope` is prose). Without it that rule cannot be enforced.
   - `lookupFns` — the i18n lookup helpers whose key literals get checked (default `["t","tl"]`).
     Confirm against the app: helper names differ per app, so never hardcode them in the plugin.
   - `keyPrefix` — optional key convention (e.g. `tl.`) used to spot key-shaped literals.
@@ -163,10 +173,15 @@ fail setup — an absent skill is skipped, not an error.
 
 ### Step 7: Report
 
+**Tell the user to restart the session before running the gates.** `pluginRoot` is written by
+the SessionStart hook, which has already run for *this* session — so `fm-verify`/`fm-e2e`/
+`fm-parity` executed now would record no `tree` and the freshness gate would report
+`unverifiable` for those runs. Analysis and planning are unaffected.
+
 Summarize in `workingLanguage`:
 - Config path and key values (apps, currentApp, workingLanguage).
 - Tracker location.
 - Any missing external skills / CLIs with install hints.
 - Next step: `Run /frontend-migration-plugin:fm-analyze <target>` once the analyzer
-  (AA-41) is available, or `/frontend-migration-plugin:fm-secret-audit` for the Phase 0
+  or `/frontend-migration-plugin:fm-secret-audit` for the Phase 0
   security pre-work.

@@ -13,7 +13,12 @@ catalog.
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `styleSpecPath`
 (`docs/migration/{app}/{page}/style-spec.json`), `outPath` (`migration-plan.json`),
-`targetDir`, `appDir`, `packagesDir`, `workingLanguage`.
+`targetDir`, `appDir`, `packagesDir`, the config's `i18n` block (its `languages` set is what
+**both** `gateAcceptance.visual.languages` **and** `gateAcceptance.e2e.languages` resolve to — the
+e2e gate runs the `assertsCopy` dual-run per language and `e2e-test-runner` reads the set from the
+plan, exactly as `parity-verifier` does. You cannot derive it from the analysis or the style
+spec; **absent means the project has no `i18n` block**, in which case omit `languages` from both per
+`templates/migration-plan-schema.md`), and `workingLanguage`.
 
 Read `analysis.json`, `style-spec.json` (the legacy style answer key), `templates/style-spec.md`
 (its shape), `templates/angular-to-react-mapping.md` (idiom → React target), and
@@ -45,7 +50,11 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
    Coverage in `scope` defaults to the FULL supported matrix (every language/device/viewport
    the product serves); if sampling seems warranted, do NOT bake it into the criteria — record
-   it as an open approval item with rationale for the decision owner. For the `visual` gate,
+   it as an open approval item with rationale for the decision owner. **`scope` is prose; the
+   language set is the separate `languages` field** — write it on both the `visual` and the `e2e`
+   entries from the config `i18n.languages` you were given (omit it on both when there is no `i18n`
+   block). `e2e` needs it as much as `visual` does: `e2e-test-runner` runs one `copyParity[]` entry
+   per language and reads the set from the plan. For the `visual` gate,
    `gateAcceptance.visual` MUST also enumerate the axes from
    `templates/visual-parity-checklist.md` — frame, **inter-element spacing/gaps**, **icons/glyphs**,
    alignment, control geometry, color/border, typography — so the verifier's probe set is required to
@@ -153,7 +162,20 @@ Do not modify code — `delta-modifier` applies the ops. Report the change count
 delta is large (the skill recommends full `fm-gen` above ~60% of files).
 
 ## Rules
-- Decisions only — no production code. The single file you write is `migration-plan.json`.
+- Decisions only — no production code. In normal (full-plan) mode the file you write is
+  `migration-plan.json`. In **incremental mode** you write `delta-plan.json` at `outPath` **and** the
+  proposed baseline — but to **staging paths**, `migration-plan.next.json` and `analysis.next.json`
+  beside them, **never over the canonical files**. Include the revised `migration-plan.json` content
+  and the revised `analysis.json` sections the delta changes (new API calls, gates, `e2eScenarios`,
+  `sharedDeps`, component metadata). The ops list alone is not a baseline — `fm-delta` Step 5 is
+  instructed to promote the staged baseline and has no other producer for it, so leaving it out
+  means the next `fm-delta` diffs against a stale reference.
+
+  Staging rather than overwriting is what makes the delta **abortable**: `fm-delta` shows the user
+  the change counts *after* you run and lets them pick full regeneration instead, and a full-branch
+  or failed run must leave the canonical baseline exactly as it was. Overwriting it here would
+  advance the reference while no code changed, and the next delta would diff against a plan that
+  describes work nobody did.
 - Every mapping decision cites the catalog section and the analysis anchor.
 - Every `gateAcceptance` criterion that asserts a v2-side expected value carries
   `expectedValueSource` — including the "searched, none found" case. `fm-plan` Step 4 returns the plan

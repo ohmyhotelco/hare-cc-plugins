@@ -46,11 +46,11 @@ This is deliberately **neither a port nor a bridge**:
 
 | Component | Path | Role |
 | --- | --- | --- |
-| Skill | `skills/fm-audit-codex/SKILL.md` | user-invocable entry point — `<page> [--stage <stage>\|--all] [--app pc\|mobile\|hana]`. Runs the audit for one stage or all available, records, reports. |
+| Skill | `skills/fm-audit-codex/SKILL.md` | user-invocable entry point — `<page> [--stage <stage>] [--all] [--app pc\|mobile\|hana]`. Runs the audit for one stage or all available, records, reports. |
 | Agent | `agents/codex-auditor.md` | Claude subagent. Gathers stage inputs → delegates to Codex via `codex exec` → reads/parses Codex's structured output → writes `codex-audit.json`. |
 | Rubric template | `templates/codex-audit.md` | Per-stage review lens, severity definitions, and the output schema — keeps Codex prompts consistent and grounded. |
 | State file | `docs/migration/{app}/{page}/codex-audit.json` | Per-stage audit verdicts, accumulated (Read-Modify-Write). |
-| Tracker field | `tracker.json` → `pages[page].codexAudit` | `{ stage: verdict }` summary for `fm-progress`. |
+| Tracker field | `tracker.json` → `apps[app].pages[page].codexAudit` | `{ stage: verdict }` summary for a human scanning the tracker. |
 
 Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 `tools: Read, Glob, Grep, Bash, Write`.
@@ -72,8 +72,10 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 1. Each audited artifact-producing skill (`fm-analyze`, `fm-plan`, `fm-gen`, `fm-verify`, `fm-e2e`,
    `fm-parity` — `fm-style-spec` is deliberately excluded; its answer key is re-checked when
    `fm-parity` reuses the same baseline) finishes its own Record step and **releases its page lock**.
-2. If `codexAudit` is enabled and the Codex CLI/runtime is available, the skill spawns the
-   `codex-auditor` agent (Agent tool) for the just-completed stage.
+2. If `codexAudit` is enabled and the stage is in `codexAuditStages` (absent → all seven), the skill
+   spawns the `codex-auditor` agent (Agent tool) for the just-completed stage. It does **not**
+   pre-check whether the Codex CLI is installed — the auditor detects that itself and records a
+   `skipped` verdict under the page lock, which a caller-side short-circuit would lose.
 3. The agent gathers the stage inputs (matrix above), builds the rubric-based English prompt, calls
    `codex exec` per the `codex-cli-runtime` contract, and **reads the real output + exit code**.
 4. The agent acquires the page `.lock`, Read-Modify-Writes `codex-audit.json` (merging the new
@@ -81,8 +83,9 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
 5. The originating skill surfaces the verdict in its user-facing report (in `workingLanguage`),
    advisory.
 6. `fm-audit-codex` is the manual / re-run entry point for the same logic (`--all` for a sweep,
-   `--stage` for one). `fm-fix` re-audits the affected stage after addressing concerns; `fm-delta`
-   re-audits only the changed stages.
+   `--stage` for one). Neither `fm-fix` nor `fm-delta` re-audits on its own — re-auditing happens when
+   the gate's own skill runs again (each in-loop skill spawns the auditor for its stage), or when the
+   user invokes `fm-audit-codex` explicitly.
 
 ## Output schema — `codex-audit.json` (English)
 
@@ -92,7 +95,11 @@ Frontmatter: skill `allowed-tools: Read, Write, Glob, Grep, Bash, Agent`; agent
     "stage": "parity",
     "auditor": "codex",
     "model": "<codex model id>",
-    "verdict": "pass | concerns | fail",
+    // Canonical schema is `templates/codex-audit.md`; this sketch is illustrative and may lag it.
+    "verdict": "pass | concerns | fail | error | skipped",
+    "reason": null,          // required for error/skipped
+    // findings[] additionally carry an optional `adjudication` block, and a re-audit
+    // preserves unmatched adjudicated findings under `{stage}.priorAdjudicated[]`.
     "findings": [
       {
         "severity": "high | med | low",

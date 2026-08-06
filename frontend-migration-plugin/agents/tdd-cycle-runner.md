@@ -89,7 +89,7 @@ See `templates/tdd-rules.md`.
 
 ## Output
 - This phase's source + tests under `{targetDir}`.
-- Final message (in `workingLanguage`): files created, RED and GREEN evidence (test counts +
+- Final message (in `workingLanguage`) — keep it short; the report is the record: files created, RED and GREEN evidence (test counts +
   pass/fail with the vitest summary line) for each unit, and anything deferred.
 
 ## Rules

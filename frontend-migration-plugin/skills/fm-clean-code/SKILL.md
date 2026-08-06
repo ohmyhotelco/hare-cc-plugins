@@ -1,7 +1,7 @@
 ---
 name: fm-clean-code
 description: "Use to audit generated React migration code for quality (composition, naming, types, accessibility, performance, convention compliance, simplicity/over-engineering) — a standalone review, independent of the pipeline, runnable on any path."
-argument-hint: "[path]"
+argument-hint: "[path] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Agent
 ---
@@ -15,8 +15,11 @@ output in `workingLanguage`.
 ## Instructions
 
 ### Step 0: Config
-Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `appDir`,
-`workingLanguage`.
+Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
+(`--app`/`currentApp`) and, from that app's entry, `appDir` and `targetDir`, plus `workingLanguage`.
+Both app-scoped paths must be resolved before Step 1 — the default review target is `targetDir`.
+
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve the target
 - If `[path]` is given, review it.

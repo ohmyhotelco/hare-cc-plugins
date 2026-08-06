@@ -21,11 +21,16 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 1. Read `.claude/frontend-migration-plugin.json`. If absent → tell the user to run `fm-init`; stop.
 2. Resolve `app` (`--app` or `currentApp`), `legacyDir`, the other apps' `legacyDir`
    (`counterpartDirs`), `packagesDir`, `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
+   A shared package is not an app, so there is no `appDir` here: verification for this skill runs
+   from `{monorepoRoot}/{packagesDir}/shared-<name>` (the extracted package's own directory), or
+   from `{monorepoRoot}` for workspace-wide commands.
 3. Resolve `contractsDir` (optional). If the config has `contractsDir`, confirm the directory
    exists (with `responses/`+`requests/`); if the key is absent, leave it unset. This is the
    **authoritative** zod schema source for `shared-types`/`shared-data` only — when unset those
    packages fall back to legacy reverse-extraction (no regression). See CLAUDE.md →
    "Configuration".
+
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve candidates
 - If `--from <page>` is given, read `docs/migration/{app}/{page}/analysis.json` and take its
@@ -66,7 +71,8 @@ The agent works test-first and writes `packages/shared-*/src` + tests. If it **r
 for the secret boundary (shared-domain payment secrets / hash builders), collect it for Step 5.
 
 ### Step 4: Verify
-From the workspace / package `appDir`: run `tsc` (composite-aware: `tsc -b` if `references`,
+From the package directory resolved in Step 0 (`{monorepoRoot}/{packagesDir}/shared-<name>`), or
+`{monorepoRoot}` for workspace-wide commands: run `tsc` (composite-aware: `tsc -b` if `references`,
 else `--noEmit`) and `vitest run`. Read the output. Confirm the package imports cleanly with no
 React/Angular dependency (grep). Report exit codes as evidence.
 

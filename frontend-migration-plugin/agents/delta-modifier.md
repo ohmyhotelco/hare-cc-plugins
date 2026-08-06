@@ -68,7 +68,7 @@ evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify`
 
 ## Output
 - The targeted edits/creates/removes under `{targetDir}`.
-- Final message (in `workingLanguage`): ops applied, tests pass/fail with evidence, fm-fix edits
+- Final message (in `workingLanguage`) — keep it short; the report is the record: ops applied, tests pass/fail with evidence, fm-fix edits
   confirmed preserved, and the re-entry point (`fm-verify`).
 
 ## Rules

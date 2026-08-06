@@ -136,6 +136,7 @@ unformatted file); `format` rewrites in place.
 - **`.editorconfig`** stays in the repo for editor-level defaults (charset, indent, final newline)
   on file types Prettier does not own. Where they overlap (indent, EOL), the values above match —
   no conflict.
-- **Verify gate.** `fm-verify` (AA-43) currently gates on build / tsc / Vitest; formatting is not
-  one of its hard checks. If formatting is later promoted to a gate, `format:check` is the command
-  to run (this template is wiring-ready but the wiring itself is out of scope here).
+- **Verify gate.** `fm-verify` gates on build / tsc / Vitest / ESLint (hard); Prettier is already
+  wired as an **advisory** check (`npx prettier --check .`, recorded under `formatWarnings`, never
+  failing the gate) — see CLAUDE.md → "Lint & Format Gate". Formatting is deliberately not a
+  hard check: a format-only diff never blocks a migration gate.

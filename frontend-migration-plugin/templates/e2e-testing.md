@@ -60,8 +60,9 @@ legs here often run from the same harness against hosts that differ only by port
 sees** on both sides and diff it. A flow can navigate identically while showing the wrong words:
 an English backend string on a Korean screen, a raw `tl.*` key, or a literal `<br/>`. Those pass a
 navigation-only comparison, which is exactly how they reached production (OMH-748). Run the copy
-assertions in each language the scenario's plan scope covers (`gateAcceptance.scope` →
-`i18n.languages`); a reduction there is an `openApprovals` item, not a default.
+assertions in each language the plan lists in `gateAcceptance.e2e.languages` (= config
+`i18n.languages`; `scope` is prose, `languages` is the field you read); a reduction there is an
+`openApprovals` item, not a default.
 
 **Failure branches are first-class scenarios.** A wrong error string never appears in a successful
 flow, so a happy-path-only suite is blind to the entire copy axis. Run the plan's failure scenarios
@@ -81,7 +82,10 @@ primary evidence `fm-fix` (e2e-fix) reads to self-correct — open it with `npx 
 - Tag each spec with the scenario name + `legacyAnchor` for traceability.
 - Stable selectors (role/label/test-id), not brittle CSS chains.
 - Preserve the legacy AuthGuard **login-modal** UX in auth scenarios (modal, not hard redirect).
-- WebView/SSO/telemetry assertions belong to `fm-parity` (AA-46), not here — this gate is
+- WebView and telemetry assertions belong to `fm-parity` (AA-46), not here. **SSO is the exception:
+  it is not a parity gate** (no verifier, no report slot) — the Hana `?ts` flow is a user flow, so it
+  belongs *here* as an `e2eScenarios` entry built to `templates/hana-sso.md`. Sending it to parity
+  would drop it from E2E and hand it to a gate that cannot run it. This gate is
   behavior/flow.
 
 ## Flakiness prevention
@@ -97,9 +101,14 @@ at authoring time, before the PR, not after merge.
   change does not break the test.
 
 ## Gatekeeper rule
-A failing or unrun scenario means the gate has not passed. `fm-route --flag-on` is blocked until
+A failing scenario means the gate has not passed. A scenario recorded `not-run` with a `reason`
+(e.g. the staging gateway is not configured) is unmeasured rather than failed — so it does not make
+the gate `fail`, but it does make the gate **`not-run`**: the top-level `result` becomes `not-run`,
+the page stays at `verified`, and the chain is blocked until the missing prerequisite is supplied.
+Unmeasured is not passed. `fm-route --flag-on` is blocked until
 `e2e-report.json.result === "pass"` (and `fm-verify` + `fm-parity` pass). On failure, loop back
-through `fm-fix` (e2e-fix mode), then re-run `fm-e2e`.
+through `fm-fix` (e2e-fix mode), then re-run `fm-e2e`; on `not-run`, fix the prerequisite (not the
+code) and re-run `fm-e2e`.
 
 ## Permissions
 Every Playwright run in this pipeline happens inside a sub-agent, and session approvals do not

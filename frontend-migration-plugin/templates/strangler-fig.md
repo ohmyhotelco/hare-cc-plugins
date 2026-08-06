@@ -70,7 +70,7 @@ the deployment owner (OMH-502). Keep one routing block per `guardsPath`; default
 
 When an app flips at a CDN, the "flag" is a **CloudFront behavior**: a path-pattern routed to the
 v2 origin. `fm-route` edits a **version-controlled manifest** in the repo
-(`cloudfrontDir/<manifest>`, default `infra/cloudfront/v2-routes.json`) and opens a PR — it
+(`cloudfrontDir/<manifest>`, default `infra/cloudfront/v2-routes.json`) for a PR the user opens — it
 **never calls AWS** (`aws cloudfront …` is out of scope). Governance is **detect / PR, not apply**;
 the deployment owner applies the manifest to the live distribution (OMH-502).
 
@@ -114,9 +114,17 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
    (nginx: routing block + flag entry, default OFF; cloudfront: manifest behavior `active: false`).
    The RR v7 code merges; users still get legacy.
 2. **Flag-ON PR** — `fm-route <page> --flag-on`: one-line flip, **only after `fm-verify` +
-   `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise).
+   `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise). This edits the artifact
+   and records `flipPrOpenedAt`; the page stays `parity-passed`.
+2b. **Confirm live** — `fm-route <page> --flag-on --confirm-live`, run once that PR is merged **and
+   deployed and propagated**. Only this sets `flipped`. It requires `flipPrOpenedAt` to be present,
+   edits no artifact, and launches no agent — it records a human's observation, which is the one
+   thing nothing in the plugin can make for itself.
 3. **Rollback** — `fm-route <page> --revert`: nginx flag OFF, or remove the cloudfront behavior.
    Soft rollback, target 5–10 min (CloudFront propagation is minutes-grade — still within target).
+   Requires a live or in-flight route change to undo (`flipped`, or `parity-passed` with
+   `routePrepared`/`flipPrOpenedAt`); it returns a `flipped` page to `parity-passed` and otherwise
+   leaves the status alone. It never promotes a page into a gate-passed state.
 
 ## Per-version S3 artifacts (recommended)
 Prod tars currently overwrite a single key (`s3://omh-data/prd/<app>.tar`). Recommend per-version
@@ -132,4 +140,4 @@ Per app, by `flipMechanism`:
   version-controlled mirror of the live distribution's v2-owned behaviors.
 
 Ownership and the sync/apply mechanism are an OMH-502 discovery item. `fm-route` edits the in-repo
-config and opens a PR; it does not deploy, reload, or push to AWS.
+config for a PR the user opens; it does not deploy, reload, or push to AWS.

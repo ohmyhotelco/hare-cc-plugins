@@ -22,6 +22,7 @@ Per-page loop (repeat per page)
   /fm-parity <page>            visual / contract / webview / telemetry   ── gate 3 (legacy equiv.)
   /fm-route <page> --flag-off  code PR (flag OFF)
   /fm-route <page> --flag-on   one-line flip PR (only if all gates pass)
+  /fm-route <page> --flag-on --confirm-live   after that PR is merged AND deployed → flipped
         any gate fails → /fm-fix <page> → re-run that gate
 
 On legacy drift
@@ -35,7 +36,7 @@ Anytime
 When `codexAudit` is enabled (default), each audited stage (analyze/plan/gen/verify/e2e/parity/route,
 not fm-style-spec) also gets an **independent Codex audit** in-loop
 (advisory) — a second opinion recorded in `codex-audit.json` that never changes the FSM state. The
-only soft gate is `fm-route --flag-on`, which requires acknowledging unresolved high-severity Codex
+only soft gate is `fm-route --flag-on`'s Codex step, which requires acknowledging unresolved high-severity Codex
 findings. See CLAUDE.md → "Codex Independent Audit".
 
 ## Per-page state machine
@@ -51,7 +52,11 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`). Re-running the
   gate is what issues the passed state and rewrites the gate's report; `fm-fix` never issues it.
 - `fm-delta` resets a drifted page to `generated` to re-pass the gates.
-- `fm-gen` over a verified/later page warns (demotion) before resetting to `generated`.
+- `fm-gen` over a `verified` / `e2e-passed` / `parity-passed` page warns (demotion) before resetting
+  to `generated`. It **refuses** `flipped` (run `fm-route --revert` first), `done` (manual decision —
+  the legacy page is gone), and any page with a flip prepared and handed over (`flipPrOpenedAt` set — the artifact is ready and
+  PR2 is the user's to open; the plugin cannot see the forge). Every other status writer refuses the
+  same three.
 
 ## Gate chain
 
@@ -61,7 +66,11 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
 | 2 functional | `fm-e2e` | Playwright user flows; legacy dual-run; staging payment | `fm-fix` (e2e-fix) |
 | 3 parity | `fm-parity` | visual regression, contract freeze, WebView, telemetry | `fm-fix` (parity-fix) |
 
-`fm-route --flag-on` is refused unless all three pass for the page.
+`fm-route --flag-on` is refused unless all three pass for the page — and unless each gate's
+recorded `gateEvidence.{gate}.tree` still matches a re-hash of the page's watch paths (CLAUDE.md →
+"Gate Result Accounting"). A gate whose evidence no longer matches the code must be re-run; that is
+a hard block, not an acknowledgement. An unmeasured gate (`not-run`) never counts as a pass: `fm-e2e`
+leaves the page at `verified` and `fm-parity` at `e2e-passed` until the missing premise is supplied.
 
 ## Topology (Strangler Fig)
 
@@ -81,5 +90,6 @@ flag-ON PR. Rollback = flip OFF / remove the behavior.
 
 ## Three apps
 
-PC-first. Mobile adds the WebView parity gate; Hana adds the SSO gate (`?ts` → clientLoader) and
-ships all routes SPA. The shared packages (Phase 0) are extracted once and reused by all three.
+PC-first. Mobile adds the WebView parity gate. Hana's `?ts` SSO is **not** a gate — no verifier and
+no report slot — it is a `gateTriggers[]` entry that becomes an `e2eScenarios` entry and is built to
+`templates/hana-sso.md` (`?ts` → clientLoader); Hana also ships all routes SPA. The shared packages (Phase 0) are extracted once and reused by all three.

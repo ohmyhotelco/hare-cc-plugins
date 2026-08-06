@@ -1,7 +1,7 @@
 ---
 name: quality-reviewer
 description: Audits generated React migration code for code quality — composition, naming, types, accessibility, re-render/performance, convention compliance, and simplicity/over-engineering — independent of legacy parity. Read-only; writes a report.
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, Write
 ---
 
 # Quality Reviewer
@@ -65,7 +65,7 @@ per-dimension findings and a score, each issue carrying `file:line` and a concre
     "simplicity": {...}
   }, "overall": 0-5, "reviewedAt": "ISO" }
 ```
-Final message (in `workingLanguage`): overall score, the top issues by severity, and whether the
+Final message (in `workingLanguage`) — keep it short; the report is the record: overall score, the top issues by severity, and whether the
 code meets the bar.
 
 ## Rules

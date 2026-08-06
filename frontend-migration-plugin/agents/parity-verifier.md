@@ -12,12 +12,15 @@ appearance, API contract, native bridge, and analytics. Runs only after E2E has 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
 `requiredGates`/`gateAcceptance`), `analysisPath` (`analysis.json` → `gateTriggers` anchors), `styleSpecPath` (`style-spec.json`
 — the legacy style baseline generation built to), `targetDir`, `appDir`,
-`legacyDir` / legacy base URL, `outPath` (`parity-report.json`), `workingLanguage`. Run only the
+`legacyDir` / legacy base URL, `outPath` (`parity-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip
+state (for `provenance.side` resolution), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
 `templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
 the style baseline, `templates/capture-provenance.md` for how an artifact's side is resolved (always —
-it decides what counts as the legacy side at all), and `templates/webview-bridge.md` /
-`templates/hana-sso.md` when those gates apply.
+it decides what counts as the legacy side at all), and `templates/webview-bridge.md`
+when the `webview` gate applies. (There is no `sso` gate — `templates/hana-sso.md` is a generation
+contract and the `?ts` flow is verified through the page's `e2eScenarios`, so do not look for an
+`sso` entry in `requiredGates`.)
 
 ## Acceptance contract
 
@@ -25,6 +28,11 @@ Execute `plan.gateAcceptance` **verbatim** — the criteria are codified in the 
 yours to reinterpret, narrow, or substitute (whatever the delegation prompt says). If a criterion
 cannot be met, report it as **unmet (fail)** or as an explicit approval request in the report —
 silent scope reduction is prohibited.
+
+**Record that compliance in the report**, in `criteriaCompliance` with `deviations: []` — the same
+slot `e2e-report.json` carries, because `fm-parity` Step 3 check 5 and `fm-e2e` Step 4 run the same
+check and one of them had nothing to read. A non-empty `deviations` is a gate failure, not an
+annotation.
 
 **A criterion you believe is wrong is still not yours to change.** An expected value can be
 mis-authored (written from the legacy source while the v2 platform had already decided to diverge), and
@@ -83,7 +91,12 @@ resolves from the **optional** `i18n` config block, so on a project without one 
 and you are forbidden from choosing a narrowing yourself, which would otherwise leave you inventing
 the very scope decision the rule protects. When `languages` is absent because config has no `i18n`
 block, record the language axis as `languages: "not-run"` with
-`reason: "no i18n block configured"` and run the gate over `states` at the app's single served
+`reason: "no i18n block configured"`. **This `languages: "not-run"` is a coverage note on the
+language axis, not a sub-gate result** — the aggregate below is driven by `gates.{gate}.result`
+alone, and a gate that ran its full `states` matrix at the single served locale is `pass`. (The
+mirror rule is in `agents/e2e-test-runner.md`: the two fields share the string and mean different
+things. Conflating them would strand every page on a project with no `i18n` block at `e2e-passed`
+with no premise the user could supply.) Run the gate over `states` at the app's single served
 locale. This is the same premise-before-capture shape the contract gate uses, and the same absent-
 `i18n` handling `fm-verify` and `foundation-generator` already apply. Do **not** claim multi-language
 coverage you did not check, and do not invent a placeholder locale identifier to fill the field —
@@ -216,8 +229,14 @@ event parity; the time window is operational.
 ```jsonc
 {
   "page": "...",
+  // The gate's own statement that it ran plan.gateAcceptance as written — the same slot
+  // e2e-report.json carries, and the field fm-parity Step 3 check 5 reads. deviations MUST be
+  // empty; a narrowed criterion is a gate failure, not a note.
+  "criteriaCompliance": { "gate": "parity", "enforcedVerbatim": true, "deviations": [] },
   "gates": {
-    "visual":    { "result": "pass|fail", "diffs": [], "evidence": "...",
+    "visual":    { "result": "pass|fail|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null,
+                   "diffs": [], "evidence": "...",
                    "coverage": { "states": ["default", "login failure shown", "session expired"],
                                  "languages": ["KO", "EN", "JA", "ZH", "VI"],
                                  // or "not-run" when config has no i18n block — then set languagesReason
@@ -227,10 +246,17 @@ event parity; the time window is operational.
                    "reason": null,              // set when result is "not-run" (e.g. "typing deferred: <openApprovals ref>", "budget exceeded"); an unknown/any-typed write page with no APPROVED openApprovals deferral is a fail, not not-run
                    "amendedCriterion": false,   // true when the passing criterion carries criterionAmendment
                    "priorWhy": null },          // the pre-amendment reason, preserved when it does
-    "webview":   { "result": "pass|fail|skipped", "evidence": "..." },
-    "telemetry": { "result": "pass|fail|skipped", "missingEvents": [], "evidence": "..." }
+    "webview":   { "result": "pass|fail|skipped|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null, "evidence": "..." },
+    "telemetry": { "result": "pass|fail|skipped|not-run", "reason": null,
+                   "amendedCriterion": false, "priorWhy": null,
+                   "missingEvents": [], "evidence": "..." }
   },
-  "result": "pass | fail", "ranAt": "ISO"
+  // Aggregate: "pass" only when every required sub-gate passed. Any sub-gate at "not-run" (premise
+  // absent / budget exceeded) makes the aggregate "not-run" — never "pass" (a criterion was not
+  // measured) and never "fail" (nothing was measured and found wrong). "skipped" sub-gates are
+  // plan-excluded and do not affect it.
+  "result": "pass | fail | not-run", "notRunGates": [], "ranAt": "ISO"
 }
 ```
 `evidence` names the exact artifact pair(s) each comparison rests on **and each one's resolved
@@ -238,7 +264,7 @@ event parity; the time window is operational.
 `side` is `unresolved` is reported as absent (its axes uncovered), never as the side its filename
 claims. Unmet criteria appear as `fail` entries or explicit approval requests, never as silently
 narrowed scope.
-Final message (in `workingLanguage`): per-gate result with evidence, and (on fail) a pointer to
+Final message (in `workingLanguage`) — keep it short; the report is the record: per-gate result with evidence, and (on fail) a pointer to
 `fm-fix` (parity-fix).
 
 ## Rules
@@ -252,7 +278,8 @@ Final message (in `workingLanguage`): per-gate result with evidence, and (on fai
   single-line minified assets (deployed CSS bundles) — use fixed-string grep / byte-range cuts
   under a short `timeout`. (Origin: OMH-710 round-6 — three verifier sessions lost to these.)
 - **A gate that overruns its budget is recorded, not killed and not failed.** When a gate declares
-  `gateAcceptance.{gate}.budgetSeconds` (optional; the plugin's default when omitted), and the capture
+  `gateAcceptance.{gate}.budgetSeconds` (optional; **omitted → no cap**; there is no plugin-wide default (`migration-plan-schema.md`), so an unset
+value means the gate runs to completion — never invent a number), and the capture
   passes it, stop that gate and record `result: "not-run"` + `reason: "budget exceeded"`, then move to
   the next gate. Do **not** mark it `fail` (a measurement not taken is not a measurement that failed —
   the same three-way split as the contract premise above), and do **not** hard-kill a running capture

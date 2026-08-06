@@ -68,6 +68,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
         }
       }
     ],
+    "reason": null,   // required when verdict is "skipped" or "error"; null otherwise
     "summary": "<one-paragraph independent assessment>",
     "auditedAt": "<ISO-8601>",
     "inputsRef": ["<artifacts reviewed>"]
@@ -77,7 +78,11 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 
 - `error` — `codex exec` failed or returned unparseable output (capture the raw output in
   `summary`); advisory, non-blocking.
-- `skipped` — Codex CLI/runtime unavailable, or the stage is excluded by `codexAuditStages`.
+- `skipped` — Codex CLI/runtime unavailable, or the stage is excluded by `codexAuditStages`. Record
+  why in the stage's `reason` field (a sibling of `verdict`, e.g. `"Codex unavailable"` or
+  `"excluded by codexAuditStages"`); `error` uses the same field for its failure summary. Without a
+  defined slot each implementation would improvise one, which is how the ad-hoc fields this layer
+  already accumulated got there.
 - `adjudication` — **optional, and never written by the discovering audit.** Codex reports what it
   finds; whether the finding was later fixed or dismissed is a separate fact recorded downstream
   (by `fm-fix` after a repair, or a human). A finding with **no** `adjudication` block is read as
@@ -93,7 +98,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
   would reopen — the failure the field exists to prevent. `codex-auditor` therefore reads the prior
   `findings[]` before writing: an `adjudication` moves onto a new finding matching on **`area` +
   `evidence`**, and any prior adjudicated finding that matches nothing is preserved verbatim under
-  `stages.{stage}.priorAdjudicated[]`. Matching is deliberately conservative — Codex is an LLM and
+  `{stage}.priorAdjudicated[]`. Matching is deliberately conservative — Codex is an LLM and
   its `detail` prose will not reproduce word for word, so `area` + `evidence` is the most identity a
   re-run can honestly assert. A non-match therefore means *"could not be matched"*, **not**
   *"resolved"* or *"gone"*: `priorAdjudicated[]` keeps the record and `fm-route` Step 1b shows it to

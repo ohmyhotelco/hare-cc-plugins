@@ -44,7 +44,7 @@ add it rather than risk a broken edit.
 
 ## Output
 - `routes.tsx`, `i18n.ts`, and central-file integrations (or manual-guidance snippets).
-- Final message (in `workingLanguage`): what was wired, rendering mode applied, and any manual
+- Final message (in `workingLanguage`) — keep it short; the report is the record: what was wired, rendering mode applied, and any manual
   steps left for the user.
 
 ## Rules

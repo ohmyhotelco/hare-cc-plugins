@@ -15,18 +15,24 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
-`workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
+`monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
+gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
 `migration-plan.json` with `requiredGates` (absent → point to `fm-plan`); the per-gate
 `gateTriggers` anchors live in `analysis.json`, not the plan. Require `plan.gateAcceptance`
 (absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
 `docs/migration/{app}/{page}/style-spec.json` (the visual gate reuses its legacy baseline; absent →
 point to `fm-style-spec {page}` and stop).
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
-Launch `parity-verifier` (Agent) with only its params: `app`, `page`, `planPath`,
+Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
+`domain` and the page's flip state, which the verifier needs to resolve each capture's
+`provenance.side` (`templates/capture-provenance.md`; an unresolved side counts as absent and fails
+the gate): `app`, `page`, `planPath`,
 `analysisPath`, `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `outPath` =
 `docs/migration/{app}/{page}/parity-report.json`, `workingLanguage`. The verifier runs only the
@@ -64,7 +70,9 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
    `--update-snapshots` capture is NOT that check); (b) the probe set covers **every** content-
    independent axis in the checklist, not a subset — a page pinning color but not the pager gap or the
    toggle icon is an **incomplete probe set = fail**.
-5. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
+5. **Scope reductions** — read `criteriaCompliance`: a non-empty `deviations` is a gate failure
+   regardless of the top-level `result`, the same check `fm-e2e` Step 4 runs on its own report. Any
+   criterion the verifier scoped down, skipped, or reinterpreted is a
    **fail** unless the report records the user's explicit approval — never a silent pass. In
    particular, a lift-out delta covers only the shed shell, NOT axis diffs (spacing/icon/alignment)
    inside the compared content-area.
@@ -79,15 +87,55 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 ### Step 4: Record
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
-  `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on, so a
-  later `packages/`/page change that outdates this evidence is visible at flip (see CLAUDE.md → "Gate
-  Result Accounting"). `commit` = `git rev-parse --short HEAD`; if `git status --porcelain` is
-  non-empty, record `<sha>+dirty`. Keep `parityPassedAt` for backward compatibility.
+  `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
+  — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence
+  blocks the flip (see CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`;
+  if `git status --porcelain` is non-empty, record `<sha>+dirty` (the same rule `fm-verify` and
+  `fm-e2e` apply — the working tree differs from the SHA, and honest imprecision beats a
+  clean-looking lie). Audit trail only. `tree` is the freshness test. Compute it by **running the script** — never an
+  inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
+
+  ```sh
+  REPO=$(git rev-parse --show-toplevel)
+  MAN="$REPO/docs/migration/{app}/{page}/gate-tree/parity.tsv"
+  mkdir -p "$(dirname "$MAN")"
+  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>...
+  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+      --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
+  ```
+
+  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
+  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
+  make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
+  directory this skill is standing in. Derive the destination from
+  `git rev-parse --show-toplevel`, the same anchor the script itself uses, and create the
+  directory first. This skill runs from `{appDir}`, and a
+  repo-relative redirect would land the manifest at `{appDir}/docs/migration/…` where
+  `fm-route` does not look. That is the same cwd assumption that made the v0.15.2 hash a
+  constant, one line further down.
+
+  If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
+  the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
+  store the word `unverifiable`, and never store a hash the script did not print. Keep `parityPassedAt` for
+  backward compatibility.
 - `result: fail` or any Step 3 override → `parity-failed`.
+- Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
+  coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.
+- `result: not-run` → keep the page at `e2e-passed` (it did not pass parity) and report which gates
+  were unmeasured and why, from `notRunGates`. Do **not** set `parity-passed`: an unmeasured gate is
+  not a passed one, and `fm-route --flag-on` requires `parity-passed`, so the flip stays blocked
+  until the premise is met or the budget raised. Do not route to `fm-fix` either — there is no
+  failure to repair.
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
+`codex-auditor`
 (Agent) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
 `parityReportPath` + `planPath` (→ `gateAcceptance`) + the legacy baseline,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`,

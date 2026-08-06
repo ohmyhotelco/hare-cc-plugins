@@ -1,7 +1,7 @@
 ---
 name: test-reviewer
 description: Audits the generated migration tests (Vitest + Playwright) for test quality — assertion patterns, Testing Library usage, async handling, coverage, timing/flakiness, and anti-patterns. Read-only; writes a report.
-tools: Read, Glob, Grep, Bash
+tools: Read, Glob, Grep, Bash, Write
 ---
 
 # Test Reviewer
@@ -35,7 +35,7 @@ staging-transactional patterns).
 
 ## Output
 A report (`test-review-report.json` next to the path, or stdout) with per-dimension findings and a
-score, each issue carrying `file:line` and a fix. Final message (in `workingLanguage`): overall
+score, each issue carrying `file:line` and a fix. Final message (in `workingLanguage`) — keep it short; the report is the record: overall
 score, top issues, and whether the suite meets the bar.
 
 ## Rules

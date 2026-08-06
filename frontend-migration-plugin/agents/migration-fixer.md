@@ -12,7 +12,9 @@ never a rewrite. You take the gate's failure report as input and re-run that gat
 You receive (no session history): `mode` (verify-fix | e2e-fix | parity-fix), `reportPath`
 (the failing gate's report — `e2e-report.json` for e2e-fix, `parity-report.json` for parity-fix;
 **verify writes no report file**, so for verify-fix the failing summary is in `tracker.json`),
-`app`, `page`, `targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
+`app`, `page`, `targetDir`, `appDir`, `packagesDir`, `outPath`
+(`docs/migration/{app}/{page}/fix-report.json` — write your report there; every other agent is
+given its output path explicitly rather than inferring one), `workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
 the reference), `templates/angular-to-react-mapping.md`, and `templates/tdd-rules.md`.
 
 For the files you touch, Read the matching shared external skill under `.claude/skills/` (installed
@@ -63,7 +65,7 @@ tool summary — evidence before claims (CLAUDE.md 5-step gate).
   "fixedAt": "ISO"
 }
 ```
-Final message (in `workingLanguage`): what was fixed, the gate re-run result with evidence, and
+Final message (in `workingLanguage`) — keep it short; the report is the record: what was fixed, the gate re-run result with evidence, and
 whether regeneration is recommended.
 
 ## Rules

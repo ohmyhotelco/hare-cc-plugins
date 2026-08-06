@@ -13,7 +13,9 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 `styleSpecPath` (`style-spec.json` — the asset inventory), `targetDir`, `appDir`, `packagesDir`,
 `monorepoRoot`, `legacyDir` (this app's legacy source, to copy assets from), `legacyDirs` (every
 `apps.*.legacyDir`, for the `.prettierignore`), `workingLanguage`, `eslintTemplate`,
-`prettierTemplate`.
+`prettierTemplate`, and the config's `i18n` block (task 3b reads `localesDir`, `languages`,
+`lookupFns`, `keyPrefix`; **absent = the project has no `i18n` block**, the documented skip case —
+none of these can be inferred from the plan).
 
 ## Tasks
 
@@ -63,6 +65,13 @@ gate step. Do **not** change the i18n runtime to throw or warn: the `language �
 resolution reproduces legacy i18next and is required for parity. If the `i18n` block is absent,
 skip this spec and say so in the report (`fm-verify` records `skipped`).
 
+**Use `i18n.keyPrefix` to catch an unresolved key rendered as text.** The lookup never throws — it
+falls back to returning the key itself — so a missing translation reaches the screen as a literal
+`tl.login.otp-subject`, which is exactly how one shipped in an email subject (OMH-748). When
+`keyPrefix` is configured, assert that no rendered string matches it: a value starting with the
+prefix is an unresolved key, not copy. Without this the field was collected by `fm-init` and read by
+nothing.
+
 ### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
 Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
 the flag is on → skip silently if off → never auto-install). You receive `eslintTemplate` and
@@ -97,7 +106,7 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 ## Output
 - `{targetDir}` types, `mocks/`, copied assets under the app's public dir, and (if new) the app
   harness configs.
-- Final message (in `workingLanguage`): files created, assets copied (count + any missing sources),
+- Final message (in `workingLanguage`) — keep it short; the report is the record: files created, assets copied (count + any missing sources),
   harness status (created/existing), and any missing deps to install.
 
 ## Rules

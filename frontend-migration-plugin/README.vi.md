@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.14.6). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.16.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -49,6 +49,11 @@ Plugin này là **tooling**; giả định dự án di trú đã chuẩn bị wo
 
 - Một **monorepo v2** gồm: `apps/legacy-*` (các app Angular đang di trú), `apps/web-*` (các app
   React Router v7 mới), và `packages/` (shared packages).
+- **`contractsDir`** (tuỳ chọn, mặc định `docs/migration/api-contracts/`) — nếu có hợp đồng backend
+  đã xác nhận, đó là nguồn schema **chính thức** cho `shared-types`/`shared-data` (không có thì
+  fallback về trích xuất ngược từ legacy).
+- **`git`** (hash bằng chứng cổng và cả hai session hook đều dùng) và **`jq`** (cả hai hook đọc
+  tracker qua nó; thiếu nó thì hook lặng lẽ ngừng hoạt động).
 - **Node + pnpm** (pnpm workspaces), và **trình duyệt Playwright** đã cài (`npx playwright
   install`) cho cổng E2E và visual.
 - **Mã nguồn Angular cũ** có thể truy cập để phân tích.
@@ -108,6 +113,7 @@ Sau khi đã đủ điều kiện tiên quyết:
 # 3. chuyển route (hai PR)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-off   # PR mã (flag OFF)
 /frontend-migration-plugin:fm-route hotel-booking-info --flag-on    # PR một dòng bật flag (chỉ khi mọi cổng đạt)
+/frontend-migration-plugin:fm-route hotel-booking-info --flag-on --confirm-live   # sau khi PR đó được merge VÀ deploy → flipped
 
 # bất cứ lúc nào: trạng thái mọi trang
 /frontend-migration-plugin:fm-progress
@@ -132,6 +138,7 @@ cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng) rồi chạy l�
                                    /fm-e2e   (cổng Playwright)
                                    /fm-parity (visual/contract/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, có cổng kiểm)
+                                              → --flag-on --confirm-live (sau merge + deploy → flipped)
 
 /fm-delta <page>               chỉ di trú lại phần thay đổi khi nguồn cũ thay đổi
 /fm-progress                   trạng thái theo app/trang (chỉ đọc)

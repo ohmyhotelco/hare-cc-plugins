@@ -108,7 +108,7 @@ hit is a **hard rejection** — do not ship the offending piece; report it for `
 ## Output
 - Source + tests under `packages/shared-*/src/`.
 - Reconciliation note for any diverged logic.
-- Final message (in `workingLanguage`): what was extracted, test pass/fail with evidence,
+- Final message (in `workingLanguage`) — keep it short; the report is the record: what was extracted, test pass/fail with evidence,
   any pieces rejected for the secret boundary, and the 3-app decision.
 
 ## Rules

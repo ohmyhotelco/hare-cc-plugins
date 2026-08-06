@@ -25,6 +25,8 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
    (`counterpartDirs`).
 3. Read `workingLanguage`.
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Resolve the target
 1. From `<target>` + optional `--kind`, locate the entry file/dir under `legacyDir`
    (e.g. a page dir `pages/hotel/hotel-booking-info/`, a service file, a store slice).
@@ -33,6 +35,23 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
    `docs/migration/{app}/{page}/`.
 3. Compute `counterpartDirs` — the same relative path under the other apps' `legacyDir`
    (and the `pages/hana-travel/...` fork for Hana). Skip those that do not exist.
+
+### Step 1b: Refuse a flipped, done, or flip-in-flight page
+If `tracker.json` shows the page at `flipped`, stop and tell the user to run
+`/frontend-migration-plugin:fm-route {page} --revert` first. This must come **before** the analyzer
+runs: the agent overwrites `analysis.json`, which is the baseline `fm-delta` diffs a live page
+against, so a guard placed after the launch would already have destroyed it. (A page not yet in the
+tracker is unaffected — this only guards one recorded as flipped.)
+
+**Also refuse `done`, and refuse while a flip is in flight.**
+- `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
+  nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
+  point at `--revert`.
+- `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
+  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
+  timestamp survives every read-modify-write, so the session hook later reads it and recommends
+  `--confirm-live` on superseded code.
 
 ### Step 2: Acquire the lock
 Per the plugin `CLAUDE.md` lock convention, acquire
@@ -47,13 +66,18 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 
 ### Step 4: Record state
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
-2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, merge only the
-   changed fields, write the whole object): set `apps[app].pages[page]` to
-   `{ "status": "analyzed", "kind": ..., "requiredGates": [...], "risk": ..., "updatedAt": ISO }`.
+2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
+   fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,
+   `requiredGates`, `risk`, `updatedAt`. **Merge, never replace the page object.** A re-analysis that
+   assigned a fresh five-field object would delete everything else the record accumulates —
+   `sourcePaths`, `gateEvidence`, `codexAudit`, `flippedAt`, `flagKey`, `routePrepared`, `verifiedAt`
+   — silently resetting the page's freshness and audit history (CLAUDE.md → Read-Modify-Write rule).
 3. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and Codex is available, after the lock is released spawn `codex-auditor`
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
+`codex-auditor`
 (Agent) for the `analyze` stage (params: `app`, `page`, `stage="analyze"`, `appDir`, `legacyDir`,
 `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`). It
 records `codex-audit.json` + tracker `codexAudit.analyze`. Advisory — never changes the page

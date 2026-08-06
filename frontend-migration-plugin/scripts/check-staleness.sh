@@ -5,6 +5,11 @@
 
 set -euo pipefail
 
+# jq is required below; without it this hook would abort under `set -e` and print nothing.
+if ! command -v jq >/dev/null 2>&1; then
+  exit 0
+fi
+
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""')
@@ -26,8 +31,9 @@ if [ -n "$LEGACY_DIRS" ]; then
       echo ""
       echo "[Frontend Migration Plugin] Warning: legacy Angular source changed: $REL_PATH"
       echo "  Migrated or in-flight pages depending on it may be stale."
-      echo "  Run /frontend-migration-plugin:fm-progress to see affected pages, then"
-      echo "  /frontend-migration-plugin:fm-delta <page> to re-migrate only the changed surface."
+      echo "  Run /frontend-migration-plugin:fm-progress to see affected pages, then pick the"
+      echo "  action each page's status allows — fm-delta refuses a flipped, done, or"
+      echo "  flip-in-flight page, and would discard in-progress work on a fixing/escalated one."
       exit 0
     fi
   done <<< "$LEGACY_DIRS"
@@ -44,11 +50,37 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
     STATUS=$(jq -r --arg a "$APP" --arg p "$PAGE" \
       '.apps[$a].pages[$p].status // ""' "$TRACKER" 2>/dev/null || echo "")
     case "$STATUS" in
-      generated|verified|e2e-passed|parity-passed|flipped|done)
+      generated|verified|e2e-passed|parity-passed|flipped|done|gen-failed|verify-failed|e2e-failed|parity-failed|fixing|escalated)
         echo ""
         echo "[Frontend Migration Plugin] Warning: $ARTIFACT edited for [$APP/$PAGE] (status: $STATUS)."
-        echo "  Generated code may be out of sync. Run /frontend-migration-plugin:fm-delta $PAGE"
-        echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
+        FLIPPR=$(jq -r --arg a "$APP" --arg p "$PAGE" \
+          '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
+        if [ -n "$FLIPPR" ]; then
+          # fm-delta refuses a page with a flip in flight; recommending it would dead-end.
+          echo "  A flip is in flight for this page (prepared $FLIPPR), so fm-delta refuses it."
+          echo "  Run /frontend-migration-plugin:fm-route $PAGE --revert first, then fm-delta $PAGE"
+        elif [ "$STATUS" = "fixing" ]; then
+          echo "  A fix is in progress for this page. Finish it through"
+          echo "  /frontend-migration-plugin:fm-fix $PAGE and re-run the failed gate;"
+          echo "  fm-delta would reset the page to 'generated' and discard that work."
+        elif [ "$STATUS" = "escalated" ]; then
+          echo "  This page needs manual intervention first, then /frontend-migration-plugin:fm-fix $PAGE"
+          echo "  (or fm-gen if generation itself must be redone)."
+        elif [ "$STATUS" = "gen-failed" ]; then
+          echo "  Generation never completed for this page. Run /frontend-migration-plugin:fm-gen $PAGE"
+          echo "  (fm-delta needs a completed generation to modify)."
+        elif [ "$STATUS" = "done" ]; then
+          echo "  This page is 'done' — the legacy page has been deleted, so there is no legacy"
+          echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
+          echo "  fm-delta and fm-route --revert both refuse a done page."
+        elif [ "$STATUS" = "flipped" ]; then
+          echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
+          echo "  Run /frontend-migration-plugin:fm-route $PAGE --revert first, then fm-delta $PAGE"
+          echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
+        else
+          echo "  Generated code may be out of sync. Run /frontend-migration-plugin:fm-delta $PAGE"
+          echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
+        fi
         ;;
     esac
   fi

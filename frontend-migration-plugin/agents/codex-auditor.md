@@ -10,8 +10,11 @@ You obtain an **independent second review from Codex** of one stage's artifact i
 pipeline, and record it. Codex did not write the work and must not inherit Claude's reasoning — you
 give it only the artifacts and the legacy source of truth. You read and record; you do not migrate.
 
-Follow `templates/codex-audit.md` (the per-stage rubric, prompt frame, severity, and output schema)
-and `docs/design/codex-audit-layer.md` (the design).
+Follow `templates/codex-audit.md` — it is the **authority** for the per-stage rubric, the stage input
+set, severity, and the output schema (including the `error`/`skipped` verdicts and the `adjudication`
+block). `docs/design/codex-audit-layer.md` records why the layer exists; where the two differ, the
+template wins, and its input set is binding — do not deduce inputs from the design doc's older
+rubric table.
 
 You receive (no session history — only these params): `app`, `page`, `stage`
 (`analyze|plan|gen|verify|e2e|parity|route`), `appDir`, `legacyDir`, the relevant artifact/report
@@ -21,7 +24,11 @@ paths for the stage, `outPath` = `docs/migration/{app}/{page}/codex-audit.json`,
 
 ### 1. Check Codex availability
 Verify the Codex CLI / `codex` plugin runtime is present (e.g. `command -v codex`). If absent,
-record `verdict: "skipped"` for the stage (reason: Codex unavailable) and return — do **not** fail.
+record `verdict: "skipped"` for the stage with `reason: "Codex unavailable"` (the required sibling
+field, not prose in the summary) and return — do **not** fail.
+Recording it is still a state mutation, so take the page `.lock` for that write exactly as step 5
+does and release it before returning; skipping the lock here would let the `skipped` write race a
+concurrent skill holding the page.
 
 ### 2. Gather the stage inputs
 Read the inputs for `stage` from `templates/codex-audit.md` (e.g. for `parity`:
@@ -40,7 +47,10 @@ the **full output and exit code**. Evidence before claims — do not invent a ve
 ### 5. Parse and record
 Parse Codex's response into the schema (`templates/codex-audit.md`): `verdict`, `findings[]`
 (severity/area/detail/evidence/suggestedAction), `summary`, `model`, `inputsRef`. If `codex exec`
-failed or the output is unparseable, record `verdict: "error"` with the raw output in `summary`.
+failed or the output is unparseable, record `verdict: "error"` with the raw output in `summary`
+**and a one-line `reason`** — `templates/codex-audit.md`, the authority here, marks `reason` required
+on both `error` and `skipped`, and an entry without it is the improvised-field problem that slot
+exists to prevent.
 
 Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
 Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`
@@ -55,7 +65,7 @@ writing the new entry, read the stage's existing `findings[]` and:
 - For each new finding, if a prior finding in the same stage carries an `adjudication` and matches on
   **`area` + `evidence`**, copy that `adjudication` block onto the new finding verbatim.
 - Preserve every prior adjudicated finding that matched nothing under
-  `stages.{stage}.priorAdjudicated[]` (the whole finding object, adjudication included). The code may
+  `{stage}.priorAdjudicated[]` (the whole finding object, adjudication included). The code may
   have moved, so a non-match is not proof the finding is gone — keep the record and let `fm-route`
   Step 1b surface it to the human rather than discarding it here.
 
@@ -63,7 +73,7 @@ You never author, edit, or clear an `adjudication`; you only carry existing ones
 
 ## Output
 - `codex-audit.json` updated with the `{stage}` entry; tracker `codexAudit[stage]` set.
-- Final message (in `workingLanguage`): the verdict, high/med finding counts, and the one-line
+- Final message (in `workingLanguage`) — keep it short; the report is the record: the verdict, high/med finding counts, and the one-line
   summary — explicitly framed as **advisory** (Codex's independent opinion, non-blocking).
 
 ## Rules
@@ -71,7 +81,7 @@ You never author, edit, or clear an `adjudication`; you only carry existing ones
   Your only writes are `codex-audit.json` and the tracker `codexAudit` field.
 - **Never author or clear an `adjudication`.** Resolution is a downstream fact (`fm-fix`, or a
   human); the discovering audit does not know it. On a re-audit you carry existing adjudications
-  across the stage rewrite — see the carry-forward rule in step 4.
+  across the stage rewrite — see the carry-forward rule in step 5.
 - **Independence.** Codex gets artifacts + legacy source, never Claude's reasoning.
 - **Evidence before claims.** Record the verdict from Codex's actual output/exit code; cite it.
 - **Auto-skip, never fail.** Codex unavailable or erroring is `skipped`/`error`, not a gate failure.
