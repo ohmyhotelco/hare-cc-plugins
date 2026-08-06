@@ -15,7 +15,8 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
-`workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
+`monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
+gate-evidence hash), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
 `migration-plan.json` with `requiredGates` (absent → point to `fm-plan`); the per-gate
 `gateTriggers` anchors live in `analysis.json`, not the plan. Require `plan.gateAcceptance`
 (absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
@@ -89,10 +90,26 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence
   blocks the flip (see CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`;
-  if `git status --porcelain` is non-empty, record `<sha>+dirty` — audit trail only. `tree` is the
-  freshness test: the watch-path content hash, computed with the exact command in CLAUDE.md → "Gate
-  Result Accounting" (a variant recipe is not comparable to the one `fm-route` runs). Keep
-  `parityPassedAt` for backward compatibility.
+  audit trail only. `tree` is the freshness test. Compute it by **running the script** — never an
+  inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
+
+  ```sh
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh --manifest <watch path>... \
+      > docs/migration/{app}/{page}/gate-tree/parity.tsv
+  ```
+
+  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
+  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  The script is cwd-independent, so it does not matter which directory this skill runs from.
+
+  If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
+  the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
+  store the word `unverifiable`, and never store a hash the script did not print. Keep `parityPassedAt` for
+  backward compatibility.
 - `result: fail` or any Step 3 override → `parity-failed`.
 - Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
   coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.

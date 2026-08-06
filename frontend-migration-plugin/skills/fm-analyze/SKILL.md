@@ -36,19 +36,27 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 3. Compute `counterpartDirs` — the same relative path under the other apps' `legacyDir`
    (and the `pages/hana-travel/...` fork for Hana). Skip those that do not exist.
 
-### Step 2: Acquire the lock
-Per the plugin `CLAUDE.md` lock convention, acquire
-`docs/migration/{app}/{page}/.lock` (stale after 30 min). If held and fresh, report who holds
-it and stop.
-
-### Step 2b: Refuse a flipped page
+### Step 1b: Refuse a flipped, done, or flip-in-flight page
 If `tracker.json` shows the page at `flipped`, stop and tell the user to run
 `/frontend-migration-plugin:fm-route {page} --revert` first. This must come **before** the analyzer
 runs: the agent overwrites `analysis.json`, which is the baseline `fm-delta` diffs a live page
 against, so a guard placed after the launch would already have destroyed it. (A page not yet in the
 tracker is unaffected — this only guards one recorded as flipped.)
 
-**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
+**Also refuse `done`, and refuse while a flip is in flight.**
+- `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
+  nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
+  point at `--revert`.
+- `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
+  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
+  timestamp survives every read-modify-write, so the session hook later reads it and recommends
+  `--confirm-live` on superseded code.
+
+### Step 2: Acquire the lock
+Per the plugin `CLAUDE.md` lock convention, acquire
+`docs/migration/{app}/{page}/.lock` (stale after 30 min). If held and fresh, report who holds
+it and stop.
 
 ### Step 3: Run the analyzer
 Launch the `angular-analyzer` agent (use the `Agent` tool — this is a single analysis step)

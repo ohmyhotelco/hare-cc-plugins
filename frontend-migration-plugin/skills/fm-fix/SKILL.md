@@ -20,6 +20,13 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Detect fix mode
+**Entry precondition.** This skill only closes a failed gate, so it accepts exactly
+`verify-failed`, `e2e-failed`, `parity-failed`, and `fixing` (a re-entry). Refuse every other
+status, `--mode` included: on a healthy page (`generated` … `parity-passed`) the fall-through below
+would pick `verify-fix`, Step 3 would write `fixing` over it, and Step 5 would "restore" it to
+`generated` — demoting a page that had nothing wrong with it. `gen-failed` has its own redirect
+below; `escalated` needs manual intervention first (CLAUDE.md → Per-page State Machine).
+
 If `--mode` is given, normalize its short form to the `-fix` value the fixer expects
 (`verify`→`verify-fix`, `e2e`→`e2e-fix`, `parity`→`parity-fix`; an already-suffixed value passes
 through). Otherwise auto-detect from the **most recently modified** failure
@@ -42,14 +49,22 @@ derive the mode from the status first — `verify-failed` → `verify-fix`, `e2e
 `fixing` (a re-entry, where the status no longer names the gate). Report the chosen mode and what
 selected it.
 
-### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
-
-### Step 2b: Refuse a flipped page
+### Step 1b: Refuse a flipped, done, or flip-in-flight page
 If the status is `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — Step 3 would write `fixing` over a live page.
 
-**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
+**Also refuse `done`, and refuse while a flip is in flight.**
+- `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
+  nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
+  point at `--revert`.
+- `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
+  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
+  timestamp survives every read-modify-write, so the session hook later reads it and recommends
+  `--confirm-live` on superseded code.
+
+### Step 2: Lock
+Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Mark fixing
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record

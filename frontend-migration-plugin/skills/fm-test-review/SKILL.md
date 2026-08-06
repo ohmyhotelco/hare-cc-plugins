@@ -1,7 +1,7 @@
 ---
 name: fm-test-review
 description: "Use to audit generated migration tests (Vitest + Playwright) for test quality — assertions, Testing Library usage, async handling, coverage, timing/flakiness, anti-patterns — a standalone review, independent of the pipeline."
-argument-hint: "[test-path]"
+argument-hint: "[test-path] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Agent
 ---
@@ -14,7 +14,13 @@ no progress tracking, no lock, no feature context. All user-facing output in `wo
 ## Instructions
 
 ### Step 0: Config
-Read config (absent → run `fm-init`; stop). Resolve `appDir`, `workingLanguage`.
+Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `appDir`, and
+`workingLanguage`.
+
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and
+carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are
+scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than
+fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve the target
 - If `[test-path]` is given, review it.

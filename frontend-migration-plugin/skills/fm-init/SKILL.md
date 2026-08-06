@@ -77,8 +77,9 @@ details — they can be refined when those phases begin.
 - `i18n` — the **product's** copy surface, so the gates can check it. Detect, then confirm:
   - `localesDir` — glob for the translation resources (e.g. `packages/shared-i18n/src/locales`).
   - `languages` — derive from that directory's per-language subdirs/files (e.g.
-    `["KO","EN","JA","ZH","VI"]`). **This is what `gateAcceptance.scope`'s "every supported
-    language" resolves to** — without it that rule cannot be enforced.
+    `["KO","EN","JA","ZH","VI"]`). **This is what "every supported language" resolves to**; the
+    planner writes it into `gateAcceptance.visual.languages` and `gateAcceptance.e2e.languages`, the
+    fields the executors read (`scope` is prose). Without it that rule cannot be enforced.
   - `lookupFns` — the i18n lookup helpers whose key literals get checked (default `["t","tl"]`).
     Confirm against the app: helper names differ per app, so never hardcode them in the plugin.
   - `keyPrefix` — optional key convention (e.g. `tl.`) used to spot key-shaped literals.

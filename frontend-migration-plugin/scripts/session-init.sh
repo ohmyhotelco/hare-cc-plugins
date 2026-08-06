@@ -128,13 +128,13 @@ if [ -n "$PAGES" ]; then
     FLAGS=$(next_flags "$status")
     NOTE=$(next_note "$status")
     # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;
-    # flip PR already open -> waiting on merge+deploy, then --flag-on --confirm-live.
+    # flip artifact prepared + PR2 handed over -> waiting on merge+deploy, then --confirm-live.
     if [ "$status" = "parity-passed" ]; then
       PREPARED=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
       FLIPPR=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
       if [ -n "$FLIPPR" ]; then
         FLAGS=" --flag-on --confirm-live"
-        NOTE="flip PR open since $FLIPPR; run only after it is merged and deployed"
+        NOTE="flip prepared $FLIPPR; open PR2 if you have not, and run this only once it is merged and deployed"
       elif [ "$PREPARED" = "true" ]; then
         FLAGS=" --flag-on"
       fi

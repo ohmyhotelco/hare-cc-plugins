@@ -91,7 +91,12 @@ resolves from the **optional** `i18n` config block, so on a project without one 
 and you are forbidden from choosing a narrowing yourself, which would otherwise leave you inventing
 the very scope decision the rule protects. When `languages` is absent because config has no `i18n`
 block, record the language axis as `languages: "not-run"` with
-`reason: "no i18n block configured"` and run the gate over `states` at the app's single served
+`reason: "no i18n block configured"`. **This `languages: "not-run"` is a coverage note on the
+language axis, not a sub-gate result** — the aggregate below is driven by `gates.{gate}.result`
+alone, and a gate that ran its full `states` matrix at the single served locale is `pass`. (The
+mirror rule is in `agents/e2e-test-runner.md`: the two fields share the string and mean different
+things. Conflating them would strand every page on a project with no `i18n` block at `e2e-passed`
+with no premise the user could supply.) Run the gate over `states` at the app's single served
 locale. This is the same premise-before-capture shape the contract gate uses, and the same absent-
 `i18n` handling `fm-verify` and `foundation-generator` already apply. Do **not** claim multi-language
 coverage you did not check, and do not invent a placeholder locale identifier to fill the field —

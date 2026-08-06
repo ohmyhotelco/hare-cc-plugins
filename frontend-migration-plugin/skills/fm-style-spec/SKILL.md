@@ -38,12 +38,20 @@ The live render is the truth source (committed CSS can be stale). Resolve `legac
    extractor falls back to the source cascade and flags those values `source-derived` (not a
    failure; `fm-parity` remains the backstop).
 
-### Step 2a: Refuse a flipped page
+### Step 2a: Refuse a flipped, done, or flip-in-flight page
 If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
 
-**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
+**Also refuse `done`, and refuse while a flip is in flight.**
+- `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
+  nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
+  point at `--revert`.
+- `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
+  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
+  timestamp survives every read-modify-write, so the session hook later reads it and recommends
+  `--confirm-live` on superseded code.
 
 ### Step 2b: Ensure Playwright run permission
 `style-spec-extractor` runs the legacy probe as a **sub-agent**, so session approvals do not

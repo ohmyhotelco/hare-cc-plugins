@@ -82,7 +82,8 @@ flipped and v2 **after** it. So:
 
    For `apps[app].domain` this holds **only when the page has never been flipped and no flip is in
    flight** — i.e. neither `flippedAt` nor `flipPrOpenedAt` in its tracker record. `flipPrOpenedAt`
-   present means PR2 is open but not yet merged/deployed/propagated: the host may be serving either
+   present means the flip artifact is prepared and PR2 handed over, but not yet
+   merged/deployed/propagated: the host may be serving either
    side and nothing here can tell which, so resolve **`unresolved`**. If `flippedAt` is present but the status is not `flipped`, the
    page was flipped at some point and has since been moved back through the FSM, so the status no
    longer tells you what the edge is serving: resolve **`unresolved`**, never `legacy`. `fm-gen` and

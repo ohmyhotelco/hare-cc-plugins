@@ -23,8 +23,9 @@ a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 **Refuse a `flipped` page, a `done` page, or one with a flip PR in flight.** `done` is past
 `flipped` — the legacy page has been deleted, so there is no legacy source left to diff a delta
-against and no rollback target; refuse and require manual intervention. A present `flipPrOpenedAt`
-means PR2 is open against the current code: refuse and point at `fm-route --revert` first.
+against and no rollback target; refuse and require manual intervention — **not** `--revert`, which
+refuses a `done` page too. A present `flipPrOpenedAt` means the flip artifact is prepared and PR2
+handed over against the current code: refuse and point at `fm-route --revert` first.
 If the status is `flipped`, stop and tell the user to run
 `/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
 flag-off keeps the current status (`fm-route` Step 4), so it would leave the page at `flipped` and
@@ -92,17 +93,21 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   (do NOT fall through to Step 5 holding it — the skills you point the user to need that same lock),
   then tell the user to re-run the chain from the stage the drift invalidated:
   `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
-  `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: on this path no updated
-  baseline was written (incremental mode is what produces one), so `fm-gen` would build from the
-  pre-drift `migration-plan.json` — regenerating the page against the plan the drift just
-  invalidated. The skill **stops here**; Step 5 (which records an applied incremental delta) does not
-  run.
+  `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: the canonical baseline is
+  still the pre-drift one — the planner staged its proposal as `migration-plan.next.json` /
+  `analysis.next.json` and only Step 5 promotes those — so `fm-gen` would regenerate the page
+  against the plan the drift just invalidated. **Delete the two `.next.json` files** on the way out
+  so a later run cannot mistake an abandoned proposal for a current one. The skill **stops here**;
+  Step 5 (which records an applied incremental delta) does not run.
 
 ### Step 5: Record (incremental path only)
-- Persist the new baseline: `migration-planner` (incremental mode) writes the revised
-  `migration-plan.json` and the revised `analysis.json` sections alongside `delta-plan.json`, so
-  verify both parse and reflect the applied ops rather than re-deriving them here (the `styleSurface`
-  is already current from Step 4). If either is missing, the delta is incomplete — re-run the planner
+- **Promote the staged baseline.** `migration-planner` (incremental mode) wrote its proposal to
+  `migration-plan.next.json` and `analysis.next.json`; verify both parse and reflect the applied ops
+  rather than re-deriving them here (the `styleSurface` is already current from Step 4), then move
+  them over the canonical `migration-plan.json` / `analysis.json` and delete the staged copies. This
+  is the only step that advances the baseline, and it runs **after** the delta actually applied — so
+  a user who chose full regeneration, or a run that failed in Step 4, leaves the reference untouched.
+  If either staged file is missing, the delta is incomplete — re-run the planner
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
@@ -111,7 +116,9 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
   and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
-  flip (CLAUDE.md → "Gate Result Accounting").
+  flip. **Clear `routePrepared` and `flagKey` on the same pass**, or Step 1-pre still reads the page
+  as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (CLAUDE.md → "Gate Result
+  Accounting").
 - Release the lock.
 
 ### Step 6: Report (incremental path)

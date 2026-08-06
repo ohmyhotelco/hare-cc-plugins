@@ -13,8 +13,9 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.15.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
-  session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
+- **Build complete — v0.15.3.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+  session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
+  by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
   `docs/design/`) plus shared external-skill injection (fe-init parity); v0.4.1 aligned the fm-*
@@ -446,7 +447,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   (reproduced, then fixed with an explicit null test and re-verified end to end).
 
   Origin: Codex verification audit + full-plugin sweep, 2026-08-05.
-- **Exhaustive double audit (v0.15.2).** Both auditors were given the 69-file inventory by name and
+- **Exhaustive double audit (v0.15.1).** Both auditors were given the 69-file inventory by name and
   required to produce a per-file coverage table and a per-invariant verdict, because the previous
   rounds' defects all came from sampling. Both read all 69 files in full. Together: 1 blocker,
   ~12 majors, ~20 minors — **28 unique fixes**, and the two agreed independently on the great
@@ -517,6 +518,48 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   `"fixing"` on re-entry; the plan schema's canonical example was one the canonical validator rejects.
 
   Origin: audit of the v0.15.1 round, 2026-08-06.
+- **Audit of the audit of the audit (v0.15.3).** The v0.15.2 round was audited the same way. Both
+  auditors again read all 69 files (both reported 9,690 lines) and both landed independently on the
+  same **blocker — in the fix v0.15.2 was proudest of.**
+
+  The tree-hash freshness rule was correct as an *algorithm* and wrong as an *instruction*.
+  `git ls-files` prints paths relative to the current directory, and `fm-verify` carries a standing
+  order that "all commands run from `{monorepoRoot}/{appDir}`". Repo-relative watch paths evaluated
+  there match nothing, so the pipeline hashed the empty set — `e69de29b…`, a **constant that never
+  moves when the code moves**. The hard gate built to stop false passes would have passed on any
+  code, silently. Nobody had asked where the command runs.
+
+  **The remedy was to stop shipping a recipe.** `scripts/gate-tree-hash.sh` is now the single
+  implementation: it resolves the repo root itself, prints `--full-name` paths (identical output
+  from every working directory), returns `unverifiable` (exit 2) instead of a hash when no watch
+  path resolves, records a missing-but-indexed file as `DELETED <path>` rather than a stray
+  `fatal:` under exit 0, and emits a `--manifest` the gates save so `fm-route` can name *which*
+  files moved instead of only that the aggregate did. Verified by construction: identical from three
+  different working directories, unchanged across a real `--no-ff` merge, moved by a one-byte edit,
+  restored on revert.
+
+  Two more self-contradictions the same commit had created: `CLAUDE.md` forbade any status write
+  while `flipPrOpenedAt` is present, while `fm-route --confirm-live` **requires** that field and then
+  writes `flipped`; and `fm-route` newly declared the field "not proof a PR exists" while all ten of
+  its readers still said "the flip PR is open". The guard bulk-inserted into seven skills landed in
+  `fm-analyze` and `fm-fix` **after** the lock, so a refusal leaked the page lock and then sent the
+  user to `fm-route --revert`, which the fresh 30-minute lock blocked.
+
+  Also closed: `routePrepared`/`flagKey` survived regeneration and re-authorized a flip without a
+  fresh `--flag-off`; the staleness hook routed `flipPrOpenedAt`/`fixing`/`escalated` pages to a
+  `fm-delta` that refuses or would clobber them; `apps[app]` validation had reached 12 skills but not
+  `fm-gen`, the heaviest consumer; the `codexAuditStages` absent-default had reached six consumers
+  when there are seven, and the missing one was `fm-route` — the sign-off before the irreversible
+  flip; `fm-fix` accepted any status and would demote a healthy page; `fm-delta`'s planner overwrote
+  the canonical baseline before the user chose incremental-vs-full (now staged as `*.next.json` and
+  promoted only after the delta applies).
+
+  The meta-lesson, and the reason this round changed a mechanism rather than more sentences:
+  v0.15.1 wrote assertions about propagation; v0.15.2 propagated correctly to a list it enumerated,
+  and the list was wrong three times — always at its edge, never its middle. A rule that five call
+  sites must reproduce identically is not a rule, it is a script that has not been written yet.
+
+  Origin: audit of the v0.15.2 round, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

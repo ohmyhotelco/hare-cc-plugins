@@ -46,7 +46,7 @@ This is deliberately **neither a port nor a bridge**:
 
 | Component | Path | Role |
 | --- | --- | --- |
-| Skill | `skills/fm-audit-codex/SKILL.md` | user-invocable entry point — `<page> [--stage <stage>\|--all] [--app pc\|mobile\|hana]`. Runs the audit for one stage or all available, records, reports. |
+| Skill | `skills/fm-audit-codex/SKILL.md` | user-invocable entry point — `<page> [--stage <stage>] [--all] [--app pc\|mobile\|hana]`. Runs the audit for one stage or all available, records, reports. |
 | Agent | `agents/codex-auditor.md` | Claude subagent. Gathers stage inputs → delegates to Codex via `codex exec` → reads/parses Codex's structured output → writes `codex-audit.json`. |
 | Rubric template | `templates/codex-audit.md` | Per-stage review lens, severity definitions, and the output schema — keeps Codex prompts consistent and grounded. |
 | State file | `docs/migration/{app}/{page}/codex-audit.json` | Per-stage audit verdicts, accumulated (Read-Modify-Write). |

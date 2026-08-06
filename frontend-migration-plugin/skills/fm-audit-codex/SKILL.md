@@ -34,11 +34,14 @@ hint, in the report.
 - `--stage <s>` → audit just that stage.
 - `--all` (default) → audit every stage in `codexAuditStages` (default: all seven) whose inputs are
   available (skip the rest). For six stages that means the stage's artifact exists under
-  `docs/migration/{app}/{page}/`. **`route` is the exception**: its inputs are the routing artifact and
-  the flag diff (`templates/codex-audit.md`), which live in the app's `infraDir`/`cloudfrontDir`, not
-  the page directory — so gate it on the page being at `parity-passed` or beyond with a routing
-  artifact prepared, never on a page-directory file. An artifact-only filter makes `route`
-  permanently unreachable from this entry point.
+  `docs/migration/{app}/{page}/`. **`route` is the exception** in *availability*, not in *inputs*:
+  gate it on the page being at `parity-passed` or beyond with a routing artifact prepared in the
+  app's `infraDir`/`cloudfrontDir`, never on a page-directory file — an artifact-only filter makes
+  `route` permanently unreachable from this entry point. Its **inputs are the full route-stage set**
+  `templates/codex-audit.md` specifies and `fm-route` Step 4b passes: the full PR diff **plus** all
+  gate reports (the `verify` summary, `e2e-report.json`, `parity-report.json`) **plus** the prior
+  `codex-audit.json`. Handing Codex only the routing artifact and the flag diff would make this the
+  one path where the final pre-flip sign-off reviews a one-line diff instead of the page.
 
 ### Step 2: Run the audit(s)
 For each resolved stage, launch the `codex-auditor` agent (Agent tool) with only its params

@@ -63,7 +63,9 @@ an existing rule enforceable.
 ### Config: `i18n` (the missing referent)
 
 `gateAcceptance.scope` already demanded "every supported language", but **nothing defined the set** —
-the criterion was unenforceable. `fm-init` now records the product's copy surface:
+the criterion was unenforceable. (v0.15.1 gave the set its own field: the planner writes
+`gateAcceptance.visual.languages` and `gateAcceptance.e2e.languages`, and executors read those, not
+the `scope` prose.) `fm-init` now records the product's copy surface:
 `localesDir`, `languages`, `lookupFns`, `keyPrefix`. Helper names are per-app project config, never
 plugin-baked (same principle as `flipMechanism`). Absent block → the spec is skipped and reported as
 `skipped`, never a silent pass.

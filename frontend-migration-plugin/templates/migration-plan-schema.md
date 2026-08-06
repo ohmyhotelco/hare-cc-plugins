@@ -63,7 +63,11 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   // a plan the validator on the next page of this same document refuses.
   "gateAcceptance": {
     "e2e":       { "compares": "...", "scope": "...", "languages": ["KO","EN"], "excludes": [] },
-    "visual":    { "compares": "...", "scope": "...", "languages": ["KO","EN"], "artifacts": "...", "axes": [], "states": [], "excludes": [] },
+    // axes/states abbreviated here — both are REQUIRED and non-empty for the visual gate
+    // (an empty set is an incomplete gate = fail); see the populated example further down.
+    "visual":    { "compares": "...", "scope": "...", "languages": ["KO","EN"], "artifacts": "...",
+                   "axes": ["frame", "spacing", "icons", "alignment", "control-geometry", "color", "typography"],
+                   "states": ["default", "error shown", "session expired", "empty"], "excludes": [] },
     "contract":  { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] },
     "telemetry": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] }
   },

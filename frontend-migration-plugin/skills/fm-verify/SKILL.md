@@ -15,12 +15,15 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
+`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash),
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
 at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present**: "at least `generated`" is a
 monotonic comparison and `flipped`/`done` both satisfy it, so
 without this guard a re-verify would write `verified` over a live page and desync the tracker from
-the edge flag (CLAUDE.md → Per-page State Machine). Point the user at
-`/frontend-migration-plugin:fm-route {page} --revert` first.
+the edge flag (CLAUDE.md → Per-page State Machine). For `flipped` or a present `flipPrOpenedAt`,
+point the user at `/frontend-migration-plugin:fm-route {page} --revert` first. For **`done`, do
+not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no rollback
+target); reopening it is a manual decision.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
@@ -75,10 +78,26 @@ Update `tracker.json` (Read-Modify-Write):
   CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
   `git status --porcelain` is non-empty, record `<sha>+dirty` (the working tree differs from the SHA —
   honest imprecision over a clean-looking lie) — `commit` is the audit trail, never the freshness
-  test. `tree` **is** the freshness test: the watch-path content hash, computed with the exact
-  command in CLAUDE.md → "Gate Result Accounting". Run that command, not a variant — `fm-route`
-  compares your value against one it computes the same way, and any difference in the recipe makes
-  the two incomparable. Keep `verifiedAt` for backward compatibility.
+  audit trail only. `tree` is the freshness test. Compute it by **running the script** — never an
+  inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
+
+  ```sh
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh --manifest <watch path>... \
+      > docs/migration/{app}/{page}/gate-tree/verify.tsv
+  ```
+
+  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
+  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  The script is cwd-independent, so it does not matter which directory this skill runs from.
+
+  If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
+  the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
+  store the word `unverifiable`, and never store a hash the script did not print. Keep `verifiedAt` for
+  backward compatibility.
 - any hard tool fails (tsc / build / vitest / eslint), or the spec is **absent while `i18n` is
   configured** → `verify-failed`, with the failing summary. A Prettier advisory alone never sets
   `verify-failed`.

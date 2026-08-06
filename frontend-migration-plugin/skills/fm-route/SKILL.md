@@ -17,7 +17,8 @@ All user-facing output in `workingLanguage`.
 
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
-`port`, `legacyPort`, `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+`port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
 **absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
@@ -38,9 +39,9 @@ Every action writes or clears route state, so every action needs an entry condit
 
 | action | requires | on refusal |
 | --- | --- | --- |
-| `--flag-off` | `status = parity-passed` | the gates have not all passed; name the stage the page is at |
-| `--flag-on` | Steps 1, 1-pre, 1a, 1b below | as each step states |
-| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | there is no flip PR to confirm — run `--flag-on` first |
+| `--flag-off` | `status = parity-passed`, and **no** `flipPrOpenedAt` | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
+| `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
+| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
 | `--revert` | `status = flipped`, **or** `status = parity-passed` with `routePrepared` or `flipPrOpenedAt` set | there is nothing in rotation or in flight to roll back |
 
 **`--revert` never promotes a page.** From `flipped` it returns the page to `parity-passed` — the
@@ -83,14 +84,21 @@ page's **watch paths** from two recorded fields — never by guessing which file
    `packages/shared-*` change outdates the evidence of every page that imports it, and the gate is
    per-page so nothing else catches it.
 
-Hash the union with the exact command in CLAUDE.md → "Gate Result Accounting" — the same one the
-gate skills ran, or the two values are not comparable. A gate whose recomputed hash differs from its
-recorded `gateEvidence.{gate}.tree` is **stale**.
+Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
-**This is a hard gate: a stale gate blocks the flip.** Report which gates are stale and which files
-differ (`git status --porcelain -- <watch paths>` plus a diff against the recorded set), and send
-the user back to re-run those gates. Do not offer an acknowledgement path: this is the one
-irreversible step in the pipeline, and an acknowledgement is not a test.
+```sh
+{monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
+```
+
+A gate whose recomputed hash differs from its recorded `gateEvidence.{gate}.tree` is **stale**.
+
+**This is a hard gate: a stale gate blocks the flip.** Name the stale gates **and the files that
+moved** — re-run the script with `--manifest` and diff it against the manifest that gate saved at
+`docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
+answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
+computable, so if the manifest is missing, say the aggregate moved and stop there rather than
+inventing a file list. Send the user back to re-run those gates. Do not offer an acknowledgement
+path: this is the one irreversible step in the pipeline, and an acknowledgement is not a test.
 
 **Why this is comparing content and not commits.** The first version of this rule compared
 `gateEvidence.{gate}.commit` against `HEAD` with `git log`, and had to be soft because it fired on
@@ -189,7 +197,9 @@ Release the lock.
 
 ### Step 4b: Codex audit (advisory; --flag-off only) — see CLAUDE.md → "Codex Independent Audit"
 After preparing the code PR (`--flag-off`), if `codexAudit` is enabled and `route` is in
-`codexAuditStages`,
+`codexAuditStages` (**absent → all seven**; the key narrows coverage, it never means "none" — and
+this is the sign-off before the irreversible flip, so a silent skip here is the costliest of the
+seven),
 spawn `codex-auditor` (Agent) for the `route` stage (params: `app`, `page`, `stage="route"`,
 `appDir`, `legacyDir`, the full PR diff + all gate reports + `codex-audit.json`,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`) — Codex's final
@@ -204,7 +214,8 @@ path/flag/app:port mapping, gate-guard result, and next step:
   block + flag entry (default OFF), for `cloudfront` the manifest entry mapping `guardsPath` to the
   v2 origin but **not yet active**. When review passes, run `fm-route {page} --flag-on` for the
   one-line flip PR.
-- after `--flag-on`: the flip **PR is open**, not live. The path keeps serving legacy until that PR
+- after `--flag-on`: the flip artifact is **prepared, not live** — and **opening PR2 is your step**,
+  the same as the code PR on `--flag-off`. The path keeps serving legacy until that PR
   is merged and the change is deployed and propagated — this skill edits an in-repo artifact and
   never deploys. Once the operator has confirmed it is live, `fm-route {page} --flag-on
   --confirm-live` records `flipped`. Rollback = `fm-route {page} --revert`.

@@ -81,7 +81,10 @@ Do NOT block. Resolve the cascade from source:
    `captureMode: "source-cascade"`, and — this is the part that must not be dropped — `origin` = the
    URL you **attempted** plus a `partial.why` recording how it failed (unreachable, auth wall, 404).
    A later reader has to be able to tell "no live URL was configured" from "the live URL was tried and
-   refused"; `origin: null` erases that difference. `side` still resolves from the attempted host where
+   refused" — which is exactly why the two cases are written differently: when a URL **was** tried,
+   `origin: null` erases that difference and is forbidden; when `legacyUrl` arrived as `null` there
+   was no attempt to describe, so write `origin: null` **with** `partial.why: "no legacy URL
+   configured"`, which records the distinction in the field built for it. `side` still resolves from the attempted host where
    it can, else `"unresolved"`.
 3. **Never run a backtracking regex against a large minified/single-line deployed CSS bundle** — use
    fixed-string grep / byte-range cuts under a short `timeout`, or you will hang the session.

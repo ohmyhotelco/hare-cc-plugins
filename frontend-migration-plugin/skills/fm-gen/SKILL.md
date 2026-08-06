@@ -22,6 +22,8 @@ re-run `fm-plan {page}`; stop). Require `docs/migration/{app}/{page}/style-spec.
 build to its style values. Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDir`,
 `workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder` + `blockers`.
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Blockers
 If the plan has unresolved `blockers` (unextracted shared candidates), stop and tell the user to
 run `/frontend-migration-plugin:fm-extract` first.
@@ -35,9 +37,11 @@ run `/frontend-migration-plugin:fm-extract` first.
   proceeding.
 - **`flipped` and `done` are refused, not warned; so is an in-flight flip PR.** `done` is past
   `flipped` (the legacy page is deleted), so `--revert` is not an escape from it — refuse and
-  require manual intervention. On any status, a present `flipPrOpenedAt` means PR2 is open against
-  the current code: refuse and point at `fm-route --revert` first, or the regeneration lands under
-  a PR that no longer describes it. For `flipped`: if the page status is `flipped`, stop and tell the user to
+  require manual intervention — **not** `--revert`, which refuses a `done` page too. On any status,
+  a present `flipPrOpenedAt` means the flip artifact is prepared and PR2 handed over against the
+  current code: refuse and point at `fm-route --revert` first, or the regeneration lands under a PR
+  that no longer describes it.
+- **`flipped`** — stop and tell the user to
   run `/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
   flag-off prepares the routing artifact with the flag OFF and *keeps the current status*
   (`fm-route` Step 4), so it would leave the page at `flipped` and this refusal would repeat forever.
@@ -54,8 +58,10 @@ run `/frontend-migration-plugin:fm-extract` first.
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)
-For each phase in `buildOrder`, launch the right agent (Agent tool), passing only its params
-(subagent isolation), and inspect the result before the next:
+For each phase in `buildOrder`, launch the right agent (Agent tool), passing **the agent's full
+parameter list from its own file** — not only the additions called out below (subagent isolation
+means an omitted param is simply missing, and the agent cannot ask). Inspect the result before the
+next:
 - `foundation` → **foundation-generator** (types + MSW + harness + **style-spec assets copied** +
   lint/format config scaffold; pass `styleSpecPath`, `legacyDir`, `monorepoRoot`, `legacyDirs`
   (every `apps.*.legacyDir`), `eslintTemplate`, `prettierTemplate`)
@@ -80,10 +86,12 @@ becomes `gen-failed`.
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
    created or modified under `appDir`, collected from each phase's own report. This is the page's
-   **watch-path** set: `fm-route --flag-on` (Step 1a) and `fm-progress` hash it to tell a still-fresh
-   PASS from a stale one, and neither can derive it otherwise
+   **axis 1** of its watch paths — axis 2 is the plan's `sharedDeps[]` mapped to
+   `{packagesDir}/<package>`, and every hash is taken over the **union** of the two (CLAUDE.md →
+   "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
+   tell a still-fresh PASS from a stale one, and neither can derive axis 1 otherwise
    — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
-   removed file leaves it (see CLAUDE.md → "Gate Result Accounting").
+   removed file leaves it.
 3. Clear `apps[app].pages[page].gateEvidence` **and the legacy `verifiedAt` / `e2ePassedAt` /
    `parityPassedAt`** — the page's code has been regenerated, so every prior gate PASS now rests on
    code that no longer exists. Clearing only `gateEvidence` is the wrong half of the job: that is the
@@ -91,6 +99,9 @@ becomes `gen-failed`.
    `verifiedAt` and the two gate report files, so the authoritative traces would survive this
    regeneration and re-authorize a flip on code no gate has seen. The report files are not deleted
    (`fm-fix` reads them) — the tracker's claim about them is what has to go.
+   **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
+   as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
+   a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"

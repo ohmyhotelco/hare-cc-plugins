@@ -15,6 +15,8 @@ All user-facing output in `workingLanguage`.
 
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
+`monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
+gate-evidence hash), the app's `legacyPort` / `port` / `domain`,
 `workingLanguage`, and `stagingConfig` (payment-gateway test endpoints). Require the page at
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
 `fm-verify`/`fm-plan`).
@@ -50,9 +52,26 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }` —
   the code state the pass rests on (see CLAUDE.md → "Gate Result Accounting"). `commit` =
   `git rev-parse --short HEAD`; if `git status --porcelain` is non-empty, record `<sha>+dirty` —
-  audit trail only. `tree` is the freshness test: the watch-path content hash, computed with the
-  exact command in CLAUDE.md → "Gate Result Accounting" (a variant recipe is not comparable to the
-  one `fm-route` runs). Keep `e2ePassedAt` for backward compatibility.
+  audit trail only. `tree` is the freshness test. Compute it by **running the script** — never an
+  inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
+
+  ```sh
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
+  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh --manifest <watch path>... \
+      > docs/migration/{app}/{page}/gate-tree/e2e.tsv
+  ```
+
+  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
+  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  The script is cwd-independent, so it does not matter which directory this skill runs from.
+
+  If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
+  the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
+  store the word `unverifiable`, and never store a hash the script did not print. Keep `e2ePassedAt` for
+  backward compatibility.
 - `result: fail` → `e2e-failed`.
 - `result: not-run` → keep the page at `verified` (it did not pass e2e) and report which scenarios
   were unmeasured and why, from `notRunScenarios[]`. Do **not** set `e2e-passed`: an unmeasured
