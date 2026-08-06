@@ -33,7 +33,11 @@ run `/frontend-migration-plugin:fm-extract` first.
 - Demotion warning: if the page status is `verified`/`e2e-passed`/`parity-passed`, warn that
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.
-- **`flipped` is refused, not warned.** If the page status is `flipped`, stop and tell the user to
+- **`flipped` and `done` are refused, not warned; so is an in-flight flip PR.** `done` is past
+  `flipped` (the legacy page is deleted), so `--revert` is not an escape from it — refuse and
+  require manual intervention. On any status, a present `flipPrOpenedAt` means PR2 is open against
+  the current code: refuse and point at `fm-route --revert` first, or the regeneration lands under
+  a PR that no longer describes it. For `flipped`: if the page status is `flipped`, stop and tell the user to
   run `/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
   flag-off prepares the routing artifact with the flag OFF and *keeps the current status*
   (`fm-route` Step 4), so it would leave the page at `flipped` and this refusal would repeat forever.
@@ -76,17 +80,22 @@ becomes `gen-failed`.
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
    created or modified under `appDir`, collected from each phase's own report. This is the page's
-   **watch-path** set: `fm-route --flag-on` (Step 1a) and `fm-progress` diff it against a gate's
-   recorded commit to tell a still-fresh PASS from a stale one, and neither can derive it otherwise
+   **watch-path** set: `fm-route --flag-on` (Step 1a) and `fm-progress` hash it to tell a still-fresh
+   PASS from a stale one, and neither can derive it otherwise
    — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
    removed file leaves it (see CLAUDE.md → "Gate Result Accounting").
-3. Clear any `apps[app].pages[page].gateEvidence` — the page's code has been regenerated, so every
-   prior gate PASS now rests on code that no longer exists. Leaving it would let a later freshness
-   check compare against a commit that predates this generation and read as fresh.
+3. Clear `apps[app].pages[page].gateEvidence` **and the legacy `verifiedAt` / `e2ePassedAt` /
+   `parityPassedAt`** — the page's code has been regenerated, so every prior gate PASS now rests on
+   code that no longer exists. Clearing only `gateEvidence` is the wrong half of the job: that is the
+   field Step 1a treats as evidence, while `fm-route` Step 1's **hard** precondition reads
+   `verifiedAt` and the two gate report files, so the authoritative traces would survive this
+   regeneration and re-authorize a flip on code no gate has seen. The report files are not deleted
+   (`fm-fix` reads them) — the tracker's claim about them is what has to go.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled, this stage is in `codexAuditStages`, and generation succeeded, after the
+If `codexAudit` is enabled, this stage is in `codexAuditStages` (**absent → all seven**; the key
+narrows coverage, it never means "none"), and generation succeeded, after the
 lock is released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
 `appDir`, `legacyDir`, the generated diff + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Codex checks mapping fidelity, RR v7 idioms, and secret-boundary violations.

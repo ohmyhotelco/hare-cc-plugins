@@ -20,6 +20,8 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 (`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, `workingLanguage`, and the app's
 `domain` + `stagingConfig.baseUrl` (for the legacy URL).
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Require analysis
 Check `docs/migration/{app}/{page}/analysis.json`. If missing:
 > "Run /frontend-migration-plugin:fm-analyze {page} first."
@@ -40,6 +42,8 @@ The live render is the truth source (committed CSS can be stale). Resolve `legac
 If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
+
+**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
 
 ### Step 2b: Ensure Playwright run permission
 `style-spec-extractor` runs the legacy probe as a **sub-agent**, so session approvals do not

@@ -17,6 +17,8 @@ user-facing output in `workingLanguage` (default `ko`).
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), `targetDir`,
 `appDir`, `packagesDir`, `workingLanguage`.
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Detect fix mode
 If `--mode` is given, normalize its short form to the `-fix` value the fixer expects
 (`verify`→`verify-fix`, `e2e`→`e2e-fix`, `parity`→`parity-fix`; an already-suffixed value passes
@@ -47,10 +49,19 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema —
 If the status is `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — Step 3 would write `fixing` over a live page.
 
+**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
+
 ### Step 3: Mark fixing
-Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"`
-(record `previousStatus` — the state to return to, and the audit trail for a page that ends up
-`escalated`; no skill branches on it).
+Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
+`previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
+`regenRequired` and which is the audit trail for a page that ends up `escalated`.
+
+**Write `previousStatus` only when the current status is not already `fixing`.** A re-entry is
+explicitly supported (Step 1 uses report mtime to pick the mode "when the status is `fixing`"), and
+on that path the current status *is* `fixing`, so writing it unconditionally would overwrite the
+original `*-failed` value with `"fixing"`. Step 5 would then restore `fixing`, leaving the tracker
+saying "fix in progress" while this skill's own report tells the user to run `fm-gen --force` — two
+different next steps for one page. Preserve the existing value instead.
 
 ### Step 4: Run the fixer
 Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath` (the failing

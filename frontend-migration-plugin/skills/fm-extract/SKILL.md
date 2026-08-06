@@ -30,6 +30,8 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
    packages fall back to legacy reverse-extraction (no regression). See CLAUDE.md →
    "Configuration".
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Resolve candidates
 - If `--from <page>` is given, read `docs/migration/{app}/{page}/analysis.json` and take its
   `sharedCandidates`.

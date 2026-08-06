@@ -24,7 +24,8 @@ paths for the stage, `outPath` = `docs/migration/{app}/{page}/codex-audit.json`,
 
 ### 1. Check Codex availability
 Verify the Codex CLI / `codex` plugin runtime is present (e.g. `command -v codex`). If absent,
-record `verdict: "skipped"` for the stage (reason: Codex unavailable) and return — do **not** fail.
+record `verdict: "skipped"` for the stage with `reason: "Codex unavailable"` (the required sibling
+field, not prose in the summary) and return — do **not** fail.
 Recording it is still a state mutation, so take the page `.lock` for that write exactly as step 5
 does and release it before returning; skipping the lock here would let the `skipped` write race a
 concurrent skill holding the page.
@@ -46,7 +47,10 @@ the **full output and exit code**. Evidence before claims — do not invent a ve
 ### 5. Parse and record
 Parse Codex's response into the schema (`templates/codex-audit.md`): `verdict`, `findings[]`
 (severity/area/detail/evidence/suggestedAction), `summary`, `model`, `inputsRef`. If `codex exec`
-failed or the output is unparseable, record `verdict: "error"` with the raw output in `summary`.
+failed or the output is unparseable, record `verdict: "error"` with the raw output in `summary`
+**and a one-line `reason`** — `templates/codex-audit.md`, the authority here, marks `reason` required
+on both `error` and `skipped`, and an entry without it is the improvised-field problem that slot
+exists to prevent.
 
 Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
 Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`

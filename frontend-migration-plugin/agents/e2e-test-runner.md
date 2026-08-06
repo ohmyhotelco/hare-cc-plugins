@@ -52,11 +52,16 @@ compare the observable behavior (navigation, key outputs, success/failure paths)
 differences as failures — the legacy behavior is the reference.
 
 **Each leg records its own `provenance`** (`templates/capture-provenance.md`): the spec writes
-`origin` (the base URL it actually drove, host:port included), the `side` resolved from that host:port
-against config (`apps[app].legacyPort` → `legacy`, `apps[app].port` → `v2`, else `unresolved`),
-`authState`, `renderSource`, `responseSource` (`stubbed` for MSW/`route.fulfill` runs, `backend` on
-staging), `captureMode`, and `capturedAt` — into `dualRun.legacyProvenance`/`dualRun.newProvenance` in the
-report. (`dualRun.legacy` and `dualRun.new` are that leg's pass/fail **result**, not its provenance;
+`origin` (the base URL it actually drove, host:port included), the `side` resolved by that
+template's **ordered rules** — run them in order, do not substitute a shortcut. A local host
+resolves by port (`apps[app].legacyPort` → `legacy`, `apps[app].port` → `v2`); the production
+`apps[app].domain` resolves only from the page's **flip state** (`legacy` when neither `flippedAt`
+nor `flipPrOpenedAt` is recorded, `v2` when the status is `flipped`, `unresolved` in between) —
+which is why you are given `domain` and the flip state at all. A port-only rule would collapse every
+production-domain leg to `unresolved`, i.e. absent, and there is no dual-run against staging without
+it. Then `authState`, `renderSource`, `responseSource` (`stubbed` for MSW/`route.fulfill` runs,
+`backend` on staging), `captureMode`, and `capturedAt` — into
+`dualRun.legacyProvenance`/`dualRun.newProvenance` in the report. (`dualRun.legacy` and `dualRun.new` are that leg's pass/fail **result**, not its provenance;
 writing a provenance object into them would collide with the schema.) The two
 legs usually differ only by port, so which run produced which artifact is exactly the thing that gets
 mixed up; a leg whose side does not resolve is reported as **one leg observed, not two** (`parity`
@@ -66,7 +71,8 @@ cannot be `match`), never as a dual-run on the strength of a label.
 also capture and diff the **text the user sees** on both sides — the flow matching is not enough. A
 navigation-only comparison passes an English backend string on a Korean screen, a raw `tl.*` key, or
 a literal `<br/>`; that is precisely how those shipped (OMH-748). Run these in each language the
-plan's `gateAcceptance` criteria cover, one `copyParity[]` entry per language, and record the
+plan lists in `gateAcceptance.e2e.languages` (the field, not the `scope` prose), one
+`copyParity[]` entry per language, and record the
 observed strings per side so a diff is inspectable rather than a bare fail.
 
 When config has **no `i18n` block** the plan omits `languages` by design
@@ -75,6 +81,11 @@ assertions once at the app's single served locale and record that entry with
 `language: "not-run"` + `reason: "no i18n block configured"`. Do not invent a locale identifier and
 do not claim multi-language coverage — the same absent-`i18n` handling `fm-verify`,
 `foundation-generator`, and `parity-verifier` apply. See `templates/i18n-copy-parity.md`.
+
+**This `language: "not-run"` does not make the scenario or the gate `not-run`.** The scenario ran;
+only the language *axis* had no set to iterate. The top-level `result` is driven by
+`scenarios[].result`, never by a `copyParity[].language` value — the two fields share the string and
+mean different things.
 
 ### 4b. Enforce `gateAcceptance.e2e` verbatim
 The plan codifies this gate's criteria the same way it does the parity gates, and they bind you the
@@ -117,7 +128,11 @@ pass you did not observe (CLAUDE.md 5-step gate).
                                    "newText": "This password is wrong.", "result": "diff" }],
                   "artifacts": { "trace": "path/to/trace.zip", "video": "...", "screenshot": "..." },
                   "evidence": "...summary line..." }],
-  "result": "pass | fail", "ranAt": "ISO"
+  // "not-run" when every scenario that DID run passed but at least one was unmeasured.
+  // It is not "pass": an unmeasured scenario is not a passing one.
+  "result": "pass | fail | not-run",
+  "notRunScenarios": [{ "name": "...", "reason": "staging gateway not configured: nicePay" }],
+  "ranAt": "ISO"
 }
 ```
 Final message (in `workingLanguage`) — keep it short; the report is the record: scenarios run, pass/fail with evidence, any behavior diffs
@@ -137,6 +152,11 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 - Read-modify-write the report; do not clobber other state.
 - A **failing** scenario means the gate has not passed — say so plainly. A scenario recorded
   `not-run` with a `reason` (the staging-gateway case in step 3) is *unmeasured*, not failed: it does
-  not by itself set the top-level `result` to `fail`. Report it prominently and carry the `reason` —
-  `fm-e2e` Step 4 keeps the page at `e2e-passed` and surfaces it, and `fm-route --flag-on` shows it
-  to the operator. Never let a `not-run` scenario read as a pass.
+  not set the top-level `result` to `fail`. It does not let it be `pass` either. **Any scenario at
+  `not-run` makes the top-level `result` `"not-run"`**, listed in `notRunScenarios[]` with its
+  reason; `fm-e2e` Step 4 then keeps the page at `verified` and the gate stays open until the
+  premise is met. This is the same accounting `parity-verifier` applies to an unmeasured sub-gate,
+  for the same reason — and the case it protects is the sharp one: `stagingConfig.paymentGateways`
+  ships **scaffolded empty**, so without this rule the first transactional page reaches
+  `e2e-passed`, parity, and the flip with its payment flow never once exercised. Never let a
+  `not-run` scenario read as a pass.

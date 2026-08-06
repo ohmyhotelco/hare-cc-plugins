@@ -15,8 +15,8 @@ State files live under `docs/migration/{app}/{page}/`; the global tracker is
 | `fm-plan` | `migration-planner` | `analysis.json` + `style-spec.json` + catalog → `migration-plan.json` | `planned` |
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
 | `fm-verify` | — | build / tsc / vitest / eslint (hard) from `appDir`, Prettier advisory | `verified` / `verify-failed` |
-| `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` |
-| `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` |
+| `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
+| `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` / stays `e2e-passed` on `not-run` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → the failed gate's entry state (the gate itself issues the passed state) / `generated` / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |

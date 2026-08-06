@@ -4,7 +4,7 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 플러그인입니다. 개정된 v2 마이그레이션 계획을 따릅니다. **완전 독립형**(자체 에이전트·파이프라인)
 이지만, 생성 결과의 일관성을 위해 `frontend-react-plugin`의 스택 컨벤션을 공유합니다.
 
-> 상태: 기능 완성 툴링(v0.15.1). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
+> 상태: 기능 완성 툴링(v0.15.2). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
 > 프로젝트가 스캐폴딩하는 v2 모노레포(`apps/` + `packages/`)를 대상으로 동작합니다.
 
 ## 무엇을 하나
@@ -132,6 +132,7 @@ Playwright로 실행합니다.
                                    /fm-e2e   (Playwright 게이트키퍼)
                                    /fm-parity (시각/계약/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, 게이트 가드)
+                                              → --flag-on --confirm-live (머지·배포 후 flipped)
 
 /fm-delta <page>               레거시 변경 시 변경분만 재마이그레이션
 /fm-progress                   앱별/페이지별 상태(read-only)

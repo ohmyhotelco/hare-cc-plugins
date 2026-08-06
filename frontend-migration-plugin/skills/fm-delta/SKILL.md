@@ -19,7 +19,13 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDi
 `legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
-**Refuse a `flipped` page.** If the status is `flipped`, stop and tell the user to run
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+**Refuse a `flipped` page, a `done` page, or one with a flip PR in flight.** `done` is past
+`flipped` — the legacy page has been deleted, so there is no legacy source left to diff a delta
+against and no rollback target; refuse and require manual intervention. A present `flipPrOpenedAt`
+means PR2 is open against the current code: refuse and point at `fm-route --revert` first.
+If the status is `flipped`, stop and tell the user to run
 `/frontend-migration-plugin:fm-route {page} --revert` first — **`--revert`, not `--flag-off`**:
 flag-off keeps the current status (`fm-route` Step 4), so it would leave the page at `flipped` and
 this refusal would repeat with no exit. `--revert` is the rollback that returns it to
@@ -101,8 +107,11 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
   key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
-  removed, and **clear `gateEvidence`** — the page's code changed, so every prior gate PASS now
-  rests on superseded code and must not read as fresh (CLAUDE.md → "Gate Result Accounting").
+  removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
+  `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
+  and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
+  Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
+  flip (CLAUDE.md → "Gate Result Accounting").
 - Release the lock.
 
 ### Step 6: Report (incremental path)

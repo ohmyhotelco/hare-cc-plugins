@@ -19,7 +19,8 @@ and the 2-PR pattern are identical; only the **artifact you edit** changes:
 | `nginx` (default) | the nginx host/path routing block + flag entry in `infraDir` | the routing flag (cookie/header/included conf) |
 | `cloudfront` | the version-controlled CloudFront behavior manifest `cloudfrontDir/<manifest>` | a path-pattern → v2-origin behavior, present/active |
 
-You receive (no session history): `app`, `page`, `action` (flag-off | flag-on | revert),
+You receive (no session history): `app`, `page`, `action` (flag-off | flag-on | revert — never
+`confirm-live`, which is a tracker-only transition `fm-route` handles without launching you),
 `flagPlan` (`{ key, guardsPath }` from `migration-plan.json`), `domain`, `port` (the new app's),
 `legacyPort`, **`flipMechanism`** (`nginx` | `cloudfront`; **absent → `nginx`**) and its artifact
 target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the gate state for the
@@ -51,7 +52,12 @@ the legacy app (`legacyPort`).
 - `nginx`: flip `flagPlan.key` to ON so nginx routes `guardsPath` to the new app (`port`).
 - `cloudfront`: mark the `guardsPath` manifest entry **active** (path-pattern → v2 origin).
 
-### revert (rollback)
+### revert (rollback) — guarded
+**Precondition (hard):** the page must be at `flipped`, or at `parity-passed` with `routePrepared`
+or `flipPrOpenedAt` set — i.e. there is a live or in-flight route change to undo. On any other
+status, **refuse**: there is nothing in rotation, and the caller would go on to write a
+gate-passed status no gate produced (`fm-route` Step 0a).
+
 Return the path to the legacy app. This is the soft rollback.
 - `nginx`: flip the flag back OFF (the routing block stays, dormant).
 - `cloudfront`: **remove** the `guardsPath` behavior entry from the manifest (not merely

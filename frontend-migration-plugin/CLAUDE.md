@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.15.1)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.15.2)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -177,7 +177,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   - `cloudfront` → `apps.*.cloudfrontDir` (default `infra/cloudfront`) + `apps.*.manifest`
     (default `v2-routes.json`): a **version-controlled** CloudFront behavior manifest that maps
     `guardsPath` path-patterns to the v2 origin. `fm-route` edits only this in-repo manifest and
-    opens a PR — it **never pushes to AWS** (governance = detect / PR, not apply).
+    for a PR the user opens — it **never pushes to AWS** (governance = detect / PR, not apply).
 
   The per-app mechanism **mapping** (which app uses which) is **project config**, decided at
   `fm-init` and never hardcoded in this plugin — the plugin ships `nginx` as the neutral default.
@@ -206,7 +206,7 @@ in later phases.
                                         │ (fail → /fm-fix)
                               /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                               /fm-parity (visual / contract / WebView / telemetry; fail → /fm-fix)
-                              /fm-route --flag-off (PR1) → --flag-on (PR2)
+                              /fm-route --flag-off (PR1) → --flag-on (PR2) → --confirm-live
 
 /fm-delta                 → re-migrate only the changed surface when legacy source updates
 /fm-progress              → per-app / per-page status + gate state (always available)
@@ -241,13 +241,25 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   promoted the page itself would leave the gate's report reading `fail` while the status claimed
   otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
 - **`flipped` means the edge is serving v2, not that a PR exists.** `fm-route --flag-on` edits the
-  in-repo routing artifact and opens PR2; it records `flipPrOpenedAt` and leaves the status at
+  in-repo routing artifact **for** PR2 — the user opens the PR, as they do for the code PR on
+  `--flag-off`; it records `flipPrOpenedAt` (the hand-over moment, not proof a PR exists) and leaves the status at
   `parity-passed`. Only `--flag-on --confirm-live`, run by a human after the merge and deploy have
   propagated, sets `flipped`. Nothing in this plugin deploys, so nothing in it can observe that the
   flip is live — and provenance resolves a capture's `side` from this status, so claiming it early
   would label a production capture `v2` while the host still serves legacy.
-- **No skill writes a status over `flipped` except `fm-route --revert`,** which is the sanctioned
-  rollback and must be able to leave the state. Every other status writer refuses: `fm-gen`,
+- **No skill writes a status over `flipped` or `done` except `fm-route --revert` on `flipped`,**
+  which is the sanctioned rollback and must be able to leave that state. `done` has **no** such
+  exception: the legacy page has been deleted, so there is nothing to roll back to and no legacy
+  source left to diff against — reopening a `done` page is a manual decision, not a skill
+  transition. A refusal must name `done` explicitly, because "at least `generated`"-style monotonic
+  comparisons satisfy it silently.
+- **No skill writes a status, or rewrites the page's code, while `flipPrOpenedAt` is present.** PR2
+  is open against the current code; a demotion or regeneration underneath it leaves a PR that no
+  longer describes what it would merge, and the timestamp survives the rewrite (every writer
+  read-modify-writes), so the SessionStart hook later reads it first and recommends `--confirm-live`
+  on superseded code. Refuse and point at `fm-route --revert`, which is the only clearer of that
+  field.
+- Every other status writer refuses all three: `fm-gen`,
   `fm-delta`, `fm-analyze`, `fm-style-spec`,
   `fm-plan`, `fm-verify`, and `fm-fix` each refuse and point at `fm-route --revert`. `fm-e2e` and
   `fm-parity` need no guard — their entry preconditions are exact matches (`verified`, `e2e-passed`),
@@ -389,8 +401,12 @@ These apply to every agent and skill in this plugin.
   particular, never spawn a reviewer or a second agent to verify or double-check work a gate already
   covers. Verification belongs to the gate that owns it; `fm-clean-code` and `fm-test-review` are
   standalone audits a human invokes, not steps a pipeline phase adds for itself. When a skill does
-  name several independent agents (e.g. `fm-audit-codex` across stages), send them in one message so
-  they run concurrently, and keep the count to what the skill lists.
+  name several independent agents, send them in one message so they run concurrently, and keep the
+  count to what the skill lists — **unless the skill says otherwise, and some do.** `fm-audit-codex`
+  runs its stages **sequentially** on purpose: `codex-auditor` takes the page `.lock` to
+  Read-Modify-Write `codex-audit.json`, so parallel auditors on one page contend for a single lock
+  that stays non-stale for 30 minutes. Agents that share a lock or a write target are not
+  independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
 
 ## Build Command Working Directory
 
@@ -703,16 +719,40 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
   entries next to the current findings and lets the human judge, which is where that judgement
   belongs: the gate is already a human acknowledgement.
-- **E (gate-pass commit).** `fm-verify`/`fm-e2e`/`fm-parity` record `gateEvidence.{gate} = { at:
-  <ISO-8601>, commit: <sha> }` in `tracker.json` (`commit` = `git rev-parse --short HEAD`; a dirty tree
-  → `<sha>+dirty`, honest imprecision over a clean-looking lie). Legacy `verifiedAt`/`e2ePassedAt`/
-  `parityPassedAt` stay for compatibility; `gateEvidence` wins when present. `fm-route --flag-on`
-  Step 1a surfaces any gate with an intervening commit on the page's watch paths as **stale** and
-  requires the operator's acknowledgement — a soft gate, never an auto-block: the gates run before
-  the code PR exists, so a blocking reading would fire on every page and re-running could not clear
-  it. A PASS proves nothing
-  about code committed after it (OMH-754 PR #184 shipped a `visual: PASS` 21 commits stale). `at` is
-  ISO-8601 with time, the same regulation as the lock schema; a date-only value is a rule violation.
+- **E (gate-pass evidence = the *content* the gate ran on).** `fm-verify`/`fm-e2e`/`fm-parity` record
+  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` in `tracker.json`. A PASS
+  proves nothing about code that changed after it (OMH-754 PR #184 shipped a `visual: PASS` 21
+  commits stale), so the flip has to compare *what was tested* against *what is about to ship*.
+
+  **`tree` is the comparison; `commit` is only the audit trail.** `commit` =
+  `git rev-parse --short HEAD` (a dirty tree → `<sha>+dirty`, honest imprecision over a clean-looking
+  lie) and is never used to decide freshness. `tree` is a content hash over the page's **watch paths**
+  (F below), computed identically by every producer and consumer — this exact command, so the values
+  are comparable at all:
+
+  ```sh
+  git ls-files --cached --others --exclude-standard -z -- <watch paths> \
+    | sort -z \
+    | while IFS= read -r -d '' f; do printf '%s %s\n' "$(git hash-object "$f")" "$f"; done \
+    | git hash-object --stdin
+  ```
+
+  `--others --exclude-standard` is load-bearing: at gate time the generated page is usually **not yet
+  tracked** (the code PR has not been opened), and a tracked-only listing would hash the empty set.
+
+  **Why content and not commits.** An earlier revision compared `gateEvidence.{gate}.commit`
+  against `HEAD` with `git log -- <watch paths>`, and had to be a soft gate because it fired on every
+  page by construction: the gates run before the code PR, so every record was `+dirty`, and PR1's
+  merge commit touches every path in `sourcePaths[]` by definition. A **content** hash has neither
+  problem — PR1's merge changes the commit graph, not the bytes, so the hash is unchanged and the
+  page passes. It moves only when the page's code or a shared package it imports actually changes,
+  which is precisely the condition the rule was written for. So `fm-route --flag-on` Step 1a is a
+  **hard** gate on a `tree` mismatch: re-run the affected gates.
+
+  A record with no `tree` (written before this field) is `unverifiable`, acknowledged and
+  non-blocking — no retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for
+  compatibility; `gateEvidence` wins when present. `at` is ISO-8601 with time, the same regulation as
+  the lock schema; a date-only value is a rule violation.
 - **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files
   belong to the page, and nothing recorded that: `componentTree` carries component *names*, not
   paths. So `fm-gen` Step 5 (and `fm-delta` Step 5) now record `sourcePaths[]` — the files the
@@ -725,7 +765,7 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
   `unverifiable` on axis 1 and still checkable on axis 2, and must report which axis it checked —
   a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
-  claim (see Design Principles). The goal is visibility before flip, not forced re-verification.
+  claim (see Design Principles). Because the two axes are hashed as one set, `tree` covers both.
 
 Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
 veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no

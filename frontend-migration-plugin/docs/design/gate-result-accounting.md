@@ -66,20 +66,35 @@ from): the rule lives in the instructions, the basis is missing from the output.
   non-match is recorded as **"could not be matched"** and surfaced at Step 1b next to the current
   findings — the human is already acknowledging there, so that is the right place to resolve it.
 
-- **E — a gate PASS records the commit it rests on.** `fm-verify` / `fm-e2e` / `fm-parity` add
-  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha> }` to their `tracker.json` record. `commit`
-  = `git rev-parse --short HEAD`; a dirty tree records `<sha>+dirty` (honest imprecision over a
-  clean-looking lie — the code checked was not the code at that SHA). The legacy `verifiedAt` /
-  `e2ePassedAt` / `parityPassedAt` stay for backward compatibility; `gateEvidence` wins when present.
-  `fm-route --flag-on` Step 1a then checks, per gate, whether any commit between
-  `gateEvidence.{gate}.commit` and `HEAD` touched the page's watch paths; if so, that PASS is expired
-  and is **surfaced for acknowledgement, not re-run** — `fm-route` Step 1a is a soft gate (the gates
-  run before the code PR exists, so a blocking reading fires on every page and cannot be cleared).
-  A `<sha>+dirty` value is reported `unlocatable` rather than stale. This has already been realized
-  once by hand: OMH-754 PR #184 shipped a
-  `visual: PASS` standing on a screenshot 21 commits stale — the reviewer caught it by counting commits
-  the tracker could not name. `at` is ISO-8601 with time, the same regulation the v0.14.1 lock schema
-  set — a date-only value is a rule violation, not a shortcut.
+- **E — a gate PASS records the *content* it rests on.** `fm-verify` / `fm-e2e` / `fm-parity` add
+  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` to their `tracker.json`
+  record. This has already been realized once by hand: OMH-754 PR #184 shipped a `visual: PASS`
+  standing on a screenshot 21 commits stale — the reviewer caught it by counting commits the tracker
+  could not name. `at` is ISO-8601 with time, the same regulation the v0.14.1 lock schema set — a
+  date-only value is a rule violation, not a shortcut.
+
+  `commit` = `git rev-parse --short HEAD`; a dirty tree records `<sha>+dirty` (honest imprecision
+  over a clean-looking lie). It is an **audit-trail field only** — nothing decides freshness from it.
+  `tree` is a content hash over the page's watch paths (F below), and it is the field the flip
+  compares. CLAUDE.md → "Gate Result Accounting" carries the exact command; every producer and
+  consumer runs that one, or the values are not comparable.
+
+  **The first attempt compared commits, and had to be soft because it fired on every page.** The
+  gates run before the code PR exists, so every record was `+dirty` and `git log <sha>..HEAD` could
+  not even be evaluated; and once PR1 merged, its merge commit touched every path in `sourcePaths[]`
+  by definition. Both conditions fired unconditionally and a re-run could not clear either, so the
+  rule was demoted to acknowledge-and-proceed — which is not verification, and left a real
+  false-pass path open at the one irreversible step. Hashing **content** removes both failure modes
+  at once: a merge changes the commit graph, not the bytes, so an untouched page hashes identically
+  and passes cleanly, while a page whose code or shared package actually changed does not. That
+  makes `fm-route --flag-on` Step 1a a **hard** gate again: a `tree` mismatch blocks and names the
+  files that moved. A record with no `tree` (written before this field) stays `unverifiable` —
+  acknowledged, non-blocking, no retro-adjudication.
+
+  The legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` stay for backward compatibility;
+  `gateEvidence` wins when present. Because a regeneration invalidates them just as surely as it
+  invalidates `gateEvidence`, `fm-gen` and `fm-delta` clear all four together (F below) — otherwise
+  the *advisory* field is cleared while the fields `fm-route` Step 1 hard-gates on survive.
 
 - **F — freshness follows the shared-package dependency.** The gate is per-page, so a
   `packages/shared-*` change (a `shared-ui` button padding, an `@omh/shared-types` field) outdates the
@@ -92,10 +107,13 @@ from): the rule lives in the instructions, the basis is missing from the output.
 
   *Own source.* Nothing recorded it. `componentTree` carries component **names**, not paths, and
   `generation-state.json` tracks phase status only. So `fm-gen` Step 5 records `sourcePaths[]` (the
-  files its phases wrote under `appDir`) and `fm-delta` refreshes it. Both also **clear
-  `gateEvidence`** on the way through: a regenerated page's prior PASSes stand on code that no longer
-  exists, and leaving the evidence would let a later check compare against a pre-generation commit
-  and read as fresh. A page with no `sourcePaths` (generated before the field) is `unverifiable` on
+  files its phases wrote under `appDir`) and `fm-delta` refreshes it. Both also **clear `gateEvidence`
+  together with the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`** on the way through: a
+  regenerated page's prior PASSes stand on code that no longer exists. Clearing `gateEvidence` alone
+  would be the worse half of the job — that is the field `fm-route` Step 1a treats as *evidence*,
+  while Step 1's hard precondition reads `verifiedAt` and the two report files, so the authoritative
+  traces would survive the regeneration untouched and re-authorize the flip.
+  A page with no `sourcePaths` (generated before the field) is `unverifiable` on
   this axis — the same honest-state treatment absent `gateEvidence` gets — and the consumer must say
   which axis it checked rather than reporting a bare "fresh".
 
@@ -139,16 +157,18 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    preserves unmatched ones under `priorAdjudicated[]`, and is barred from authoring or clearing one;
    `fm-route` Step 1b surfaces `priorAdjudicated` `high` entries as `unmatched`.
 3. `fm-verify` / `fm-e2e` / `fm-parity` each record `apps[app].pages[page].gateEvidence.{gate}` with
-   ISO-8601 `at` + `commit`, `<sha>+dirty` on a dirty tree, legacy `*At` fields kept.
-4. `fm-route` Step 1a expires a gate whose watch paths have a commit after
-   `gateEvidence.{gate}.commit`, resolving them from `tracker.json` `sourcePaths[]` plus each
-   `sharedDeps[]` entry mapped `@omh/<package>:<symbol>` → `{packagesDir}/<package>`; absent
-   `gateEvidence` = `unverifiable`, non-blocking; absent `sourcePaths` = `unverifiable` on that axis
+   ISO-8601 `at` + `commit` (`<sha>+dirty` on a dirty tree; audit trail only) + `tree` (the
+   watch-path content hash, the comparable field), legacy `*At` fields kept.
+4. `fm-route` Step 1a re-computes `tree` over the same watch paths — `tracker.json` `sourcePaths[]`
+   plus each `sharedDeps[]` entry mapped `@omh/<package>:<symbol>` → `{packagesDir}/<package>` — and
+   **blocks** on a mismatch, naming the files that differ. Absent `tree` or absent `gateEvidence` =
+   `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
-5. `fm-progress` lists `parity-passed` pages with stale evidence on the same watch-path basis, and
-   declares `allowed-tools` that include `Bash` (the check runs `git log`).
-6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`; `fm-delta` Step 5 refreshes and
-   clears the same, so a regenerated page never carries a PASS for code that no longer exists.
+5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same watch-path
+   basis, and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
+6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence` **and the legacy
+   `verifiedAt`/`e2ePassedAt`/`parityPassedAt`**; `fm-delta` Step 5 refreshes and clears the same, so
+   a regenerated page never carries a PASS for code that no longer exists — on either field set.
 7. Codex stays advisory (`CLAUDE.md` unchanged on that point); no existing artifact is retro-filled.
 
 ## Follow-up (out of scope, separate axis)

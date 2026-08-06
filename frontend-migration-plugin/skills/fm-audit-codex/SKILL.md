@@ -1,7 +1,7 @@
 ---
 name: fm-audit-codex
 description: "Use to run an independent Codex audit of a migrated page's artifacts — analyze/plan/gen/verify/e2e/parity/route — as a second opinion alongside Claude's own gates. Advisory: records codex-audit.json and never blocks (except the soft acknowledgement at fm-route --flag-on)."
-argument-hint: "<page> [--stage analyze|plan|gen|verify|e2e|parity|route|--all] [--app pc|mobile|hana]"
+argument-hint: "<page> [--stage analyze|plan|gen|verify|e2e|parity|route] [--all] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -27,6 +27,8 @@ here would leave `codex-audit.json` with no entry for that stage — indistingui
 having audited it, which is the state the persisted `skipped` verdict exists to rule out
 (CLAUDE.md → Codex Independent Audit). Surface the auditor's `skipped` verdict, with the install
 hint, in the report.
+
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve stages
 - `--stage <s>` → audit just that stage.

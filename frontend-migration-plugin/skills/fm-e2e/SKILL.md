@@ -19,6 +19,8 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDi
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
 `fm-verify`/`fm-plan`).
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Ensure Playwright run permission
 The runner executes as a sub-agent, so session approvals do not transfer. Ensure
 `.claude/settings.json` `permissions.allow` includes the Playwright command
@@ -45,19 +47,26 @@ failure regardless of the top-level `result` — the criteria bind the runner ve
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
 `tracker.json` (Read-Modify-Write):
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
-  `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on (see
-  CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
-  `git status --porcelain` is non-empty, record `<sha>+dirty`. Keep `e2ePassedAt` for backward
-  compatibility.
+  `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }` —
+  the code state the pass rests on (see CLAUDE.md → "Gate Result Accounting"). `commit` =
+  `git rev-parse --short HEAD`; if `git status --porcelain` is non-empty, record `<sha>+dirty` —
+  audit trail only. `tree` is the freshness test: the watch-path content hash, computed with the
+  exact command in CLAUDE.md → "Gate Result Accounting" (a variant recipe is not comparable to the
+  one `fm-route` runs). Keep `e2ePassedAt` for backward compatibility.
 - `result: fail` → `e2e-failed`.
-- A report whose top-level `result` is `pass` but that contains any scenario at `result: "not-run"`
-  → still `e2e-passed`, but surface every `not-run` scenario and its `reason` in the report. A
-  not-run scenario is an **unmeasured** one, not a passing one; `fm-route --flag-on` shows them
-  beside the Codex findings so the human flipping the path knows which flows were never exercised.
+- `result: not-run` → keep the page at `verified` (it did not pass e2e) and report which scenarios
+  were unmeasured and why, from `notRunScenarios[]`. Do **not** set `e2e-passed`: an unmeasured
+  scenario is not a passed one, and `fm-parity` requires `e2e-passed`, so the chain stays blocked
+  until the premise is met. Do not route to `fm-fix` either — there is no failure to repair; the
+  fix is to supply the missing prerequisite (e.g. fill `stagingConfig.paymentGateways` for the
+  gateway the scenario needs) and re-run `fm-e2e`. This mirrors `fm-parity` Step 4's `not-run`
+  branch exactly. A report predating this field — top-level `pass` carrying a `not-run` scenario —
+  is read the same way: treat it as `not-run`, not as a pass.
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
 (Agent) for the `e2e` stage (params: `app`, `page`, `stage="e2e"`, `appDir`, `legacyDir`,
 `e2eReportPath` + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,

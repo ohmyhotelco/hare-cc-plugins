@@ -25,6 +25,8 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
    (`counterpartDirs`).
 3. Read `workingLanguage`.
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Resolve the target
 1. From `<target>` + optional `--kind`, locate the entry file/dir under `legacyDir`
    (e.g. a page dir `pages/hotel/hotel-booking-info/`, a service file, a store slice).
@@ -46,6 +48,8 @@ runs: the agent overwrites `analysis.json`, which is the baseline `fm-delta` dif
 against, so a guard placed after the launch would already have destroyed it. (A page not yet in the
 tracker is unaffected — this only guards one recorded as flipped.)
 
+**Also refuse `done`, and refuse while a flip PR is in flight.** `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is nothing to roll back to and `--revert` is not an escape; require manual intervention instead. And on any status, if `flipPrOpenedAt` is present the flip PR is open against the current code: refuse and point at `fm-route --revert` first, or this rewrite lands under a PR that no longer describes it and the stale timestamp later invites `--confirm-live`.
+
 ### Step 3: Run the analyzer
 Launch the `angular-analyzer` agent (use the `Agent` tool — this is a single analysis step)
 with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `targetKind`,
@@ -63,7 +67,8 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 3. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
 (Agent) for the `analyze` stage (params: `app`, `page`, `stage="analyze"`, `appDir`, `legacyDir`,
 `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`). It

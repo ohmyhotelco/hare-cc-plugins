@@ -29,6 +29,11 @@ yours to reinterpret, narrow, or substitute (whatever the delegation prompt says
 cannot be met, report it as **unmet (fail)** or as an explicit approval request in the report —
 silent scope reduction is prohibited.
 
+**Record that compliance in the report**, in `criteriaCompliance` with `deviations: []` — the same
+slot `e2e-report.json` carries, because `fm-parity` Step 3 check 5 and `fm-e2e` Step 4 run the same
+check and one of them had nothing to read. A non-empty `deviations` is a gate failure, not an
+annotation.
+
 **A criterion you believe is wrong is still not yours to change.** An expected value can be
 mis-authored (written from the legacy source while the v2 platform had already decided to diverge), and
 then the gate fails on correct code. That is a `fail` plus an approval request naming the suspected
@@ -219,6 +224,10 @@ event parity; the time window is operational.
 ```jsonc
 {
   "page": "...",
+  // The gate's own statement that it ran plan.gateAcceptance as written — the same slot
+  // e2e-report.json carries, and the field fm-parity Step 3 check 5 reads. deviations MUST be
+  // empty; a narrowed criterion is a gate failure, not a note.
+  "criteriaCompliance": { "gate": "parity", "enforcedVerbatim": true, "deviations": [] },
   "gates": {
     "visual":    { "result": "pass|fail|not-run", "reason": null,
                    "amendedCriterion": false, "priorWhy": null,

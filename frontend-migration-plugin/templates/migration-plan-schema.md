@@ -58,8 +58,15 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "analysisAnchor": "new-password.component.ts:141" }
   ],
   "requiredGates": ["e2e", "visual", "contract", "telemetry"],
-  "gateAcceptance": { "visual": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] } },
-                                            // REQUIRED — one entry per gate in requiredGates; see below
+  // REQUIRED — one entry per gate in requiredGates. This example lists all four because
+  // fm-plan Step 4.1 rejects a plan with any gate unmatched; a shortened example here would be
+  // a plan the validator on the next page of this same document refuses.
+  "gateAcceptance": {
+    "e2e":       { "compares": "...", "scope": "...", "languages": ["KO","EN"], "excludes": [] },
+    "visual":    { "compares": "...", "scope": "...", "languages": ["KO","EN"], "artifacts": "...", "axes": [], "states": [], "excludes": [] },
+    "contract":  { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] },
+    "telemetry": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] }
+  },
   "flagPlan": { "key": "v2_pc_booking_info", "guardsPath": "/hotel/booking-info",
                 "twoPr": ["code PR with flag OFF", "one-line flag-ON PR after parity passes"] },
   "e2eScenarios": [
@@ -119,9 +126,11 @@ entries routed to `fm-secret-audit` and to `e2eScenarios` + `templates/hana-sso.
   there (error shown per failure surface, session expired, empty/zero-result). A default-only capture
   can never see error or session-expired copy, so omitting a planned state is an incomplete gate,
   not a smaller one.
-- `languages` — the languages the gate runs in. Defaults to the full `i18n.languages` set from
+- `languages` — the languages the gate runs in, on **both the `visual` and the `e2e` entries** (the
+  two gates that compare user-visible copy). Defaults to the full `i18n.languages` set from
   config; that config block is what "every supported language" **resolves to**. Any narrowing is an
-  `openApprovals` item. The `i18n` block is **optional**: when config has none there is no set to
+  `openApprovals` item. It is a field of its own — `scope` is the prose description and is **not**
+  where an executor reads the set from. The `i18n` block is **optional**: when config has none there is no set to
   default to, so omit `languages` rather than inventing one — the verifier records the language axis
   as `not-run` with a reason and runs the gate at the app's single served locale. Omitting it is only
   legitimate for that reason; with an `i18n` block present, a missing `languages` is an incomplete

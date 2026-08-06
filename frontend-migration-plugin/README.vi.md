@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.15.1). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.15.2). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -136,6 +136,7 @@ cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng) rồi chạy l�
                                    /fm-e2e   (cổng Playwright)
                                    /fm-parity (visual/contract/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, có cổng kiểm)
+                                              → --flag-on --confirm-live (sau merge + deploy → flipped)
 
 /fm-delta <page>               chỉ di trú lại phần thay đổi khi nguồn cũ thay đổi
 /fm-progress                   trạng thái theo app/trang (chỉ đọc)

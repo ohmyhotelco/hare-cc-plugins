@@ -80,7 +80,8 @@ So drive the page into each state the plan records (`gateAcceptance.visual.state
 default, **error shown** (per failure surface), **session expired**, empty/zero-result, and loading
 where it is a distinct rendered state. Every axis below applies within each state.
 
-Coverage is the full matrix — states × the languages in `gateAcceptance.scope` (→ `i18n.languages`).
+Coverage is the full matrix — states × the languages in `gateAcceptance.visual.languages`
+(= config `i18n.languages`; `scope` is the prose description, `languages` is the field to read).
 Capturing every state in every language is expensive, so a reduction is a legitimate thing to ask
 for and an **illegitimate thing to assume**: record it in `openApprovals[]` with its rationale and
 decision owner, exactly as with any other scope reduction. An author's cost trade-off is not a

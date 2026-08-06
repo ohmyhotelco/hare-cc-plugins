@@ -16,10 +16,13 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
-at `flipped`**: "at least `generated`" is a monotonic comparison and `flipped`/`done` satisfy it, so
+at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present**: "at least `generated`" is a
+monotonic comparison and `flipped`/`done` both satisfy it, so
 without this guard a re-verify would write `verified` over a live page and desync the tracker from
 the edge flag (CLAUDE.md → Per-page State Machine). Point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` first.
+
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Lock
 This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale after
@@ -66,11 +69,16 @@ Update `tracker.json` (Read-Modify-Write):
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
   `formatWarnings` (both are reporting surfaces for `fm-progress` and a human reading the tracker —
-  no gate branches on either; a Prettier advisory never fails anything). Also record `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha> }` — the
-  code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see
+  no gate branches on either; a Prettier advisory never fails anything). Also record
+  `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
+  — the code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see
   CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
   `git status --porcelain` is non-empty, record `<sha>+dirty` (the working tree differs from the SHA —
-  honest imprecision over a clean-looking lie). Keep `verifiedAt` for backward compatibility.
+  honest imprecision over a clean-looking lie) — `commit` is the audit trail, never the freshness
+  test. `tree` **is** the freshness test: the watch-path content hash, computed with the exact
+  command in CLAUDE.md → "Gate Result Accounting". Run that command, not a variant — `fm-route`
+  compares your value against one it computes the same way, and any difference in the recipe makes
+  the two incomparable. Keep `verifiedAt` for backward compatibility.
 - any hard tool fails (tsc / build / vitest / eslint), or the spec is **absent while `i18n` is
   configured** → `verify-failed`, with the failing summary. A Prettier advisory alone never sets
   `verify-failed`.
@@ -78,7 +86,8 @@ Update `tracker.json` (Read-Modify-Write):
 Release the lock.
 
 ### Step 6b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
 (Agent) for the `verify` stage (params: `app`, `page`, `stage="verify"`, `appDir`, `legacyDir`,
 generated code + test paths + the verify summary, `outPath = docs/migration/{app}/{page}/codex-audit.json`,

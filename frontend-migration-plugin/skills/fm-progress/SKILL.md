@@ -37,13 +37,14 @@ In `workingLanguage`, show:
   later commits. For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`
   Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
-  `git log --oneline <gateEvidence.{gate}.commit>..HEAD -- <path>...` and list the page with the
-  stale gate(s). **Skip any gate whose commit is `<sha>+dirty` — do not pass that value to `git`**
-  (`git log 04dc1c2+dirty..HEAD` is a fatal "unknown revision", and `+dirty` is the normal state for
-  a page that has not had its code PR yet, i.e. most of this view's population). Report those as
-  `unlocatable`, the same label `fm-route` Step 1a uses. See CLAUDE.md → "Gate Result Accounting". This is the early warning for a
+  re-compute the watch-path content hash with the exact command in CLAUDE.md → "Gate Result
+  Accounting" and compare it against each `gateEvidence.{gate}.tree`. A gate whose hash moved is
+  **stale**; list the page with those gate(s). **Never pass `gateEvidence.{gate}.commit` to `git`** —
+  it is an audit-trail field and is routinely `<sha>+dirty` (the normal state for a page that has not
+  had its code PR yet, i.e. most of this view's population), which `git` rejects as an unknown
+  revision. Freshness is decided by `tree` alone. See CLAUDE.md → "Gate Result Accounting". This is the early warning for a
   `packages/shared-*` change silently outdating many queued pages at once. Pages with no
-  `gateEvidence` are shown as `unverifiable`, not stale; a page with no `sourcePaths` is
+  `gateEvidence`, or whose record predates `tree`, are shown as `unverifiable`, not stale; a page with no `sourcePaths` is
   `unverifiable` on its own-source axis but still checkable on its shared-package axis — say which
   axis was checked rather than reporting a bare "fresh". Read-only — flags, never re-runs.
 
@@ -55,7 +56,7 @@ deleted), and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set �
 --confirm-live` (the flip PR is already open; re-running plain `--flag-on` would open a second one),
 else `routePrepared` set → `--flag-on`, else `--flag-off`:
 analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
-verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off`/`--flag-on`,
-`*-failed`→`fm-fix`.
+verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
+`--flag-on --confirm-live` per the three sub-states above, `*-failed`→`fm-fix`, `done`→no command.
 
 This skill is read-only — it never acquires the lock or mutates state.

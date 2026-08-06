@@ -22,9 +22,35 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 Read the page's `migration-plan.json` → `flagPlan` (`key`, `guardsPath` — the same path is the
-nginx `location` *and* the CloudFront path-pattern). Determine `action` from the flag
-(`--flag-off` | `--flag-on` | `--revert`).
+nginx `location` *and* the CloudFront path-pattern). Determine `action` from the flags — **four
+actions, not three**: `--flag-off` | `--flag-on` | `--flag-on --confirm-live` | `--revert`.
+`--confirm-live` is a **distinct action**, not a modifier on `flag-on`: it edits no artifact, runs no
+agent, and only records the human's observation that the merged flip is live (Step 3 is skipped for
+it). Treating it as `flag-on` would re-activate the routing rule and re-run the Step 1a/1b
+acknowledgements the operator already gave.
+
+### Step 0a: Action preconditions (all four actions)
+Every action writes or clears route state, so every action needs an entry condition. Read
+`tracker.json` first and refuse before touching anything:
+
+| action | requires | on refusal |
+| --- | --- | --- |
+| `--flag-off` | `status = parity-passed` | the gates have not all passed; name the stage the page is at |
+| `--flag-on` | Steps 1, 1-pre, 1a, 1b below | as each step states |
+| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | there is no flip PR to confirm — run `--flag-on` first |
+| `--revert` | `status = flipped`, **or** `status = parity-passed` with `routePrepared` or `flipPrOpenedAt` set | there is nothing in rotation or in flight to roll back |
+
+**`--revert` never promotes a page.** From `flipped` it returns the page to `parity-passed` — the
+state it was in before the flip, and one it genuinely earned. From `parity-passed` it **keeps the
+current status** and only clears the route fields, undoing a `--flag-off` or an unmerged flip PR.
+It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
+and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
+skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
+`fm-delta` had just reset) would promote it, and since `--flag-off` merely re-arms `routePrepared`,
+the next `--flag-on` would find every precondition satisfied and flip code no gate has seen.
 
 ### Step 1: Gate guard (flag-on only)
 For `--flag-on`, read `tracker.json` and `docs/migration/{app}/{page}/e2e-report.json` +
@@ -34,6 +60,10 @@ overwritten to `parity-passed`), `verifiedAt` present (verify's durable trace �
 file), and both reports show `result: pass`. If any is not satisfied, stop and report the blocking
 gate — do not flip.
 
+These three are the *durable* traces, and `fm-gen`/`fm-delta` clear `verifiedAt`/`e2ePassedAt`/
+`parityPassedAt` alongside `gateEvidence` for exactly that reason: without it a regenerated page
+would keep the fields this step reads while losing only the advisory one.
+
 ### Step 1-pre: Require the code PR first (flag-on only)
 `--flag-on` is the second PR of a mandatory two-PR flow (`templates/strangler-fig.md`), so refuse it
 unless `tracker.json` records `routePrepared: true` from a prior `--flag-off`. Without this the flip
@@ -41,10 +71,9 @@ can be raised on a page whose code PR was never prepared, skipping the route-sta
 runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 
 ### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
-A gate PASS proves nothing about code committed after it. For each gate with a
-`gateEvidence.{gate}.commit` in `tracker.json`, check whether any commit between that SHA and `HEAD`
-touched the page's **watch paths**. Resolve those paths from two recorded fields — never by guessing
-which files belong to the page:
+A gate PASS proves nothing about code that changed after it. For each gate with a
+`gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
+page's **watch paths** from two recorded fields — never by guessing which files belong to the page:
 
 1. **The page's own source** — `tracker.json` `apps[app].pages[page].sourcePaths[]`, the repo-relative
    files `fm-gen` recorded as generated (see `fm-gen` Step 5).
@@ -54,51 +83,50 @@ which files belong to the page:
    `packages/shared-*` change outdates the evidence of every page that imports it, and the gate is
    per-page so nothing else catches it.
 
-Then `git log --oneline <sha>..HEAD -- <path>...` over the union. Any gate with an intervening commit
-on a watch path is **stale**.
+Hash the union with the exact command in CLAUDE.md → "Gate Result Accounting" — the same one the
+gate skills ran, or the two values are not comparable. A gate whose recomputed hash differs from its
+recorded `gateEvidence.{gate}.tree` is **stale**.
 
-**This is a soft gate: surface, acknowledge, proceed — never an automatic refusal.** Present the
-stale gates with the commits that outdated them and require the user's explicit acknowledgement,
-exactly as Step 1b does for Codex findings. Do not block the flip and do not demand a re-run. Two
-reasons, and the second is the load-bearing one:
+**This is a hard gate: a stale gate blocks the flip.** Report which gates are stale and which files
+differ (`git status --porcelain -- <watch paths>` plus a diff against the recorded set), and send
+the user back to re-run those gates. Do not offer an acknowledgement path: this is the one
+irreversible step in the pipeline, and an acknowledgement is not a test.
 
-- It is what the rule is *for*. CLAUDE.md → "Gate Result Accounting" and
-  `docs/design/gate-result-accounting.md`: "the goal is visibility before flip, **not** forced
-  re-verification" — re-running every gate on every shared-package change is unaffordable.
-  `fm-progress` already reads it this way ("flags, never re-runs").
-- Blocking would make this transition **unreachable by construction**. The gates run on the
-  generated code *before* it is committed — `fm-gen` → `fm-verify` → `fm-e2e` → `fm-parity` →
-  `--flag-off` opens PR1, the code PR — so every gate records `<sha>+dirty`, and PR1's merge commit
-  touches every path in `sourcePaths[]` by definition. Both conditions therefore fire on every page,
-  and re-running the gates cannot clear them: the re-run writes its own report files into the repo
-  and records `+dirty` again. A rule that fires on every page and cannot be satisfied is not a gate,
-  it is a deadlock.
+**Why this is comparing content and not commits.** The first version of this rule compared
+`gateEvidence.{gate}.commit` against `HEAD` with `git log`, and had to be soft because it fired on
+every page by construction — the gates run on generated code *before* it is committed (`fm-gen` →
+`fm-verify` → `fm-e2e` → `fm-parity` → `--flag-off` opens PR1, the code PR), so every record was
+`+dirty`, and once PR1 merged its merge commit touched every path in `sourcePaths[]` by definition.
+Neither condition could be cleared by re-running. Comparing **content** dissolves both: a merge
+changes the commit graph, not the bytes, so an untouched page hashes identically and passes with no
+prompt at all. The hash moves only when the page's code or a shared package it imports actually
+changed — which is the case the rule exists for, and the one that must block. (OMH-754 PR #184
+shipped a `visual: PASS` standing on a screenshot 21 commits stale; under this rule it does not
+reach the flip.)
 
-What the acknowledgement is for is the case the rule was written from: OMH-754 PR #184 shipped a
-`visual: PASS` standing on a screenshot 21 commits stale. Under this reading that page still reaches
-the flip, but the operator is told "visual evidence is 21 commits behind HEAD, on these paths" and
-decides. Three carve-outs, all honest-state not retro-judgment:
-- A gate whose `gateEvidence` is **absent** (page verified before this field existed) is recorded as
-  **`unverifiable`** freshness and does **not** block — no retro-adjudication (same principle as
-  `templates/capture-provenance.md`).
-- A page with no `sourcePaths` (generated before that field existed) is likewise **`unverifiable`**
-  on axis 1; still check axis 2, which needs only the plan. Report which axis was checkable rather
-  than reporting a bare "fresh" — a freshness claim covering one of two axes is a scope statement,
-  and CLAUDE.md → Design Principles makes evidence-scope statements claims in their own right.
-- A `<sha>+dirty` commit value means the pass was recorded against an uncommitted tree, so the exact
-  code it rests on cannot be located. Report it as **`unlocatable`** rather than stale — it is the
-  normal state for a first flip, since the gates run before the code PR exists, and it carries no
-  information about whether anything changed since. Do not treat it as a reason to re-run.
+Two carve-outs, both honest-state rather than retro-judgment, and both **acknowledge-and-proceed**
+because there is nothing to compare against:
+- A gate whose `gateEvidence` is absent, or whose record has no `tree` (written before these fields
+  existed), is **`unverifiable`** — surfaced for explicit acknowledgement, not blocked. No
+  retro-adjudication, the same principle as `templates/capture-provenance.md`.
+- A page with no `sourcePaths` (generated before that field existed) is `unverifiable` on axis 1;
+  still hash axis 2, which needs only the plan. Report which axis was covered rather than a bare
+  "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
+  Principles makes evidence-scope statements claims in their own right.
+
+A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
+freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.
 
 ### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
 `adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
-Read `e2e-report.json` too: list every scenario at `result: "not-run"` with its `reason` and require
-the same acknowledgement. A `not-run` scenario is unmeasured, and the page reached `e2e-passed` on a
-top-level `pass` that does not account for it — the operator flipping the path must be told which
-flows were never exercised (the staging-gateway case makes this the *transactional* flow, which is
-exactly the one that must not ship untested).
+Read `e2e-report.json` too: list every scenario at `result: "not-run"` with its `reason`. On a
+report written under the current rule there should be none — a `not-run` scenario makes the gate's
+top-level `result` `not-run` and `fm-e2e` leaves the page at `verified`, so it never reaches this
+skill. Any that appear come from a report predating that rule, and they are a **hard block, not an
+acknowledgement**: the staging-gateway case makes the unmeasured scenario the *transactional* flow,
+which is exactly the one that must not ship untested. Send the user back to `fm-e2e`.
 
 Also read each stage's `{stage}.priorAdjudicated[]` (stages are top-level keys in
 `codex-audit.json`; there is no `stages` wrapper) — adjudicated findings a re-audit could not match to a
@@ -114,8 +142,13 @@ unavailable, skip this step.
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
 
-### Step 3: Orchestrate
-Launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
+### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
+`--confirm-live` mutates no artifact: the routing rule was already activated by the `--flag-on` run
+whose PR the operator has just watched merge and deploy. Re-running the orchestrator would re-apply
+an edit that is already live and, on `cloudfront`, rewrite a manifest entry the deployment owner has
+applied. Go straight to Step 4 and record only the tracker transition.
+
+For the other three actions, launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
 `flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
 (`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `parity-passed` tracker
 status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
@@ -124,10 +157,13 @@ strategy from `flipMechanism`; the gate precondition is identical for both.
 ### Step 4: Record
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
-- `--flag-on` (succeeded) → tell the user to open the flip PR from the edited artifact (this skill
-  edits the in-repo file; opening the PR is the user's step, exactly as it is for the code PR on
-  `--flag-off`), then record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits an
-  in-repo artifact and opens PR2 — `strangler-orchestrator` never deploys, reloads nginx, or applies a
+- `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
+  the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for
+  the code PR on `--flag-off`. Say so in the report, and read the field accordingly: `flipPrOpenedAt`
+  records *when the flip artifact was prepared and handed over*, which is the last moment this
+  plugin can observe. It is not proof that a PR exists on the forge, and nothing may treat it as
+  such — `--flag-on --confirm-live` still requires a human who watched the merge and the deploy.
+  `strangler-orchestrator` never deploys, reloads nginx, or applies a
   CloudFront distribution. Between opening PR2 and the change actually propagating there is a review,
   a merge, a deploy, and cache propagation, and through all of it the edge is still serving legacy.
   Writing `flipped` there would break the invariant that the tracker and the edge agree, and
@@ -136,9 +172,11 @@ Update `tracker.json` (Read-Modify-Write):
 - `--flag-on --confirm-live` (run by the operator **after** PR2 is merged and the change is deployed
   and propagated) → `apps[app].pages[page].status = "flipped"`, `flippedAt`, clear `flipPrOpenedAt`.
   This is the only transition that claims the edge is serving v2, and only a human can observe that.
-- `--revert` → set status back to `parity-passed`, **clear `flippedAt`, `routePrepared`, and
-  `flipPrOpenedAt`**, and
-  record `revertedAt`. Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
+- `--revert` → **clear `flippedAt`, `routePrepared`, and `flipPrOpenedAt`**, record `revertedAt`, and
+  set the status per Step 0a: from `flipped` → back to `parity-passed`; from `parity-passed` → leave
+  it unchanged. Never write `parity-passed` over anything else — Step 0a already refused those, and
+  this skill does not issue gate-passed states.
+  Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
   the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert
   *removes* the manifest entry (`strangler-orchestrator`), leaving nothing prepared to activate. Clearing
@@ -170,6 +208,6 @@ path/flag/app:port mapping, gate-guard result, and next step:
   is merged and the change is deployed and propagated — this skill edits an in-repo artifact and
   never deploys. Once the operator has confirmed it is live, `fm-route {page} --flag-on
   --confirm-live` records `flipped`. Rollback = `fm-route {page} --revert`.
-- for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest and opens a PR — it
+- for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest for a PR they open — it
   **does not push to AWS**; applying the behavior change is the deployment owner's step (OMH-502).
 - mark the page `done` by hand once the legacy page is deleted (CLAUDE.md → Per-page State Machine).

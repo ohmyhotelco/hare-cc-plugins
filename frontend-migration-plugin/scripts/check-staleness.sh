@@ -55,13 +55,18 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
         if [ "$STATUS" = "gen-failed" ]; then
           echo "  Generation never completed for this page. Run /frontend-migration-plugin:fm-gen $PAGE"
           echo "  (fm-delta needs a completed generation to modify)."
+        elif [ "$STATUS" = "done" ]; then
+          echo "  This page is 'done' — the legacy page has been deleted, so there is no legacy"
+          echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
+          echo "  fm-delta and fm-route --revert both refuse a done page."
         elif [ "$STATUS" = "flipped" ]; then
           echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
           echo "  Run /frontend-migration-plugin:fm-route $PAGE --revert first, then fm-delta $PAGE"
+          echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
         else
           echo "  Generated code may be out of sync. Run /frontend-migration-plugin:fm-delta $PAGE"
+          echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
         fi
-        echo "  (incremental mode preserves accumulated fixes; a style-spec edit rebuilds styles)."
         ;;
     esac
   fi

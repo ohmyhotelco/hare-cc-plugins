@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.15.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.15.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
   (`fm-audit-codex` + `codex-auditor`; advisory second opinion at every audited stage; design in
@@ -381,7 +381,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   shape as the Codex acknowledgement beside it: stale gates are listed with the commits that outdated
   them and the operator acknowledges. That still serves the case the rule was written from (OMH-754
   PR #184's `visual: PASS` standing 21 commits stale) — the operator is told, and decides — without
-  making the flip unreachable. `+dirty` is reported as `unlocatable` rather than stale, since it is
+  making the flip unreachable. (v0.15.2 replaced the commit comparison with a watch-path content
+  hash, which has neither failure mode, so the block is hard again.) `+dirty` was reported as `unlocatable` rather than stale, since it is
   the normal state for a first flip and says nothing about whether anything changed.
 
   Six more majors, several of them half-landed fixes from v0.14.8: `parity-verifier` and the design
@@ -421,7 +422,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   conventions file).
 
   **The tracker claimed a live flip before anything was deployed.** `--flag-on` edits an in-repo
-  routing artifact and opens PR2; `strangler-orchestrator` never deploys, reloads nginx, or applies a
+  routing artifact for PR2 (the user opens it); `strangler-orchestrator` never deploys, reloads nginx, or applies a
   CloudFront distribution. Recording `flipped` there broke the invariant that the tracker and the
   edge agree, across review, merge, deploy and propagation — and provenance resolves a capture's
   `side` from that status, so a production capture would be labelled `v2` while the host still served
@@ -445,7 +446,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   (reproduced, then fixed with an explicit null test and re-verified end to end).
 
   Origin: Codex verification audit + full-plugin sweep, 2026-08-05.
-- **Exhaustive double audit (v0.15.1).** Both auditors were given the 69-file inventory by name and
+- **Exhaustive double audit (v0.15.2).** Both auditors were given the 69-file inventory by name and
   required to produce a per-file coverage table and a per-invariant verdict, because the previous
   rounds' defects all came from sampling. Both read all 69 files in full. Together: 1 blocker,
   ~12 majors, ~20 minors — **28 unique fixes**, and the two agreed independently on the great
@@ -482,6 +483,40 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   and app-scoped skills validated config-file presence but never `apps[app]` presence.
 
   Origin: exhaustive journey + Codex audits, 2026-08-05.
+- **Audit of the audit (v0.15.2).** The v0.15.1 round was itself put through the same double
+  exhaustive audit (both auditors independently read all 69 files, both reported 9,398 lines). The
+  pattern had recurred, in a sharper form: **the commit had written assertions about propagation in
+  place of the propagation.** `CLAUDE.md` gained "Every consumer applies that default" for
+  `codexAuditStages` and none of the six consumers were touched; it gained an `apps[app]` precondition
+  no Step 0 was given; the `migration-planner` i18n fix named `gateAcceptance.visual.languages` and
+  stopped one gate short of `e2e`, whose runner reads the same set; `check-staleness.sh` grew a
+  correct `gen-failed` branch above a contradicting line left unmoved; and `fm-route`'s new PR-ownership
+  sentence contradicted the sentence two lines below it. 2 blockers, 13 majors, 12 minors.
+
+  **The freshness rule was rebuilt rather than patched.** v0.14.9 had demoted it to
+  acknowledge-and-proceed because a commit comparison fired on every page by construction; Codex
+  called the result a false-pass path at the one irreversible step, and it was right — acknowledgement
+  is not verification. Both problems come from comparing *commits*. `gateEvidence.{gate}` now carries
+  a `tree`: a content hash over the page's watch paths. A merge changes the commit graph, not the
+  bytes, so an untouched page hashes identically and passes silently, while a page whose code or
+  shared package actually moved does not — so Step 1a is a **hard** gate again, with no deadlock.
+  `commit` survives as the audit trail only, and nothing passes `+dirty` to `git`.
+
+  Also closed: `--revert` had no entry precondition and unconditionally wrote `parity-passed`, the
+  only path in the plugin that issued a gate-passed state no gate produced (reachable in three legal
+  commands from a `fm-delta`-reset page); `--confirm-live` was parsed as plain `flag-on`, re-running
+  the orchestrator and requiring no `flipPrOpenedAt`; a `not-run` E2E scenario still advanced the page
+  to `e2e-passed`, so the first transactional page — `stagingConfig.paymentGateways` ships scaffolded
+  empty — reached the flip with its payment flow never exercised, while `fm-parity` had handled the
+  identical case correctly since the round that fixed it there; `e2e-test-runner` was given
+  `domain` + flip state and its resolver still matched on ports alone; `done` was unguarded by all
+  seven status writers and the staleness hook routed it to `fm-delta` although its legacy source is
+  deleted; a page with PR2 in flight could be demoted underneath it, the timestamp surviving to invite
+  `--confirm-live` on superseded code; regeneration cleared `gateEvidence` but not the `verifiedAt` +
+  report-file pair `fm-route` Step 1 actually hard-gates on; `previousStatus` was overwritten with
+  `"fixing"` on re-entry; the plan schema's canonical example was one the canonical validator rejects.
+
+  Origin: audit of the v0.15.1 round, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

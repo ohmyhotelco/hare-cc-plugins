@@ -22,6 +22,8 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDi
 `docs/migration/{app}/{page}/style-spec.json` (the visual gate reuses its legacy baseline; absent →
 point to `fm-style-spec {page}` and stop).
 
+**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
@@ -67,7 +69,9 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
    `--update-snapshots` capture is NOT that check); (b) the probe set covers **every** content-
    independent axis in the checklist, not a subset — a page pinning color but not the pager gap or the
    toggle icon is an **incomplete probe set = fail**.
-5. **Scope reductions** — any criterion the verifier scoped down, skipped, or reinterpreted is a
+5. **Scope reductions** — read `criteriaCompliance`: a non-empty `deviations` is a gate failure
+   regardless of the top-level `result`, the same check `fm-e2e` Step 4 runs on its own report. Any
+   criterion the verifier scoped down, skipped, or reinterpreted is a
    **fail** unless the report records the user's explicit approval — never a silent pass. In
    particular, a lift-out delta covers only the shed shell, NOT axis diffs (spacing/icon/alignment)
    inside the compared content-area.
@@ -82,10 +86,13 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 ### Step 4: Record
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
-  `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha> }` — the code state the pass rests on, so a
-  later `packages/`/page change that outdates this evidence is visible at flip (see CLAUDE.md → "Gate
-  Result Accounting"). `commit` = `git rev-parse --short HEAD`; if `git status --porcelain` is
-  non-empty, record `<sha>+dirty`. Keep `parityPassedAt` for backward compatibility.
+  `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
+  — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence
+  blocks the flip (see CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`;
+  if `git status --porcelain` is non-empty, record `<sha>+dirty` — audit trail only. `tree` is the
+  freshness test: the watch-path content hash, computed with the exact command in CLAUDE.md → "Gate
+  Result Accounting" (a variant recipe is not comparable to the one `fm-route` runs). Keep
+  `parityPassedAt` for backward compatibility.
 - `result: fail` or any Step 3 override → `parity-failed`.
 - Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
   coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.
@@ -97,7 +104,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
-If `codexAudit` is enabled and this stage is in `codexAuditStages`, after the lock is released spawn
+If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
+key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
 (Agent) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
 `parityReportPath` + `planPath` (→ `gateAcceptance`) + the legacy baseline,
