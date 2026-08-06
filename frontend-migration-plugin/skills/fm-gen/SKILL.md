@@ -85,6 +85,13 @@ and **releases the lock**. Returning from this step instead would leave the page
 modified code, with the Step 3 lock held for 30 minutes.
 
 ### Step 5: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
@@ -105,7 +112,7 @@ modified code, with the Step 3 lock held for 30 minutes.
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
-4. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled, this stage is in `codexAuditStages` (**absent → all seven**; the key

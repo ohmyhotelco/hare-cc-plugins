@@ -76,8 +76,15 @@ each capture's `provenance.side` from those — `templates/capture-provenance.md
 side is `unresolved`, which counts as absent and fails the gate), `workingLanguage`.
 
 ### Step 5: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
 1. Verify `style-spec.json` exists and parses (`jq empty`).
-2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`, **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
    (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:

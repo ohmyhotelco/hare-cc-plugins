@@ -85,7 +85,14 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
 Any failed check overrides the report: treat the gate (and the page) as failed.
 
 ### Step 4: Record
-Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
+Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence

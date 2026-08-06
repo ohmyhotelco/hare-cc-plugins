@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v0.17.0). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v0.17.1). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -170,7 +170,9 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
   chỉ di trú lại phần thay đổi và giữ các sửa đổi đã tích lũy (delta lớn sẽ fallback `fm-gen`).
   Hook PostToolUse sẽ cảnh báo.
 - **`fm-gen` bị gián đoạn.** Chạy lại — nó resume từ phase dở dang qua `generation-state.json`.
-- **"Another operation is in progress."** `.lock` của trang đang giữ; quá 30 phút thì tự xóa.
+- **"Another operation is in progress."** `.lock` của trang (hoặc `.tracker.lock`) đang được giữ.
+  Chỉ xóa khi tiến trình giữ nó đã kết thúc — quá 30 phút mà tiến trình **vẫn sống** thì đó là một
+  cổng chạy lâu, không phải lock mồ côi, nên để nguyên.
 - **`fm-gen` báo thiếu shared package.** Kế hoạch đã đánh dấu phụ thuộc chưa trích xuất — chạy
   `/frontend-migration-plugin:fm-extract` trước.
 - **Mọi thứ đang ở đâu?** `/frontend-migration-plugin:fm-progress` (chỉ đọc) hiển thị trạng thái

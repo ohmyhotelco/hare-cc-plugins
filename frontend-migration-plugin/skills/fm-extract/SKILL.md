@@ -76,7 +76,14 @@ From the package directory resolved in Step 0 (`{monorepoRoot}/{packagesDir}/sha
 else `--noEmit`) and `vitest run`. Read the output. Confirm the package imports cleanly with no
 React/Angular dependency (grep). Report exit codes as evidence.
 
-### Step 5: Record state
+### Step 5: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+ state
 1. Update `docs/migration/tracker.json` (Read-Modify-Write): under `packages`, set each
    extracted package/candidate to `{ "status": "extracted", "candidates": [...], "updatedAt": ISO }`
    — **only when the extraction actually passed**: `package-extractor` reports its own tsc/Vitest
@@ -85,7 +92,16 @@ React/Angular dependency (grep). Report exit codes as evidence.
    defect the gates guard against — a passed state nobody earned — and here it also unblocks
    `fm-gen`, whose Step 1 refuses only while a candidate is *unextracted*.
 2. For secret-boundary rejections, note them under `packages.<pkg>.deferredToSecretAudit`.
-3. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+3. **Invalidate every page that imports what this run rewrote.** `packages/shared-*` is watch-path
+   axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package
+   outdates those pages' `gateEvidence` exactly as regenerating their own code would. For each such
+   page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and
+   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — and report the list.
+   Without this a page can pass its gates against package version A while this skill writes version
+   B, and the flip then matches B's hash and calls the gate fresh: a pass on bytes nothing tested.
+   This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run —
+   invalidating afterwards is what makes the race safe rather than silent.
+3. Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`:

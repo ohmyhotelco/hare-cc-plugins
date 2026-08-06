@@ -39,8 +39,10 @@ In `workingLanguage`, show:
   candidates blocking `fm-gen`.
 - **Stale evidence**: `parity-passed` (awaiting flip) pages whose gate evidence no longer matches
   the current content of their watch paths. For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`
-  Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
-  mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
+  Step 1a does — `tracker.json` `sourcePaths[]`, each `migration-plan.json` `sharedDeps[]` entry
+  mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>`, **and the page's
+  `migration-plan.json` itself (axis 3)** — omitting axis 3 makes every recomputation differ from
+  the producers' and reports every page stale on unchanged code — then
   re-compute the watch-path content hash by running
   `{pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv
   -- <watch path>...` — the same `--exclude` and `--` that gate passed, or the sets differ and

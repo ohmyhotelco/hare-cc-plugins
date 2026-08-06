@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-06)
 
-- **Build complete — v0.17.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.17.1.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -714,8 +714,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
   The rest, in the same shape: `fm-delta` deleted another running delta's staged baseline **before**
   taking the lock; `fm-gen`'s "stop and report" on a phase failure leaked the Step 3 lock; `fm-route`
-  validated and prompted a human across Steps 0a–1b and only then locked; `fm-extract` could rewrite
-  `packages/shared-*` — axis 2 — while a gate was capturing; four skills demoted a gate-passed page
+  validated and prompted a human across Steps 0a–1b and only then locked; `fm-extract` could rewrite `packages/shared-*` — axis 2 — while a gate was capturing (**named
+  but not closed in v0.17.0; the interlock shipped in v0.17.1**); four skills demoted a gate-passed page
   with no warning where `fm-gen` asks first; and the SessionStart hook swallowed every `pluginRoot`
   write failure in silence, which disables the freshness gate permanently and invisibly.
 
@@ -726,6 +726,29 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   submodule HEAD, so the gate ran against bytes it could not name.
 
   Origin: execution-order audit of v0.16.0, 2026-08-06.
+- **Round 8 (v0.17.1).** Both auditors on v0.17.0: 6 blockers + 3 majors between them, converging on
+  two. **Axis 3 reached all three producers and neither consumer** — `fm-route` still enumerated
+  "two recorded fields" and `fm-progress` matched it — so a 3-axis producer hash could never equal a
+  2-axis consumer hash and `--flag-on`, a hard gate with no acknowledgement path, was permanently
+  unreachable for every page. Demonstrated, not argued. The design doc's own acceptance criteria
+  encoded the two-axis version, which is why the propagation stopped there.
+
+  **The tracker lock introduced one round earlier was sound in design and misplaced in text**:
+  ordering, staleness, coverage and lifetime all checked out, but in 4 of 12 writers the sentence had
+  been pasted onto "Release the lock.", i.e. after the write it was meant to protect. It is now a
+  named block at the head of each Record step, before the write, where reading in order gives the
+  right instruction.
+
+  Also closed: `fm-extract` rewrites axis 2 for every dependent page and now invalidates their gate
+  evidence (v0.17.0 claimed this fix in the changelog and did not ship it — the claim is corrected
+  above); `fm-delta`'s Full branch patched `analysis.json.styleSurface` *before* the user chose it
+  and then stopped without demoting, leaving a `parity-passed` page over a mutated baseline; the
+  30-minute lock rule was an age-only timeout that could evict a legitimately long parity run, and
+  now checks `pid` first — a live holder is never broken; the submodule dirty digest hashed untracked
+  *paths* but not their bytes; and a clean tracked symlink hashed differently in a sparse checkout
+  than a full one because the two branches emitted different record shapes.
+
+  Origin: round 8 of the convergence loop, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

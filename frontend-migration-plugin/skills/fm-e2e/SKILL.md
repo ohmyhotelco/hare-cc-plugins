@@ -44,10 +44,17 @@ Launch `e2e-test-runner` (Agent) with only its params — including the app's `l
 server the runner needs.
 
 ### Step 4: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
-`tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+`tracker.json` (Read-Modify-Write):
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }` —
   the code state the pass rests on (see CLAUDE.md → "Gate Result Accounting"). `commit` =

@@ -78,7 +78,7 @@ runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 ### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code that changed after it. For each gate with a
 `gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
-page's **watch paths** from two recorded fields — never by guessing which files belong to the page:
+page's **watch paths** from three recorded sources — never by guessing which files belong to the page:
 
 1. **The page's own source** — `tracker.json` `apps[app].pages[page].sourcePaths[]`, the repo-relative
    files `fm-gen` recorded as generated (see `fm-gen` Step 5).
@@ -87,6 +87,13 @@ page's **watch paths** from two recorded fields — never by guessing which file
    **directory** `{packagesDir}/<package>` and drop the symbol — the symbol is not a path. A
    `packages/shared-*` change outdates the evidence of every page that imports it, and the gate is
    per-page so nothing else catches it.
+3. **The page's `migration-plan.json` itself** — `docs/migration/{app}/{page}/migration-plan.json`.
+   It decides `flagPlan.guardsPath` (the production path this flip activates), `gateAcceptance` (the
+   criteria the executors enforced verbatim), `requiredGates` and `e2eScenarios`. Edited after the
+   gates passed, it changes what ships without touching a single file in axes 1 or 2 — so a plan
+   swapped from `/tested` to `/untested` would flip a path no report ever evaluated. **The three gate
+   skills hash all three axes; hashing fewer here can never match, and Step 1a is a hard gate with no
+   acknowledgement path — the flip would be unreachable for every page, permanently.**
 
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
@@ -126,8 +133,8 @@ because there is nothing to compare against:
   existed), is **`unverifiable`** — surfaced for explicit acknowledgement, not blocked. No
   retro-adjudication, the same principle as `templates/capture-provenance.md`.
 - A page with no `sourcePaths` (generated before that field existed) is `unverifiable` on axis 1;
-  still hash axes 2 and 3, which need only the plan. Report which axis was covered rather than a bare
-  "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
+  still hash axes 2 and 3, which need only the plan (axis 3 is the plan). Report which axis was covered rather than a bare
+  "fresh" — a freshness claim covering some of the three axes is a scope statement, and CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
 - A recompute that prints **`unverifiable`** (exit 2) is not a *mismatch*, but what it means depends
   on whether there was evidence to begin with:
@@ -192,7 +199,14 @@ status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `wor
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
-Update `tracker.json` (Read-Modify-Write): **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
+Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
   the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for

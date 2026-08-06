@@ -77,12 +77,16 @@ otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
 
-**Style-surface prerequisite (both branches).** If `delta-plan.json.styleDrift` is set (the planner
+**Style-surface prerequisite — incremental branch only.** If `delta-plan.json.styleDrift` is set (the planner
 detected changed classes / structure / assets), first **replace `analysis.json.styleSurface`
 wholesale** with `delta-plan.json.styleDrift.styleSurface` — the **complete current** surface (every
 element + structure, not the drifted subset; a merge would leave removed elements behind). Whatever
 re-extracts styles reads `analysis.json.styleSurface`, and the baseline still holds the old surface
-until Step 5, so this patch must land before any re-extraction on **either** branch.
+until Step 5, so this patch must land before any re-extraction. It must **not** land before the
+Step 3 choice: the Full branch stops without running Step 5, so a `styleSurface` already replaced
+there leaves the canonical `analysis.json` describing post-drift structure while the tracker still
+says `parity-passed` over pre-drift code and evidence. Patch it inside the incremental branch,
+after the user has chosen it.
 
 - **Incremental** →
   1. **Refresh the answer key in-lock — do NOT nest the `fm-style-spec` skill** (it acquires this
@@ -111,7 +115,12 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   Then continue to Step 5.
 - **Full** → the page needs re-planning, not just re-generation. **Release the page `.lock` first**
   (do NOT fall through to Step 5 holding it — the skills you point the user to need that same lock),
-  then tell the user to re-run the chain from the stage the drift invalidated:
+  **clear the page's gate authorization** — `gateEvidence`, the legacy
+  `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and `routePrepared`/`flagKey` (take
+  `.tracker.lock` for that write) — because the drift that brought you here means the recorded
+  passes describe legacy the page no longer matches, and legacy source is **not** a watch-path
+  axis, so nothing else will notice. Then tell the user to re-run the chain from the stage the
+  drift invalidated:
   `/frontend-migration-plugin:fm-analyze {page}` → `fm-style-spec` (if `styleDrift`) → `fm-plan` →
   `fm-gen {page} --force`. Do **not** send them straight to `fm-gen`: the canonical baseline is
   still the pre-drift one — the planner staged its proposal as `migration-plan.next.json` /
@@ -120,7 +129,14 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   so a later run cannot mistake an abandoned proposal for a current one. The skill **stops here**;
   Step 5 (which records an applied incremental delta) does not run.
 
-### Step 5: Record (incremental path only)
+### Step 5: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+ (incremental path only)
 - **Promote the staged baseline.** `migration-planner` (incremental mode) wrote its proposal to
   `migration-plan.next.json` and `analysis.next.json`; verify both parse and reflect the applied ops
   rather than re-deriving them here (the `styleSurface` is already current from Step 4), then move
@@ -129,7 +145,7 @@ until Step 5, so this patch must land before any re-extraction on **either** bra
   a user who chose full regeneration, or a run that failed in Step 4, leaves the reference untouched.
   If either staged file is missing, the delta is incomplete — re-run the planner
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
-- Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+- Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
   key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
   removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /

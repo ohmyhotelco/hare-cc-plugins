@@ -69,7 +69,7 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           echo "  Run /frontend-migration-plugin:fm-route $PAGE --revert first, then fm-delta $PAGE"
         elif [ "$STATUS" = "fixing" ]; then
           echo "  A fix is in progress for this page. Finish it through"
-          echo "  /frontend-migration-plugin:fm-fix $PAGE and re-run the failed gate;"
+          echo "  /frontend-migration-plugin:fm-fix $PAGE, which returns the page to generated;"
           echo "  fm-delta would reset the page to 'generated' and discard that work."
         elif [ "$STATUS" = "escalated" ]; then
           echo "  This page needs manual intervention first, then /frontend-migration-plugin:fm-fix $PAGE"

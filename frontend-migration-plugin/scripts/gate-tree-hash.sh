@@ -143,10 +143,16 @@ while IFS= read -r -d '' f; do
     # and an inconsistency with the regular-file branch two lines down.
     # `readlink | git hash-object --stdin` is a PIPE on purpose: `$( )` strips trailing
     # newlines, which would collapse a target ending in one onto a target that does not.
-    if th=$(readlink -- "$f" 2>/dev/null | git hash-object --stdin 2>/dev/null) && [ -n "$th" ]; then
+    # git's blob for a symlink is the target string with NO trailing newline, so `printf '%s'`
+    # is what makes a clean tracked link hash identically to its index blob — piping `readlink`
+    # straight in appends a newline and made a full checkout disagree with a sparse one, which
+    # resolves the same link through the index branch below.
+    # A target that itself ends in a newline is indistinguishable here; BSD `readlink` normalises
+    # it away regardless, so this is documented rather than defended.
+    if lt=$(readlink -- "$f" 2>/dev/null) && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) \
+       && [ -n "$th" ]; then
       printf 'SYMLINK %s %s\n' "$th" "$f"
     elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
-      # Unreadable link but present in the index — record what git has rather than nothing.
       printf 'SYMLINK %s %s\n' "$o" "$f"
     else
       echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1
@@ -177,10 +183,19 @@ while IFS= read -r -d '' f; do
         # the submodule's HEAD, so without this the gate ran against bytes it could not name.
         # `diff HEAD` carries the tracked content; the porcelain listing adds untracked PATHS
         # (their contents are out of scope — a submodule is another repository's business).
-        if d=$( { git -C "$f" diff HEAD 2>/dev/null; git -C "$f" status --porcelain -uall 2>/dev/null; } \
-                | git hash-object --stdin 2>/dev/null ) \
-           && [ -n "$d" ] && [ "$d" != "$EMPTY_BLOB" ]; then
-          sub="$sub dirty:$d"
+        # Tracked modifications (`diff HEAD`) plus the CONTENT of untracked files — an earlier
+        # revision hashed only the untracked *paths*, so editing an existing untracked file inside
+        # the submodule left the digest unmoved while the build consumed the new bytes.
+        if d=$( { git -C "$f" diff HEAD
+                  git -C "$f" ls-files --others --exclude-standard -z \
+                    | LC_ALL=C sort -z \
+                    | while IFS= read -r -d '' u; do
+                        printf '%s %s\n' "$(git -C "$f" hash-object -- "$u")" "$u"
+                      done
+                } 2>/dev/null | git hash-object --stdin 2>/dev/null ) && [ -n "$d" ]; then
+          [ "$d" != "$EMPTY_BLOB" ] && sub="$sub dirty:$d"
+        else
+          echo "gate-tree-hash: cannot compute submodule dirty state: $f" >&2; exit 1
         fi
       fi
       printf 'GITLINK %s%s %s\n' "$o" "$sub" "$f"
@@ -204,7 +219,14 @@ while IFS= read -r -d '' f; do
         if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
           echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
         fi
-        printf '%s %s\n' "$o" "$f" ;;
+        # Same RECORD SHAPE the on-disk branches use, or a sparse checkout and a full one
+        # disagree on an unchanged file: mode 120000 is a symlink, and its index blob is
+        # already the target string that the working-tree branch hashes.
+        if [ "$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}')" = "120000" ]; then
+          printf 'SYMLINK %s %s\n' "$o" "$f"
+        else
+          printf '%s %s\n' "$o" "$f"
+        fi ;;
       *) printf 'DELETED %s\n' "$f" ;;
     esac
   fi

@@ -66,7 +66,14 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 `targetPath`, `outPath` = `docs/migration/{app}/{page}/analysis.json`, `counterpartDirs`,
 `workingLanguage`. Do not pass session history.
 
-### Step 4: Record state
+### Step 4: Record
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+ state
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
 2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
    fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,
@@ -74,7 +81,7 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
    assigned a fresh five-field object would delete everything else the record accumulates —
    `sourcePaths`, `gateEvidence`, `codexAudit`, `flippedAt`, `flagKey`, `routePrepared`, `verifiedAt`
    — silently resetting the page's freshness and audit history (CLAUDE.md → Read-Modify-Write rule).
-3. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+3. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the

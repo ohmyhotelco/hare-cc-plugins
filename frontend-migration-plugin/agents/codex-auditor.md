@@ -53,8 +53,14 @@ on both `error` and `skipped`, and an entry without it is the improvised-field p
 exists to prevent.
 
 Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
-Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`
-`apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock. **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. **Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
+Update `tracker.json`
+`apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock.
 
 **Carry adjudications forward — a re-audit must not erase them.** Rewriting the `{stage}` entry
 replaces that stage's `findings[]`, and an `adjudication` block (`templates/codex-audit.md`) is a

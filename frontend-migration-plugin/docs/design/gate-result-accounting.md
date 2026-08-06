@@ -178,12 +178,12 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    watch-path content hash, the comparable field), legacy `*At` fields kept.
 4. `fm-route` Step 1a re-computes `tree` with `scripts/gate-tree-hash.sh` over the same watch paths
    — `tracker.json` `sourcePaths[]` plus each `sharedDeps[]` entry mapped
-   `@omh/<package>:<symbol>` → `{packagesDir}/<package>` — and **blocks** on a mismatch, naming the
+   `@omh/<package>:<symbol>` → `{packagesDir}/<package>`, **plus the page's `migration-plan.json`** — and **blocks** on a mismatch, naming the
    files that differ from the gate's saved `--manifest`. Absent `tree` or absent `gateEvidence` =
    `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
-5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same watch-path
-   basis, and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
+5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
+   watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
    `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, **and `routePrepared`/`flagKey`**; `fm-delta` Step 5
    refreshes and clears the same, so a regenerated page never carries a PASS for code that no longer

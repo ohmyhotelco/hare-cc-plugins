@@ -74,7 +74,14 @@ If the status is `flipped`, stop and point the user at
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Mark fixing
-Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record **Take `docs/migration/.tracker.lock` across this read-modify-write** and release it immediately after (CLAUDE.md → Lock file): the page lock does not protect `tracker.json`, which eleven writers share.
+
+**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
+`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
+immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
+`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
+entirely. Take it before the write, not after: a sentence read in order is the instruction.
+
+Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
 `regenRequired` and which is the audit trail for a page that ends up `escalated`.
 

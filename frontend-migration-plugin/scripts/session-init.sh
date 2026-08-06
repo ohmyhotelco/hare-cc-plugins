@@ -163,7 +163,7 @@ next_flags() {
 # Human note printed alongside (or instead of) the command.
 next_note() {
   case "$1" in
-    fixing)     echo "fix in progress; re-run the failed gate after it completes" ;;
+    fixing)     echo "fix in progress; the page returns to generated, then re-run the chain from fm-verify" ;;
     escalated)  echo "needs manual intervention first" ;;
     flipped)    echo "flipped and serving; mark 'done' once the legacy page is removed" ;;
     *)          echo "" ;;

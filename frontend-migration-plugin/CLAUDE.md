@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.17.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.17.1)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -239,7 +239,7 @@ per-page state directory:
 ```
 analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done
                  ↓            ↓          ↓           ↓            ↓             ↓
-          (each stage may enter) *-failed → fixing → (re-run the failed gate)
+          (each stage may enter) *-failed → fixing → generated → (re-run the whole chain)
                                        ↓
                                   escalated   (needs manual intervention)
 ```
@@ -385,6 +385,12 @@ the other two.
   malformed timestamp must never let a lock become a permanent deadlock.
 - `pid` — the holder's process id, to tell a live holder from a dead session's ghost lock. When
   absent, fall back to `acquiredAt` alone.
+- **The 30-minute rule is a ghost-lock sweep, not a timeout. Never break a lock whose `pid` is
+  still alive, however old it is.** Gates legitimately run past 30 minutes — `parity-verifier`
+  states outright that an omitted `budgetSeconds` means no cap and that visual runs long — so an
+  age-only rule lets a second session seize the lock out from under a running gate and prepare a
+  flip on code the first session is still changing. Check `pid` first; only when it is absent or
+  dead does `acquiredAt` decide.
 - Optional context (`purpose`, `precondition`, `app`, `page`) — recommended, not required.
 
 A lock whose `acquiredAt` is older than **30 minutes** is stale and may be removed. Interrupt-style
@@ -876,8 +882,9 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   Watch paths are the union of all three; `fm-route`
   Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
   `unverifiable` on axis 1 and still checkable on axes 2 and 3, and must report which axes it checked —
-  a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
-  claim (see Design Principles). Because the two axes are hashed as one set, `tree` covers both.
+  a freshness claim covering some of the three axes is an evidence-scope statement, which is itself
+  a claim (see Design Principles). Because all three axes are hashed as one set, `tree` covers them
+  together — which is also why a consumer that resolves fewer can never match a producer.
 
 Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
 veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no
