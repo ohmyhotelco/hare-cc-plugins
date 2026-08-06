@@ -16,7 +16,7 @@ changes nothing. All user-facing output in `workingLanguage`.
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `workingLanguage`, `monorepoRoot`, and
 `packagesDir` (the stale-evidence check maps `sharedDeps[]` through it and shells out to
-`scripts/gate-tree-hash.sh`; without them that check cannot run). Optional `--app` / `page`
+`scripts/gate-tree-hash.sh`; without them that check cannot run). **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). Optional `--app` / `page`
 narrow the view — when `--app` is given, **confirm `apps[app]` exists** (CLAUDE.md → Configuration)
 rather than silently reporting an empty view for a name that was never configured.
 
@@ -41,7 +41,7 @@ In `workingLanguage`, show:
   Step 1a does — `tracker.json` `sourcePaths[]` plus each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>` — then
   re-compute the watch-path content hash by running
-  `{monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...` (never an inline pipeline —
+  `{pluginRoot}/scripts/gate-tree-hash.sh <watch path>...` (never an inline pipeline —
   CLAUDE.md → "Gate Result Accounting") and compare it against each `gateEvidence.{gate}.tree`. A
   gate whose hash moved is **stale**; list the page with those gate(s). A page for which the script
   prints `unverifiable` is shown as such, never as fresh and never as stale. **Never pass `gateEvidence.{gate}.commit` to `git`** —

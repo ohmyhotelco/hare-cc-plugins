@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-07-10)
 
-- **Build complete — v0.15.3.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.15.4.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -560,6 +560,51 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   sites must reproduce identically is not a rule, it is a script that has not been written yet.
 
   Origin: audit of the v0.15.2 round, 2026-08-06.
+- **Audit of the audit of the audit of the audit (v0.15.4).** Both auditors read all 70 files
+  (10,055 lines) and between them found **8 blockers**, nearly all inside the script v0.15.3 had
+  introduced to end this class of problem. The script was right about *what* to hash and wrong about
+  every environment input it still admitted:
+
+  - **Locale.** `sort` collates by `LC_COLLATE`. A `ko_KR.UTF-8` laptop and a `C`-locale CI container
+    ordered the same filenames differently and produced different hashes — an unclearable hard block,
+    the exact deadlock the content hash was built to remove. Now `export LC_ALL=C`.
+  - **Symlinks** were followed, so a link out of the repo made the evidence depend on bytes the repo
+    does not contain. Now the link target string is recorded, as git itself stores it.
+  - **Submodules** could not be hashed at all: `git hash-object` on a directory emitted a bare
+    `fatal:` under exit 0 and a CONSTANT record, so advancing a submodule was invisible to the gate —
+    a false pass. Now the submodule's current HEAD is the record.
+  - **Sparse checkouts** recorded index-present/disk-absent files as `DELETED`, so a sparse tree and
+    a full tree disagreed at the same commit. Now the index blob is used.
+  - **A failed record still printed a hash on stdout** (pipefail set the status, but a caller writing
+    `TREE=$(...)` stores stdout). Records are now materialized before anything is emitted.
+  - **Newline filenames** were split into bogus records by a `tr '\0' '\n'`; **glob metacharacters**
+    in a recorded filename watched unrelated siblings. NUL is now preserved end to end and pathspecs
+    are `:(literal)`.
+  - **The manifest contaminated its own evidence** when a watch path covered where it is written;
+    `:(exclude)**/gate-tree/*.tsv` now removes the self-reference.
+
+  And the sharpest one, because it is the previous blocker verbatim one line down: the script's
+  *output* was made cwd-independent while the **manifest redirect beside it** stayed cwd-relative,
+  executed under the same `{appDir}` standing order — landing the file where `fm-route` does not look,
+  in a directory nothing created. Both are now absolute, with an explicit `mkdir -p`.
+
+  **Nothing could have run any of it.** All five call sites addressed the script as
+  `{monorepoRoot}/<plugin>/scripts/…` — a placeholder no file defines, under the *user's* monorepo,
+  while a Claude Code plugin lives in the marketplace cache. The plugin's own `hooks.json` sat two
+  directories away demonstrating `${CLAUDE_PLUGIN_ROOT}`, which Claude Code expands for hooks but
+  does not export into a skill's shell. `fm-init` now records `pluginRoot` once and the five callers
+  read it.
+
+  Also closed: the new `fm-fix` entry precondition listed four statuses and silently closed the only
+  exit from `escalated`, which CLAUDE.md and both hooks route straight into it; `fm-route` Step 1a
+  read the script's new `unverifiable` token as a differing hash and hard-blocked on it; an aborted
+  `fm-delta` left `*.next.json` that Step 5's presence-only check would promote; `fm-parity` lost the
+  `+dirty` audit rule in the rewrite; `check-staleness.sh`'s legacy-source branch stayed status-blind
+  while its artifact branch became status-aware; and `capture-provenance.md`'s ordered rules resolved
+  a flipped production domain `unresolved` in rule 2 and `v2` in rule 3, with rule 2 always matching
+  first.
+
+  Origin: audit of the v0.15.3 round, 2026-08-06.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

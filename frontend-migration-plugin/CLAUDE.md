@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.15.3)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v0.15.4)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -79,6 +79,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 ```jsonc
 {
   "monorepoRoot": ".",
+  "pluginRoot": "/Users/you/.claude/plugins/cache/…/frontend-migration-plugin/<version>",  // absolute; where scripts/ lives
   "packagesDir": "packages",
   "contractsDir": "docs/migration/api-contracts",   // optional; recorded only when the dir exists
   "currentApp": "pc",
@@ -111,6 +112,14 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   minimum `appDir`; plus `targetDir`/`legacyDir`/ports for the stage it runs). Config-file presence
   is not app presence: a `--app hana` on a config scaffolded for `pc` only would otherwise fail deep
   inside an agent with an unresolved path rather than at Step 0 with a clear message.
+- `pluginRoot` — the **absolute** path this plugin is installed at, recorded by `fm-init`. It is
+  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
+  `scripts/gate-tree-hash.sh`. A plugin lives in the marketplace cache, **not** in the user's
+  monorepo, so no path built from `monorepoRoot` reaches it; and `${CLAUDE_PLUGIN_ROOT}`, which
+  Claude Code expands in `hooks/hooks.json`, is **not** exported into a skill's Bash shell. The
+  value therefore has to be captured once at init and read from config afterwards. Absent →
+  those skills record no `tree` and report the freshness axis as `unverifiable`; they must not
+  improvise an inline hash pipeline, which is the failure this script exists to prevent.
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
   (default `docs/migration/api-contracts`, OMH-604/606/607) that are the **authoritative**
   schema source for **`shared-types` and `shared-data` only** (migration plan §5 — the legacy
@@ -314,6 +323,13 @@ docs/migration/
     ├── parity-report.json             ← fm-parity
     ├── fix-report.json                ← fm-fix
     ├── delta-plan.json                ← fm-delta (active; archived as delta-plan.{ts}.json)
+    ├── migration-plan.next.json       ← fm-delta staging: the planner's PROPOSED baseline. Step 5
+    ├── analysis.next.json               promotes both over the canonical files after the delta
+    │                                    applies; the Full branch and Step 0 delete them. Their mere
+    │                                    presence is not a baseline.
+    ├── gate-tree/{gate}.tsv           ← fm-verify / fm-e2e / fm-parity: the per-file manifest behind
+    │                                    gateEvidence.{gate}.tree, so fm-route can name WHICH files
+    │                                    moved. Excluded from the hash it describes.
     └── .lock                          ← held by a writing skill
 ```
 
@@ -745,8 +761,8 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   (F below), and every producer and consumer gets it from **one executable**:
 
   ```sh
-  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...            # → the hash
-  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh --manifest <watch path>... # → per-file records
+  {pluginRoot}/scripts/gate-tree-hash.sh <watch path>...            # → the hash
+  {pluginRoot}/scripts/gate-tree-hash.sh --manifest <watch path>... # → per-file records
   ```
 
   **Never reimplement it inline.** This was a shell pipeline printed here and reproduced by five call

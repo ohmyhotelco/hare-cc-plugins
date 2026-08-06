@@ -76,23 +76,24 @@ flipped and v2 **after** it. So:
 
 1. **Local host** (`localhost` / `127.0.0.1`) — port equals `apps[app].legacyPort` → `legacy`;
    port equals `apps[app].port` → `v2`; any other port → `unresolved`.
-2. **A declared legacy host** (a legacy staging host, or `apps[app].domain` for a path that
-   `tracker.json` does not yet record as `flipped`) → `legacy`. If the path **is** flipped, the same
-   host now serves v2 → `unresolved`, not `legacy`.
+2. **A declared legacy staging host** (a host that only ever serves legacy) → `legacy`.
+3. **A declared v2 host** (the v2 preview/staging host) → `v2`.
+4. **`apps[app].domain`** — the production host, which serves legacy *before* the path is flipped
+   and v2 *after*. It is resolved **only** from the page's flip state, in this order:
+   - `status` is `flipped` → **`v2`**.
+   - neither `flippedAt` nor `flipPrOpenedAt` recorded → **`legacy`** (never flipped, none in flight).
+   - anything else → **`unresolved`**. That covers `flipPrOpenedAt` present (the flip artifact is
+     prepared and PR2 handed over but not merged/deployed/propagated — the host may be serving
+     either side and nothing here can tell which) and `flippedAt` present without `status: flipped`
+     (the page was flipped once and has since been moved back through the FSM, so the status no
+     longer describes what the edge serves). `fm-gen` and `fm-delta` refuse to demote a `flipped`
+     page precisely to keep the two in step; this clause makes the resolution fail safe if they ever
+     drift anyway — an honest absence instead of a confident wrong side.
 
-   For `apps[app].domain` this holds **only when the page has never been flipped and no flip is in
-   flight** — i.e. neither `flippedAt` nor `flipPrOpenedAt` in its tracker record. `flipPrOpenedAt`
-   present means the flip artifact is prepared and PR2 handed over, but not yet
-   merged/deployed/propagated: the host may be serving either
-   side and nothing here can tell which, so resolve **`unresolved`**. If `flippedAt` is present but the status is not `flipped`, the
-   page was flipped at some point and has since been moved back through the FSM, so the status no
-   longer tells you what the edge is serving: resolve **`unresolved`**, never `legacy`. `fm-gen` and
-   `fm-delta` refuse to demote a `flipped` page precisely to keep the two in step, but this clause
-   makes the resolution fail safe if they ever drift anyway — an honest absence instead of a
-   confident wrong side.
-3. **A declared v2 host** (the v2 preview/staging host, or `apps[app].domain` for a path
-   `tracker.json` records as `flipped`) → `v2`.
-4. Anything else → `unresolved`.
+   Earlier revisions folded this host into rules 2 and 3, which contradicted each other under
+   first-match-wins: rule 2 resolved a flipped production domain `unresolved` and rule 3 resolved the
+   same host `v2`, and rule 2 always matched first. It gets one rule because it has one answer.
+5. Anything else → `unresolved`.
 
 ## `unresolved` is absence, not a weaker `legacy`
 

@@ -18,7 +18,7 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
 `port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
-`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
 **absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
@@ -46,7 +46,8 @@ Every action writes or clears route state, so every action needs an entry condit
 
 **`--revert` never promotes a page.** From `flipped` it returns the page to `parity-passed` — the
 state it was in before the flip, and one it genuinely earned. From `parity-passed` it **keeps the
-current status** and only clears the route fields, undoing a `--flag-off` or an unmerged flip PR.
+current status** and only clears the route fields, undoing a `--flag-off` or a prepared-but-not-live
+flip (whether or not PR2 was actually opened — see the field's definition in CLAUDE.md).
 It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
 and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
 skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
@@ -87,7 +88,7 @@ page's **watch paths** from two recorded fields — never by guessing which file
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
 ```sh
-{monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
+{pluginRoot}/scripts/gate-tree-hash.sh <watch path>...
 ```
 
 A gate whose recomputed hash differs from its recorded `gateEvidence.{gate}.tree` is **stale**.
@@ -121,6 +122,15 @@ because there is nothing to compare against:
   still hash axis 2, which needs only the plan. Report which axis was covered rather than a bare
   "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
+- A recompute that prints **`unverifiable`** (exit 2 — no watch path resolved now, e.g. every
+  `sourcePaths[]` entry was renamed by a refactor `fm-fix` does not re-record) is **not** a
+  mismatch. There is nothing to compare, so it is `unverifiable` on the same acknowledge-and-proceed
+  terms as an absent `tree`. Never compare the literal token against the stored hash and read the
+  inequality as "stale": that would hard-block, with no acknowledgement path, on a page whose
+  evidence was never contradicted.
+- Likewise a recompute that **fails** (exit 1 — an unhashable or unreadable watch-path file) is not
+  a mismatch and not a pass: report the script's message and stop. A gate cannot be judged on
+  evidence that could not be computed.
 
 A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
 freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.

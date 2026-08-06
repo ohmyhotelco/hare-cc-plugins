@@ -24,6 +24,15 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
 ### Step 2: Detect the Monorepo Layout
 
 1. Determine `monorepoRoot` (default: current directory `.`).
+1a. **Record `pluginRoot`** — the absolute path this plugin is installed at, so the skills that
+   shell out to `scripts/gate-tree-hash.sh` can find it. A Claude Code plugin lives in the
+   marketplace cache, **not** in the user's monorepo, so no path built from `monorepoRoot` can
+   reach it. `hooks/hooks.json` gets `${CLAUDE_PLUGIN_ROOT}` expanded by Claude Code; a skill's
+   Bash shell does **not**, so the value has to be captured once and stored. Resolve it by locating
+   this skill's own plugin directory (the one containing `scripts/gate-tree-hash.sh`) and write the
+   absolute path to config. Verify the script exists and is executable; if it does not, say so —
+   `fm-verify`/`fm-e2e`/`fm-parity` will then record no `tree` and the freshness gate degrades to
+   `unverifiable` rather than failing obscurely.
 2. Glob for candidate app directories and shared packages:
    - Legacy Angular: directories containing `angular.json` or `src/app/` with Angular
      modules (e.g. `apps/legacy-pc`, `apps/legacy-mobile`).
@@ -31,6 +40,7 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
      (e.g. `apps/web-pc`, `apps/web-mobile`, `apps/web-hana`). These may not exist yet —
      that is expected before the migration starts.
    - `packagesDir` (default `packages`).
+   - `pluginRoot` — the absolute path from Step 2.1a (this plugin's install directory).
    - **Backend verification contracts** (`contractsDir`): check whether
      `docs/migration/api-contracts/` exists with `responses/` and `requests/` subdirectories
      (the confirmed OMH-604/606/607 zod-in-markdown contracts). If present, this is the

@@ -21,7 +21,12 @@ a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-**Refuse a `flipped` page, a `done` page, or one with a flip PR in flight.** `done` is past
+**Refuse `fixing` and `escalated` too.** A fix is in progress or awaiting manual intervention;
+Step 5 resets the page to `generated`, which discards the accumulated repairs and the
+`previousStatus` the fix loop needs. Send the user to `fm-fix` (after the manual step, for
+`escalated`) and let the gate re-run first.
+
+**Refuse a `flipped` page, a `done` page, or one with a flip prepared and handed over.** `done` is past
 `flipped` — the legacy page has been deleted, so there is no legacy source left to diff a delta
 against and no rollback target; refuse and require manual intervention — **not** `--revert`, which
 refuses a `done` page too. A present `flipPrOpenedAt` means the flip artifact is prepared and PR2
@@ -37,6 +42,12 @@ exactly that status (`templates/capture-provenance.md`), so the next capture fro
 host would be labelled `legacy` and accepted as the legacy baseline. Beyond the provenance damage,
 applying a delta to a page under live traffic is a change in production; taking it out of rotation
 first is the correct order.
+
+**Clear any stale staging first.** If `migration-plan.next.json` or `analysis.next.json` already
+exists, an earlier delta aborted or crashed between Step 2 and Step 5. Delete both. Step 5's
+integrity check is that they *exist*, so an abandoned pair from a previous run would sail through it
+and promote a baseline describing a delta nobody applied — the same reason the Full branch deletes
+them, which is the only abort path that was covered.
 
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).

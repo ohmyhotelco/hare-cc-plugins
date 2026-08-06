@@ -21,11 +21,18 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 
 ### Step 1: Detect fix mode
 **Entry precondition.** This skill only closes a failed gate, so it accepts exactly
-`verify-failed`, `e2e-failed`, `parity-failed`, and `fixing` (a re-entry). Refuse every other
-status, `--mode` included: on a healthy page (`generated` … `parity-passed`) the fall-through below
-would pick `verify-fix`, Step 3 would write `fixing` over it, and Step 5 would "restore" it to
-`generated` — demoting a page that had nothing wrong with it. `gen-failed` has its own redirect
-below; `escalated` needs manual intervention first (CLAUDE.md → Per-page State Machine).
+`verify-failed`, `e2e-failed`, `parity-failed`, `fixing` (a re-entry), and **`escalated`**. Refuse
+every other status, `--mode` included: on a healthy page (`generated` … `parity-passed`) the
+fall-through below would pick `verify-fix`, Step 3 would write `fixing` over it, and Step 5 would
+"restore" it to `generated` — demoting a page that had nothing wrong with it. `gen-failed` has its
+own redirect below.
+
+**`escalated` is accepted, not refused** — it is the state manual intervention exits *through*.
+`CLAUDE.md` → Per-page State Machine, `fm-progress`, and both hooks all route an escalated page here
+after the human has intervened; refusing it would close the only exit and leave the operator running
+the command the hook keeps recommending, forever. On `escalated` the status no longer names a gate,
+so derive the mode the same way a `fixing` re-entry does — from `previousStatus` if recorded, else
+report mtime — and say which selected it.
 
 If `--mode` is given, normalize its short form to the `-fix` value the fixer expects
 (`verify`→`verify-fix`, `e2e`→`e2e-fix`, `parity`→`parity-fix`; an already-suffixed value passes

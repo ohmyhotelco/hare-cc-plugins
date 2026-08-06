@@ -31,8 +31,9 @@ if [ -n "$LEGACY_DIRS" ]; then
       echo ""
       echo "[Frontend Migration Plugin] Warning: legacy Angular source changed: $REL_PATH"
       echo "  Migrated or in-flight pages depending on it may be stale."
-      echo "  Run /frontend-migration-plugin:fm-progress to see affected pages, then"
-      echo "  /frontend-migration-plugin:fm-delta <page> to re-migrate only the changed surface."
+      echo "  Run /frontend-migration-plugin:fm-progress to see affected pages, then pick the"
+      echo "  action each page's status allows — fm-delta refuses a flipped, done, or"
+      echo "  flip-in-flight page, and would discard in-progress work on a fixing/escalated one."
       exit 0
     fi
   done <<< "$LEGACY_DIRS"

@@ -15,7 +15,7 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
-`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash),
+`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline).
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
 at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present**: "at least `generated`" is a
 monotonic comparison and `flipped`/`done` both satisfy it, so
@@ -82,9 +82,10 @@ Update `tracker.json` (Read-Modify-Write):
   inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
 
   ```sh
-  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh <watch path>...
-  {monorepoRoot}/<plugin>/scripts/gate-tree-hash.sh --manifest <watch path>... \
-      > docs/migration/{app}/{page}/gate-tree/verify.tsv
+  mkdir -p {monorepoRoot}/docs/migration/{app}/{page}/gate-tree
+  {pluginRoot}/scripts/gate-tree-hash.sh <watch path>...
+  {pluginRoot}/scripts/gate-tree-hash.sh --manifest <watch path>... \
+      > {monorepoRoot}/docs/migration/{app}/{page}/gate-tree/verify.tsv
   ```
 
   **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
@@ -92,7 +93,11 @@ Update `tracker.json` (Read-Modify-Write):
   `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
   hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
-  The script is cwd-independent, so it does not matter which directory this skill runs from.
+  The script is cwd-independent — but **the redirect target is not**, so write it through
+  `{monorepoRoot}` and create the directory first. This skill runs from `{appDir}`, and a
+  repo-relative redirect would land the manifest at `{appDir}/docs/migration/…` where
+  `fm-route` does not look. That is the same cwd assumption that made the v0.15.2 hash a
+  constant, one line further down.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never

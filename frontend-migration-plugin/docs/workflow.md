@@ -54,8 +54,9 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
 - `fm-delta` resets a drifted page to `generated` to re-pass the gates.
 - `fm-gen` over a `verified` / `e2e-passed` / `parity-passed` page warns (demotion) before resetting
   to `generated`. It **refuses** `flipped` (run `fm-route --revert` first), `done` (manual decision —
-  the legacy page is gone), and any page with a flip PR in flight (`flipPrOpenedAt` set). Every
-  other status writer refuses the same three.
+  the legacy page is gone), and any page with a flip prepared and handed over (`flipPrOpenedAt` set — the artifact is ready and
+  PR2 is the user's to open; the plugin cannot see the forge). Every other status writer refuses the
+  same three.
 
 ## Gate chain
 
