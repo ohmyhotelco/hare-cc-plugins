@@ -668,8 +668,9 @@ Four placements:
 
 - **verify** — `foundation-generator` scaffolds a **key-coverage spec once per app** (every literal
   key resolves in **all** `i18n.languages`; `{{param}}` values get params; dynamic keys counted as
-  `uncheckable`). `fm-verify`'s existing `npx vitest run` makes it hard; `fm-verify` only asserts the
-  spec exists and reports the `uncheckable` count. No separate gate step.
+  `uncheckable`). `fm-verify`'s existing `npx vitest run` makes it hard; `fm-verify` asserts the
+  spec's results appear in that run — file existence is not the test — and reports the
+  `uncheckable` count. No separate gate step.
 - **plan** — `analysis.json.copySources[]` → `migration-plan.json.copyBindings[]` records where each
   surface's text comes from (`localized-key` / `errorCode-map` / `empty-string` / `server-message`)
   plus `renderMode`. A `mustPreserve` copy source must be bound or land in `openApprovals[]` — the

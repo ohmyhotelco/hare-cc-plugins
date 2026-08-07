@@ -16,7 +16,9 @@ page — preserving the fixes accumulated through earlier gate loops. All user-f
 
 ### Step 0: Config & state
 Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDir`, `packagesDir`,
-`legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
+`legacyDir`, `workingLanguage`, and the app's `legacyPort` / `port` / `domain` — Step 4 hands all
+three to `style-spec-extractor` for provenance side-resolution, and an unresolved one makes every
+capture `unresolved`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.

@@ -57,10 +57,17 @@ step adds is that the spec **exists**, so the check cannot be silently removed:
   the pass-you-did-not-observe Step 5 forbids.
 - Config has an `i18n` block but the spec is **absent** → **gate failure**; point at
   `foundation-generator` (re-run `fm-gen`'s foundation phase).
-- Config has an `i18n` block, the spec **exists but vitest did not collect it** → **gate failure**,
-  and **do not** record `regenRequiredAt`: the spec is already there, so a full regeneration would
-  not change the collection. This is an ordinary `verify-failed` whose remedy is `fm-fix` — the
-  include pattern or test config is what needs repair.
+- Config has an `i18n` block, the spec exists, but **its results are not in the output** → **gate
+  failure**, and **do not** record `regenRequiredAt`: the spec is already there, so a full
+  regeneration would not change whether vitest collects it. Two cases, told apart by Step 4's exit
+  code because their remedies differ:
+  - **vitest exited 0** → the spec was genuinely not collected. Record the failing summary as
+    `i18n key-coverage spec not collected: <path>` — `migration-fixer`'s `verify-fix` mode owns the
+    harness and repairs the include pattern, so `fm-fix` terminates here instead of re-running four
+    tools that already pass.
+  - **vitest exited non-zero** → the run died before per-file reporting, so "not collected" cannot
+    be told from "never reached". Record the coverage axis as `not-observed` and let the hard-tool
+    failure carry the gate; its remedy is the one that applies.
 - No `i18n` block in config → record `skipped` (never a silent pass); note that `fm-init` can add it.
 
 ### Step 4b: Lint (hard) & format (advisory)

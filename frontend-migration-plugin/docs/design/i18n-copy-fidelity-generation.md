@@ -80,7 +80,7 @@ Note this is **not** `workingLanguage` (the language of skill output). Conflatin
   mechanisms, render mode/paths, and the gate blind-spot table.
 - **`agents/foundation-generator.md`** (task 3b) + **`skills/fm-verify/SKILL.md`** (step 4a) — the
   key-coverage spec is generated **once per app** beside the test harness; `fm-verify`'s existing
-  `npx vitest run` makes it hard automatically. `fm-verify` only asserts the spec **exists** (so it
+  `npx vitest run` makes it hard automatically. `fm-verify` asserts the spec's results **appear in the vitest output** (file existence is not the test) (so it
   cannot be silently deleted) and surfaces the `uncheckable` dynamic-key count. No new gate.
 - **`agents/angular-analyzer.md`** (section 9) — `copySources[]`: per user-visible text point, the
   mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), key or map file
