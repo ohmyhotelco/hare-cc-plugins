@@ -795,8 +795,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
   In `gate-tree-hash.sh`, round 9 had split the `readlink` check into two statements, which left
   `lt` set-but-empty when `readlink` failed: the empty string hashed to `e69de29b…` under a
-  `SYMLINK` label — the exact false-pass constant this script exists to prevent. The 22-line
-  version-history header is now 8.
+  `SYMLINK` label — the exact false-pass constant this script exists to prevent. The version-history
+  narration in the header is gone.
 
   **Where the subtraction went too far — twice — and both auditors caught it both times.** The
   same edit also deleted round 9's trailing-newline guard. Both auditors returned the same BLOCKER
@@ -812,7 +812,9 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   Both reasons are the same design fault — the guard needs a second read and byte arithmetic — so
   the guard is gone and the read is fixed instead. The target is now read **once**, with perl's
   `readlink` (the syscall, which returns the bytes git stored) captured via
-  `$(cmd && printf x)` + `${lt%x}`, which keeps the trailing bytes plain `$( )` strips. There is no
+  `$(cmd && printf x)` + `${lt%x}`, which keeps the trailing bytes plain `$( )` strips. The read is pinned to raw bytes
+  (`binmode STDOUT`, and `--` so a `-`-leading path is not parsed as perl options), so it does not
+  depend on the caller's `PERLIO` / `PERL_UNICODE` / `PERL5OPT`. There is no
   second read to race, no byte arithmetic, no `LC_ALL` coupling, and no GNU/BSD split; the
   pathological target is now recorded *correctly* rather than refused. `-L` has already proved the
   entry is a symlink, so a failed read is a hard error — the old index-blob fallback would have
