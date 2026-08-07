@@ -209,8 +209,8 @@ flip never proceeds from a status the page no longer has. **Do not re-run Step 1
 the dead end that revert removed: a hard gate with no acknowledgement path, in a state where no
 gate can re-run to clear it.
 
-**Any refusal here releases the lock first.** Step 4's release is the only other one, and it is not
-reached on this path — stopping without releasing strands the page under a holder that has ended
+**Any refusal here releases the lock first.** Step 4's release is on the success path and is not
+reached here (Step 3's orchestrator-refusal release is the other one) — stopping without releasing strands the page under a holder that has ended
 and refuses every recovery the refusal itself prescribes.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 

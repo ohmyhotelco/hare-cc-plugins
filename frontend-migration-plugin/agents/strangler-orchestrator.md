@@ -23,10 +23,11 @@ You receive (no session history): `app`, `page`, `action` (flag-off | flag-on | 
 `confirm-live`, which is a tracker-only transition `fm-route` handles without launching you),
 `flagPlan` (`{ key, guardsPath }` from `migration-plan.json`), `domain`, `port` (the new app's),
 `legacyPort`, **`flipMechanism`** (`nginx` | `cloudfront`; **absent → `nginx`**) and its artifact
-target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the gate state for the
-precondition — the page's `parity-passed` status + `verifiedAt` from `tracker.json` plus the
-`e2e-report.json` / `parity-report.json` paths (under `docs/migration/{app}/{page}/`),
-`workingLanguage`. See
+target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the state each action's
+precondition tests — the page's **current** `status` (never assume `parity-passed`: `--revert` is
+admitted at any status carrying `flipPrOpenedAt`), **`routePrepared`** and **`flipPrOpenedAt`**,
+`verifiedAt`, and the `e2e-report.json` / `parity-report.json` paths (under
+`docs/migration/{app}/{page}/`), `workingLanguage`. See
 `templates/strangler-fig.md` for both templates.
 
 ## App lock

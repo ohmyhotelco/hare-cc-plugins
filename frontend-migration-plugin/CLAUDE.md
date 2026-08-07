@@ -356,8 +356,10 @@ releases it on completion or failure. **Every exit after a successful acquire re
 this run holds — including a refusal, an agent that refuses, a failed verification, and a stop the
 skill's own text prescribes.** A per-step release sentence is a reminder, never the whole rule: a
 run that ends holding a lock strands the page under a holder that no longer exists, and the
-holder-gone rule below will not reclaim it while the process lives. (A *failed* acquire releases
-nothing — the lock belongs to someone else.) The lock is JSON with at least these fields:
+holder-gone rule below will not reclaim it while the process lives. (A *failed* acquire does not release **that** lock — it belongs to someone else — but the run
+still releases every lock it did acquire before giving up. A nested `.tracker.lock` or `.app.lock`
+that is already held by another writer is the ordinary case, and stranding the outer
+`.packages.lock` or page lock over it is the deadlock this rule exists to prevent.) The lock is JSON with at least these fields:
 
 **Three lock scopes, and one of them is not optional.**
 
@@ -386,9 +388,10 @@ the other two.
 { "holder": "fm-parity", "pid": 49402, "acquiredAt": "2026-07-31T15:21:04+09:00" }
 ```
 
-- `acquiredAt` — ISO-8601 **with time**, not date-only. The 30-minute rule below is computed from
-  this field, so a date-only or unparseable `acquiredAt` is treated as **immediately stale** — a
-  malformed timestamp must never let a lock become a permanent deadlock.
+- `acquiredAt` — ISO-8601 **with time**, not date-only. The ghost-lock sweep below is computed from
+  this field, so once the holder is gone a date-only or unparseable `acquiredAt` is **immediately
+  sweepable** — a malformed timestamp must never let an abandoned lock become a permanent deadlock.
+  It never makes a lock whose holder is still alive removable; the holder check comes first.
 - `pid` — the id of a process that lives as long as the work does. **A skill's Bash call exits
   immediately, so `$$` from a one-shot command is useless — it names a pid that is already dead and
   soon recycled.** Record the id of the enclosing session process (or omit `pid` entirely, which is
