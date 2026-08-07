@@ -45,6 +45,8 @@ If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
@@ -56,7 +58,7 @@ tracker from the edge flag still serving production traffic (CLAUDE.md → Per-p
   `--confirm-live` on superseded code.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Plan
 Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
@@ -67,6 +69,10 @@ Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysi
 omitting it makes Step 4.1 reject the plan in a loop the planner cannot break), `workingLanguage`.
 
 ### Step 4: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
    **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry
    makes the plan incomplete; re-run the planner before recording. Also confirm `requiredGates` names

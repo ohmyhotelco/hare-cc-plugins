@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v0.16.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.0.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -239,7 +239,7 @@ per-page state directory:
 ```
 analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped → done
                  ↓            ↓          ↓           ↓            ↓             ↓
-          (each stage may enter) *-failed → fixing → (re-run the failed gate)
+          (each stage may enter) *-failed → fixing → generated → (re-run the whole chain)
                                        ↓
                                   escalated   (needs manual intervention)
 ```
@@ -249,11 +249,16 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   `fm-fix` would fall through to `verify-fix`, find no verify summary, and on a "pass" declare the
   page `generated` when its phases never ran. The SessionStart hook and `fm-progress` both carve it
   out ahead of the `*-failed` wildcard.
-- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, back to that
-  gate's **entry** state (`verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` →
-  `e2e-passed`) so the gate can be re-run. Only the gate issues its own passed state — a fixer that
-  promoted the page itself would leave the gate's report reading `fail` while the status claimed
-  otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files) suggest full `fm-gen`.
+- A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, to
+  **`generated`** — the whole chain re-runs from `fm-verify`, and `fm-fix` clears `gateEvidence`,
+  the legacy `*At` fields and `routePrepared`/`flagKey` exactly as `fm-gen` and `fm-delta` do.
+  **A fix changes code, so it invalidates every gate, not just the one it repaired.** Returning the
+  page to the failed gate's *entry* state was unreachable by construction: gate evidence is
+  content-keyed, so the upstream gates were always stale afterwards and `fm-route` Step 1a — a hard
+  gate with no acknowledgement path — blocked every post-fix flip. Only the gate issues its own
+  passed state: a fixer that promoted the page would leave the gate's report reading `fail` while
+  the status claimed otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files)
+  suggest full `fm-gen`.
 - **`flipped` means the edge is serving v2, not that a PR exists.** `fm-route --flag-on` edits the
   in-repo routing artifact **for** PR2 — the user opens the PR, as they do for the code PR on
   `--flag-off`; it records `flipPrOpenedAt` (the hand-over moment, not proof a PR exists) and leaves the status at
@@ -349,6 +354,28 @@ When updating any state JSON:
 A skill that mutates state acquires `{app}/{page}/.lock` before work and
 releases it on completion or failure. The lock is JSON with at least these fields:
 
+**Three lock scopes, and one of them is not optional.**
+
+| Lock | Scope | Held by |
+| --- | --- | --- |
+| `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
+| `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
+| **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
+
+The page lock does **not** protect `tracker.json`. Eleven writers Read-Modify-Write that single
+shared file, and `fm-extract` does so while holding only the packages lock — so **no lock is common
+to a page skill and `fm-extract`, and two page locks do not exclude each other.** Two pages in
+flight is a supported state (`fm-progress` renders in-flight pages plural), so two concurrent RMWs of
+one file is a supported state too. A lost update silently drops a status transition or a
+`gateEvidence` record — and a dropped `gateEvidence` is exactly the input that makes
+`fm-route` Step 1a acknowledge instead of block.
+
+**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.tracker.lock`.**
+Never the reverse, or two sessions deadlock. Hold `.tracker.lock` only across the read-modify-write
+itself — open it, re-read `tracker.json`, apply your change, write, release — never across an agent
+launch, a gate run, or any other long step. Same JSON schema and same 30-minute staleness rule as
+the other two.
+
 ```json
 { "holder": "fm-parity", "pid": 49402, "acquiredAt": "2026-07-31T15:21:04+09:00" }
 ```
@@ -356,11 +383,27 @@ releases it on completion or failure. The lock is JSON with at least these field
 - `acquiredAt` — ISO-8601 **with time**, not date-only. The 30-minute rule below is computed from
   this field, so a date-only or unparseable `acquiredAt` is treated as **immediately stale** — a
   malformed timestamp must never let a lock become a permanent deadlock.
-- `pid` — the holder's process id, to tell a live holder from a dead session's ghost lock. When
-  absent, fall back to `acquiredAt` alone.
+- `pid` — the id of a process that lives as long as the work does. **A skill's Bash call exits
+  immediately, so `$$` from a one-shot command is useless — it names a pid that is already dead and
+  soon recycled.** Record the id of the enclosing session process (or omit `pid` entirely, which is
+  honest); a wrong pid is worse than none, because it either resurrects a ghost lock or matches an
+  unrelated process. When `pid` is absent, `acquiredAt` alone decides.
+- **Guard against pid reuse.** A live pid alone does not prove the holder is alive — ids are
+  recycled. Confirm the running process is plausibly the holder (its command matches `holder`);
+  if it clearly is not, treat the lock as holder-less and apply the age rule. Without this,
+  a recycled id pins a lock forever.
+- **The 30-minute rule is a ghost-lock sweep, not a timeout. Never break a lock whose `pid` is
+  still alive, however old it is.** Gates legitimately run past 30 minutes — `parity-verifier`
+  states outright that an omitted `budgetSeconds` means no cap and that visual runs long — so an
+  age-only rule lets a second session seize the lock out from under a running gate and prepare a
+  flip on code the first session is still changing. Check `pid` first; only when it is absent or
+  dead does `acquiredAt` decide.
 - Optional context (`purpose`, `precondition`, `app`, `page`) — recommended, not required.
 
-A lock whose `acquiredAt` is older than **30 minutes** is stale and may be removed. Interrupt-style
+A lock may be removed only when its **holder is gone**: `pid` absent, or no live process with that
+id, or a live process whose identity does not match `holder`. `acquiredAt` older than **30 minutes**
+is the *additional* condition for removing a holder-less lock — never a reason on its own. See the
+`pid` bullet above; the two rules are one rule, and age alone never breaks a live gate. Interrupt-style
 skills (e.g. a future `fm-debug`) are the only exception and do not take the lock.
 
 ## Design Principles
@@ -792,8 +835,8 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   **nothing** to stdout, so a caller doing `TREE=$(…)` can never capture a partial value.
 
   Per-entry records come from git's object model, each on an explicit discriminator: a working-tree
-  file by content; a symlink by its target string (following it would import bytes the repo does not
-  contain); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
+  file by content; a **symlink is refused** (a target cannot be read portably as exact bytes, and a
+  watch path has no reason to contain one — `--exclude` it); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
   uninitialized submodule `git -C` walks up and returns the *parent's* HEAD); a `skip-worktree` entry
   by its index blob, so a sparse checkout and a full one agree; a missing entry as `DELETED <path>`.
   That last one is keyed on the skip-worktree flag rather than "the index can resolve it", because
@@ -835,11 +878,23 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
   every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
   already records them as `@omh/<package>:<symbol>`, so each maps to the directory
-  `{packagesDir}/<package>` — the symbol is not a path. Watch paths are the union; `fm-route`
+  `{packagesDir}/<package>` — the symbol is not a path.
+
+  **Axis 3 is the page's `migration-plan.json`.** The plan decides what the gates were *for*:
+  `flagPlan.guardsPath` is the production path that gets flipped, `gateAcceptance` is the criteria
+  the executors enforced verbatim, `requiredGates` is which gates had to run, and `e2eScenarios`
+  is what e2e tested. All four sit outside `sourcePaths[]` and `sharedDeps[]`, so without this
+  axis the plan could be edited after the gates passed — `/tested` → `/untested` — without moving
+  the hash, and `fm-route` would flip a path no report ever evaluated. The cost is that any plan
+  edit, including a cosmetic one, invalidates the page's gates; that is the right side of the
+  trade against flipping an unevaluated route.
+
+  Watch paths are the union of all three; `fm-route`
   Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
-  `unverifiable` on axis 1 and still checkable on axis 2, and must report which axis it checked —
-  a freshness claim covering one of two axes is an evidence-scope statement, which is itself a
-  claim (see Design Principles). Because the two axes are hashed as one set, `tree` covers both.
+  `unverifiable` on axis 1 and still checkable on axes 2 and 3, and must report which axes it checked —
+  a freshness claim covering some of the three axes is an evidence-scope statement, which is itself
+  a claim (see Design Principles). Because all three axes are hashed as one set, `tree` covers them
+  together — which is also why a consumer that resolves fewer can never match a producer.
 
 Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
 veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no

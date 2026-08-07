@@ -71,9 +71,13 @@ If the status is `flipped`, stop and point the user at
   `--confirm-live` on superseded code.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 3: Mark fixing
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write
+**anywhere in this skill**, after the page lock (CLAUDE.md → Lock file).
+
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
 `regenRequired` and which is the audit trail for a page that ends up `escalated`.
@@ -94,6 +98,7 @@ summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDi
 `outPath` = `docs/migration/{app}/{page}/fix-report.json`, `workingLanguage`.
 
 ### Step 5: Resolve outcome
+
 Read `fix-report.json`:
 - `regenRequired: true` → the fixer stopped **without changing code**, so generation has not been
   redone. Step 3 already wrote `fixing`, so restore the `previousStatus` it recorded there (the
@@ -101,13 +106,27 @@ Read `fix-report.json`:
   to re-run `/frontend-migration-plugin:fm-gen {page} --force` (a full regeneration; the resume path
   would otherwise see a complete `generation-state.json` and do nothing). Setting `generated` here
   would claim a generation that never ran and point the session hook at `fm-verify`.
-- gate re-run `pass` → set status back to the failed gate's **entry** state, so the gate itself can
-  run again: `verify-fix` → `generated`, `e2e-fix` → `verified`, `parity-fix` → `e2e-passed`.
-  **Never set the gate's passed state here.** The fixer's own re-run is a repair signal, not a gate
-  result: the gate report on disk still records the old `fail` (the fixer writes `fix-report.json`
-  only), and a passed state the gate did not issue is the fixer confirming its own work. The gate
-  owns its passed state and rewrites its own report — `fm-fix` only returns the page to where that
-  gate can be entered.
+- gate re-run `pass` → **set the status to `generated` and clear every trace the fix invalidated**:
+  `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`, and
+  `routePrepared` / `flagKey` — exactly the set `fm-gen` Step 5.3 and `fm-delta` Step 5 clear, for
+  exactly the same reason: **this skill changed code.** The whole gate chain re-runs from
+  `fm-verify`. **Never set any gate's passed state here** — the fixer's own re-run is a repair
+  signal, not a gate result: the gate report on disk still records the old `fail` (the fixer writes
+  `fix-report.json` only), and a passed state the gate did not issue is the fixer confirming its own
+  work.
+
+  **Why the full chain and not just the failed gate.** An earlier revision returned the page to the
+  failed gate's *entry* state (`parity-fix` → `e2e-passed`) and left the upstream evidence standing.
+  That was unreachable by construction: `gateEvidence.{gate}.tree` is content-keyed, the fix changed
+  the content, so `verify` and `e2e` were **always** stale afterwards and `fm-route` Step 1a — a hard
+  gate with no acknowledgement path — blocked **every** post-fix flip. The only documented escape
+  was re-running `fm-verify`, which silently demoted the page anyway. Leaving `routePrepared` was the
+  same defect one field along: a flip could then skip the fresh `--flag-off` and the route-stage
+  Codex audit that the *fixed* code never received.
+
+  The real added cost is one e2e run after a `parity-fix` — `verify` is the cheap gate, and after an
+  `e2e-fix` or a `verify-fix` parity had not passed yet. A code change that could not affect
+  behaviour is not a thing this pipeline can assert, so that run is owed.
 - gate re-run still `fail` → keep `fixing`; if repeated failures, escalate (`escalated`) for
   manual intervention. A page left at `fixing` is re-entered through `fm-fix`, not through a gate.
 
@@ -129,7 +148,9 @@ Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`: mode, files changed, the gate re-run result with evidence, and the next
-step — re-run the failed gate (`fm-verify` / `fm-e2e` / `fm-parity`) to confirm, or `fm-gen` if
-regeneration was recommended. That re-run is **required, not advisory**: until the gate runs and
-rewrites its own report, the page's report still reads `fail` and `fm-route --flag-on` will refuse
-the flip.
+step. On a successful fix the page is at `generated`, so the next step is the **whole chain**:
+`/frontend-migration-plugin:fm-verify {page}` → `fm-e2e` → `fm-parity` → `fm-route --flag-off`.
+Say that plainly, including that a prior `--flag-off` no longer counts (`routePrepared` was
+cleared) — the fixed code needs its own code PR and its own route-stage audit. On `regenRequired`
+the next step is `fm-gen {page} --force` instead. Those re-runs are **required, not advisory**:
+until each gate runs and rewrites its own report, the reports on disk still describe pre-fix code.

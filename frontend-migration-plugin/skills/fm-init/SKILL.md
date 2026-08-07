@@ -182,6 +182,5 @@ Summarize in `workingLanguage`:
 - Config path and key values (apps, currentApp, workingLanguage).
 - Tracker location.
 - Any missing external skills / CLIs with install hints.
-- Next step: `Run /frontend-migration-plugin:fm-analyze <target>` once the analyzer
-  or `/frontend-migration-plugin:fm-secret-audit` for the Phase 0
-  security pre-work.
+- Next step: `/frontend-migration-plugin:fm-analyze <target>` to begin a page, or
+  `/frontend-migration-plugin:fm-secret-audit` first for the Phase 0 security pre-work.

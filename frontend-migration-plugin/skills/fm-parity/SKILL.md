@@ -26,7 +26,7 @@ point to `fm-style-spec {page}` and stop).
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
 Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
@@ -85,6 +85,10 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
 Any failed check overrides the report: treat the gate (and the page) as failed.
 
 ### Step 4: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
@@ -104,11 +108,13 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
   `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
+**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
+scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
   The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
   make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
   directory this skill is standing in. Derive the destination from

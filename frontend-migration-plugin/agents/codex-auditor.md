@@ -52,8 +52,13 @@ failed or the output is unparseable, record `verdict: "error"` with the raw outp
 on both `error` and `skipped`, and an entry without it is the improvised-field problem that slot
 exists to prevent.
 
-Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
-Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages. Update `tracker.json`
+Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). Read-Modify-
+Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages.
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
+Update `tracker.json`
 `apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock.
 
 **Carry adjudications forward — a re-audit must not erase them.** Rewriting the `{stage}` entry

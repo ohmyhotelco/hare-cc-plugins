@@ -110,7 +110,11 @@ from): the rule lives in the instructions, the basis is missing from the output.
   visual/contract evidence of *every* page that imports it, and nothing per-page catches it — the
   monorepo CI is typecheck/lint/unit/build only, no visual, no e2e on PR. E's freshness check closes
   half of this (a commit on the page's own source), leaving the case where the outdating commit lives
-  outside the page, under `packages/`. So E's watch paths are `{page source} + {shared-package deps}`,
+  outside the page, under `packages/`. A third case sits outside both: the page's
+  `migration-plan.json` decides the route that gets flipped (`flagPlan.guardsPath`), the criteria
+  the executors enforced (`gateAcceptance`), which gates ran (`requiredGates`) and what e2e tested
+  (`e2eScenarios`) — edit it after the gates pass and the reports describe work that no longer
+  matches what ships. So E's watch paths are `{page source} + {shared-package deps} + {the plan}`,
   and both halves must resolve from a **recorded** field — a check that asks the session to work out
   which files belong to the page reintroduces the improvisation this whole axis exists to remove.
 
@@ -174,12 +178,12 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    watch-path content hash, the comparable field), legacy `*At` fields kept.
 4. `fm-route` Step 1a re-computes `tree` with `scripts/gate-tree-hash.sh` over the same watch paths
    — `tracker.json` `sourcePaths[]` plus each `sharedDeps[]` entry mapped
-   `@omh/<package>:<symbol>` → `{packagesDir}/<package>` — and **blocks** on a mismatch, naming the
+   `@omh/<package>:<symbol>` → `{packagesDir}/<package>`, **plus the page's `migration-plan.json`** — and **blocks** on a mismatch, naming the
    files that differ from the gate's saved `--manifest`. Absent `tree` or absent `gateEvidence` =
    `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
-5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same watch-path
-   basis, and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
+5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
+   watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
    `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, **and `routePrepared`/`flagKey`**; `fm-delta` Step 5
    refreshes and clears the same, so a regenerated page never carries a PASS for code that no longer

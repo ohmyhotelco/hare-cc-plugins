@@ -32,7 +32,7 @@ sub-agent probe — but check rather than assume: a page can reach this gate on 
 an earlier session or on another machine.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
@@ -44,6 +44,10 @@ Launch `e2e-test-runner` (Agent) with only its params — including the app's `l
 server the runner needs.
 
 ### Step 4: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
@@ -64,11 +68,13 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
       --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of two axes**, not just the page's own files: `tracker.json`
+  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
   `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path). Resolve
+  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
+**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
+scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
   `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes both axes, so hashing only axis 1 produces a value that never matches and blocks every flip.
+  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
   The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
   make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
   directory this skill is standing in. Derive the destination from

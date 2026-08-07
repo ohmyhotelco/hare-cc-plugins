@@ -55,7 +55,7 @@ run `/frontend-migration-plugin:fm-extract` first.
   `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)
 For each phase in `buildOrder`, launch the right agent (Agent tool), passing **the agent's full
@@ -78,17 +78,24 @@ configured, and `fm-verify` Step 4a makes an absent spec a hard failure whose on
 re-running this phase — which would fail the same way.
 
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
-`done`/`failed`, record `currentPhase`. On a phase failure, stop and report — the page status
-becomes `gen-failed`.
+`done`/`failed`, record `currentPhase`. On a phase failure, **stop running further phases and
+continue to Step 5** — do not return from the skill here. Step 5 is what writes `gen-failed`,
+records `sourcePaths` for the files the completed phases did write, clears the stale gate fields,
+and **releases the lock**. Returning from this step instead would leave the page at `planned` over
+modified code, with the Step 3 lock held for 30 minutes.
 
 ### Step 5: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
    created or modified under `appDir`, collected from each phase's own report. This is the page's
    **axis 1** of its watch paths — axis 2 is the plan's `sharedDeps[]` mapped to
-   `{packagesDir}/<package>`, and every hash is taken over the **union** of the two (CLAUDE.md →
-   "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
+   `{packagesDir}/<package>` and axis 3 is the page's `migration-plan.json` itself, and every hash is
+   taken over the **union of all three** (CLAUDE.md → "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
    tell a still-fresh PASS from a stale one, and neither can derive axis 1 otherwise
    — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
    removed file leaves it.

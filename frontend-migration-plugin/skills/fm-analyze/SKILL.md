@@ -43,6 +43,8 @@ runs: the agent overwrites `analysis.json`, which is the baseline `fm-delta` dif
 against, so a guard placed after the launch would already have destroyed it. (A page not yet in the
 tracker is unaffected — this only guards one recorded as flipped.)
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
@@ -55,7 +57,7 @@ tracker is unaffected — this only guards one recorded as flipped.)
 
 ### Step 2: Acquire the lock
 Per the plugin `CLAUDE.md` lock convention, acquire
-`docs/migration/{app}/{page}/.lock` (stale after 30 min). If held and fresh, report who holds
+`docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file). If held and fresh, report who holds
 it and stop.
 
 ### Step 3: Run the analyzer
@@ -65,6 +67,9 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 `workingLanguage`. Do not pass session history.
 
 ### Step 4: Record state
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
 2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
    fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,

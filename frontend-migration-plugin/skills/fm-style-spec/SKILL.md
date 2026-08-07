@@ -43,6 +43,8 @@ If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
 tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
 
+**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
@@ -64,7 +66,7 @@ the answer key" premise (v0.9.0) is lost on the very first page and every downst
 against eyeballed values.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 4: Extract
 Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `analysisPath`,
@@ -74,6 +76,10 @@ each capture's `provenance.side` from those — `templates/capture-provenance.md
 side is `unresolved`, which counts as absent and fails the gate), `workingLanguage`.
 
 ### Step 5: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 1. Verify `style-spec.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`

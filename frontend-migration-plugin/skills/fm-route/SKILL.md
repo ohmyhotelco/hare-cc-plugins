@@ -18,7 +18,10 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
 `port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
-`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline). `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives). **Absent → the freshness
+check cannot run at all**, so decide by what is recorded: if any gate has a `gateEvidence.{gate}.tree`,
+**block** — there is evidence that cannot be checked, which is not the same as no evidence; if no
+gate has one, treat it as `unverifiable` and acknowledge. Never improvise an inline pipeline. `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
 **absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
@@ -75,7 +78,7 @@ runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 ### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code that changed after it. For each gate with a
 `gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
-page's **watch paths** from two recorded fields — never by guessing which files belong to the page:
+page's **watch paths** from three recorded sources — never by guessing which files belong to the page:
 
 1. **The page's own source** — `tracker.json` `apps[app].pages[page].sourcePaths[]`, the repo-relative
    files `fm-gen` recorded as generated (see `fm-gen` Step 5).
@@ -84,6 +87,13 @@ page's **watch paths** from two recorded fields — never by guessing which file
    **directory** `{packagesDir}/<package>` and drop the symbol — the symbol is not a path. A
    `packages/shared-*` change outdates the evidence of every page that imports it, and the gate is
    per-page so nothing else catches it.
+3. **The page's `migration-plan.json` itself** — `docs/migration/{app}/{page}/migration-plan.json`.
+   It decides `flagPlan.guardsPath` (the production path this flip activates), `gateAcceptance` (the
+   criteria the executors enforced verbatim), `requiredGates` and `e2eScenarios`. Edited after the
+   gates passed, it changes what ships without touching a single file in axes 1 or 2 — so a plan
+   swapped from `/tested` to `/untested` would flip a path no report ever evaluated. **The three gate
+   skills hash all three axes; hashing fewer here can never match, and Step 1a is a hard gate with no
+   acknowledgement path — the flip would be unreachable for every page, permanently.**
 
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
@@ -123,8 +133,8 @@ because there is nothing to compare against:
   existed), is **`unverifiable`** — surfaced for explicit acknowledgement, not blocked. No
   retro-adjudication, the same principle as `templates/capture-provenance.md`.
 - A page with no `sourcePaths` (generated before that field existed) is `unverifiable` on axis 1;
-  still hash axis 2, which needs only the plan. Report which axis was covered rather than a bare
-  "fresh" — a freshness claim covering one of two axes is a scope statement, and CLAUDE.md → Design
+  still hash axes 2 and 3, which need only the plan (axis 3 is the plan). Report which axis was covered rather than a bare
+  "fresh" — a freshness claim covering some of the three axes is a scope statement, and CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
 - A recompute that prints **`unverifiable`** (exit 2) is not a *mismatch*, but what it means depends
   on whether there was evidence to begin with:
@@ -168,7 +178,13 @@ acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or 
 unavailable, skip this step.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+**The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
+prompt a human, and a lock must never be held across a prompt — but it means the state can move
+between the check and the write. **Re-verify Step 0a's precondition, Step 1's gate guard, Step 1-pre's
+`routePrepared`, and Step 1a's hashes once the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
+demote the page while the operator is reading the Step 1b findings, and the whole point of those
+guards is that a flip never proceeds from a status the page no longer has.
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
 `--confirm-live` mutates no artifact: the routing rule was already activated by the `--flag-on` run
@@ -183,6 +199,10 @@ status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `wor
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits

@@ -5,32 +5,30 @@
 # --------------------
 # `gateEvidence.{gate}.tree` is only meaningful if the producer (fm-verify / fm-e2e /
 # fm-parity) and the consumer (fm-route Step 1a, fm-progress) compute it the SAME way.
-# It began as a shell pipeline printed in CLAUDE.md for five call sites to reproduce and
-# has since been corrected once per round. Every defect had the same shape: a predicate
-# that also matched a neighbouring case it was never meant to own.
+# It began as a shell pipeline printed in CLAUDE.md for five call sites to reproduce.
 #
-#   v0.15.2  cwd-relative     -> hashed the empty set from appDir: a CONSTANT a hard gate
-#                               reads as a pass on any code.
-#   v0.15.3  locale, symlinks, sparse, gitlinks, partial-failure stdout, newline paths,
-#            glob pathspecs, manifest self-reference.
-#   v0.15.4  the sparse branch swallowed ordinary DELETION (stale index blob reported as
-#            present = false pass); the gitlink branch ran `git -C` on an *empty*
-#            uninitialized submodule, which walks UP and returns the PARENT's HEAD, so
-#            every unrelated parent commit moved the hash = permanent deadlock.
-#
-# The rules that follow from that history:
+# Three rules, learned the hard way — every past defect broke one of them:
 #   1. Resolve from git's own object model, never by following the filesystem.
 #   2. Decide each case on an explicit discriminator, never on "whatever else matches".
 #   3. Anything unresolved is a loud failure or an explicit marker — never an empty field,
-#      never a silently reduced file set, never a constant.
+#      never a silently reduced file set, never a constant. (The empty set hashes to
+#      e69de29b…, and a constant presented as evidence passes any gate.)
+#
+# TRUST BOUNDARY
+#   The hash is only as trustworthy as the PATH and environment this runs under: a `git` earlier
+#   on PATH can make it anything.
+#   The defences here are against ordinary settings that differ between a producer and a consumer
+#   — locale, working directory, sparse checkouts — not against a hostile environment, which no
+#   part of this script could survive.
 #
 # USAGE
 #   gate-tree-hash.sh [--manifest] [--exclude <repo-relative-path>]... [--] <watch-path>...
 #
-#   <watch-path>  repo-relative paths (the page's tracker `sourcePaths[]` plus each
-#                 migration-plan `sharedDeps[]` entry mapped @omh/<pkg>:<sym> ->
-#                 {packagesDir}/<pkg>). Resolved from the repo root regardless of the
-#                 caller's working directory, and matched LITERALLY.
+#   <watch-path>  repo-relative paths — all THREE axes (CLAUDE.md -> Gate Result Accounting):
+#                 (1) the page's tracker `sourcePaths[]`, (2) each migration-plan `sharedDeps[]`
+#                 entry mapped @omh/<pkg>:<sym> -> {packagesDir}/<pkg>, and (3) the page's own
+#                 `migration-plan.json`. Resolved from the repo root regardless of the caller's
+#                 working directory, and matched LITERALLY.
 #   --manifest    print the per-file records instead of the aggregate hash.
 #   --exclude P   drop path P from the set. Callers pass the manifest file they are about
 #                 to write, so the evidence never describes itself. Literal, repeatable.
@@ -50,6 +48,9 @@ set -euo pipefail
 # Collation must not depend on the caller's environment; `sort` is the only
 # locale-sensitive step, and producer and consumer routinely run in different locales.
 export LC_ALL=C
+
+# The hash of zero bytes; used to tell "no local changes" from "changes".
+EMPTY_BLOB=e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 
 MANIFEST=0
 PATHS=()
@@ -93,10 +94,12 @@ for e in ${EXCLUDES[@]+"${EXCLUDES[@]}"}; do SPECS+=(":(exclude,literal)$e"); do
 for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 
 TMPDIR_BASE=${TMPDIR:-/tmp}
+# The trap is installed before the 2nd and 3rd mktemp, so a failure of either still cleans up.
+LIST=""; RECS=""; SORTED=""
+trap 'rm -f "$LIST" "$RECS" "$SORTED"' EXIT
 LIST=$(mktemp "$TMPDIR_BASE/gate-tree-list.XXXXXX")
 RECS=$(mktemp "$TMPDIR_BASE/gate-tree-recs.XXXXXX")
 SORTED=$(mktemp "$TMPDIR_BASE/gate-tree-sorted.XXXXXX")
-trap 'rm -f "$LIST" "$RECS" "$SORTED"' EXIT
 
 # Enumerate once, into a file, with the exit status checked. Piping this into a counter
 # would hide a git failure as "zero entries", i.e. as `unverifiable`.
@@ -130,26 +133,19 @@ while IFS= read -r -d '' f; do
   # Decide on an explicit discriminator, cheapest first. A present regular file needs one
   # git call, not three: `mode`/`flag` are only consulted for the cases that require them.
   if [ -L "$f" ]; then
-    # git stores the link TARGET, not the pointed-to bytes; following it would make the
-    # hash depend on files outside the repo, or fail on a dangling link. Prefer the index
-    # blob, which is git's own byte-exact record. For an untracked symlink fall back to
-    # hashing the target string — `$( )` strips trailing newlines, so a target that ends
-    # in one is indistinguishable from one that does not, and embedded newlines would
-    # break the record format outright; both are refused rather than silently collapsed.
-    if o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
-      printf 'SYMLINK %s %s\n' "$o" "$f"
-    else
-      t=$(readlink -- "$f" 2>/dev/null || true)
-      case $t in
-        *"
-"*) echo "gate-tree-hash: symlink target contains a newline: $f" >&2; exit 1 ;;
-      esac
-      [ -n "$t" ] || { echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1; }
-      if ! th=$(printf '%s' "$t" | git hash-object --stdin 2>/dev/null) || [ -z "$th" ]; then
-        echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1
-      fi
-      printf 'SYMLINK %s %s\n' "$th" "$f"
-    fi
+    # Refused, not recorded. Reading a link's target as EXACT bytes needs the `readlink` syscall:
+    # `readlink`(1) appends its own newline and BSD strips one the target actually has, so a
+    # target ending in a newline records the same hash as one that does not — two links share a
+    # record and a retarget between them is invisible to the gate. Reaching the syscall from
+    # shell means perl, i.e. a runtime dependency this plugin does not otherwise have, on the
+    # path of a hard gate (`fm-route` Step 1a). A watch path cannot produce a symlink anyway:
+    # `sourcePaths[]` are the files fm-gen wrote, and pnpm's `node_modules` link forest is
+    # gitignored, so `--exclude-standard` never lists it. Refusing costs nothing real and is
+    # rule 3; the sparse branch below refuses the same case, so both checkout modes agree.
+    echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
+    echo "  A symlink target cannot be read portably as exact bytes. Exclude it with --exclude," >&2
+    echo "  or keep symlinks out of sourcePaths[] and {packagesDir}." >&2
+    exit 1
   elif [ -f "$f" ]; then
     if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
       echo "gate-tree-hash: cannot hash working-tree file: $f" >&2; exit 1
@@ -168,12 +164,31 @@ while IFS= read -r -d '' f; do
       if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
         echo "gate-tree-hash: cannot resolve gitlink: $f" >&2; exit 1
       fi
-      if [ -e "$f/.git" ] && s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null) \
-         && [ -n "$s_head" ] && [ "$s_head" != "$o" ]; then
-        printf 'GITLINK %s moved:%s %s\n' "$o" "$s_head" "$f"
-      else
-        printf 'GITLINK %s %s\n' "$o" "$f"
+      sub=""
+      if [ -e "$f/.git" ]; then
+        s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null || true)
+        [ -n "$s_head" ] && [ "$s_head" != "$o" ] && sub=" moved:$s_head"
+        # Local, uncommitted work inside the submodule moves neither the parent's pointer nor
+        # the submodule's HEAD, so without this the gate ran against bytes it could not name.
+        # `diff HEAD` carries the tracked content; the porcelain listing adds untracked PATHS
+        # (their contents are out of scope — a submodule is another repository's business).
+        # Tracked modifications (`diff HEAD`) plus the CONTENT of untracked files — an earlier
+        # revision hashed only the untracked *paths*, so editing an existing untracked file inside
+        # the submodule left the digest unmoved while the build consumed the new bytes.
+        if d=$( { git -C "$f" diff HEAD
+                  git -C "$f" submodule status --recursive 2>/dev/null
+                  git -C "$f" ls-files --others --exclude-standard -z \
+                    | LC_ALL=C sort -z \
+                    | while IFS= read -r -d '' u; do
+                        printf '%s %s\n' "$(git -C "$f" hash-object -- "$u")" "$u"
+                      done
+                } 2>/dev/null | git hash-object --stdin 2>/dev/null ) && [ -n "$d" ]; then
+          [ "$d" != "$EMPTY_BLOB" ] && sub="$sub dirty:$d"
+        else
+          echo "gate-tree-hash: cannot compute submodule dirty state: $f" >&2; exit 1
+        fi
       fi
+      printf 'GITLINK %s%s %s\n' "$o" "$sub" "$f"
     else
       # An untracked nested git repository: git lists it as one opaque entry and knows
       # nothing about its contents, so any record here is a CONSTANT — changes inside it
@@ -194,7 +209,17 @@ while IFS= read -r -d '' f; do
         if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
           echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
         fi
-        printf '%s %s\n' "$o" "$f" ;;
+        # Same OUTCOME the on-disk branches give, or a sparse checkout and a full one disagree
+        # on an unchanged entry. A symlink is refused there, so it is refused here too — even
+        # though the index blob would be exact, recording it would make the gate pass under a
+        # sparse checkout and fail under a full one.
+        case $(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}') in
+          120000) echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
+                  echo "  Exclude it with --exclude, or keep symlinks out of the watch paths." >&2
+                  exit 1 ;;
+          160000) printf 'GITLINK %s %s\n'  "$o" "$f" ;;   # a sparse gitlink keeps its shape
+          *)      printf '%s %s\n'          "$o" "$f" ;;
+        esac ;;
       *) printf 'DELETED %s\n' "$f" ;;
     esac
   fi

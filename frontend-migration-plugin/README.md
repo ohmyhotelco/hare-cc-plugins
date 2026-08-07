@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v0.16.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v1.0.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -127,8 +127,8 @@ After the prerequisites are met:
 ```
 
 Each step writes its artifact under `docs/migration/{app}/{page}/` and advances the page's status
-in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate) and re-run that
-gate.
+in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate). The page then
+returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`.
 
 ## Workflow
 
@@ -191,14 +191,16 @@ tracker state it sets.
 
 - **A gate failed.** Run `/frontend-migration-plugin:fm-fix <page>` — it auto-detects the mode
   (verify/e2e/parity) from the latest failing report, applies the smallest fix, and re-runs the
-  gate. Then re-run that gate to confirm.
+  gate. The page then returns to `generated`, so re-run the whole chain (`fm-verify` → `fm-e2e` →
+  `fm-parity`) — a fix changes code, which invalidates every gate, not just the one that failed.
 - **The legacy page changed after I migrated it.** Run `/frontend-migration-plugin:fm-delta
   <page>` — it re-migrates only the changed surface and preserves your accumulated fixes (large
   deltas fall back to a full `fm-gen`). The PostToolUse hook warns you when this happens.
 - **`fm-gen` was interrupted.** Re-run it — it resumes from the last incomplete phase via
   `generation-state.json`.
-- **"Another operation is in progress."** A page `.lock` is held; if it is older than 30 minutes
-  it is stale and auto-cleared.
+- **"Another operation is in progress."** A page `.lock` (or `.tracker.lock`) is held. It is cleared
+  only when its holder is gone — a lock older than 30 minutes whose process is **still alive** is a
+  long gate, not a ghost, and is left alone.
 - **`fm-gen` says a shared package is missing.** The plan flagged an unextracted dependency — run
   `/frontend-migration-plugin:fm-extract` for it first.
 - **Where does everything stand?** `/frontend-migration-plugin:fm-progress` (read-only) shows

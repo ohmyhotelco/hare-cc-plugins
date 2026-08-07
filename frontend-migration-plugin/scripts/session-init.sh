@@ -32,27 +32,45 @@ CONFIG_FILE="$CWD/.claude/frontend-migration-plugin.json"
 # where fm-init creates the config — never recorded it, so every gate in that session
 # stored no `tree` and the flip was waved through as "unverifiable". The value is still
 # not available until the session AFTER fm-init, which fm-init Step 7 tells the user.
+# Never silent. A failure here disables the freshness gate for every page in every session —
+# fm-verify/fm-e2e/fm-parity record no `tree`, and fm-route reads an absent `tree` as
+# "acknowledge and proceed". The hook must survive the failure; it must not hide it.
+plugin_root_warn() {
+  echo "  Warning: [frontend-migration-plugin] could not record pluginRoot${1:+ ($1)}."
+  echo "           Gate freshness will report 'unverifiable' until this is fixed."
+}
+
 write_plugin_root() {
   [ -f "$CONFIG_FILE" ] || return 0
   root=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || return 0
   [ -n "$root" ] && [ -x "$root/scripts/gate-tree-hash.sh" ] || {
     # Reached when the hook is invoked through a symlink: $0's directory is not the
     # install. Say so — the only other symptom is `unverifiable` on every gate forever.
-    echo "  Info: [frontend-migration-plugin] could not locate the plugin install from \$0;"
-    echo "        gate freshness will report 'unverifiable'. Invoke the hook by its real path."
+    plugin_root_warn "could not locate the plugin install from \$0 — invoke the hook by its real path"
     return 0
   }
   [ "$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")" = "$root" ] && return 0
   # Same-directory temp file so `mv` is atomic; mode copied from the original so a shared
   # checkout does not silently become 0600; every failure is swallowed because this is a
   # convenience refresh and must never take the hook's real output down with it.
-  tmp="$CONFIG_FILE.fm-tmp.$$"
-  if jq --arg p "$root" '.pluginRoot = $p' "$CONFIG_FILE" > "$tmp" 2>/dev/null; then
-    chmod --reference="$CONFIG_FILE" "$tmp" 2>/dev/null \
-      || chmod "$(stat -f '%Lp' "$CONFIG_FILE" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true
-    mv "$tmp" "$CONFIG_FILE" 2>/dev/null || rm -f "$tmp"
+  # Resolve a symlinked config to its target before rewriting: `mv` replaces the LINK, so a team
+  # sharing one config through a symlink would silently get a detached copy on first session start.
+  target="$CONFIG_FILE"
+  while [ -L "$target" ]; do
+    link=$(readlink -- "$target" 2>/dev/null) || break
+    case $link in /*) target="$link" ;; *) target="$(dirname "$target")/$link" ;; esac
+  done
+  tmp="$target.fm-tmp.$$"
+  if jq --arg p "$root" '.pluginRoot = $p' "$target" > "$tmp" 2>/dev/null; then
+    chmod --reference="$target" "$tmp" 2>/dev/null \
+      || chmod "$(stat -f '%Lp' "$target" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true
+    if ! mv "$tmp" "$target" 2>/dev/null; then
+      rm -f "$tmp"
+      plugin_root_warn
+    fi
   else
     rm -f "$tmp"
+    plugin_root_warn
   fi
   return 0
 }
@@ -145,7 +163,7 @@ next_flags() {
 # Human note printed alongside (or instead of) the command.
 next_note() {
   case "$1" in
-    fixing)     echo "fix in progress; re-run the failed gate after it completes" ;;
+    fixing)     echo "fix in progress; the page returns to generated, then re-run the chain from fm-verify" ;;
     escalated)  echo "needs manual intervention first" ;;
     flipped)    echo "flipped and serving; mark 'done' once the legacy page is removed" ;;
     *)          echo "" ;;

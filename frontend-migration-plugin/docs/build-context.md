@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-08-06)
+## Status (2026-08-07)
 
-- **Build complete — v0.16.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.0.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -686,6 +686,176 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   run — which is the gate this document already set for itself.
 
   Origin: audit of the v0.15.5 round + release review, 2026-08-06.
+- **Seventh round — the execution-order audit (v0.17.0).** The sixth round ended with a finding no
+  cross-file sweep could have produced, so this round changed the question the auditors were asked:
+  not *"do these documents agree?"* but ***"in what order do they run, and what is true at each
+  point?"*** Both auditors read all 70 files (10,508 lines) and returned 10 blockers and 12 majors —
+  **and more than half of the non-minor findings were invisible to agreement checking, because the
+  documents agreed.** The defects were in the composition.
+
+  Three were design gaps, decided deliberately rather than patched:
+
+  - **`tracker.json` had no lock.** Eleven writers Read-Modify-Write one shared file; ten hold a
+    *page* lock and `fm-extract` holds `.packages.lock`, so **no lock was common to any two of them**.
+    Two pages in flight is a supported state, so two concurrent RMWs was too, and a lost update drops
+    a `gateEvidence` record — which is exactly the input that makes `fm-route` acknowledge instead of
+    block. Added `docs/migration/.tracker.lock`, ordered strictly after the page/packages lock and
+    held only across the RMW.
+  - **`fm-fix` left the flip unreachable.** It changes code by definition but never cleared
+    `gateEvidence`, so after any fix the upstream gates were content-stale and `fm-route` Step 1a — a
+    hard gate with no acknowledgement path — blocked **every** post-fix flip; the only documented
+    escape, re-running `fm-verify`, silently demoted the page. `fm-fix` now returns the page to
+    `generated` and clears what `fm-gen`/`fm-delta` clear, including `routePrepared`/`flagKey` (a
+    fixed page was otherwise skipping its own code PR and route-stage audit). The real added cost is
+    one e2e run after a `parity-fix`.
+  - **`migration-plan.json` sat outside the gate evidence.** It decides `flagPlan.guardsPath` — the
+    production path that gets flipped — plus `gateAcceptance`, `requiredGates` and `e2eScenarios`.
+    Editing `/tested` to `/untested` after the gates passed moved no hash. It is now watch-path axis 3.
+
+  The rest, in the same shape: `fm-delta` deleted another running delta's staged baseline **before**
+  taking the lock; `fm-gen`'s "stop and report" on a phase failure leaked the Step 3 lock; `fm-route`
+  validated and prompted a human across Steps 0a–1b and only then locked; `fm-extract` could rewrite `packages/shared-*` — axis 2 — while a gate was capturing (**named
+  but not closed in v0.17.0; the interlock shipped in v0.17.1**); four skills demoted a gate-passed page
+  with no warning where `fm-gen` asks first; and the SessionStart hook swallowed every `pluginRoot`
+  write failure in silence, which disables the freshness gate permanently and invisibly.
+
+  Script fixes this round: a tracked symlink was recorded from the **index**, so retargeting one
+  without staging was invisible to the gate — every other file kind uses the working tree; a target
+  ending in a newline collapsed onto one that did not (`$( )` strips it — now a pipe); and
+  uncommitted work **inside** a checked-out submodule moved neither the parent pointer nor the
+  submodule HEAD, so the gate ran against bytes it could not name.
+
+  Origin: execution-order audit of v0.16.0, 2026-08-06.
+- **Round 8 (v0.17.1).** Both auditors on v0.17.0: 6 blockers + 3 majors between them, converging on
+  two. **Axis 3 reached all three producers and neither consumer** — `fm-route` still enumerated
+  "two recorded fields" and `fm-progress` matched it — so a 3-axis producer hash could never equal a
+  2-axis consumer hash and `--flag-on`, a hard gate with no acknowledgement path, was permanently
+  unreachable for every page. Demonstrated, not argued. The design doc's own acceptance criteria
+  encoded the two-axis version, which is why the propagation stopped there.
+
+  **The tracker lock introduced one round earlier was sound in design and misplaced in text**:
+  ordering, staleness, coverage and lifetime all checked out, but in 4 of 12 writers the sentence had
+  been pasted onto "Release the lock.", i.e. after the write it was meant to protect. It is now a
+  named block at the head of each Record step, before the write, where reading in order gives the
+  right instruction.
+
+  Also closed: `fm-extract` rewrites axis 2 for every dependent page and now invalidates their gate
+  evidence (v0.17.0 claimed this fix in the changelog and did not ship it — the claim is corrected
+  above); `fm-delta`'s Full branch patched `analysis.json.styleSurface` *before* the user chose it
+  and then stopped without demoting, leaving a `parity-passed` page over a mutated baseline; the
+  30-minute lock rule was an age-only timeout that could evict a legitimately long parity run, and
+  now checks `pid` first — a live holder is never broken; the submodule dirty digest hashed untracked
+  *paths* but not their bytes; and a clean tracked symlink hashed differently in a sparse checkout
+  than a full one because the two branches emitted different record shapes.
+
+  Origin: round 8 of the convergence loop, 2026-08-06.
+- **Round 9 (v0.17.2).** The first round in nine where one auditor returned **zero blockers**. The
+  two headline round-8 changes — watch-path axis 3 and the hash script — both survived an
+  adversarial pass, axis 3 proven by execution: all five call sites now compute the identical hash,
+  and a deliberately 2-axis control run differs, so the fix is load-bearing rather than decorative.
+
+  The severity judgement split sharply (0 blockers vs 8), and the union was fixed regardless. Four
+  findings both auditors reached independently, and **every one was inside round 8's own fix**:
+  `fm-delta`'s Full branch cleared the gate authorization and deleted the staged baseline *after*
+  releasing the page lock — the same "instruction pasted after the thing it protects" shape round 8
+  had just corrected elsewhere; the tracker-lock block reached all 12 files but was scoped "in this
+  step" and `fm-fix`'s real record step is Step 5, which performs the most consequential clear in
+  the pipeline unprotected; the new pid-first lock rule was contradicted by the closing sentence of
+  its own section three lines later, and never said *which* pid to record (a Bash call's `$$` is
+  dead and recyclable the moment it returns) nor guarded against reuse; and the pre-0.17 "re-run
+  that gate" recovery text survived in all three READMEs, with `README.md` contradicting itself
+  between its quickstart and its troubleshooting entry.
+
+  Closed from the concurrency lens: `fm-extract` now invalidates dependents **before and after**
+  writing a package — one clear alone leaves a window where a gate tests version A and records
+  version B's hash — and clears `flipPrOpenedAt` on dependents, since `--confirm-live` needs only
+  the status and that timestamp and would otherwise ship a flip prepared against the old package.
+  `fm-delta` now clears authorization at Step 2, so an abort at any later step cannot leave a page
+  route-authorized over code the drift already invalidated. `fm-route` re-verifies `routePrepared`
+  and the Step 1a hashes under the lock, not only the status.
+
+  Script: a sparse gitlink now keeps its `GITLINK` record shape (it was falling through to the bare
+  form, so sparse and full checkouts disagreed on an unchanged submodule); the submodule dirty
+  digest includes `submodule status --recursive`, so a nested submodule's movement is no longer
+  flattened; and a symlink target with trailing newlines is refused rather than silently collapsed.
+  (Round 10 found that guard both unreachable on macOS and wrong in principle, and replaced it.)
+
+  Origin: round 9 of the convergence loop, 2026-08-06.
+- **Round 10 (v0.17.3) — subtraction.** Nine rounds established the pattern: each round's blocker
+  sat inside the previous round's fix. The cause is structural — a contradiction needs two
+  statements, so restating a rule in N places creates N² ways to disagree, and every round that
+  answered a finding with more prose enlarged the next round's target. This round removed instead — the
+  net is subtractive, and no new rule was added.
+
+  The tracker-lock rule was written out in full — five identical lines — in 13 places, and rounds 8
+  and 9 were both spent on copies of it that had drifted. Each site is now two lines pointing at
+  CLAUDE.md, where the rule actually lives; `fm-fix`'s Step-5 repeat is gone (Step 3 already scopes
+  it to the whole skill), and the hardcoded "twelve writers" count went with it.
+
+  In `gate-tree-hash.sh`, round 9 had split the `readlink` check into two statements, which left
+  `lt` set-but-empty when `readlink` failed: the empty string hashed to `e69de29b…` under a
+  `SYMLINK` label — the exact false-pass constant this script exists to prevent. The version-history
+  narration in the header is gone.
+
+  **Where the subtraction went too far — twice — and both auditors caught it both times.** The
+  same edit also deleted round 9's trailing-newline guard. Both auditors returned the same BLOCKER
+  at the same line: `$( )` strips a trailing newline, so a target ending in one records the same
+  hash as one that does not, a retarget between them is invisible to the gate, and the sparse
+  branch (which reads the exact index blob) disagrees on an unchanged link. Restoring round 9's
+  guard verbatim then drew a BLOCKER from each auditor again, for two different reasons: the guard
+  compares byte counts across a *second* `readlink` call, so a link retargeted between the two
+  reads is recorded with the first read's hash (Codex); and BSD `readlink` strips a newline the
+  target actually has and then appends its own, so on macOS the arithmetic never fires and the
+  wrong record is written anyway (Claude).
+
+  Both reasons are the same design fault — the guard needs a second read and byte arithmetic — so
+  round 10 removed the guard and replaced the read: one read via perl's `readlink` (the syscall),
+  captured so the trailing bytes plain `$( )` strips survive. Round 11 pinned it to raw bytes
+  (`binmode STDOUT`) after an auditor showed `PERLIO` / `PERL_UNICODE` / `PERL5OPT=-C*` re-encoding
+  a non-ASCII target, and round 12 narrowed the environment claim after another showed `PERL5OPT=-d`
+  forging the record. **Round 13 reverted the whole approach** — see its entry below.
+
+  Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
+  over-implementation.
+- **v1.0.0 — promotion.** The version reflects the tooling's stability, not a runtime milestone:
+  eleven independent audit rounds, the last of which returned **zero blockers from both auditors**
+  on the one component a hard gate rests on. The surface is now shrinking rather than growing —
+  round 10 and 11 together are net subtractive — and the two structural consolidations (the
+  tracker-lock rule stated once instead of thirteen times, the version-history narration out of
+  `gate-tree-hash.sh`) were each cleared by both auditors.
+
+  **What 1.0.0 does not mean.** The plugin still has not been run end to end against a real v2
+  monorepo. That was the auditors' stated reason for withholding 1.0.0 earlier, and it has not
+  changed — it is a deliberate promotion of a tool that is internally consistent and
+  execution-verified in parts, not one that has migrated a page. The "Not yet runtime-validated"
+  entry below stands, and the PC end-to-end run remains the open follow-up.
+
+  Origin: 2026-08-07.
+- **Round 13 — the dependency was not worth what it bought.** Rounds 10-12 spent three rounds and
+  three findings (`--` missing, the `:utf8` layer, `PERL5OPT=-d`) on a perl-based symlink read
+  introduced to record one pathological target exactly. Weighed against the declared environment,
+  that trade was wrong:
+
+  * perl was an **undeclared runtime dependency** on the path of a hard gate. The plugin declares
+    and preflights `git`, declares `jq` and `node`/Playwright; perl had neither, and its absence
+    made `fm-route` Step 1a exit 1 — blocking a flip is a worse failure than the ambiguity it fixed.
+  * A watch path cannot produce a symlink. `sourcePaths[]` are the files `fm-gen` wrote, and pnpm's
+    `node_modules` link forest is gitignored, so `--exclude-standard` never lists it — verified by
+    building a pnpm-shaped scratch repo and confirming a perl stub on PATH is never invoked.
+  * Both auditors graded the case a BLOCKER without weighing reachability against that environment,
+    and the fix followed the grade. That is the over-evaluation → over-implementation chain this
+    project set out to stop.
+
+  A symlink in a watch path is now **refused**, loudly, with `--exclude` as the remedy — rule 3
+  rather than a new dependency, and never a wrong hash.
+  The sparse branch refuses the same case even though its index blob would be exact: recording it
+  there would make the gate pass under a sparse checkout and fail under a full one.
+
+  Verified: a watch path containing any symlink exits 1 with empty stdout in both checkout modes;
+  `--exclude` gets past it; the result is identical with perl absent from PATH; and the four real
+  watch paths hash identically to round 9's script.
+
+  Origin: round 13, 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
