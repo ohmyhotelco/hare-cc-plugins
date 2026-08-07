@@ -846,8 +846,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
     and the fix followed the grade. That is the over-evaluation → over-implementation chain this
     project set out to stop.
 
-  A symlink in a watch path is now **refused**, loudly, with `--exclude` as the remedy — three lines
-  where the perl branch was fourteen, rule 3 rather than a new dependency, and never a wrong hash.
+  A symlink in a watch path is now **refused**, loudly, with `--exclude` as the remedy — rule 3
+  rather than a new dependency, and never a wrong hash.
   The sparse branch refuses the same case even though its index blob would be exact: recording it
   there would make the gate pass under a sparse checkout and fail under a full one.
 

@@ -18,16 +18,17 @@
 #   The hash is only as trustworthy as the PATH and environment this runs under: a `git` earlier
 #   on PATH can make it anything.
 #   The defences here are against ordinary settings that differ between a producer and a consumer
-#   — locale, `PERLIO`/`PERL_UNICODE`/`PERL5OPT=-C*`, working directory, sparse checkouts — not
-#   against a hostile environment, which no part of this script could survive.
+#   — locale, working directory, sparse checkouts — not against a hostile environment, which no
+#   part of this script could survive.
 #
 # USAGE
 #   gate-tree-hash.sh [--manifest] [--exclude <repo-relative-path>]... [--] <watch-path>...
 #
-#   <watch-path>  repo-relative paths (the page's tracker `sourcePaths[]` plus each
-#                 migration-plan `sharedDeps[]` entry mapped @omh/<pkg>:<sym> ->
-#                 {packagesDir}/<pkg>). Resolved from the repo root regardless of the
-#                 caller's working directory, and matched LITERALLY.
+#   <watch-path>  repo-relative paths — all THREE axes (CLAUDE.md -> Gate Result Accounting):
+#                 (1) the page's tracker `sourcePaths[]`, (2) each migration-plan `sharedDeps[]`
+#                 entry mapped @omh/<pkg>:<sym> -> {packagesDir}/<pkg>, and (3) the page's own
+#                 `migration-plan.json`. Resolved from the repo root regardless of the caller's
+#                 working directory, and matched LITERALLY.
 #   --manifest    print the per-file records instead of the aggregate hash.
 #   --exclude P   drop path P from the set. Callers pass the manifest file they are about
 #                 to write, so the evidence never describes itself. Literal, repeatable.
