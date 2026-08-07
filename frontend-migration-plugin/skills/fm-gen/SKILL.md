@@ -29,8 +29,9 @@ If the plan has `blockers` (unextracted shared candidates), resolve each against
 `tracker.packages` — **not** against the plan, which `migration-planner` writes once and no skill
 rewrites. A blocker is unresolved while its candidate's `packages.<pkg>.status` is anything other
 than `extracted`. Stop only then, and tell the user to run `/frontend-migration-plugin:fm-extract`
-first. Reading the plan array as the live gate would refuse forever: `fm-extract`'s only tracker
-write is `packages.*` (its Step 5.1), so a successful extraction leaves the plan byte-identical.
+first. Reading the plan array as the live gate would refuse forever: `fm-extract` never writes the plan
+— its tracker writes are `packages.*` (Step 5.1) and the dependent pages' invalidation (Steps 2b
+and 5.3) — so a successful extraction leaves the plan byte-identical.
 
 ### Step 2: Resume / demotion
 - If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
