@@ -31,8 +31,8 @@ under `pages/` — SSR-aware, framework mode, do not skip SSR rules), `react-rou
 Read the failing tsc/build/vitest/eslint summary from `tracker.json` (`apps[app].pages[page]`) —
 verify writes no report file — then re-run the tools from `{appDir}` for the full output. Fix type errors, build breaks,
 failing unit/component tests, and ESLint errors (hard). **You also own the test harness**: when
-the summary reads `i18n key-coverage spec not collected`, the spec file exists and every tool
-passes — nothing is broken except that vitest never ran it. Repair the `include`/`test.include`
+the summary reads `i18n key-coverage spec not collected`, the spec file exists and no hard tool
+failed (eslint may be `skipped`) — nothing is broken except that vitest never ran it. Repair the `include`/`test.include`
 pattern (or wherever the harness excludes it) so the spec is collected, then re-run; a fix that
 leaves it uncollected is not a fix, and reporting a pass would send the page back to `fm-verify`
 to fail identically. Behavioral change → write/adjust the
