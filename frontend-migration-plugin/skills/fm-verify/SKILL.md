@@ -45,11 +45,12 @@ Read `tsconfig.json` in `{appDir}`:
 - `npx vite build 2>&1` (or the app's build script).
 - `npx vitest run 2>&1`.
 
-### Step 4a: i18n key coverage (presence check — the run itself is Step 4)
+### Step 4a: i18n key coverage (observed-in-the-run check — the run itself is Step 4)
 The key-coverage spec `foundation-generator` scaffolds (`templates/i18n-copy-parity.md`) runs inside
 Step 4's `npx vitest run`, so a missing/locale-gapped key — or a markup/entity value rendered as
 plain text (K3) — already **fails the gate** there; there is no separate command here. What this
-step adds is that the spec **exists**, so the check cannot be silently removed:
+step adds is that the spec **ran**, so the check cannot be silently removed — by deletion or by
+falling out of the harness's collection:
 - Config has an `i18n` block, the app has the spec, **and the spec's results appear in Step 4's
   vitest output** → note it as `present` and surface its `uncheckable` (dynamic-key) count from
   that output. A rising count is a signal, not a pass. **File existence is not the test** — a spec
@@ -63,8 +64,9 @@ step adds is that the spec **exists**, so the check cannot be silently removed:
   code because their remedies differ:
   - **vitest exited 0** → the spec was genuinely not collected. Record the failing summary as
     `i18n key-coverage spec not collected: <path>` — `migration-fixer`'s `verify-fix` mode owns the
-    harness and repairs the include pattern, so `fm-fix` terminates here instead of re-running four
-    tools that already pass.
+    harness and repairs the include pattern. It still re-runs all four tools, but the repair is what
+    makes the next `fm-verify` observe the spec — without it `fm-fix` would report a pass and land
+    the page back on this same failure.
   - **vitest exited non-zero** → the run died before per-file reporting, so "not collected" cannot
     be told from "never reached". Record the coverage axis as `not-observed` and let the hard-tool
     failure carry the gate; its remedy is the one that applies.
@@ -153,7 +155,8 @@ changes the page status. Surface its verdict below.
 
 ### Step 7: Report
 In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the evidence (exit code,
-counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `skipped`), the
+counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `not collected` /
+`not-observed` / `skipped`), the
 Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
 `/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`
 — **except the absent i18n key-coverage spec** (Step 4a), whose remedy is

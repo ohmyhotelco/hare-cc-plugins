@@ -118,7 +118,7 @@ Note this is **not** `workingLanguage` (the language of skill output). Conflatin
   a hard gate and `foundation-generator` already scaffolds once-per-app harness files, so the check
   reuses both: no new gate step, no script to maintain, and it keeps working in the app's own CI
   independently of the plugin. It also satisfies the proposal's app-repo stopgap for free. Same idiom
-  as the two prior siblings (generation pins; the gate asserts the pin exists).
+  as the two prior siblings (generation pins; the gate asserts the pin's results appear in the run).
 - **Reuse `openApprovals`, don't invent** → states × languages is a big matrix and reductions are
   legitimate; the full-matrix + explicit-approval machinery already exists, so coverage reduction
   rides it rather than getting a bespoke rule.
