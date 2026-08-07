@@ -62,7 +62,11 @@ In `workingLanguage`, show:
 For each in-flight page, print the exact next command, using the same mapping as the SessionStart
 hook — including its carve-outs: `gen-failed` → `fm-gen` (not `fm-fix`), `escalated` → manual
 intervention then `fm-fix`, `flipped` → no command (mark `done` by hand once the legacy page is
-deleted), and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on
+deleted); a `verified`/`e2e-passed`/`parity-passed` page whose `verifiedAt` is **absent** →
+`fm-verify` (its authorization was cleared by `fm-extract` or `fm-delta`, and the flip commands
+below would be refused); a page with `regenRequiredAt` set → `fm-gen --force` (the last fix
+changed no code); a page under an app other than `currentApp` → append `--app {app}`;
+and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on
 --confirm-live` (the flip artifact is prepared and PR2 handed over; re-running plain `--flag-on`
 would prepare a second flip over an in-flight one),
 else `routePrepared` set → `--flag-on`, else `--flag-off`:

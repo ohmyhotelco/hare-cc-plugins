@@ -135,4 +135,8 @@ changes the page status. Surface its verdict below.
 In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the evidence (exit code,
 counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `skipped`), the
 Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
-`/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`.
+`/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`
+— **except the absent i18n key-coverage spec** (Step 4a), whose remedy is
+`/frontend-migration-plugin:fm-gen {page} --force`. `fm-fix` cannot produce that spec: its
+`verify-fix` mode re-runs tsc/build/vitest/eslint, all of which pass, so it would report a
+successful fix, set the page back to `generated`, and land on this same failure again.

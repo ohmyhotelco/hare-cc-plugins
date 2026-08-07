@@ -97,16 +97,22 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    gate that finished before the first clear does not survive it. Neither clear alone closes the
    window.
 
-   **A page with `flipPrOpenedAt` set needs more than a clear.** `--flag-on --confirm-live` requires
+   **A page with `flipPrOpenedAt` set: refuse, do not clear.** `--flag-on --confirm-live` requires
    only the status and that timestamp, so a rewritten package would otherwise reach production
-   through a flip prepared against the old one. For those pages also clear `flipPrOpenedAt` and say
-   so loudly: the operator must re-run `--flag-off`/`--flag-on` after the gates pass again.
+   through a flip prepared against the old one — but `--confirm-live` and `--revert` are that
+   field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
+   would leave PR2 open with nothing in the tracker recording the in-flight flip. Stop before
+   writing anything, name those pages, and require `fm-route {page} --revert` on each first.
 
    The mechanics: `packages/shared-*` is watch-path
    axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package
    outdates those pages' `gateEvidence` exactly as regenerating their own code would. For each such
    page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and
-   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — and report the list.
+   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — **and, for a page at
+   `verified`/`e2e-passed`/`parity-passed`, set the status back to `generated`**, the same demotion
+   those two apply when code changes (a page below `verified` keeps its status; the demotion is not
+   a promotion). Clearing the evidence but leaving the gate-passed status is what walks the session
+   hook to `--flag-off` on a page no gate vouches for. Report the list.
    Without this a page can pass its gates against package version A while this skill writes version
    B, and the flip then matches B's hash and calls the gate fresh: a pass on bytes nothing tested.
    This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run —

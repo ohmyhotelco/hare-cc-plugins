@@ -33,8 +33,12 @@ hint, in the report.
 ### Step 1: Resolve stages
 - `--stage <s>` → audit just that stage.
 - `--all` (default) → audit every stage in `codexAuditStages` (default: all seven) whose inputs are
-  available (skip the rest). For six stages that means the stage's artifact exists under
-  `docs/migration/{app}/{page}/`. **`route` is the exception** in *availability*, not in *inputs*:
+  available (skip the rest). For five stages that means the stage's artifact exists under
+  `docs/migration/{app}/{page}/`. **`verify` and `route` are the exceptions** in *availability*,
+  not in *inputs*. `verify` writes no report file — its pass is recorded as the tracker's
+  `verifiedAt` — so an artifact-only filter makes it permanently unreachable from the default
+  invocation, the same defect described next for `route`; gate it on `verifiedAt` being present.
+  For `route`:
   gate it on the page being at `parity-passed` or beyond with a routing artifact prepared in the
   app's `infraDir`/`cloudfrontDir`, never on a page-directory file — an artifact-only filter makes
   `route` permanently unreachable from this entry point. Its **inputs are the full route-stage set**
@@ -52,6 +56,9 @@ sequentially. The agent handles the page lock and the Read-Modify-Write of `code
 ### Step 3: Report
 In `workingLanguage`, summarize per stage: `verdict` (pass/concerns/fail/error/skipped) with high /
 med finding counts and the one-line summary. Make clear this is **advisory** — Claude's gate states
-are unchanged. If any unresolved `high` findings exist, call them out and suggest
-`/frontend-migration-plugin:fm-fix {page}`; note that `fm-route --flag-on` will require explicit
-acknowledgement of them before flipping.
+are unchanged. If any unresolved `high` findings exist, call them out and point at the **gate that
+owns the finding's stage** (`fm-verify` / `fm-e2e` / `fm-parity`) for a re-run; suggest
+`/frontend-migration-plugin:fm-fix {page}` **only when the page is already at a state `fm-fix`
+accepts** (`*-failed`, `fixing`, `escalated`). This audit never writes a failed status, so on a
+healthy page `fm-fix` would refuse. Note that `fm-route --flag-on` will require explicit
+acknowledgement of the findings before flipping.

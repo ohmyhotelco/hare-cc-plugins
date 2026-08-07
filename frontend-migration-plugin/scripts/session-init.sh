@@ -186,9 +186,27 @@ if [ -n "$PAGES" ]; then
     STEP=$(next_step "$status")
     FLAGS=$(next_flags "$status")
     NOTE=$(next_note "$status")
+    # A gate-passed status whose authorization has been cleared. fm-extract (a rewritten shared
+    # package) and fm-delta (legacy drift) both clear `verifiedAt`/gateEvidence and leave the
+    # status where it was, so a status-only reading walks the user --flag-off -> --flag-on ->
+    # refused (fm-route Step 1 reads verifiedAt) -> and back here, forever. The gates have to
+    # re-run; say so instead of recommending the flip.
+    case "$status" in
+      verified|e2e-passed|parity-passed)
+        if [ -z "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].verifiedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+          STEP="fm-verify"; FLAGS=""
+          NOTE="gate authorization was cleared (shared package rewritten, or legacy drift) — re-run the chain from the stage the change invalidated"
+        fi ;;
+    esac
+    # A fix that changed no code restores the *-failed status and records regenRequiredAt. Without
+    # this the *-failed wildcard sends the user back to fm-fix, which reproduces the same state.
+    if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+      STEP="fm-gen"; FLAGS=" --force"
+      NOTE="the last fix changed no code; a full regeneration is required"
+    fi
     # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;
     # flip artifact prepared + PR2 handed over -> waiting on merge+deploy, then --confirm-live.
-    if [ "$status" = "parity-passed" ]; then
+    if [ "$status" = "parity-passed" ] && [ "$STEP" = "fm-route" ]; then
       PREPARED=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
       FLIPPR=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
       if [ -n "$FLIPPR" ]; then
@@ -198,8 +216,12 @@ if [ -n "$PAGES" ]; then
         FLAGS=" --flag-on"
       fi
     fi
+    # The scan covers every app, but a skill resolves the app from --app or `currentApp`, so a
+    # command printed for a non-current app would silently operate on the current one.
+    APPFLAG=""
+    [ "$app" != "$CURRENT_APP" ] && APPFLAG=" --app $app"
     if [ -n "$STEP" ]; then
-      LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS"
+      LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS$APPFLAG"
       [ -n "$NOTE" ] && LINE="$LINE  ($NOTE)"
       echo "$LINE"
     elif [ -n "$NOTE" ]; then
