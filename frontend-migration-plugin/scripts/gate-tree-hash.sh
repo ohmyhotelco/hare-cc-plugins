@@ -16,7 +16,7 @@
 #
 # TRUST BOUNDARY
 #   The hash is only as trustworthy as the PATH and environment this runs under: a `git` earlier
-#   on PATH, or a `PERL5OPT=-d` with a `PERL5DB` that redefines `readlink`, can make it anything.
+#   on PATH can make it anything.
 #   The defences here are against ordinary settings that differ between a producer and a consumer
 #   — locale, `PERLIO`/`PERL_UNICODE`/`PERL5OPT=-C*`, working directory, sparse checkouts — not
 #   against a hostile environment, which no part of this script could survive.
@@ -132,31 +132,19 @@ while IFS= read -r -d '' f; do
   # Decide on an explicit discriminator, cheapest first. A present regular file needs one
   # git call, not three: `mode`/`flag` are only consulted for the cases that require them.
   if [ -L "$f" ]; then
-    # git stores the link TARGET, not the pointed-to bytes; following it would make the hash
-    # depend on files outside the repo, or fail on a dangling link. Read the target from the
-    # WORKING TREE, so an unstaged retarget moves the hash.
-    #
-    # Read it ONCE, and with perl rather than `readlink`(1) — both properties are load-bearing:
-    #   * Two reads let the link be retargeted between them, and the record would carry the first
-    #     read's hash while the gate ran against the second's target.
-    #   * `readlink`(1) appends its own newline, and BSD strips one the target actually has, so a
-    #     target ending in a newline is indistinguishable from one that does not: two links share
-    #     a record, and the sparse branch below (which reads the exact index blob) disagrees on an
-    #     unchanged link. perl's `readlink` is the syscall, so it returns the bytes git stored.
-    #   * `$( )` strips trailing newlines; `$(cmd && printf x)` with `${lt%x}` keeps them.
-    # `-L` already proved this is a symlink, so failing to read it is a real error. Falling back
-    # to the index blob here would silently stop detecting unstaged retargets.
-    # `binmode STDOUT` and `--` are both required. `PERLIO`, `PERL_UNICODE` and `PERL5OPT=-C*`
-    # add a `:utf8` layer that re-encodes a non-ASCII target, so the producer and the consumer
-    # would hash the same unchanged link differently — those are ordinary settings a developer
-    # may have. Without `--`, perl parses a path beginning with `-` as its own options and
-    # refuses a perfectly readable link. Neither defends against an environment that injects
-    # perl code; see TRUST BOUNDARY in the header.
-    lt=$(perl -e 'binmode STDOUT; my $t = readlink($ARGV[0]); exit 1 unless defined $t; print $t' -- "$f" && printf x) \
-      || { echo "gate-tree-hash: cannot read symlink target (needs perl): $f" >&2; exit 1; }
-    th=$(printf '%s' "${lt%x}" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ] \
-      || { echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1; }
-    printf 'SYMLINK %s %s\n' "$th" "$f"
+    # Refused, not recorded. Reading a link's target as EXACT bytes needs the `readlink` syscall:
+    # `readlink`(1) appends its own newline and BSD strips one the target actually has, so a
+    # target ending in a newline records the same hash as one that does not — two links share a
+    # record and a retarget between them is invisible to the gate. Reaching the syscall from
+    # shell means perl, i.e. a runtime dependency this plugin does not otherwise have, on the
+    # path of a hard gate (`fm-route` Step 1a). A watch path cannot produce a symlink anyway:
+    # `sourcePaths[]` are the files fm-gen wrote, and pnpm's `node_modules` link forest is
+    # gitignored, so `--exclude-standard` never lists it. Refusing costs nothing real and is
+    # rule 3; the sparse branch below refuses the same case, so both checkout modes agree.
+    echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
+    echo "  A symlink target cannot be read portably as exact bytes. Exclude it with --exclude," >&2
+    echo "  or keep symlinks out of sourcePaths[] and {packagesDir}." >&2
+    exit 1
   elif [ -f "$f" ]; then
     if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
       echo "gate-tree-hash: cannot hash working-tree file: $f" >&2; exit 1
@@ -220,12 +208,15 @@ while IFS= read -r -d '' f; do
         if ! o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) || [ -z "$o" ]; then
           echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
         fi
-        # Same RECORD SHAPE the on-disk branches use, or a sparse checkout and a full one
-        # disagree on an unchanged file: mode 120000 is a symlink, and its index blob is
-        # already the target string that the working-tree branch hashes.
+        # Same OUTCOME the on-disk branches give, or a sparse checkout and a full one disagree
+        # on an unchanged entry. A symlink is refused there, so it is refused here too — even
+        # though the index blob would be exact, recording it would make the gate pass under a
+        # sparse checkout and fail under a full one.
         case $(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}') in
-          120000) printf 'SYMLINK %s %s\n'  "$o" "$f" ;;
-          160000) printf 'GITLINK %s %s\n'  "$o" "$f" ;;   # a sparse gitlink keeps its shape too
+          120000) echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
+                  echo "  Exclude it with --exclude, or keep symlinks out of the watch paths." >&2
+                  exit 1 ;;
+          160000) printf 'GITLINK %s %s\n'  "$o" "$f" ;;   # a sparse gitlink keeps its shape
           *)      printf '%s %s\n'          "$o" "$f" ;;
         esac ;;
       *) printf 'DELETED %s\n' "$f" ;;

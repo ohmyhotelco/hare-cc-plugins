@@ -835,8 +835,8 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   **nothing** to stdout, so a caller doing `TREE=$(…)` can never capture a partial value.
 
   Per-entry records come from git's object model, each on an explicit discriminator: a working-tree
-  file by content; a symlink by its target string (following it would import bytes the repo does not
-  contain); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
+  file by content; a **symlink is refused** (a target cannot be read portably as exact bytes, and a
+  watch path has no reason to contain one — `--exclude` it); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
   uninitialized submodule `git -C` walks up and returns the *parent's* HEAD); a `skip-worktree` entry
   by its index blob, so a sparse checkout and a full one agree; a missing entry as `DELETED <path>`.
   That last one is keyed on the skip-worktree flag rather than "the index can resolve it", because

@@ -809,25 +809,11 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   wrong record is written anyway (Claude).
 
   Both reasons are the same design fault — the guard needs a second read and byte arithmetic — so
-  the guard is gone and the read is fixed instead. The target is now read **once**, with perl's
-  `readlink` (the syscall, which returns the bytes git stored) captured via
-  `$(cmd && printf x)` + `${lt%x}`, which keeps the trailing bytes plain `$( )` strips. The read is pinned to raw bytes
-  (`binmode STDOUT`, and `--` so a `-`-leading path is not parsed as perl options), so the `:utf8`
-  layer that `PERLIO` / `PERL_UNICODE` / `PERL5OPT=-C*` would add cannot re-encode a non-ASCII
-  target. An environment that injects perl code (`PERL5OPT=-d` with a `PERL5DB` that redefines
-  `readlink`) still changes the result — but so does a `git` earlier on `PATH`, which is the trust
-  boundary this script has always had. There is no
-  second read to race, no byte arithmetic, no `LC_ALL` coupling, and no GNU/BSD split; the
-  pathological target is now recorded *correctly* rather than refused. `-L` has already proved the
-  entry is a symlink, so a failed read is a hard error — the old index-blob fallback would have
-  silently stopped detecting unstaged retargets whenever perl was unavailable.
-
-  Verified by execution against a scratch repo whose symlink targets include an ASCII one, a
-  Korean one, and one ending in a newline: every record equals its index blob; a retarget between
-  the newline and non-newline forms moves the aggregate (it did not before); sparse and full
-  checkouts agree; a normal unstaged retarget still moves the hash; a dangling link hashes its
-  target string; a broken perl exits 1 with empty stdout rather than degrading to the index; and
-  the hashes for real watch paths are identical to round 9's script.
+  round 10 removed the guard and replaced the read: one read via perl's `readlink` (the syscall),
+  captured so the trailing bytes plain `$( )` strips survive. Round 11 pinned it to raw bytes
+  (`binmode STDOUT`) after an auditor showed `PERLIO` / `PERL_UNICODE` / `PERL5OPT=-C*` re-encoding
+  a non-ASCII target, and round 12 narrowed the environment claim after another showed `PERL5OPT=-d`
+  forging the record. **Round 13 reverted the whole approach** — see its entry below.
 
   Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
   over-implementation.
@@ -845,6 +831,31 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   entry below stands, and the PC end-to-end run remains the open follow-up.
 
   Origin: 2026-08-07.
+- **Round 13 — the dependency was not worth what it bought.** Rounds 10-12 spent three rounds and
+  three findings (`--` missing, the `:utf8` layer, `PERL5OPT=-d`) on a perl-based symlink read
+  introduced to record one pathological target exactly. Weighed against the declared environment,
+  that trade was wrong:
+
+  * perl was an **undeclared runtime dependency** on the path of a hard gate. The plugin declares
+    and preflights `git`, declares `jq` and `node`/Playwright; perl had neither, and its absence
+    made `fm-route` Step 1a exit 1 — blocking a flip is a worse failure than the ambiguity it fixed.
+  * A watch path cannot produce a symlink. `sourcePaths[]` are the files `fm-gen` wrote, and pnpm's
+    `node_modules` link forest is gitignored, so `--exclude-standard` never lists it — verified by
+    building a pnpm-shaped scratch repo and confirming a perl stub on PATH is never invoked.
+  * Both auditors graded the case a BLOCKER without weighing reachability against that environment,
+    and the fix followed the grade. That is the over-evaluation → over-implementation chain this
+    project set out to stop.
+
+  A symlink in a watch path is now **refused**, loudly, with `--exclude` as the remedy — three lines
+  where the perl branch was fourteen, rule 3 rather than a new dependency, and never a wrong hash.
+  The sparse branch refuses the same case even though its index blob would be exact: recording it
+  there would make the gate pass under a sparse checkout and fail under a full one.
+
+  Verified: a watch path containing any symlink exits 1 with empty stdout in both checkout modes;
+  `--exclude` gets past it; the result is identical with perl absent from PATH; and the four real
+  watch paths hash identically to round 9's script.
+
+  Origin: round 13, 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
