@@ -77,7 +77,8 @@ Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
-  `formatWarnings` (both are reporting surfaces for `fm-progress` and a human reading the tracker —
+  `formatWarnings`, **and clear `regenRequiredAt`** — a passing gate means the debt it records is
+  discharged, however it was met (both are reporting surfaces for `fm-progress` and a human reading the tracker —
   no gate branches on either; a Prettier advisory never fails anything). Also record
   `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   — the code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see

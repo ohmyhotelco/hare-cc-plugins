@@ -170,7 +170,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
   flip. **Clear `routePrepared` and `flagKey` on the same pass**, or Step 1-pre still reads the page
   as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (CLAUDE.md → "Gate Result
-  Accounting"). **Clear `regenRequiredAt` too** — this run changed code, so no regeneration is owed.
+  Accounting"). **Do not clear `regenRequiredAt`** — it means a full `fm-gen`
+  is owed, and the incremental branch runs `delta-modifier`, not the foundation phase that produces
+  the i18n key-coverage spec.
 - Release the lock.
 
 ### Step 6: Report (incremental path)

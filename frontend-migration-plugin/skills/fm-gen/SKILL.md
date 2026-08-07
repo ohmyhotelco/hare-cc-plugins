@@ -125,8 +125,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
      **Clear `regenRequiredAt` — but only when every phase succeeded**, the same condition 5.1
-     writes `generated` under. `fm-fix` writes it to mean "a full regeneration is still owed", and
-     only a completed run discharges that. The SessionStart hook and `fm-progress` read it; left
+     writes `generated` under. `fm-fix` (a fix that changed no code) and `fm-verify` (an absent i18n
+     key-coverage spec) both write it to mean "a full regeneration is still owed", and only a
+     completed run here — or a later passing `fm-verify` — discharges that. `fm-fix` and `fm-delta`
+     deliberately do not clear it: neither performs a full regeneration. The SessionStart hook and `fm-progress` read it; left
      standing it outlives the run it asked for and hijacks every later `*-failed` state, while
      clearing it on a `gen-failed` run would drop the record while the debt stands.
 4. Release the lock.
