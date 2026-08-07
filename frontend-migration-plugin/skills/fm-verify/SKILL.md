@@ -136,6 +136,12 @@ scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resol
   backward compatibility.
 - any hard tool fails (tsc / build / vitest / eslint) → `verify-failed`, with the failing summary.
   A Prettier advisory alone never sets `verify-failed`.
+- the spec **exists but its results are not in the output, and every hard tool passed** →
+  `verify-failed`, with the failing summary `i18n key-coverage spec not collected: <path>` and
+  **no `regenRequiredAt`** (Step 4a). Both halves are load-bearing: without the status the page
+  keeps its entry status and `fm-fix` — the remedy Step 7 names — refuses it; without the summary
+  in `tracker.json` the harness repair in `migration-fixer`'s `verify-fix` mode has nothing to key
+  on, since verify writes no report file.
 - the spec is **absent while `i18n` is configured** → `verify-failed` **and record
   `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and both next-step advisors
   already override the `*-failed` wildcard to `fm-gen --force` when that field is set — this is
