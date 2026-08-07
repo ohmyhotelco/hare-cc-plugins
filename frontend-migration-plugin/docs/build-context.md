@@ -777,12 +777,11 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   Script: a sparse gitlink now keeps its `GITLINK` record shape (it was falling through to the bare
   form, so sparse and full checkouts disagreed on an unchanged submodule); the submodule dirty
   digest includes `submodule status --recursive`, so a nested submodule's movement is no longer
-  flattened; and a symlink target with trailing newlines is refused rather than silently collapsed —
-  though macOS normalises such a target at creation, so that guard is only reachable on GNU systems,
-  which is stated rather than claimed as tested.
+  flattened; and a symlink target with trailing newlines is refused rather than silently collapsed.
+  (Round 10 found that guard both unreachable on macOS and wrong in principle, and replaced it.)
 
   Origin: round 9 of the convergence loop, 2026-08-06.
-- **Round 10 (v1.0.0) — subtraction.** Nine rounds established the pattern: each round's blocker
+- **Round 10 (v0.17.3) — subtraction.** Nine rounds established the pattern: each round's blocker
   sat inside the previous round's fix. The cause is structural — a contradiction needs two
   statements, so restating a rule in N places creates N² ways to disagree, and every round that
   answered a finding with more prose enlarged the next round's target. This round removed instead — the
@@ -813,8 +812,11 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   the guard is gone and the read is fixed instead. The target is now read **once**, with perl's
   `readlink` (the syscall, which returns the bytes git stored) captured via
   `$(cmd && printf x)` + `${lt%x}`, which keeps the trailing bytes plain `$( )` strips. The read is pinned to raw bytes
-  (`binmode STDOUT`, and `--` so a `-`-leading path is not parsed as perl options), so it does not
-  depend on the caller's `PERLIO` / `PERL_UNICODE` / `PERL5OPT`. There is no
+  (`binmode STDOUT`, and `--` so a `-`-leading path is not parsed as perl options), so the `:utf8`
+  layer that `PERLIO` / `PERL_UNICODE` / `PERL5OPT=-C*` would add cannot re-encode a non-ASCII
+  target. An environment that injects perl code (`PERL5OPT=-d` with a `PERL5DB` that redefines
+  `readlink`) still changes the result — but so does a `git` earlier on `PATH`, which is the trust
+  boundary this script has always had. There is no
   second read to race, no byte arithmetic, no `LC_ALL` coupling, and no GNU/BSD split; the
   pathological target is now recorded *correctly* rather than refused. `-L` has already proved the
   entry is a symlink, so a failed read is a hard error — the old index-blob fallback would have

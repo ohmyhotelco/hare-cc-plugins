@@ -66,11 +66,10 @@ with only the parameters it needs (subagent isolation): `app`, `legacyDir`, `tar
 `targetPath`, `outPath` = `docs/migration/{app}/{page}/analysis.json`, `counterpartDirs`,
 `workingLanguage`. Do not pass session history.
 
-### Step 4: Record
+### Step 4: Record state
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
- state
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
 2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
    fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,

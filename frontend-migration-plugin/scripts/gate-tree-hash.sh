@@ -14,6 +14,13 @@
 #      never a silently reduced file set, never a constant. (The empty set hashes to
 #      e69de29b…, and a constant presented as evidence passes any gate.)
 #
+# TRUST BOUNDARY
+#   The hash is only as trustworthy as the PATH and environment this runs under: a `git` earlier
+#   on PATH, or a `PERL5OPT=-d` with a `PERL5DB` that redefines `readlink`, can make it anything.
+#   The defences here are against ordinary settings that differ between a producer and a consumer
+#   — locale, `PERLIO`/`PERL_UNICODE`/`PERL5OPT=-C*`, working directory, sparse checkouts — not
+#   against a hostile environment, which no part of this script could survive.
+#
 # USAGE
 #   gate-tree-hash.sh [--manifest] [--exclude <repo-relative-path>]... [--] <watch-path>...
 #
@@ -139,11 +146,12 @@ while IFS= read -r -d '' f; do
     #   * `$( )` strips trailing newlines; `$(cmd && printf x)` with `${lt%x}` keeps them.
     # `-L` already proved this is a symlink, so failing to read it is a real error. Falling back
     # to the index blob here would silently stop detecting unstaged retargets.
-    # `binmode STDOUT` and `--` are both required, for the same reason the rest of this file is
-    # careful: the record must not depend on the caller's environment. `PERLIO`, `PERL_UNICODE`
-    # and `PERL5OPT=-C*` add a `:utf8` layer that re-encodes a non-ASCII target, so the producer
-    # and the consumer hash the same unchanged link differently. Without `--`, perl parses a path
-    # beginning with `-` as its own options and refuses a perfectly readable link.
+    # `binmode STDOUT` and `--` are both required. `PERLIO`, `PERL_UNICODE` and `PERL5OPT=-C*`
+    # add a `:utf8` layer that re-encodes a non-ASCII target, so the producer and the consumer
+    # would hash the same unchanged link differently — those are ordinary settings a developer
+    # may have. Without `--`, perl parses a path beginning with `-` as its own options and
+    # refuses a perfectly readable link. Neither defends against an environment that injects
+    # perl code; see TRUST BOUNDARY in the header.
     lt=$(perl -e 'binmode STDOUT; my $t = readlink($ARGV[0]); exit 1 unless defined $t; print $t' -- "$f" && printf x) \
       || { echo "gate-tree-hash: cannot read symlink target (needs perl): $f" >&2; exit 1; }
     th=$(printf '%s' "${lt%x}" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ] \
