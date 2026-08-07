@@ -118,7 +118,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    through a flip prepared against the old one — but `--confirm-live` and `--revert` are that
    field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
    would leave PR2 open with nothing in the tracker recording the in-flight flip. **Release
-   `.packages.lock`**, then stop before writing anything, name those pages, and require
+   `.tracker.lock` and then `.packages.lock`** (innermost first), then stop before writing anything, name those pages, and require
    `fm-route {page} --revert` on each first — without the release, Step 2's "held and fresh →
    report and stop" refuses the retry this very sentence asks for.
 

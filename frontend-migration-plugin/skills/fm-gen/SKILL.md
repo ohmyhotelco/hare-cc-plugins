@@ -65,6 +65,11 @@ write is `packages.*` (its Step 5.1), so a successful extraction leaves the plan
   `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
+**With `--force`, rewrite `generation-state.json` with every phase pending here** — once the lock
+is held and the Step 2 refusals have passed. Doing it in Step 2 would let a run that is about to
+be refused destroy the ledger, and would reset the ledger of another session's generation already
+in progress. Without it, a `--force` run that dies in an early phase leaves the later phases still
+marked done, and the next plain resume skips them.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)

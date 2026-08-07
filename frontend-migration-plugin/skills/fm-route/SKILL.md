@@ -222,8 +222,15 @@ applied. Go straight to Step 4 and record only the tracker transition.
 
 For the other three actions, launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
 `flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
-(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `parity-passed` tracker
-status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
+(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), **the page's current
+`status`** (not a literal `parity-passed` — `--revert` is admitted at any status carrying
+`flipPrOpenedAt`, Step 0a) **plus `routePrepared` and `flipPrOpenedAt`**, `verifiedAt`, the
+`e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent's `--revert`
+precondition tests the two route fields; naming only the flip-path gate state would hand it a
+status the page does not have and none of the fields it must check.
+
+**If the agent refuses, release the page lock before returning** (CLAUDE.md → Lock file): Step 4's
+release is on the success path. The agent picks the
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record

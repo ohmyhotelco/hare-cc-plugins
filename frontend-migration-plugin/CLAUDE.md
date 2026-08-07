@@ -352,7 +352,12 @@ When updating any state JSON:
 ### Lock file
 
 A skill that mutates state acquires `{app}/{page}/.lock` before work and
-releases it on completion or failure. The lock is JSON with at least these fields:
+releases it on completion or failure. **Every exit after a successful acquire releases every lock
+this run holds — including a refusal, an agent that refuses, a failed verification, and a stop the
+skill's own text prescribes.** A per-step release sentence is a reminder, never the whole rule: a
+run that ends holding a lock strands the page under a holder that no longer exists, and the
+holder-gone rule below will not reclaim it while the process lives. (A *failed* acquire releases
+nothing — the lock belongs to someone else.) The lock is JSON with at least these fields:
 
 **Three lock scopes, and one of them is not optional.**
 
@@ -483,7 +488,7 @@ These apply to every agent and skill in this plugin.
   count to what the skill lists — **unless the skill says otherwise, and some do.** `fm-audit-codex`
   runs its stages **sequentially** on purpose: `codex-auditor` takes the page `.lock` to
   Read-Modify-Write `codex-audit.json`, so parallel auditors on one page contend for a single lock
-  that stays non-stale for 30 minutes. Agents that share a lock or a write target are not
+  that one of them holds until it finishes. Agents that share a lock or a write target are not
   independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
 
 ## Build Command Working Directory
@@ -760,8 +765,9 @@ section went from its heading straight into the diff. Three doc-only fixes — d
   an approved entry first. Gates the **response-DTO diff only** — the request-body-vs-live-backend
   check (OMH-748) does not depend on typed response DTOs and keeps running on every write page.
 - **B (lock schema).** `.lock` is JSON with `holder` / `pid` / ISO-8601 `acquiredAt` (see "Lock file").
-  The "stale after 30 min" rule computes off `acquiredAt`; a date-only or unparseable timestamp is
-  immediately stale, so a malformed lock is never a permanent deadlock.
+  The ghost-lock sweep computes off `acquiredAt` (it applies only once the holder is gone); a
+  date-only or unparseable timestamp is treated as immediately sweepable, so a malformed lock left
+  by a dead holder is never a permanent deadlock.
 - **C (per-gate budget).** Optional `gateAcceptance.{gate}.budgetSeconds`; on overrun the verifier
   records `not-run` + `reason: "budget exceeded"` and proceeds — never `fail`, never a hard-kill.
   Per-gate, not per-round (`visual` runs long by design; a `contract` overrun signals nothing to
