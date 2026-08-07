@@ -361,10 +361,10 @@ still releases every lock it did acquire before giving up. A nested `.tracker.lo
 that is already held by another writer is the ordinary case, and stranding the outer
 `.packages.lock` or page lock over it is the deadlock this rule exists to prevent.)
 
-**Re-verify, under the lock, every precondition you read before taking it.** Five skills refuse a
-page on its status or route state (`fm-gen`, `fm-fix`, `fm-delta`, `fm-style-spec`, `fm-plan`) and
-then acquire the lock further down; only `fm-route` Step 2 says to check again. The gap is a real
-window: a `fm-route --flag-on` running concurrently records `flipPrOpenedAt` between the refusal
+**Re-verify, under the lock, every precondition you read before taking it.** Most page skills
+refuse on status or route state and acquire the lock further down; only `fm-route` Step 2 says to
+check again, and this rule binds the rest without naming them — a census here would be one more
+list to drift. The gap is a real window: a `fm-route --flag-on` running concurrently records `flipPrOpenedAt` between the refusal
 check and the acquire, and the run then rewrites code under an in-flight flip — exactly what
 "no skill rewrites code while `flipPrOpenedAt` is present" (Gate Result Accounting) forbids. The
 checks are cheap and the first write has not happened yet; re-read the tracker and re-apply the

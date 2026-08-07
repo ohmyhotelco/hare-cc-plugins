@@ -128,7 +128,10 @@ After the prerequisites are met:
 
 Each step writes its artifact under `docs/migration/{app}/{page}/` and advances the page's status
 in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate). The page then
-returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`.
+returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`. **One
+exception:** a `fm-verify` failure for a missing i18n key-coverage spec needs
+`fm-gen <page> --force`, not `fm-fix` — `fm-fix` re-runs the build tools, which all pass, so it
+would report success and land on the same failure. `fm-verify` says so in its own report.
 
 ## Workflow
 

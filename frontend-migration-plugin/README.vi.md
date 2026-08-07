@@ -120,7 +120,10 @@ Sau khi đã đủ điều kiện tiên quyết:
 ```
 
 Mỗi bước ghi sản phẩm vào `docs/migration/{app}/{page}/` và đẩy trạng thái trong tracker. Nếu một
-cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). Trang quay về `generated`, nên chạy lại
+cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). **Một ngoại lệ:** `fm-verify` fail vì thiếu
+spec i18n key-coverage cần `fm-gen <page> --force`, không phải `fm-fix` — `fm-fix` chỉ chạy lại
+các công cụ build, tất cả đều pass, nên nó báo thành công rồi gặp lại đúng lỗi đó.
+Trang quay về `generated`, nên chạy lại
 # toàn bộ chuỗi: fm-verify → fm-e2e → fm-parity.
 
 ## Luồng làm việc

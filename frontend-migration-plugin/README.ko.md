@@ -116,7 +116,10 @@ Playwright로 실행합니다.
 ```
 
 각 단계는 `docs/migration/{app}/{page}/`에 산출물을 쓰고 트래커 상태를 진행시킵니다. 게이트
-실패 시 `fm-fix <page>`(어느 게이트인지 자동 감지). 수정 후 페이지는 `generated`로 돌아가므로
+실패 시 `fm-fix <page>`(어느 게이트인지 자동 감지). **예외 하나:** i18n 키 커버리지 스펙 부재로
+인한 `fm-verify` 실패는 `fm-fix`가 아니라 `fm-gen <page> --force`가 필요합니다 — `fm-fix`는 빌드
+도구를 다시 돌릴 뿐이고 전부 통과하므로, 성공을 보고한 뒤 같은 실패로 되돌아옵니다.
+수정 후 페이지는 `generated`로 돌아가므로
 # fm-verify → fm-e2e → fm-parity 체인 전체를 다시 실행합니다.
 
 ## 워크플로우
