@@ -139,7 +139,9 @@ while IFS= read -r -d '' f; do
     #   * `$( )` strips trailing newlines; `$(cmd && printf x)` with `${lt%x}` keeps them.
     # `-L` already proved this is a symlink, so failing to read it is a real error. Falling back
     # to the index blob here would silently stop detecting unstaged retargets.
-    lt=$(perl -e 'my $t = readlink($ARGV[0]); exit 1 unless defined $t; print $t' "$f" && printf x) \
+    # `--` is required: without it perl parses a path beginning with `-` as its own options and
+    # leaves @ARGV empty, refusing a perfectly readable link.
+    lt=$(perl -e 'my $t = readlink($ARGV[0]); exit 1 unless defined $t; print $t' -- "$f" && printf x) \
       || { echo "gate-tree-hash: cannot read symlink target (needs perl): $f" >&2; exit 1; }
     th=$(printf '%s' "${lt%x}" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ] \
       || { echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1; }
