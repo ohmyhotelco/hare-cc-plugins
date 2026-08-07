@@ -68,7 +68,8 @@ restarts at `fm-analyze` (naming a gate here would re-gate against the pre-drift
 flip with the drift never migrated); a page with `flipPrOpenedAt` set at any status **other than**
 `parity-passed`/`flipped`/`done` → `fm-route --revert` (every other command refuses while a flip is
 in flight, so the normal next step would be refused); a `*-failed` page with `regenRequiredAt` set → `fm-gen
---force` (the last fix changed no code); a page under an app other than `currentApp` → append
+--force` (a full regeneration is owed — a fix that changed no code, or an absent i18n
+key-coverage spec); a page under an app other than `currentApp` → append
 `--app {app}`;
 and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on
 --confirm-live` (the flip artifact is prepared and PR2 handed over; re-running plain `--flag-on`

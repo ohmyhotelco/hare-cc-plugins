@@ -200,8 +200,9 @@ if [ -n "$PAGES" ]; then
           NOTE="gate authorization was cleared by legacy drift (fm-delta) — re-run the chain from fm-analyze as that run reported; do NOT resume at a gate, the plan is still the pre-drift one"
         fi ;;
     esac
-    # A fix that changed no code restores the *-failed status and records regenRequiredAt. Without
-    # this the *-failed wildcard sends the user back to fm-fix, which reproduces the same state.
+    # regenRequiredAt means a full regeneration is owed. Two writers set it: fm-fix when a fix
+    # changed no code, and fm-verify when the i18n key-coverage spec is absent. Without this the
+    # *-failed wildcard sends the user to fm-fix, which reproduces the same state in both cases.
     # Guarded to the statuses fm-fix can restore: the timestamp is cleared by the next fm-gen, but
     # an unguarded read would outlive it on any page and override even `flipped`, for which this
     # hook must print no command at all (CLAUDE.md -> Per-page State Machine).
@@ -210,7 +211,7 @@ if [ -n "$PAGES" ]; then
       *-failed)
         if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
           STEP="fm-gen"; FLAGS=" --force"
-          NOTE="the last fix changed no code; a full regeneration is required"
+          NOTE="a full regeneration is owed (a fix that changed no code, or an absent i18n key-coverage spec)"
         fi ;;
     esac
     # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;

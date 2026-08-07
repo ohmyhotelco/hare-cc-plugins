@@ -24,6 +24,8 @@ Per-page loop (repeat per page)
   /fm-route <page> --flag-on   one-line flip PR (only if all gates pass)
   /fm-route <page> --flag-on --confirm-live   after that PR is merged AND deployed → flipped
         any gate fails → /fm-fix <page> → generated → re-run the chain from /fm-verify
+          (exception: /fm-verify failing on an absent i18n key-coverage spec needs
+           /fm-gen <page> --force — /fm-fix re-runs the build tools, which all pass)
 
 On legacy drift
   /fm-delta <page>             re-migrate only the changed surface (preserves fixes)

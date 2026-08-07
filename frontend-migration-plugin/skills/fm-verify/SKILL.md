@@ -116,9 +116,13 @@ scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resol
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `verifiedAt` for
   backward compatibility.
-- any hard tool fails (tsc / build / vitest / eslint), or the spec is **absent while `i18n` is
-  configured** → `verify-failed`, with the failing summary. A Prettier advisory alone never sets
-  `verify-failed`.
+- any hard tool fails (tsc / build / vitest / eslint) → `verify-failed`, with the failing summary.
+  A Prettier advisory alone never sets `verify-failed`.
+- the spec is **absent while `i18n` is configured** → `verify-failed` **and record
+  `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and both next-step advisors
+  already override the `*-failed` wildcard to `fm-gen --force` when that field is set — this is
+  what puts them on the remedy this skill's own report names. `fm-gen` Step 5.3 clears it once a
+  full regeneration succeeds.
 
 Release the lock.
 
