@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-06)
 
-- **Build complete — v0.17.2.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v0.17.3.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -782,6 +782,28 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   which is stated rather than claimed as tested.
 
   Origin: round 9 of the convergence loop, 2026-08-06.
+- **Round 10 (v0.17.3) — subtraction.** Nine rounds established the pattern: each round's blocker
+  sat inside the previous round's fix. The cause is structural — a contradiction needs two
+  statements, so restating a rule in N places creates N² ways to disagree, and every round that
+  answered a finding with more prose enlarged the next round's target. This round removed instead:
+  100 lines deleted, 35 added, no new rule.
+
+  The tracker-lock rule was written out in full — five identical lines — in 13 places, and rounds 8
+  and 9 were both spent on copies of it that had drifted. Each site is now two lines pointing at
+  CLAUDE.md, where the rule actually lives; `fm-fix`'s Step-5 repeat is gone (Step 3 already scopes
+  it to the whole skill), and the hardcoded "twelve writers" count went with it.
+
+  In `gate-tree-hash.sh`, round 9's symlink trailing-newline guard is deleted. Its own comment
+  called the case "documented rather than defended" and then defended it — and splitting the check
+  into two statements left `lt` set-but-empty when `readlink` failed, so a failed read hashed the
+  empty string to `e69de29b…` under a `SYMLINK` label: the exact false-pass constant this script
+  exists to prevent. Chaining `readlink`'s exit status back into one condition removes the guard
+  and the hole together. The 22-line version-history header is now 8. Verified by execution:
+  hashes unchanged on real watch paths, an unstaged retarget still moves the hash, and non-ASCII
+  targets and sparse-vs-full still agree.
+
+  Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
+  over-implementation.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

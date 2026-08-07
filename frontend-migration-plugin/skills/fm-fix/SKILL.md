@@ -75,10 +75,8 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 
 ### Step 3: Mark fixing
 
-**Tracker lock.** Every `tracker.json` read-modify-write **anywhere in this skill** happens **inside**
-`docs/migration/.tracker.lock`, acquired *after* the page lock and released immediately after each
-write (CLAUDE.md → Lock file). The page lock does not protect `tracker.json` — twelve writers share
-that one file, and `fm-extract` holds a different lock entirely.
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write
+**anywhere in this skill**, after the page lock (CLAUDE.md → Lock file).
 
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
@@ -101,10 +99,6 @@ summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDi
 
 ### Step 5: Resolve outcome
 
-**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
-`docs/migration/.tracker.lock`, acquired *after* the page lock this skill already holds and released
-immediately after the write (CLAUDE.md → Lock file). This step performs the most consequential
-clear in the pipeline; a lost update here drops it silently.
 Read `fix-report.json`:
 - `regenRequired: true` → the fixer stopped **without changing code**, so generation has not been
   redone. Step 3 already wrote `fixing`, so restore the `previousStatus` it recorded there (the

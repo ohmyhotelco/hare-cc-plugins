@@ -70,11 +70,8 @@ fails.
 
 ### Step 6: Record
 
-**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
-`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
-immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
-`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
-entirely. Take it before the write, not after: a sentence read in order is the instruction.
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
 
 Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is

@@ -5,24 +5,14 @@
 # --------------------
 # `gateEvidence.{gate}.tree` is only meaningful if the producer (fm-verify / fm-e2e /
 # fm-parity) and the consumer (fm-route Step 1a, fm-progress) compute it the SAME way.
-# It began as a shell pipeline printed in CLAUDE.md for five call sites to reproduce and
-# has since been corrected once per round. Every defect had the same shape: a predicate
-# that also matched a neighbouring case it was never meant to own.
+# It began as a shell pipeline printed in CLAUDE.md for five call sites to reproduce.
 #
-#   v0.15.2  cwd-relative     -> hashed the empty set from appDir: a CONSTANT a hard gate
-#                               reads as a pass on any code.
-#   v0.15.3  locale, symlinks, sparse, gitlinks, partial-failure stdout, newline paths,
-#            glob pathspecs, manifest self-reference.
-#   v0.15.4  the sparse branch swallowed ordinary DELETION (stale index blob reported as
-#            present = false pass); the gitlink branch ran `git -C` on an *empty*
-#            uninitialized submodule, which walks UP and returns the PARENT's HEAD, so
-#            every unrelated parent commit moved the hash = permanent deadlock.
-#
-# The rules that follow from that history:
+# Three rules, learned the hard way — every past defect broke one of them:
 #   1. Resolve from git's own object model, never by following the filesystem.
 #   2. Decide each case on an explicit discriminator, never on "whatever else matches".
 #   3. Anything unresolved is a loud failure or an explicit marker — never an empty field,
-#      never a silently reduced file set, never a constant.
+#      never a silently reduced file set, never a constant. (The empty set hashes to
+#      e69de29b…, and a constant presented as evidence passes any gate.)
 #
 # USAGE
 #   gate-tree-hash.sh [--manifest] [--exclude <repo-relative-path>]... [--] <watch-path>...
@@ -137,29 +127,13 @@ while IFS= read -r -d '' f; do
   if [ -L "$f" ]; then
     # git stores the link TARGET, not the pointed-to bytes; following it would make the hash
     # depend on files outside the repo, or fail on a dangling link. Hash the target from the
-    # WORKING TREE, because that is what every other file kind here uses and what the gate
-    # actually ran against: an earlier revision preferred the index blob, so a tracked symlink
-    # retargeted-but-unstaged hashed identically and the gate was blind to it — a false pass,
-    # and an inconsistency with the regular-file branch two lines down.
-    # `readlink | git hash-object --stdin` is a PIPE on purpose: `$( )` strips trailing
-    # newlines, which would collapse a target ending in one onto a target that does not.
-    # git's blob for a symlink is the target string with NO trailing newline, so `printf '%s'`
-    # is what makes a clean tracked link hash identically to its index blob — piping `readlink`
-    # straight in appends a newline and made a full checkout disagree with a sparse one, which
-    # resolves the same link through the index branch below.
-    # A target that itself ends in a newline is indistinguishable here; BSD `readlink` normalises
-    # it away regardless, so this is documented rather than defended.
-    # `$( )` strips trailing newlines, so a target ending in one would hash the same as one that
-    # does not. Compare the raw byte count against the stripped value and refuse the difference
-    # rather than record a value two distinct links share.
-    if lt=$(readlink -- "$f" 2>/dev/null); then
-      raw=$(readlink -- "$f" 2>/dev/null | wc -c | tr -d '[:space:]')
-      if [ "$raw" -gt "$(( ${#lt} + 1 ))" ]; then
-        echo "gate-tree-hash: symlink target has trailing newline(s), cannot record: $f" >&2; exit 1
-      fi
-    fi
-    if [ -n "${lt+x}" ] && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) \
-       && [ -n "$th" ]; then
+    # WORKING TREE, so an unstaged retarget moves the hash. `printf '%s'` (no trailing newline)
+    # is what makes a clean link agree with its index blob, which the sparse branch below uses.
+    # Chain `readlink`'s status into the same condition: assigning it in a separate statement
+    # leaves `lt` SET-but-empty on failure, and the empty string hashes to the empty-blob
+    # constant — a false pass wearing a SYMLINK label.
+    if lt=$(readlink -- "$f" 2>/dev/null) \
+       && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ]; then
       printf 'SYMLINK %s %s\n' "$th" "$f"
     elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
       printf 'SYMLINK %s %s\n' "$o" "$f"

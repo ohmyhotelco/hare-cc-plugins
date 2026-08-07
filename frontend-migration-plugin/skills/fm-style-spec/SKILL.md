@@ -77,11 +77,8 @@ side is `unresolved`, which counts as absent and fails the gate), `workingLangua
 
 ### Step 5: Record
 
-**Tracker lock.** Every `tracker.json` read-modify-write in this step happens **inside**
-`docs/migration/.tracker.lock`, acquired *after* the lock this skill already holds and released
-immediately after the write (CLAUDE.md → Lock file). The page lock does not protect
-`tracker.json` — twelve writers share that one file, and `fm-extract` holds a different lock
-entirely. Take it before the write, not after: a sentence read in order is the instruction.
+**Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
 
 1. Verify `style-spec.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
