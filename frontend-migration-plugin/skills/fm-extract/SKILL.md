@@ -49,9 +49,13 @@ Resolve the dependent set exactly as Step 5.3 defines it (every page whose `migr
 `sharedDeps[]` names a package this run will rewrite).
 
 - **Any dependent with `flipPrOpenedAt` set → stop here, before `package-extractor` writes a single
-  byte.** Name those pages and require `fm-route {page} --revert` on each first. Refusing in Step 5
-  would refuse *after* the dependency it protects had already changed.
-- Otherwise apply Step 5.3's clear to each dependent now (this is the "clear it **before**" half of
+  byte.** **Release `.packages.lock` first** — Step 6 is the only other release, so stopping here
+  without it leaves the lock held by a run that has ended and refuses every retry. Then name those
+  pages and require `fm-route {page} --revert` on each. Refusing in Step 5 would refuse *after* the
+  dependency it protects had already changed.
+- Otherwise apply Step 5.3's clear to each dependent now — **inside `docs/migration/.tracker.lock`**,
+  taken after `.packages.lock` and released right after the write (CLAUDE.md → Lock file); Step 5's
+  lock paragraph is scoped to the writes *below* it and does not reach this one (this is the "clear it **before**" half of
   the double clear; Step 5.3 does the second). Stated only in Step 5, the first clear could never
   happen in time, and the race it exists to close stayed open.
 

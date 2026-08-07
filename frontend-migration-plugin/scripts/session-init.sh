@@ -206,6 +206,7 @@ if [ -n "$PAGES" ]; then
     # an unguarded read would outlive it on any page and override even `flipped`, for which this
     # hook must print no command at all (CLAUDE.md -> Per-page State Machine).
     case "$status" in
+      gen-failed) : ;;   # its recovery is a RESUME (fm-gen Step 6); --force would discard it
       *-failed)
         if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
           STEP="fm-gen"; FLAGS=" --force"

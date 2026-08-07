@@ -112,5 +112,7 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 ## Rules
 - Output must `tsc`-compile. Verify with a quick typecheck and report the result.
 - MSW responses match full TypeScript interfaces (complete mocks only).
-- Read-modify-write shared setup files (server.ts/handlers aggregator); never clobber other
+- Read-modify-write shared setup files (server.ts/handlers aggregator) **inside
+  `docs/migration/.app.lock`** (taken after the page lock, released right after the write —
+  CLAUDE.md → Lock file), since two page locks do not exclude each other; never clobber other
   features' handlers.

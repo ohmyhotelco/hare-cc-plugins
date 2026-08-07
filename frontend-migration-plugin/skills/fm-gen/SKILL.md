@@ -113,6 +113,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
+     **Clear `regenRequiredAt` too** — `fm-fix` writes it to mean "a full regeneration is still
+     owed", and this run is that regeneration. The SessionStart hook and `fm-progress` read it;
+     left standing it outlives the run it asked for and hijacks every later `*-failed` state.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"

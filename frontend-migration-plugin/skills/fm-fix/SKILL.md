@@ -108,7 +108,8 @@ Read `fix-report.json`:
   would claim a generation that never ran and point the session hook at `fm-verify`.
 - gate re-run `pass` → **set the status to `generated` and clear every trace the fix invalidated**:
   `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`, and
-  `routePrepared` / `flagKey` — exactly the set `fm-gen` Step 5.3 and `fm-delta` Step 5 clear, for
+  `routePrepared` / `flagKey`, **and `regenRequiredAt`** (this run changed code, so no regeneration
+  is owed any more) — exactly the set `fm-gen` Step 5.3 and `fm-delta` Step 5 clear, for
   exactly the same reason: **this skill changed code.** The whole gate chain re-runs from
   `fm-verify`. **Never set any gate's passed state here** — the fixer's own re-run is a repair
   signal, not a gate result: the gate report on disk still records the old `fail` (the fixer writes
