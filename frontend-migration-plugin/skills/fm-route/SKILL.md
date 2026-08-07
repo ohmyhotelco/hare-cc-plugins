@@ -65,13 +65,12 @@ state it was in before the flip, and one it genuinely earned. From `parity-passe
 current status** and only clears the route fields, undoing a `--flag-off` or a prepared-but-not-live
 flip (whether or not PR2 was actually opened — see the field's definition in CLAUDE.md).
 
-**What the status means after a revert.** `--revert` edits the in-repo artifact; nothing in this
-plugin deploys, so the edge keeps serving v2 until the rollback PR is merged and propagated.
-`flipped` is defined as "the edge is serving v2", and clearing it records the **rollback
-decision**, not its propagation — unlike the flip direction, where `--confirm-live` exists
-precisely because a human has to observe the deploy. Say so in the report: the operator must open
-and merge the rollback PR, and must not start a fresh `--flag-off`/`--flag-on` cycle for the page
-until it has propagated, or the two PRs race at the edge.
+**Tell the operator the rollback is not finished.** `--revert` edits the in-repo artifact; the
+edge returns to legacy when the rollback PR is merged and propagated — the soft rollback this
+plugin targets at 5–10 minutes (`templates/strangler-fig.md`). Step 4's clearing of `flippedAt`
+records that rollback, and `templates/capture-provenance.md` reads it that way, so the report must
+say plainly that the operator has to complete it, and must not start a fresh
+`--flag-off`/`--flag-on` cycle before it propagates or the two PRs race at the edge.
 It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
 and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
 skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
@@ -201,10 +200,18 @@ unavailable, skip this step.
 ### Step 2: Lock
 **The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
 prompt a human, and a lock must never be held across a prompt — but it means the state can move
-between the check and the write. **Re-verify Step 0a's precondition, Step 1's gate guard, Step 1-pre's
-`routePrepared`, and Step 1a's hashes once the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
-demote the page while the operator is reading the Step 1b findings, and the whole point of those
-guards is that a flip never proceeds from a status the page no longer has.
+between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
+for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
+`routePrepared`, and Step 1a's hashes. A concurrent `fm-fix` or `fm-delta` can demote the page
+while the operator is reading the Step 1b findings, and the whole point of those guards is that a
+flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
+`--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates
+the dead end that revert removed: a hard gate with no acknowledgement path, in a state where no
+gate can re-run to clear it.
+
+**Any refusal here releases the lock first.** Step 4's release is the only other one, and it is not
+reached on this path — stopping without releasing strands the page under a holder that has ended
+and refuses every recovery the refusal itself prescribes.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`

@@ -225,6 +225,17 @@ if [ -n "$PAGES" ]; then
         FLAGS=" --flag-on"
       fi
     fi
+    # A flip in flight at any status other than parity-passed: fm-extract can demote a dependent
+    # to `generated` while a concurrent --flag-on records the timestamp. Every status writer
+    # refuses while it stands, so fm-verify (the normal next step for `generated`) would refuse
+    # too; `--revert` is the only command that admits it (fm-route Step 0a).
+    case "$status" in
+      parity-passed|flipped|done) : ;;
+      *) if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+           STEP="fm-route"; FLAGS=" --revert"
+           NOTE="a flip is in flight on a page below parity-passed; every other command refuses until it is reverted"
+         fi ;;
+    esac
     # The scan covers every app, but a skill resolves the app from --app or `currentApp`, so a
     # command printed for a non-current app would silently operate on the current one.
     APPFLAG=""

@@ -30,8 +30,8 @@ target); reopening it is a manual decision.
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Lock
-This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale after
-30 min) before running the gate. If held and fresh, report who holds it and stop.
+This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale only when
+its holder is gone — CLAUDE.md → Lock file) before running the gate. If held and fresh, report who holds it and stop.
 
 ### Step 2: Resolve the run directory
 All commands run from `{monorepoRoot}/{appDir}`. If `appDir` is `"."`, run from root.

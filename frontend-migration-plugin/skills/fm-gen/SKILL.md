@@ -34,8 +34,11 @@ write is `packages.*` (its Step 5.1), so a successful extraction leaves the plan
 
 ### Step 2: Resume / demotion
 - If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
-  (how `fm-fix` sends a page back after `regenRequired`), **rewrite it with every phase pending
-  before running any**, and regenerate all of them — a completed state file would otherwise make
+  (how `fm-fix` sends a page back after `regenRequired`), regenerate every phase — and **rewrite it
+  with every phase pending in Step 3, once the page lock is held and after the refusals below**,
+  never here: this bullet runs unlocked, so rewriting it now would let a run that is about to be
+  refused (`flipped`, `done`, a flip in flight, or a declined demotion) destroy the record anyway,
+  and would reset the ledger of another session's generation already in progress — a completed state file would otherwise make
   the resume path a no-op, and a `--force` run that dies in an early phase would leave the later
   phases still marked done, so the next plain resume would skip them and reach `generated`
   carrying exactly the code the fix refused to certify.

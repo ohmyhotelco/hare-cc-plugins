@@ -65,7 +65,9 @@ intervention then `fm-fix`, `flipped` → no command (mark `done` by hand once t
 deleted); a `verified`/`e2e-passed`/`parity-passed` page whose `verifiedAt` is **absent** → **no
 command**, only the note that `fm-delta`'s Full branch cleared the authorization and the chain
 restarts at `fm-analyze` (naming a gate here would re-gate against the pre-drift plan and reach a
-flip with the drift never migrated); a `*-failed` page with `regenRequiredAt` set → `fm-gen
+flip with the drift never migrated); a page with `flipPrOpenedAt` set at any status **other than**
+`parity-passed`/`flipped`/`done` → `fm-route --revert` (every other command refuses while a flip is
+in flight, so the normal next step would be refused); a `*-failed` page with `regenRequiredAt` set → `fm-gen
 --force` (the last fix changed no code); a page under an app other than `currentApp` → append
 `--app {app}`;
 and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on

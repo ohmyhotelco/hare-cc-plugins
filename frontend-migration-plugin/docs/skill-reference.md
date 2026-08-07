@@ -4,8 +4,8 @@ Every `fm-*` skill, the agent it drives, its key inputs/outputs, and the tracker
 State files live under `docs/migration/{app}/{page}/` (including `gate-tree/{gate}.tsv`, the
 per-file manifest behind `gateEvidence.{gate}.tree`, and the `*.next.json` staging `fm-delta`
 promotes); the global tracker is
-`docs/migration/tracker.json`. Skills that mutate state take the page `.lock` (stale after
-30 min). `fm-progress` is read-only and takes no lock; the Codex audit **is not** — it writes
+`docs/migration/tracker.json`. Skills that mutate state take the page `.lock` (stale only when its
+holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock sweep, not a timeout). `fm-progress` is read-only and takes no lock; the Codex audit **is not** — it writes
 `codex-audit.json` and the tracker's `codexAudit` field, and takes the page lock for those writes.
 
 | Skill | Agent | Input → Output | State set |
