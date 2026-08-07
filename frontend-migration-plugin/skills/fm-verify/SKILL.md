@@ -136,7 +136,9 @@ scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resol
   backward compatibility.
 - any hard tool fails (tsc / build / vitest / eslint) → `verify-failed`, with the failing summary.
   A Prettier advisory alone never sets `verify-failed`.
-- the spec **exists but its results are not in the output, and every hard tool passed** →
+- the spec **exists but its results are not in the output, and no hard tool failed** (eslint
+  `skipped` counts here exactly as it does in the pass branch above — it is neither a pass nor a
+  failure, and an app that has not installed the lint deps yet is the ordinary early state) →
   `verify-failed`, with the failing summary `i18n key-coverage spec not collected: <path>` and
   **no `regenRequiredAt`** (Step 4a). Both halves are load-bearing: without the status the page
   keeps its entry status and `fm-fix` — the remedy Step 7 names — refuses it; without the summary
