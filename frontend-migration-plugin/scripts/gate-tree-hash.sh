@@ -126,28 +126,24 @@ while IFS= read -r -d '' f; do
   # git call, not three: `mode`/`flag` are only consulted for the cases that require them.
   if [ -L "$f" ]; then
     # git stores the link TARGET, not the pointed-to bytes; following it would make the hash
-    # depend on files outside the repo, or fail on a dangling link. Hash the target from the
-    # WORKING TREE, so an unstaged retarget moves the hash. `printf '%s'` (no trailing newline)
-    # is what makes a clean link agree with its index blob, which the sparse branch below uses.
-    # Chain `readlink`'s status into the same condition: assigning it in a separate statement
-    # leaves `lt` SET-but-empty on failure, and the empty string hashes to the empty-blob
-    # constant — a false pass wearing a SYMLINK label.
-    if lt=$(readlink -- "$f" 2>/dev/null) \
-       && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ]; then
-      # That same stripping makes a target ENDING in a newline indistinguishable from one that
-      # does not: two distinct links share a hash, so retargeting between them is invisible to
-      # the gate, and the sparse branch below (which reads the exact index blob) disagrees on an
-      # unchanged link. The script cannot represent this target, so it refuses it — rule 3.
-      # `${#lt}` is a BYTE count only because LC_ALL=C is exported at the top of this file.
-      raw=$(readlink -- "$f" 2>/dev/null | wc -c | tr -d '[:space:]')
-      [ "$raw" -le "$(( ${#lt} + 1 ))" ] || {
-        echo "gate-tree-hash: symlink target ends in a newline, cannot record: $f" >&2; exit 1; }
-      printf 'SYMLINK %s %s\n' "$th" "$f"
-    elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
-      printf 'SYMLINK %s %s\n' "$o" "$f"
-    else
-      echo "gate-tree-hash: cannot read symlink target: $f" >&2; exit 1
-    fi
+    # depend on files outside the repo, or fail on a dangling link. Read the target from the
+    # WORKING TREE, so an unstaged retarget moves the hash.
+    #
+    # Read it ONCE, and with perl rather than `readlink`(1) — both properties are load-bearing:
+    #   * Two reads let the link be retargeted between them, and the record would carry the first
+    #     read's hash while the gate ran against the second's target.
+    #   * `readlink`(1) appends its own newline, and BSD strips one the target actually has, so a
+    #     target ending in a newline is indistinguishable from one that does not: two links share
+    #     a record, and the sparse branch below (which reads the exact index blob) disagrees on an
+    #     unchanged link. perl's `readlink` is the syscall, so it returns the bytes git stored.
+    #   * `$( )` strips trailing newlines; `$(cmd && printf x)` with `${lt%x}` keeps them.
+    # `-L` already proved this is a symlink, so failing to read it is a real error. Falling back
+    # to the index blob here would silently stop detecting unstaged retargets.
+    lt=$(perl -e 'my $t = readlink($ARGV[0]); exit 1 unless defined $t; print $t' "$f" && printf x) \
+      || { echo "gate-tree-hash: cannot read symlink target (needs perl): $f" >&2; exit 1; }
+    th=$(printf '%s' "${lt%x}" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ] \
+      || { echo "gate-tree-hash: cannot hash symlink target: $f" >&2; exit 1; }
+    printf 'SYMLINK %s %s\n' "$th" "$f"
   elif [ -f "$f" ]; then
     if ! h=$(git hash-object -- "$f" 2>/dev/null) || [ -z "$h" ]; then
       echo "gate-tree-hash: cannot hash working-tree file: $f" >&2; exit 1

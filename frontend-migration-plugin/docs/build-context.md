@@ -785,8 +785,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 - **Round 10 (v0.17.3) — subtraction.** Nine rounds established the pattern: each round's blocker
   sat inside the previous round's fix. The cause is structural — a contradiction needs two
   statements, so restating a rule in N places creates N² ways to disagree, and every round that
-  answered a finding with more prose enlarged the next round's target. This round removed instead:
-  105 lines deleted, 72 added, no new rule.
+  answered a finding with more prose enlarged the next round's target. This round removed instead — the
+  net is subtractive, and no new rule was added.
 
   The tracker-lock rule was written out in full — five identical lines — in 13 places, and rounds 8
   and 9 were both spent on copies of it that had drifted. Each site is now two lines pointing at
@@ -795,27 +795,35 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
   In `gate-tree-hash.sh`, round 9 had split the `readlink` check into two statements, which left
   `lt` set-but-empty when `readlink` failed: the empty string hashed to `e69de29b…` under a
-  `SYMLINK` label — the exact false-pass constant this script exists to prevent. Chaining
-  `readlink`'s exit status back into one condition closes it; a failed read now falls through to
-  the index blob. The 22-line version-history header is now 8.
+  `SYMLINK` label — the exact false-pass constant this script exists to prevent. The 22-line
+  version-history header is now 8.
 
-  **Where the subtraction went too far, and both auditors caught it.** The same edit also deleted
-  round 9's trailing-newline guard, on the reasoning that its own comment called the case
-  "documented rather than defended" and then defended it. Both auditors independently returned the
-  same BLOCKER at the same line: `$( )` strips a trailing newline, so a target ending in one hashes
-  identically to one that does not — two distinct links share a record, a retarget between them is
-  invisible to the gate, and the sparse branch (which reads the exact index blob) disagrees on an
-  unchanged link. The guard is restored, now inside the success branch and with its dependency
-  stated: `${#lt}` is a byte count only because `LC_ALL=C` is exported at the top of the file. A
-  considered alternative — capturing the exact bytes via `$(readlink && printf x)` — was rejected
-  after execution showed the host `readlink` appends its own newline, which would have mis-hashed
-  *every* symlink. On macOS BSD `readlink` normalises the target, so the guard is only reachable on
-  GNU systems; that is stated, and was verified by emulating GNU `readlink`.
+  **Where the subtraction went too far — twice — and both auditors caught it both times.** The
+  same edit also deleted round 9's trailing-newline guard. Both auditors returned the same BLOCKER
+  at the same line: `$( )` strips a trailing newline, so a target ending in one records the same
+  hash as one that does not, a retarget between them is invisible to the gate, and the sparse
+  branch (which reads the exact index blob) disagrees on an unchanged link. Restoring round 9's
+  guard verbatim then drew a BLOCKER from each auditor again, for two different reasons: the guard
+  compares byte counts across a *second* `readlink` call, so a link retargeted between the two
+  reads is recorded with the first read's hash (Codex); and BSD `readlink` strips a newline the
+  target actually has and then appends its own, so on macOS the arithmetic never fires and the
+  wrong record is written anyway (Claude).
 
-  Verified by execution: hashes unchanged on real watch paths, the guard exits 1 under GNU
-  `readlink` exactly as round 9 did, a failed `readlink` falls back to the index blob (round 9
-  printed `e69de29b…` here), an unstaged retarget still moves the hash, and non-ASCII targets and
-  sparse-vs-full agree.
+  Both reasons are the same design fault — the guard needs a second read and byte arithmetic — so
+  the guard is gone and the read is fixed instead. The target is now read **once**, with perl's
+  `readlink` (the syscall, which returns the bytes git stored) captured via
+  `$(cmd && printf x)` + `${lt%x}`, which keeps the trailing bytes plain `$( )` strips. There is no
+  second read to race, no byte arithmetic, no `LC_ALL` coupling, and no GNU/BSD split; the
+  pathological target is now recorded *correctly* rather than refused. `-L` has already proved the
+  entry is a symlink, so a failed read is a hard error — the old index-blob fallback would have
+  silently stopped detecting unstaged retargets whenever perl was unavailable.
+
+  Verified by execution against a scratch repo whose symlink targets include an ASCII one, a
+  Korean one, and one ending in a newline: every record equals its index blob; a retarget between
+  the newline and non-newline forms moves the aggregate (it did not before); sparse and full
+  checkouts agree; a normal unstaged retarget still moves the hash; a dangling link hashes its
+  target string; a broken perl exits 1 with empty stdout rather than degrading to the index; and
+  the hashes for real watch paths are identical to round 9's script.
 
   Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
   over-implementation.
