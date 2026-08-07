@@ -361,6 +361,7 @@ releases it on completion or failure. The lock is JSON with at least these field
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`** (via the skill that launched them) |
 
 The page lock does **not** protect `tracker.json`. Eleven writers Read-Modify-Write that single
 shared file, and `fm-extract` does so while holding only the packages lock — so **no lock is common
@@ -370,7 +371,7 @@ one file is a supported state too. A lost update silently drops a status transit
 `gateEvidence` record — and a dropped `gateEvidence` is exactly the input that makes
 `fm-route` Step 1a acknowledge instead of block.
 
-**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.tracker.lock`.**
+**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.app.lock` → `.tracker.lock`.**
 Never the reverse, or two sessions deadlock. Hold `.tracker.lock` only across the read-modify-write
 itself — open it, re-read `tracker.json`, apply your change, write, release — never across an agent
 launch, a gate run, or any other long step. Same JSON schema and same 30-minute staleness rule as

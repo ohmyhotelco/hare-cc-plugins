@@ -29,6 +29,11 @@ precondition — the page's `parity-passed` status + `verifiedAt` from `tracker.
 `workingLanguage`. See
 `templates/strangler-fig.md` for both templates.
 
+## App lock
+The routing artifact (`infraDir` nginx block + flag entry, or `cloudfrontDir/<manifest>`) is shared
+by every page. Read-Modify-Write it inside `docs/migration/.app.lock`, taken after the page lock
+`fm-route` holds and released right after the write (CLAUDE.md → Lock file).
+
 ## Actions (mechanism-independent semantics)
 
 ### flag-off (code PR)

@@ -186,24 +186,32 @@ if [ -n "$PAGES" ]; then
     STEP=$(next_step "$status")
     FLAGS=$(next_flags "$status")
     NOTE=$(next_note "$status")
-    # A gate-passed status whose authorization has been cleared. fm-extract (a rewritten shared
-    # package) and fm-delta (legacy drift) both clear `verifiedAt`/gateEvidence and leave the
-    # status where it was, so a status-only reading walks the user --flag-off -> --flag-on ->
-    # refused (fm-route Step 1 reads verifiedAt) -> and back here, forever. The gates have to
-    # re-run; say so instead of recommending the flip.
+    # A gate-passed status whose authorization has been cleared. Status-only guidance walked the
+    # user --flag-off -> --flag-on -> refused (fm-route Step 1 reads verifiedAt) -> and back here.
+    # NAME NO STAGE: fm-extract demotes its dependents to `generated`, so the only path that still
+    # lands here is fm-delta's Full branch, which leaves the PRE-DRIFT plan in place. Resuming at
+    # fm-verify would pass on unmodified code, re-gate against that stale plan, and reach a flip
+    # with the drift never migrated. The recovery starts at fm-analyze and needs a legacy target
+    # this hook does not have, so it reports the situation and names no command.
     case "$status" in
       verified|e2e-passed|parity-passed)
         if [ -z "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].verifiedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
-          STEP="fm-verify"; FLAGS=""
-          NOTE="gate authorization was cleared (shared package rewritten, or legacy drift) — re-run the chain from the stage the change invalidated"
+          STEP=""; FLAGS=""
+          NOTE="gate authorization was cleared by legacy drift (fm-delta) — re-run the chain from fm-analyze as that run reported; do NOT resume at a gate, the plan is still the pre-drift one"
         fi ;;
     esac
     # A fix that changed no code restores the *-failed status and records regenRequiredAt. Without
     # this the *-failed wildcard sends the user back to fm-fix, which reproduces the same state.
-    if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
-      STEP="fm-gen"; FLAGS=" --force"
-      NOTE="the last fix changed no code; a full regeneration is required"
-    fi
+    # Guarded to the statuses fm-fix can restore: the timestamp is cleared by the next fm-gen, but
+    # an unguarded read would outlive it on any page and override even `flipped`, for which this
+    # hook must print no command at all (CLAUDE.md -> Per-page State Machine).
+    case "$status" in
+      *-failed)
+        if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+          STEP="fm-gen"; FLAGS=" --force"
+          NOTE="the last fix changed no code; a full regeneration is required"
+        fi ;;
+    esac
     # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;
     # flip artifact prepared + PR2 handed over -> waiting on merge+deploy, then --confirm-live.
     if [ "$status" = "parity-passed" ] && [ "$STEP" = "fm-route" ]; then

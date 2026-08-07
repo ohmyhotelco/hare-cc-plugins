@@ -25,8 +25,12 @@ build to its style values. Read `targetDir`, `appDir`, `packagesDir`, `monorepoR
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Blockers
-If the plan has unresolved `blockers` (unextracted shared candidates), stop and tell the user to
-run `/frontend-migration-plugin:fm-extract` first.
+If the plan has `blockers` (unextracted shared candidates), resolve each against
+`tracker.packages` — **not** against the plan, which `migration-planner` writes once and no skill
+rewrites. A blocker is unresolved while its candidate's `packages.<pkg>.status` is anything other
+than `extracted`. Stop only then, and tell the user to run `/frontend-migration-plugin:fm-extract`
+first. Reading the plan array as the live gate would refuse forever: `fm-extract`'s only tracker
+write is `packages.*` (its Step 5.1), so a successful extraction leaves the plan byte-identical.
 
 ### Step 2: Resume / demotion
 - If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
@@ -121,5 +125,7 @@ Advisory — never changes the page status. Surface its verdict in the report.
 
 ### Step 6: Report
 In `workingLanguage`: phases completed, files created, total tests with RED/GREEN evidence from
-each TDD phase, harness status, and any manual integration steps. Next step:
-`/frontend-migration-plugin:fm-verify {page}`.
+each TDD phase, harness status, and any manual integration steps. Next step: on **`generated`** →
+`/frontend-migration-plugin:fm-verify {page}`; on **`gen-failed`** → `/frontend-migration-plugin:fm-gen
+{page}` again, which resumes from the incomplete phase. `fm-verify` requires at least `generated`
+(its Step 0) and would refuse — the same carve-out the SessionStart hook and `fm-progress` make.
