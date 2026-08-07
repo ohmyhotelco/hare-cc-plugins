@@ -134,6 +134,14 @@ while IFS= read -r -d '' f; do
     # constant — a false pass wearing a SYMLINK label.
     if lt=$(readlink -- "$f" 2>/dev/null) \
        && th=$(printf '%s' "$lt" | git hash-object --stdin 2>/dev/null) && [ -n "$th" ]; then
+      # That same stripping makes a target ENDING in a newline indistinguishable from one that
+      # does not: two distinct links share a hash, so retargeting between them is invisible to
+      # the gate, and the sparse branch below (which reads the exact index blob) disagrees on an
+      # unchanged link. The script cannot represent this target, so it refuses it — rule 3.
+      # `${#lt}` is a BYTE count only because LC_ALL=C is exported at the top of this file.
+      raw=$(readlink -- "$f" 2>/dev/null | wc -c | tr -d '[:space:]')
+      [ "$raw" -le "$(( ${#lt} + 1 ))" ] || {
+        echo "gate-tree-hash: symlink target ends in a newline, cannot record: $f" >&2; exit 1; }
       printf 'SYMLINK %s %s\n' "$th" "$f"
     elif o=$(git rev-parse --quiet --verify ":$f" 2>/dev/null) && [ -n "$o" ]; then
       printf 'SYMLINK %s %s\n' "$o" "$f"

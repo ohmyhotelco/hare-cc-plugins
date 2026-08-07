@@ -786,21 +786,36 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   sat inside the previous round's fix. The cause is structural — a contradiction needs two
   statements, so restating a rule in N places creates N² ways to disagree, and every round that
   answered a finding with more prose enlarged the next round's target. This round removed instead:
-  100 lines deleted, 35 added, no new rule.
+  105 lines deleted, 72 added, no new rule.
 
   The tracker-lock rule was written out in full — five identical lines — in 13 places, and rounds 8
   and 9 were both spent on copies of it that had drifted. Each site is now two lines pointing at
   CLAUDE.md, where the rule actually lives; `fm-fix`'s Step-5 repeat is gone (Step 3 already scopes
   it to the whole skill), and the hardcoded "twelve writers" count went with it.
 
-  In `gate-tree-hash.sh`, round 9's symlink trailing-newline guard is deleted. Its own comment
-  called the case "documented rather than defended" and then defended it — and splitting the check
-  into two statements left `lt` set-but-empty when `readlink` failed, so a failed read hashed the
-  empty string to `e69de29b…` under a `SYMLINK` label: the exact false-pass constant this script
-  exists to prevent. Chaining `readlink`'s exit status back into one condition removes the guard
-  and the hole together. The 22-line version-history header is now 8. Verified by execution:
-  hashes unchanged on real watch paths, an unstaged retarget still moves the hash, and non-ASCII
-  targets and sparse-vs-full still agree.
+  In `gate-tree-hash.sh`, round 9 had split the `readlink` check into two statements, which left
+  `lt` set-but-empty when `readlink` failed: the empty string hashed to `e69de29b…` under a
+  `SYMLINK` label — the exact false-pass constant this script exists to prevent. Chaining
+  `readlink`'s exit status back into one condition closes it; a failed read now falls through to
+  the index blob. The 22-line version-history header is now 8.
+
+  **Where the subtraction went too far, and both auditors caught it.** The same edit also deleted
+  round 9's trailing-newline guard, on the reasoning that its own comment called the case
+  "documented rather than defended" and then defended it. Both auditors independently returned the
+  same BLOCKER at the same line: `$( )` strips a trailing newline, so a target ending in one hashes
+  identically to one that does not — two distinct links share a record, a retarget between them is
+  invisible to the gate, and the sparse branch (which reads the exact index blob) disagrees on an
+  unchanged link. The guard is restored, now inside the success branch and with its dependency
+  stated: `${#lt}` is a byte count only because `LC_ALL=C` is exported at the top of the file. A
+  considered alternative — capturing the exact bytes via `$(readlink && printf x)` — was rejected
+  after execution showed the host `readlink` appends its own newline, which would have mis-hashed
+  *every* symlink. On macOS BSD `readlink` normalises the target, so the guard is only reachable on
+  GNU systems; that is stated, and was verified by emulating GNU `readlink`.
+
+  Verified by execution: hashes unchanged on real watch paths, the guard exits 1 under GNU
+  `readlink` exactly as round 9 did, a failed `readlink` falls back to the index blob (round 9
+  printed `e69de29b…` here), an unstaged retarget still moves the hash, and non-ASCII targets and
+  sparse-vs-full agree.
 
   Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
   over-implementation.
