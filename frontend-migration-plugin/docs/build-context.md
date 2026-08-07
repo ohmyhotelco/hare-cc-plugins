@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-07)
 
-- **Build complete — v1.0.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.1.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -856,6 +856,43 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   watch paths hash identically to round 9's script.
 
   Origin: round 13, 2026-08-07.
+- **v1.1.0 — the journey-reachability audit (rounds 1-17).** A different audit axis from the ten
+  execution-order rounds that preceded v1.0.0: not "do these documents agree" but **"does every
+  usage scenario complete when the commands are run in order"** — simulate the user journeys, find
+  logical errors and steps that can never be reached. Seventeen rounds, each double-audited, scoped
+  to this repository.
+
+  **What the plugin actually had wrong.** Four next-step loops. `fm-extract` and `fm-delta` cleared
+  a page's gate authorization and left its status advanced, so the advisors walked the user
+  `--flag-off` → `--flag-on` → refused → back, forever; `regenRequiredAt` had no reader at all, so
+  a fix that changed no code was sent back to `fm-fix` to reproduce itself. The SessionStart hook
+  scanned every app but printed no `--app`, so guidance for a non-current app silently operated on
+  the current one. `fm-gen` Step 1 gated on the plan's static `blockers[]`, which `fm-extract`
+  never rewrites — a successful extraction left the refusal standing forever.
+
+  **What the rounds taught about fixing.** Two defect classes recurred until they were closed as
+  classes rather than instances: a lock left held on an early exit (four files, four rounds) and a
+  precondition read before the lock and never re-checked (five skills). Both are now single rules
+  in `CLAUDE.md` → Lock file, and both survived two later rounds of deliberate attack.
+
+  **Where the later rounds' defects came from: the fixes themselves.** Rounds 12, 13, 15 and 16
+  each broke the same sentence — `fm-verify` Step 6's Record enumeration — in the same way: one
+  input cell matched no branch, so no status was written, the page kept a healthy status, and
+  `fm-fix` refused it. Each fix added one condition and left another cell open. Reading the
+  conditions once more was never going to end it, so round 17 required a **truth table** instead:
+  both auditors independently enumerated 288 reachable cells and confirmed **zero unmatched**. That
+  is the difference between arguing a class is closed and showing it.
+
+  Adjudicated and deliberately not fixed, each with the reason recorded in place: `done` being set
+  by hand; the absence of a `--confirm-reverted` action and the provenance window that follows from
+  it; `budgetSeconds` implemented only by `parity-verifier`; the exit-code split assuming vitest's
+  default reporter.
+
+  Version: minor, not patch — `.app.lock` is a new lock scope, `migration-fixer` gained the test
+  harness as a repair domain, and `fm-verify`'s coverage gate went from three outcomes to five.
+  Nothing was removed and no precondition tightened, so nothing breaks.
+
+  Origin: rounds 1-17, 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
