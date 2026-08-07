@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-07)
 
-- **Build complete — v2.0.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.1.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -856,7 +856,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   watch paths hash identically to round 9's script.
 
   Origin: round 13, 2026-08-07.
-- **v2.0.0 — the journey-reachability audit (rounds 1-17).** A different audit axis from the ten
+- **v1.1.0 — the journey-reachability audit (rounds 1-17).** A different audit axis from the ten
   execution-order rounds that preceded v1.0.0: not "do these documents agree" but **"does every
   usage scenario complete when the commands are run in order"** — simulate the user journeys, find
   logical errors and steps that can never be reached. Seventeen rounds, each double-audited, scoped
@@ -890,25 +890,26 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   it; `budgetSeconds` implemented only by `parity-verifier`; the exit-code split assuming vitest's
   default reporter.
 
-  **Version: major.** The first draft of this entry called it minor on the premise that "nothing
-  was removed and no precondition tightened". Both auditors falsified that premise, and it was
-  the whole justification, so the level moves with it. Two changes are incompatible for a project
-  already mid-migration:
+  **Version: 1.1.0, by maintainer decision, with the incompatibilities stated.** The first draft
+  called it minor on the premise that "nothing was removed and no precondition tightened". Both
+  round-18 auditors falsified that premise, and it is recorded here rather than dropped, because
+  two changes are genuinely incompatible for a project already mid-migration:
   - `fm-verify` **tightened a pass precondition**. `present` used to mean the key-coverage spec
     file exists; it now means the spec's results appear in the run. A page that was `verified`
-    under 1.0.0 with a spec that vitest never collected becomes `verify-failed` under this
-    release, with no change to its code.
+    under 1.0.0 with a spec vitest never collected becomes `verify-failed` here, with no change to
+    its code.
   - `fm-extract` **removed a capability and replaced it with a refusal**. A dependent carrying
-    `flipPrOpenedAt` used to have the field cleared while the run proceeded; the run is now
-    refused outright until the operator reverts that flip. An extraction that completed under
-    1.0.0 is refused here. (The old behaviour already violated CLAUDE.md's "only legal consumers"
-    rule, so this is a correctness fix — but it is still a removal plus a new precondition.)
+    `flipPrOpenedAt` used to have the field cleared while the run proceeded; the run is now refused
+    until the operator reverts that flip. An extraction that completed under 1.0.0 is refused here.
 
-  Both are defect fixes and both are worth having. Neither is compatible, and a version number
-  that says otherwise is the same claim-the-tree-does-not-support defect this project has spent
-  twenty-seven rounds removing. Added behaviour in the same release: `.app.lock` as a new lock
-  scope, `migration-fixer` gaining the test harness as a repair domain, and the coverage gate
-  going from three outcomes to five.
+  Both are correctness fixes — the old coverage gate passed specs that never ran, and the old
+  `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule. The maintainer chose
+  to stay on the v1 line rather than take a major, so the two notes above are the upgrade guidance:
+  a page that flips to `verify-failed` needs `fm-fix` (or `fm-gen --force` if the spec is absent),
+  and an extraction refused for an in-flight flip needs `fm-route {page} --revert` first. Added
+  behaviour in the same release: `.app.lock` as a new lock scope, `migration-fixer` gaining the
+  test harness as a repair domain, the coverage gate going from three outcomes to five, and new
+  discriminators in both next-step advisors.
 
   Origin: rounds 1-17, 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
