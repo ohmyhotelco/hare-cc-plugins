@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-08-06)
+## Status (2026-08-07)
 
-- **Build complete — v0.17.3.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.0.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -782,7 +782,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   which is stated rather than claimed as tested.
 
   Origin: round 9 of the convergence loop, 2026-08-06.
-- **Round 10 (v0.17.3) — subtraction.** Nine rounds established the pattern: each round's blocker
+- **Round 10 (v1.0.0) — subtraction.** Nine rounds established the pattern: each round's blocker
   sat inside the previous round's fix. The cause is structural — a contradiction needs two
   statements, so restating a rule in N places creates N² ways to disagree, and every round that
   answered a finding with more prose enlarged the next round's target. This round removed instead — the
@@ -829,6 +829,20 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
   Origin: round 10, 2026-08-07 — the standing instruction to keep rules minimal and avoid
   over-implementation.
+- **v1.0.0 — promotion.** The version reflects the tooling's stability, not a runtime milestone:
+  eleven independent audit rounds, the last of which returned **zero blockers from both auditors**
+  on the one component a hard gate rests on. The surface is now shrinking rather than growing —
+  round 10 and 11 together are net subtractive — and the two structural consolidations (the
+  tracker-lock rule stated once instead of thirteen times, the version-history narration out of
+  `gate-tree-hash.sh`) were each cleared by both auditors.
+
+  **What 1.0.0 does not mean.** The plugin still has not been run end to end against a real v2
+  monorepo. That was the auditors' stated reason for withholding 1.0.0 earlier, and it has not
+  changed — it is a deliberate promotion of a tool that is internally consistent and
+  execution-verified in parts, not one that has migrated a page. The "Not yet runtime-validated"
+  entry below stands, and the PC end-to-end run remains the open follow-up.
+
+  Origin: 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
