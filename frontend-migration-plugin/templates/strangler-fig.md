@@ -122,8 +122,8 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
    thing nothing in the plugin can make for itself.
 3. **Rollback** — `fm-route <page> --revert`: nginx flag OFF, or remove the cloudfront behavior.
    Soft rollback, target 5–10 min (CloudFront propagation is minutes-grade — still within target).
-   Requires a live or in-flight route change to undo (`flipped`, or `parity-passed` with
-   `routePrepared`/`flipPrOpenedAt`); it returns a `flipped` page to `parity-passed` and otherwise
+   Requires a live or in-flight route change to undo (`flipped`, or `flipPrOpenedAt` set at any
+   status, or `parity-passed` with `routePrepared`); it returns a `flipped` page to `parity-passed` and otherwise
    leaves the status alone. It never promotes a page into a gate-passed state.
 
 ## Per-version S3 artifacts (recommended)

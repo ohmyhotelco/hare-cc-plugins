@@ -34,8 +34,11 @@ write is `packages.*` (its Step 5.1), so a successful extraction leaves the plan
 
 ### Step 2: Resume / demotion
 - If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
-  (how `fm-fix` sends a page back after `regenRequired`), ignore it and regenerate every phase from
-  the start — a completed state file would otherwise make the resume path a no-op.
+  (how `fm-fix` sends a page back after `regenRequired`), **rewrite it with every phase pending
+  before running any**, and regenerate all of them — a completed state file would otherwise make
+  the resume path a no-op, and a `--force` run that dies in an early phase would leave the later
+  phases still marked done, so the next plain resume would skip them and reach `generated`
+  carrying exactly the code the fix refused to certify.
 - Demotion warning: if the page status is `verified`/`e2e-passed`/`parity-passed`, warn that
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.
@@ -113,9 +116,11 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
-     **Clear `regenRequiredAt` too** — `fm-fix` writes it to mean "a full regeneration is still
-     owed", and this run is that regeneration. The SessionStart hook and `fm-progress` read it;
-     left standing it outlives the run it asked for and hijacks every later `*-failed` state.
+     **Clear `regenRequiredAt` — but only when every phase succeeded**, the same condition 5.1
+     writes `generated` under. `fm-fix` writes it to mean "a full regeneration is still owed", and
+     only a completed run discharges that. The SessionStart hook and `fm-progress` read it; left
+     standing it outlives the run it asked for and hijacks every later `*-failed` state, while
+     clearing it on a `gen-failed` run would drop the record while the debt stands.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"

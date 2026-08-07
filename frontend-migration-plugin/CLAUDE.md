@@ -361,7 +361,7 @@ releases it on completion or failure. The lock is JSON with at least these field
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
-| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`** (via the skill that launched them) |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
 
 The page lock does **not** protect `tracker.json`. Eleven writers Read-Modify-Write that single
 shared file, and `fm-extract` does so while holding only the packages lock — so **no lock is common

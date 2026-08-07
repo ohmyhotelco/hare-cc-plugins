@@ -58,9 +58,11 @@ the legacy app (`legacyPort`).
 - `cloudfront`: mark the `guardsPath` manifest entry **active** (path-pattern → v2 origin).
 
 ### revert (rollback) — guarded
-**Precondition (hard):** the page must be at `flipped`, or at `parity-passed` with `routePrepared`
-or `flipPrOpenedAt` set — i.e. there is a live or in-flight route change to undo. On any other
-status, **refuse**: there is nothing in rotation, and the caller would go on to write a
+**Precondition (hard):** the page must be at `flipped`, **or** have `flipPrOpenedAt` set at any
+status, **or** be at `parity-passed` with `routePrepared` set — i.e. there is a live or in-flight
+route change to undo. `flipPrOpenedAt` admits any status because a concurrent `fm-extract` can
+demote a page to `generated` while a flip is in flight, and `--revert` is the only exit every
+other rule points at. On any other status, **refuse**: there is nothing in rotation, and the caller would go on to write a
 gate-passed status no gate produced (`fm-route` Step 0a).
 
 Return the path to the legacy app. This is the soft rollback.

@@ -33,12 +33,15 @@ nginx `location` *and* the CloudFront path-pattern). Determine `action` from the
 actions, not three**: `--flag-off` | `--flag-on` | `--flag-on --confirm-live` | `--revert`.
 `--confirm-live` is a **distinct action**, not a modifier on `flag-on`: it edits no artifact, runs no
 agent, and only records the human's observation that the merged flip is live (Step 3 is skipped for
-it). Treating it as `flag-on` would re-activate the routing rule and re-ask the Step 1b
-acknowledgement the operator already gave. **Step 1a is not skipped, though**: it is a
-mechanical content check, not an acknowledgement, and the window between `--flag-on` and
-`--confirm-live` is exactly when another page's `fm-gen` can rewrite an app-wide file that sits
-in this page's `sourcePaths`. Confirming a flip live over code that moved since the PR was
-prepared is the false pass this gate exists to stop.
+it). Treating it as `flag-on` would re-activate the routing rule and re-run the Step 1a/1b
+acknowledgements the operator already gave. **Step 1a deliberately does not run here.** It is a
+hard gate with no acknowledgement path, and at `parity-passed` + `flipPrOpenedAt` no gate can
+re-run to clear it (`fm-verify` refuses while the timestamp stands; `fm-e2e`/`fm-parity`
+require earlier statuses) — so applying it here would make `flipped` unreachable and leave
+`--revert` of an already-deployed flip as the only move. Another page rewriting a shared file
+during the merge window can leave this page's evidence stale; `fm-progress` reports that, and
+it is not blocked here because the flip is already live and nothing this command does changes
+the edge.
 
 ### Step 0a: Action preconditions (all four actions)
 Every action writes or clears route state, so every action needs an entry condition. Read
@@ -48,7 +51,7 @@ Every action writes or clears route state, so every action needs an entry condit
 | --- | --- | --- |
 | `--flag-off` | `status = parity-passed`, and **no** `flipPrOpenedAt` | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
 | `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
-| `--flag-on --confirm-live` | `status = parity-passed`, `flipPrOpenedAt` present, **and Step 1a** | no flip is in flight — run `--flag-on` first; or the watch paths moved since the flip was prepared, which Step 1a names |
+| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
 | `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back |
 
 **`flipPrOpenedAt` at any status admits `--revert`** because every other rule in this plugin
@@ -61,6 +64,14 @@ prescribed exit refusing the state it was prescribed for.
 state it was in before the flip, and one it genuinely earned. From `parity-passed` it **keeps the
 current status** and only clears the route fields, undoing a `--flag-off` or a prepared-but-not-live
 flip (whether or not PR2 was actually opened — see the field's definition in CLAUDE.md).
+
+**What the status means after a revert.** `--revert` edits the in-repo artifact; nothing in this
+plugin deploys, so the edge keeps serving v2 until the rollback PR is merged and propagated.
+`flipped` is defined as "the edge is serving v2", and clearing it records the **rollback
+decision**, not its propagation — unlike the flip direction, where `--confirm-live` exists
+precisely because a human has to observe the deploy. Say so in the report: the operator must open
+and merge the rollback PR, and must not start a fresh `--flag-off`/`--flag-on` cycle for the page
+until it has propagated, or the two PRs race at the edge.
 It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
 and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
 skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
@@ -85,7 +96,7 @@ unless `tracker.json` records `routePrepared: true` from a prior `--flag-off`. W
 can be raised on a page whose code PR was never prepared, skipping the route-stage Codex audit that
 runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 
-### Step 1a: Gate-evidence freshness (`--flag-on` **and** `--flag-on --confirm-live`) — see CLAUDE.md → "Gate Result Accounting"
+### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code that changed after it. For each gate with a
 `gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
 page's **watch paths** from three recorded sources — never by guessing which files belong to the page:
@@ -165,7 +176,7 @@ because there is nothing to compare against:
 A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
 freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.
 
-### Step 1b: Codex audit acknowledgement (plain `--flag-on` only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
+### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
 `adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.

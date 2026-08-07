@@ -49,7 +49,7 @@ Resolve the dependent set exactly as Step 5.3 defines it (every page whose `migr
 `sharedDeps[]` names a package this run will rewrite).
 
 - **Any dependent with `flipPrOpenedAt` set → stop here, before `package-extractor` writes a single
-  byte.** **Release `.packages.lock` first** — Step 6 is the only other release, so stopping here
+  byte.** **Release `.packages.lock` first** — Step 5 is the only other release, so stopping here
   without it leaves the lock held by a run that has ended and refuses every retry. Then name those
   pages and require `fm-route {page} --revert` on each. Refusing in Step 5 would refuse *after* the
   dependency it protects had already changed.
@@ -117,8 +117,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    only the status and that timestamp, so a rewritten package would otherwise reach production
    through a flip prepared against the old one — but `--confirm-live` and `--revert` are that
    field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
-   would leave PR2 open with nothing in the tracker recording the in-flight flip. Stop before
-   writing anything, name those pages, and require `fm-route {page} --revert` on each first.
+   would leave PR2 open with nothing in the tracker recording the in-flight flip. **Release
+   `.packages.lock`**, then stop before writing anything, name those pages, and require
+   `fm-route {page} --revert` on each first — without the release, Step 2's "held and fresh →
+   report and stop" refuses the retry this very sentence asks for.
 
    The mechanics: `packages/shared-*` is watch-path
    axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package

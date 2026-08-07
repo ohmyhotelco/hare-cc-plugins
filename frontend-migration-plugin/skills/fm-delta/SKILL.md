@@ -119,7 +119,9 @@ after the user has chosen it.
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
     3. **Read the modifier's result before going on.** `delta-modifier` reports pass/fail rather
-       than aborting. On failing tsc/Vitest, **stop**: report it and leave
+       than aborting. On failing tsc/Vitest, **release the page `.lock` and stop** — Step 5's
+       release is the only other one on this branch, so stopping without it strands the page under
+       a lock whose holder has ended. Report the failure and leave
        `migration-plan.next.json` / `analysis.next.json` staged. Step 5 promotes the staged
        baseline and writes `generated`, and Step 5 itself states that a run which failed here
        "leaves the reference untouched" — continuing unconditionally is what breaks that, and a
