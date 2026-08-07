@@ -60,7 +60,9 @@ tracker from the edge flag still serving production traffic (CLAUDE.md → Per-p
 transfer — this is the pipeline's *first* sub-agent Playwright run, three stages before `fm-e2e`.
 Ensure `.claude/settings.json` `permissions.allow` includes the Playwright command (e.g.
 `Bash(npx playwright *)`); if missing, add it (Read-Modify-Write the settings file) and note it in
-the report. Without it the probe cannot launch and the extractor silently falls back to the
+the report. Resolve the app's `legacyPort` / `port` / `domain` here too — Step 4 hands all three to
+the extractor for provenance side-resolution, and an unresolved one makes every capture
+`unresolved`. Without it the probe cannot launch and the extractor silently falls back to the
 `source-derived` cascade — the spec still parses, so nothing fails, but the "live legacy render is
 the answer key" premise (v0.9.0) is lost on the very first page and every downstream gate compares
 against eyeballed values.

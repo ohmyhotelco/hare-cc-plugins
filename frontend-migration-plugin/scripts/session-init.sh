@@ -201,8 +201,9 @@ if [ -n "$PAGES" ]; then
         fi ;;
     esac
     # regenRequiredAt means a full regeneration is owed. Two writers set it: fm-fix when a fix
-    # changed no code, and fm-verify when the i18n key-coverage spec is absent. Without this the
-    # *-failed wildcard sends the user to fm-fix, which reproduces the same state in both cases.
+    # changed no code, and fm-verify when the i18n key-coverage spec is absent; fm-gen clears it on
+    # a complete run and fm-verify on a passing gate. Without this the *-failed wildcard sends the
+    # user to fm-fix, which reproduces the same state in both cases.
     # Guarded to the statuses fm-fix can restore: the timestamp is cleared by the next fm-gen, but
     # an unguarded read would outlive it on any page and override even `flipped`, for which this
     # hook must print no command at all (CLAUDE.md -> Per-page State Machine).

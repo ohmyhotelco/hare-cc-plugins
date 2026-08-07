@@ -50,10 +50,17 @@ The key-coverage spec `foundation-generator` scaffolds (`templates/i18n-copy-par
 Step 4's `npx vitest run`, so a missing/locale-gapped key — or a markup/entity value rendered as
 plain text (K3) — already **fails the gate** there; there is no separate command here. What this
 step adds is that the spec **exists**, so the check cannot be silently removed:
-- Config has an `i18n` block and the app has the spec → note it as `present` and surface its
-  `uncheckable` (dynamic-key) count from the vitest output. A rising count is a signal, not a pass.
+- Config has an `i18n` block, the app has the spec, **and the spec's results appear in Step 4's
+  vitest output** → note it as `present` and surface its `uncheckable` (dynamic-key) count from
+  that output. A rising count is a signal, not a pass. **File existence is not the test** — a spec
+  vitest never collected produces no output to read, and recording `present` from the file alone is
+  the pass-you-did-not-observe Step 5 forbids.
 - Config has an `i18n` block but the spec is **absent** → **gate failure**; point at
   `foundation-generator` (re-run `fm-gen`'s foundation phase).
+- Config has an `i18n` block, the spec **exists but vitest did not collect it** → **gate failure**,
+  and **do not** record `regenRequiredAt`: the spec is already there, so a full regeneration would
+  not change the collection. This is an ordinary `verify-failed` whose remedy is `fm-fix` — the
+  include pattern or test config is what needs repair.
 - No `i18n` block in config → record `skipped` (never a silent pass); note that `fm-init` can add it.
 
 ### Step 4b: Lint (hard) & format (advisory)
@@ -77,9 +84,10 @@ Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
-  `formatWarnings`, **and clear `regenRequiredAt`** — a passing gate means the debt it records is
-  discharged, however it was met (both are reporting surfaces for `fm-progress` and a human reading the tracker —
-  no gate branches on either; a Prettier advisory never fails anything). Also record
+  `formatWarnings` (both are reporting surfaces for `fm-progress` and a human reading the tracker —
+  no gate branches on either; a Prettier advisory never fails anything). **Clear `regenRequiredAt`**
+  — a passing gate means the full regeneration it records as owed is discharged, however it was
+  met. Also record
   `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   — the code state the pass rests on, so `fm-route` can tell a still-fresh PASS from a stale one (see
   CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`; if
@@ -123,7 +131,7 @@ scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resol
   `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and both next-step advisors
   already override the `*-failed` wildcard to `fm-gen --force` when that field is set — this is
   what puts them on the remedy this skill's own report names. `fm-gen` Step 5.3 clears it once a
-  full regeneration succeeds.
+  full regeneration succeeds, and this skill's own PASS branch clears it too.
 
 Release the lock.
 
