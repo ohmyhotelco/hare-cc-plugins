@@ -153,7 +153,7 @@ scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resol
   in `tracker.json` the harness repair in `migration-fixer`'s `verify-fix` mode has nothing to key
   on, since verify writes no report file.
 - the spec is **absent while `i18n` is configured** → `verify-failed` **and record
-  `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and both next-step advisors
+  `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and the next-step advisors
   already override the `*-failed` wildcard to `fm-gen --force` when that field is set — this is
   what puts them on the remedy this skill's own report names. `fm-gen` Step 5.3 clears it once a
   full regeneration succeeds, and this skill's own PASS branch clears it too.

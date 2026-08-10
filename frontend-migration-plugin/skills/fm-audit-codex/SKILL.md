@@ -74,7 +74,10 @@ reads config only), so every FSM status reaches here:
    not a fix mode" (`fm-fix` Step 1) — and it matches a bare `*-failed` wildcard, which is why every
    status router in this plugin carves it out ahead of one.
 5. `verify-failed` / `e2e-failed` / `parity-failed` → **`fm-fix {page}`**, which accepts exactly
-   these.
+   these — **except with `regenRequiredAt` set, which is `fm-gen {page} --force`**. That field means
+   a full regeneration is owed; `fm-fix` accepts the page, reports a pass, and deliberately does not
+   clear it (`fm-fix` Step 5), so the gate reproduces the same failure. The other next-step advisors
+   carve it out ahead of the `*-failed` wildcard for the same reason.
 6. below `generated` (`analyzed` / `style-specced` / `planned`) → **the chain's next step for that
    status**: `analyzed` → `fm-style-spec`, `style-specced` → `fm-plan`, `planned` → `fm-gen`. A page
    is only here because someone re-ran a producer on a page that had gone further — a supported

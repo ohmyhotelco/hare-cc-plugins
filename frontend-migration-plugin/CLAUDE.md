@@ -118,6 +118,12 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   minimum `appDir`; plus `targetDir`/`legacyDir`/ports for the stage it runs). Config-file presence
   is not app presence: a `--app hana` on a config scaffolded for `pc` only would otherwise fail deep
   inside an agent with an unresolved path rather than at Step 0 with a clear message.
+  **Every page-scoped command a skill, agent, or hook prints carries `--app {app}` whenever `app`
+  is not `currentApp`** — the reader pastes it into a fresh invocation, which resolves the app from
+  `--app` or `currentApp` and would otherwise act on a different app's page of the same name. The
+  page key is a relative path, so the same key existing under several apps is the normal case, and
+  the wrong-app run is not visible in its output. Stated once here rather than at each of the ~36
+  sites that print one.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
   how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate

@@ -69,7 +69,13 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
         echo "[Frontend Migration Plugin] Warning: $ARTIFACT edited for [$APP/$PAGE] (status: $STATUS)."
         FLIPPR=$(jq -r --arg a "$APP" --arg p "$PAGE" \
           '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
-        if [ -n "$FLIPPR" ]; then
+        if [ "$STATUS" = "done" ]; then
+          # Ahead of the flipPrOpenedAt branch: `done` is set by hand, so it can still carry that
+          # field, and --revert refuses a done page.
+          echo "  This page is 'done' — the legacy page has been deleted, so there is no legacy"
+          echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
+          echo "  fm-delta and fm-route --revert both refuse a done page."
+        elif [ -n "$FLIPPR" ]; then
           # fm-delta refuses a page with a flip in flight; recommending it would dead-end.
           echo "  A flip is in flight for this page (prepared $FLIPPR), so fm-delta refuses it."
           echo "  Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert first, then"
@@ -86,21 +92,15 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           echo "  Generation never completed for this page. Run"
           echo "  /frontend-migration-plugin:fm-gen $PAGE$APP_FLAG"
           echo "  (fm-delta needs a completed generation to modify)."
-        elif [ "$STATUS" = "done" ]; then
-          echo "  This page is 'done' — the legacy page has been deleted, so there is no legacy"
-          echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
-          echo "  fm-delta and fm-route --revert both refuse a done page."
         elif [ "$STATUS" = "flipped" ]; then
           echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
           echo "  Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert first, then"
-          echo "  fm-delta $PAGE$APP_FLAG (incremental mode preserves accumulated code fixes, but"
-          echo "  re-derives these artifacts from legacy source — this hand edit is not one of its"
-          echo "  inputs and does not survive)."
+          echo "  fm-delta $PAGE$APP_FLAG (incremental mode preserves accumulated code fixes)."
         else
           echo "  Generated code may be out of sync. Run"
           echo "  /frontend-migration-plugin:fm-delta $PAGE$APP_FLAG (incremental mode preserves"
-          echo "  accumulated code fixes, but re-derives these artifacts from legacy source — this"
-          echo "  hand edit is not one of its inputs and does not survive)."
+          echo "  accumulated code fixes). What it does with this hand edit depends on the"
+          echo "  artifact — see fm-delta Step 4 and Step 5."
         fi
         ;;
     esac
