@@ -84,7 +84,7 @@ upstream mà `frontend-react-plugin` dùng, qua `npx skills add … --copy` (ven
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Pattern composition component |
 
 Các agent nạp từng skill theo từng pha, có kiểm tra tồn tại — nếu cài đặt bị từ chối/vắng mặt
-(hoặc `externalSkills: false`) thì bỏ qua, không gây lỗi. `web-design-guidelines` và `agent-browser`
+(hoặc `externalSkills: false` (chỉ điều khiển việc CÀI ĐẶT và cảnh báo phiên — không chặn agent áp dụng skill đã có; muốn chặn thì xoá thư mục)) thì bỏ qua, không gây lỗi. `web-design-guidelines` và `agent-browser`
 (mà frontend-react-plugin dùng) cố ý không được áp dụng: độ trung thực UI do `fm-parity` đánh giá so
 với bản cũ, và E2E chạy trên Playwright.
 

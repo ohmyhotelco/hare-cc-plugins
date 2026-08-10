@@ -80,7 +80,7 @@ Fig, WebView/SSO)은 대신 `templates/`에 둡니다.
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | 컴포넌트 컴포지션 패턴 |
 
 에이전트는 각 스킬을 단계별로, 존재 여부를 가드하여 로드합니다 — 설치 거부/부재(또는
-`externalSkills: false`) 시 건너뛰며 실패하지 않습니다. `web-design-guidelines`와 `agent-browser`(fe-plugin이
+`externalSkills: false`(설치와 세션 경고만 제어 — 이미 설치된 스킬의 적용은 막지 않으므로, 막으려면 디렉터리를 지워야 합니다)) 시 건너뛰며 실패하지 않습니다. `web-design-guidelines`와 `agent-browser`(fe-plugin이
 사용)는 의도적으로 채택하지 않습니다: UI 충실도는 `fm-parity`가 레거시 베이스라인으로 판정하고, E2E는
 Playwright로 실행합니다.
 

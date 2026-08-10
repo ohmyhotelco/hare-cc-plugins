@@ -90,8 +90,10 @@ mapping, Strangler Fig, WebView/SSO) lives in `templates/` instead.
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance — applied **SSR-aware** (framework mode, not a Vite SPA) |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Component composition patterns |
 
-Agents load each per phase, guarded by existence — a declined/absent install (or
-`externalSkills: false`) is skipped, never fatal. `web-design-guidelines` and `agent-browser`
+Agents load each per phase, guarded by **existence**, not by the flag — a declined/absent install
+is skipped, never fatal. `externalSkills: false` governs installation and the session-start
+warning; it does not stop an agent applying a skill it finds, so remove the directories to do
+that. `web-design-guidelines` and `agent-browser`
 (used by frontend-react-plugin) are intentionally not adopted: UI fidelity is judged by `fm-parity`
 against the legacy baseline, and E2E runs on Playwright.
 

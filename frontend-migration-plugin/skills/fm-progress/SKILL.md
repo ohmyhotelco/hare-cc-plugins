@@ -63,9 +63,10 @@ For each in-flight page, print the exact next command, using the same mapping as
 hook — including its carve-outs: `gen-failed` → `fm-gen` (not `fm-fix`), `escalated` → manual
 intervention then `fm-fix`, `flipped` → no command (mark `done` by hand once the legacy page is
 deleted); a `verified`/`e2e-passed`/`parity-passed` page whose `verifiedAt` is **absent** → **no
-command**, only the note that `fm-delta`'s Full branch cleared the authorization and the chain
-restarts at `fm-analyze` (naming a gate here would re-gate against the pre-drift plan and reach a
-flip with the drift never migrated); a page with `flipPrOpenedAt` set at any status **other than**
+command**, only the note that the gate authorization was cleared and the last run's own report is
+authoritative about where to restart — `fm-delta` Full says `fm-analyze` (the plan is still
+pre-drift), a failed `fm-delta` says re-run `fm-delta`, and an `fm-extract` invalidation needs only
+the gates from `fm-verify`. Do not name one of them here; the hook does not either; a page with `flipPrOpenedAt` set at any status **other than**
 `parity-passed`/`flipped`/`done` → `fm-route --revert` (every other command refuses while a flip is
 in flight, so the normal next step would be refused); a `*-failed` page with `regenRequiredAt` set → `fm-gen
 --force` (**except `gen-failed`**, whose recovery is a resume — `--force` would discard it) (a full regeneration is owed — a fix that changed no code, or an absent i18n

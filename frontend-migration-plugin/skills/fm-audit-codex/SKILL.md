@@ -56,27 +56,36 @@ sequentially. The agent handles the page lock and the Read-Modify-Write of `code
 ### Step 3: Report
 In `workingLanguage`, summarize per stage: `verdict` (pass/concerns/fail/error/skipped) with high /
 med finding counts and the one-line summary. Make clear this is **advisory** — Claude's gate states
-are unchanged. If any unresolved `high` findings exist, call them out and name the command that
-**accepts the page's current state** — never the gate that owns the finding's stage, since `fm-e2e`
-requires exactly `verified` and `fm-parity` exactly `e2e-passed` and both refuse the state their own
-findings exist in:
-- page at `done` → **name nothing**. `fm-verify` refuses it and deliberately names no alternative
-  (the legacy page is deleted, so there is no rollback target); reopening it is a manual decision.
-  Say that, rather than a command.
-- page at `flipped`, or carrying `flipPrOpenedAt` → **`fm-route {page} --revert` first**. Every
-  status writer refuses while a flip is live or in flight, `fm-verify` included, and Step 1 admits
-  the `route` stage at `parity-passed` **or beyond** — so this is a state this skill routinely runs
-  in, not an edge case.
-- page **below `generated`** (`analyzed` / `style-specced` / `planned`) → **the command that owns
-  the finding's stage**: `fm-analyze`, `fm-style-spec` or `fm-plan`. This skill audits those stages
-  from their artifacts alone, so the state is reachable, and `fm-verify` requires at least
-  `generated` and refuses it while naming nothing. The "never the owning gate" rule below is about
-  the three *gates*, not about these three producers.
-- otherwise (`generated` … `parity-passed`, `*-failed`, `fixing`, `escalated`) → **`fm-verify`**,
-  which accepts them, demotes with its warning, and puts the page back on the chain in order.
+are unchanged. If any unresolved `high` findings exist, call them out and name **one** command —
+the first branch below that matches. The branches are **ordered and first-match-wins**, so they are
+exhaustive and disjoint by construction; this skill has no status precondition of its own (Step 0
+reads config only), so every FSM status reaches here:
 
-Then, in either case, suggest
-`/frontend-migration-plugin:fm-fix {page}` **only when the page is already at a state `fm-fix`
-accepts** (`*-failed`, `fixing`, `escalated`). This audit never writes a failed status, so on a
-healthy page `fm-fix` would refuse. Note that `fm-route --flag-on` will require explicit
-acknowledgement of the findings before flipping.
+1. `done` → **name nothing.** `fm-verify` refuses it and deliberately names no alternative (the
+   legacy page is deleted, so there is no rollback target); reopening it is a manual decision. Say
+   that, rather than a command.
+2. `flipped`, or **any** status carrying `flipPrOpenedAt` → **`fm-route {page} --revert` first.**
+   Every status writer refuses while a flip is live or in flight, `fm-verify` included, and Step 1
+   admits the `route` stage at `parity-passed` *or beyond* — a state this skill routinely runs in.
+3. `fixing` or `escalated` → **`fm-fix {page}`.** Never a gate: "No gate accepts `fixing` as an
+   entry state … never by invoking a gate directly" (CLAUDE.md → Per-page State Machine), and
+   `escalated` re-enters through `fm-fix`/`fm-gen` after the manual work.
+4. `gen-failed` → **`fm-gen {page}`** (the resume). `fm-fix` refuses it by name — "`gen-failed` is
+   not a fix mode" (`fm-fix` Step 1) — and it matches a bare `*-failed` wildcard, which is why every
+   status router in this plugin carves it out ahead of one.
+5. `verify-failed` / `e2e-failed` / `parity-failed` → **`fm-fix {page}`**, which accepts exactly
+   these.
+6. below `generated` (`analyzed` / `style-specced` / `planned`) → **the producer that owns the
+   finding's stage**: `analyze` → `fm-analyze`, `plan` → `fm-plan`. Only those two stages can carry
+   a finding here — `gen`/`verify`/`e2e`/`parity`/`route` audit artifacts that do not exist below
+   `generated`, so Step 1 never runs them and no other stage is reachable. `fm-verify` requires at
+   least `generated` and would refuse, naming nothing.
+7. otherwise (`generated`, `verified`, `e2e-passed`, `parity-passed`) → **`fm-verify`**, which
+   accepts them, demotes with its warning, and puts the page back on the chain in order. Not the
+   gate that owns the finding's stage: `fm-e2e` requires exactly `verified` and `fm-parity` exactly
+   `e2e-passed`, so both refuse the state their own findings exist in. That rule is about the three
+   *gates*; branch 6's producers are not gates.
+
+This audit never writes a failed status, so the page's status is whatever the pipeline last set —
+which is why the branch list keys on it rather than assuming a failure. Note that `fm-route
+--flag-on` will require explicit acknowledgement of the findings before flipping.

@@ -188,16 +188,16 @@ if [ -n "$PAGES" ]; then
     NOTE=$(next_note "$status")
     # A gate-passed status whose authorization has been cleared. Status-only guidance walked the
     # user --flag-off -> --flag-on -> refused (fm-route Step 1 reads verifiedAt) -> and back here.
-    # NAME NO STAGE: fm-extract demotes its dependents to `generated`, so the only path that still
-    # lands here is fm-delta's Full branch, which leaves the PRE-DRIFT plan in place. Resuming at
-    # fm-verify would pass on unmodified code, re-gate against that stale plan, and reach a flip
-    # with the drift never migrated. The recovery starts at fm-analyze and needs a legacy target
-    # this hook does not have, so it reports the situation and names no command.
+    # NAME NO COMMAND: three different runs can leave this state and they need three different
+    # recoveries — fm-delta Full (pre-drift plan, restart at fm-analyze), a FAILED fm-delta (baseline
+    # never promoted, re-run fm-delta), and an fm-extract invalidation on a 1.0.0 tracker (gates
+    # only). This hook cannot tell them apart and does not have the legacy target fm-analyze needs,
+    # so it reports the situation and defers to the clearing run's own report.
     case "$status" in
       verified|e2e-passed|parity-passed)
         if [ -z "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].verifiedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
           STEP=""; FLAGS=""
-          NOTE="gate authorization was cleared — re-run the chain from fm-verify. If the clear came from fm-delta Full, that run said to restart at fm-analyze because the plan is still the pre-drift one; follow its report over this line"
+          NOTE="gate authorization was cleared; the run that cleared it said where to restart, and its report wins over this line — fm-delta Full says fm-analyze (the plan is still pre-drift), a FAILED fm-delta says re-run fm-delta (its baseline was never promoted), an fm-extract invalidation needs only the gates from fm-verify"
         fi ;;
     esac
     # regenRequiredAt means a full regeneration is owed. Two writers set it: fm-fix when a fix

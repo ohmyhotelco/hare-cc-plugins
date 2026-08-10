@@ -25,7 +25,13 @@ point the user at `/frontend-migration-plugin:fm-route {page} --revert` first. F
 not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no rollback
 target); reopening it is a manual decision.
 
-**Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
+**Warn before demoting, and clear the route fields.** If the page is already at `verified`,
+`e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate
+progress — **so clear `routePrepared` and `flagKey` on that write**, the same set `fm-gen`,
+`fm-fix`, `fm-delta` and `fm-extract` clear for the same reason. Left standing, the page re-passes
+the chain and reaches `--flag-on` with a `routePrepared` from before the change, so Step 1-pre is
+satisfied by the stale `--flag-off` and the route-stage Codex audit that step exists to force never
+re-runs. This is the recovery `fm-route` Step 1a now names, so it is the path that reaches it. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
