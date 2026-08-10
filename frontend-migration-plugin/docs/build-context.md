@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-07)
 
-- **Build complete — v1.0.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.1.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -856,6 +856,87 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   watch paths hash identically to round 9's script.
 
   Origin: round 13, 2026-08-07.
+- **v1.1.0 — the journey-reachability audit (rounds 1-17).** A different audit axis from the ten
+  execution-order rounds that preceded v1.0.0: not "do these documents agree" but **"does every
+  usage scenario complete when the commands are run in order"** — simulate the user journeys, find
+  logical errors and steps that can never be reached. Seventeen rounds, each double-audited, scoped
+  to this repository.
+
+  **What the plugin actually had wrong.** Four next-step loops. `fm-extract` and `fm-delta` cleared
+  a page's gate authorization and left its status advanced, so the advisors walked the user
+  `--flag-off` → `--flag-on` → refused → back, forever; `regenRequiredAt` had no reader at all, so
+  a fix that changed no code was sent back to `fm-fix` to reproduce itself. The SessionStart hook
+  scanned every app but printed no `--app`, so guidance for a non-current app silently operated on
+  the current one. `fm-gen` Step 1 gated on the plan's static `blockers[]`, which `fm-extract`
+  never rewrites — a successful extraction left the refusal standing forever.
+
+  **What the rounds taught about fixing.** Two defect classes recurred until they were closed as
+  classes rather than instances: a lock left held on an early exit (four files, four rounds) and a
+  precondition read before the lock and never re-checked. (No count: round 9 deleted the census of
+  that second class after two auditors put it at five, seven and nine — the rule binds without
+  naming its members, and a number here would be one more list to drift.) Both are now single rules
+  in `CLAUDE.md` → Lock file, and both survived two later rounds of deliberate attack.
+
+  **Where the later rounds' defects came from: the fixes themselves.** Rounds 12, 13, 15 and 16
+  each broke the same sentence — `fm-verify` Step 6's Record enumeration. Rounds 12, 13 and 15 left
+  an input cell matching **no** branch, so no status was written, the page kept a healthy status,
+  and `fm-fix` refused it; round 16 left four cells matching **two** branches with conflicting
+  outcomes (`verified` and `verify-failed`), which round 17 closed by restoring the missing
+  `i18n`-configured qualifier. Each fix added one condition and left another cell open. Reading the
+  conditions once more was never going to end it, so round 17 required a **truth table** instead:
+  both auditors independently enumerated 288 reachable cells and confirmed **zero unmatched**. That
+  is the difference between arguing a class is closed and showing it.
+
+  Adjudicated and deliberately not fixed, each with the reason recorded in place: `done` being set
+  by hand; the absence of a `--confirm-reverted` action and the provenance window that follows from
+  it; `budgetSeconds` implemented only by `parity-verifier`; the exit-code split assuming vitest's
+  default reporter.
+
+  **Version: 1.1.0, by maintainer decision, with the incompatibilities stated.** The first draft
+  called it minor on the premise that "nothing was removed and no precondition tightened". Both
+  round-18 auditors falsified that premise, and it is recorded here rather than dropped, because
+  six changes are genuinely incompatible for a project already mid-migration:
+  - `fm-verify` **tightened a pass precondition**. `present` used to mean the key-coverage spec
+    file exists; it now means the spec's results appear in the run. A page that was `verified`
+    under 1.0.0 with a spec vitest never collected is recorded `verify-failed` **the next time
+    `fm-verify` runs**, with no change to its code — a page already past the gate is not
+    re-examined until something sends it back through.
+  - `fm-extract` **removed a capability and replaced it with a refusal**. A dependent carrying
+    `flipPrOpenedAt` used to have the field cleared while the run proceeded; the run is now refused
+    until the operator reverts that flip. An extraction that completed under 1.0.0 is refused here.
+  - `fm-extract` **demotes a dependent's status**. A page at `verified`/`e2e-passed`/`parity-passed`
+    that imports a rewritten package is set back to `generated`. Under 1.0.0 it kept its advanced
+    status while its evidence was cleared — which blocked the flip anyway, so nothing new is owed,
+    but the tracker now says so. Remedy: re-run the chain from `fm-verify`.
+  - `fm-delta`'s incremental branch **stops on a failing `delta-modifier`** instead of continuing.
+    Under 1.0.0 it promoted the staged baseline and wrote `generated` over code that did not
+    compile; it now leaves `migration-plan.next.json` / `analysis.next.json` staged and reports the
+    failure. Remedy: fix what the modifier reported, then re-run `fm-delta`.
+  - **`regenRequiredAt` became a routing override.** At 1.0.0 the field had exactly one site — the
+    writer in `fm-fix` — and no reader and no clearer, so every page that ever entered that branch
+    carries it permanently. It now has two writers, two clearers and **two readers that override
+    the next command**: a `*-failed` page carrying it is routed to `fm-gen --force`, a full
+    regeneration that discards accumulated `fm-fix` edits. On a 1.0.0 tracker the debt has usually
+    long since been paid. Remedy before upgrading: clear `regenRequiredAt` from any page that has
+    completed an `fm-gen` since the field was written.
+  - **`fm-verify` now clears `routePrepared`/`flagKey` when it demotes.** Under 1.0.0 a page sent
+    back through the gates kept its prepared-code-PR flag, so after re-passing it went straight to
+    `--flag-on`. It now has to run `--flag-off` again — which is the point: the prepared PR
+    predates the change that forced the demotion, and skipping it skips the route-stage Codex
+    audit. Remedy: none needed; run `--flag-off` before `--flag-on` as the chain now expects.
+
+  All six are correctness fixes — the old coverage gate passed specs that never ran, the old
+  `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule and left a
+  gate-passed status over cleared evidence, and the old `fm-delta` promoted a baseline over code
+  that did not compile. The maintainer chose
+  to stay on the v1 line rather than take a major, so the notes above are the upgrade guidance:
+  a page that flips to `verify-failed` needs `fm-fix` (or `fm-gen --force` if the spec is absent),
+  and an extraction refused for an in-flight flip needs `fm-route {page} --revert` first. Added
+  behaviour in the same release: `.app.lock` as a new lock scope, `migration-fixer` gaining the
+  test harness as a repair domain, the coverage gate going from three outcomes to five, and new
+  discriminators in both next-step advisors.
+
+  Origin: rounds 1-17, 2026-08-07.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
@@ -946,6 +1027,48 @@ These corrected initial assumptions and are baked into the mapping catalog / ana
 - **Convention source:** `frontend-react-plugin` (same monorepo).
 - **Legacy source repos** (for analysis): `ohmyhotel-pc-analysis` (PC), `ohmyhotel-mobile`
   (Mobile + Hana).
+
+- **v1.1.0, continued — rounds 19-26 and a reduction pass.** Eight more double-audited rounds on the
+  same axis, then a change of method.
+
+  **What they found.** `fm-audit-codex` Step 3 named commands the named command refuses — the site
+  was rewritten five times and only an exhaustive `status x flip-flag x stage` table settled it.
+  `check-staleness.sh` had never been audited: it named page commands without `--app`, claimed
+  `fm-delta` applies a hand-edited style-spec, and sent legacy drift to `fm-progress`, which has no
+  legacy watch-path axis. `fm-route --revert` admitted a `done` page carrying `flipPrOpenedAt` — it
+  would route a live path to a deleted legacy page and then match none of its own clauses.
+  `fm-extract`'s double clear does not close the race it claims to: a gate that starts before the
+  first clear and finishes after the second re-records fresh evidence over both.
+
+  **Where these rounds' defects came from, measured.** About 30% were self-inflicted — the previous
+  round's fix. The mechanism was always the same: the fix added prose to a normative document, and
+  every added sentence is a claim the other ~40 files can contradict. Three consecutive
+  self-inflicted findings were *justification clauses*, not rules ("the page key is a relative
+  path"; "fm-delta re-derives these from legacy source"). The remaining 70% were pre-existing
+  defects in territory that round examined first — which is the real reason the loop did not end:
+  a new axis was chosen each round, and in a corpus this cross-referential the axes are
+  combinatorial, so "find contradictions" always produces one. The terminating condition was a
+  property of how hard anyone looked, not of the artifact.
+
+  **The reduction pass.** The campaign's ratio was 583 lines added against 128 deleted. Two passes
+  reversed it by deleting rationale and keeping rules: `CLAUDE.md` 988 -> 834 lines, the same
+  ~30-line gate-evidence recipe collapsed in `fm-verify`/`fm-e2e`/`fm-parity` to the field plus a
+  pointer at the section that owns the rule, and `Gate Result Accounting`'s history moved to (in
+  fact, confirmed already present in) `docs/design/gate-result-accounting.md`. Verified by a
+  **bounded** review instead of another audit — "these 329 deleted lines: was each a rule, or
+  rationale?" Both reviewers classified all 329 independently and both reported **zero rules
+  deleted**; it was the first clean round of the campaign, because the answer set was finite.
+
+  **Three further incompatibilities** for a project already mid-migration, on top of the six above:
+  - `fm-route --revert` **refuses a `done` page**. It used to be admitted by the
+    `flipPrOpenedAt`-at-any-status clause. A `done` page still carrying that field (hand-set without
+    `--confirm-live`) now needs manual intervention.
+  - `fm-route --flag-off` **requires the gate authorization**, not just `status = parity-passed`.
+    A page whose `verifiedAt` was cleared by `fm-extract` or a Full `fm-delta` used to prepare a
+    route PR; it is now refused until the gates re-run.
+  - **Gates record a pass only if their watch paths held still.** `tree` is computed before the
+    first tool and again at record time; a run that straddles an `fm-extract` records no pass where
+    1.0.0 recorded one.
 
 ## Open follow-up
 

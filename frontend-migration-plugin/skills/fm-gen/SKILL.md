@@ -25,13 +25,24 @@ build to its style values. Read `targetDir`, `appDir`, `packagesDir`, `monorepoR
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Blockers
-If the plan has unresolved `blockers` (unextracted shared candidates), stop and tell the user to
-run `/frontend-migration-plugin:fm-extract` first.
+If the plan has `blockers` (unextracted shared candidates), resolve each against
+`tracker.packages` — **not** against the plan, which `migration-planner` writes once and no skill
+rewrites. A blocker is unresolved while its candidate's `packages.<pkg>.status` is anything other
+than `extracted`. Stop only then, and tell the user to run `/frontend-migration-plugin:fm-extract`
+first. Reading the plan array as the live gate would refuse forever: `fm-extract` never writes the plan
+— its tracker writes are `packages.*` (Step 5.1) and the dependent pages' invalidation (Steps 2b
+and 5.3) — so a successful extraction leaves the plan byte-identical.
 
 ### Step 2: Resume / demotion
 - If `generation-state.json` exists, offer to resume from the last incomplete phase. With `--force`
-  (how `fm-fix` sends a page back after `regenRequired`), ignore it and regenerate every phase from
-  the start — a completed state file would otherwise make the resume path a no-op.
+  (how `fm-fix` sends a page back after `regenRequired`), regenerate every phase — and **rewrite it
+  with every phase pending in Step 3, once the page lock is held and after the refusals below**,
+  never here: this bullet runs unlocked, so rewriting it now would let a run that is about to be
+  refused (`flipped`, `done`, a flip in flight, or a declined demotion) destroy the record anyway,
+  and would reset the ledger of another session's generation already in progress — a completed state file would otherwise make
+  the resume path a no-op, and a `--force` run that dies in an early phase would leave the later
+  phases still marked done, so the next plain resume would skip them and reach `generated`
+  carrying exactly the code the fix refused to certify.
 - Demotion warning: if the page status is `verified`/`e2e-passed`/`parity-passed`, warn that
   re-generating resets it to `generated` and discards downstream gate progress. Confirm before
   proceeding.
@@ -55,6 +66,11 @@ run `/frontend-migration-plugin:fm-extract` first.
   `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
+**With `--force`, rewrite `generation-state.json` with every phase pending here** — once the lock
+is held and the Step 2 refusals have passed. Doing it in Step 2 would let a run that is about to
+be refused destroy the ledger, and would reset the ledger of another session's generation already
+in progress. Without it, a `--force` run that dies in an early phase leaves the later phases still
+marked done, and the next plain resume skips them.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)
@@ -109,6 +125,13 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.
+     **Clear `regenRequiredAt` — but only when every phase succeeded**, the same condition 5.1
+     writes `generated` under. `fm-fix` (a fix that changed no code) and `fm-verify` (an absent i18n
+     key-coverage spec) both write it to mean "a full regeneration is still owed", and only a
+     completed run here — or a later passing `fm-verify` — discharges that. `fm-fix` and `fm-delta`
+     deliberately do not clear it: neither performs a full regeneration. The SessionStart hook and `fm-progress` read it; left
+     standing it outlives the run it asked for and hijacks every later `*-failed` state, while
+     clearing it on a `gen-failed` run would drop the record while the debt stands.
 4. Release the lock.
 
 ### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
@@ -121,5 +144,7 @@ Advisory — never changes the page status. Surface its verdict in the report.
 
 ### Step 6: Report
 In `workingLanguage`: phases completed, files created, total tests with RED/GREEN evidence from
-each TDD phase, harness status, and any manual integration steps. Next step:
-`/frontend-migration-plugin:fm-verify {page}`.
+each TDD phase, harness status, and any manual integration steps. Next step: on **`generated`** →
+`/frontend-migration-plugin:fm-verify {page}`; on **`gen-failed`** → `/frontend-migration-plugin:fm-gen
+{page}` again, which resumes from the incomplete phase. `fm-verify` requires at least `generated`
+(its Step 0) and would refuse — the same carve-out the SessionStart hook and `fm-progress` make.

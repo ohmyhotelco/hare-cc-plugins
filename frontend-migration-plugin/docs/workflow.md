@@ -24,6 +24,8 @@ Per-page loop (repeat per page)
   /fm-route <page> --flag-on   one-line flip PR (only if all gates pass)
   /fm-route <page> --flag-on --confirm-live   after that PR is merged AND deployed → flipped
         any gate fails → /fm-fix <page> → generated → re-run the chain from /fm-verify
+          (exception: /fm-verify failing on an absent i18n key-coverage spec needs
+           /fm-gen <page> --force — /fm-fix re-runs the build tools, which all pass)
 
 On legacy drift
   /fm-delta <page>             re-migrate only the changed surface (preserves fixes)
@@ -52,7 +54,7 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   code and therefore invalidates every gate, not only the one it repaired. The chain re-runs from
   `fm-verify`, and `fm-fix` clears the same fields `fm-gen`/`fm-delta` clear. Re-running each gate is
   what issues its passed state and rewrites its report; `fm-fix` never issues one.
-- `fm-delta` resets a drifted page to `generated` to re-pass the gates.
+- `fm-delta` resets a drifted page to `generated` on the incremental branch; Full leaves it alone.
 - `fm-gen` over a `verified` / `e2e-passed` / `parity-passed` page warns (demotion) before resetting
   to `generated`. It **refuses** `flipped` (run `fm-route --revert` first), `done` (manual decision —
   the legacy page is gone), and any page with a flip prepared and handed over (`flipPrOpenedAt` set — the artifact is ready and

@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v1.0.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v1.1.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -90,8 +90,10 @@ mapping, Strangler Fig, WebView/SSO) lives in `templates/` instead.
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | React performance — applied **SSR-aware** (framework mode, not a Vite SPA) |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Component composition patterns |
 
-Agents load each per phase, guarded by existence — a declined/absent install (or
-`externalSkills: false`) is skipped, never fatal. `web-design-guidelines` and `agent-browser`
+Agents load each per phase, guarded by **existence**, not by the flag — a declined/absent install
+is skipped, never fatal. `externalSkills: false` governs installation and the session-start
+warning; it does not stop an agent applying a skill it finds, so remove the directories to do
+that. `web-design-guidelines` and `agent-browser`
 (used by frontend-react-plugin) are intentionally not adopted: UI fidelity is judged by `fm-parity`
 against the legacy baseline, and E2E runs on Playwright.
 
@@ -128,7 +130,10 @@ After the prerequisites are met:
 
 Each step writes its artifact under `docs/migration/{app}/{page}/` and advances the page's status
 in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate). The page then
-returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`.
+returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`. **One
+exception:** a `fm-verify` failure for a missing i18n key-coverage spec needs
+`fm-gen <page> --force`, not `fm-fix` — `fm-fix` re-runs the build tools, which all pass, so it
+would report success and land on the same failure. `fm-verify` says so in its own report.
 
 ## Workflow
 

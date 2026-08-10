@@ -44,6 +44,23 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 Acquire a package-scope lock `docs/migration/.packages.lock` (stale only when its holder is gone — CLAUDE.md → Lock file). If held and
 fresh, report and stop.
 
+### Step 2b: Resolve dependents, refuse in-flight flips, and clear once — BEFORE any write
+Resolve the dependent set exactly as Step 5.3 defines it (every page whose `migration-plan.json`
+`sharedDeps[]` names a package this run will rewrite). **A dependent's app is the `{app}` segment of
+its `docs/migration/{app}/{page}/` path, never this run's `app`** — the packages are extracted once
+and imported by all three apps, so the dependent set spans apps while this skill resolves one.
+
+- **Any dependent with `flipPrOpenedAt` set → stop here, before `package-extractor` writes a single
+  byte.** **Release `.packages.lock` first** — Step 5 is the only other release, so stopping here
+  without it leaves the lock held by a run that has ended and refuses every retry. Then name those
+  pages and require `fm-route {page} --app {app} --revert` on each. Refusing in Step 5 would refuse *after* the
+  dependency it protects had already changed.
+- Otherwise apply Step 5.3's clear to each dependent now — **inside `docs/migration/.tracker.lock`**,
+  taken after `.packages.lock` and released right after the write (CLAUDE.md → Lock file); Step 5's
+  lock paragraph is scoped to the writes *below* it and does not reach this one (this is the "clear it **before**" half of
+  the double clear; Step 5.3 does the second). Stated only in Step 5, the first clear could never
+  happen in time, and the race it exists to close stayed open.
+
 ### Step 3: Extract each candidate
 For each candidate (sequentially — packages may build on each other), launch the
 `package-extractor` agent (Agent tool) with only its needed params (subagent isolation):
@@ -88,30 +105,41 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    defect the gates guard against — a passed state nobody earned — and here it also unblocks
    `fm-gen`, whose Step 1 refuses only while a candidate is *unextracted*.
 2. For secret-boundary rejections, note them under `packages.<pkg>.deferredToSecretAudit`.
-3. **Invalidate every page that imports what this run rewrote — and do it twice.** Resolve the
-   dependent set (below) and clear it **before** `package-extractor` writes a single byte, then
-   clear it **again** here. `.packages.lock` does not exclude a page's gates, so a gate running
+3. **Invalidate every page that imports what this run rewrote — the second of the two clears.**
+   Step 2b resolved the dependent set and cleared it before the extractor wrote anything; clear it
+   **again** here. `.packages.lock` does not exclude a page's gates, so a gate running
    concurrently can otherwise test package version A, this skill can write version B, and the gate
    can then record B's hash as the code it passed on — a pass on bytes nothing tested. Clearing
    first means such a gate re-records over an already-invalid page; clearing again after means a
    gate that finished before the first clear does not survive it. Neither clear alone closes the
    window.
 
-   **A page with `flipPrOpenedAt` set needs more than a clear.** `--flag-on --confirm-live` requires
+   **A page with `flipPrOpenedAt` set: refuse, do not clear** — Step 2b already stopped the run
+   for this case, so reaching it here means the flip was opened mid-run. `--flag-on --confirm-live` requires
    only the status and that timestamp, so a rewritten package would otherwise reach production
-   through a flip prepared against the old one. For those pages also clear `flipPrOpenedAt` and say
-   so loudly: the operator must re-run `--flag-off`/`--flag-on` after the gates pass again.
+   through a flip prepared against the old one — but `--confirm-live` and `--revert` are that
+   field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
+   would leave PR2 open with nothing in the tracker recording the in-flight flip. **Release
+   `.tracker.lock` and then `.packages.lock`** (innermost first), then stop before writing anything, name those pages, and require
+   `fm-route {page} --app {app} --revert` on each first — without the release, Step 2's "held and fresh →
+   report and stop" refuses the retry this very sentence asks for.
 
    The mechanics: `packages/shared-*` is watch-path
    axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package
    outdates those pages' `gateEvidence` exactly as regenerating their own code would. For each such
    page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and
-   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — and report the list.
+   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — **and, for a page at
+   `verified`/`e2e-passed`/`parity-passed`, set the status back to `generated`**, the same demotion
+   those two apply when code changes (a page below `verified` keeps its status; the demotion is not
+   a promotion). Clearing the evidence but leaving the gate-passed status is what walks the session
+   hook to `--flag-off` on a page no gate vouches for. Report the list.
    Without this a page can pass its gates against package version A while this skill writes version
    B, and the flip then matches B's hash and calls the gate fresh: a pass on bytes nothing tested.
-   This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run —
-   invalidating afterwards is what makes the race safe rather than silent.
-3. Release the lock.
+   This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run.
+   Invalidating on both sides is what this skill can do; it does **not** reach a gate that started
+   before the first clear and finished after the second — that one is caught on the gate's side, by
+   the before/after `tree` comparison every gate makes (CLAUDE.md → Gate Result Accounting E).
+4. Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`:

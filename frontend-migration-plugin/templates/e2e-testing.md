@@ -107,7 +107,8 @@ the gate `fail`, but it does make the gate **`not-run`**: the top-level `result`
 the page stays at `verified`, and the chain is blocked until the missing prerequisite is supplied.
 Unmeasured is not passed. `fm-route --flag-on` is blocked until
 `e2e-report.json.result === "pass"` (and `fm-verify` + `fm-parity` pass). On failure, loop back
-through `fm-fix` (e2e-fix mode), then re-run `fm-e2e`; on `not-run`, fix the prerequisite (not the
+through `fm-fix` (e2e-fix mode), which returns the page to `generated` — so re-run the chain from
+**`fm-verify`**, not `fm-e2e`, which requires exactly `verified`; on `not-run`, fix the prerequisite (not the
 code) and re-run `fm-e2e`.
 
 ## Permissions

@@ -59,7 +59,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
         "area": "<short area tag>",
         "detail": "<what is wrong / risky>",
         "evidence": "<file:line or report ref>",
-        "suggestedAction": "<e.g. fm-fix parity ...>",
+        "suggestedAction": "<the repair, not a command — the command is the caller's, by status x stage>",
         "adjudication": {                    // OPTIONAL, written after discovery — absent = open
           "state": "open | closed | rejected",
           "when": "<ISO-8601>",

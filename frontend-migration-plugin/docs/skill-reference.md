@@ -4,8 +4,8 @@ Every `fm-*` skill, the agent it drives, its key inputs/outputs, and the tracker
 State files live under `docs/migration/{app}/{page}/` (including `gate-tree/{gate}.tsv`, the
 per-file manifest behind `gateEvidence.{gate}.tree`, and the `*.next.json` staging `fm-delta`
 promotes); the global tracker is
-`docs/migration/tracker.json`. Skills that mutate state take the page `.lock` (stale after
-30 min). `fm-progress` is read-only and takes no lock; the Codex audit **is not** — it writes
+`docs/migration/tracker.json`. Skills that mutate state take the page `.lock` (stale only when its
+holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock sweep, not a timeout). `fm-progress` is read-only and takes no lock; the Codex audit **is not** — it writes
 `codex-audit.json` and the tracker's `codexAudit` field, and takes the page lock for those writes.
 
 | Skill | Agent | Input → Output | State set |
@@ -22,7 +22,7 @@ promotes); the global tracker is
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
-| `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
+| `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (incremental); unchanged (Full) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
 | `fm-test-review` | `test-reviewer` | generated tests → test-quality report (read-only) | — |
 | `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` → `secret-audit-report.json` (read-only) | — |

@@ -16,7 +16,9 @@ page — preserving the fixes accumulated through earlier gate loops. All user-f
 
 ### Step 0: Config & state
 Read config (absent → run `fm-init`; stop). Resolve `app`, `targetDir`, `appDir`, `packagesDir`,
-`legacyDir`, `workingLanguage`. The page should already be at `generated` or beyond (else this is
+`legacyDir`, `workingLanguage`, and the app's `legacyPort` / `port` / `domain` — Step 4 hands all
+three to `style-spec-extractor` for provenance side-resolution, and an unresolved one makes every
+capture `unresolved`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
@@ -77,8 +79,8 @@ legacy source against the `analysis.json` / `migration-plan.json` baseline and w
 ### Step 3: Offer incremental vs full
 Read `delta-plan.json.summary`. Present:
 - the change counts (added/modified/removed);
-- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration (`fm-gen`)
-  instead;
+- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration
+  instead (Step 4's Full branch names the chain);
 otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply
@@ -118,7 +120,16 @@ after the user has chosen it.
      `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics — build to the style-spec,
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
-  Then continue to Step 5.
+    3. **Read the modifier's result before going on.** `delta-modifier` reports pass/fail rather
+       than aborting. On failing tsc/Vitest, **release the page `.lock` and stop** — Step 5's
+       release is the only other one on this branch, so stopping without it strands the page under
+       a lock whose holder has ended. Report the failure and leave
+       `migration-plan.next.json` / `analysis.next.json` staged. Step 5 promotes the staged
+       baseline and writes `generated`, and Step 5 itself states that a run which failed here
+       "leaves the reference untouched" — continuing unconditionally is what breaks that, and a
+       promoted baseline makes the un-applied ops unrecoverable through `fm-delta`.
+
+  Then, only on success, continue to Step 5.
 - **Full** → the page needs re-planning, not just re-generation. Do all of this **while still holding
   the page `.lock`**, in this order:
   1. **Clear the page's gate authorization** — `gateEvidence`, the legacy
@@ -161,7 +172,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
   flip. **Clear `routePrepared` and `flagKey` on the same pass**, or Step 1-pre still reads the page
   as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (CLAUDE.md → "Gate Result
-  Accounting").
+  Accounting"). **Do not clear `regenRequiredAt`** — it means a full `fm-gen`
+  is owed, and the incremental branch runs `delta-modifier`, not the foundation phase that produces
+  the i18n key-coverage spec.
 - Release the lock.
 
 ### Step 6: Report (incremental path)

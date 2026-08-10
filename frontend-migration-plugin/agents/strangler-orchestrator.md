@@ -23,11 +23,17 @@ You receive (no session history): `app`, `page`, `action` (flag-off | flag-on | 
 `confirm-live`, which is a tracker-only transition `fm-route` handles without launching you),
 `flagPlan` (`{ key, guardsPath }` from `migration-plan.json`), `domain`, `port` (the new app's),
 `legacyPort`, **`flipMechanism`** (`nginx` | `cloudfront`; **absent → `nginx`**) and its artifact
-target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the gate state for the
-precondition — the page's `parity-passed` status + `verifiedAt` from `tracker.json` plus the
-`e2e-report.json` / `parity-report.json` paths (under `docs/migration/{app}/{page}/`),
-`workingLanguage`. See
+target (`infraDir` for nginx; `cloudfrontDir` + `manifest` for cloudfront), the state each action's
+precondition tests — the page's **current** `status` (never assume `parity-passed`: `--revert` is
+admitted at any status carrying `flipPrOpenedAt`), **`routePrepared`** and **`flipPrOpenedAt`**,
+`verifiedAt`, and the `e2e-report.json` / `parity-report.json` paths (under
+`docs/migration/{app}/{page}/`), `workingLanguage`. See
 `templates/strangler-fig.md` for both templates.
+
+## App lock
+The routing artifact (`infraDir` nginx block + flag entry, or `cloudfrontDir/<manifest>`) is shared
+by every page. Read-Modify-Write it inside `docs/migration/.app.lock`, taken after the page lock
+`fm-route` holds and released right after the write (CLAUDE.md → Lock file).
 
 ## Actions (mechanism-independent semantics)
 
@@ -53,9 +59,12 @@ the legacy app (`legacyPort`).
 - `cloudfront`: mark the `guardsPath` manifest entry **active** (path-pattern → v2 origin).
 
 ### revert (rollback) — guarded
-**Precondition (hard):** the page must be at `flipped`, or at `parity-passed` with `routePrepared`
-or `flipPrOpenedAt` set — i.e. there is a live or in-flight route change to undo. On any other
-status, **refuse**: there is nothing in rotation, and the caller would go on to write a
+**Precondition (hard):** the page must be at `flipped`, **or** have `flipPrOpenedAt` set at any
+status **except `done`**, **or** be at `parity-passed` with `routePrepared` set — i.e. there is a live or in-flight
+route change to undo. `flipPrOpenedAt` admits any status but `done` — the legacy page is deleted, so reverting the edge
+would route the path to nothing (CLAUDE.md -> Per-page State Machine) — because a concurrent `fm-extract` can
+demote a page to `generated` while a flip is in flight, and `--revert` is the only exit every
+other rule points at. On any other status, **refuse**: there is nothing in rotation, and the caller would go on to write a
 gate-passed status no gate produced (`fm-route` Step 0a).
 
 Return the path to the legacy app. This is the soft rollback.

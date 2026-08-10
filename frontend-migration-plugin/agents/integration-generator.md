@@ -16,6 +16,12 @@ by `fm-init`) and apply RR v7 **framework-mode** routing patterns — `route`/`s
 config, loader/action data, nested layouts — to the route wiring below; if absent, proceed from the
 plan's rendering modes alone.
 
+## App lock
+Every Read-Modify-Write of an app-wide file — the RR v7 route table, the i18n namespace
+registration, the MSW handler aggregation — happens inside `docs/migration/.app.lock`, taken after
+the page lock the launching skill holds and released right after the write (CLAUDE.md → Lock file).
+The page lock does not protect these: two pages migrating at once share every one of them.
+
 ## Tasks
 
 ### 1. Routes

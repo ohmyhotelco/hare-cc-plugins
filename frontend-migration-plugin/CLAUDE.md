@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.0.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.1.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -57,7 +57,11 @@ migration-specific → bundled template*.
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (page), `quality-reviewer`, fixers | applied **SSR-aware** — framework mode is not a Vite SPA, so the SSR/RSC rules are **not** skipped (inversion vs `frontend-react-plugin`) |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (component), `quality-reviewer`, fixers | component composition rules |
 
-Loading is **guarded by existence**: each agent Reads a skill's `SKILL.md` only when present, so a
+Loading is **guarded by existence, not by the flag**: each agent Reads a skill's `SKILL.md` only
+when present, and none of them receives or reads `externalSkills`. So the flag governs whether
+`fm-init` installs them and whether the session hook warns about their absence — **not** whether an
+agent applies one it finds. Turning it off after an install, or in a project where another plugin
+vendored the same skills, leaves them in use; remove the directories to actually stop that. A
 non-blocking/declined install (or `externalSkills: false`) degrades gracefully — the skill is
 skipped, never an error. `web-design-guidelines` and `agent-browser` (used by `frontend-react-plugin`)
 are intentionally **not** adopted: UI fidelity here is judged by `fm-parity` against the legacy
@@ -99,6 +103,8 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
     "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "legacyPort": 30210, "ssr": "mixed", "webview": false,     "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
     "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "legacyPort": 30211, "ssr": "mixed", "webview": true,      "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
     "hana":   { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-hana",   "appDir": "apps/web-hana",   "domain": "hana.ohmyhotel.com", "port": 30321, "legacyPort": 30311, "ssr": "spa",   "webview": "unknown", "sso": true,  "flipMechanism": "nginx", "infraDir": "infra/nginx" }
+    // `flipMechanism` above is ILLUSTRATIVE, not a recommendation: `fm-init` asks per app, and a
+    // `cloudfront` app records `cloudfrontDir` + `manifest` instead of `infraDir`.
   },
   "stagingConfig": {
     "baseUrl": "https://staging.ohmyhotel.com",
@@ -112,29 +118,29 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   minimum `appDir`; plus `targetDir`/`legacyDir`/ports for the stage it runs). Config-file presence
   is not app presence: a `--app hana` on a config scaffolded for `pc` only would otherwise fail deep
   inside an agent with an unresolved path rather than at Step 0 with a clear message.
+  **Every page-scoped command a skill, agent, or hook prints carries `--app {app}` whenever `app`
+  is not `currentApp`** — the reader pastes it into a fresh invocation, which resolves the app from
+  `--app` or `currentApp` and would otherwise act on a different app's page of the same name.
+  `fm-analyze` Step 1.3 derives a page's counterparts at the same relative path under the other
+  apps' `legacyDir`, so one key under several apps is the normal case, and the wrong-app run is not
+  visible in its output. Stated once here rather than at each of the ~36 sites that print one.
+  The `{app}` to interpolate is the one the *named page* lives under — `docs/migration/{app}/{page}/`
+  — which is not always the printing skill's own `app`: `fm-extract` is one skill resolving one app
+  while its dependent pages span all three.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
   how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
-  `scripts/gate-tree-hash.sh`. A plugin lives in the marketplace cache, **not** in the user's
-  monorepo, so no path built from `monorepoRoot` reaches it; and `${CLAUDE_PLUGIN_ROOT}`, which
-  Claude Code expands in `hooks/hooks.json`, is **not** exported into a skill's Bash shell. The
-  hook derives it from its own location and rewrites it every session — refreshing rather than
-  capturing once, because the cache path is version-pinned and a value written at `fm-init`
-  would dead-end at the next plugin release. Absent →
-  those skills record no `tree` and report the freshness axis as `unverifiable`; they must not
-  improvise an inline hash pipeline, which is the failure this script exists to prevent.
+  `scripts/gate-tree-hash.sh`. The hook rewrites it **every session**, never capturing it once —
+  the cache path is version-pinned. Absent → those skills record no `tree` and report the freshness
+  axis as `unverifiable`; they must not improvise an inline hash pipeline.
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
   (default `docs/migration/api-contracts`, OMH-604/606/607) that are the **authoritative**
   schema source for **`shared-types` and `shared-data` only** (migration plan §5 — the legacy
-  `any` reverse-extraction is retired for the contract-covered surface). The contracts are
-  **zod-in-markdown** (zod inside Markdown `ts` code fences, not `.ts` files) under `responses/` (OMH-606) and
-  `requests/` (OMH-607), sharing two base schemas defined once in `shared-types` —
-  `ResponseEnvelopeSchema` (responses) and `CommonRequestParamsRqSchema` (requests) — that each
-  per-endpoint schema `.extend()`s. `fm-init` defaults the path to `docs/migration/api-contracts`
-  but records the key **only when the directory exists**; when absent the key is omitted and
-  `fm-extract` falls back to the existing legacy reverse-extraction (no regression). The other
-  four packages (`config`/`i18n`/`domain`/`ui`) ignore this and extract from legacy as before.
-  See "Mapping Catalog & Gate Definitions", `templates/shared-package-spec.md`, and `fm-extract`.
+  `any` reverse-extraction is retired for the contract-covered surface). `fm-init` records the key
+  **only when the directory exists**; absent → `fm-extract` falls back to legacy reverse-extraction
+  (no regression). The other four packages (`config`/`i18n`/`domain`/`ui`) ignore it.
+  `fm-extract` Step 3 states how the contracts are read; `templates/shared-package-spec.md`
+  states what they cover.
 - `workingLanguage` — `ko` | `en` | `vi`. All user-facing skill output is in this language.
   **Not** the set of languages the product serves — that is `i18n.languages`.
 - `i18n` — **optional but gate-relevant**. Declares the product's copy surface so the gates can check
@@ -143,18 +149,12 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   e.g. `tl.`). `languages` is what "every supported language" **resolves to**, and the planner writes
   it into **`gateAcceptance.visual.languages` and `gateAcceptance.e2e.languages`** — the fields the
   executors read. (`gateAcceptance.scope` is prose describing the scope; it is not where a language
-  set is read from.) Without this block that criterion cannot be enforced. The helper names are per-app project
-  config, never plugin-baked (same principle as `flipMechanism`). When the block is absent,
-  `foundation-generator` skips the i18n key-coverage spec and `fm-verify` reports it as `skipped`
-  (never a silent pass). See "i18n Copy Parity" and `templates/i18n-copy-parity.md`.
-- `externalSkills` — when `true` (default), `fm-init` installs the shared skills via
-  `npx skills add … --copy` (same mechanism as `frontend-react-plugin`): **React Router framework
-  mode** (`remix-run/agent-skills`), **Vitest** (`antfu/skills`), and **Vercel React best-practices
-  + composition** (`vercel-labs/agent-skills`); it also verifies the **Playwright** CLI (E2E/visual,
-  installed separately). Agents load each SKILL.md **per phase**, guarded by existence — an absent
-  skill is skipped, never fatal. Best-practices is applied **SSR-aware** (framework mode, not a Vite
-  SPA — the SSR rules are *not* skipped, the deliberate inversion vs `frontend-react-plugin`). See
-  "External Skills (shared with frontend-react-plugin)".
+  set is read from.) Absent → `foundation-generator` skips the i18n key-coverage spec and
+  `fm-verify` reports it as `skipped`, never a silent pass. See "i18n Copy Parity" and
+  `templates/i18n-copy-parity.md`.
+- `externalSkills` — when `true` (default), `fm-init` installs the shared skills and verifies the
+  Playwright CLI. Agents load each SKILL.md guarded by existence, so an absent one is skipped,
+  never fatal. See "External Skills (shared with frontend-react-plugin)".
 - `eslintTemplate` — when `true` (default), generators auto-scaffold `eslint.config.js` from
   `templates/eslint-config.md` where none exists; `false` skips ESLint entirely. See "Lint &
   Format Gate".
@@ -173,29 +173,20 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   upstream port for this surface. `fm-route` resolves both and passes them to
   `strangler-orchestrator`, which routes `guardsPath` to `port` on flag-on and lets unmatched paths
   fall through to `legacyPort` (the legacy app). Values mirror `templates/strangler-fig.md`.
-- `apps.*.webview` / `apps.*.sso` / `apps.*.ssr` — **informational only; no skill or agent reads
-  them.** Recorded at `fm-init` as project notes (`webview`: `true` for mobile, `false` for PC,
-  `"unknown"` for Hana pending stakeholder confirmation; `sso`: `true` for Hana's external `?ts`
-  flow, migration plan §7). The authoritative sources are elsewhere and must not be second-guessed
-  from config: the **gate set** comes from `analysis.json` `requiredGates`/`gateTriggers`, and the
-  **rendering mode** is decided per page in `migration-plan.json` (an app is `"mixed"`, so a
-  single app-level `ssr` value cannot be right). Do not branch on these three.
+- `apps.*.webview` / `apps.*.sso` / `apps.*.ssr` — **informational only. Do not branch on these
+  three.** The gate set comes from `analysis.json` `requiredGates`/`gateTriggers`; the rendering
+  mode is decided per page in `migration-plan.json`.
 - `apps.*.flipMechanism` — `nginx` (default) | `cloudfront`. Which edge layer the Strangler Fig
-  route flip is prepared at **for this app**. Per-app because one migration can flip different
-  surfaces at different layers — an app-layer / entry nginx vs a CDN (CloudFront). The flip
-  *semantics* are identical across mechanisms (2-PR flag flow, gate-guarded flag-on, revert =
-  rollback); only the **edited artifact** differs. **Backward-compatible**: an app with no
-  `flipMechanism` is treated as `nginx`, so existing nginx-only configs keep working unchanged.
+  route flip is prepared at **for this app**. The flip *semantics* are identical across mechanisms;
+  only the **edited artifact** differs. An app with no `flipMechanism` is treated as `nginx`.
   - `nginx` → `apps.*.infraDir` (default `infra/nginx`): the in-repo nginx host/path routing block
     + flag entry `fm-route` edits.
   - `cloudfront` → `apps.*.cloudfrontDir` (default `infra/cloudfront`) + `apps.*.manifest`
     (default `v2-routes.json`): a **version-controlled** CloudFront behavior manifest that maps
-    `guardsPath` path-patterns to the v2 origin. `fm-route` edits only this in-repo manifest and
-    for a PR the user opens — it **never pushes to AWS** (governance = detect / PR, not apply).
+    `guardsPath` path-patterns to the v2 origin. `fm-route` edits only this in-repo manifest, for
+    a PR the user opens — it **never pushes to AWS**.
 
-  The per-app mechanism **mapping** (which app uses which) is **project config**, decided at
-  `fm-init` and never hardcoded in this plugin — the plugin ships `nginx` as the neutral default.
-  See `templates/strangler-fig.md` and `fm-route`.
+  Which app uses which is project config, decided at `fm-init`. See `templates/strangler-fig.md`.
 - `apps.*.infraDir` — nginx flip only (default `infra/nginx`). Ignored when
   `flipMechanism` is `cloudfront`.
 - `apps.*.cloudfrontDir` / `apps.*.manifest` — cloudfront flip only (defaults `infra/cloudfront` /
@@ -245,72 +236,42 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
 ```
 
 - **`gen-failed` is not a gate failure and `fm-fix` has no mode for it.** A generation phase that
-  never completed goes back to `fm-gen` (which resumes from the incomplete phase); routing it to
-  `fm-fix` would fall through to `verify-fix`, find no verify summary, and on a "pass" declare the
-  page `generated` when its phases never ran. The SessionStart hook and `fm-progress` both carve it
-  out ahead of the `*-failed` wildcard.
+  never completed goes back to `fm-gen`, which resumes from the incomplete phase. The SessionStart
+  hook and `fm-progress` both carve it out ahead of the `*-failed` wildcard.
 - A gate failure sets `{stage}-failed`; `fm-fix` moves it to `fixing` and, on success, to
   **`generated`** — the whole chain re-runs from `fm-verify`, and `fm-fix` clears `gateEvidence`,
   the legacy `*At` fields and `routePrepared`/`flagKey` exactly as `fm-gen` and `fm-delta` do.
-  **A fix changes code, so it invalidates every gate, not just the one it repaired.** Returning the
-  page to the failed gate's *entry* state was unreachable by construction: gate evidence is
-  content-keyed, so the upstream gates were always stale afterwards and `fm-route` Step 1a — a hard
-  gate with no acknowledgement path — blocked every post-fix flip. Only the gate issues its own
-  passed state: a fixer that promoted the page would leave the gate's report reading `fail` while
-  the status claimed otherwise, and `fm-route --flag-on` reads both. Large fixes (>60% files)
+  **A fix changes code, so it invalidates every gate, not just the one it repaired**, and **only
+  the gate issues its own passed state** — a fixer never promotes a page. Large fixes (>60% files)
   suggest full `fm-gen`.
-- **`flipped` means the edge is serving v2, not that a PR exists.** `fm-route --flag-on` edits the
-  in-repo routing artifact **for** PR2 — the user opens the PR, as they do for the code PR on
-  `--flag-off`; it records `flipPrOpenedAt` (the hand-over moment, not proof a PR exists) and leaves the status at
-  `parity-passed`. Only `--flag-on --confirm-live`, run by a human after the merge and deploy have
-  propagated, sets `flipped`. Nothing in this plugin deploys, so nothing in it can observe that the
-  flip is live — and provenance resolves a capture's `side` from this status, so claiming it early
-  would label a production capture `v2` while the host still serves legacy.
+- **`flipped` means the edge is serving v2, and `flipPrOpenedAt` is the hand-over, not a PR the
+  plugin can see.** `fm-route --flag-on` edits the in-repo routing artifact **for** PR2 — the user
+  opens the PR, as they do the code PR on `--flag-off` — records `flipPrOpenedAt`, and leaves the
+  status at `parity-passed`. Only `--flag-on --confirm-live`, run by a human after the merge and
+  deploy have propagated, sets `flipped`. Nothing here deploys or can see a forge, so nothing here
+  can claim either on its own. Provenance resolves a capture's `side` from this status.
 - **No skill writes a status over `flipped` or `done` except `fm-route --revert` on `flipped`,**
   which is the sanctioned rollback and must be able to leave that state. `done` has **no** such
   exception: the legacy page has been deleted, so there is nothing to roll back to and no legacy
   source left to diff against — reopening a `done` page is a manual decision, not a skill
   transition. A refusal must name `done` explicitly, because "at least `generated`"-style monotonic
   comparisons satisfy it silently.
-- **`flipPrOpenedAt` is the flip hand-over, not a PR the plugin can see.** `fm-route --flag-on` edits
-  the in-repo routing artifact and records this timestamp; **the user opens PR2**, exactly as they do
-  the code PR on `--flag-off`. Nothing here can observe a forge, so the field means *"the flip
-  artifact was prepared and handed over at this time"* and never *"a PR is confirmed open"*. Every
-  reader — the SessionStart hook, `fm-progress`, `templates/capture-provenance.md`, each refusal
-  guard — states it that way; `--flag-on --confirm-live` still requires a human who watched the merge
-  and the deploy, which is the real check.
 - **No skill writes a status, or rewrites the page's code, while `flipPrOpenedAt` is present —
   except `fm-route`'s own `--confirm-live` and `--revert`.** Those two are the field's only legal
   consumers: `--confirm-live` *requires* it (it is what proves a flip is in flight) and clears it
   while writing `flipped`; `--revert` clears it while rolling back. Repeated `--flag-off` or a plain
   `--flag-on` on a page that already has it are refused — that would prepare a second flip over an
-  in-flight one. For everything else the reason is the same as `flipped`: a demotion or regeneration
-  underneath an in-flight flip leaves PR2 describing code that no longer exists, and the timestamp
-  survives the rewrite (every writer read-modify-writes), so the hook later reads it first and
-  recommends `--confirm-live` on superseded code. Refuse and point at `fm-route --revert`.
-- Every other status writer refuses all three: `fm-gen`,
-  `fm-delta`, `fm-analyze`, `fm-style-spec`,
-  `fm-plan`, `fm-verify`, and `fm-fix` each refuse. They point at `fm-route --revert` for `flipped`
-  and for an in-flight flip; **`done` gets manual intervention instead**, since `--revert` refuses it
-  too. `fm-e2e` and
-  `fm-parity` need no guard — their entry preconditions are exact matches (`verified`, `e2e-passed`),
-  which `flipped` fails; `fm-verify`'s "at least `generated`" is the one monotonic comparison, so it
-  guards explicitly. The tracker's `flipped` and the edge
-  flag must agree — provenance resolves a capture's `side` from that status — and `--revert` is the
-  only transition that changes both. `--flag-off` prepares the routing artifact and deliberately
-  keeps the status, so it is never the way out of `flipped`.
+  in-flight one. Every other status writer refuses and points at `fm-route --revert`, for an
+  in-flight flip and for `flipped`; **`done` gets manual intervention instead**, since `--revert`
+  refuses it too. `--flag-off` keeps the status, so it is never the way out of `flipped`.
 - No gate accepts `fixing` as an entry state. A page at `fixing` is re-entered through `fm-fix`
   (or `escalated` for manual intervention) — never by invoking a gate directly.
 - `fm-delta` re-enters from `generated` or beyond when legacy source drifts (a `planned` page has
   no generated files to modify — use `fm-gen`).
 - `escalated` requires manual intervention, then re-entry via `fm-fix`/`fm-gen`.
-- `flipped` is where the `fm-*` pipeline ends: `fm-route --flag-on --confirm-live` sets it (after a
-  human has confirmed the flip PR is merged and deployed — `--flag-on` alone only prepares the
-  artifact and hands PR2 to the user) and
-  no skill advances past it. **`done` is set by hand**, once the legacy page is deleted — retiring legacy code is
-  outside this plugin's scope, so nothing here can honestly claim it. `fm-progress` and the
-  SessionStart hook therefore treat `flipped` as the last actionable state and print no next command
-  for it.
+- `flipped` is where the `fm-*` pipeline ends; no skill advances past it. **`done` is set by hand**,
+  once the legacy page is deleted — retiring legacy code is outside this plugin's scope.
+  `fm-progress` and the SessionStart hook print no next command for either.
 
 ## State Files & Lock Convention
 
@@ -352,7 +313,16 @@ When updating any state JSON:
 ### Lock file
 
 A skill that mutates state acquires `{app}/{page}/.lock` before work and
-releases it on completion or failure. The lock is JSON with at least these fields:
+releases it on completion or failure. **Every exit after a successful acquire releases every lock
+this run holds — including a refusal, an agent that refuses, a failed verification, and a stop the
+skill's own text prescribes.** A per-step release sentence is a reminder, never the whole rule.
+A *failed* acquire does not release **that** lock — it belongs to someone else — but the run still
+releases every lock it did acquire.
+
+**Re-verify, under the lock, every precondition you read before taking it.** Page skills refuse on
+status or route state and acquire the lock further down, so the state can move in between; the
+checks are cheap and the first write has not happened yet. The lock is JSON with at least these
+fields:
 
 **Three lock scopes, and one of them is not optional.**
 
@@ -361,16 +331,13 @@ releases it on completion or failure. The lock is JSON with at least these field
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
 
-The page lock does **not** protect `tracker.json`. Eleven writers Read-Modify-Write that single
-shared file, and `fm-extract` does so while holding only the packages lock — so **no lock is common
-to a page skill and `fm-extract`, and two page locks do not exclude each other.** Two pages in
-flight is a supported state (`fm-progress` renders in-flight pages plural), so two concurrent RMWs of
-one file is a supported state too. A lost update silently drops a status transition or a
-`gateEvidence` record — and a dropped `gateEvidence` is exactly the input that makes
-`fm-route` Step 1a acknowledge instead of block.
+The page lock does **not** protect `tracker.json`: no lock is common to a page skill and
+`fm-extract`, and two page locks do not exclude each other. Two pages in flight is a supported
+state, so two concurrent RMWs of that one file is too.
 
-**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.tracker.lock`.**
+**Ordering is mandatory and one-directional: page lock (or `.packages.lock`) → `.app.lock` → `.tracker.lock`.**
 Never the reverse, or two sessions deadlock. Hold `.tracker.lock` only across the read-modify-write
 itself — open it, re-read `tracker.json`, apply your change, write, release — never across an agent
 launch, a gate run, or any other long step. Same JSON schema and same 30-minute staleness rule as
@@ -380,24 +347,16 @@ the other two.
 { "holder": "fm-parity", "pid": 49402, "acquiredAt": "2026-07-31T15:21:04+09:00" }
 ```
 
-- `acquiredAt` — ISO-8601 **with time**, not date-only. The 30-minute rule below is computed from
-  this field, so a date-only or unparseable `acquiredAt` is treated as **immediately stale** — a
-  malformed timestamp must never let a lock become a permanent deadlock.
-- `pid` — the id of a process that lives as long as the work does. **A skill's Bash call exits
-  immediately, so `$$` from a one-shot command is useless — it names a pid that is already dead and
-  soon recycled.** Record the id of the enclosing session process (or omit `pid` entirely, which is
-  honest); a wrong pid is worse than none, because it either resurrects a ghost lock or matches an
-  unrelated process. When `pid` is absent, `acquiredAt` alone decides.
-- **Guard against pid reuse.** A live pid alone does not prove the holder is alive — ids are
-  recycled. Confirm the running process is plausibly the holder (its command matches `holder`);
-  if it clearly is not, treat the lock as holder-less and apply the age rule. Without this,
-  a recycled id pins a lock forever.
+- `acquiredAt` — ISO-8601 **with time**, not date-only. Once the holder is gone, a date-only or
+  unparseable value is **immediately sweepable**; it never makes a live holder's lock removable.
+- `pid` — the id of a process that lives as long as the work does. **`$$` from a skill's one-shot
+  Bash call is useless** — that pid is already dead and soon recycled. Record the enclosing session
+  process, or omit `pid` entirely, which is honest. When absent, `acquiredAt` alone decides.
+- **Guard against pid reuse.** Confirm the running process is plausibly the holder (its command
+  matches `holder`); if it clearly is not, treat the lock as holder-less and apply the age rule.
 - **The 30-minute rule is a ghost-lock sweep, not a timeout. Never break a lock whose `pid` is
-  still alive, however old it is.** Gates legitimately run past 30 minutes — `parity-verifier`
-  states outright that an omitted `budgetSeconds` means no cap and that visual runs long — so an
-  age-only rule lets a second session seize the lock out from under a running gate and prepare a
-  flip on code the first session is still changing. Check `pid` first; only when it is absent or
-  dead does `acquiredAt` decide.
+  still alive, however old it is** — gates legitimately run past 30 minutes. Check `pid` first;
+  only when it is absent or dead does `acquiredAt` decide.
 - Optional context (`purpose`, `precondition`, `app`, `page`) — recommended, not required.
 
 A lock may be removed only when its **holder is gone**: `pid` absent, or no live process with that
@@ -482,7 +441,7 @@ These apply to every agent and skill in this plugin.
   count to what the skill lists — **unless the skill says otherwise, and some do.** `fm-audit-codex`
   runs its stages **sequentially** on purpose: `codex-auditor` takes the page `.lock` to
   Read-Modify-Write `codex-audit.json`, so parallel auditors on one page contend for a single lock
-  that stays non-stale for 30 minutes. Agents that share a lock or a write target are not
+  that one of them holds until it finishes. Agents that share a lock or a write target are not
   independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
 
 ## Build Command Working Directory
@@ -650,8 +609,9 @@ Four placements:
 
 - **verify** — `foundation-generator` scaffolds a **key-coverage spec once per app** (every literal
   key resolves in **all** `i18n.languages`; `{{param}}` values get params; dynamic keys counted as
-  `uncheckable`). `fm-verify`'s existing `npx vitest run` makes it hard; `fm-verify` only asserts the
-  spec exists and reports the `uncheckable` count. No separate gate step.
+  `uncheckable`). `fm-verify`'s existing `npx vitest run` makes it hard; `fm-verify` asserts the
+  spec's results appear in that run — file existence is not the test — and reports the
+  `uncheckable` count. No separate gate step.
 - **plan** — `analysis.json.copySources[]` → `migration-plan.json.copyBindings[]` records where each
   surface's text comes from (`localized-key` / `errorCode-map` / `empty-string` / `server-message`)
   plus `renderMode`. A `mustPreserve` copy source must be bound or land in `openApprovals[]` — the
@@ -759,8 +719,9 @@ section went from its heading straight into the diff. Three doc-only fixes — d
   an approved entry first. Gates the **response-DTO diff only** — the request-body-vs-live-backend
   check (OMH-748) does not depend on typed response DTOs and keeps running on every write page.
 - **B (lock schema).** `.lock` is JSON with `holder` / `pid` / ISO-8601 `acquiredAt` (see "Lock file").
-  The "stale after 30 min" rule computes off `acquiredAt`; a date-only or unparseable timestamp is
-  immediately stale, so a malformed lock is never a permanent deadlock.
+  The ghost-lock sweep computes off `acquiredAt` (it applies only once the holder is gone); a
+  date-only or unparseable timestamp is treated as immediately sweepable, so a malformed lock left
+  by a dead holder is never a permanent deadlock.
 - **C (per-gate budget).** Optional `gateAcceptance.{gate}.budgetSeconds`; on overrun the verifier
   records `not-run` + `reason: "budget exceeded"` and proceeds — never `fail`, never a hard-kill.
   Per-gate, not per-round (`visual` runs long by design; a `contract` overrun signals nothing to
@@ -772,133 +733,62 @@ freeze a contract. That is a separate plan-quality axis.
 
 ## Gate Result Accounting
 
-The **accounting** axis (v0.14.4) — the same missing-decision-field pattern as the v0.14.1 lock, in
-two more places. A gate holds a judgement rule (`unresolved` findings, gate freshness), but the
-artifact has no field to record the *basis*, so the rule falls to the executing session's improvisation
-(measured on my-coupon: 48 Codex findings, 14 `high`, only 2 adjudicated; four resolution fields used
-in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
-`docs/design/gate-result-accounting.md`:
+Where a gate's judgement rule needs a recorded basis. Design and history:
+`docs/design/gate-result-accounting.md`.
 
-- **D (finding adjudication).** Each Codex finding gains an optional `adjudication`
-  (`state: open|closed|rejected`, `when`, `by`, `basis`) in `templates/codex-audit.md`. It is **never
-  written by the discovering audit** — Codex reports; resolution is a downstream fact written by
-  `fm-fix` (Step 5, when a repair closes a finding) or a human. Absent `adjudication` reads as **`open`**
-  (the safe default), and `fm-route --flag-on` Step 1b defines `unresolved` = absent or `state: open`.
-  `closed` (fixed) is kept apart from `rejected` (not a defect) so the next audit round does not re-raise
-  a dismissed one; `basis` is required for both. Existing `codex-audit.json` are not retro-filled (all
-  read `open` — the honest state), the same no-retro decision `capture-provenance.md` made.
-  **A re-audit carries adjudications across**, or the field would be wiped the next time a stage is
-  re-run and every closed finding would reopen — the exact failure it exists to prevent. Re-running a
-  stage rewrites its `findings[]`, so `codex-auditor` reads the prior array first: an `adjudication`
-  moves onto a new finding matching on `area` + `evidence`, and any prior adjudicated finding that
-  matches nothing is preserved verbatim under `{stage}.priorAdjudicated[]`. Matching is
-  deliberately conservative — Codex is an LLM, its `detail` prose will not reproduce word for word —
-  so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
-  entries next to the current findings and lets the human judge, which is where that judgement
-  belongs: the gate is already a human acknowledgement.
+- **D (finding adjudication).** Each Codex finding carries an optional `adjudication`
+  (`state: open|closed|rejected`, `when`, `by`, `basis`) — schema in `templates/codex-audit.md`.
+  - **Never written by the discovering audit.** Codex reports; resolution is written later by
+    `fm-fix` (Step 5) or a human. `basis` is required for `closed` and `rejected` alike.
+  - Absent `adjudication` reads as **`open`**. `fm-route --flag-on` Step 1b defines `unresolved` as
+    absent or `state: open`. Existing `codex-audit.json` are not retro-filled.
+  - **A re-audit carries adjudications across.** Re-running a stage rewrites its `findings[]`, so
+    `codex-auditor` reads the prior array first: an `adjudication` moves onto a new finding matching
+    on `area` + `evidence`; a prior adjudicated finding matching nothing is preserved verbatim under
+    `{stage}.priorAdjudicated[]`. Matching is conservative — a non-match means "could not be
+    matched", never "resolved". `fm-route` Step 1b shows those entries beside the current findings.
 - **E (gate-pass evidence = the *content* the gate ran on).** `fm-verify`/`fm-e2e`/`fm-parity` record
-  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` in `tracker.json`. A PASS
-  proves nothing about code that changed after it (OMH-754 PR #184 shipped a `visual: PASS` 21
-  commits stale), so the flip has to compare *what was tested* against *what is about to ship*.
+  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` in `tracker.json`.
+  - **`tree` decides freshness; `commit` is audit trail only.** `commit` =
+    `git rev-parse --short HEAD`, `<sha>+dirty` on a dirty tree, and is **never passed to `git`**.
+  - **One executable, never reimplemented inline:**
 
-  **`tree` is the comparison; `commit` is only the audit trail.** `commit` =
-  `git rev-parse --short HEAD` (a dirty tree → `<sha>+dirty`, honest imprecision over a clean-looking
-  lie) and is never used to decide freshness. `tree` is a content hash over the page's **watch paths**
-  (F below), and every producer and consumer gets it from **one executable**:
+    ```sh
+    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] \
+        --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
+    ```
 
-  ```sh
-  {pluginRoot}/scripts/gate-tree-hash.sh \
-      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → hash
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → records
-  ```
+    Producers and consumers pass the **same `--exclude` and the same `--`**, or the two hashes are
+    incomparable. The script's own file documents how it records each entry; do not restate it here.
+  - It exits **2** printing `unverifiable` when no watch path resolves, and **1** writing nothing on
+    any other error. `unverifiable` on a page that **has** a recorded `tree` is a *change*:
+    `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
+  - Gate skills also save the `--manifest` output to
+    `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv` (create the
+    directory first) and pass that repo-relative path back as `--exclude`. The redirect target must
+    be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
+  - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
+    `fm-verify`.
+  - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
+    before the first tool and again at record time; if they differ, record no pass and say to re-run.
+  - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
+    retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
+    `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
+- **F (watch paths).** Three axes, hashed as one set:
+  1. `tracker.json` `sourcePaths[]` — the files the generation phases wrote under `appDir`,
+     recorded by `fm-gen` Step 5 and `fm-delta` Step 5.
+  2. each `migration-plan.json` `sharedDeps[]` entry `@omh/<package>:<symbol>`, mapped to the
+     directory `{packagesDir}/<package>` — the symbol is not a path.
+  3. the page's `migration-plan.json` itself.
 
-  Producers and consumers pass the **same `--exclude` and the same `--`**. The exclusion keeps a
-  gate's manifest out of the evidence it describes; `--` stops a watch path beginning with a dash
-  from being parsed as a flag. Either flag present on one side and absent on the other makes the
-  two hashes incomparable — a permanent hard block on correct code.
+  `fm-route` Step 1a and `fm-progress` resolve them identically; a consumer resolving fewer can
+  never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
+  clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
+  A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must
+  report which axes it checked.
 
-  **Never reimplement it inline.** This was a shell pipeline printed here and reproduced by five call
-  sites, and prose could not hold it: `git ls-files` prints paths **relative to the current
-  directory**, while `fm-verify` carries a standing order to run every command from
-  `{monorepoRoot}/{appDir}`. Repo-relative watch paths evaluated there matched nothing, so the
-  pipeline hashed the empty set — the constant `e69de29b…` — which does not move when the code moves,
-  and a hard gate comparing it passes on **any** code. The script resolves the repo root itself
-  (`git rev-parse --show-toplevel`) and prints `--full-name` paths, so its output is identical from
-  every working directory.
-
-  It exits **2** printing the single token `unverifiable` when no watch paths are given or none
-  resolve — never a hash, because the empty set hashes to a constant and a constant presented as
-  evidence is exactly the false pass this machinery exists to stop. Note that `unverifiable` on a
-  page that **has** a recorded `tree` is a *change*, not an absence: `fm-route` Step 1a blocks on it
-  and only grandfathers the never-recorded case. On any real error the script exits **1** and writes
-  **nothing** to stdout, so a caller doing `TREE=$(…)` can never capture a partial value.
-
-  Per-entry records come from git's object model, each on an explicit discriminator: a working-tree
-  file by content; a **symlink is refused** (a target cannot be read portably as exact bytes, and a
-  watch path has no reason to contain one — `--exclude` it); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
-  uninitialized submodule `git -C` walks up and returns the *parent's* HEAD); a `skip-worktree` entry
-  by its index blob, so a sparse checkout and a full one agree; a missing entry as `DELETED <path>`.
-  That last one is keyed on the skip-worktree flag rather than "the index can resolve it", because
-  every cached path can — the looser test reported deleted files as present. Untracked (non-ignored)
-  files are included on purpose: at gate time the generated page is usually not yet committed.
-
-  Gate skills also save the `--manifest` output, which is what lets `fm-route` name **which files**
-  differ instead of only reporting that the aggregate moved. Write it to
-  `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv`, creating the
-  directory first, and pass that repo-relative path back as `--exclude` so the evidence never
-  describes itself. **The redirect target is not cwd-independent even though the script's output is**,
-  and `{monorepoRoot}` does not fix it — its default is `"."`. Gate skills run from `{appDir}`, so
-  anything short of the real repo root lands the manifest where `fm-route` does not look.
-
-  **Why content and not commits.** An earlier revision compared `gateEvidence.{gate}.commit`
-  against `HEAD` with `git log -- <watch paths>`, and had to be a soft gate because it fired on every
-  page by construction: the gates run before the code PR, so every record was `+dirty`, and PR1's
-  merge commit touches every path in `sourcePaths[]` by definition. A **content** hash has neither
-  problem — PR1's merge changes the commit graph, not the bytes, so the hash is unchanged and the
-  page passes. It moves only when the page's code or a shared package it imports actually changes,
-  which is precisely the condition the rule was written for. So `fm-route --flag-on` Step 1a is a
-  **hard** gate on a `tree` mismatch: re-run the affected gates.
-
-  A record with no `tree` (written before this field), or a computation that returned
-  `unverifiable`, is acknowledged and non-blocking — no retro-adjudication. Legacy
-  `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility; `gateEvidence` wins when
-  present. `at` is ISO-8601 with time, the same regulation as the lock schema; a date-only value is a
-  rule violation.
-- **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files
-  belong to the page, and nothing recorded that: `componentTree` carries component *names*, not
-  paths. So `fm-gen` Step 5 (and `fm-delta` Step 5) now record `sourcePaths[]` — the files the
-  generation phases wrote under `appDir` — and both regenerating skills **clear `gateEvidence`
-  together with the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` and the route fields
-  `routePrepared` / `flagKey`**, since a rewritten page's prior PASSes rest on code that no longer
-  exists. Clearing `gateEvidence` alone is the wrong half of the job: `fm-route` Step 1's **hard**
-  precondition reads `verifiedAt` + the two report files, and Step 1-pre reads `routePrepared`, so
-  those would survive the regeneration and re-authorize a flip — including skipping the fresh
-  `--flag-off` that carries the route-stage Codex audit. The second axis is the
-  shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
-  every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
-  already records them as `@omh/<package>:<symbol>`, so each maps to the directory
-  `{packagesDir}/<package>` — the symbol is not a path.
-
-  **Axis 3 is the page's `migration-plan.json`.** The plan decides what the gates were *for*:
-  `flagPlan.guardsPath` is the production path that gets flipped, `gateAcceptance` is the criteria
-  the executors enforced verbatim, `requiredGates` is which gates had to run, and `e2eScenarios`
-  is what e2e tested. All four sit outside `sourcePaths[]` and `sharedDeps[]`, so without this
-  axis the plan could be edited after the gates passed — `/tested` → `/untested` — without moving
-  the hash, and `fm-route` would flip a path no report ever evaluated. The cost is that any plan
-  edit, including a cosmetic one, invalidates the page's gates; that is the right side of the
-  trade against flipping an unevaluated route.
-
-  Watch paths are the union of all three; `fm-route`
-  Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
-  `unverifiable` on axis 1 and still checkable on axes 2 and 3, and must report which axes it checked —
-  a freshness claim covering some of the three axes is an evidence-scope statement, which is itself
-  a claim (see Design Principles). Because all three axes are hashed as one set, `tree` covers them
-  together — which is also why a consumer that resolves fewer can never match a producer.
-
-Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
-veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no
-retro-adjudication.
+Codex stays advisory: D counts findings, it does not give Codex a veto.
 
 ## Skills
 

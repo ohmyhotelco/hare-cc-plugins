@@ -80,7 +80,7 @@ Note this is **not** `workingLanguage` (the language of skill output). Conflatin
   mechanisms, render mode/paths, and the gate blind-spot table.
 - **`agents/foundation-generator.md`** (task 3b) + **`skills/fm-verify/SKILL.md`** (step 4a) — the
   key-coverage spec is generated **once per app** beside the test harness; `fm-verify`'s existing
-  `npx vitest run` makes it hard automatically. `fm-verify` only asserts the spec **exists** (so it
+  `npx vitest run` makes it hard automatically. `fm-verify` asserts the spec's results **appear in the vitest output** (file existence is not the test) (so it
   cannot be silently deleted) and surfaces the `uncheckable` dynamic-key count. No new gate.
 - **`agents/angular-analyzer.md`** (section 9) — `copySources[]`: per user-visible text point, the
   mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), key or map file
@@ -118,7 +118,7 @@ Note this is **not** `workingLanguage` (the language of skill output). Conflatin
   a hard gate and `foundation-generator` already scaffolds once-per-app harness files, so the check
   reuses both: no new gate step, no script to maintain, and it keeps working in the app's own CI
   independently of the plugin. It also satisfies the proposal's app-repo stopgap for free. Same idiom
-  as the two prior siblings (generation pins; the gate asserts the pin exists).
+  as the two prior siblings (generation pins; the gate asserts the pin's results appear in the run).
 - **Reuse `openApprovals`, don't invent** → states × languages is a big matrix and reductions are
   legitimate; the full-matrix + explicit-approval machinery already exists, so coverage reduction
   rides it rather than getting a bespoke rule.

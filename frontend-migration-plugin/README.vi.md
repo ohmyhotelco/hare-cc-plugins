@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v1.0.0). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v1.1.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -84,7 +84,7 @@ upstream mà `frontend-react-plugin` dùng, qua `npx skills add … --copy` (ven
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | Pattern composition component |
 
 Các agent nạp từng skill theo từng pha, có kiểm tra tồn tại — nếu cài đặt bị từ chối/vắng mặt
-(hoặc `externalSkills: false`) thì bỏ qua, không gây lỗi. `web-design-guidelines` và `agent-browser`
+(hoặc `externalSkills: false` (chỉ điều khiển việc CÀI ĐẶT và cảnh báo phiên — không chặn agent áp dụng skill đã có; muốn chặn thì xoá thư mục)) thì bỏ qua, không gây lỗi. `web-design-guidelines` và `agent-browser`
 (mà frontend-react-plugin dùng) cố ý không được áp dụng: độ trung thực UI do `fm-parity` đánh giá so
 với bản cũ, và E2E chạy trên Playwright.
 
@@ -120,8 +120,11 @@ Sau khi đã đủ điều kiện tiên quyết:
 ```
 
 Mỗi bước ghi sản phẩm vào `docs/migration/{app}/{page}/` và đẩy trạng thái trong tracker. Nếu một
-cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). Trang quay về `generated`, nên chạy lại
-# toàn bộ chuỗi: fm-verify → fm-e2e → fm-parity.
+cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). **Một ngoại lệ:** `fm-verify` fail vì thiếu
+spec i18n key-coverage cần `fm-gen <page> --force`, không phải `fm-fix` — `fm-fix` chỉ chạy lại
+các công cụ build, tất cả đều pass, nên nó báo thành công rồi gặp lại đúng lỗi đó.
+Trang quay về `generated`, nên chạy lại
+toàn bộ chuỗi: `fm-verify` → `fm-e2e` → `fm-parity`.
 
 ## Luồng làm việc
 

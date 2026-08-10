@@ -186,9 +186,36 @@ if [ -n "$PAGES" ]; then
     STEP=$(next_step "$status")
     FLAGS=$(next_flags "$status")
     NOTE=$(next_note "$status")
+    # A gate-passed status whose authorization has been cleared. Status-only guidance walked the
+    # user --flag-off -> --flag-on -> refused (fm-route Step 1 reads verifiedAt) -> and back here.
+    # NAME NO COMMAND: three different runs can leave this state and they need three different
+    # recoveries — fm-delta Full (pre-drift plan, restart at fm-analyze), a FAILED fm-delta (baseline
+    # never promoted, re-run fm-delta), and an fm-extract invalidation on a 1.0.0 tracker (gates
+    # only). This hook cannot tell them apart and does not have the legacy target fm-analyze needs,
+    # so it reports the situation and defers to the clearing run's own report.
+    case "$status" in
+      verified|e2e-passed|parity-passed)
+        if [ -z "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].verifiedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+          STEP=""; FLAGS=""
+          NOTE="gate authorization was cleared; the run that cleared it said where to restart, and its report wins over this line — fm-delta Full says fm-analyze (the plan is still pre-drift), a FAILED fm-delta says re-run fm-delta (its baseline was never promoted), an fm-extract invalidation needs only the gates from fm-verify"
+        fi ;;
+    esac
+    # regenRequiredAt means a full regeneration is owed. Two writers set it: fm-fix when a fix
+    # changed no code, and fm-verify when the i18n key-coverage spec is absent; fm-gen clears it on
+    # a complete run and fm-verify on a passing gate. Without this the *-failed wildcard sends the
+    # user to fm-fix, which reproduces the same state in both cases.
+    # `generated` too: fm-delta's incremental branch returns a page there with the debt unpaid.
+    case "$status" in
+      gen-failed) : ;;   # its recovery is a RESUME (fm-gen Step 6); --force would discard it
+      generated|*-failed)
+        if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+          STEP="fm-gen"; FLAGS=" --force"
+          NOTE="a full regeneration is owed (a fix that changed no code, or an absent i18n key-coverage spec)"
+        fi ;;
+    esac
     # parity-passed has three sub-states: not prepared -> --flag-off; prepared -> --flag-on;
     # flip artifact prepared + PR2 handed over -> waiting on merge+deploy, then --confirm-live.
-    if [ "$status" = "parity-passed" ]; then
+    if [ "$status" = "parity-passed" ] && [ "$STEP" = "fm-route" ]; then
       PREPARED=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].routePrepared // false' "$TRACKER" 2>/dev/null || echo false)
       FLIPPR=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
       if [ -n "$FLIPPR" ]; then
@@ -198,8 +225,23 @@ if [ -n "$PAGES" ]; then
         FLAGS=" --flag-on"
       fi
     fi
+    # A flip in flight at any status other than parity-passed: fm-extract can demote a dependent
+    # to `generated` while a concurrent --flag-on records the timestamp. Every status writer
+    # refuses while it stands, so fm-verify (the normal next step for `generated`) would refuse
+    # too; `--revert` is the only command that admits it (fm-route Step 0a).
+    case "$status" in
+      parity-passed|flipped|done) : ;;
+      *) if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
+           STEP="fm-route"; FLAGS=" --revert"
+           NOTE="a flip is in flight on a page below parity-passed; every other command refuses until it is reverted"
+         fi ;;
+    esac
+    # The scan covers every app, but a skill resolves the app from --app or `currentApp`, so a
+    # command printed for a non-current app would silently operate on the current one.
+    APPFLAG=""
+    [ "$app" != "$CURRENT_APP" ] && APPFLAG=" --app $app"
     if [ -n "$STEP" ]; then
-      LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS"
+      LINE="  Info: [$app/$page] status '$status' → next: /frontend-migration-plugin:$STEP $page$FLAGS$APPFLAG"
       [ -n "$NOTE" ] && LINE="$LINE  ($NOTE)"
       echo "$LINE"
     elif [ -n "$NOTE" ]; then

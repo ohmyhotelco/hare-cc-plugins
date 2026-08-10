@@ -92,12 +92,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
-  — the code state the pass rests on, so a later `packages/`/page change that outdates this evidence
-  blocks the flip (see CLAUDE.md → "Gate Result Accounting"). `commit` = `git rev-parse --short HEAD`;
-  if `git status --porcelain` is non-empty, record `<sha>+dirty` (the same rule `fm-verify` and
-  `fm-e2e` apply — the working tree differs from the SHA, and honest imprecision beats a
-  clean-looking lie). Audit trail only. `tree` is the freshness test. Compute it by **running the script** — never an
-  inline pipeline (CLAUDE.md → "Gate Result Accounting" explains why one exists):
+  exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
+  `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
+  **running the script**, never an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)
@@ -108,21 +105,10 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
   ```
 
-  **Watch paths are the union of three axes**, not just the page's own files: `tracker.json`
-  `sourcePaths[]` **plus** each `migration-plan.json` `sharedDeps[]` entry mapped
-  `@omh/<package>:<symbol>` → `{packagesDir}/<package>` (drop the symbol — it is not a path),
-**plus the page's `migration-plan.json`**, which decides the route, the criteria and the
-scenario set the gates rest on (CLAUDE.md → "Gate Result Accounting" F). Resolve
-  `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here; `fm-route`
-  hashes all three axes, so hashing fewer produces a value that never matches and blocks every flip.
-  The script is cwd-independent — **the redirect target is not**, and `{monorepoRoot}` does not
-  make it so: its default is `"."` (`fm-init` Step 2.1), which re-resolves against whatever
-  directory this skill is standing in. Derive the destination from
-  `git rev-parse --show-toplevel`, the same anchor the script itself uses, and create the
-  directory first. This skill runs from `{appDir}`, and a
-  repo-relative redirect would land the manifest at `{appDir}/docs/migration/…` where
-  `fm-route` does not look. That is the same cwd assumption that made the v0.15.2 hash a
-  constant, one line further down.
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
+  resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
+  The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
+  `{appDir}`.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never

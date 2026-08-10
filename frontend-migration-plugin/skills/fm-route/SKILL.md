@@ -34,7 +34,14 @@ actions, not three**: `--flag-off` | `--flag-on` | `--flag-on --confirm-live` | 
 `--confirm-live` is a **distinct action**, not a modifier on `flag-on`: it edits no artifact, runs no
 agent, and only records the human's observation that the merged flip is live (Step 3 is skipped for
 it). Treating it as `flag-on` would re-activate the routing rule and re-run the Step 1a/1b
-acknowledgements the operator already gave.
+acknowledgements the operator already gave. **Step 1a deliberately does not run here.** It is a
+hard gate with no acknowledgement path, and at `parity-passed` + `flipPrOpenedAt` no gate can
+re-run to clear it (`fm-verify` refuses while the timestamp stands; `fm-e2e`/`fm-parity`
+require earlier statuses) — so applying it here would make `flipped` unreachable and leave
+`--revert` of an already-deployed flip as the only move. Another page rewriting a shared file
+during the merge window can leave this page's evidence stale; `fm-progress` reports that, and
+it is not blocked here because the flip is already live and nothing this command does changes
+the edge.
 
 ### Step 0a: Action preconditions (all four actions)
 Every action writes or clears route state, so every action needs an entry condition. Read
@@ -42,15 +49,28 @@ Every action writes or clears route state, so every action needs an entry condit
 
 | action | requires | on refusal |
 | --- | --- | --- |
-| `--flag-off` | `status = parity-passed`, and **no** `flipPrOpenedAt` | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
+| `--flag-off` | `status = parity-passed`, **no** `flipPrOpenedAt`, and Step 1's gate guard | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
 | `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
 | `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
-| `--revert` | `status = flipped`, **or** `status = parity-passed` with `routePrepared` or `flipPrOpenedAt` set | there is nothing in rotation or in flight to roll back |
+| `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status **except `done`**, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back — and on `done` there is nothing to roll back *to*: name manual intervention, never a command |
+
+**`flipPrOpenedAt` admits `--revert` at any status but `done`** because every other rule in this plugin
+points at `--revert` as the way out of an in-flight flip, and a page can hold the timestamp at a
+status below `parity-passed`: `fm-extract` demotes a dependent to `generated` and a `--flag-on`
+running concurrently then records the timestamp. Requiring `parity-passed` there left the only
+prescribed exit refusing the state it was prescribed for.
 
 **`--revert` never promotes a page.** From `flipped` it returns the page to `parity-passed` — the
 state it was in before the flip, and one it genuinely earned. From `parity-passed` it **keeps the
 current status** and only clears the route fields, undoing a `--flag-off` or a prepared-but-not-live
 flip (whether or not PR2 was actually opened — see the field's definition in CLAUDE.md).
+
+**Tell the operator the rollback is not finished.** `--revert` edits the in-repo artifact; the
+edge returns to legacy when the rollback PR is merged and propagated — the soft rollback this
+plugin targets at 5–10 minutes (`templates/strangler-fig.md`). Step 4's clearing of `flippedAt`
+records that rollback, and `templates/capture-provenance.md` reads it that way, so the report must
+say plainly that the operator has to complete it, and must not start a fresh
+`--flag-off`/`--flag-on` cycle before it propagates or the two PRs race at the edge.
 It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
 and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
 skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
@@ -112,7 +132,11 @@ moved** — re-run the script with `--manifest` and diff it against the manifest
 `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
 answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
 computable, so if the manifest is missing, say the aggregate moved and stop there rather than
-inventing a file list. Send the user back to re-run those gates. Do not offer an acknowledgement
+inventing a file list. Send the user back to **`fm-verify`** — the chain head. Naming "those
+gates" invites `fm-e2e`/`fm-parity`, which require exactly `verified`/`e2e-passed` and refuse the
+`parity-passed` this step runs at; when only `e2e` or `parity` is stale the named set contains
+nothing that accepts. `fm-verify` takes a gate-passed page (with its demotion warning) and the
+chain re-runs in order. Do not offer an acknowledgement
 path: this is the one irreversible step in the pipeline, and an acknowledgement is not a test.
 
 **Why this is comparing content and not commits.** The first version of this rule compared
@@ -143,7 +167,8 @@ because there is nothing to compare against:
     non-empty file set; that set has since vanished from the working tree and the index, which is a
     change to the watched surface, not an absence of evidence. The usual cause is a refactor that
     renamed every `sourcePaths[]` entry — and since the replacements are not in `sourcePaths[]`,
-    they are not watched at all. Send the user to re-run the gates (which re-records `sourcePaths`
+    they are not watched at all. Send the user to **`fm-verify`** and let the chain re-run in order —
+    same reason as above; `fm-e2e`/`fm-parity` refuse `parity-passed` (which re-records `sourcePaths`
     via `fm-gen`/`fm-delta`). Treating this as acknowledge-and-proceed would wave through the one
     case where the evidence is provably stale.
   Never compare the literal token against the stored hash and read the inequality as "stale" — the
@@ -164,7 +189,10 @@ report written under the current rule there should be none — a `not-run` scena
 top-level `result` `not-run` and `fm-e2e` leaves the page at `verified`, so it never reaches this
 skill. Any that appear come from a report predating that rule, and they are a **hard block, not an
 acknowledgement**: the staging-gateway case makes the unmeasured scenario the *transactional* flow,
-which is exactly the one that must not ship untested. Send the user back to `fm-e2e`.
+which is exactly the one that must not ship untested. Send the user back to **`fm-verify`** — not
+`fm-e2e`, which requires the page at exactly `verified` and refuses the `parity-passed` this step
+runs at. `fm-verify` accepts a gate-passed page (with its demotion warning) and the chain then
+re-runs `fm-e2e` → `fm-parity` in order.
 
 Also read each stage's `{stage}.priorAdjudicated[]` (stages are top-level keys in
 `codex-audit.json`; there is no `stages` wrapper) — adjudicated findings a re-audit could not match to a
@@ -174,16 +202,27 @@ resolving them either way; this gate is already a human acknowledgement, so the 
 here and not in the auditor.
 If any exist, present them and **require the user's explicit acknowledgement**
 before continuing — this is a soft gate, not an auto-block: Codex is advisory, so a human may
-acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or Codex is
+acknowledge and proceed, or send the page back through the gates — **not `fm-fix`**, which accepts
+only `*-failed`/`fixing`/`escalated` and refuses the `parity-passed` this step runs at. To act on a
+finding rather than acknowledge it, re-run `fm-verify` (it accepts a gate-passed page and demotes
+with a warning), which puts the page back on the chain a fixer can reach. If `codexAudit` is disabled or Codex is
 unavailable, skip this step.
 
 ### Step 2: Lock
 **The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
-prompt a human, and a lock must never be held across a prompt — but it means the state can move
-between the check and the write. **Re-verify Step 0a's precondition, Step 1's gate guard, Step 1-pre's
-`routePrepared`, and Step 1a's hashes once the lock is held**, before Step 3 touches an artifact: a concurrent `fm-fix` or `fm-delta` can
-demote the page while the operator is reading the Step 1b findings, and the whole point of those
-guards is that a flip never proceeds from a status the page no longer has.
+prompt a human — but it means the state can move
+between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
+for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
+`routePrepared`, and Step 1a's hashes. A concurrent `fm-fix` or `fm-delta` can demote the page
+while the operator is reading the Step 1b findings, and the whole point of those guards is that a
+flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
+`--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates
+the dead end that revert removed: a hard gate with no acknowledgement path, in a state where no
+gate can re-run to clear it.
+
+**Any refusal here releases the lock first.** Step 4's release is on the success path and is not
+reached here (Step 3's orchestrator-refusal release is the other one) — stopping without releasing strands the page under a holder that has ended
+and refuses every recovery the refusal itself prescribes.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
@@ -194,8 +233,15 @@ applied. Go straight to Step 4 and record only the tracker transition.
 
 For the other three actions, launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
 `flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
-(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), the `parity-passed` tracker
-status + `verifiedAt` + the `e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent picks the
+(`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`), **the page's current
+`status`** (not a literal `parity-passed` — `--revert` is admitted at any status carrying
+`flipPrOpenedAt`, Step 0a) **plus `routePrepared` and `flipPrOpenedAt`**, `verifiedAt`, the
+`e2e-report.json` / `parity-report.json` paths, `workingLanguage`. The agent's `--revert`
+precondition tests the two route fields; naming only the flip-path gate state would hand it a
+status the page does not have and none of the fields it must check.
+
+**If the agent refuses, release the page lock before returning** (CLAUDE.md → Lock file): Step 4's
+release is on the success path. The agent picks the
 strategy from `flipMechanism`; the gate precondition is identical for both.
 
 ### Step 4: Record
@@ -220,10 +266,9 @@ Update `tracker.json` (Read-Modify-Write):
 - `--flag-on --confirm-live` (run by the operator **after** PR2 is merged and the change is deployed
   and propagated) → `apps[app].pages[page].status = "flipped"`, `flippedAt`, clear `flipPrOpenedAt`.
   This is the only transition that claims the edge is serving v2, and only a human can observe that.
-- `--revert` → **clear `flippedAt`, `routePrepared`, and `flipPrOpenedAt`**, record `revertedAt`, and
-  set the status per Step 0a: from `flipped` → back to `parity-passed`; from `parity-passed` → leave
-  it unchanged. Never write `parity-passed` over anything else — Step 0a already refused those, and
-  this skill does not issue gate-passed states.
+- `--revert` → **clear `flippedAt`, `routePrepared`, `flagKey`, and `flipPrOpenedAt`**, record `revertedAt`, and
+  set the status per Step 0a: from `flipped` → back to `parity-passed`; from any other admitted
+  status → leave it unchanged. This skill never issues a gate-passed state.
   Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
   the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert
