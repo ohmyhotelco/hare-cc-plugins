@@ -46,12 +46,14 @@ fresh, report and stop.
 
 ### Step 2b: Resolve dependents, refuse in-flight flips, and clear once — BEFORE any write
 Resolve the dependent set exactly as Step 5.3 defines it (every page whose `migration-plan.json`
-`sharedDeps[]` names a package this run will rewrite).
+`sharedDeps[]` names a package this run will rewrite). **A dependent's app is the `{app}` segment of
+its `docs/migration/{app}/{page}/` path, never this run's `app`** — the packages are extracted once
+and imported by all three apps, so the dependent set spans apps while this skill resolves one.
 
 - **Any dependent with `flipPrOpenedAt` set → stop here, before `package-extractor` writes a single
   byte.** **Release `.packages.lock` first** — Step 5 is the only other release, so stopping here
   without it leaves the lock held by a run that has ended and refuses every retry. Then name those
-  pages and require `fm-route {page} --revert` on each. Refusing in Step 5 would refuse *after* the
+  pages and require `fm-route {page} --app {app} --revert` on each. Refusing in Step 5 would refuse *after* the
   dependency it protects had already changed.
 - Otherwise apply Step 5.3's clear to each dependent now — **inside `docs/migration/.tracker.lock`**,
   taken after `.packages.lock` and released right after the write (CLAUDE.md → Lock file); Step 5's
@@ -119,7 +121,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
    would leave PR2 open with nothing in the tracker recording the in-flight flip. **Release
    `.tracker.lock` and then `.packages.lock`** (innermost first), then stop before writing anything, name those pages, and require
-   `fm-route {page} --revert` on each first — without the release, Step 2's "held and fresh →
+   `fm-route {page} --app {app} --revert` on each first — without the release, Step 2's "held and fresh →
    report and stop" refuses the retry this very sentence asks for.
 
    The mechanics: `packages/shared-*` is watch-path

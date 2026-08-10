@@ -76,10 +76,11 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
           echo "  fm-delta and fm-route --revert both refuse a done page."
         elif [ -n "$FLIPPR" ]; then
-          # fm-delta refuses a page with a flip in flight; recommending it would dead-end.
-          echo "  A flip is in flight for this page (prepared $FLIPPR), so fm-delta refuses it."
-          echo "  Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert first, then"
-          echo "  fm-delta $PAGE$APP_FLAG"
+          # Name only --revert. Naming the follow-up here would shadow the status branches below
+          # and send fixing / escalated / gen-failed to fm-delta, which refuses all three.
+          echo "  A flip is in flight for this page (prepared $FLIPPR), so every other command"
+          echo "  refuses it. Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert"
+          echo "  first; the session hook then names the command this page's status calls for."
         elif [ "$STATUS" = "fixing" ]; then
           echo "  A fix is in progress for this page. Finish it through"
           echo "  /frontend-migration-plugin:fm-fix $PAGE$APP_FLAG, which returns the page to"
@@ -92,6 +93,17 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           echo "  Generation never completed for this page. Run"
           echo "  /frontend-migration-plugin:fm-gen $PAGE$APP_FLAG"
           echo "  (fm-delta needs a completed generation to modify)."
+        elif [ "$STATUS" = "verify-failed" ] || [ "$STATUS" = "e2e-failed" ] || [ "$STATUS" = "parity-failed" ]; then
+          REGEN=$(jq -r --arg a "$APP" --arg p "$PAGE" \
+            '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")
+          if [ -n "$REGEN" ]; then
+            echo "  A gate failed and a full regeneration is owed. Run"
+            echo "  /frontend-migration-plugin:fm-gen $PAGE$APP_FLAG --force"
+          else
+            echo "  A gate failed for this page. Close it through"
+            echo "  /frontend-migration-plugin:fm-fix $PAGE$APP_FLAG, which accepts exactly these;"
+            echo "  fm-delta resets the page to 'generated'."
+          fi
         elif [ "$STATUS" = "flipped" ]; then
           echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
           echo "  Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert first, then"
