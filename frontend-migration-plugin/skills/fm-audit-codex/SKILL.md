@@ -75,16 +75,24 @@ reads config only), so every FSM status reaches here:
    status router in this plugin carves it out ahead of one.
 5. `verify-failed` / `e2e-failed` / `parity-failed` → **`fm-fix {page}`**, which accepts exactly
    these.
-6. below `generated` (`analyzed` / `style-specced` / `planned`) → **the producer that owns the
-   finding's stage**: `analyze` → `fm-analyze`, `plan` → `fm-plan`. Only those two stages can carry
-   a finding here — `gen`/`verify`/`e2e`/`parity`/`route` audit artifacts that do not exist below
-   `generated`, so Step 1 never runs them and no other stage is reachable. `fm-verify` requires at
-   least `generated` and would refuse, naming nothing.
-7. otherwise (`generated`, `verified`, `e2e-passed`, `parity-passed`) → **`fm-verify`**, which
-   accepts them, demotes with its warning, and puts the page back on the chain in order. Not the
-   gate that owns the finding's stage: `fm-e2e` requires exactly `verified` and `fm-parity` exactly
-   `e2e-passed`, so both refuse the state their own findings exist in. That rule is about the three
-   *gates*; branch 6's producers are not gates.
+6. below `generated` (`analyzed` / `style-specced` / `planned`) → **the chain's next step for that
+   status**: `analyzed` → `fm-style-spec`, `style-specced` → `fm-plan`, `planned` → `fm-gen`. A page
+   is only here because someone re-ran a producer on a page that had gone further — a supported
+   move each producer warns about — and **nothing deletes the later artifacts**: `fm-gen` Step 5.3
+   and `fm-fix` Step 1 both state the gate reports survive, and `fm-analyze`'s merge preserves
+   `verifiedAt`. So Step 1 can still surface `gen`/`verify`/`e2e`/`parity` findings here. Those are
+   against code the re-plan is about to replace — say so, name the chain's next step, and let the
+   gates re-audit when they run. Do **not** name the owning gate: `fm-verify` requires at least
+   `generated`, `fm-e2e` exactly `verified`, `fm-parity` exactly `e2e-passed` — all three refuse.
+   For an `analyze`- or `plan`-stage finding you may name `fm-analyze` / `fm-plan` instead, which
+   accept this status and re-derive that artifact directly.
+7. otherwise (`generated`, `verified`, `e2e-passed`, `parity-passed`) → **by the finding's stage**:
+   - `analyze` → **`fm-analyze`**, `plan` → **`fm-plan`**. Both accept these statuses (with their
+     demotion warning) and are the only commands that re-derive the artifact the finding is about.
+   - any other stage → **`fm-verify`**, the chain head, which accepts all four. Not the gate that
+     owns the stage: `fm-e2e` requires exactly `verified` and `fm-parity` exactly `e2e-passed`, so
+     both refuse the state their own findings exist in. (From `verified`/`e2e-passed`/`parity-passed`
+     `fm-verify` demotes, with its warning; from `generated` it is simply the next step.)
 
 This audit never writes a failed status, so the page's status is whatever the pipeline last set —
 which is why the branch list keys on it rather than assuming a failure. Note that `fm-route
