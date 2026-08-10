@@ -896,6 +896,13 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   **hard** gate on a `tree` mismatch: re-run the chain from `fm-verify` (the affected gates cannot be
   entered directly from `parity-passed` — they require exactly `verified`/`e2e-passed`).
 
+  **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree` once
+  before the first tool and again at record time; if the two differ, the run tested a mix of old and
+  new bytes, so record no pass and tell the user to re-run. `fm-extract` holds `.packages.lock`, not
+  the page lock, so it can rewrite a shared package under a running gate, and its two clears (before
+  and after the extractor writes) cannot reach a gate that *started* before the first and *finished*
+  after the second — that gate re-records fresh evidence over both.
+
   A record with no `tree` (written before this field), or a computation that returned
   `unverifiable`, is acknowledged and non-blocking — no retro-adjudication. Legacy
   `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility; `gateEvidence` wins when

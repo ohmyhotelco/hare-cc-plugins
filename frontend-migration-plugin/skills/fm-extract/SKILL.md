@@ -135,8 +135,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    hook to `--flag-off` on a page no gate vouches for. Report the list.
    Without this a page can pass its gates against package version A while this skill writes version
    B, and the flip then matches B's hash and calls the gate fresh: a pass on bytes nothing tested.
-   This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run —
-   invalidating afterwards is what makes the race safe rather than silent.
+   This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run.
+   Invalidating on both sides is what this skill can do; it does **not** reach a gate that started
+   before the first clear and finished after the second — that one is caught on the gate's side, by
+   the before/after `tree` comparison every gate makes (CLAUDE.md → Gate Result Accounting E).
 4. Release the lock.
 
 ### Step 6: Report

@@ -60,8 +60,9 @@ the legacy app (`legacyPort`).
 
 ### revert (rollback) — guarded
 **Precondition (hard):** the page must be at `flipped`, **or** have `flipPrOpenedAt` set at any
-status, **or** be at `parity-passed` with `routePrepared` set — i.e. there is a live or in-flight
-route change to undo. `flipPrOpenedAt` admits any status because a concurrent `fm-extract` can
+status **except `done`**, **or** be at `parity-passed` with `routePrepared` set — i.e. there is a live or in-flight
+route change to undo. `flipPrOpenedAt` admits any status but `done` — the legacy page is deleted, so reverting the edge
+would route the path to nothing (CLAUDE.md -> Per-page State Machine) — because a concurrent `fm-extract` can
 demote a page to `generated` while a flip is in flight, and `--revert` is the only exit every
 other rule points at. On any other status, **refuse**: there is nothing in rotation, and the caller would go on to write a
 gate-passed status no gate produced (`fm-route` Step 0a).

@@ -52,9 +52,9 @@ Every action writes or clears route state, so every action needs an entry condit
 | `--flag-off` | `status = parity-passed`, and **no** `flipPrOpenedAt` | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
 | `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
 | `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
-| `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back |
+| `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status **except `done`**, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back — and on `done` there is nothing to roll back *to*: name manual intervention, never a command |
 
-**`flipPrOpenedAt` at any status admits `--revert`** because every other rule in this plugin
+**`flipPrOpenedAt` admits `--revert` at any status but `done`** because every other rule in this plugin
 points at `--revert` as the way out of an in-flight flip, and a page can hold the timestamp at a
 status below `parity-passed`: `fm-extract` demotes a dependent to `generated` and a `--flag-on`
 running concurrently then records the timestamp. Requiring `parity-passed` there left the only
