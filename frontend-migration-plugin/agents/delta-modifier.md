@@ -69,7 +69,10 @@ evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify`
 ## Output
 - The targeted edits/creates/removes under `{targetDir}`.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: ops applied, tests pass/fail with evidence, fm-fix edits
-  confirmed preserved, and the re-entry point (`fm-verify`).
+  confirmed preserved, and the re-entry point — `fm-verify` when the ops applied and the tools
+  pass; **`fm-delta` again** when you report failing tsc/Vitest, since `fm-delta` then stops
+  without promoting the staged baseline and re-running `fm-verify` would only demote a page
+  whose delta never landed.
 
 ## Rules
 - Smallest change; never regenerate a whole file to apply a small delta.

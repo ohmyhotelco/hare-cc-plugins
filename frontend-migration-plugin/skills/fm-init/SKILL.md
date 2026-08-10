@@ -67,8 +67,8 @@ For each surface (`pc`, `mobile`, `hana`), gather:
   - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default
     `v2-routes.json`, the version-controlled CloudFront behavior manifest).
 
-  Keep this **project-driven** — the plugin has no built-in per-app mapping; default every app to
-  `nginx` unless the user states otherwise.
+  Keep this **project-driven** — the plugin has no built-in per-app mapping, which is why the ask
+  above is per app rather than a default with an escape hatch.
 
 PC-first: configure `pc` fully. Offer sensible defaults for `mobile`/`hana` (scaffolded,
 validated later) from the migration plan topology. Do not block setup on Mobile/Hana

@@ -197,7 +197,7 @@ if [ -n "$PAGES" ]; then
       verified|e2e-passed|parity-passed)
         if [ -z "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].verifiedAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
           STEP=""; FLAGS=""
-          NOTE="gate authorization was cleared by legacy drift (fm-delta) — re-run the chain from fm-analyze as that run reported; do NOT resume at a gate, the plan is still the pre-drift one"
+          NOTE="gate authorization was cleared — re-run the chain from fm-verify. If the clear came from fm-delta Full, that run said to restart at fm-analyze because the plan is still the pre-drift one; follow its report over this line"
         fi ;;
     esac
     # regenRequiredAt means a full regeneration is owed. Two writers set it: fm-fix when a fix

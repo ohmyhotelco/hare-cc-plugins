@@ -895,7 +895,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   **Version: 1.1.0, by maintainer decision, with the incompatibilities stated.** The first draft
   called it minor on the premise that "nothing was removed and no precondition tightened". Both
   round-18 auditors falsified that premise, and it is recorded here rather than dropped, because
-  two changes are genuinely incompatible for a project already mid-migration:
+  five changes are genuinely incompatible for a project already mid-migration:
   - `fm-verify` **tightened a pass precondition**. `present` used to mean the key-coverage spec
     file exists; it now means the spec's results appear in the run. A page that was `verified`
     under 1.0.0 with a spec vitest never collected is recorded `verify-failed` **the next time
@@ -912,10 +912,19 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
     Under 1.0.0 it promoted the staged baseline and wrote `generated` over code that did not
     compile; it now leaves `migration-plan.next.json` / `analysis.next.json` staged and reports the
     failure. Remedy: fix what the modifier reported, then re-run `fm-delta`.
+  - **`regenRequiredAt` became a routing override.** At 1.0.0 the field had exactly one site — the
+    writer in `fm-fix` — and no reader and no clearer, so every page that ever entered that branch
+    carries it permanently. It now has two writers, two clearers and **two readers that override
+    the next command**: a `*-failed` page carrying it is routed to `fm-gen --force`, a full
+    regeneration that discards accumulated `fm-fix` edits. On a 1.0.0 tracker the debt has usually
+    long since been paid. Remedy before upgrading: clear `regenRequiredAt` from any page that has
+    completed an `fm-gen` since the field was written.
 
-  Both are correctness fixes — the old coverage gate passed specs that never ran, and the old
-  `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule. The maintainer chose
-  to stay on the v1 line rather than take a major, so the two notes above are the upgrade guidance:
+  All five are correctness fixes — the old coverage gate passed specs that never ran, the old
+  `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule and left a
+  gate-passed status over cleared evidence, and the old `fm-delta` promoted a baseline over code
+  that did not compile. The maintainer chose
+  to stay on the v1 line rather than take a major, so the notes above are the upgrade guidance:
   a page that flips to `verify-failed` needs `fm-fix` (or `fm-gen --force` if the spec is absent),
   and an extraction refused for an in-flight flip needs `fm-route {page} --revert` first. Added
   behaviour in the same release: `.app.lock` as a new lock scope, `migration-fixer` gaining the

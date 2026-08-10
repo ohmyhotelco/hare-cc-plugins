@@ -57,7 +57,8 @@ falling out of the harness's collection:
   vitest never collected produces no output to read, and recording `present` from the file alone is
   the pass-you-did-not-observe Step 5 forbids.
 - Config has an `i18n` block but the spec is **absent** → **gate failure**; point at
-  `foundation-generator` (re-run `fm-gen`'s foundation phase).
+  `fm-gen {page} --force` (there is no per-phase entry point; `--force` re-runs every phase, and
+  `foundation-generator` regenerates the spec when the app has none).
 - Config has an `i18n` block, the spec exists, but **its results are not in the output** → **gate
   failure**, and **do not** record `regenRequiredAt`: the spec is already there, so a full
   regeneration would not change whether vitest collects it. Two cases, told apart by Step 4's exit

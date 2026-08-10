@@ -57,7 +57,11 @@ migration-specific → bundled template*.
 | `vercel-react-best-practices` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (page), `quality-reviewer`, fixers | applied **SSR-aware** — framework mode is not a Vite SPA, so the SSR/RSC rules are **not** skipped (inversion vs `frontend-react-plugin`) |
 | `vercel-composition-patterns` | `vercel-labs/agent-skills` | `tdd-cycle-runner` (component), `quality-reviewer`, fixers | component composition rules |
 
-Loading is **guarded by existence**: each agent Reads a skill's `SKILL.md` only when present, so a
+Loading is **guarded by existence, not by the flag**: each agent Reads a skill's `SKILL.md` only
+when present, and none of them receives or reads `externalSkills`. So the flag governs whether
+`fm-init` installs them and whether the session hook warns about their absence — **not** whether an
+agent applies one it finds. Turning it off after an install, or in a project where another plugin
+vendored the same skills, leaves them in use; remove the directories to actually stop that. A
 non-blocking/declined install (or `externalSkills: false`) degrades gracefully — the skill is
 skipped, never an error. `web-design-guidelines` and `agent-browser` (used by `frontend-react-plugin`)
 are intentionally **not** adopted: UI fidelity here is judged by `fm-parity` against the legacy
@@ -880,7 +884,8 @@ in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
   problem — PR1's merge changes the commit graph, not the bytes, so the hash is unchanged and the
   page passes. It moves only when the page's code or a shared package it imports actually changes,
   which is precisely the condition the rule was written for. So `fm-route --flag-on` Step 1a is a
-  **hard** gate on a `tree` mismatch: re-run the affected gates.
+  **hard** gate on a `tree` mismatch: re-run the chain from `fm-verify` (the affected gates cannot be
+  entered directly from `parity-passed` — they require exactly `verified`/`e2e-passed`).
 
   A record with no `tree` (written before this field), or a computation that returned
   `unverifiable`, is acknowledged and non-blocking — no retro-adjudication. Legacy

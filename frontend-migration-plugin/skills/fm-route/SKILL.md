@@ -132,7 +132,11 @@ moved** — re-run the script with `--manifest` and diff it against the manifest
 `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
 answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
 computable, so if the manifest is missing, say the aggregate moved and stop there rather than
-inventing a file list. Send the user back to re-run those gates. Do not offer an acknowledgement
+inventing a file list. Send the user back to **`fm-verify`** — the chain head. Naming "those
+gates" invites `fm-e2e`/`fm-parity`, which require exactly `verified`/`e2e-passed` and refuse the
+`parity-passed` this step runs at; when only `e2e` or `parity` is stale the named set contains
+nothing that accepts. `fm-verify` takes a gate-passed page (with its demotion warning) and the
+chain re-runs in order. Do not offer an acknowledgement
 path: this is the one irreversible step in the pipeline, and an acknowledgement is not a test.
 
 **Why this is comparing content and not commits.** The first version of this rule compared
@@ -163,7 +167,8 @@ because there is nothing to compare against:
     non-empty file set; that set has since vanished from the working tree and the index, which is a
     change to the watched surface, not an absence of evidence. The usual cause is a refactor that
     renamed every `sourcePaths[]` entry — and since the replacements are not in `sourcePaths[]`,
-    they are not watched at all. Send the user to re-run the gates (which re-records `sourcePaths`
+    they are not watched at all. Send the user to **`fm-verify`** and let the chain re-run in order —
+    same reason as above; `fm-e2e`/`fm-parity` refuse `parity-passed` (which re-records `sourcePaths`
     via `fm-gen`/`fm-delta`). Treating this as acknowledge-and-proceed would wave through the one
     case where the evidence is provably stale.
   Never compare the literal token against the stored hash and read the inequality as "stale" — the
