@@ -1028,6 +1028,48 @@ These corrected initial assumptions and are baked into the mapping catalog / ana
 - **Legacy source repos** (for analysis): `ohmyhotel-pc-analysis` (PC), `ohmyhotel-mobile`
   (Mobile + Hana).
 
+- **v1.1.0, continued — rounds 19-26 and a reduction pass.** Eight more double-audited rounds on the
+  same axis, then a change of method.
+
+  **What they found.** `fm-audit-codex` Step 3 named commands the named command refuses — the site
+  was rewritten five times and only an exhaustive `status x flip-flag x stage` table settled it.
+  `check-staleness.sh` had never been audited: it named page commands without `--app`, claimed
+  `fm-delta` applies a hand-edited style-spec, and sent legacy drift to `fm-progress`, which has no
+  legacy watch-path axis. `fm-route --revert` admitted a `done` page carrying `flipPrOpenedAt` — it
+  would route a live path to a deleted legacy page and then match none of its own clauses.
+  `fm-extract`'s double clear does not close the race it claims to: a gate that starts before the
+  first clear and finishes after the second re-records fresh evidence over both.
+
+  **Where these rounds' defects came from, measured.** About 30% were self-inflicted — the previous
+  round's fix. The mechanism was always the same: the fix added prose to a normative document, and
+  every added sentence is a claim the other ~40 files can contradict. Three consecutive
+  self-inflicted findings were *justification clauses*, not rules ("the page key is a relative
+  path"; "fm-delta re-derives these from legacy source"). The remaining 70% were pre-existing
+  defects in territory that round examined first — which is the real reason the loop did not end:
+  a new axis was chosen each round, and in a corpus this cross-referential the axes are
+  combinatorial, so "find contradictions" always produces one. The terminating condition was a
+  property of how hard anyone looked, not of the artifact.
+
+  **The reduction pass.** The campaign's ratio was 583 lines added against 128 deleted. Two passes
+  reversed it by deleting rationale and keeping rules: `CLAUDE.md` 988 -> 834 lines, the same
+  ~30-line gate-evidence recipe collapsed in `fm-verify`/`fm-e2e`/`fm-parity` to the field plus a
+  pointer at the section that owns the rule, and `Gate Result Accounting`'s history moved to (in
+  fact, confirmed already present in) `docs/design/gate-result-accounting.md`. Verified by a
+  **bounded** review instead of another audit — "these 329 deleted lines: was each a rule, or
+  rationale?" Both reviewers classified all 329 independently and both reported **zero rules
+  deleted**; it was the first clean round of the campaign, because the answer set was finite.
+
+  **Three further incompatibilities** for a project already mid-migration, on top of the six above:
+  - `fm-route --revert` **refuses a `done` page**. It used to be admitted by the
+    `flipPrOpenedAt`-at-any-status clause. A `done` page still carrying that field (hand-set without
+    `--confirm-live`) now needs manual intervention.
+  - `fm-route --flag-off` **requires the gate authorization**, not just `status = parity-passed`.
+    A page whose `verifiedAt` was cleared by `fm-extract` or a Full `fm-delta` used to prepare a
+    route PR; it is now refused until the gates re-run.
+  - **Gates record a pass only if their watch paths held still.** `tree` is computed before the
+    first tool and again at record time; a run that straddles an `fm-extract` records no pass where
+    1.0.0 recorded one.
+
 ## Open follow-up
 
 Run the pipeline end-to-end on a real PC page (e.g. a Phase-1 CMS page) inside the v2 monorepo to
