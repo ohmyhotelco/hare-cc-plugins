@@ -122,12 +122,14 @@ Tracker summary: `pages[page].codexAudit = { "e2e": "pass", "parity": "concerns"
 ## Advisory semantics & route sign-off
 
 - **Default: non-blocking at every audited stage.** A `concerns`/`fail` verdict is surfaced prominently and
-  suggests `fm-fix`, but the FSM state is unchanged. The audit never sets a `*-failed` state.
+  names the next command from `fm-audit-codex` Step 3 — **not** `fm-fix`, which accepts only
+  `*-failed`/`fixing`/`escalated` and refuses every status an audit normally records at. The FSM
+  state is unchanged; the audit never sets a `*-failed` state.
 - **Route soft gate (the one exception).** `fm-route --flag-on` checks for **unresolved
   high-severity** Codex findings. It does **not** auto-block; instead it shows them and requires an
   **explicit user acknowledgement** before performing the flip. Maximizes audit value at the
   irreversible step while preserving "Codex is advisory" (a human can override).
-- Resolving a finding (via `fm-fix`) and re-auditing clears it from the unresolved set.
+- Resolving a finding (via that command) and re-auditing clears it from the unresolved set.
 
 ## Configuration (`fm-init`)
 

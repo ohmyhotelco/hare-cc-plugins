@@ -84,11 +84,12 @@ reads config only), so every FSM status reaches here:
    against code the re-plan is about to replace — say so, name the chain's next step, and let the
    gates re-audit when they run. Do **not** name the owning gate: `fm-verify` requires at least
    `generated`, `fm-e2e` exactly `verified`, `fm-parity` exactly `e2e-passed` — all three refuse.
-   For an `analyze`- or `plan`-stage finding you may name `fm-analyze` / `fm-plan` instead, which
+   For an `analyze`- or `plan`-stage finding name `fm-analyze` / `fm-plan` instead, which
    accept this status and re-derive that artifact directly.
 7. otherwise (`generated`, `verified`, `e2e-passed`, `parity-passed`) → **by the finding's stage**:
-   - `analyze` → **`fm-analyze`**, `plan` → **`fm-plan`**. Both accept these statuses (with their
-     demotion warning) and are the only commands that re-derive the artifact the finding is about.
+   - `analyze` → **`fm-analyze`**, `plan` → **`fm-plan`** — the only commands that re-derive the
+     artifact the finding is about. Both demote the page (to `analyzed` / `planned`) and warn
+     first from `verified` and beyond, **not** from `generated`, where the demotion is silent.
    - any other stage → **`fm-verify`**, the chain head, which accepts all four. Not the gate that
      owns the stage: `fm-e2e` requires exactly `verified` and `fm-parity` exactly `e2e-passed`, so
      both refuse the state their own findings exist in. (From `verified`/`e2e-passed`/`parity-passed`
