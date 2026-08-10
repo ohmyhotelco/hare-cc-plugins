@@ -79,8 +79,8 @@ legacy source against the `analysis.json` / `migration-plan.json` baseline and w
 ### Step 3: Offer incremental vs full
 Read `delta-plan.json.summary`. Present:
 - the change counts (added/modified/removed);
-- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration (`fm-gen`)
-  instead;
+- **if the delta touches > 60% of the page's files (denominator = `tracker.json` `sourcePaths[]`, the list `fm-gen` recorded; absent → report the ratio as unavailable rather than guessing)**, recommend full regeneration
+  instead (Step 4's Full branch names the chain);
 otherwise default to incremental. Let the user choose.
 
 ### Step 4: Apply

@@ -22,7 +22,7 @@ holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock s
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |
 | `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
-| `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (re-enter gates) |
+| `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (incremental); unchanged (Full) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
 | `fm-test-review` | `test-reviewer` | generated tests → test-quality report (read-only) | — |
 | `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` → `secret-audit-report.json` (read-only) | — |

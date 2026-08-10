@@ -204,12 +204,10 @@ if [ -n "$PAGES" ]; then
     # changed no code, and fm-verify when the i18n key-coverage spec is absent; fm-gen clears it on
     # a complete run and fm-verify on a passing gate. Without this the *-failed wildcard sends the
     # user to fm-fix, which reproduces the same state in both cases.
-    # Guarded to the statuses fm-fix can restore: the timestamp is cleared by the next fm-gen, but
-    # an unguarded read would outlive it on any page and override even `flipped`, for which this
-    # hook must print no command at all (CLAUDE.md -> Per-page State Machine).
+    # `generated` too: fm-delta's incremental branch returns a page there with the debt unpaid.
     case "$status" in
       gen-failed) : ;;   # its recovery is a RESUME (fm-gen Step 6); --force would discard it
-      *-failed)
+      generated|*-failed)
         if [ -n "$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].regenRequiredAt // ""' "$TRACKER" 2>/dev/null || echo "")" ]; then
           STEP="fm-gen"; FLAGS=" --force"
           NOTE="a full regeneration is owed (a fix that changed no code, or an absent i18n key-coverage spec)"

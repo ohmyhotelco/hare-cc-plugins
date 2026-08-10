@@ -108,7 +108,8 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    key is bound too". Corrections after the fact are the decision owner's `criterionAmendment`, not an
    executor's narrowing.
 5. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
-   plus `rendering`, `requiredGates`, `flagKey` (= `flagPlan.key` from the plan), `updatedAt`.
+   plus `rendering`, `requiredGates`, `updatedAt`. **Not `flagKey`** — a route field, written by
+   `fm-route --flag-off`.
 6. Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
@@ -125,4 +126,4 @@ In `workingLanguage`: component count, rendering mode, shared deps, required gat
 count, **blockers** (unextracted shared candidates → run `fm-extract` first), and **open approvals**
 (any `openApprovals[]` coverage reductions awaiting a decision owner — call these out explicitly so
 the reduction is a human decision, not a silent scope-out). Next step:
-`/frontend-migration-plugin:fm-gen {page}`.
+`/frontend-migration-plugin:fm-gen {page}`, with **`--force`** if the page was already generated.

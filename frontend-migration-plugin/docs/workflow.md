@@ -54,7 +54,7 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   code and therefore invalidates every gate, not only the one it repaired. The chain re-runs from
   `fm-verify`, and `fm-fix` clears the same fields `fm-gen`/`fm-delta` clear. Re-running each gate is
   what issues its passed state and rewrites its report; `fm-fix` never issues one.
-- `fm-delta` resets a drifted page to `generated` to re-pass the gates.
+- `fm-delta` resets a drifted page to `generated` on the incremental branch; Full leaves it alone.
 - `fm-gen` over a `verified` / `e2e-passed` / `parity-passed` page warns (demotion) before resetting
   to `generated`. It **refuses** `flipped` (run `fm-route --revert` first), `done` (manual decision —
   the legacy page is gone), and any page with a flip prepared and handed over (`flipPrOpenedAt` set — the artifact is ready and

@@ -49,7 +49,7 @@ Every action writes or clears route state, so every action needs an entry condit
 
 | action | requires | on refusal |
 | --- | --- | --- |
-| `--flag-off` | `status = parity-passed`, and **no** `flipPrOpenedAt` | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
+| `--flag-off` | `status = parity-passed`, **no** `flipPrOpenedAt`, and Step 1's gate guard | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
 | `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
 | `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
 | `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status **except `done`**, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back — and on `done` there is nothing to roll back *to*: name manual intervention, never a command |
@@ -210,7 +210,7 @@ unavailable, skip this step.
 
 ### Step 2: Lock
 **The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
-prompt a human, and a lock must never be held across a prompt — but it means the state can move
+prompt a human — but it means the state can move
 between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
 for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
 `routePrepared`, and Step 1a's hashes. A concurrent `fm-fix` or `fm-delta` can demote the page
@@ -266,10 +266,9 @@ Update `tracker.json` (Read-Modify-Write):
 - `--flag-on --confirm-live` (run by the operator **after** PR2 is merged and the change is deployed
   and propagated) → `apps[app].pages[page].status = "flipped"`, `flippedAt`, clear `flipPrOpenedAt`.
   This is the only transition that claims the edge is serving v2, and only a human can observe that.
-- `--revert` → **clear `flippedAt`, `routePrepared`, and `flipPrOpenedAt`**, record `revertedAt`, and
-  set the status per Step 0a: from `flipped` → back to `parity-passed`; from `parity-passed` → leave
-  it unchanged. Never write `parity-passed` over anything else — Step 0a already refused those, and
-  this skill does not issue gate-passed states.
+- `--revert` → **clear `flippedAt`, `routePrepared`, `flagKey`, and `flipPrOpenedAt`**, record `revertedAt`, and
+  set the status per Step 0a: from `flipped` → back to `parity-passed`; from any other admitted
+  status → leave it unchanged. This skill never issues a gate-passed state.
   Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
   the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert
