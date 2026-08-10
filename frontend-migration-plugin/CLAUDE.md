@@ -807,142 +807,62 @@ freeze a contract. That is a separate plan-quality axis.
 
 ## Gate Result Accounting
 
-The **accounting** axis (v0.14.4) — the same missing-decision-field pattern as the v0.14.1 lock, in
-two more places. A gate holds a judgement rule (`unresolved` findings, gate freshness), but the
-artifact has no field to record the *basis*, so the rule falls to the executing session's improvisation
-(measured on my-coupon: 48 Codex findings, 14 `high`, only 2 adjudicated; four resolution fields used
-in the artifact, 0 defined in the plugin). Three doc-only fixes — design in
-`docs/design/gate-result-accounting.md`:
+Where a gate's judgement rule needs a recorded basis. Design and history:
+`docs/design/gate-result-accounting.md`.
 
-- **D (finding adjudication).** Each Codex finding gains an optional `adjudication`
-  (`state: open|closed|rejected`, `when`, `by`, `basis`) in `templates/codex-audit.md`. It is **never
-  written by the discovering audit** — Codex reports; resolution is a downstream fact written by
-  `fm-fix` (Step 5, when a repair closes a finding) or a human. Absent `adjudication` reads as **`open`**
-  (the safe default), and `fm-route --flag-on` Step 1b defines `unresolved` = absent or `state: open`.
-  `closed` (fixed) is kept apart from `rejected` (not a defect) so the next audit round does not re-raise
-  a dismissed one; `basis` is required for both. Existing `codex-audit.json` are not retro-filled (all
-  read `open` — the honest state), the same no-retro decision `capture-provenance.md` made.
-  **A re-audit carries adjudications across**, or the field would be wiped the next time a stage is
-  re-run and every closed finding would reopen — the exact failure it exists to prevent. Re-running a
-  stage rewrites its `findings[]`, so `codex-auditor` reads the prior array first: an `adjudication`
-  moves onto a new finding matching on `area` + `evidence`, and any prior adjudicated finding that
-  matches nothing is preserved verbatim under `{stage}.priorAdjudicated[]`. Matching is
-  deliberately conservative — Codex is an LLM, its `detail` prose will not reproduce word for word —
-  so a non-match means "could not be matched", never "resolved". `fm-route` Step 1b shows those
-  entries next to the current findings and lets the human judge, which is where that judgement
-  belongs: the gate is already a human acknowledgement.
+- **D (finding adjudication).** Each Codex finding carries an optional `adjudication`
+  (`state: open|closed|rejected`, `when`, `by`, `basis`) — schema in `templates/codex-audit.md`.
+  - **Never written by the discovering audit.** Codex reports; resolution is written later by
+    `fm-fix` (Step 5) or a human. `basis` is required for `closed` and `rejected` alike.
+  - Absent `adjudication` reads as **`open`**. `fm-route --flag-on` Step 1b defines `unresolved` as
+    absent or `state: open`. Existing `codex-audit.json` are not retro-filled.
+  - **A re-audit carries adjudications across.** Re-running a stage rewrites its `findings[]`, so
+    `codex-auditor` reads the prior array first: an `adjudication` moves onto a new finding matching
+    on `area` + `evidence`; a prior adjudicated finding matching nothing is preserved verbatim under
+    `{stage}.priorAdjudicated[]`. Matching is conservative — a non-match means "could not be
+    matched", never "resolved". `fm-route` Step 1b shows those entries beside the current findings.
 - **E (gate-pass evidence = the *content* the gate ran on).** `fm-verify`/`fm-e2e`/`fm-parity` record
-  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` in `tracker.json`. A PASS
-  proves nothing about code that changed after it (OMH-754 PR #184 shipped a `visual: PASS` 21
-  commits stale), so the flip has to compare *what was tested* against *what is about to ship*.
+  `gateEvidence.{gate} = { at: <ISO-8601>, commit: <sha>, tree: <hash> }` in `tracker.json`.
+  - **`tree` decides freshness; `commit` is audit trail only.** `commit` =
+    `git rev-parse --short HEAD`, `<sha>+dirty` on a dirty tree, and is **never passed to `git`**.
+  - **One executable, never reimplemented inline:**
 
-  **`tree` is the comparison; `commit` is only the audit trail.** `commit` =
-  `git rev-parse --short HEAD` (a dirty tree → `<sha>+dirty`, honest imprecision over a clean-looking
-  lie) and is never used to decide freshness. `tree` is a content hash over the page's **watch paths**
-  (F below), and every producer and consumer gets it from **one executable**:
+    ```sh
+    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] \
+        --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
+    ```
 
-  ```sh
-  {pluginRoot}/scripts/gate-tree-hash.sh \
-      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → hash
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...  # → records
-  ```
+    Producers and consumers pass the **same `--exclude` and the same `--`**, or the two hashes are
+    incomparable. The script's own file documents how it records each entry; do not restate it here.
+  - It exits **2** printing `unverifiable` when no watch path resolves, and **1** writing nothing on
+    any other error. `unverifiable` on a page that **has** a recorded `tree` is a *change*:
+    `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
+  - Gate skills also save the `--manifest` output to
+    `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv` (create the
+    directory first) and pass that repo-relative path back as `--exclude`. The redirect target must
+    be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
+  - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
+    `fm-verify`.
+  - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
+    before the first tool and again at record time; if they differ, record no pass and say to re-run.
+  - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
+    retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
+    `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
+- **F (watch paths).** Three axes, hashed as one set:
+  1. `tracker.json` `sourcePaths[]` — the files the generation phases wrote under `appDir`,
+     recorded by `fm-gen` Step 5 and `fm-delta` Step 5.
+  2. each `migration-plan.json` `sharedDeps[]` entry `@omh/<package>:<symbol>`, mapped to the
+     directory `{packagesDir}/<package>` — the symbol is not a path.
+  3. the page's `migration-plan.json` itself.
 
-  Producers and consumers pass the **same `--exclude` and the same `--`**. The exclusion keeps a
-  gate's manifest out of the evidence it describes; `--` stops a watch path beginning with a dash
-  from being parsed as a flag. Either flag present on one side and absent on the other makes the
-  two hashes incomparable — a permanent hard block on correct code.
+  `fm-route` Step 1a and `fm-progress` resolve them identically; a consumer resolving fewer can
+  never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
+  clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
+  A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must
+  report which axes it checked.
 
-  **Never reimplement it inline.** This was a shell pipeline printed here and reproduced by five call
-  sites, and prose could not hold it: `git ls-files` prints paths **relative to the current
-  directory**, while `fm-verify` carries a standing order to run every command from
-  `{monorepoRoot}/{appDir}`. Repo-relative watch paths evaluated there matched nothing, so the
-  pipeline hashed the empty set — the constant `e69de29b…` — which does not move when the code moves,
-  and a hard gate comparing it passes on **any** code. The script resolves the repo root itself
-  (`git rev-parse --show-toplevel`) and prints `--full-name` paths, so its output is identical from
-  every working directory.
-
-  It exits **2** printing the single token `unverifiable` when no watch paths are given or none
-  resolve — never a hash, because the empty set hashes to a constant and a constant presented as
-  evidence is exactly the false pass this machinery exists to stop. Note that `unverifiable` on a
-  page that **has** a recorded `tree` is a *change*, not an absence: `fm-route` Step 1a blocks on it
-  and only grandfathers the never-recorded case. On any real error the script exits **1** and writes
-  **nothing** to stdout, so a caller doing `TREE=$(…)` can never capture a partial value.
-
-  Per-entry records come from git's object model, each on an explicit discriminator: a working-tree
-  file by content; a **symlink is refused** (a target cannot be read portably as exact bytes, and a
-  watch path has no reason to contain one — `--exclude` it); a submodule by the **parent's index gitlink** (its own HEAD is local state, and on an
-  uninitialized submodule `git -C` walks up and returns the *parent's* HEAD); a `skip-worktree` entry
-  by its index blob, so a sparse checkout and a full one agree; a missing entry as `DELETED <path>`.
-  That last one is keyed on the skip-worktree flag rather than "the index can resolve it", because
-  every cached path can — the looser test reported deleted files as present. Untracked (non-ignored)
-  files are included on purpose: at gate time the generated page is usually not yet committed.
-
-  Gate skills also save the `--manifest` output, which is what lets `fm-route` name **which files**
-  differ instead of only reporting that the aggregate moved. Write it to
-  `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv`, creating the
-  directory first, and pass that repo-relative path back as `--exclude` so the evidence never
-  describes itself. **The redirect target is not cwd-independent even though the script's output is**,
-  and `{monorepoRoot}` does not fix it — its default is `"."`. Gate skills run from `{appDir}`, so
-  anything short of the real repo root lands the manifest where `fm-route` does not look.
-
-  **Why content and not commits.** An earlier revision compared `gateEvidence.{gate}.commit`
-  against `HEAD` with `git log -- <watch paths>`, and had to be a soft gate because it fired on every
-  page by construction: the gates run before the code PR, so every record was `+dirty`, and PR1's
-  merge commit touches every path in `sourcePaths[]` by definition. A **content** hash has neither
-  problem — PR1's merge changes the commit graph, not the bytes, so the hash is unchanged and the
-  page passes. It moves only when the page's code or a shared package it imports actually changes,
-  which is precisely the condition the rule was written for. So `fm-route --flag-on` Step 1a is a
-  **hard** gate on a `tree` mismatch: re-run the chain from `fm-verify` (the affected gates cannot be
-  entered directly from `parity-passed` — they require exactly `verified`/`e2e-passed`).
-
-  **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree` once
-  before the first tool and again at record time; if the two differ, the run tested a mix of old and
-  new bytes, so record no pass and tell the user to re-run. `fm-extract` holds `.packages.lock`, not
-  the page lock, so it can rewrite a shared package under a running gate, and its two clears (before
-  and after the extractor writes) cannot reach a gate that *started* before the first and *finished*
-  after the second — that gate re-records fresh evidence over both.
-
-  A record with no `tree` (written before this field), or a computation that returned
-  `unverifiable`, is acknowledged and non-blocking — no retro-adjudication. Legacy
-  `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility; `gateEvidence` wins when
-  present. `at` is ISO-8601 with time, the same regulation as the lock schema; a date-only value is a
-  rule violation.
-- **F (watch paths, resolved from recorded fields).** A freshness check needs to know which files
-  belong to the page, and nothing recorded that: `componentTree` carries component *names*, not
-  paths. So `fm-gen` Step 5 (and `fm-delta` Step 5) now record `sourcePaths[]` — the files the
-  generation phases wrote under `appDir` — and both regenerating skills **clear `gateEvidence`
-  together with the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` and the route fields
-  `routePrepared` / `flagKey`**, since a rewritten page's prior PASSes rest on code that no longer
-  exists. Clearing `gateEvidence` alone is the wrong half of the job: `fm-route` Step 1's **hard**
-  precondition reads `verifiedAt` + the two report files, and Step 1-pre reads `routePrepared`, so
-  those would survive the regeneration and re-authorize a flip — including skipping the fresh
-  `--flag-off` that carries the route-stage Codex audit. The second axis is the
-  shared packages: the gate is per-page, so a `packages/shared-*` change outdates the evidence of
-  every page importing it and nothing per-page catches it. `migration-plan.json` `sharedDeps[]`
-  already records them as `@omh/<package>:<symbol>`, so each maps to the directory
-  `{packagesDir}/<package>` — the symbol is not a path.
-
-  **Axis 3 is the page's `migration-plan.json`.** The plan decides what the gates were *for*:
-  `flagPlan.guardsPath` is the production path that gets flipped, `gateAcceptance` is the criteria
-  the executors enforced verbatim, `requiredGates` is which gates had to run, and `e2eScenarios`
-  is what e2e tested. All four sit outside `sourcePaths[]` and `sharedDeps[]`, so without this
-  axis the plan could be edited after the gates passed — `/tested` → `/untested` — without moving
-  the hash, and `fm-route` would flip a path no report ever evaluated. The cost is that any plan
-  edit, including a cosmetic one, invalidates the page's gates; that is the right side of the
-  trade against flipping an unevaluated route.
-
-  Watch paths are the union of all three; `fm-route`
-  Step 1a and `fm-progress` resolve them identically. A page missing `sourcePaths` is
-  `unverifiable` on axis 1 and still checkable on axes 2 and 3, and must report which axes it checked —
-  a freshness claim covering some of the three axes is an evidence-scope statement, which is itself
-  a claim (see Design Principles). Because all three axes are hashed as one set, `tree` covers them
-  together — which is also why a consumer that resolves fewer can never match a producer.
-
-Advisory unchanged: Codex still `reads and evaluates only` (D counts findings, it does not give Codex a
-veto). Absent `gateEvidence` (pages verified before the field) is `unverifiable`, never a block — no
-retro-adjudication.
-
+Codex stays advisory: D counts findings, it does not give Codex a veto.
 ## Skills
 
 All skills are implemented. The "Built in" column records the task that delivered each
