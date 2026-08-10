@@ -99,6 +99,8 @@ dual-run** the healer cannot do. Their value â€” trace-driven self-correction â€
     "pc":     { "legacyDir": "apps/legacy-pc",     "targetDir": "apps/web-pc",     "appDir": "apps/web-pc",     "domain": "www.ohmyhotel.com",  "port": 30220, "legacyPort": 30210, "ssr": "mixed", "webview": false,     "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
     "mobile": { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-mobile", "appDir": "apps/web-mobile", "domain": "m.ohmyhotel.com",    "port": 30221, "legacyPort": 30211, "ssr": "mixed", "webview": true,      "sso": false, "flipMechanism": "nginx", "infraDir": "infra/nginx" },
     "hana":   { "legacyDir": "apps/legacy-mobile",  "targetDir": "apps/web-hana",   "appDir": "apps/web-hana",   "domain": "hana.ohmyhotel.com", "port": 30321, "legacyPort": 30311, "ssr": "spa",   "webview": "unknown", "sso": true,  "flipMechanism": "nginx", "infraDir": "infra/nginx" }
+    // `flipMechanism` above is ILLUSTRATIVE, not a recommendation: `fm-init` asks per app, and a
+    // `cloudfront` app records `cloudfrontDir` + `manifest` instead of `infraDir`.
   },
   "stagingConfig": {
     "baseUrl": "https://staging.ohmyhotel.com",

@@ -135,7 +135,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    B, and the flip then matches B's hash and calls the gate fresh: a pass on bytes nothing tested.
    This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run —
    invalidating afterwards is what makes the race safe rather than silent.
-3. Release the lock.
+4. Release the lock.
 
 ### Step 6: Report
 In `workingLanguage`:

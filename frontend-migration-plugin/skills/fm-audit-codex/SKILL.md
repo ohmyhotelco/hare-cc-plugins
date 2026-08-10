@@ -56,8 +56,11 @@ sequentially. The agent handles the page lock and the Read-Modify-Write of `code
 ### Step 3: Report
 In `workingLanguage`, summarize per stage: `verdict` (pass/concerns/fail/error/skipped) with high /
 med finding counts and the one-line summary. Make clear this is **advisory** — Claude's gate states
-are unchanged. If any unresolved `high` findings exist, call them out and point at the **gate that
-owns the finding's stage** (`fm-verify` / `fm-e2e` / `fm-parity`) for a re-run; suggest
+are unchanged. If any unresolved `high` findings exist, call them out and point at **`fm-verify`**
+for a re-run — not the gate that owns the finding's stage: `fm-e2e` requires exactly `verified` and
+`fm-parity` exactly `e2e-passed`, so both refuse the state an `e2e`- or `parity`-stage finding
+exists in, and at `flipped` (which Step 1 admits for the `route` stage) all three refuse. `fm-verify`
+accepts every gate-passed status, demotes with its warning, and the chain re-runs in order; suggest
 `/frontend-migration-plugin:fm-fix {page}` **only when the page is already at a state `fm-fix`
 accepts** (`*-failed`, `fixing`, `escalated`). This audit never writes a failed status, so on a
 healthy page `fm-fix` would refuse. Note that `fm-route --flag-on` will require explicit

@@ -184,7 +184,10 @@ report written under the current rule there should be none — a `not-run` scena
 top-level `result` `not-run` and `fm-e2e` leaves the page at `verified`, so it never reaches this
 skill. Any that appear come from a report predating that rule, and they are a **hard block, not an
 acknowledgement**: the staging-gateway case makes the unmeasured scenario the *transactional* flow,
-which is exactly the one that must not ship untested. Send the user back to `fm-e2e`.
+which is exactly the one that must not ship untested. Send the user back to **`fm-verify`** — not
+`fm-e2e`, which requires the page at exactly `verified` and refuses the `parity-passed` this step
+runs at. `fm-verify` accepts a gate-passed page (with its demotion warning) and the chain then
+re-runs `fm-e2e` → `fm-parity` in order.
 
 Also read each stage's `{stage}.priorAdjudicated[]` (stages are top-level keys in
 `codex-audit.json`; there is no `stages` wrapper) — adjudicated findings a re-audit could not match to a
@@ -194,7 +197,10 @@ resolving them either way; this gate is already a human acknowledgement, so the 
 here and not in the auditor.
 If any exist, present them and **require the user's explicit acknowledgement**
 before continuing — this is a soft gate, not an auto-block: Codex is advisory, so a human may
-acknowledge and proceed (or run `fm-fix` first). If `codexAudit` is disabled or Codex is
+acknowledge and proceed, or send the page back through the gates — **not `fm-fix`**, which accepts
+only `*-failed`/`fixing`/`escalated` and refuses the `parity-passed` this step runs at. To act on a
+finding rather than acknowledge it, re-run `fm-verify` (it accepts a gate-passed page and demotes
+with a warning), which puts the page back on the chain a fixer can reach. If `codexAudit` is disabled or Codex is
 unavailable, skip this step.
 
 ### Step 2: Lock

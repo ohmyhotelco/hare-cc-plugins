@@ -878,9 +878,11 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   in `CLAUDE.md` → Lock file, and both survived two later rounds of deliberate attack.
 
   **Where the later rounds' defects came from: the fixes themselves.** Rounds 12, 13, 15 and 16
-  each broke the same sentence — `fm-verify` Step 6's Record enumeration — in the same way: one
-  input cell matched no branch, so no status was written, the page kept a healthy status, and
-  `fm-fix` refused it. Each fix added one condition and left another cell open. Reading the
+  each broke the same sentence — `fm-verify` Step 6's Record enumeration. Rounds 12, 13 and 15 left
+  an input cell matching **no** branch, so no status was written, the page kept a healthy status,
+  and `fm-fix` refused it; round 16 left four cells matching **two** branches with conflicting
+  outcomes (`verified` and `verify-failed`), which round 17 closed by restoring the missing
+  `i18n`-configured qualifier. Each fix added one condition and left another cell open. Reading the
   conditions once more was never going to end it, so round 17 required a **truth table** instead:
   both auditors independently enumerated 288 reachable cells and confirmed **zero unmatched**. That
   is the difference between arguing a class is closed and showing it.
@@ -896,11 +898,20 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   two changes are genuinely incompatible for a project already mid-migration:
   - `fm-verify` **tightened a pass precondition**. `present` used to mean the key-coverage spec
     file exists; it now means the spec's results appear in the run. A page that was `verified`
-    under 1.0.0 with a spec vitest never collected becomes `verify-failed` here, with no change to
-    its code.
+    under 1.0.0 with a spec vitest never collected is recorded `verify-failed` **the next time
+    `fm-verify` runs**, with no change to its code — a page already past the gate is not
+    re-examined until something sends it back through.
   - `fm-extract` **removed a capability and replaced it with a refusal**. A dependent carrying
     `flipPrOpenedAt` used to have the field cleared while the run proceeded; the run is now refused
     until the operator reverts that flip. An extraction that completed under 1.0.0 is refused here.
+  - `fm-extract` **demotes a dependent's status**. A page at `verified`/`e2e-passed`/`parity-passed`
+    that imports a rewritten package is set back to `generated`. Under 1.0.0 it kept its advanced
+    status while its evidence was cleared — which blocked the flip anyway, so nothing new is owed,
+    but the tracker now says so. Remedy: re-run the chain from `fm-verify`.
+  - `fm-delta`'s incremental branch **stops on a failing `delta-modifier`** instead of continuing.
+    Under 1.0.0 it promoted the staged baseline and wrote `generated` over code that did not
+    compile; it now leaves `migration-plan.next.json` / `analysis.next.json` staged and reports the
+    failure. Remedy: fix what the modifier reported, then re-run `fm-delta`.
 
   Both are correctness fixes — the old coverage gate passed specs that never ran, and the old
   `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule. The maintainer chose
