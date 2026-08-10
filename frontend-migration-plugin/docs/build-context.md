@@ -895,7 +895,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   **Version: 1.1.0, by maintainer decision, with the incompatibilities stated.** The first draft
   called it minor on the premise that "nothing was removed and no precondition tightened". Both
   round-18 auditors falsified that premise, and it is recorded here rather than dropped, because
-  five changes are genuinely incompatible for a project already mid-migration:
+  six changes are genuinely incompatible for a project already mid-migration:
   - `fm-verify` **tightened a pass precondition**. `present` used to mean the key-coverage spec
     file exists; it now means the spec's results appear in the run. A page that was `verified`
     under 1.0.0 with a spec vitest never collected is recorded `verify-failed` **the next time
@@ -919,8 +919,13 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
     regeneration that discards accumulated `fm-fix` edits. On a 1.0.0 tracker the debt has usually
     long since been paid. Remedy before upgrading: clear `regenRequiredAt` from any page that has
     completed an `fm-gen` since the field was written.
+  - **`fm-verify` now clears `routePrepared`/`flagKey` when it demotes.** Under 1.0.0 a page sent
+    back through the gates kept its prepared-code-PR flag, so after re-passing it went straight to
+    `--flag-on`. It now has to run `--flag-off` again — which is the point: the prepared PR
+    predates the change that forced the demotion, and skipping it skips the route-stage Codex
+    audit. Remedy: none needed; run `--flag-off` before `--flag-on` as the chain now expects.
 
-  All five are correctness fixes — the old coverage gate passed specs that never ran, the old
+  All six are correctness fixes — the old coverage gate passed specs that never ran, the old
   `fm-extract` behaviour violated CLAUDE.md's own "only legal consumers" rule and left a
   gate-passed status over cleared evidence, and the old `fm-delta` promoted a baseline over code
   that did not compile. The maintainer chose
