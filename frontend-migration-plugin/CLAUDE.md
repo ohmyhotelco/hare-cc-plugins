@@ -789,6 +789,7 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   report which axes it checked.
 
 Codex stays advisory: D counts findings, it does not give Codex a veto.
+
 ## Skills
 
 All skills are implemented. The "Built in" column records the task that delivered each
