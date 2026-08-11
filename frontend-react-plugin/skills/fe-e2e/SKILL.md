@@ -94,17 +94,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 ### Lock Acquire
 
-Check `docs/specs/{feature}/.implementation/frontend/.lock`:
-- If file exists:
-  - Read `lockedAt` and `operation`
-  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
-  - Otherwise:
-    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
-    - Stop here.
-- Create lock file:
-  ```json
-  { "lockedAt": "{ISO timestamp}", "operation": "fe-e2e" }
-  ```
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-e2e"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 ### Step 2: Confirm with User
 

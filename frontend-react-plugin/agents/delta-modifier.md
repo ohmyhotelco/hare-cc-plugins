@@ -154,7 +154,10 @@ Read `changeDetail` from the delta entry:
 
 For each structural change:
 
-1. Read the target file
+1. Read the target file. **If the target is an app-wide file** — the central route file
+   (`App.tsx` / `router.tsx` / `{baseDir}/routes.ts`), `{baseDir}/i18n/config.ts`, or
+   `{baseDir}/mocks/handlers.ts` — take `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the
+   read-modify-write and release it right after; the feature lock does not protect those.
 2. Apply the minimal edit based on `changeDetail`:
    - `enum-value-added`: Add the new value to the enum
    - `field-added`: Add the new field to the interface

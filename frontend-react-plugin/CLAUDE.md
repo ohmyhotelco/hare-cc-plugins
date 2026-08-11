@@ -280,7 +280,27 @@ State files (progress, generation-state, review-report, fix-report, debug-report
 2. Merge only the fields being changed — preserve all existing fields
 3. Write the complete merged object
 
-**Lock file**: Skills that modify state files must acquire `docs/specs/{feature}/.implementation/frontend/.lock` before starting work. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+**Lock file**: A skill that mutates state acquires the lock before work and releases it on **every** exit — completion, refusal, a failed verification, or an agent that stops early. A *failed* acquire does not release that lock (it belongs to someone else), but the run still releases every lock it did take.
+
+Two scopes, acquired in this order — **feature lock → app lock**, never the reverse:
+
+| Lock | Scope | Held by |
+| --- | --- | --- |
+| `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `fe-gen`, `fe-verify`, `fe-review`, `fe-fix`, `fe-e2e` |
+| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{baseDir}/routes.ts`), `{baseDir}/i18n/config.ts`, and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` | `integration-generator`, `foundation-generator`, `delta-modifier` (integration phase) |
+
+The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
+
+Lock contents:
+
+```json
+{ "holder": "fe-verify", "pid": 49402, "acquiredAt": "2026-08-11T15:21:04+09:00" }
+```
+
+- **Check `pid` first, and never break a lock whose process is still alive, however old it is.** `fe-gen` runs six TDD phases and legitimately exceeds 30 minutes.
+- **The 30-minute rule is a ghost-lock sweep, not a timeout.** It applies only once the holder is gone: `pid` absent, no live process with that id, or a live process whose command clearly does not match `holder` (pid reuse).
+- `acquiredAt` — ISO-8601 **with time**. Date-only or unparseable makes a holder-less lock immediately sweepable; it never makes a live holder's lock removable.
+- `pid` — a process that outlives the work. `$$` from a one-shot Bash call is already dead and soon recycled, so record the enclosing session process or omit `pid` entirely, which is honest. When absent, `acquiredAt` alone decides.
 
 **Exception**: `fe-debug` intentionally does NOT acquire a lock — it serves as an interrupt tool usable at any pipeline stage, even when another operation holds the lock. The debugger writes `debug-report.json` and updates `implementation.status` without locking.
 

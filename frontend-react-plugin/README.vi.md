@@ -594,7 +594,8 @@ Tệp trạng thái trong `docs/specs/{feature}/.implementation/frontend/`:
 | `e2e-report.json` | Kết quả kiểm thử E2E với chi tiết kịch bản (đầu vào cho chế độ E2E của fe-fix) |
 | `debug-report.json` | Kết quả phiên gỡ lỗi với nhật ký giả thuyết |
 | `delta-plan.json` | Kế hoạch thay đổi đặc tả gia tăng (đầu vào cho delta fe-gen, lưu trữ sau thực thi) |
-| `.lock` | Ngăn thực thi đồng thời (tự động hết hạn sau 30 phút) |
+| `.lock` | Khóa phạm vi tính năng (`holder` / `pid` / `acquiredAt`) |
+| `docs/specs/.app.lock` | Khóa phạm vi ứng dụng cho tệp route trung tâm, cấu hình i18n và tập hợp handler MSW |
 
 ### Máy trạng thái tiến độ
 
@@ -611,7 +612,7 @@ planned → generated → verified → reviewed → done
 
 ### An toàn tệp trạng thái
 
-- **Cơ chế khóa**: Các skill sửa đổi tệp trạng thái sẽ lấy `.lock` trước khi bắt đầu. Ngăn thực thi đồng thời của fe-gen/fe-verify/fe-review/fe-fix/fe-e2e trên cùng tính năng. Khóa cũ (>30 phút) được tự động xóa.
+- **Cơ chế khóa**: Hai phạm vi, lấy theo thứ tự — khóa tính năng `.lock` (fe-gen/fe-verify/fe-review/fe-fix/fe-e2e trên cùng một tính năng) rồi `docs/specs/.app.lock` (mọi ghi vào tệp route trung tâm, cấu hình i18n hoặc tập hợp handler MSW — khóa tính năng không bảo vệ những tệp này). Chỉ phá khóa khi chủ sở hữu đã biến mất: kiểm tra `pid` trước, và quy tắc 30 phút là dọn khóa ma chứ không phải timeout một tiến trình đang chạy — sáu giai đoạn TDD của fe-gen vượt quá mốc này một cách hợp lệ.
 - **Quy tắc Read-Modify-Write**: Luôn đọc nội dung tệp mới nhất trước khi ghi. Chỉ hợp nhất các trường đã thay đổi — bảo toàn tất cả trường hiện có.
 - **Timestamp giai đoạn**: Mỗi giai đoạn TDD ghi lại `completedAt` để hỗ trợ tiếp tục chính xác và phát hiện độ mới của kế hoạch.
 - **Phát hiện lỗi thời**: fe-fix cảnh báo khi tệp nguồn thay đổi kể từ lần đánh giá cuối. fe-review cảnh báo khi đặc tả thay đổi kể từ lần sinh mã.

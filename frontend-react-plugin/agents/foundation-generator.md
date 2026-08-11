@@ -169,6 +169,11 @@ hook (integration-generator Step 6b), so `server.listen()` runs before any loade
 from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged**. See
 `templates/framework-app-shell.md` and `templates/e2e-playwright.md` (§ SSR / loader network).
 
+> **App lock.** Step 5(d) and Steps 5b/5c below write **app-wide, once-per-app** files. Take
+> `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
+> write only if still absent, release. The feature lock does not protect these — "first feature"
+> is decided by a glob, so two features scaffolding concurrently both see absent and both write.
+
 ### Step 5b: App Shell Scaffold (framework mode only, first feature)
 
 Only when `routerMode == framework`. Using the path-base rule (CLAUDE.md § Framework-mode path-base rule),

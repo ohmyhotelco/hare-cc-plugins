@@ -31,6 +31,18 @@ The coordinator skill provides:
 > (`routerMode=declarative`, `serverState=zustand-only`); every new branch below is gated on a new value —
 > an admin-default config wires routes/i18n/MSW/build byte-identically to today.
 
+## App lock (required)
+
+Every step below that edits an **app-wide** file — the central route file (Step 3),
+`{appDir}/react-router.config.ts` `prerender` (Step 3, framework mode), the central i18n config
+(Step 5), and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
+`docs/specs/.app.lock` per CLAUDE.md § Lock file: acquire, **re-read the target file**, edit,
+release. The feature lock this agent runs under does not protect these files; another feature
+integrating concurrently writes the same ones.
+
+Hold it across the read-modify-write only — never across a `tsc`, `typegen`, or build run. Release
+on every exit, including a fallback-to-manual-guidance branch and a failed verification.
+
 ## Process
 
 ### Step 1: Read Context
