@@ -70,6 +70,9 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 3. **Spec** — read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
    - `screens.md` → screen definitions, components, error handling
+
+   > **Standalone features have only `{feature}-spec.md`.** Read the progress file's `standalone` flag first: when it is `true`, `screens.md` and `test-scenarios.md` do not exist and never will — derive screen and scenario detail from `{feature}-spec.md` plus the plan entries instead. Reading them unconditionally fails every standalone run at this point.
+
    - `test-scenarios.md` → test scenarios (TS-nnn)
 4. **External skills** — read each SKILL.md as needed:
    - `.claude/skills/vitest/SKILL.md` → test patterns (for TDD fixes)
@@ -91,8 +94,15 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
    **E2E fix mode** (`fixMode` is `"e2e"`):
    - Read `e2eReportFile` → parse failed scenarios:
      - Extract scenarios where `status` is `"fail"`
-     - For each failed scenario: extract `steps[]` with failure details, `evidence` (screenshots, snapshot excerpts)
-   - Read `templates/e2e-testing.md` for E2E patterns (MSW integration, scenario patterns, assertion strategy)
+     - For each failed scenario: extract `steps[]` with failure details, plus the evidence **its
+       runner actually produced** — branch on `e2eTool`:
+       - `playwright` → `scenarios[].evidence.trace`. Open it: `npx playwright show-trace <trace.zip>`
+         and diagnose from the trace. A Playwright run has **no** screenshots or snapshot excerpts,
+         so looking for them finds nothing and the fix becomes a guess.
+       - `agent-browser` → `evidence` screenshots and snapshot excerpts, as before.
+   - Read the E2E patterns for the runner in use: `templates/e2e-playwright.md` when
+     `e2eTool == "playwright"`, otherwise `templates/e2e-testing.md`. Reading the agent-browser
+     template in Playwright mode describes a harness that is not there.
    - Convert E2E failures to fix issues:
      - For each failed scenario step, analyze the evidence to identify the root cause:
        - **Navigation failure** → wrong route path or missing route entry → direct-fix

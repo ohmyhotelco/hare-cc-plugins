@@ -15,7 +15,7 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
-2. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
+2. If `sourceBaseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.

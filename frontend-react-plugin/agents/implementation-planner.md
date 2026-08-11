@@ -339,6 +339,10 @@ Non-TDD phases (`tdd: false`) specify only `verify[]`.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
 
+> **Standalone applies here too.** Phase 3 re-reads the spec to diff it. When the progress file says `standalone: true`, only `{feature}-spec.md` exists — derive the diff from it and omit `TS-nnn` fingerprints, exactly as full planning does. Reading `screens.md` / `test-scenarios.md` unconditionally fails every incremental replan of a standalone feature.
+
+> **Route every generated file kind, including the config-gated ones.** Phase routing must map `schemas/{entity}Schema.ts` → `foundation` (`formStack == rhf-zod`) and, in framework mode, `routes/{name}.tsx` route modules → `page-tdd`. A file kind missing from the routing table is absent from `affectedFiles` and `scopedFiles`, so a delta that needs it generates a page whose schema or route module never appears — the build fails on the import.
+
 When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and execute this phase instead. Phase 0 and Phase 1 are still executed to read the current spec and analyze the project.
 
 #### 3.1 Load Existing Plan

@@ -20,7 +20,6 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 2. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-3. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -204,6 +203,13 @@ If the result is `pass` (clean) or all issues are resolved:
 Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`.
 
 **Critical**: The saved JSON must preserve the **complete** agent output including every `dimensions.{name}.issues[]` array. Do NOT reduce the output to summary counts only — downstream `fe-fix` / `review-fixer` depend on the individual issue objects.
+
+**`unverifiable` from either reviewer** — the agent collected zero files (a missing `baseDir`, or a
+feature whose generation never wrote anything). This is neither a pass nor a review failure: nothing
+was examined. Save the report with `status: "unverifiable"` and the agent's evidence, leave
+`implementation.status` unchanged (do **not** write `reviewed`), release the lock, and tell the user
+to run `/frontend-react-plugin:fe-gen {feature}` — there is no code to review. Never fold it into
+`pass`; a review that examined nothing reporting success is the failure the guard exists to prevent.
 
 **Pre-save validation** (when status is fail or pass_with_warnings):
 - Validate **the reviewer whose own status is `fail` or `pass_with_warnings`** — `specReview`,

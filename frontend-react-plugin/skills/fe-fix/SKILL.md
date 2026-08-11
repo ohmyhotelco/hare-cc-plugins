@@ -16,7 +16,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`; default `"src"`). Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`). If `sourceBaseDir` is missing, use default value `"src"`. Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
 4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)

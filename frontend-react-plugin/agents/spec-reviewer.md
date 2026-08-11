@@ -27,6 +27,9 @@ The skill will provide these parameters in the prompt:
 3. **Spec** — Read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
    - `screens.md` → screen definitions, components, error handling
+
+   > **Standalone features have only `{feature}-spec.md`.** Read the progress file's `standalone` flag first: when it is `true`, `screens.md` and `test-scenarios.md` do not exist and never will — derive screen and scenario detail from `{feature}-spec.md` plus the plan entries instead. Reading them unconditionally fails every standalone run at this point.
+
    - `test-scenarios.md` → test scenarios (TS-nnn)
 4. **Generated files** — Check the list of all generated files within `baseDir`
 5. **Accepted deviations** — read `plan.json` `openApprovals[]` (absent → none). An entry with

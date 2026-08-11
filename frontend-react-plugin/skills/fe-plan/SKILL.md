@@ -30,6 +30,8 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 skill and takes the feature lock like the others — a plan written while `fe-gen` is generating from
 the previous plan leaves the two disagreeing about what exists.
 
+**Create the lock's parent first.** `docs/specs/{feature}/.implementation/frontend/` does not exist for a feature being planned standalone for the first time, and lock creation fails there before the steps that would create it ever run. `mkdir -p` the directory, then acquire. For a **non-standalone** feature, confirm `docs/specs/{feature}/` exists first and stop with "spec not found" if it does not — otherwise a mistyped feature name silently scaffolds a directory tree for a feature nobody has.
+
 Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
 CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
 holder → report `holder` and `acquiredAt`, then stop.

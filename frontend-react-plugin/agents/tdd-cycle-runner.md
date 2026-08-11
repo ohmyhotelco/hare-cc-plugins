@@ -68,6 +68,9 @@ The coordinator skill provides:
 
 6. **Spec reference** (for `component-tdd` and `page-tdd` phases):
    - Read `specDir/screens.md` → reference screen layouts, component composition, user interactions, error handling
+
+   > **Standalone features have only `{feature}-spec.md`.** Read the progress file's `standalone` flag first: when it is `true`, `screens.md` and `test-scenarios.md` do not exist and never will — derive screen and scenario detail from `{feature}-spec.md` plus the plan entries instead. Reading them unconditionally fails every standalone run at this point.
+
    - This provides detailed context beyond plan.json for accurate UI implementation
 
 7. **UI DSL reference** (if available, for `component-tdd` and `page-tdd` phases):

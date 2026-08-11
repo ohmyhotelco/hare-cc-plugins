@@ -17,7 +17,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `baseDir`
-2. If `appDir` is missing, use default value `"."` (project root)
+2. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root)
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.

@@ -154,6 +154,77 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
     return out
 
 
+def check_passed_but_unbound(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """A launcher may only pass a value it actually has.
+
+    The call-site check verifies the callee's needs are met; this verifies the caller can meet
+    them. Appending `- routerMode: {routerMode}` to a launch in a skill whose Step 0 never reads
+    `routerMode` produces a prompt with an unresolved placeholder — the agent then receives the
+    literal text, or the launcher invents a value.
+    """
+    out = []
+    for name, (path, text) in skills.items():
+        for m in re.finditer(r"^\s*-\s+(\w+):\s*\{(\w+)\}\s*$", text, re.M):
+            param, var = m.group(1), m.group(2)
+            if var not in WIRING:
+                continue
+            # "Bound before use" — anywhere earlier in the skill, not only Step 0. A value may
+            # legitimately be read from plan.json in Step 1 (localesDir) rather than from config.
+            # Other launches' parameter lines do not count as a binding.
+            before = re.sub(r"^\s*-\s+\w+:\s*\{\w+\}\s*$", "", text[: m.start()], flags=re.M)
+            if re.search(rf"`{var}`", before):
+                continue
+            if re.search(rf"Derive `{var}`", before):
+                continue
+            # `Set `fixMode = "e2e"`` binds it just as a config read does
+            if re.search(rf"`{var}\s*=", before) or re.search(rf"Set `{var}`", before):
+                continue
+            out.append(Finding(str(path), lineno(text, m.start()), "passed-unbound",
+                               f"launch passes `{{{var}}}` but Step 0 never reads or derives it"))
+    return out
+
+
+def check_stale_number_refs(files: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """Prose that cites a list item by number must cite one that exists.
+
+    Renumbering a list silently invalidates every `proceed to step 7` / `skip checks 7-8` pointing
+    into it. A script renumbered nine lists in this repo and broke two such references; both read
+    fine and pointed at the wrong instruction.
+
+    Resolution is by *existence of the label*, not by list length: these docs use letter-suffixed
+    items (`6b.`) that a length comparison misreads as out of range.
+    """
+    out = []
+    ref = re.compile(r"(?:proceed to|go to|skip|see)\s+(?:prerequisite\s+)?"
+                     r"(?:step|steps|check|checks|item|items)\s+(\d+)(?:\s*[-–]\s*(\d+))?", re.I)
+    for name, (path, text) in files.items():
+        lines = text.split("\n")
+        # section = run of lines between `### ` headings; labels defined in each
+        bounds, cur = [], 0
+        for i, ln in enumerate(lines):
+            if ln.startswith("### "):
+                bounds.append((cur, i))
+                cur = i
+        bounds.append((cur, len(lines)))
+        for lo, hi in bounds:
+            labels = set()
+            for ln in lines[lo:hi]:
+                m = re.match(r"^(\d+)[a-z]?\. ", ln)
+                if m:
+                    labels.add(int(m.group(1)))
+            if not labels:
+                continue
+            for i in range(lo, hi):
+                for m in ref.finditer(lines[i]):
+                    for g in (m.group(1), m.group(2)):
+                        if g and int(g) not in labels:
+                            out.append(Finding(str(path), i + 1, "stale-number-ref",
+                                               f"cites item {g}, which this section does not define "
+                                               f"(defines {sorted(labels)}) — renumbering likely "
+                                               f"invalidated this reference"))
+    return out
+
+
 def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
     """A skill must declare every tool its body actually uses."""
     out = []
@@ -199,15 +270,15 @@ def check_lock_reachability(skills: dict[str, tuple[Path, str]]) -> list[Finding
 
 
 def check_bind_before_use(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
-    """Deriving from a name that the same step rebound, or before its default is applied."""
+    """A derivation must name a variable that is in scope and already defaulted."""
     out = []
     for name, (path, text) in skills.items():
         for m in re.finditer(r"^\d+\.\s+\*\*Derive `(\w+)`\*\*(.*)$", text, re.M):
             derived, rest = m.group(1), m.group(2)
-            before = text[:m.start()]
-            after = text[m.end():m.end() + 1500]
-            for src in re.findall(r"`(\w+)`", rest):
-                if src == derived:
+            before, after = text[: m.start()], text[m.end(): m.end() + 1500]
+            claims_default = "after its default is applied" in rest
+            for src in dict.fromkeys(re.findall(r"`(\w+)`", rest)):
+                if src == derived or src not in WIRING:
                     continue
                 rebind = re.search(rf"`{src}` as \*\*`(\w+)`\*\*", before)
                 if rebind:
@@ -216,7 +287,13 @@ def check_bind_before_use(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
                                        f"`{rebind.group(1)}` above — `{src}` is not in scope"))
                 if re.search(rf"If `{src}` is missing, use default", after):
                     out.append(Finding(str(path), lineno(text, m.start()), "derive-before-default",
-                                       f"derives `{derived}` from `{src}` before `{src}`'s default is applied"))
+                                       f"derives `{derived}` from `{src}` before `{src}`'s default "
+                                       f"is applied"))
+                # Claiming a default was applied is a claim; it needs one to exist.
+                if claims_default and not re.search(rf"If `{src}` is missing, use default", text):
+                    out.append(Finding(str(path), lineno(text, m.start()), "missing-default",
+                                       f'derives `{derived}` from `{src}` "after its default is '
+                                       f'applied", but no default for `{src}` is ever applied'))
     return out
 
 
@@ -317,11 +394,13 @@ def run(plugin: Path) -> list[Finding]:
 
     return (check_agent_params(agents)
             + check_call_sites(skills, agents)
+            + check_passed_but_unbound(skills)
             + check_tool_permissions(skills)
             + check_lock_reachability(skills)
             + check_bind_before_use(skills)
             + check_command_paths(every)
             + check_ordered_lists(every)
+            + check_stale_number_refs(every)
             + check_references(plugin, every))
 
 

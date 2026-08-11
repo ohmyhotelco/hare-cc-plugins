@@ -183,7 +183,9 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 >
 > **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
-> write only if still absent, release. The feature lock does not protect these — "first feature"
+> write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
+> `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
+> permanently unfixable — `fe-verify` fails on it and names `fe-gen`, which would skip the file. The feature lock does not protect these — "first feature"
 > is decided by a glob, so two features scaffolding concurrently both see absent and both write.
 
 ### Step 5b: App Shell Scaffold (framework mode only, first feature)

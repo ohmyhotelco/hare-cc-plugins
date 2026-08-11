@@ -36,7 +36,7 @@ Generates production React code based on the implementation plan (plan.json) usi
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
-2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`, `baseDir` (as `planBaseDir` — the feature-level directory, e.g., `app/src/features/{feature}`)
+2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`, `localesDir` (the i18n resource directory the generators write into), `baseDir` (as `planBaseDir` — the feature-level directory, e.g., `app/src/features/{feature}`)
 
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
@@ -50,7 +50,7 @@ Generates production React code based on the implementation plan (plan.json) usi
 2. Check for existing generation state:
    - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists:
      - Read it and check `currentPhase` and phase statuses
-     - If `deltaMode` is `true` in the state file: skip resume offer, proceed to step 7 (delta detection will handle resume)
+     - If `deltaMode` is `true` in the state file: skip resume offer, proceed to item 3 (**Delta detection**), which handles resume
      - Otherwise: offer to resume from the last incomplete phase
 
 3. **Delta detection** — check if a delta plan exists:
@@ -62,9 +62,9 @@ Generates production React code based on the implementation plan (plan.json) usi
      > "2. Execute full generation (ignore delta, regenerate everything)"
      > "3. View delta details"
      - If user chooses 1: `genMode = "delta"`, proceed to Lock Acquire then Step 2-D
-     - If user chooses 2: `genMode = "full"`, proceed to step 8 (demotion warning)
+     - If user chooses 2: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
      - If user chooses 3: display full delta summary, then re-ask 1 or 2
-   - If delta-plan.json does not exist: `genMode = "full"`, proceed to step 8
+   - If delta-plan.json does not exist: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
 
 4. **Demotion warning** (full mode only) — check `implementation.status` (already read in Step 1.3):
    - Skip this step if `genMode = "delta"` (delta does not reset the full pipeline)
@@ -282,6 +282,8 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - skills: {skills list from buildOrder}
   - deltaMode: true
   - scopedFiles: {list of createFiles file paths}
+  - serverState: {serverState}
+  - formStack: {formStack}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
   Read templates/tdd-rules.md for TDD rules.

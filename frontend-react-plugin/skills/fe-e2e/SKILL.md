@@ -84,7 +84,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      > "Agent-browser skill not installed. Run `/frontend-react-plugin:fe-init` to install external skills."
      - Stop here.
 
-> **Playwright mode:** skip prerequisite checks 7–8 above (they are agent-browser-only) and run these instead, from `{appDir}` (prefix `cd {appDir} &&` unless `appDir` is `"."`):
+> **Playwright mode:** skip the **Agent-browser CLI check** and **Agent-browser skill check** above (items 1–2 — agent-browser-only) and run these instead, from `{appDir}` (prefix `cd {appDir} &&` unless `appDir` is `"."`):
 > - **Playwright CLI check** — `npx playwright --version 2>&1`. If not found:
 >   > "Playwright is not installed. Add it with: `pnpm add -D @playwright/test` (then run `npx playwright install` once for the browser binaries)."
 >   - Stop here.

@@ -16,7 +16,7 @@ Audit frontend React/TypeScript code for clean code principles across 8 quality 
 
 1. Read `.claude/frontend-react-plugin.json`
 2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
-3. Extract `baseDir` from config
+3. Extract `baseDir`, `appDir`, and `routerMode` (default `"declarative"` when absent) from config — `quality-reviewer` needs `routerMode` for the dimension 1.6 router-convention checks
 
 ### Step 1: Determine Scope
 
