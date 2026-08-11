@@ -112,6 +112,42 @@ If the user selects **yes**:
      > pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
      > ```
 
+### Step 2d-2: Ask for Prettier Template
+
+Ask whether to auto-scaffold a Prettier config when the project has none.
+
+Present:
+- **yes** (default) — Auto-generate `prettier.config.js` + `.prettierignore` from the bundled
+  template. The format check is **advisory** — it is reported but never fails a gate.
+- **no** — Skip formatting entirely.
+
+Default: `yes`. Record as `prettierTemplate`.
+
+If **yes**: glob for an existing config (`prettier.config.*`, `.prettierrc*`) and say it will be left
+alone if found; otherwise check `package.json` for `prettier` and `eslint-config-prettier` and, when
+missing, display `pnpm add -D prettier eslint-config-prettier`. Never install it here.
+
+### Step 2d-3: Ask for the i18n Copy Surface
+
+Ask which languages the **application UI** ships in. This is the product's copy surface, not the
+`workingLanguage` the plugin talks to you in.
+
+Present the plugin default (`ko`, `en`, `ja`, `vi`) and let the user narrow or extend it. Record as:
+
+```json
+"i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
+```
+
+- `languages` — what "every supported language" resolves to for the key-coverage spec.
+- `lookupFns` — the i18n lookup helpers whose literal keys are checked (default `["t"]`; add project
+  wrappers such as `tx` if the codebase uses one).
+- `localesDir` is not repeated here — it already comes from the plan (`{baseDir}/locales`).
+
+Skipping this leaves the block out, which is a supported choice: `foundation-generator` then
+generates no key-coverage spec and `fe-verify` reports the i18n axis as `skipped`. It is never
+inferred from the locale directory — a language present as a folder but absent from this list would
+otherwise be silently exempt from coverage.
+
 ### Step 2e: Ask for Server-State Strategy
 
 Ask how server data (API responses) is managed.
@@ -168,14 +204,19 @@ Default: by profile — `agent-browser` for admin, `playwright` for ota. Record 
   "mockFirst": {true or false based on Step 2b},
   "baseDir": "{selected path from Step 2c}",
   "appDir": "{auto-derived from baseDir}",
-  "eslintTemplate": {true or false based on Step 2d}
+  "eslintTemplate": {true or false based on Step 2d},
+  "prettierTemplate": {true or false based on Step 2d-2},
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
 - `renderingDefault` is written only in framework mode (default `ssr`); it is the fallback rendering for a
   page whose plan does not specify one. Absent keys fall back to admin defaults on read
   (`appProfile=admin`, `routerMode` as written, `serverState=zustand-only`, `formStack=native`,
-  `e2eTool=agent-browser`).
+  `e2eTool=agent-browser`, `prettierTemplate=true`).
+- `i18n` is written only when Step 2d-3 produced one. Absent → no key-coverage spec is generated and
+  `fe-verify` reports that axis as `skipped`. It is the one key with **no default**: guessing the
+  supported language set would make coverage claims about languages nobody confirmed.
 
 ### Step 4: Install External Skills
 

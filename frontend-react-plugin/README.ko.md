@@ -548,7 +548,9 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike �
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -559,6 +561,8 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike �
 | `baseDir` | 생성되는 소스 코드의 기본 디렉토리 | `"app/src"` |
 | `appDir` | `vite.config.*`와 `package.json`이 있는 디렉토리 — 모든 빌드/테스트 명령이 여기서 실행됨 | `baseDir`에서 자동 도출 |
 | `eslintTemplate` | ESLint 설정이 없을 때 번들 템플릿으로 `eslint.config.js` 자동 생성 | `true` |
+| `prettierTemplate` | Prettier 설정이 없을 때 `prettier.config.js` + `.prettierignore` 자동 생성. 포맷 검사는 **자문**이며 게이트를 막지 않음 | `true` |
+| `i18n` | 제품 UI의 카피 범위: `languages`("모든 지원 언어"가 가리키는 집합)와 `lookupFns`(리터럴 키를 검사할 헬퍼). 앱 전역 키 커버리지 스펙의 기준 | *(없음 — 생략하면 검사 건너뜀)* |
 
 ## 생성되는 프로젝트 구조
 
@@ -697,7 +701,8 @@ skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-rev
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
+                 prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
 ```
 

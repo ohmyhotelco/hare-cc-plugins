@@ -14,8 +14,8 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
-2. If `appDir` is missing, use default value `"."` (project root)
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `baseDir`, `eslintTemplate`, `prettierTemplate`, `i18n`
+2. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -154,6 +154,51 @@ Check `tests[]` in plan.json:
   - exit code != 0 → fail (collect list of failed tests)
 - If `tests[]` does not exist or is empty: skipped ("no tests planned")
 
+#### 2.5 i18n Key Coverage
+
+Not a separate run — the app-wide spec (`templates/i18n-key-coverage.md`) is part of the 2.4 suite.
+This step reads what that run produced:
+
+1. No `i18n` block in `.claude/frontend-react-plugin.json` → `skipped`, reason "no i18n config".
+   Stop here.
+2. Glob `{baseDir}/__tests__/i18n-key-coverage.test.ts`.
+   - **Absent** → `fail`, reason "i18n key-coverage spec not generated". `fe-fix` cannot produce it,
+     so name `/frontend-react-plugin:fe-gen {feature}` as the remedy.
+   - **Present but its results are not in the 2.4 output** → `fail`, reason "spec not collected:
+     {path}". A file that exists but never ran is not a pass — that is the whole reason this step
+     reads the output rather than the filesystem. (When 2.4 itself was `skipped` for having no
+     planned tests, run the spec directly: `npx vitest run {baseDir}/__tests__/i18n-key-coverage.test.ts 2>&1`.)
+   - **Present and collected** → report its pass/fail plus the `uncheckable` (dynamic key) count.
+     Uncheckable keys never fail the gate; the count is reported so a growing hole stays visible.
+
+#### 2.6 Format Check (advisory)
+
+Per `templates/prettier-config.md`: glob for a Prettier config, scaffold from the template when
+absent and `prettierTemplate` is `true`/unset, skip silently when it is `false`, and record
+`skipped` (printing the `pnpm add -D` line) when `prettier` is not installed. Then:
+
+```bash
+npx prettier --check . 2>&1
+```
+
+Exit ≠ 0 is an **advisory warning only** — report the count and name `npx prettier --write .`.
+It never sets `verify-failed`, and never contributes to Overall FAIL. Do not run `--write` here.
+
+### Result taxonomy
+
+Every check above reports exactly one of these, and a reason is required for the last two:
+
+| Result | Means |
+|---|---|
+| `pass` | ran, and the output says it passed |
+| `fail` | ran, and the output says it failed |
+| `skipped` | deliberately not applicable — no tests planned, no i18n block, flag off |
+| `not-run` + reason | should have run but could not — tool missing, deps absent, timed out |
+
+`skipped` and `not-run` are **not** passes and must never be folded into one. "The tool was absent"
+and "there was nothing to check" lead to different next actions, and collapsing either into `pass`
+is the silent-hole failure this taxonomy exists to prevent.
+
 ### Step 3: Display Report
 
 Display the verification results:
@@ -162,13 +207,19 @@ Display the verification results:
 Verification Report for '{feature}':
 
   TypeScript:  {pass/fail} ({error count} errors, {warning count} warnings)
-  ESLint:      {pass/fail/skipped} ({error count} errors, {warning count} warnings)
+  ESLint:      {pass/fail/skipped/not-run} ({error count} errors, {warning count} warnings)
   Build:       {pass/fail}
   Tests:       {pass/fail/skipped} ({passed}/{total})
+  i18n keys:   {pass/fail/skipped} ({uncheckable} dynamic keys uncheckable)
+  Format:      {pass/warn/skipped} ({file count} files differ)   ← advisory
   E2E:         {pass/partial/fail/not-run} ({passed}/{total} scenarios)
 
   Overall: {PASS/FAIL}
 ```
+
+A `skipped` or `not-run` line always prints its reason next to it.
+
+Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`templates/prettier-config.md`).
 
 The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{feature}.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 
@@ -193,12 +244,19 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `veri
       "tsc": { "status": "pass", "errors": 0, "warnings": 0 },
       "eslint": { "status": "pass", "errors": 0, "warnings": 0 },
       "build": { "status": "pass" },
-      "tests": { "status": "pass", "passed": 10, "total": 10 }
+      "tests": { "status": "pass", "passed": 10, "total": 10 },
+      "i18nKeys": { "status": "pass", "uncheckable": 3 },
+      "format": { "status": "warn", "filesDiffering": 4 }
     }
   }
 }
 
-Note: Set `implementation.status` to `"verified"` (all pass) or `"verify-failed"` (any fail).
+Note: Set `implementation.status` to `"verified"` or `"verify-failed"`. `verified` requires tsc,
+eslint, build, tests, and i18nKeys to each be `pass` or `skipped`; any `fail` or `not-run` sets
+`verify-failed`. `format` never participates — it is advisory.
+
+Every `skipped` and `not-run` entry carries a `reason` string. A check that did not run is recorded
+as what it was, never omitted and never rewritten as `pass`.
 ```
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `review`, `fix`, `debug`), then write back the complete file.

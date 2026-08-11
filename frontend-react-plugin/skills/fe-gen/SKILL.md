@@ -16,11 +16,11 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
-5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`. Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
 6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -431,6 +431,8 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - appDir: {appDir}
   - projectRoot: {cwd}
   - feature: {feature}
+  - prettierTemplate: {prettierTemplate}
+  - i18n: {the config's i18n block, or omit the line entirely when absent}
 
   Follow the process defined in agents/foundation-generator.md.
 ")

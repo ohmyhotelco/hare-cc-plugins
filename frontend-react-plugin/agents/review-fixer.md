@@ -54,7 +54,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 ### Step 0: Load Context
 
 1. **Plan** — read `planFile` → extract file list, types, components, pages, tests
-2. **TDD Rules** — read `templates/tdd-rules.md` → internalize Iron Law and anti-patterns
+2. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green (a fix that goes green without one has not been shown to fix anything) and the spec-anchor rule
 3. **Spec** — read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
    - `screens.md` → screen definitions, components, error handling

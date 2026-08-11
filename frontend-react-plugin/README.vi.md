@@ -548,7 +548,9 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -559,6 +561,8 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
 | `baseDir` | Thư mục cơ sở cho mã nguồn được sinh | `"app/src"` |
 | `appDir` | Thư mục chứa `vite.config.*` và `package.json` — tất cả lệnh build/test chạy ở đây | Tự động từ `baseDir` |
 | `eslintTemplate` | Tự động tạo `eslint.config.js` từ template đi kèm khi chưa có cấu hình ESLint | `true` |
+| `prettierTemplate` | Tự động tạo `prettier.config.js` + `.prettierignore` khi chưa có cấu hình Prettier. Kiểm tra định dạng là **tư vấn** — báo cáo nhưng không chặn | `true` |
+| `i18n` | Bề mặt nội dung UI của sản phẩm: `languages` (tập hợp mà "mọi ngôn ngữ được hỗ trợ" trỏ tới) và `lookupFns` (các helper có khóa literal được kiểm tra). Là cơ sở cho spec key-coverage toàn ứng dụng | *(không có — bỏ qua để tắt kiểm tra)* |
 
 ## Cấu trúc dự án được sinh
 
@@ -697,7 +701,8 @@ skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-rev
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
+                 prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
 ```
 

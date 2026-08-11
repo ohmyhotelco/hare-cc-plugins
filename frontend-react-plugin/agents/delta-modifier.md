@@ -66,7 +66,7 @@ Each file operation from `delta-plan.json` is classified:
 
 2. **Existing plan** — read `planFile` → extract file list, types, components, pages, tests for cross-reference
 
-3. **TDD Rules** — read `templates/tdd-rules.md` → internalize Iron Law and anti-patterns
+3. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green and the spec-anchor rule
 
 4. **Spec** — read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC)

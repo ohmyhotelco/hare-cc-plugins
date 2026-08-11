@@ -125,7 +125,11 @@ For each test entry in the plan's `tests[]` matching this phase:
 2. **Write test file** based on plan's test cases:
    - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}`
    - Each test case from `plan.tests[].cases` → one `it()` block
-   - Source comment: `// TS-nnn` on each test
+   - **Spec anchor** on each test: `// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88`.
+     The anchor names the **spec** line the expected behavior comes from (`TS-nnn`, `FR-nnn`, or a
+     validation rule) with `file:line` — never `plan.json`, which was written from the same reading
+     the test is, so citing it proves nothing. Behavior with no spec line to cite carries no anchor;
+     do not invent one. See `templates/tdd-rules.md` § Anchors.
    - Test name matches the test case name from plan.json exactly
 
    **Test infrastructure:**
@@ -274,6 +278,28 @@ npx react-router typegen 2>&1
 # Otherwise: use tsc --noEmit
 ```
 
+### Step 4b: VERIFY THE TEST — Mutation Check (MANDATORY)
+
+Green proves the test and the implementation agree. It does not prove the test would notice if the
+implementation were wrong — and this agent wrote both, from one reading of the spec, in one session.
+A misreading yields a test and an implementation that agree with each other, and the phase goes green.
+
+For **each behavior implemented in this phase**:
+
+1. Break exactly that behavior in the production code — delete the guard, invert the condition,
+   return the other branch, or stop passing the prop.
+2. Re-run the same `npx vitest run … --reporter=verbose 2>&1` command.
+3. It must go **red**. If it stays green, the test asserts nothing about that behavior: strengthen
+   the assertion, re-run to confirm red against the mutation, then continue.
+4. Restore the exact code you broke and re-run once to confirm green.
+
+Scope is the behavior just written — one mutation each, seconds per behavior. Never mutate a whole
+file or leave a mutation in place. Record per behavior in `green.mutationCheck[]`: what was broken,
+whether the suite went red, and whether an assertion had to be strengthened.
+
+**Never skip this to save a run.** An unmutated green is the failure mode this step exists for, and
+reporting one as verified is a false claim under CLAUDE.md § Verification Philosophy.
+
 ### Step 5: REFACTOR (Optional)
 
 Only after GREEN is verified:
@@ -307,7 +333,12 @@ Confirm tests still pass. If not, revert the refactoring.
     "implFiles": ["{baseDir}/features/{feature}/api/entityApi.ts"],
     "verifyResult": "pass",
     "testsPassed": 5,
-    "testsTotal": 5
+    "testsTotal": 5,
+    "mutationCheck": [
+      { "behavior": "getList sends the page param",
+        "mutation": "dropped params.page from the request config",
+        "wentRed": true, "assertionStrengthened": false }
+    ]
   },
   "refactored": false,
   "verification": {
@@ -349,12 +380,13 @@ note instead of silently trimming it.
 ### All Phases
 - [ ] test file location: `{baseDir}/features/{feature}/__tests__/`
 - [ ] test data from factory imports (`../mocks/factories`)
-- [ ] source reference comments (`// TS-nnn`)
+- [ ] spec anchor on each test (`TS-nnn` / `FR-nnn` + spec `file:line`) — never a `plan.json` reference
 - [ ] test name matches plan.json test case name exactly
 - [ ] one behavior per test
 - [ ] assert on component output or return values, not mock call counts
 - [ ] MSW handler responses match complete TypeScript interfaces
 - [ ] no test-only methods in production code
+- [ ] every behavior implemented this phase survived a mutation (broken, saw red, restored, re-confirmed green)
 
 ### API Tests
 - [ ] MSW server setup/teardown (`beforeAll/afterEach/afterAll`)
@@ -385,6 +417,7 @@ note instead of silently trimming it.
 - **Iron Law**: No production code before a failing test. Stubs are permitted only for import resolution.
 - **Verify RED is MANDATORY**: Never skip watching the test fail. Record the failure output.
 - **Verify GREEN is MANDATORY**: Never skip watching the test pass. Record the success output.
+- **Mutation check is MANDATORY**: A green suite proves the test and the code agree, not that the test would catch the code being wrong. Break each new behavior, watch it go red, restore it (Step 4b).
 - **Minimal implementation**: Write only enough code to pass the current tests.
 - **Plan-driven**: Follow plan.json exactly. Do not add features not in the plan.
 - **Project patterns first**: Match existing project conventions.

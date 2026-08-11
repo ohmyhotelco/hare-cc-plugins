@@ -28,10 +28,13 @@ The coordinator skill provides:
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
 - `feature` — feature name
+- `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
+- `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
 
 > **Backward compatibility.** All the new keys above default to their pre-OTA values when absent
-> (`routerMode=declarative`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser`), and
-> every new branch below is gated on a new value — an admin-default config produces byte-identical output.
+> (`routerMode=declarative`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser`,
+> `prettierTemplate=true`, no `i18n`), and every new branch below is gated on a new value — an
+> admin-default config produces byte-identical output.
 
 ## Process
 
@@ -169,7 +172,7 @@ hook (integration-generator Step 6b), so `server.listen()` runs before any loade
 from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged**. See
 `templates/framework-app-shell.md` and `templates/e2e-playwright.md` (§ SSR / loader network).
 
-> **App lock.** Step 5(d) and Steps 5b/5c below write **app-wide, once-per-app** files. Take
+> **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. The feature lock does not protect these — "first feature"
 > is decided by a glob, so two features scaffolding concurrently both see absent and both write.
@@ -214,6 +217,32 @@ reset between tests via a dev-only reset hook in the harness `beforeEach`, and s
 run serially (a dedicated project or `test.describe.serial`) — the MSW-node instance is process-global, so
 parallel workers must not share mutated state.
 
+### Step 5d: i18n Key-Coverage Spec (once per app, first feature)
+
+Only when the config carries an `i18n` block (`languages`, `lookupFns`). The locale resources are the
+plan's `localesDir`, as everywhere else in this agent. Absent block → skip
+this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
+`{baseDir}/__tests__/i18n-key-coverage.test.ts` and skip if present.
+
+Generate that spec per `templates/i18n-key-coverage.md`. It is an **app-wide invariant**, not a
+per-feature test: it walks every `i18n.lookupFns` call site under `{baseDir}` and asserts each
+literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that
+markup- or entity-bearing values are not on the plain-text render path. Dynamic keys are tallied as
+`uncheckable` with `file:line` and printed — never failed on, never dropped.
+
+Run it once after writing (`npx vitest run {baseDir}/__tests__/i18n-key-coverage.test.ts 2>&1`) and
+read the output. It may legitimately fail here — the first feature's own keys are generated in later
+phases — so record the result and the `uncheckable` count in the output; do not treat a failure as a
+foundation error.
+
+### Step 5e: Prettier Config (once per app, first feature)
+
+Per `templates/prettier-config.md` § Detection / Scaffold / Skip: glob for an existing Prettier
+config; present → leave it. Absent and `prettierTemplate` is `true` or unset → scaffold
+`prettier.config.js` + `.prettierignore`. Absent and the flag is `false` → skip silently. Never
+auto-install `prettier`; if it is missing, print `pnpm add -D prettier eslint-config-prettier` and
+record `skipped`. Formatting is advisory and never blocks anything this agent does.
+
 ### Step 6: Verify
 
 **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection). Framework mode is
@@ -257,11 +286,20 @@ Confirm: zero errors. If errors exist, fix and re-verify.
       "{baseDir}/entry.server.tsx",
       "{baseDir}/entry.client.tsx"
     ],
-    "e2eHarness": ["{appDir}/playwright.config.ts", "{appDir}/e2e/fixtures.ts"]
+    "e2eHarness": ["{appDir}/playwright.config.ts", "{appDir}/e2e/fixtures.ts"],
+    "i18nCoverage": ["{baseDir}/__tests__/i18n-key-coverage.test.ts"],
+    "prettier": ["prettier.config.js", ".prettierignore"]
   },
   "shadcnInstalled": ["pagination"],
   "mswInstalled": true,
   "depsToInstall": ["pnpm add @tanstack/react-query"],
+  "i18nCoverage": {
+    "status": "generated | present | skipped",
+    "reason": "no i18n config block",
+    "firstRun": "pass | fail",
+    "uncheckable": 3
+  },
+  "prettier": "scaffolded | present | skipped",
   "verification": {
     "tsc": "pass"
   }
@@ -272,6 +310,10 @@ Confirm: zero errors. If errors exist, fix and re-verify.
 > corresponding config branch is active (`formStack=rhf-zod`, `routerMode=framework` + `mockFirst`,
 > `routerMode=framework`, `e2eTool=playwright`). Omit them otherwise. `depsToInstall` lists the print-only
 > `pnpm add` lines for any missing new-stack packages (never auto-installed).
+>
+> `i18nCoverage.status` is `skipped` with a `reason` when the config has no `i18n` block, and
+> `present` when the spec already existed — never omitted, so "not generated" and "never considered"
+> stay distinguishable. `prettier` follows the same three-way rule.
 
 ## Convention Checklist
 

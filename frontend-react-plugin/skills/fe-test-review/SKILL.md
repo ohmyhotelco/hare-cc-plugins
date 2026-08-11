@@ -23,6 +23,12 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 - If argument provided: audit the specified test file or directory
 - If no argument: audit all test files under `{baseDir}/`
 
+**Spec anchors.** If `targetPath` resolves inside `{baseDir}/features/{feature}/` **and**
+`docs/specs/{feature}/.progress/{feature}.json` exists, read its `workingLanguage` and pass
+`specDir: docs/specs/{feature}/{workingLanguage}` — the reviewer then follows each test's anchor to
+the spec line and checks the test's premise, not just its form. Otherwise omit `specDir`; the report
+records anchor resolution as `not-checked`.
+
 ### Step 2: Launch Test Reviewer
 
 ```
@@ -34,6 +40,7 @@ Task(subagent_type: "test-reviewer", prompt: "
   - baseDir: {baseDir}
   - appDir: {appDir}
   - projectRoot: {cwd}
+  - specDir: {specDir or omit}
 
   Follow the process defined in agents/test-reviewer.md.
   Return the audit report as text.

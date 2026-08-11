@@ -17,6 +17,10 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — project source base directory (for coverage cross-referencing)
 - `appDir` — directory containing `package.json` and `vite.config.*` (for running vitest)
 - `projectRoot` — project root path
+- `specDir` — **optional**; the feature's working-language spec directory
+  (`docs/specs/{feature}/{lang}`). Supplied on pipeline runs, absent on standalone
+  `fe-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
+  the cited line says what the test assumes; when absent, anchors are checked for form only.
 
 ## Process
 
@@ -83,6 +87,16 @@ Each issue MUST include:
   - Flag: missing `vi.restoreAllMocks()` or `vi.clearAllMocks()` in `afterEach` → severity: suggestion
 - **Test naming**: Descriptions should describe behavior, not implementation
   - Flag: test names referencing internal method names or implementation details → severity: suggestion
+- **Spec anchors** (`templates/tdd-rules.md` § Anchors): each test asserting spec'd behavior carries
+  `// TS-nnn — {spec file}:{line}`
+  - Flag: an anchor pointing at `plan.json` or another generated artifact → severity: warning. It
+    was written from the same reading the test was, so it corroborates nothing.
+  - Flag: a test asserting spec'd behavior with no anchor at all → severity: suggestion
+  - **Follow the anchor when `specDir` is provided**: read the cited line and confirm it says what
+    the test assumes. A test whose cited line says something different → severity: **critical** —
+    this is the misreading the anchor exists to surface, and no other dimension can see it.
+  - When `specDir` is absent (standalone `fe-test-review` runs) anchors are checked for **form**
+    only. Report the resolution as `not-checked` with that reason — never as verified.
 
 #### 1.5 Coverage Analysis (weight: 15%)
 
