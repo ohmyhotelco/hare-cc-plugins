@@ -80,6 +80,32 @@ The anchor points at the **spec**: the scenario (`TS-nnn`), requirement (`FR-nnn
 
 This is what makes the reading checkable: `test-reviewer` follows the anchor and confirms the cited line says what the test assumes. Behavior with no spec line to cite — a rendering detail, a defensive branch — carries no anchor. Do not invent one.
 
+## Request bodies (api phase, when zod schemas exist)
+
+A request-body builder that spreads shared params —
+
+```typescript
+const body = { ...getCommonParams(), ...payload };   // re-adds `locale` that the schema .omit()s
+```
+
+— can put back a field the endpoint's schema deliberately excludes, and **TypeScript will not catch
+it**: excess-property checking only fires on object literals assigned directly to a typed target,
+not on a spread result. The test then asserts the fields it knows about and passes.
+
+So: **return the body parsed through the endpoint's zod schema** (non-strict, so parsing strips what
+the schema omits), and pin it with a **body-shape test** that asserts the exact key set, not just
+that the expected fields are present:
+
+```typescript
+// TS-021 — docs/specs/booking/ko/test-scenarios.md:64
+expect(Object.keys(buildCreateBookingBody(input)).sort()).toEqual(
+  ['checkIn', 'checkOut', 'guestCount', 'roomTypeId'],   // no `locale`
+);
+```
+
+`toEqual` on the sorted key set is the point — `toMatchObject` and per-field assertions both pass
+with an extra field present, which is the defect.
+
 ## Testing Anti-Patterns (MUST AVOID)
 
 ### Anti-Pattern 1: Testing Mock Behavior

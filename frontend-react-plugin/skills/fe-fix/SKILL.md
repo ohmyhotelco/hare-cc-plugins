@@ -333,6 +333,14 @@ Note: Set `implementation.status` as follows:
 
 Note: Increment `fix.round` from the previous value (or set to 1 if absent).
 
+**Clear `implementation.gateEvidence` entirely** in this same write (CLAUDE.md § Gate Evidence &
+Freshness). A fix changes code, so it invalidates **every** gate, not only the one it repaired —
+leaving the other entries would let the next stage read a fresh pass on modified code.
+
+**Merge `sourcePaths`.** Any file this fix created that is not already in
+`implementation.sourcePaths[]` is appended (repo-relative). A new file left out of the watch set is
+invisible to every later freshness check.
+
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.
 
 ### Lock Release

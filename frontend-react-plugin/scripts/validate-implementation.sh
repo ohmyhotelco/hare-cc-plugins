@@ -63,7 +63,41 @@ if [ "$IS_SPEC" = true ] || [ "$IS_PLAN" = true ]; then
   echo "  Feature: $FEATURE"
   echo "  File: $FILE_PATH"
   echo "  The generated code may be out of sync with the specification."
-  echo "  After changes are complete, run /frontend-react-plugin:fe-plan $FEATURE (incremental mode will auto-detect and preserve existing fixes)."
+
+  # Name the command this status actually accepts. A single generic "run fe-plan" line sent
+  # fixing/escalated/gen-failed features to a command that refuses or discards their work.
+  FIX_REPORT="$CWD/docs/specs/$FEATURE/.implementation/frontend/fix-report.json"
+  DELTA_PLAN="$CWD/docs/specs/$FEATURE/.implementation/frontend/delta-plan.json"
+
+  if [ -f "$DELTA_PLAN" ]; then
+    echo "  A delta plan is already pending. Run /frontend-react-plugin:fe-gen $FEATURE to apply it,"
+    echo "  or re-run /frontend-react-plugin:fe-plan $FEATURE to fold this edit into the delta first."
+  else
+    case "$IMPL_STATUS" in
+      fixing)
+        if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
+          echo "  A fix is in progress and a full regeneration is owed. Run"
+          echo "  /frontend-react-plugin:fe-gen $FEATURE, then /frontend-react-plugin:fe-review $FEATURE."
+        else
+          echo "  A fix is in progress. Finish it through /frontend-react-plugin:fe-review $FEATURE"
+          echo "  before replanning — fe-plan's incremental mode would rebase on top of half-applied fixes."
+        fi
+        ;;
+      escalated)
+        echo "  This feature needs manual intervention first (see fix-report.json / debug-report.json),"
+        echo "  then re-enter through /frontend-react-plugin:fe-fix $FEATURE."
+        ;;
+      gen-failed)
+        echo "  Generation never completed for this feature. Run /frontend-react-plugin:fe-gen $FEATURE"
+        echo "  (it resumes from the incomplete phase); fe-plan's incremental mode needs a completed"
+        echo "  generation to diff against."
+        ;;
+      *)
+        echo "  After changes are complete, run /frontend-react-plugin:fe-plan $FEATURE (incremental mode"
+        echo "  will auto-detect and preserve existing fixes)."
+        ;;
+    esac
+  fi
 fi
 
 exit 0

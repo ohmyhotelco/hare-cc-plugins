@@ -1032,6 +1032,11 @@ admin/library-mode default so all appear with default values):
       "skills": ["react-router-{routerMode}-mode"]
     }
   ],
+  "openApprovals": [
+    { "id": "OA-1", "what": "phone validation accepts KR formats only",
+      "why": "spec \u00a74.2 defers international formats to v2",
+      "status": "pending", "owner": null, "at": "2026-08-11" }
+  ],
   "summary": {
     "totalFiles": 14,
     "types": 2,
@@ -1052,6 +1057,15 @@ admin/library-mode default so all appear with default values):
   }
 }
 ```
+
+**`openApprovals[]`** (optional; omit when empty) records deliberate deviations from the spec so a
+reviewer stops re-raising a decision that has already been made — see CLAUDE.md § Deliberate
+Deviations. This agent may write an entry only as **`status: "pending"` with `owner: null`**: a
+proposal, not an approval. Only a human sets `status: "approved"` with a named `owner`, and only an
+approved entry silences a reviewer. Writing `approved` here would let the pipeline authorize its own
+scope reductions, which is the exact failure the field exists to prevent.
+
+On a delta run, carry existing entries forward verbatim — an approval survives regeneration.
 
 ## User Summary Template
 

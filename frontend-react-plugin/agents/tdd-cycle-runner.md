@@ -181,6 +181,13 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 - Import project's existing Axios instance
 - Each method → typed request/response matching plan's `api[].methods`
 - Error codes documented as comments
+- **Request bodies** (when the feature has zod schemas — `formStack == rhf-zod`, or the plan carries
+  a `formSchema`): a body builder **returns its body parsed through the endpoint's schema**
+  (non-strict, so a field the schema `.omit()`s is stripped), and its test pins the **exact key
+  set** — `expect(Object.keys(body).sort()).toEqual([...])`. A `...getCommonParams()` spread can
+  re-add an omitted root field that TypeScript's excess-property check never sees, and
+  `toMatchObject` or per-field assertions pass right through it. See `templates/tdd-rules.md`
+  § Request bodies.
 
 *When `serverState == tanstack-query`* — the phase covers the axios service (above, **unchanged**) **plus**
 `api/queries.ts` per the plan's `api[].queries` block:

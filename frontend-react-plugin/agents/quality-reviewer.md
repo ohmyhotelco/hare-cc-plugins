@@ -45,6 +45,14 @@ The skill will provide these parameters in the prompt:
    - Glob: `{projectBase}/features/*/` → verify existing module structure
    - Check import style and naming conventions of existing code
 4. **Generated files** — read all generated files under `baseDir`
+5. **Accepted deviations** — read `plan.json` `openApprovals[]` (absent → none). An entry with
+   `status: "approved"` **and** a named `owner` (not `TBD`, not an agent) is a decision already
+   taken: do **not** re-raise a matching issue. List it once under "accepted deviations" so it stays
+   visible, and keep reviewing everything else.
+   A `pending` entry, or one whose `owner` is missing, is **not** approval — the plan is written by
+   the pipeline, so honoring a self-written `pending` would let the pipeline approve its own
+   shortcuts. Report those as normal issues and say an approval is outstanding.
+   See CLAUDE.md § Deliberate Deviations.
 
 #### Phase 0-S: Standalone Mode
 

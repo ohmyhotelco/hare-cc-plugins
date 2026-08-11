@@ -20,6 +20,61 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
 CONFIG_FILE="$CWD/.claude/frontend-react-plugin.json"
 
+# Refresh `pluginRoot` — the absolute path fe-verify / fe-review / fe-e2e / fe-progress use to
+# locate scripts/gate-tree-hash.sh.
+#
+# This hook is the only component that can know it. A skill's Bash shell does not get
+# ${CLAUDE_PLUGIN_ROOT} (Claude Code expands that for hooks/hooks.json only), and no path built
+# from the project root reaches the marketplace cache the plugin is installed in. This script IS in
+# that install, so its own location is the answer. Rewriting it every session also survives an
+# upgrade: the cache path is version-pinned, so a value recorded once would dead-end at the next
+# release and silently degrade every freshness check.
+#
+# This runs BEFORE the no-config early return below and writes only when the config already exists.
+# Placing it after that return would mean a project's first session — the one where fe-init creates
+# the config — never records it. The value is therefore available from the session AFTER fe-init.
+#
+# Never silent on failure: a missing pluginRoot makes every gate record no `tree`, which reads as
+# "unverifiable" forever. The hook must survive the failure without hiding it.
+plugin_root_warn() {
+  echo "  Warning: [Frontend React Plugin] could not record pluginRoot${1:+ ($1)}."
+  echo "           Gate freshness will report 'unverifiable' until this is fixed."
+}
+
+write_plugin_root() {
+  [ -f "$CONFIG_FILE" ] || return 0
+  root=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || return 0
+  [ -n "$root" ] && [ -x "$root/scripts/gate-tree-hash.sh" ] || {
+    # Reached when the hook is invoked through a symlink: $0's directory is not the install.
+    plugin_root_warn "could not locate the plugin install from \$0 — invoke the hook by its real path"
+    return 0
+  }
+  [ "$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")" = "$root" ] && return 0
+  # Resolve a symlinked config to its target before rewriting: `mv` replaces the LINK, so a team
+  # sharing one config through a symlink would silently get a detached copy on first session start.
+  target="$CONFIG_FILE"
+  while [ -L "$target" ]; do
+    link=$(readlink -- "$target" 2>/dev/null) || break
+    case $link in /*) target="$link" ;; *) target="$(dirname "$target")/$link" ;; esac
+  done
+  # Same-directory temp file so `mv` is atomic; mode copied from the original so a shared checkout
+  # does not silently become 0600.
+  tmp="$target.fe-tmp.$$"
+  if jq --arg p "$root" '.pluginRoot = $p' "$target" > "$tmp" 2>/dev/null; then
+    chmod --reference="$target" "$tmp" 2>/dev/null \
+      || chmod "$(stat -f '%Lp' "$target" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true
+    if ! mv "$tmp" "$target" 2>/dev/null; then
+      rm -f "$tmp"
+      plugin_root_warn
+    fi
+  else
+    rm -f "$tmp"
+    plugin_root_warn
+  fi
+  return 0
+}
+write_plugin_root || true
+
 # If config file does not exist, suggest init
 if [ ! -f "$CONFIG_FILE" ]; then
   echo ""
