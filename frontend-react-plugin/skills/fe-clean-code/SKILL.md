@@ -23,6 +23,10 @@ Audit frontend React/TypeScript code for clean code principles across 8 quality 
 - If argument provided: audit the specified file or directory
 - If no argument: audit all files in `{baseDir}/`
 
+**A missing or empty target is `unverifiable`, never a pass.** Confirm the resolved target exists
+before launching the agent; if it does not, say so and stop. If the agent reports `unverifiable`,
+surface that verbatim — do not render it as a passing audit.
+
 ### Step 2: Launch Quality Reviewer (Standalone Mode)
 
 ```

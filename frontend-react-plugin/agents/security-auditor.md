@@ -25,6 +25,19 @@ The skill will provide these parameters in the prompt:
 3. Exclude: `node_modules/`, `dist/`, `build/`, `__tests__/`, `*.test.*`, `*.spec.*`, `mocks/`
 4. Count files for the report header
 
+### Phase 0-guard: Nothing to audit is not a pass
+
+Before scoring, check the collection:
+
+- `targetPath` does not exist → report **`unverifiable`**, name the path, stop. Do not score.
+- Zero source files collected → report **`unverifiable`** with the glob patterns tried and the resolved
+  target, stop. Do not score.
+
+Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md
+§ Verification Philosophy: a statement about the state of the evidence is itself a claim).
+`unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
+
 ### Phase 1: Scan for Issues
 
 Scan each file against the following rules. For every issue record: `severity`, `file`, `line` (when determinable), `description`, `suggestion`.

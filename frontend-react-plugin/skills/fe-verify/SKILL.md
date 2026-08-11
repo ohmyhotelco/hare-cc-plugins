@@ -15,8 +15,9 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
-2. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
-3. If the file does not exist:
+2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
+3. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
+4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -68,6 +69,11 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-verify"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
+
 ### Step 2: Run Verification
 
 Run the following 3 verifications sequentially.
@@ -105,10 +111,10 @@ npx tsc --noEmit 2>&1
 2. **Config found** → detect config type and run:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
-   npx eslint {baseDir} 2>&1
+   npx eslint {srcPath} 2>&1
 
    # If .eslintrc* exists (legacy config, ESLint v8):
-   npx eslint {baseDir} --ext .ts,.tsx 2>&1
+   npx eslint {srcPath} --ext .ts,.tsx 2>&1
    ```
 3. **Config not found** → template fallback:
    a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
@@ -124,7 +130,7 @@ npx tsc --noEmit 2>&1
         > ```
       - If all dependencies are installed → run:
         ```bash
-        npx eslint {baseDir} 2>&1
+        npx eslint {srcPath} 2>&1
         ```
 
 - exit code 0 → pass
@@ -150,7 +156,7 @@ npx react-router build 2>&1
 Check `tests[]` in plan.json:
 - If `tests[]` is not empty:
   ```bash
-  npx vitest run {baseDir} 2>&1
+  npx vitest run {srcPath} 2>&1
   ```
   - exit code 0 → pass
   - exit code != 0 → fail (collect list of failed tests)
@@ -170,7 +176,7 @@ This step reads what that run produced:
    - **Present but its results are not in the 2.4 output** → `fail`, reason "spec not collected:
      {path}". A file that exists but never ran is not a pass — that is the whole reason this step
      reads the output rather than the filesystem. (When 2.4 itself was `skipped` for having no
-     planned tests, run the spec directly: `npx vitest run {baseDir}/__tests__/i18n-key-coverage.test.ts 2>&1`.)
+     planned tests, run the spec directly: `npx vitest run {srcPath}/__tests__/i18n-key-coverage.test.ts 2>&1`.)
    - **Present and collected** → report its pass/fail plus the `uncheckable` (dynamic key) count.
      Uncheckable keys never fail the gate; the count is reported so a growing hole stays visible.
    - **Present but built for a different config** → `fail`, reason "i18n spec is stale: built for

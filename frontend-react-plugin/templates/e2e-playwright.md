@@ -16,7 +16,7 @@ Scenarios come from `plan.json e2eTests[]` (mapped from `test-scenarios.md` TS-n
 Only the realization differs.
 
 ## Harness (scaffolded once per app by `foundation-generator`)
-- `playwright.config.ts` — `testDir: 'e2e'`, `trace: 'on-first-retry'`, `webServer` runs the mode-aware
+- `playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'`, `webServer` runs the mode-aware
   dev command (from the CLAUDE.md command matrix) with `VITE_ENABLE_MOCKS=true` and `reuseExistingServer`.
   Framework mode → `npx react-router dev --port {port}`; library modes → `npx vite --port {port}`.
 - `e2e/fixtures.ts` — auth/state-setup helpers and page-object base.
@@ -56,10 +56,17 @@ Factor repeated selectors and flows into page objects / helpers under `e2e/` (au
 factories) and reuse across specs (read-modify-write; never clobber another feature's helpers).
 
 ## Trace-first diagnostics
-`trace: 'on-first-retry'` retains a trace on failure. `e2e-report.json` records each failing scenario's
-trace path under `artifacts`. This is the primary evidence `fe-fix` (e2e-fix) reads — open it with
-`npx playwright show-trace <trace.zip>` (CLI-built-in, no skill) and diagnose from the trace before
-editing code.
+`trace: 'retain-on-first-failure'` keeps a trace for a scenario that fails on its **first** run.
+**Not `on-first-retry`** — Playwright does not retry by default, and that mode only records during a
+retry, so with `retries: 0` an ordinary failure produces no trace at all while the runner and
+`fe-fix` both require one. (`on-first-retry` is correct only alongside an explicit `retries: 1`;
+retries also mask flakiness, so the first-failure mode is the better default here.)
+
+`e2e-report.json` records each failing scenario's trace path under **`scenarios[].evidence.trace`** —
+the one field name the runner, `fe-e2e`, and `fe-fix` all read. Do not write it under `artifacts`;
+a report that puts the path somewhere else is a report `fe-fix` cannot use. This is the primary
+evidence `fe-fix` (e2e-fix) reads — open it with `npx playwright show-trace <trace.zip>`
+(CLI-built-in, no skill) and diagnose from the trace before editing code.
 
 ## Run
 From `{appDir}` (webServer manages the dev server — no manual start/stop):

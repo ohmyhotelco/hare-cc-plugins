@@ -20,6 +20,7 @@ The coordinator skill provides:
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework switches the route-integration target to `{baseDir}/routes.ts` + the `prerender` array.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — gates the `QueryClientProvider` wiring.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
@@ -278,10 +279,10 @@ npx tsc --noEmit 2>&1
 2. **Config found** → detect config type and run. Lint both the feature directory and any global files modified by this agent:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
-   npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1
+   npx eslint {srcPath}/features/{feature}/ {list of modified global files} 2>&1
 
    # If .eslintrc* exists (legacy config, ESLint v8):
-   npx eslint {baseDir}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
+   npx eslint {srcPath}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
    ```
    Note: "modified global files" includes `{baseDir}/mocks/handlers.ts`, `{baseDir}/mocks/server.ts`, `{baseDir}/mocks/browser.ts`, and any central route/i18n files that were auto-integrated.
 3. **Config not found** → template fallback (same logic as fe-verify Step 2.2):
@@ -291,11 +292,11 @@ npx tsc --noEmit 2>&1
       - Read `templates/eslint-config.md` from the plugin directory → generate `eslint.config.js` at project root
       - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency missing → skip with install instructions
-      - If all installed → run `npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1`
+      - If all installed → run `npx eslint {srcPath}/features/{feature}/ {list of modified global files} 2>&1`
 
 **c. Full test suite:**
 ```bash
-npx vitest run {baseDir}/features/{feature}/ --reporter=verbose 2>&1
+npx vitest run {srcPath}/features/{feature}/ --reporter=verbose 2>&1
 ```
 
 **d. Build:** mode-aware per the CLAUDE.md Router-mode command matrix:

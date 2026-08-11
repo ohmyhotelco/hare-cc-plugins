@@ -26,6 +26,7 @@ The skill will provide these parameters in the prompt:
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 
 ## Issue Classification
 
@@ -157,7 +158,7 @@ For each **direct-fix** issue (sorted: critical first, then warnings, then sugge
 4. If tsc passes → mark issue as `fixed`
 
 **After all direct fixes are applied**, run regression check once:
-- `npx vitest run {baseDir}` → confirm no regressions
+- `npx vitest run {srcPath}` → confirm no regressions
 - If regressions detected: identify which fix caused the failure, revert it, re-run vitest to confirm, mark that issue as `failed`
 
 ### Step 3: Execute TDD Fixes
@@ -216,7 +217,7 @@ Run full verification suite:
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
 2. ESLint — same detection logic as fe-verify Step 2.2 (includes template fallback)
-3. `npx vitest run {baseDir}` → all feature tests
+3. `npx vitest run {srcPath}` → all feature tests
 4. Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.

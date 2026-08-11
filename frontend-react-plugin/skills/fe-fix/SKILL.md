@@ -17,10 +17,11 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`; default `"src"`). Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
-2. If `mockFirst` is missing, use default value `true`
-3. If `appDir` is missing, use default value `"."` (project root)
-4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
-5. If the file does not exist:
+2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
+3. If `mockFirst` is missing, use default value `true`
+4. If `appDir` is missing, use default value `"."` (project root)
+5. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
+6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -121,6 +122,11 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-fix"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
+
 ### Step 2: Parse & Display Issue Summary
 
 Parse the active report and display a summary based on `fixMode`:
@@ -182,6 +188,7 @@ Task(subagent_type: "review-fixer", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - e2eTool: {e2eTool}
 
   Follow the process defined in agents/review-fixer.md.

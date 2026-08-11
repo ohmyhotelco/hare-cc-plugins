@@ -17,6 +17,7 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — project source base directory (for coverage cross-referencing)
 - `appDir` — directory containing `package.json` and `vite.config.*` (for running vitest)
 - `projectRoot` — project root path
+- `srcPath` — the source root relative to `appDir`; every `npx …` path argument uses it
 - `specDir` — **optional**; the feature's working-language spec directory
   (`docs/specs/{feature}/{lang}`). Supplied on pipeline runs, absent on standalone
   `fe-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
@@ -33,6 +34,19 @@ The skill will provide these parameters in the prompt:
    - Deduplicate results
 3. Count test files
 4. Grep for `it\(` and `test\(` patterns across collected files → count test methods
+
+### Phase 0-guard: Nothing to audit is not a pass
+
+Before scoring, check the collection:
+
+- `targetPath` does not exist → report **`unverifiable`**, name the path, stop. Do not score.
+- Zero test files collected → report **`unverifiable`** with the glob patterns tried and the resolved
+  target, stop. Do not score.
+
+Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md
+§ Verification Philosophy: a statement about the state of the evidence is itself a claim).
+`unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 
 ### Phase 1: Review — 7 Dimensions
 
@@ -118,7 +132,7 @@ Cross-reference source files under `{baseDir}` against test files:
 This dimension requires running `npx vitest` to measure actual execution times. Only execute when the test infrastructure is available.
 
 1. Check vitest: `cd {projectRoot}/{appDir} && npx vitest --version 2>&1` (5-second timeout)
-2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath} 2>&1` (5-minute timeout, 300000ms)
+2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath relative to appDir} 2>&1` (5-minute timeout, 300000ms). `targetPath` is repo-relative; strip the leading `{appDir}/` before passing it, or the command resolves `app/app/src/...` and finds nothing (CLAUDE.md § Build Command Working Directory).
 3. Parse test timing from output and flag:
    - Component tests (`*.test.tsx` in `components/`) taking > 200ms each → severity: suggestion
    - Unit tests (`*.test.ts` in `api/`, `stores/`) taking > 50ms each → severity: suggestion

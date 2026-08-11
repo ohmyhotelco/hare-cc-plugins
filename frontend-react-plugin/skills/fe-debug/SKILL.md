@@ -16,9 +16,10 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
-2. If `appDir` is missing, use default value `"."` (project root)
-3. If the file does not exist:
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `baseDir`
+2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
+3. If `appDir` is missing, use default value `"."` (project root)
+4. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -71,6 +72,7 @@ Task(subagent_type: "debugger", prompt: "
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - problemDescription: {problemDescription}
 
   Follow the 4-phase methodology defined in agents/debugger.md.

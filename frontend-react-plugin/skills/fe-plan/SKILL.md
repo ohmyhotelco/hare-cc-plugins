@@ -3,7 +3,7 @@ name: fe-plan
 description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
 argument-hint: "<feature-name> [--standalone]"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Task
+allowed-tools: Read, Write, Glob, Grep, Bash, Task
 ---
 
 # Implementation Plan Skill
@@ -15,11 +15,12 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`
-2. If `baseDir` is missing, use default value `"src"`
-3. If `mockFirst` is missing, use default value `true`
-4. If `appDir` is missing, use default value `"."` (project root)
-5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Pass all of these through to the planner so it can plan rendering / queries / form schemas.
-5. If the file does not exist:
+2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
+3. If `baseDir` is missing, use default value `"src"`
+4. If `mockFirst` is missing, use default value `true`
+5. If `appDir` is missing, use default value `"."` (project root)
+6. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Pass all of these through to the planner so it can plan rendering / queries / form schemas.
+7. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
@@ -174,6 +175,19 @@ Check if incremental mode is applicable:
      - No generated code to preserve → `planMode = "full"`, proceed to Step 3
 3. If not `existingPlanExists`: `planMode = "full"`, proceed to Step 3
 
+### Lock Acquire
+
+`fe-plan` writes `plan.json`, `delta-plan.json`, and the progress file, so it is a state-mutating
+skill and takes the feature lock like the others — a plan written while `fe-gen` is generating from
+the previous plan leaves the two disagreeing about what exists.
+
+Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
+CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
+holder → report `holder` and `acquiredAt`, then stop.
+
+Everything from here to Step 5 runs under the lock. Release it on **every** exit below, including a
+user declining at Step 4-I or Step 4.
+
 ### Step 3-I: Launch Planner Agent (Incremental Mode)
 
 Only executed when `planMode = "incremental"`.
@@ -198,6 +212,7 @@ Task(subagent_type: "implementation-planner", prompt: "
   - projectRoot: {cwd}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - incrementalMode: true
   - existingPlanFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - deltaOutputFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
@@ -268,6 +283,7 @@ Task(subagent_type: "implementation-planner", prompt: "
   - projectRoot: {cwd}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
 
   Follow the process defined in agents/implementation-planner.md.

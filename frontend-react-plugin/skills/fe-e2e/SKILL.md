@@ -17,6 +17,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`
+**Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged). Every `npx …` path argument uses it; `baseDir` stays repo-relative for file operations (CLAUDE.md § Build Command Working Directory).
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
@@ -95,6 +96,11 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 ### Lock Acquire
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-e2e"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Confirm with User
 
@@ -214,6 +220,7 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - port: {port}
   - e2eTool: {e2eTool}
   - routerMode: {routerMode}
@@ -238,7 +245,10 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
 
 **On failure (agent error, not test failure):**
 - Record the error
-- Proceed to Step 5 (cleanup) and Step 7 (stop server)
+- Proceed to **Step 5 (stop dev server)**, then synthesize a failed report — `status: "error"`, the
+  agent's error text, zero scenarios executed — and run **Step 7 (save report)** and **Step 8
+  (update progress)** with it before releasing the lock. Step 7 is Save Report and Step 5 is the
+  server shutdown; skipping them leaves no record that the run happened and no status transition.
 
 ### Step 5: Stop Dev Server
 

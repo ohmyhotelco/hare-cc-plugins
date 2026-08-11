@@ -14,7 +14,8 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 
 ### Step 0: Validate Configuration
 
-1. Read `.claude/frontend-react-plugin.json`
+1. Read `.claude/frontend-react-plugin.json`, `baseDir`
+**Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged). Every `npx …` path argument uses it; `baseDir` stays repo-relative for file operations (CLAUDE.md § Build Command Working Directory).
 2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
 3. Extract `baseDir` and `appDir` from config
 
@@ -29,6 +30,10 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 the spec line and checks the test's premise, not just its form. Otherwise omit `specDir`; the report
 records anchor resolution as `not-checked`.
 
+**A missing or empty target is `unverifiable`, never a pass.** Confirm the resolved target exists
+before launching the agent; if it does not, say so and stop. If the agent reports `unverifiable`,
+surface that verbatim — do not render it as a passing audit.
+
 ### Step 2: Launch Test Reviewer
 
 ```
@@ -39,6 +44,7 @@ Task(subagent_type: "test-reviewer", prompt: "
   - targetPath: {targetPath}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - projectRoot: {cwd}
   - specDir: {specDir or omit}
 

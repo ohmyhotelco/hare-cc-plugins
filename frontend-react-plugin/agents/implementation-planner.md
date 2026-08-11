@@ -41,10 +41,14 @@ The skill will provide these parameters in the prompt:
    - Check `status` (reviewing | finalized)
    - Extract `workingLanguage`
 
-2. **Spec files** — Read 3 files from `specDir`:
-   - `{feature}-spec.md` → overview, user stories, functional requirements (FR/BR/AC)
-   - `screens.md` → screen definitions (Layout, Components, User Actions), error handling
-   - `test-scenarios.md` → NFR, test scenarios
+2. **Spec files** — Read from `specDir`. **Check `standalone` first**: standalone mode creates only
+   `{feature}-spec.md`, so reading the other two unconditionally fails on every standalone run.
+   - `standalone: true` → read **only** `{feature}-spec.md`. Derive screens from its screen section
+     and skip test scenarios entirely; a standalone plan has no `TS-nnn` to reference, which the
+     skill already tells the user.
+   - otherwise → read all three: `{feature}-spec.md` (overview, user stories, FR/BR/AC),
+     `screens.md` (screen definitions, error handling), `test-scenarios.md` (NFR, test scenarios).
+     A missing file here is a real error — report it rather than continuing with a partial plan.
 
 3. **UI DSL** — Check `uiDslDir`:
    - `manifest.json` → screen list, navigation graph, dataEntities

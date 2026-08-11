@@ -17,15 +17,16 @@ Generates production React code based on the implementation plan (plan.json) usi
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`
-2. If `baseDir` is missing, use default value `"src"`
-3. If `mockFirst` is missing, use default value `true`
-4. If `appDir` is missing, use default value `"."` (project root)
-5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
-6. If the file does not exist:
+2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
+3. If `baseDir` is missing, use default value `"src"`
+4. If `mockFirst` is missing, use default value `true`
+5. If `appDir` is missing, use default value `"."` (project root)
+6. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
+7. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 
-**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as `skip` in generation-state (same mechanism as delta `deltaAction="skip"`) and log "Skipping store-tdd (no client-only store)". This is not an error — it is the expected shape under tanstack-query.
+**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)". Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
 
 ### Step 1: Validate Plan
 
@@ -81,6 +82,11 @@ Generates production React code based on the implementation plan (plan.json) usi
 ### Lock Acquire
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-gen"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Confirm with User
 
@@ -206,6 +212,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
+  - srcPath: {srcPath}
 
   Follow the process defined in agents/delta-modifier.md.
   Read templates/tdd-rules.md for TDD rules.
@@ -238,6 +245,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
+  - srcPath: {srcPath}
 
   Follow the process defined in agents/delta-modifier.md.
   Read templates/tdd-rules.md for TDD rules.
@@ -270,6 +278,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - skills: {skills list from buildOrder}
   - deltaMode: true
   - scopedFiles: {list of createFiles file paths}
@@ -431,6 +440,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - projectRoot: {cwd}
   - feature: {feature}
   - prettierTemplate: {prettierTemplate}
@@ -485,6 +495,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - skills: {skills list from buildOrder}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
@@ -548,6 +559,7 @@ Agent(subagent_type: "integration-generator", prompt: "
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - workingLanguage: {workingLanguage}
   - skills: {skills list from buildOrder}
 
@@ -634,7 +646,8 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 **Status determination logic** — set `implementation.status` based on phase outcomes:
 - All phases `"completed"` → `"generated"`
 - Any phase `"failed"` AND user chose **Stop** → `"gen-failed"`
-- Any phase `"failed"` or `"skipped"` AND user chose **Skip** to continue → `"gen-failed"` (incomplete generation must not enter review pipeline)
+- Any phase `"skipped"` **with a `reason`** (an automatic no-op such as no-store-under-tanstack-query) → does not block: treat it as completed for status purposes
+- Any phase `"failed"`, or `"skipped"` with no `reason` because the user chose **Skip** to continue → `"gen-failed"` (incomplete generation must not enter review pipeline)
 - Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.

@@ -388,6 +388,27 @@ Example: `baseDir: "app/src"`, `appDir: "app"` → `cd {projectRoot}/app && npx 
 
 This applies to all agents and skills. Skills pass `appDir` to agents as a parameter.
 
+**Path arguments must be relative to `appDir`, not to the repo — use `{srcPath}`.** `baseDir` is
+repo-relative, so passing it to a command that already ran `cd {appDir}` doubles the prefix:
+`cd app && npx vitest run app/src/...` resolves to `app/app/src/...`, which does not exist. The
+command finds nothing and exits non-zero, and a gate reads that as a failure it cannot explain.
+
+`srcPath` is the source root **relative to `appDir`**: take `baseDir` and remove the leading
+`{appDir}/`. Skills derive it in Step 0 and pass it to every agent alongside `baseDir`.
+
+| `baseDir` | `appDir` | `srcPath` |
+| --- | --- | --- |
+| `app/src` | `app` | `src` |
+| `app/app` | `app` | `app` |
+| `src` | `.` | `src` |
+| `packages/web/src` | `packages/web` | `src` |
+| `custom` (no `/src` or `/app` suffix) | `custom` | `.` |
+
+**Commands take `{srcPath}`; file operations keep `{baseDir}`.** Read, Write, Edit, and Glob resolve
+against the repo root and must stay repo-relative — only the arguments of the tool commands above are
+rewritten. A test file is *written* to `{baseDir}/features/{f}/__tests__/x.test.ts` and *run* as
+`npx vitest run {srcPath}/features/{f}/__tests__/x.test.ts` from `{appDir}`.
+
 **Framework-mode path-base rule.** `react-router.config.ts` and the generated `.react-router/` types
 directory live in `{appDir}` (siblings of `vite.config.*`/`package.json`) — every scaffold, glob, check,
 and edit of them resolves against `{appDir}`, never the repo root. `routes.ts`, `root.tsx`, and the

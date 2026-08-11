@@ -20,6 +20,7 @@ The coordinator skill provides:
 - `phase` — one of: `"api-tdd"`, `"store-tdd"`, `"component-tdd"`, `"page-tdd"`
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx tsc`, `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `specDir` — spec markdown path (for reference during implementation)
 - `uiDslDir` — UI DSL path (for component/page phases)
 - `prototypeDir` — prototype path (optional structural hints)
@@ -148,7 +149,7 @@ For each test entry in the plan's `tests[]` matching this phase:
 ### Step 2: VERIFY RED — Watch Tests Fail (MANDATORY)
 
 ```bash
-npx vitest run {baseDir}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
+npx vitest run {srcPath}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
 ```
 
 **Check the output carefully:**
@@ -259,7 +260,7 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 ### Step 4: VERIFY GREEN — Watch Tests Pass (MANDATORY)
 
 ```bash
-npx vitest run {baseDir}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
+npx vitest run {srcPath}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
 ```
 
 **Check:**
@@ -316,7 +317,7 @@ Only after GREEN is verified:
 
 After any refactoring change, re-run:
 ```bash
-npx vitest run {baseDir}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
+npx vitest run {srcPath}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
 ```
 
 Confirm tests still pass. If not, revert the refactoring.

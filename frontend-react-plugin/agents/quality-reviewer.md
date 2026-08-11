@@ -65,6 +65,19 @@ The skill will provide these parameters in the prompt:
    - Glob: `{projectBase}/features/*/` → learn existing conventions
 5. **Target files** — read all `.ts`/`.tsx` files under `targetPath` (excluding `__tests__/`, `node_modules/`, `dist/`)
 
+### Phase 0-guard: Nothing to audit is not a pass
+
+Before scoring, check the collection:
+
+- `targetPath` does not exist → report **`unverifiable`**, name the path, stop. Do not score.
+- Zero target files collected → report **`unverifiable`** with the glob patterns tried and the resolved
+  target, stop. Do not score.
+
+Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md
+§ Verification Philosophy: a statement about the state of the evidence is itself a claim).
+`unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
+
 ### Phase 1: Review — 8 Dimensions
 
 Inspect code for each dimension and produce a score (0-10) and issue list.

@@ -27,6 +27,7 @@ The coordinator skill provides:
 - `baseDir` — base source directory (e.g., `"app/src"`, framework mode `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `feature` — feature name
 - `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
 - `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
@@ -211,7 +212,7 @@ Only when `e2eTool == playwright` **and** this is the first feature — glob `{a
 and skip if present. Ported from the migration plugin's foundation harness **minus** legacy dual-run and
 parity. See `templates/e2e-playwright.md`.
 
-- `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'on-first-retry'`, and a `webServer` that
+- `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
   runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** with
   `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {port}`;
   library modes → `npx vite --port {port}`).
@@ -243,7 +244,7 @@ literal key resolves in **all** `i18n.languages`, that `{{param}}` values receiv
 markup- or entity-bearing values are not on the plain-text render path. Dynamic keys are tallied as
 `uncheckable` with `file:line` and printed — never failed on, never dropped.
 
-Run it once after writing (`npx vitest run {baseDir}/__tests__/i18n-key-coverage.test.ts 2>&1`) and
+Run it once after writing (`npx vitest run {srcPath}/__tests__/i18n-key-coverage.test.ts 2>&1`) and
 read the output. It may legitimately fail here — the first feature's own keys are generated in later
 phases — so record the result and the `uncheckable` count in the output; do not treat a failure as a
 foundation error.
@@ -356,7 +357,7 @@ Confirm: zero errors. If errors exist, fix and re-verify.
 - [ ] `formStack=rhf-zod`: `schemas/{entity}Schema.ts` generated; interfaces kept for API DTOs (schemas validate, interfaces type)
 - [ ] `routerMode=framework` + `mockFirst`: `{baseDir}/mocks/node.ts` re-uses the same handler aggregate as `browser.ts`; test-infra `mocks/server.ts` untouched
 - [ ] `routerMode=framework`: app-shell files scaffolded from the template only when absent — never overwritten; `root.tsx` gets `QueryClientProvider` only under `serverState=tanstack-query` (browser singleton / per-request server client)
-- [ ] `e2eTool=playwright` (first feature): `playwright.config.ts` `webServer` uses the mode-aware dev command + `VITE_ENABLE_MOCKS=true`, `trace: on-first-retry`, `testDir: 'e2e'`
+- [ ] `e2eTool=playwright` (first feature): `playwright.config.ts` `webServer` uses the mode-aware dev command + `VITE_ENABLE_MOCKS=true`, `trace: retain-on-first-failure`, `testDir: 'e2e'`
 - [ ] new-stack deps are **printed** (`pnpm add ...`), never auto-installed
 
 ## Key Rules
