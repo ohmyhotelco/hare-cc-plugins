@@ -62,8 +62,6 @@ Implementation Status for '{feature}':
   Verification: {implementation.verification.status or "—"}
     {If verification exists: tsc: {tsc}, eslint: {eslint}, build: {build}, vitest: {vitest}}
 
-  Gates:  verify {fresh|stale|unverifiable|not recorded}, review {…}, e2e {…}
-
   Review: {implementation.review.status or "—"}
     {If review exists:}
     Spec Review:    {review.specReview.score}/10 ({review.specReview.totalIssues} issues, {review.specReview.criticalIssues} critical)
@@ -101,25 +99,6 @@ Implementation Status for '{feature}':
    - If spec is newer:
      > "Warning: Spec modified after code generation ({generatedAt})."
      > "Run `/frontend-react-plugin:fe-plan {feature}` to detect changes (incremental mode)."
-
-#### Step 3b: Gate Freshness Check
-
-Read-only, and **advisory** — this dashboard never changes a status.
-
-1. Read `pluginRoot` from `.claude/frontend-react-plugin.json`. Absent → print `gate freshness:
-   unverifiable (pluginRoot not recorded — it is written on the next session start)` and skip the
-   rest of this step. Do not improvise an inline hash.
-2. For each recorded `implementation.gateEvidence.{gate}` (verify / review / e2e), recompute the
-   watch-path hash exactly as the producing gate did — same `--exclude`, same `--`, watch paths =
-   `implementation.sourcePaths[]` plus the feature's `plan.json` (CLAUDE.md § Gate Evidence &
-   Freshness). A consumer resolving fewer paths than the producer can never match.
-3. Report per gate:
-   - hash matches → `fresh`
-   - hash differs → `stale — code changed since {gate} passed`, and name the changed files from
-     `gate-tree/{gate}.tsv`
-   - script exited 2 → `unverifiable`
-   - no `gateEvidence` entry → `not recorded` (a feature generated before this existed — never
-     re-adjudicated)
 
 #### Step 4: Pending Delta Check
 

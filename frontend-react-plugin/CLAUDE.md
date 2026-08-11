@@ -301,20 +301,24 @@ Two scopes, acquired in this order — **feature lock → app lock**, never the 
 | Lock | Scope | Held by |
 | --- | --- | --- |
 | `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `fe-gen`, `fe-verify`, `fe-review`, `fe-fix`, `fe-e2e` |
-| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{baseDir}/routes.ts`), `{baseDir}/i18n/config.ts`, and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` | `integration-generator`, `foundation-generator`, `delta-modifier` (integration phase) |
+| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, and the shared layouts + their locale files under `{sourceBaseDir}/layouts/` | `foundation-generator`, `integration-generator`, `delta-modifier`, `review-fixer` |
 
 The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
+
+**`baseDir` names two different directories, and the app-lock targets are under the wrong one if you confuse them.** Config `baseDir` is the **source root** (`app/src`); `plan.json` `baseDir` is the **feature directory** (`app/src/features/{feature}`). Agents receiving the feature directory (`delta-modifier`, `review-fixer`) resolve every app-wide path above against **`sourceBaseDir`**, passed separately — `{featureDir}/routes.ts` matches nothing, so an agent testing that path silently never takes the lock. Skills that read both must keep them in distinct variables; `fe-gen` already does this (`planBaseDir`), `fe-verify` must not overwrite one with the other.
 
 Lock contents:
 
 ```json
-{ "holder": "fe-verify", "pid": 49402, "acquiredAt": "2026-08-11T15:21:04+09:00" }
+{ "holder": "fe-verify", "pid": 49402, "pidStartedAt": "2026-08-11T14:58:12+09:00",
+  "acquiredAt": "2026-08-11T15:21:04+09:00" }
 ```
 
 - **Check `pid` first, and never break a lock whose process is still alive, however old it is.** `fe-gen` runs six TDD phases and legitimately exceeds 30 minutes.
-- **The 30-minute rule is a ghost-lock sweep, not a timeout.** It applies only once the holder is gone: `pid` absent, no live process with that id, or a live process whose command clearly does not match `holder` (pid reuse).
+- **The 30-minute rule is a ghost-lock sweep, not a timeout.** It applies only once the holder is gone: `pid` is absent, or no live process carries that id.
+- **Never compare a running process's command against `holder`.** `holder` is a skill name (`fe-verify`); the process that owns the lock is the enclosing session (`claude`/`node`), whose command never matches it. Treating a mismatch as pid reuse would classify *every* legitimate lock as holder-less and sweep it at 30 minutes — the exact failure the `pid` check exists to prevent. Detect reuse with `pidStartedAt` instead: record the holder process's start time at acquire, and treat the lock as holder-less only when a live process with that id reports a **different** start time. When `pidStartedAt` is absent, liveness alone decides.
 - `acquiredAt` — ISO-8601 **with time**. Date-only or unparseable makes a holder-less lock immediately sweepable; it never makes a live holder's lock removable.
-- `pid` — a process that outlives the work. `$$` from a one-shot Bash call is already dead and soon recycled, so record the enclosing session process or omit `pid` entirely, which is honest. When absent, `acquiredAt` alone decides.
+- `pid` — a process that outlives the work, recorded with its `pidStartedAt`. `$$` from a one-shot Bash call is already dead and soon recycled, so record the enclosing session process or omit `pid` entirely, which is honest. When absent, `acquiredAt` alone decides.
 
 **Exception**: `fe-debug` intentionally does NOT acquire a lock — it serves as an interrupt tool usable at any pipeline stage, even when another operation holds the lock. The debugger writes `debug-report.json` and updates `implementation.status` without locking.
 
@@ -343,46 +347,6 @@ Lock contents:
   - `escalated` — requires manual intervention, then re-enter pipeline via fe-fix, fe-verify, or fe-review
   - Status determination on partial generation: any skipped or failed phase → `gen-failed` (prevents incomplete code from entering review pipeline)
 
-### Gate Evidence & Freshness
-
-A gate records **what content it ran on**, so a later stage can tell whether that pass still
-describes the tree. Without it, `verified` and `reviewed` survive every subsequent edit: the status
-says a gate passed, not that it passed on this code.
-
-`fe-verify`, `fe-review`, and `fe-e2e` each record, in `docs/specs/{feature}/.progress/{feature}.json`:
-
-```json
-"implementation": {
-  "gateEvidence": {
-    "verify": { "at": "2026-08-11T15:21:04+09:00", "commit": "a1b2c3d", "tree": "136e4460…" }
-  }
-}
-```
-
-- **`tree` decides freshness; `commit` is audit trail only.** `commit` is `git rev-parse --short HEAD`, `<sha>+dirty` when `git status --porcelain` is non-empty, and is **never passed back to `git`**.
-- **One executable, never reimplemented inline.** Producers and consumers must pass the **same `--exclude` and the same `--`**, or the two hashes are incomparable:
-
-  ```sh
-  {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] \
-      --exclude docs/specs/{feature}/.implementation/frontend/gate-tree/{gate}.tsv -- <watch path>...
-  ```
-
-  The script's own file documents how it records each entry; do not restate it here.
-- **Watch paths — two axes, hashed as one set:**
-  1. `implementation.sourcePaths[]` — the files the generation phases wrote, recorded by `fe-gen`.
-  2. the feature's own `plan.json`.
-
-  Shared layouts and the app-wide central files (route table, i18n config, MSW aggregate) are
-  **deliberately excluded**: every sibling feature's integration edits them, so including them would
-  mark every feature stale on each new feature and the signal would be ignored within a week. A
-  layout change that breaks a page surfaces at the next `fe-verify` instead.
-- `at` is ISO-8601 **with time**; date-only is a rule violation.
-- **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree` before the first tool and again at record time; if they differ, record no pass and say to re-run.
-- The script exits **2** printing `unverifiable` when no watch path resolves, and **1** writing nothing on any other error. On `unverifiable`, record **no `tree`** and say so — never store the word, never store a hash the script did not print.
-- **`fe-gen`, `fe-fix`, and delta regeneration clear `gateEvidence` entirely**, alongside the status change. A fix changes code, so it invalidates every gate, not just the one it repaired.
-- **Advisory, not blocking.** A stale or absent `tree` makes the consumer *say so* — this plugin has no irreversible step (no route flip, no deploy) that would justify a hard stop. `fe-review`, `fe-e2e`, and `fe-progress` each report a prior gate as `stale` rather than trusting its status silently. A feature with no recorded `tree` is grandfathered, not re-adjudicated. The SessionStart hook deliberately does **not** check freshness — it would hash every feature's watch set inside a 10-second timeout at every session start; `fe-progress` is the on-demand place for it.
-- `pluginRoot` is written into the config by the SessionStart hook — the only component that can know the install path. Absent (a project's first session, before the hook has run once) → skills record no `tree` and report freshness as `unverifiable`. They must **not** improvise an inline hash pipeline.
-
 ### Deliberate Deviations (`openApprovals`)
 
 A reviewer that re-raises a known, accepted deviation every round trains people to skim reviews. `plan.json` carries `openApprovals[]` as the one place a deviation is recorded:
@@ -402,7 +366,7 @@ A reviewer that re-raises a known, accepted deviation every round trains people 
 Applied by every agent and skill in this plugin.
 
 - **Subagent isolation.** Subagents never inherit session history. A coordinator constructs only the parameters each agent needs — no conversation context leaks between phases. Fresh judgement per task, no context pollution.
-- **Delegation is named, not improvised.** Every phase that delegates names its agent explicitly; launch it with the `Agent` tool and only its declared params. Do not spawn an agent the skill did not name — in particular, never add a reviewer to double-check work a gate already covers. Verification belongs to the gate that owns it; `fe-clean-code` and `fe-test-review` are standalone audits a human invokes, not steps a phase adds for itself. When a skill names several independent agents, send them in one message so they run concurrently — but agents sharing a lock or a write target are **not** independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
+- **Delegation is named, not improvised.** Every phase that delegates names its agent explicitly; launch it with that skill's declared launcher (`Agent` or `Task`, whichever its `allowed-tools` lists) and only its declared params. Do not spawn an agent the skill did not name — in particular, never add a reviewer to double-check work a gate already covers. Verification belongs to the gate that owns it; `fe-clean-code` and `fe-test-review` are standalone audits a human invokes, not steps a phase adds for itself. When a skill names several independent agents, send them in one message so they run concurrently — but agents sharing a lock or a write target are **not** independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
 - **Scope moves in both directions.** Silently narrowing what the plan asks for is the familiar failure; unrequested widening is the same failure mirrored. Do not add features, files, gates, or behavior the plan does not call for, and do not substitute your own judgement about what the task should have been. If the plan looks wrong, say so in a sentence and execute it as written — amending it belongs to whoever owns the decision, not the executor.
 - **Evidence before claims, always** — see below.
 
@@ -555,5 +519,4 @@ An **ota** config instead reads (with `renderingDefault` present only in framewo
 - `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*` / `react-router.config.ts`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip a `/src` **or** `/app` suffix from `baseDir` (`app/src` → `app`, `app/app` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
 - `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate".
-- `pluginRoot`: **written by the SessionStart hook, not by `fe-init`** — the absolute path this plugin is installed at, and how the gates locate `scripts/gate-tree-hash.sh`. The hook is the only component that can know it (`${CLAUDE_PLUGIN_ROOT}` is expanded for hooks only) and rewrites it every session, because the marketplace cache path is version-pinned and a value recorded once would dead-end at the next release. Absent → gates record no `tree` and report freshness as `unverifiable`; do not hand-edit it. See "Gate Evidence & Freshness".
 - `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `fe-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage".

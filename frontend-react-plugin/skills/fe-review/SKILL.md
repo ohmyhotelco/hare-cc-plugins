@@ -3,7 +3,7 @@ name: fe-review
 description: "Run 2-stage code review (spec compliance → quality) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Task
+allowed-tools: Read, Write, Glob, Grep, Bash, Task
 ---
 
 # Code Review Skill
@@ -70,46 +70,6 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 ### Lock Acquire
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-review"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
-
-
-### Gate Evidence
-
-Per CLAUDE.md § Gate Evidence & Freshness. Read `pluginRoot` from config; absent → record no `tree`,
-report freshness as `unverifiable`, and **do not** improvise an inline hash pipeline.
-
-Watch paths = `implementation.sourcePaths[]` from the progress file **plus** the feature's
-`plan.json`. Compute the hash **before the first tool runs** and again at record time:
-
-```sh
-REPO=$(git rev-parse --show-toplevel)
-MAN="$REPO/docs/specs/{feature}/.implementation/frontend/gate-tree/review.tsv"
-mkdir -p "$(dirname "$MAN")"
-EXC=docs/specs/{feature}/.implementation/frontend/gate-tree/review.tsv
-{pluginRoot}/scripts/gate-tree-hash.sh --exclude "$EXC" -- <watch path>...
-{pluginRoot}/scripts/gate-tree-hash.sh --manifest --exclude "$EXC" -- <watch path>... > "$MAN"
-```
-
-The redirect target must be the real repo root — this skill may run from `{appDir}`. Producer and
-consumer must pass the **same `--exclude` and the same `--`**, or the hashes are incomparable.
-
-- The two hashes differ → the tree moved mid-run. **Record no pass**; report it and say to re-run.
-- Exit 2 (`unverifiable`) → record no `tree`. Never store the word, never store a hash the script
-  did not print.
-- On a pass, record `implementation.gateEvidence.review = { at, commit, tree }` — `at` ISO-8601 with
-  time, `commit` from `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is
-  non-empty, and never passed back to `git`).
-
-### Prior-gate freshness (advisory)
-
-Before trusting `verify`'s recorded pass, recompute the watch-path hash and compare it with
-`implementation.gateEvidence.verify.tree`:
-
-- **Match** → proceed silently.
-- **Differ** → the code changed since `fe-verify` ran. Say so, name the changed files from
-  `gate-tree/verify.tsv`, and recommend re-running `fe-verify`. **Advisory** — continue if the
-  user wants to; this plugin has no irreversible step to guard.
-- **No recorded `tree`** (a feature generated before this existed, or `pluginRoot` absent) →
-  grandfathered. Report `unverifiable` and proceed; never re-adjudicate a past pass.
 
 ### Step 2: Spec Review
 

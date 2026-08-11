@@ -20,6 +20,7 @@ The skill will provide these parameters in the prompt:
 - `feature` — feature name
 - `phase` — current phase to execute (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`)
 - `baseDir` — feature code directory (e.g., `app/src/features/{feature}/`)
+- `sourceBaseDir` — the **source root** from config (e.g., `app/src`), the parent of `features/`. Required: every app-wide target below resolves against this, never against `baseDir`. `{baseDir}/routes.ts` is a path inside the feature directory and matches nothing, so an app-wide check written against `baseDir` never fires and the app lock is never taken.
 - `projectRoot` — project root path
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
@@ -155,9 +156,10 @@ Read `changeDetail` from the delta entry:
 For each structural change:
 
 1. Read the target file. **If the target is an app-wide file** — the central route file
-   (`App.tsx` / `router.tsx` / `{baseDir}/routes.ts`), `{baseDir}/i18n/config.ts`, or
-   `{baseDir}/mocks/handlers.ts` — take `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the
-   read-modify-write and release it right after; the feature lock does not protect those.
+   (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
+   `{sourceBaseDir}/mocks/handlers.ts`, or anything under `{sourceBaseDir}/layouts/` — take
+   `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and release it right
+   after; the feature lock does not protect those. Compare against `sourceBaseDir`, never `baseDir`.
 2. Apply the minimal edit based on `changeDetail`:
    - `enum-value-added`: Add the new value to the enum
    - `field-added`: Add the new field to the interface
@@ -186,7 +188,9 @@ For each behavioral change:
 2. If test file not found: mark as `escalated` with reason `"test file not found"`, skip to next
 3. Read existing test file to understand structure and imports
 4. Add new `it()` block:
-   - Comment: `// delta: {specRef}` for traceability (e.g., `// delta: FR-001`)
+   - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
+     (`templates/tdd-rules.md` § Anchors). `// delta: {specRef}` alone is not an anchor — it names
+     the requirement without the file and line `test-reviewer` needs to verify the test's premise.
    - Test name describes the expected behavior after modification
 5. Run `npx vitest run {testFile} --reporter=verbose`:
    - New test FAILS → correct RED state, proceed to GREEN
@@ -206,7 +210,13 @@ For each behavioral change:
 **VERIFY**
 
 1. TypeScript check → confirm no type errors introduced
-2. If still failing after 3 retries → mark as `escalated`
+
+2. **Mutation check (MANDATORY)** — the fix went green; that does not show the test would notice
+   the code being wrong again. Break the behavior you just fixed, re-run the test, confirm it goes
+   **red**, restore the code, re-run to confirm green (`templates/tdd-rules.md` § VERIFY THE TEST).
+   Stays green → the test does not cover the fix: strengthen the assertion and repeat. Record the
+   result per issue; **an item may not report `fixed` without it.**
+3. If still failing after 3 retries → mark as `escalated`
 
 ### Step 4: Phase Verification
 
@@ -273,6 +283,10 @@ Return the phase modification report:
   },
   "changeScope": {
     "filesModified": 5,
+    "mutationCheck": [
+      { "behavior": "status filter applies to the list query",
+        "mutation": "dropped the status param", "wentRed": true }
+    ],
     "linesAdded": 80,
     "linesRemoved": 25
   }
@@ -294,5 +308,6 @@ Status determination:
 6. **Pre-check**: Always verify target files exist before attempting operations.
 7. **Regression safety**: Run existing tests after each phase. Revert if regressions are introduced.
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
-9. **Traceability**: Comment `// delta: {specRef}` on added tests for audit trail.
+9. **Traceability**: added tests carry a **spec anchor** with `file:line` (`templates/tdd-rules.md` § Anchors), not a bare `// delta: {specRef}`.
+10. **Mutation check**: no operation reports `completed` until its behavior was broken, seen red, and restored.
 10. **Preserve accumulated fixes**: Read files as they currently exist (with all previous review-fixer changes). Apply delta changes on top, never revert to original generated state.

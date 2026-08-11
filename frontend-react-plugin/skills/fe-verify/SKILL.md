@@ -14,7 +14,7 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `baseDir`, `eslintTemplate`, `prettierTemplate`, `i18n`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
 2. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
@@ -28,7 +28,9 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
-2. Read `plan.json` → extract `baseDir`, file list from all sections (types, api, stores, components, pages, tests)
+2. Read `plan.json` → extract its `baseDir` as **`featureDir`** (e.g. `app/src/features/{feature}`) and the file list from all sections (types, api, stores, components, pages, tests)
+
+> **Never collapse these two into one `baseDir`.** Config `baseDir` is the source root; plan `baseDir` is the feature directory. Reading the second into the same name makes every later `{baseDir}` reference point at the feature directory — which is why the app-wide i18n spec must be looked for under `sourceBaseDir`, not `featureDir`. `fe-gen` keeps them apart as `planBaseDir`; do the same here.
 
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
@@ -65,34 +67,6 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 ### Lock Acquire
 
 Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-verify"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
-
-
-### Gate Evidence
-
-Per CLAUDE.md § Gate Evidence & Freshness. Read `pluginRoot` from config; absent → record no `tree`,
-report freshness as `unverifiable`, and **do not** improvise an inline hash pipeline.
-
-Watch paths = `implementation.sourcePaths[]` from the progress file **plus** the feature's
-`plan.json`. Compute the hash **before the first tool runs** and again at record time:
-
-```sh
-REPO=$(git rev-parse --show-toplevel)
-MAN="$REPO/docs/specs/{feature}/.implementation/frontend/gate-tree/verify.tsv"
-mkdir -p "$(dirname "$MAN")"
-EXC=docs/specs/{feature}/.implementation/frontend/gate-tree/verify.tsv
-{pluginRoot}/scripts/gate-tree-hash.sh --exclude "$EXC" -- <watch path>...
-{pluginRoot}/scripts/gate-tree-hash.sh --manifest --exclude "$EXC" -- <watch path>... > "$MAN"
-```
-
-The redirect target must be the real repo root — this skill may run from `{appDir}`. Producer and
-consumer must pass the **same `--exclude` and the same `--`**, or the hashes are incomparable.
-
-- The two hashes differ → the tree moved mid-run. **Record no pass**; report it and say to re-run.
-- Exit 2 (`unverifiable`) → record no `tree`. Never store the word, never store a hash the script
-  did not print.
-- On a pass, record `implementation.gateEvidence.verify = { at, commit, tree }` — `at` ISO-8601 with
-  time, `commit` from `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is
-  non-empty, and never passed back to `git`).
 
 ### Step 2: Run Verification
 
@@ -189,7 +163,8 @@ This step reads what that run produced:
 
 1. No `i18n` block in `.claude/frontend-react-plugin.json` → `skipped`, reason "no i18n config".
    Stop here.
-2. Glob `{baseDir}/__tests__/i18n-key-coverage.test.ts`.
+2. Glob `{sourceBaseDir}/__tests__/i18n-key-coverage.test.ts` — the **source root**, where
+   `foundation-generator` writes it. It is an app-wide invariant, never a per-feature file.
    - **Absent** → `fail`, reason "i18n key-coverage spec not generated". `fe-fix` cannot produce it,
      so name `/frontend-react-plugin:fe-gen {feature}` as the remedy.
    - **Present but its results are not in the 2.4 output** → `fail`, reason "spec not collected:
@@ -198,6 +173,11 @@ This step reads what that run produced:
      planned tests, run the spec directly: `npx vitest run {baseDir}/__tests__/i18n-key-coverage.test.ts 2>&1`.)
    - **Present and collected** → report its pass/fail plus the `uncheckable` (dynamic key) count.
      Uncheckable keys never fail the gate; the count is reported so a growing hole stays visible.
+   - **Present but built for a different config** → `fail`, reason "i18n spec is stale: built for
+     {spec's languages/lookupFns}, config now says {current}". The spec records the `i18n` block it
+     was generated from; compare it against the current config. Without this check a spec generated
+     before a language was added keeps passing while never testing that language — a check that
+     verifies nothing but reports success. Remedy: `/frontend-react-plugin:fe-gen {feature}`.
 
 #### 2.6 Format Check (advisory)
 

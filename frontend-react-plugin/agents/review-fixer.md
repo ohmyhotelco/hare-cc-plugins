@@ -55,6 +55,15 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 
 1. **Plan** — read `planFile` → extract file list, types, components, pages, tests
 2. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green (a fix that goes green without one has not been shown to fix anything) and the spec-anchor rule
+
+> **App lock.** A fix whose target is an app-wide file — the central route file
+> (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
+> `{sourceBaseDir}/mocks/handlers.ts`, or a shared layout under `{sourceBaseDir}/layouts/` — takes
+> `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and releases it right
+> after. This includes **direct** (non-TDD) fixes: a `route_coverage` fix edits the central route
+> table, and the feature lock does not exclude another feature's integration writing the same file.
+> `sourceBaseDir` is the source root passed by the skill — `baseDir` here is the feature directory
+> and matches none of these paths.
 3. **Spec** — read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
    - `screens.md` → screen definitions, components, error handling
@@ -161,7 +170,11 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
    - Match by target: component issues → component test, page issues → page test, etc.
    - **Defensive guard**: If the matching test file is unexpectedly missing at execution time (e.g., deleted between triage and execution), mark the issue as `escalated` with reason `"test file not found"` and move to the next issue.
 2. Add `it()` block to the existing test file:
-   - Comment: `// fix: {dimension}` for traceability
+   - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
+     when the fixed behavior comes from the spec (`templates/tdd-rules.md` § Anchors). Only when the
+     behavior has no spec line to cite — a rendering detail, a defensive branch — fall back to
+     `// fix: {dimension}`. Never use `// fix:` for spec-derived behavior: `test-reviewer` follows
+     the anchor to the spec line to check the test's premise, and a dimension name leads nowhere.
    - Test name describes the expected behavior being fixed
 3. Run `npx vitest run {testFile} --reporter=verbose` → confirm:
    - New test FAILS (correct RED state)
@@ -186,6 +199,12 @@ If tests fail:
 #### 3.3 VERIFY
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm no type errors introduced
+
+2. **Mutation check (MANDATORY)** — the fix went green; that does not show the test would notice
+   the code being wrong again. Break the behavior you just fixed, re-run the test, confirm it goes
+   **red**, restore the code, re-run to confirm green (`templates/tdd-rules.md` § VERIFY THE TEST).
+   Stays green → the test does not cover the fix: strengthen the assertion and repeat. Record the
+   result per issue; **an item may not report `fixed` without it.**
 
 If still failing after 3 retries:
 - Mark issue as `escalated` with failure details
@@ -269,6 +288,10 @@ Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report
     }
   ],
   "testsAdded": 5,
+  "mutationCheck": [
+    { "issue": "EntityForm submits without validating email",
+      "mutation": "removed the email format guard", "wentRed": true }
+  ],
   "filesModified": [
     "{baseDir}/__tests__/EntityListPage.test.tsx",
     "{baseDir}/pages/EntityListPage.tsx"
@@ -310,7 +333,8 @@ Status determination:
 6. **Pre-check**: Always verify issues still exist before attempting fixes. Code may have been manually updated.
 7. **Regression safety**: Run existing tests after each fix. Revert if regressions are introduced.
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
-9. **Traceability**: Comment `// fix: {dimension}` on added tests for audit trail.
+9. **Traceability**: added tests carry a **spec anchor** (`templates/tdd-rules.md` § Anchors); `// fix: {dimension}` only for behavior with no spec line to cite.
+10. **Mutation check**: no issue reports `fixed` until its behavior was broken, seen red, and restored.
 
 ### Fix Classification Red Flags — These Thoughts Mean You're Misclassifying
 

@@ -200,6 +200,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - feature: {feature}
   - phase: foundation
   - baseDir: {planBaseDir}/
+  - sourceBaseDir: {baseDir}
   - projectRoot: {cwd}
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
@@ -231,6 +232,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - feature: {feature}
   - phase: {phase}
   - baseDir: {planBaseDir}/
+  - sourceBaseDir: {baseDir}
   - projectRoot: {cwd}
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
@@ -617,7 +619,6 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
     "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json",
     "generatedAt": "{ISO timestamp}",
     "filesCount": {totalFiles},
-    "sourcePaths": ["{repo-relative paths of every file the phases wrote}"],
     "tddPhases": {
       "foundation": "completed",
       "api-tdd": "completed",
@@ -635,17 +636,6 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 - Any phase `"failed"` AND user chose **Stop** → `"gen-failed"`
 - Any phase `"failed"` or `"skipped"` AND user chose **Skip** to continue → `"gen-failed"` (incomplete generation must not enter review pipeline)
 - Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
-
-**`sourcePaths`** is the union of every agent's `filesCreated` for this run, as **repo-relative**
-paths (not `{baseDir}`-relative — `gate-tree-hash.sh` resolves from the repo root). It is axis 1 of
-the gate-evidence watch set (CLAUDE.md § Gate Evidence & Freshness); a feature missing it is
-`unverifiable` on that axis and still checkable on `plan.json`. On a delta run, **merge** with the
-existing list rather than replacing it — a delta touches a subset, and replacing would shrink the
-watch set to just the changed files.
-
-**Clear `implementation.gateEvidence` entirely** in this same write. Generation changed the code, so
-every prior gate result describes content that no longer exists — leaving stale entries would let
-the next stage report a fresh pass on regenerated code.
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.
 

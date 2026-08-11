@@ -73,7 +73,7 @@ For each entry in `sharedLayouts[]`:
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels
-3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for all 4 languages (ko, en, ja, vi)
+3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
    - `workingLanguage` translation is the primary (fully translated)
    - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
 4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
@@ -172,6 +172,11 @@ hook (integration-generator Step 6b), so `server.listen()` runs before any loade
 from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged**. See
 `templates/framework-app-shell.md` and `templates/e2e-playwright.md` (§ SSR / loader network).
 
+> **App lock (also applies to Step 2).** Shared layouts (`{baseDir}/layouts/*.tsx`) and their locale
+> files (`{localesDir}/{lang}/layout.json`) are app-wide too: a second feature adding a nav item
+> edits the same files under its own feature lock. Take `docs/specs/.app.lock` around each Step 2
+> read-modify-write as well, on the same acquire → re-read → edit → release cycle.
+>
 > **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. The feature lock does not protect these — "first feature"
@@ -224,7 +229,15 @@ plan's `localesDir`, as everywhere else in this agent. Absent block → skip
 this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
 `{baseDir}/__tests__/i18n-key-coverage.test.ts` and skip if present.
 
-Generate that spec per `templates/i18n-key-coverage.md`. It is an **app-wide invariant**, not a
+Generate that spec per `templates/i18n-key-coverage.md`. It lives at the **source root**
+(`{baseDir}/__tests__/i18n-key-coverage.test.ts` — this agent's `baseDir` is the source root), never
+inside a feature directory.
+
+**Record the config it was built from** in the spec file (a `CONFIG_FINGERPRINT` constant holding the
+`i18n.languages` and `lookupFns` it was generated for) and assert at runtime that the fingerprint
+still matches the resources it walks. Without it, "skip if present" means a spec generated before a
+language was added keeps passing while never testing that language — a check that verifies nothing
+and reports success. `fe-verify` compares the same fingerprint against the live config. It is an **app-wide invariant**, not a
 per-feature test: it walks every `i18n.lookupFns` call site under `{baseDir}` and asserts each
 literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that
 markup- or entity-bearing values are not on the plain-text render path. Dynamic keys are tallied as

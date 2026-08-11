@@ -16,7 +16,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`; default `"src"`). Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
 4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
@@ -173,6 +173,7 @@ Task(subagent_type: "review-fixer", prompt: "
   - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - baseDir: {baseDir}/
+  - sourceBaseDir: {sourceBaseDir}
   - projectRoot: {cwd}
   - fixMode: {fixMode}
   - reviewReportFile: docs/specs/{feature}/.implementation/frontend/review-report.json
@@ -332,14 +333,6 @@ Note: Set `implementation.status` as follows:
 - fix failed (all escalated) → `"escalated"`
 
 Note: Increment `fix.round` from the previous value (or set to 1 if absent).
-
-**Clear `implementation.gateEvidence` entirely** in this same write (CLAUDE.md § Gate Evidence &
-Freshness). A fix changes code, so it invalidates **every** gate, not only the one it repaired —
-leaving the other entries would let the next stage read a fresh pass on modified code.
-
-**Merge `sourcePaths`.** Any file this fix created that is not already in
-`implementation.sourcePaths[]` is appended (repo-relative). A new file left out of the watch set is
-invisible to every later freshness check.
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.
 

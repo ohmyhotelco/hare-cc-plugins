@@ -375,7 +375,7 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 
 ### i18n
 - [ ] All user-facing text has i18n keys
-- [ ] 4 languages (ko, en, ja, vi)
+- [ ] one locale file per language in `i18n.languages` (config fallback: ko, en, ja, vi) — never a hardcoded four
 - [ ] Feature i18n file: `{baseDir}/features/{feature}/i18n.ts`
 - [ ] Namespace separation
 

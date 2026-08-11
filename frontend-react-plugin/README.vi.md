@@ -560,7 +560,6 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
 | `mockFirst` | Bật phát triển mock-first MSW v2 | `true` |
 | `baseDir` | Thư mục cơ sở cho mã nguồn được sinh | `"app/src"` |
 | `appDir` | Thư mục chứa `vite.config.*` và `package.json` — tất cả lệnh build/test chạy ở đây | Tự động từ `baseDir` |
-| `pluginRoot` | Đường dẫn tuyệt đối nơi plugin được cài, do hook SessionStart ghi mỗi phiên. Dùng để định vị `gate-tree-hash.sh` cho kiểm tra độ mới của gate. Không sửa thủ công | *(tự động)* |
 | `eslintTemplate` | Tự động tạo `eslint.config.js` từ template đi kèm khi chưa có cấu hình ESLint | `true` |
 | `prettierTemplate` | Tự động tạo `prettier.config.js` + `.prettierignore` khi chưa có cấu hình Prettier. Kiểm tra định dạng là **tư vấn** — báo cáo nhưng không chặn | `true` |
 | `i18n` | Bề mặt nội dung UI của sản phẩm: `languages` (tập hợp mà "mọi ngôn ngữ được hỗ trợ" trỏ tới) và `lookupFns` (các helper có khóa literal được kiểm tra). Là cơ sở cho spec key-coverage toàn ứng dụng | *(không có — bỏ qua để tắt kiểm tra)* |
@@ -701,9 +700,7 @@ agents/          Agent definitions (planner, foundation-generator, tdd-cycle-run
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handlers (session-init.sh, validate-implementation.sh)
-                 + gate-tree-hash.sh (gate-evidence content hash, run by fe-verify /
-                 fe-review / fe-e2e when recording and by fe-progress when checking)
+scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
                  prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation

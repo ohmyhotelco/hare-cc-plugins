@@ -29,7 +29,7 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin for Claude Code with two app profiles — admin (Vite SPA) and OTA (React Router framework mode, SSR/SSG, TanStack Query, RHF+zod, Playwright) — enforcing React 19, TypeScript, shadcn/ui, and i18next conventions",
-      "version": "2.2.0",
+      "version": "2.1.1",
       "author": {
         "name": "Justin Choi"
       },

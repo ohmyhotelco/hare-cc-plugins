@@ -236,7 +236,7 @@ User-facing text per screen → namespace + key list:
 
 - label, placeholder, validation message, button text
 - error message, toast message
-- 4 languages (ko, en, ja, vi)
+- one entry per language in the config `i18n.languages` (fallback ko, en, ja, vi when no `i18n` block)
 
 #### 2.8 shadcn/ui Dependencies
 
@@ -845,7 +845,7 @@ admin/library-mode default so all appear with default values):
   },
   "i18n": {
     "namespace": "{feature}",
-    "languages": ["ko", "en", "ja", "vi"],
+    "languages": ["ko", "en", "ja", "vi"],   // ← from config i18n.languages; this is only the fallback
     "keyGroups": {
       "pages": ["entityList.title", "entityList.searchPlaceholder", "entityList.empty"],
       "form": ["entityForm.field1.label", "entityForm.field2.label"],

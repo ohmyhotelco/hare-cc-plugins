@@ -556,7 +556,6 @@ The plugin uses `.claude/frontend-react-plugin.json` in the project directory (c
 | `mockFirst` | Enable MSW v2 mock-first development | `true` |
 | `baseDir` | Base directory for generated source code | `"app/src"` |
 | `appDir` | Directory containing `vite.config.*` and `package.json` — all build/test commands run here | Auto-derived from `baseDir` |
-| `pluginRoot` | Absolute plugin install path, written by the SessionStart hook each session. Locates `gate-tree-hash.sh` for gate freshness. Not user-editable | *(auto)* |
 | `eslintTemplate` | Auto-generate `eslint.config.js` from bundled template when no ESLint config exists | `true` |
 | `prettierTemplate` | Auto-generate `prettier.config.js` + `.prettierignore` when no Prettier config exists. The format check is **advisory** — reported, never blocking | `true` |
 | `i18n` | The product's UI copy surface: `languages` (what "every supported language" resolves to) and `lookupFns` (helpers whose literal keys are checked). Drives the app-wide key-coverage spec | *(none — omit to skip the check)* |
@@ -697,9 +696,7 @@ agents/          Agent definitions (planner, foundation-generator, tdd-cycle-run
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
-scripts/         Hook handlers (session-init.sh, validate-implementation.sh)
-                 + gate-tree-hash.sh (gate-evidence content hash, run by fe-verify /
-                 fe-review / fe-e2e when recording and by fe-progress when checking)
+scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
                  prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
