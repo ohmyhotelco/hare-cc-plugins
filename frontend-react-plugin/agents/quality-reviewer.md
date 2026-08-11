@@ -19,6 +19,7 @@ The skill will provide these parameters in the prompt:
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied.
 
 ### Standalone Mode
 
@@ -69,9 +70,13 @@ The skill will provide these parameters in the prompt:
 
 Before scoring, check the collection:
 
-- `targetPath` does not exist → report **`unverifiable`**, name the path, stop. Do not score.
-- Zero target files collected → report **`unverifiable`** with the glob patterns tried and the resolved
-  target, stop. Do not score.
+Which input is checked depends on the mode — **pipeline mode receives `baseDir`, not `targetPath`**,
+so an unconditional `targetPath` check aborts every pipeline review after a passing spec review:
+
+- **Standalone (0-S)** — `targetPath` does not exist → report **`unverifiable`**, name the path, stop.
+- **Pipeline (0-P)** — `baseDir` does not exist → report **`unverifiable`**, name it, stop.
+- **Either mode** — zero source files collected → report **`unverifiable`** with the glob patterns
+  tried and the resolved directory, stop. Do not score.
 
 Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
 there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md

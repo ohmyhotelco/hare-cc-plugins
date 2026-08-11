@@ -17,13 +17,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`; default `"src"`). Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
-2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
-3. If `mockFirst` is missing, use default value `true`
-4. If `appDir` is missing, use default value `"."` (project root)
-5. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
-6. If the file does not exist:
+2. If `mockFirst` is missing, use default value `true`
+3. If `appDir` is missing, use default value `"."` (project root)
+4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
+5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+6. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Prerequisites
 
@@ -40,7 +40,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`:
+1. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`:
    - If status is not one of these:
      > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', 'escalated', or 'done'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
@@ -49,7 +49,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Status is 'escalated'. The review report may be outdated or absent."
      > "If no review-report.json exists, run `/frontend-react-plugin:fe-review {feature}` first."
 
-6. **Fix mode detection** — determine whether to fix review issues or E2E issues:
+2. **Fix mode detection** — determine whether to fix review issues or E2E issues:
    - Read `docs/specs/{feature}/.implementation/frontend/review-report.json` → extract `timestamp` (if exists)
    - Read `docs/specs/{feature}/.implementation/frontend/e2e-report.json` → extract `timestamp`, `status`, `summary` (if exists)
    - **E2E fix mode** if ALL of the following are true:
@@ -79,7 +79,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-7. **Code change detection** — compare source file timestamps against the active report:
+1. **Code change detection** — compare source file timestamps against the active report:
    - Determine which report to check: if `fixMode` is `"e2e"` → use `e2e-report.json` `timestamp`; otherwise → use `review-report.json` `timestamp`
    - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/` and get its mtime
    - If any source file is newer than the active report's `timestamp`:
@@ -90,13 +90,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Continue with the current report?"
      - If the user declines, stop here.
 
-8. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
+2. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
    - If `round >= 3`:
      > "This is fix round {round+1}. Three previous fix attempts have not resolved all issues."
      > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
      - If the user declines, stop here.
 
-9. **Report validation** — validate the active report based on `fixMode`:
+3. **Report validation** — validate the active report based on `fixMode`:
 
    **Review fix mode** (`fixMode` is `"review"`):
    a. Read `review-report.json` → validate structure:

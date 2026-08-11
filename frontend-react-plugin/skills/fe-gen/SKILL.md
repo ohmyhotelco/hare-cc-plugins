@@ -17,16 +17,16 @@ Generates production React code based on the implementation plan (plan.json) usi
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`
-2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
-3. If `baseDir` is missing, use default value `"src"`
-4. If `mockFirst` is missing, use default value `true`
-5. If `appDir` is missing, use default value `"."` (project root)
-6. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
-7. If the file does not exist:
+2. If `baseDir` is missing, use default value `"src"`
+3. If `mockFirst` is missing, use default value `true`
+4. If `appDir` is missing, use default value `"."` (project root)
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
+6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
-**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)". Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
+**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)". Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
 
 ### Step 1: Validate Plan
 
@@ -43,17 +43,17 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
-5. Check UI DSL and prototype availability:
+1. Check UI DSL and prototype availability:
    - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
    - `prototypes/{feature}/` → `prototypeAvailable`
 
-6. Check for existing generation state:
+2. Check for existing generation state:
    - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists:
      - Read it and check `currentPhase` and phase statuses
      - If `deltaMode` is `true` in the state file: skip resume offer, proceed to step 7 (delta detection will handle resume)
      - Otherwise: offer to resume from the last incomplete phase
 
-7. **Delta detection** — check if a delta plan exists:
+3. **Delta detection** — check if a delta plan exists:
    - If `docs/specs/{feature}/.implementation/frontend/delta-plan.json` exists:
      - Read delta-plan.json → extract `summary`
      > "A delta plan exists ({summary.specChanges.added} added, {summary.specChanges.modified} modified, {summary.specChanges.removed} removed spec changes)."
@@ -66,7 +66,7 @@ Generates production React code based on the implementation plan (plan.json) usi
      - If user chooses 3: display full delta summary, then re-ask 1 or 2
    - If delta-plan.json does not exist: `genMode = "full"`, proceed to step 8
 
-8. **Demotion warning** (full mode only) — check `implementation.status` (already read in Step 1.3):
+4. **Demotion warning** (full mode only) — check `implementation.status` (already read in Step 1.3):
    - Skip this step if `genMode = "delta"` (delta does not reset the full pipeline)
    - If status is `verified`, `reviewed`, or `done`:
      > "This feature is currently '{status}'. Re-generating will reset the pipeline status to 'generated', discarding verification/review progress."
@@ -156,17 +156,17 @@ Create or update `docs/specs/{feature}/.implementation/frontend/generation-state
   "deltaFile": "docs/specs/{feature}/.implementation/frontend/delta-plan.json",
   "currentPhase": "{first non-skipped phase}",
   "phases": {
-    "foundation": { "status": "pending | skip", "deltaAction": "{action from phaseExecution}", "completedAt": null },
-    "api-tdd": { "status": "pending | skip", "deltaAction": "{action}", "completedAt": null },
-    "store-tdd": { "status": "pending | skip", "deltaAction": "{action}", "completedAt": null },
-    "component-tdd": { "status": "pending | skip", "deltaAction": "{action}", "completedAt": null },
-    "page-tdd": { "status": "pending | skip", "deltaAction": "{action}", "completedAt": null },
-    "integration": { "status": "pending | skip", "deltaAction": "{action}", "completedAt": null }
+    "foundation": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action from phaseExecution}", "completedAt": null },
+    "api-tdd": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action}", "completedAt": null },
+    "store-tdd": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action}", "completedAt": null },
+    "component-tdd": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action}", "completedAt": null },
+    "page-tdd": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action}", "completedAt": null },
+    "integration": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action}", "completedAt": null }
   }
 }
 ```
 
-Set `status = "skip"` for phases with `deltaAction = "skip"`, `status = "pending"` for `deltaAction = "partial"`.
+Set `status = "skipped"` with `skipKind: "auto"` for phases with `deltaAction = "skip"`, `status = "pending"` for `deltaAction = "partial"`. Use `"skipped"`, not `"skip"` — the status vocabulary is `pending` / `completed` / `failed` / `skipped`, and the final-status logic has no branch for `"skip"`.
 
 #### 2-D.3: Patch plan.json (before execution)
 
@@ -406,6 +406,8 @@ Create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
   "startedAt": "{ISO timestamp}",
   "currentPhase": "foundation",
   "phases": {
+    // a phase that is skipped also carries skipKind: "auto" (a planned no-op, does not block)
+    // or "user" (the user chose Skip at a failure prompt, blocks -> gen-failed)
     "foundation": { "status": "pending", "completedAt": null },
     "api-tdd": { "status": "pending", "completedAt": null },
     "store-tdd": { "status": "pending", "completedAt": null },
@@ -445,6 +447,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - feature: {feature}
   - prettierTemplate: {prettierTemplate}
   - i18n: {the config's i18n block, or omit the line entirely when absent}
+  - localesDir: {localesDir}
 
   Follow the process defined in agents/foundation-generator.md.
 ")
@@ -540,7 +543,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   > "1. Retry this phase"
   > "2. Skip and continue to next phase (status will be gen-failed — cannot enter review pipeline)"
   > "3. Stop generation (resume later with /frontend-react-plugin:fe-gen {feature})"
-- If user chooses Skip: update generation-state.json `{phase}.status = "skipped"`, continue to next phase
+- If user chooses Skip: update generation-state.json `{phase}.status = "skipped"` with **`skipKind: "user"`**, continue to next phase
 
 #### Phase 6: Integration
 
@@ -562,6 +565,7 @@ Agent(subagent_type: "integration-generator", prompt: "
   - srcPath: {srcPath}
   - workingLanguage: {workingLanguage}
   - skills: {skills list from buildOrder}
+  - localesDir: {localesDir}
 
   Follow the process defined in agents/integration-generator.md.
 ")
@@ -646,8 +650,9 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 **Status determination logic** — set `implementation.status` based on phase outcomes:
 - All phases `"completed"` → `"generated"`
 - Any phase `"failed"` AND user chose **Stop** → `"gen-failed"`
-- Any phase `"skipped"` **with a `reason`** (an automatic no-op such as no-store-under-tanstack-query) → does not block: treat it as completed for status purposes
-- Any phase `"failed"`, or `"skipped"` with no `reason` because the user chose **Skip** to continue → `"gen-failed"` (incomplete generation must not enter review pipeline)
+- Any phase `"skipped"` with **`skipKind: "auto"`** (a planned no-op — no-store-under-tanstack-query, or a delta phase with no changes) → does not block: treat it as completed for status purposes
+- Any phase `"failed"`, or `"skipped"` with **`skipKind: "user"`** → `"gen-failed"` (incomplete generation must not enter review pipeline)
+- `skipKind` is the discriminator, never the presence of free text: a missing `skipKind` on a `skipped` phase is treated as `"user"` (blocking), because a phase whose skip nobody classified is not a phase anyone confirmed was safe to omit
 - Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.

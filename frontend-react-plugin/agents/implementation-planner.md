@@ -32,6 +32,7 @@ The skill will provide these parameters in the prompt:
 - `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.
 - `existingPlanFile` — (optional) path to existing plan.json (provided when `incrementalMode` is `true`)
 - `deltaOutputFile` — (optional) delta output path (e.g., `docs/specs/{feature}/.implementation/frontend/delta-plan.json`)
+- `i18n` — **optional**; the config i18n block (`languages`, `lookupFns`). `i18n.languages` is what the plan's locale entries and every generator iterate over. **Absent → fall back to `ko/en/ja/vi`; never invent a set.** A configured language that no generator emits fails the key-coverage gate with nothing able to satisfy it.
 
 ## Process
 

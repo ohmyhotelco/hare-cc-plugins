@@ -17,7 +17,6 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`
-**Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged). Every `npx …` path argument uses it; `baseDir` stays repo-relative for file operations (CLAUDE.md § Build Command Working Directory).
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
@@ -26,6 +25,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 7. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+8. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 **Tool branch (`e2eTool`).** The steps below are the **`agent-browser`** path (default). The only mode-aware element on that path is the dev-server launch (Step 3), which branches on `routerMode` per the **Router-mode command matrix** in the plugin CLAUDE.md. When **`e2eTool == playwright`**, `playwright.config.ts` `webServer` owns the dev server — follow the **Playwright mode** overrides marked inline in Steps 1, 2, 3, 3.5, 4, 5, 6, and 7; the lock, user confirmation, report save, and progress-update steps are shared and unchanged. Reference `templates/e2e-playwright.md` for the Playwright patterns.
 
@@ -44,14 +44,14 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
-6. **E2E scenarios check** — verify `e2eTests` exists and is non-empty in plan.json:
+2. **E2E scenarios check** — verify `e2eTests` exists and is non-empty in plan.json:
    - If `e2eTests` is absent or empty:
      > "No E2E scenarios defined in the implementation plan."
      > "Add multi-page test scenarios to `test-scenarios.md` and re-run `/frontend-react-plugin:fe-plan {feature}`."
@@ -68,7 +68,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      > "Available routes: {list of route paths}"
      > "Options: 1. Continue anyway  2. Update plan first (`/frontend-react-plugin:fe-plan {feature}`)"
 
-7. **Agent-browser CLI check**:
+1. **Agent-browser CLI check**:
    ```bash
    agent-browser --version 2>&1
    ```
@@ -79,7 +79,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      > "  cargo install agent-browser"
      - Stop here.
 
-8. **Agent-browser skill check** — verify `.claude/skills/agent-browser/SKILL.md` exists:
+2. **Agent-browser skill check** — verify `.claude/skills/agent-browser/SKILL.md` exists:
    - If not found:
      > "Agent-browser skill not installed. Run `/frontend-react-plugin:fe-init` to install external skills."
      - Stop here.
@@ -245,7 +245,7 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
 
 **On failure (agent error, not test failure):**
 - Record the error
-- Proceed to **Step 5 (stop dev server)**, then synthesize a failed report — `status: "error"`, the
+- Proceed to **Step 5 (stop dev server)**, then synthesize a failed report — `status: "failed"` with `failureKind: "agent-error"` (**not** `status: "error"`; the save and progress steps map only `completed`/`partial`/`failed`, so an `error` status has no mapping and leaves the progress file stale), the
   agent's error text, zero scenarios executed — and run **Step 7 (save report)** and **Step 8
   (update progress)** with it before releasing the lock. Step 7 is Save Report and Step 5 is the
   server shutdown; skipping them leaves no record that the run happened and no status transition.

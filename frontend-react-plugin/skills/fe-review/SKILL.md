@@ -17,10 +17,10 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
-2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
-3. If the file does not exist:
+2. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+3. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -37,7 +37,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
@@ -52,7 +52,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
    > "Continue?"
    - If the user declines, stop here.
 
-6. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+1. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
    - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt` (use `stat` or file system check)
    - If spec is newer:
@@ -62,7 +62,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
      > "Continue with review anyway?"
      - If the user declines, stop here.
 
-7. **Generated files check** — verify the `baseDir` directory exists and contains files:
+2. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
@@ -129,6 +129,7 @@ Task(subagent_type: "quality-reviewer", prompt: "
   - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
+  - routerMode: {routerMode}
 
   Follow the process defined in agents/quality-reviewer.md.
   Return the review result as JSON.

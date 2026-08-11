@@ -21,6 +21,7 @@ The skill will provide these parameters in the prompt:
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` / `npx react-router build` (framework mode) commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the mode-aware build/typecheck commands.
 
 ## Process
 
@@ -121,6 +122,8 @@ Apply minimal changes and verify upon successful hypothesis validation.
      precisely so this step is meaningful.
    - Write a minimal test case that reproduces the bug
    - `npx vitest run {testFile}` → confirm the test fails (RED). **It does not fail?** The bug is not
+
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
      reproduced by that test, or the fix is still applied — do not proceed; fix the test or roll the
      code back first.
    - Then apply the fix (step 1) and re-run → confirm it passes (GREEN)

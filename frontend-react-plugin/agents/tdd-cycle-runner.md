@@ -375,6 +375,7 @@ When `status` is `"skipped"` (e.g. `store-tdd` with no store under `serverState 
 ```json
 {
   "status": "skipped",
+  "skipKind": "auto",
   "phase": "store-tdd",
   "reason": "no store planned for this feature (server data lives in the query cache — D11)"
 }

@@ -27,6 +27,8 @@ The skill will provide these parameters in the prompt:
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
+- `e2eTool` — `"agent-browser"` (default when absent) | `"playwright"`. In `e2e` fix mode this selects the failure evidence: **playwright** → read each failing scenario's `scenarios[].evidence.trace` and open it with `npx playwright show-trace`, following `templates/e2e-playwright.md`; **agent-browser** → read the screenshots/snapshot excerpts, following `templates/e2e-testing.md`. Do not extract screenshots unconditionally — a Playwright run has none, and diagnosing without the trace is guessing.
+- `sourceBaseDir` — the **source root** from config (e.g. `app/src`). App-wide fix targets resolve against this; `baseDir` here is the feature directory and matches none of them.
 
 ## Issue Classification
 
@@ -178,6 +180,8 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
      the anchor to the spec line to check the test's premise, and a dimension name leads nowhere.
    - Test name describes the expected behavior being fixed
 3. Run `npx vitest run {testFile} --reporter=verbose` → confirm:
+
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
    - New test FAILS (correct RED state)
    - Existing tests still PASS (no false regressions)
 

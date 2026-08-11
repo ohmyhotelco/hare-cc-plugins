@@ -31,6 +31,7 @@ The coordinator skill provides:
 - `feature` — feature name
 - `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
 - `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
+- `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
 > **Backward compatibility.** All the new keys above default to their pre-OTA values when absent
 > (`routerMode=declarative`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser`,
@@ -63,7 +64,9 @@ For each entry in `sharedLayouts[]`:
 > `file` path the plan records; do **not** emit a JSX `<Route>` fragment. Library modes
 > (`declarative`/`data`) are unchanged.
 
-**If `exists: false`** (first feature):
+**Re-check `exists` on disk under the app lock, do not trust the plan field.** `exists` was recorded when the plan was written; two features planned before either generated both carry `exists: false`, and the second would take the create branch and overwrite the first's layout and `layout.json`. After acquiring the app lock, glob the layout and its locale files and reclassify: present → the edit branch (merge nav items), absent → the create branch.
+
+**If `exists: false`** (first feature, confirmed by the re-glob):
 1. Read layout source for componentTree:
    - If `dslFile` is non-null and the file exists → read DSL → extract componentTree
    - If `dslFile` is null or the file does not exist → use `componentTree` from plan.json's `sharedLayouts[]` entry (embedded by implementation-planner when DSL is unavailable). If neither source is available, generate a minimal layout shell with sidebar navigation from `navigationItems` and `<Outlet />` content area.
@@ -228,7 +231,7 @@ parallel workers must not share mutated state.
 Only when the config carries an `i18n` block (`languages`, `lookupFns`). The locale resources are the
 plan's `localesDir`, as everywhere else in this agent. Absent block → skip
 this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
-`{baseDir}/__tests__/i18n-key-coverage.test.ts` and skip if present.
+`{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `fe-verify` fails on the stale spec and names `fe-gen` as the remedy, and `fe-gen` then skips the file, so the gate can never go green again.
 
 Generate that spec per `templates/i18n-key-coverage.md`. It lives at the **source root**
 (`{baseDir}/__tests__/i18n-key-coverage.test.ts` — this agent's `baseDir` is the source root), never

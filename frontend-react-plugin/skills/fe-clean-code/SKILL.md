@@ -37,6 +37,8 @@ Task(subagent_type: "quality-reviewer", prompt: "
   - mode: standalone
   - targetPath: {targetPath}
   - projectRoot: {cwd}
+  - baseDir: {baseDir}
+  - routerMode: {routerMode}
 
   Follow the process defined in agents/quality-reviewer.md.
   Return the audit report as text.

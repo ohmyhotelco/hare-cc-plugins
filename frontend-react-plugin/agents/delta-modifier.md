@@ -194,6 +194,8 @@ For each behavioral change:
      the requirement without the file and line `test-reviewer` needs to verify the test's premise.
    - Test name describes the expected behavior after modification
 5. Run `npx vitest run {testFile} --reporter=verbose`:
+
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
    - New test FAILS → correct RED state, proceed to GREEN
    - New test PASSES → change may already be implemented, verify manually, mark as `already-resolved`
    - Existing tests BREAK → fix test setup, not production code
@@ -311,4 +313,4 @@ Status determination:
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
 9. **Traceability**: added tests carry a **spec anchor** with `file:line` (`templates/tdd-rules.md` § Anchors), not a bare `// delta: {specRef}`.
 10. **Mutation check**: no operation reports `completed` until its behavior was broken, seen red, and restored.
-10. **Preserve accumulated fixes**: Read files as they currently exist (with all previous review-fixer changes). Apply delta changes on top, never revert to original generated state.
+11. **Preserve accumulated fixes**: Read files as they currently exist (with all previous review-fixer changes). Apply delta changes on top, never revert to original generated state.

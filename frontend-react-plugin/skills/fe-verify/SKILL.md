@@ -15,11 +15,11 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 ### Step 0: Read Configuration
 
 1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
-2. **Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; `baseDir` stays repo-relative for file operations. See CLAUDE.md § Build Command Working Directory.
-3. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
-4. If the file does not exist:
+2. If `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
+3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+4. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -38,18 +38,18 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
-6. **Demotion warning** — if `implementation.status` is `done` or `reviewed`:
+2. **Demotion warning** — if `implementation.status` is `done` or `reviewed`:
    > "This feature is currently '{status}'. Re-running verification will reset the status to 'verified' or 'verify-failed', discarding review progress."
    > "Continue?"
    - If the user declines, stop here.
 
-7. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+3. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
    - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt`
    - If spec is newer:
@@ -59,7 +59,7 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
      > "Continue with verification anyway?"
      - If the user declines, stop here.
 
-8. **File existence check** — Verify that all files specified in the plan actually exist:
+4. **File existence check** — Verify that all files specified in the plan actually exist:
    - Use Glob to check existence of each file path
    - If missing files are found, display a warning:
      > "Warning: {count} planned files not found:"

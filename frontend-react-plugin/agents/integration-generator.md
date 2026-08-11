@@ -27,6 +27,7 @@ The coordinator skill provides:
 - `mockFirst` — `true` | `false`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 - `skills` — list of external skill paths to read
+- `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
 > **Backward compatibility.** New keys default to their pre-OTA values when absent
 > (`routerMode=declarative`, `serverState=zustand-only`); every new branch below is gated on a new value —
@@ -181,6 +182,8 @@ Derive the import alias prefix from `localesDir` using the project's tsconfig pa
 export const {featureExportName} = {
   namespace: '{feature}',
   resources: {
+    // one entry per language in plan.i18n.languages — iterate it, do not hardcode.
+    // The four below are the fallback set used only when config has no i18n block.
     ko: () => import('{localesAlias}/ko/{feature}.json'),
     en: () => import('{localesAlias}/en/{feature}.json'),
     ja: () => import('{localesAlias}/ja/{feature}.json'),
@@ -188,6 +191,10 @@ export const {featureExportName} = {
   },
 };
 ```
+
+**Emitting the fixed four when `i18n.languages` says otherwise is a defect**, in both directions: a
+configured `fr` gets no registration (its keys then fail the coverage gate), and an unconfigured `ja`
+gets an import of a resource file nothing generates, which fails the build.
 
 ### Step 5: i18n Auto-Integration
 

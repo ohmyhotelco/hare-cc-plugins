@@ -14,11 +14,11 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 
 ### Step 0: Validate Configuration
 
-1. Read `.claude/frontend-react-plugin.json`, `baseDir`
-**Derive `srcPath`** — `baseDir` with the leading `{appDir}/` removed (`app/src` + `appDir=app` → `src`; `appDir="."` → `baseDir` unchanged). Every `npx …` path argument uses it; `baseDir` stays repo-relative for file operations (CLAUDE.md § Build Command Working Directory).
+1. Read `.claude/frontend-react-plugin.json`
 2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
 3. Extract `baseDir` and `appDir` from config
 
+4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 ### Step 1: Determine Scope
 
 - If argument provided: audit the specified test file or directory
