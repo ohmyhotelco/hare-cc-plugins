@@ -27,11 +27,18 @@ The coordinator skill provides:
 - `baseDir` — base source directory (e.g., `"app/src"`, framework mode `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `feature` — feature name
+- `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
+- `mode` — `"full"` (default) | `"playwright-harness-only"`. The harness-only mode **runs Step 5c and nothing else** — no layouts, no types, no mocks, no per-feature work — then reports. It exists for fe-gen's Step 1.9 preflight, which must be able to produce the harness in delta/resume runs without executing a foundation phase outside phase-state tracking.
+- `devPort` — dev-server port for the scaffolded `webServer` command (default `5173`). Step 5c writes it into `playwright.config.ts`; fe-e2e passes the same value to the runner, so the two must come from the same place.
+- `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
+- `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
 > **Backward compatibility.** All the new keys above default to their pre-OTA values when absent
-> (`routerMode=declarative`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser`), and
-> every new branch below is gated on a new value — an admin-default config produces byte-identical output.
+> (`routerMode=declarative`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser`,
+> `prettierTemplate=true`, no `i18n`), and every new branch below is gated on a new value — an
+> admin-default config produces byte-identical output.
 
 ## Process
 
@@ -59,7 +66,9 @@ For each entry in `sharedLayouts[]`:
 > `file` path the plan records; do **not** emit a JSX `<Route>` fragment. Library modes
 > (`declarative`/`data`) are unchanged.
 
-**If `exists: false`** (first feature):
+**Re-check `exists` on disk under the app lock, do not trust the plan field.** `exists` was recorded when the plan was written; two features planned before either generated both carry `exists: false`, and the second would take the create branch and overwrite the first's layout and `layout.json`. After acquiring the app lock, glob the layout and its locale files and reclassify: present → the edit branch (merge nav items), absent → the create branch.
+
+**If `exists: false`** (first feature, confirmed by the re-glob):
 1. Read layout source for componentTree:
    - If `dslFile` is non-null and the file exists → read DSL → extract componentTree
    - If `dslFile` is null or the file does not exist → use `componentTree` from plan.json's `sharedLayouts[]` entry (embedded by implementation-planner when DSL is unavailable). If neither source is available, generate a minimal layout shell with sidebar navigation from `navigationItems` and `<Outlet />` content area.
@@ -70,7 +79,7 @@ For each entry in `sharedLayouts[]`:
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels
-3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for all 4 languages (ko, en, ja, vi)
+3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
    - `workingLanguage` translation is the primary (fully translated)
    - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
 4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
@@ -169,6 +178,18 @@ hook (integration-generator Step 6b), so `server.listen()` runs before any loade
 from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged**. See
 `templates/framework-app-shell.md` and `templates/e2e-playwright.md` (§ SSR / loader network).
 
+> **App lock (also applies to Step 2).** Shared layouts (`{baseDir}/layouts/*.tsx`) and their locale
+> files (`{localesDir}/{lang}/layout.json`) are app-wide too: a second feature adding a nav item
+> edits the same files under its own feature lock. Take `docs/specs/.app.lock` around each Step 2
+> read-modify-write as well, on the same acquire → re-read → edit → release cycle.
+>
+> **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
+> `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
+> write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
+> `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
+> permanently unfixable — `fe-verify` fails on it and names `fe-gen`, which would skip the file. The feature lock does not protect these — "first feature"
+> is decided by a glob, so two features scaffolding concurrently both see absent and both write.
+
 ### Step 5b: App Shell Scaffold (framework mode only, first feature)
 
 Only when `routerMode == framework`. Using the path-base rule (CLAUDE.md § Framework-mode path-base rule),
@@ -192,22 +213,60 @@ glob for the shell files and scaffold any that are **absent** from `templates/fr
 `routes.ts`, `root.tsx`, and the `entry.*.tsx` files live under `{baseDir}`; `react-router.config.ts` and
 the generated `.react-router/` types dir live in `{appDir}`.
 
-### Step 5c: Playwright E2E Harness (once per app, first feature)
+### Step 5c: Playwright E2E Harness (once per app, first feature — or `mode: playwright-harness-only`)
 
-Only when `e2eTool == playwright` **and** this is the first feature — glob `{appDir}/playwright.config.ts`
-and skip if present. Ported from the migration plugin's foundation harness **minus** legacy dual-run and
+Only when `e2eTool == playwright`. **Check each harness file independently, under the app lock**:
+glob `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` separately, and scaffold
+whichever is absent. The config file is **not** a sentinel for the whole harness — `fe-e2e` refuses
+unless **both** exist, so a scaffold interrupted after the config (or a project bringing its own
+config) would otherwise loop forever: every `fe-gen` skips "because the config exists" while every
+`fe-e2e` stops with "run fe-gen first". Ported from the migration plugin's foundation harness **minus** legacy dual-run and
 parity. See `templates/e2e-playwright.md`.
 
-- `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'on-first-retry'`, and a `webServer` that
-  runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** with
-  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {port}`;
-  library modes → `npx vite --port {port}`).
+- `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
+  runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
+  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {devPort}`;
+  library modes → `npx vite --port {devPort}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).
 
 **Mock-state reset policy:** handlers are stateless by default; the mutable fixture DB (`mockEntityDb`) is
 reset between tests via a dev-only reset hook in the harness `beforeEach`, and specs that mutate mock state
 run serially (a dedicated project or `test.describe.serial`) — the MSW-node instance is process-global, so
 parallel workers must not share mutated state.
+
+### Step 5d: i18n Key-Coverage Spec (once per app, first feature)
+
+Only when the config carries an `i18n` block (`languages`, `lookupFns`). The locale resources are the
+plan's `localesDir`, as everywhere else in this agent. Absent block → skip
+this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
+`{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `fe-verify` fails on the stale spec and names `fe-gen` as the remedy, and `fe-gen` then skips the file, so the gate can never go green again.
+
+Generate that spec per `templates/i18n-key-coverage.md`. It lives at the **source root**
+(`{baseDir}/__tests__/i18n-key-coverage.test.ts` — this agent's `baseDir` is the source root), never
+inside a feature directory.
+
+**Record the config it was built from** in the spec file (a `CONFIG_FINGERPRINT` constant holding the
+`i18n.languages` and `lookupFns` it was generated for) and assert at runtime that the fingerprint
+still matches the resources it walks. Without it, "skip if present" means a spec generated before a
+language was added keeps passing while never testing that language — a check that verifies nothing
+and reports success. `fe-verify` compares the same fingerprint against the live config. It is an **app-wide invariant**, not a
+per-feature test: it walks every `i18n.lookupFns` call site under `{baseDir}` and asserts each
+literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that
+markup- or entity-bearing values are not on the plain-text render path. Dynamic keys are tallied as
+`uncheckable` with `file:line` and printed — never failed on, never dropped.
+
+Run it once after writing (`npx vitest run {srcPath}/__tests__/i18n-key-coverage.test.ts 2>&1`) and
+read the output. It may legitimately fail here — the first feature's own keys are generated in later
+phases — so record the result and the `uncheckable` count in the output; do not treat a failure as a
+foundation error.
+
+### Step 5e: Prettier Config (once per app, first feature)
+
+Per `templates/prettier-config.md` § Detection / Scaffold / Skip: glob for an existing Prettier
+config; present → leave it. Absent and `prettierTemplate` is `true` or unset → scaffold
+`prettier.config.js` + `.prettierignore`. Absent and the flag is `false` → skip silently. Never
+auto-install `prettier`; if it is missing, print `pnpm add -D prettier eslint-config-prettier` and
+record `skipped`. Formatting is advisory and never blocks anything this agent does.
 
 ### Step 6: Verify
 
@@ -225,6 +284,24 @@ npx react-router typegen 2>&1
 Confirm: zero errors. If errors exist, fix and re-verify.
 
 ## Output Format
+
+**`mode: playwright-harness-only` reports this shape and nothing more** — the full schema below
+demands `feature`, `filesCreated.types/mocks`, and `verification.tsc`, none of which a harness-only
+run produces (Step 6 never runs), and fabricating them would be a false claim:
+
+```json
+{
+  "agent": "foundation-generator",
+  "mode": "playwright-harness-only",
+  "status": "completed | failed",
+  "harness": {
+    "playwrightConfig": "scaffolded | present",
+    "fixtures": "scaffolded | present"
+  },
+  "error": "only when failed"
+}
+```
+
 
 ```json
 {
@@ -252,11 +329,20 @@ Confirm: zero errors. If errors exist, fix and re-verify.
       "{baseDir}/entry.server.tsx",
       "{baseDir}/entry.client.tsx"
     ],
-    "e2eHarness": ["{appDir}/playwright.config.ts", "{appDir}/e2e/fixtures.ts"]
+    "e2eHarness": ["{appDir}/playwright.config.ts", "{appDir}/e2e/fixtures.ts"],
+    "i18nCoverage": ["{baseDir}/__tests__/i18n-key-coverage.test.ts"],
+    "prettier": ["prettier.config.js", ".prettierignore"]
   },
   "shadcnInstalled": ["pagination"],
   "mswInstalled": true,
   "depsToInstall": ["pnpm add @tanstack/react-query"],
+  "i18nCoverage": {
+    "status": "generated | present | skipped",
+    "reason": "no i18n config block",
+    "firstRun": "pass | fail",
+    "uncheckable": 3
+  },
+  "prettier": "scaffolded | present | skipped",
   "verification": {
     "tsc": "pass"
   }
@@ -267,6 +353,10 @@ Confirm: zero errors. If errors exist, fix and re-verify.
 > corresponding config branch is active (`formStack=rhf-zod`, `routerMode=framework` + `mockFirst`,
 > `routerMode=framework`, `e2eTool=playwright`). Omit them otherwise. `depsToInstall` lists the print-only
 > `pnpm add` lines for any missing new-stack packages (never auto-installed).
+>
+> `i18nCoverage.status` is `skipped` with a `reason` when the config has no `i18n` block, and
+> `present` when the spec already existed — never omitted, so "not generated" and "never considered"
+> stay distinguishable. `prettier` follows the same three-way rule.
 
 ## Convention Checklist
 
@@ -296,7 +386,7 @@ Confirm: zero errors. If errors exist, fix and re-verify.
 - [ ] `formStack=rhf-zod`: `schemas/{entity}Schema.ts` generated; interfaces kept for API DTOs (schemas validate, interfaces type)
 - [ ] `routerMode=framework` + `mockFirst`: `{baseDir}/mocks/node.ts` re-uses the same handler aggregate as `browser.ts`; test-infra `mocks/server.ts` untouched
 - [ ] `routerMode=framework`: app-shell files scaffolded from the template only when absent — never overwritten; `root.tsx` gets `QueryClientProvider` only under `serverState=tanstack-query` (browser singleton / per-request server client)
-- [ ] `e2eTool=playwright` (first feature): `playwright.config.ts` `webServer` uses the mode-aware dev command + `VITE_ENABLE_MOCKS=true`, `trace: on-first-retry`, `testDir: 'e2e'`
+- [ ] `e2eTool=playwright` (first feature): `playwright.config.ts` `webServer` uses the mode-aware dev command + `VITE_ENABLE_MOCKS=true`, `trace: retain-on-first-failure`, `testDir: 'e2e'`
 - [ ] new-stack deps are **printed** (`pnpm add ...`), never auto-installed
 
 ## Key Rules

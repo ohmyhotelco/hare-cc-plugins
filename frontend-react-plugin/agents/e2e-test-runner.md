@@ -19,6 +19,7 @@ The skill provides these parameters in the prompt:
 
 - `feature` — feature name
 - `planFile` — implementation plan path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
+- `standalone` — `true` | `false`; selects the spec-context branch in Step 0 item 3
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — base source directory (e.g., `"app/src"`)
 - `appDir` — directory containing `playwright.config.ts` / `package.json` (Playwright commands run from here; default `"."`)
@@ -27,6 +28,11 @@ The skill provides these parameters in the prompt:
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` — governs the Playwright `webServer` dev command and SSR/loader mocking
 - `e2eTests` — E2E test scenarios from plan.json `e2eTests[]`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
+
+> **Standalone features have only `{feature}-spec.md`.** When the progress file says
+> `standalone: true`, `screens.md` and `test-scenarios.md` do not exist — in **both** runner
+> modes, derive flow context from `{feature}-spec.md` plus the plan's `e2eTests[]` entries
+> (which cite FR ids, not TS-nnn) and skip every read of the other two files.
 
 ## Process
 
@@ -45,11 +51,14 @@ Read TWO sources for agent-browser knowledge:
    - Assertion strategy
    - Anti-patterns
 
-3. **Plan and spec context**:
-   - Read `planFile` → extract `e2eTests[]` scenarios
-   - Read `specDir/test-scenarios.md` → full scenario descriptions for TS-nnn references
-   - Read `specDir/screens.md` → expected UI elements and screen layouts
-   - Read `planFile` → extract `routes.entries` for URL paths
+3. **Plan and spec context** — branch on the `standalone` input **before** reading:
+   - Read `planFile` → extract `e2eTests[]` scenarios and `routes.entries` for URL paths
+   - `standalone: false` → also read `specDir/test-scenarios.md` (full TS-nnn descriptions) and
+     `specDir/screens.md` (expected UI elements, screen layouts)
+   - `standalone: true` → read `specDir/{feature}-spec.md` instead; the other two files do not
+     exist and never will. Scenario detail comes from the plan's `e2eTests[]` (FR-cited generic
+     flows) plus the spec's screen section. Playwright mode does **not** share this step (it
+     skips Steps 0–4) — P0 carries its own copy of this branch.
 
 ### Step 1: Session Setup
 
@@ -247,11 +256,15 @@ When `e2eTool == playwright` (ota-profile default), realize and run the scenario
 ### P0: Load Context
 - Read `templates/e2e-playwright.md` (Playwright patterns).
 - Read `planFile` → `e2eTests[]`, `routes.entries`, plus `serverState` / `routerMode` (SSR/loader awareness).
-- Read `specDir/test-scenarios.md` (TS-nnn descriptions) and `specDir/screens.md` (expected UI).
+- Spec context — **branch on the `standalone` input exactly as Step 0 item 3 does** (Playwright mode
+  skips Steps 0–4, so that branch does not run for it; this one is P0's own):
+  - `standalone: false` → read `specDir/test-scenarios.md` (TS-nnn descriptions) and
+    `specDir/screens.md` (expected UI).
+  - `standalone: true` → read `specDir/{feature}-spec.md` instead; the other two files do not exist.
 - Read `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` (auth/state helpers + page-object base, scaffolded once per app by foundation-generator).
 
 ### P1: Realize Specs
-One spec per scenario at `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. Map each `plan.json e2eTests[]` step (the tool-neutral schema — **unchanged**) to Playwright:
+One spec per scenario at `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. **No TS reference** (standalone scenarios cite FR ids): name and tag by the scenario's `e2eTests[].id` instead — `E2E-001.spec.ts` — never a literal `{TS-nnn}` placeholder or a collision-prone shared name. Map each `plan.json e2eTests[]` step (the tool-neutral schema — **unchanged**) to Playwright:
 
 | plan step | Playwright realization |
 |---|---|
@@ -273,7 +286,7 @@ npx playwright test e2e/{feature} 2>&1
 Prefix with `cd {appDir} &&` unless `appDir` is `"."`. If the run reports missing browser binaries, do **not** fail opaquely — report that `npx playwright install` must be run once (per D7/R6, never run it automatically).
 
 ### P3: Report (trace-first)
-`trace: 'on-first-retry'` retains a trace on failure. For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `fe-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
+`trace: 'retain-on-first-failure'` retains a trace for a scenario that fails on its first run (**not** `on-first-retry` — nothing configures retries, so that mode would record no trace at all; `templates/e2e-playwright.md`). For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `fe-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
 
 ## Output Format
 

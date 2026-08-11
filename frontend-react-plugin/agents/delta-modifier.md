@@ -20,11 +20,13 @@ The skill will provide these parameters in the prompt:
 - `feature` — feature name
 - `phase` — current phase to execute (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`)
 - `baseDir` — feature code directory (e.g., `app/src/features/{feature}/`)
+- `sourceBaseDir` — the **source root** from config (e.g., `app/src`), the parent of `features/`. Required: every app-wide target below resolves against this, never against `baseDir`. `{baseDir}/routes.ts` is a path inside the feature directory and matches nothing, so an app-wide check written against `baseDir` never fires and the app lock is never taken.
 - `projectRoot` — project root path
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 
 ## Change Classification
 
@@ -66,12 +68,14 @@ Each file operation from `delta-plan.json` is classified:
 
 2. **Existing plan** — read `planFile` → extract file list, types, components, pages, tests for cross-reference
 
-3. **TDD Rules** — read `templates/tdd-rules.md` → internalize Iron Law and anti-patterns
+3. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green and the spec-anchor rule
 
-4. **Spec** — read 3 files from `specDir`:
+4. **Spec** — read from `specDir`. **Check the progress file's `standalone` flag first**: when
+   `true`, only `{feature}-spec.md` exists — read it plus `plan.json` and skip the other two, or
+   every standalone delta with a foundation/modify/remove operation stops right here.
    - `{feature}-spec.md` → functional requirements (FR/BR/AC)
-   - `screens.md` → screen definitions, error handling
-   - `test-scenarios.md` → test scenarios (TS-nnn)
+   - `screens.md` → screen definitions, error handling *(non-standalone only)*
+   - `test-scenarios.md` → test scenarios (TS-nnn) *(non-standalone only)*
 
 5. **External skills** — load per phase:
    - `foundation`: none
@@ -136,7 +140,7 @@ Read the target file and locate the code block associated with the removed spec 
 #### 2.4 Regression Check
 
 After all removals in this phase:
-- Run `npx vitest run {baseDir}` → confirm no regressions
+- Run `npx vitest run {srcPath}` → confirm no regressions
 - If regressions: identify which removal caused failure, attempt to fix the dependent code
 - If unfixable after 3 retries: mark as `escalated`
 
@@ -154,7 +158,11 @@ Read `changeDetail` from the delta entry:
 
 For each structural change:
 
-1. Read the target file
+1. Read the target file. **If the target is an app-wide file** — the central route file
+   (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
+   `{sourceBaseDir}/mocks/handlers.ts`, or anything under `{sourceBaseDir}/layouts/` — take
+   `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and release it right
+   after; the feature lock does not protect those. Compare against `sourceBaseDir`, never `baseDir`.
 2. Apply the minimal edit based on `changeDetail`:
    - `enum-value-added`: Add the new value to the enum
    - `field-added`: Add the new field to the interface
@@ -183,9 +191,13 @@ For each behavioral change:
 2. If test file not found: mark as `escalated` with reason `"test file not found"`, skip to next
 3. Read existing test file to understand structure and imports
 4. Add new `it()` block:
-   - Comment: `// delta: {specRef}` for traceability (e.g., `// delta: FR-001`)
+   - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
+     (`templates/tdd-rules.md` § Anchors). `// delta: {specRef}` alone is not an anchor — it names
+     the requirement without the file and line `test-reviewer` needs to verify the test's premise.
    - Test name describes the expected behavior after modification
 5. Run `npx vitest run {testFile} --reporter=verbose`:
+
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
    - New test FAILS → correct RED state, proceed to GREEN
    - New test PASSES → change may already be implemented, verify manually, mark as `already-resolved`
    - Existing tests BREAK → fix test setup, not production code
@@ -203,14 +215,20 @@ For each behavioral change:
 **VERIFY**
 
 1. TypeScript check → confirm no type errors introduced
-2. If still failing after 3 retries → mark as `escalated`
+
+2. **Mutation check (MANDATORY)** — the fix went green; that does not show the test would notice
+   the code being wrong again. Break the behavior you just fixed, re-run the test, confirm it goes
+   **red**, restore the code, re-run to confirm green (`templates/tdd-rules.md` § VERIFY THE TEST).
+   Stays green → the test does not cover the fix: strengthen the assertion and repeat. Record the
+   result per issue; **an item may not report `fixed` without it.**
+3. If still failing after 3 retries → mark as `escalated`
 
 ### Step 4: Phase Verification
 
 After all operations in this phase complete:
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
-2. `npx vitest run {baseDir}` → all feature tests pass
+2. `npx vitest run {srcPath}` → all feature tests pass
 3. If `phase` is `integration`: also run the build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.
@@ -270,6 +288,10 @@ Return the phase modification report:
   },
   "changeScope": {
     "filesModified": 5,
+    "mutationCheck": [
+      { "behavior": "status filter applies to the list query",
+        "mutation": "dropped the status param", "wentRed": true }
+    ],
     "linesAdded": 80,
     "linesRemoved": 25
   }
@@ -291,5 +313,6 @@ Status determination:
 6. **Pre-check**: Always verify target files exist before attempting operations.
 7. **Regression safety**: Run existing tests after each phase. Revert if regressions are introduced.
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
-9. **Traceability**: Comment `// delta: {specRef}` on added tests for audit trail.
-10. **Preserve accumulated fixes**: Read files as they currently exist (with all previous review-fixer changes). Apply delta changes on top, never revert to original generated state.
+9. **Traceability**: added tests carry a **spec anchor** with `file:line` (`templates/tdd-rules.md` § Anchors), not a bare `// delta: {specRef}`.
+10. **Mutation check**: no operation reports `completed` until its behavior was broken, seen red, and restored.
+11. **Preserve accumulated fixes**: Read files as they currently exist (with all previous review-fixer changes). Apply delta changes on top, never revert to original generated state.

@@ -3,7 +3,7 @@ name: fe-review
 description: "Run 2-stage code review (spec compliance → quality) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Task
+allowed-tools: Read, Write, Glob, Grep, Bash, Task
 ---
 
 # Code Review Skill
@@ -16,7 +16,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
 2. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -36,7 +36,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
@@ -51,7 +51,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
    > "Continue?"
    - If the user declines, stop here.
 
-6. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+1. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
    - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt` (use `stat` or file system check)
    - If spec is newer:
@@ -61,7 +61,7 @@ Run a 2-stage code review (spec review → quality review) on generated code.
      > "Continue with review anyway?"
      - If the user declines, stop here.
 
-7. **Generated files check** — verify the `baseDir` directory exists and contains files:
+2. **Generated files check** — verify the `baseDir` directory exists and contains files:
    - If the directory is empty or does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
@@ -69,17 +69,12 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 ### Lock Acquire
 
-Check `docs/specs/{feature}/.implementation/frontend/.lock`:
-- If file exists:
-  - Read `lockedAt` and `operation`
-  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
-  - Otherwise:
-    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
-    - Stop here.
-- Create lock file:
-  ```json
-  { "lockedAt": "{ISO timestamp}", "operation": "fe-review" }
-  ```
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-review"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Spec Review
 
@@ -133,6 +128,7 @@ Task(subagent_type: "quality-reviewer", prompt: "
   - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
+  - routerMode: {routerMode}
 
   Follow the process defined in agents/quality-reviewer.md.
   Return the review result as JSON.
@@ -208,10 +204,22 @@ Save the full review reports to `docs/specs/{feature}/.implementation/frontend/r
 
 **Critical**: The saved JSON must preserve the **complete** agent output including every `dimensions.{name}.issues[]` array. Do NOT reduce the output to summary counts only — downstream `fe-fix` / `review-fixer` depend on the individual issue objects.
 
+**`unverifiable` from either reviewer** — the agent collected zero files (a missing `baseDir`, or a
+feature whose generation never wrote anything). This is neither a pass nor a review failure: nothing
+was examined. Save the report with `status: "unverifiable"` and the agent's evidence, leave
+`implementation.status` unchanged (do **not** write `reviewed`), release the lock, and tell the user
+to run `/frontend-react-plugin:fe-gen {feature}` — there is no code to review. Never fold it into
+`pass`; a review that examined nothing reporting success is the failure the guard exists to prevent.
+
 **Pre-save validation** (when status is fail or pass_with_warnings):
-- Verify `specReview.dimensions` is an object with dimension keys
-- Verify at least one dimension contains a non-empty `issues[]` array
-- If validation fails, re-run the spec-reviewer agent before saving
+- Validate **the reviewer whose own status is `fail` or `pass_with_warnings`** — `specReview`,
+  `qualityReview`, or both. A clean spec review beside a failing quality review is a legitimate
+  result; requiring a `specReview` issue there would re-run the spec reviewer forever, since it
+  cannot produce the quality reviewer's finding.
+- For each such reviewer: verify `dimensions` is an object with dimension keys, and that at least
+  one dimension contains a non-empty `issues[]` array
+- If validation fails, re-run **that** reviewer before saving. Two consecutive failures → save the
+  report as-is with a `validationWarning`, release the lock, and say so; never loop a third time.
 
 ```json
 {

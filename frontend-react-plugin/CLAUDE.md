@@ -103,12 +103,25 @@ existing branch changes. The full design and per-file spec is in
 - Component composition patterns: see `.claude/skills/vercel-composition-patterns` (no boolean props, compound component, React 19 API)
 - Web UI accessibility/design audit: see `.claude/skills/web-design-guidelines` (WebFetch latest guidelines during review)
 
-### ESLint
-- The plugin bundles a default ESLint v9 flat config template (`templates/eslint-config.md`)
-- Config includes `strictTypeChecked` + `stylisticTypeChecked` presets, native flat config for react-hooks and react-refresh, and test file overrides
-- When a project has no ESLint config (`.eslintrc*` or `eslint.config.*`), agents auto-generate `eslint.config.js` from the template
-- `eslintTemplate` flag in `.claude/frontend-react-plugin.json` controls this behavior (`true` by default, `false` to opt out)
-- Dependencies are NOT auto-installed — agents display `pnpm add -D ...` instructions and skip ESLint if packages are missing
+### Lint & Format Gate
+
+Specs live in `templates/eslint-config.md` and `templates/prettier-config.md`. This is the shared contract every agent and skill that scaffolds or checks them follows.
+
+**Roles.** ESLint is a **hard** check (code quality) — exit ≠ 0 fails `fe-verify`. Prettier is **advisory** (formatting only) — reported, never blocking. `eslint-config-prettier` keeps the two from conflicting.
+
+- The ESLint template is an ESLint v9 flat config with `strictTypeChecked` + `stylisticTypeChecked`, native flat config for react-hooks and react-refresh, and test-file overrides.
+- **Detection / scaffold / skip** (uniform across `foundation-generator`, `integration-generator`, `fe-verify`):
+  1. Glob for an existing config (`eslint.config.*` / `.eslintrc*`; `prettier.config.*` / `.prettierrc*`). Present → use as-is, never overwrite.
+  2. Absent and the flag (`eslintTemplate` / `prettierTemplate`) is `true` or unset → generate from the template.
+  3. Absent and the flag is `false` → skip silently.
+  4. **Never auto-install deps.** Missing packages → print the `pnpm add -D …` line, skip the run, record `skipped` (not a failure).
+- Commands, run from `{appDir}`: `npx eslint . 2>&1` (hard) and `npx prettier --check . 2>&1` (advisory). Never run `prettier --write` on the user's tree unasked.
+
+### i18n Key Coverage
+
+i18next resolves `language → fallback → the key itself` and never throws, so a missing or wrong key is invisible to `tsc`, ESLint, and unit tests alike. `foundation-generator` scaffolds an app-wide key-coverage spec (`{baseDir}/__tests__/i18n-key-coverage.test.ts`) that asserts every literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that markup/entity-bearing values are not on the plain-text render path. Statically unresolvable (dynamic) keys are tallied as `uncheckable` with `file:line` and reported — never failed on, never dropped.
+
+`fe-verify`'s existing `npx vitest run` makes it a hard gate; `fe-verify` asserts the spec's results **appear in that run** — file existence is not the test. No `i18n` config block → no spec, and the axis reports `skipped`. Contract: `templates/i18n-key-coverage.md`.
 
 ### Routing Conventions
 - Routes requiring authentication: wrap with `<ProtectedRoute>` → redirect to /login when unauthenticated (pass return destination via location.state.from)
@@ -135,12 +148,13 @@ existing branch changes. The full design and per-file spec is in
 - **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:pp-review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`, `/frontend-react-plugin:fe-progress` (pipeline status dashboard), `/frontend-react-plugin:fe-security` (security audit), `/frontend-react-plugin:fe-clean-code` (clean code audit), `/frontend-react-plugin:fe-test-review` (test quality audit)
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`; `framework` → `react-router-framework-mode`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`, installed only when `e2eTool == agent-browser`) — installed by init. Playwright ships no loadable skill (trace analysis is CLI-built-in).
 - **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
-- **Templates**: `feature-module.md` (feature module structure + framework-mode variants), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `e2e-testing.md` (agent-browser E2E patterns), `e2e-playwright.md` (Playwright E2E patterns), `framework-app-shell.md` (RR framework app shell: config/root/routes/entries), `server-state.md` (TanStack Query ↔ loader layering contract)
+- **Templates**: `feature-module.md` (feature module structure + framework-mode variants), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `prettier-config.md` (Prettier 3 fallback config — advisory), `i18n-key-coverage.md` (app-wide key-coverage spec contract), `e2e-testing.md` (agent-browser E2E patterns), `e2e-playwright.md` (Playwright E2E patterns), `framework-app-shell.md` (RR framework app shell: config/root/routes/entries), `server-state.md` (TanStack Query ↔ loader layering contract)
 
 ### Communication Language
 - Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+- Keep that output to the length the result needs: lead with the outcome (pass/fail, what changed, what is blocked), then the evidence it rests on, then the next step. The JSON report is the complete record — the final message is a readout of it, not a second copy.
 
 ### Testing (Strict TDD)
 
@@ -229,7 +243,7 @@ Key files:
   5. `page-tdd` — page tests → pages (tdd-cycle-runner agent)
   6. `integration` — routes + i18n + MSW global + barrel (integration-generator agent)
 - Each TDD phase runs in a separate agent session for context isolation
-- **Subagent isolation principle**: subagents never inherit session history. The coordinator constructs only the parameters each agent needs — no conversation context leaks between phases. This prevents context pollution and ensures fresh judgment per task.
+- Each phase runs isolated — see § Design Principles, "Subagent isolation"
 - External skills loaded per-phase (not all at once): vitest for TDD phases, composition-patterns for components, react-best-practices for pages, router for integration
 - Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
 
@@ -280,7 +294,31 @@ State files (progress, generation-state, review-report, fix-report, debug-report
 2. Merge only the fields being changed — preserve all existing fields
 3. Write the complete merged object
 
-**Lock file**: Skills that modify state files must acquire `docs/specs/{feature}/.implementation/frontend/.lock` before starting work. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+**Lock file**: A skill that mutates state acquires the lock before work and releases it on **every** exit — completion, refusal, a failed verification, or an agent that stops early. A *failed* acquire does not release that lock (it belongs to someone else), but the run still releases every lock it did take.
+
+Two scopes, acquired in this order — **feature lock → app lock**, never the reverse:
+
+| Lock | Scope | Held by |
+| --- | --- | --- |
+| `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `fe-gen`, `fe-verify`, `fe-review`, `fe-fix`, `fe-e2e` |
+| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, and the shared layouts + their locale files under `{sourceBaseDir}/layouts/` | `foundation-generator`, `integration-generator`, `delta-modifier`, `review-fixer` |
+
+The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
+
+**`baseDir` names two different directories, and the app-lock targets are under the wrong one if you confuse them.** Config `baseDir` is the **source root** (`app/src`); `plan.json` `baseDir` is the **feature directory** (`app/src/features/{feature}`). Agents receiving the feature directory (`delta-modifier`, `review-fixer`) resolve every app-wide path above against **`sourceBaseDir`**, passed separately — `{featureDir}/routes.ts` matches nothing, so an agent testing that path silently never takes the lock. Skills that read both must keep them in distinct variables; `fe-gen` already does this (`planBaseDir`), `fe-verify` must not overwrite one with the other.
+
+Lock contents:
+
+```json
+{ "holder": "fe-verify", "pid": 49402, "pidStartedAt": "2026-08-11T14:58:12+09:00",
+  "acquiredAt": "2026-08-11T15:21:04+09:00" }
+```
+
+- **Check `pid` first, and never break a lock whose process is still alive, however old it is.** `fe-gen` runs six TDD phases and legitimately exceeds 30 minutes.
+- **The 30-minute rule is a ghost-lock sweep, not a timeout.** It applies only once the holder is gone: `pid` is absent, or no live process carries that id.
+- **Never compare a running process's command against `holder`.** `holder` is a skill name (`fe-verify`); the process that owns the lock is the enclosing session (`claude`/`node`), whose command never matches it. Treating a mismatch as pid reuse would classify *every* legitimate lock as holder-less and sweep it at 30 minutes — the exact failure the `pid` check exists to prevent. Detect reuse with `pidStartedAt` instead: record the holder process's start time at acquire, and treat the lock as holder-less only when a live process with that id reports a **different** start time. When `pidStartedAt` is absent, liveness alone decides.
+- `acquiredAt` — ISO-8601 **with time**. Date-only or unparseable makes a holder-less lock immediately sweepable; it never makes a live holder's lock removable.
+- `pid` — a process that outlives the work, recorded with its `pidStartedAt`. `$$` from a one-shot Bash call is already dead and soon recycled, so record the enclosing session process or omit `pid` entirely, which is honest. When absent, `acquiredAt` alone decides.
 
 **Exception**: `fe-debug` intentionally does NOT acquire a lock — it serves as an interrupt tool usable at any pipeline stage, even when another operation holds the lock. The debugger writes `debug-report.json` and updates `implementation.status` without locking.
 
@@ -309,9 +347,34 @@ State files (progress, generation-state, review-report, fix-report, debug-report
   - `escalated` — requires manual intervention, then re-enter pipeline via fe-fix, fe-verify, or fe-review
   - Status determination on partial generation: any skipped or failed phase → `gen-failed` (prevents incomplete code from entering review pipeline)
 
+### Deliberate Deviations (`openApprovals`)
+
+A reviewer that re-raises a known, accepted deviation every round trains people to skim reviews. `plan.json` carries `openApprovals[]` as the one place a deviation is recorded:
+
+```json
+{ "id": "OA-1", "what": "phone validation accepts KR formats only",
+  "why": "international formats are out of scope for v1 (spec §4.2 defers)",
+  "status": "approved", "owner": "jieun.park", "at": "2026-08-11" }
+```
+
+- `spec-reviewer` and `quality-reviewer` **do not re-raise** an issue matching an `approved` entry; they list it once under "accepted deviations" so it stays visible.
+- **`status: "pending"` is not approval, and neither is a free-text note.** Approval requires `status: "approved"` **and** a named `owner` — not `TBD`, not the agent. An agent may *propose* a `pending` entry; it may never approve one, or the pipeline would be approving its own shortcuts.
+- Scope reduction without an approved entry is a review failure, not a smaller review. See § Design Principles, "Scope moves in both directions".
+
+### Design Principles
+
+Applied by every agent and skill in this plugin.
+
+- **Subagent isolation.** Subagents never inherit session history. A coordinator constructs only the parameters each agent needs — no conversation context leaks between phases. Fresh judgement per task, no context pollution.
+- **Delegation is named, not improvised.** Every phase that delegates names its agent explicitly; launch it with that skill's declared launcher (`Agent` or `Task`, whichever its `allowed-tools` lists) and only its declared params. Do not spawn an agent the skill did not name — in particular, never add a reviewer to double-check work a gate already covers. Verification belongs to the gate that owns it; `fe-clean-code` and `fe-test-review` are standalone audits a human invokes, not steps a phase adds for itself. When a skill names several independent agents, send them in one message so they run concurrently — but agents sharing a lock or a write target are **not** independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
+- **Scope moves in both directions.** Silently narrowing what the plan asks for is the familiar failure; unrequested widening is the same failure mirrored. Do not add features, files, gates, or behavior the plan does not call for, and do not substitute your own judgement about what the task should have been. If the plan looks wrong, say so in a sentence and execute it as written — amending it belongs to whoever owns the decision, not the executor.
+- **Evidence before claims, always** — see below.
+
 ### Verification Philosophy
 
 A principle applied across all agents and skills: **"Evidence before claims, always"**
+
+A statement about the *state of the evidence* is itself a claim: "all four languages are covered", "the spec ran", "M of N scenarios passed" each need the same treatment as a tool result — enumerate the artifacts and quote their values. Inferring coverage from configuration is not observation.
 
 #### Build Command Working Directory
 
@@ -324,6 +387,27 @@ All build/test tool commands (`npx vite`, `npx react-router`, `npx vitest`, `npx
 Example: `baseDir: "app/src"`, `appDir: "app"` → `cd {projectRoot}/app && npx vite build 2>&1`
 
 This applies to all agents and skills. Skills pass `appDir` to agents as a parameter.
+
+**Path arguments must be relative to `appDir`, not to the repo — use `{srcPath}`.** `baseDir` is
+repo-relative, so passing it to a command that already ran `cd {appDir}` doubles the prefix:
+`cd app && npx vitest run app/src/...` resolves to `app/app/src/...`, which does not exist. The
+command finds nothing and exits non-zero, and a gate reads that as a failure it cannot explain.
+
+`srcPath` is the source root **relative to `appDir`**: take `baseDir` and remove the leading
+`{appDir}/`. Skills derive it in Step 0 and pass it to every agent alongside `baseDir`.
+
+| `baseDir` | `appDir` | `srcPath` |
+| --- | --- | --- |
+| `app/src` | `app` | `src` |
+| `app/app` | `app` | `app` |
+| `src` | `.` | `src` |
+| `packages/web/src` | `packages/web` | `src` |
+| `custom` (no `/src` or `/app` suffix) | `custom` | `.` |
+
+**Commands take `{srcPath}`; file operations keep `{baseDir}`.** Read, Write, Edit, and Glob resolve
+against the repo root and must stay repo-relative — only the arguments of the tool commands above are
+rewritten. A test file is *written* to `{baseDir}/features/{f}/__tests__/x.test.ts` and *run* as
+`npx vitest run {srcPath}/features/{f}/__tests__/x.test.ts` from `{appDir}`.
 
 **Framework-mode path-base rule.** `react-router.config.ts` and the generated `.react-router/` types
 directory live in `{appDir}` (siblings of `vite.config.*`/`package.json`) — every scaffold, glob, check,
@@ -379,6 +463,9 @@ Verification Red Flags — these thoughts mean you're rationalizing (all agents)
 | "Tests passed, so it's correct" | Tests cover what was written, not what was missed. Check the spec. |
 | "I'll verify at the end" | Errors compound. Verify at each step. |
 | "The error is unrelated to my change" | Prove it. Run the verification. |
+| "The suite is green, so the tests are good" | Green means the test and the code agree. The same author wrote both from one reading. Mutate the behavior and watch it go red. |
+| "The file exists, so that check ran" | Existence is not execution. Read the run output for its results. |
+| "I know what's in that artifact without opening it" | A coverage statement ("all languages covered", "M of N tested") is itself a claim. Enumerate and quote. |
 
 ## File Structure
 
@@ -420,7 +507,9 @@ docs/            - Documentation
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -433,6 +522,7 @@ An **ota** config instead reads (with `renderingDefault` present only in framewo
   "formStack": "rhf-zod",
   "e2eTool": "playwright",
   "renderingDefault": "ssr",
+  "devPort": 5173,
   "mockFirst": true,
   "baseDir": "app/app",
   "appDir": "app",
@@ -449,4 +539,7 @@ An **ota** config instead reads (with `renderingDefault` present only in framewo
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
 - `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. Framework mode's RR source root is the `app/` dir (e.g. `app/app`). When absent, falls back to `"src"` for backward compatibility.
 - `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*` / `react-router.config.ts`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip a `/src` **or** `/app` suffix from `baseDir` (`app/src` → `app`, `app/app` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
+- `devPort`: optional, default `5173` — the dev-server port `fe-e2e` uses and (in Playwright mode) foundation's Step 5c bakes into `playwright.config.ts` `webServer`. One value, one source: fe-gen and fe-e2e both read it from config with the same default, so the scaffolded config and the runner always agree. Set it when 5173 is taken — with `reuseExistingServer`, an unrelated service already on the port would otherwise be treated as the app under test.
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
+- `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate".
+- `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `fe-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage".

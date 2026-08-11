@@ -548,7 +548,9 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike �
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -559,6 +561,8 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike �
 | `baseDir` | 생성되는 소스 코드의 기본 디렉토리 | `"app/src"` |
 | `appDir` | `vite.config.*`와 `package.json`이 있는 디렉토리 — 모든 빌드/테스트 명령이 여기서 실행됨 | `baseDir`에서 자동 도출 |
 | `eslintTemplate` | ESLint 설정이 없을 때 번들 템플릿으로 `eslint.config.js` 자동 생성 | `true` |
+| `prettierTemplate` | Prettier 설정이 없을 때 `prettier.config.js` + `.prettierignore` 자동 생성. 포맷 검사는 **자문**이며 게이트를 막지 않음 | `true` |
+| `i18n` | 제품 UI의 카피 범위: `languages`("모든 지원 언어"가 가리키는 집합)와 `lookupFns`(리터럴 키를 검사할 헬퍼). 앱 전역 키 커버리지 스펙의 기준 | *(없음 — 생략하면 검사 건너뜀)* |
 
 ## 생성되는 프로젝트 구조
 
@@ -594,7 +598,8 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike �
 | `e2e-report.json` | 시나리오 상세가 포함된 E2E 테스트 결과 (fe-fix E2E 모드의 입력) |
 | `debug-report.json` | 가설 로그가 포함된 디버그 세션 결과 |
 | `delta-plan.json` | 증분 명세서 변경 계획 (델타 fe-gen의 입력, 실행 후 아카이브) |
-| `.lock` | 동시 실행 방지 (30분 후 자동 만료) |
+| `.lock` | feature 범위 동시 실행 방지 (`holder` / `pid` / `acquiredAt`) |
+| `docs/specs/.app.lock` | 중앙 라우트 파일·i18n 설정·MSW 핸들러 집계 등 앱 전역 파일 보호 |
 
 ### 진행 상태 머신
 
@@ -611,7 +616,7 @@ planned → generated → verified → reviewed → done
 
 ### 상태 파일 안전성
 
-- **잠금 메커니즘**: 상태 파일을 수정하는 스킬은 시작 전에 `.lock`을 획득합니다. 동일 기능에 대한 fe-gen/fe-verify/fe-review/fe-fix/fe-e2e의 동시 실행을 방지합니다. 만료된 잠금(30분 초과)은 자동으로 제거됩니다.
+- **잠금 메커니즘**: 두 개의 범위를 순서대로 획득합니다 — feature `.lock`(동일 기능에 대한 fe-gen/fe-verify/fe-review/fe-fix/fe-e2e 동시 실행 방지) 다음에 `docs/specs/.app.lock`(중앙 라우트 파일·i18n 설정·MSW 핸들러 집계 쓰기 보호. feature 잠금으로는 보호되지 않습니다). 잠금은 보유자가 사라진 경우에만 해제할 수 있습니다: `pid`를 먼저 확인하며, 30분 규칙은 실행 중인 작업의 타임아웃이 아니라 유령 잠금 청소입니다 — fe-gen의 6개 TDD 단계는 정상적으로 30분을 넘깁니다.
 - **Read-Modify-Write 규칙**: 쓰기 전에 항상 최신 파일 내용을 읽습니다. 변경된 필드만 병합하며 기존 필드를 모두 보존합니다.
 - **단계 타임스탬프**: 각 TDD 단계는 정확한 재개 및 계획 최신성 검사를 위해 `completedAt`을 기록합니다.
 - **변경 감지**: fe-fix는 마지막 리뷰 이후 소스 파일이 변경된 경우 경고합니다. fe-review는 생성 이후 명세서가 변경된 경우 경고합니다.
@@ -696,7 +701,8 @@ skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-rev
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
+                 prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
 ```
 

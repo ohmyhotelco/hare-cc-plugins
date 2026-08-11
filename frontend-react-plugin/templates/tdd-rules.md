@@ -14,28 +14,21 @@ Write code before the test? Delete it. Start over. No exceptions.
 
 ### RED — Write Failing Test
 
-Write one minimal test showing what should happen.
+One minimal test showing what should happen.
 
-**Requirements:**
 - One behavior per test — if the name contains "and", split it
-- Clear name describing the behavior being tested
-- Real code paths (mocks only for network boundary via MSW)
-- Source comment linking to spec scenario (`// TS-nnn`)
+- A name that describes the behavior, not the implementation
+- Real code paths (mocks only at the network boundary, via MSW)
+- An anchor to the spec — see "Anchors" below
 
-**Stub-first for import resolution:**
-
-Since tests are written before implementation, imports will fail. Create minimal stubs so the test FAILS on assertions, not on import errors:
+**Stub-first for import resolution.** The implementation does not exist yet, so the import would raise MODULE_NOT_FOUND and the test would *error* rather than *fail*. Create a minimal stub:
 
 ```typescript
 // Stub: {baseDir}/features/{feature}/api/entityApi.ts
-// Minimal stub — just enough for import resolution
 export const entityApi = {} as Record<string, never>;
 ```
 
-The stub ensures:
-- Import resolves (no MODULE_NOT_FOUND error)
-- Test fails on assertion (correct RED state)
-- Failure message is clear: "entityApi.getList is not a function" or assertion mismatch
+Now the import resolves and the test fails on its assertion — the correct RED state.
 
 ### VERIFY RED — Watch It Fail (MANDATORY)
 
@@ -45,44 +38,73 @@ The stub ensures:
 npx vitest run {testFile} --reporter=verbose
 ```
 
-Confirm:
-- Test **fails** (not errors from missing modules or syntax)
-- Failure message is the expected assertion failure
-- Fails because feature is not implemented (not because of typos)
+The test must **fail**, not error, and the message must be the assertion you expected — not a typo or a wrong path.
 
-**Test passes immediately?** Something is wrong — you're testing existing behavior or the assertion is vacuous. Fix the test.
-
-**Test errors (not fails)?** Fix the error (missing import, wrong path), re-run until it fails correctly.
+- **Passes immediately?** The assertion is vacuous, or it tests behavior that already exists. Fix the test.
+- **Errors instead of failing?** Fix the error, re-run until it fails correctly.
 
 ### GREEN — Minimal Implementation
 
-Write the simplest code to make the test pass. Replace the stub with real implementation.
+The simplest code that passes. Replace the stub.
 
-**Rules:**
-- Only implement what the test demands — no extra features
-- Follow plan.json spec exactly — no additions, no "improvements"
+- Implement only what the test demands
+- Follow plan.json exactly — no additions, no "improvements"
 - Do not refactor other code during GREEN
 
 ### VERIFY GREEN — Watch It Pass (MANDATORY)
 
-```bash
-npx vitest run {testFile} --reporter=verbose
-```
+Same command. Every test in the file passes and the output is pristine — no warnings, no unhandled errors. **Test fails? Fix the implementation, not the test.**
 
-Confirm:
-- All tests in the file pass
-- Output is pristine (no warnings, no unhandled errors)
+### VERIFY THE TEST — Survive a Mutation (MANDATORY)
 
-**Test fails?** Fix the implementation, not the test.
+Green proves the test and the code agree. It does not prove the test would notice if the code were wrong — and here they share an author, written from one reading of the spec in one session. A misreading produces a test and an implementation that agree with each other, and the phase goes green anyway.
+
+So break the **one behavior you just made pass** in the production code: delete the guard, invert the condition, return the other branch, or stop passing the prop. Re-run. Confirm it goes **red**. Restore the code and re-run once to confirm green.
+
+- Stays green → the test asserts nothing about that behavior. Strengthen the assertion and repeat.
+- Scope is the behavior just written — one mutation, seconds. Not the file, not the suite.
 
 ### REFACTOR — Clean Up (Optional)
 
-After GREEN only:
-- Remove duplication
-- Improve names
-- Extract helpers
+After GREEN only: remove duplication, improve names, extract helpers. Keep tests green. Do not add behavior.
 
-Keep tests green throughout. Do not add behavior.
+## Anchors — cite the spec, not a derived artifact
+
+Every test carries a source comment naming where its expected behavior came from:
+
+```typescript
+// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88
+```
+
+The anchor points at the **spec**: the scenario (`TS-nnn`), requirement (`FR-nnn`), or validation rule, with `file:line`. It must **not** point at `plan.json` or any other generated artifact — those were written from the same reading the test was, so citing one proves nothing and a reviewer following it learns nothing the test did not already assume.
+
+This is what makes the reading checkable: `test-reviewer` follows the anchor and confirms the cited line says what the test assumes. Behavior with no spec line to cite — a rendering detail, a defensive branch — carries no anchor. Do not invent one.
+
+## Request bodies (api phase, when zod schemas exist)
+
+A request-body builder that spreads shared params —
+
+```typescript
+const body = { ...getCommonParams(), ...payload };   // re-adds `locale` that the schema .omit()s
+```
+
+— can put back a field the endpoint's schema deliberately excludes, and **TypeScript will not catch
+it**: excess-property checking only fires on object literals assigned directly to a typed target,
+not on a spread result. The test then asserts the fields it knows about and passes.
+
+So: **return the body parsed through the endpoint's zod schema** (non-strict, so parsing strips what
+the schema omits), and pin it with a **body-shape test** that asserts the exact key set, not just
+that the expected fields are present:
+
+```typescript
+// TS-021 — docs/specs/booking/ko/test-scenarios.md:64
+expect(Object.keys(buildCreateBookingBody(input)).sort()).toEqual(
+  ['checkIn', 'checkOut', 'guestCount', 'roomTypeId'],   // no `locale`
+);
+```
+
+`toEqual` on the sorted key set is the point — `toMatchObject` and per-field assertions both pass
+with an extra field present, which is the defect.
 
 ## Testing Anti-Patterns (MUST AVOID)
 
@@ -105,7 +127,7 @@ test('shows entity list on success', async () => {
 });
 ```
 
-**Rule:** Assert on component output (what renders) or function return values, not on whether a mock was called.
+**Rule:** Assert on component output (what renders) or on return values, never on whether a mock was called.
 
 ### Anti-Pattern 2: Test-Only Methods in Production
 
@@ -115,13 +137,13 @@ class EntityStore {
   _resetForTest() { /* ... */ }
 }
 
-// GOOD: Use the store's public API or test utilities
+// GOOD: Use the store's public API
 beforeEach(() => {
   useEntityStore.setState(initialState);
 });
 ```
 
-**Rule:** Never add methods to production code that are only called by tests. Put test helpers in test files or test-utils.
+**Rule:** Never add production methods that only tests call. Test helpers belong in test files or test-utils.
 
 ### Anti-Pattern 3: Mocking Without Understanding
 
@@ -140,7 +162,7 @@ server.use(
 );
 ```
 
-**Rule:** Before mocking, ask: "What side effects does the real code have? Does my test depend on them?" Mock at the lowest level necessary — prefer MSW for API calls.
+**Rule:** Before mocking, ask what side effects the real code has and whether the test depends on them. Mock at the lowest level necessary — for API calls, that is MSW.
 
 ### Anti-Pattern 4: Incomplete Mocks
 
@@ -151,122 +173,55 @@ server.use(
     HttpResponse.json({ items: [] }) // Missing: total, page, pageSize
   ),
 );
-
-// GOOD: Mirror the complete API response shape
-server.use(
-  http.get('/api/v1/entities', () =>
-    HttpResponse.json({ items: [], total: 0, page: 1, pageSize: 20 })
-  ),
-);
 ```
 
-**Rule:** MSW handler responses MUST include ALL fields defined in the TypeScript interface. Partial responses create silent failures.
+**Rule:** An MSW handler response must include **every** field in the TypeScript interface. Partial responses fail silently downstream.
 
-### Anti-Pattern 5: Tests as Afterthought
+## Mock Strategy
 
-Tests written after implementation pass immediately. Passing immediately proves nothing:
-- Might test the wrong thing
-- Might test implementation, not behavior
-- Might miss edge cases
+| Mock this (unavoidable boundary) | With | Why |
+|---|---|---|
+| HTTP API calls | MSW (`server.use`) | Network boundary — cannot hit a real backend |
+| Browser APIs (localStorage, …) | Vitest mocks | Environment boundary |
+| i18n `t()` | i18n test wrapper | Avoids loading the full i18n config |
+| React Router context | `MemoryRouter` wrapper | Router hooks need a context |
 
-**Rule:** This is why the RED step exists. Seeing the test fail proves it tests something real.
-
-## Mock Strategy for React Features
-
-### What to mock (unavoidable boundaries)
-
-| Boundary | Mock Tool | Reason |
-|----------|-----------|--------|
-| HTTP API calls | MSW (`server.use`) | Network boundary — cannot hit real backend |
-| Browser APIs (localStorage, etc.) | Vitest mocks | Environment boundary |
-| i18n `t()` function | i18n test wrapper | Avoid loading full i18n config |
-| React Router context | `MemoryRouter` wrapper | Routing context required for hooks |
-
-### What NOT to mock
-
-| Real Code | Why Not Mock |
-|-----------|-------------|
-| Zustand stores | Test real state management behavior |
-| Components imported by pages | Test real composition, not mock stubs |
-| Utility functions (cn, formatDate) | Pure functions — test directly |
-| Factories/fixtures | Test infrastructure — always use real |
+| Never mock this | Why |
+|---|---|
+| Zustand stores | Test real state management |
+| Components a page imports | Test real composition, not stubs |
+| Utility functions (`cn`, `formatDate`) | Pure — test them directly |
+| Factories / fixtures | Test infrastructure — always real |
 | Validation logic | Business logic — must be tested for real |
 
-## Gate Functions (Check Before Acting)
-
-### Before adding a mock:
-
-```
-1. What side effects does the real code have?
-2. Does this test depend on any of those side effects?
-3. Can I test this without mocking? (prefer real code)
-4. If I must mock, am I mocking at the lowest level?
-5. Is my mock response complete (all interface fields)?
-```
-
-### Before asserting:
-
-```
-1. Am I testing real behavior or mock existence?
-2. Does this assertion prove the feature works?
-3. Would this assertion catch a regression?
-```
-
-### Before claiming RED verified:
-
-```
-1. Did the test fail (not error)?
-2. Is the failure message the expected assertion failure?
-3. Does it fail because the feature is missing (not a typo)?
-```
-
-### Before claiming GREEN verified:
-
-```
-1. Do ALL tests in the file pass?
-2. Is the output pristine (no warnings)?
-3. Did I only implement what the test demanded?
-```
-
-## Verification Checklist
-
-Before marking a TDD phase complete:
+## Phase Completion Checklist
 
 - [ ] Every function/component has at least one test
-- [ ] Watched each test fail before implementing (RED verified)
-- [ ] Each test failed for the expected reason (feature missing, not typo)
-- [ ] Wrote minimal code to pass each test (no extras)
-- [ ] All tests pass (GREEN verified)
-- [ ] Output pristine (no errors, no warnings)
-- [ ] Tests use real code (MSW only for network boundary)
-- [ ] No test-only methods added to production code
-- [ ] Mock responses are complete (all interface fields)
-- [ ] Each test has a `// TS-nnn` source comment
+- [ ] Watched each test fail before implementing, for the expected reason (RED verified)
+- [ ] Wrote minimal code to pass each test — no extras
+- [ ] All tests pass, output pristine (GREEN verified)
+- [ ] Each new behavior survived a mutation (broke it, saw red, reverted, re-confirmed green)
+- [ ] Each test carries a spec anchor (`TS-nnn` / `FR-nnn` + `file:line`), never a `plan.json` reference
+- [ ] Tests use real code — MSW only at the network boundary
+- [ ] No test-only methods in production code
+- [ ] Mock responses complete (all interface fields)
 
-## Common Rationalizations — STOP Before You Convince Yourself
+## Rationalizations — the thought IS the warning
 
 | Excuse | Reality |
 |--------|---------|
-| "Too simple to test" | Simple code breaks. Test takes 30 seconds. No exceptions. |
-| "I'll write tests after" | Tests passing immediately prove nothing. RED is mandatory. |
-| "Already manually verified" | Ad-hoc ≠ systematic. No record, can't re-run, won't catch regressions. |
-| "Deleting the stub and rewriting is wasteful" | Sunk cost fallacy. Keeping unverified code is technical debt. |
-| "Keep the implementation as reference, then write tests" | You'll adapt it. That's testing-after. Delete means delete. |
-| "Need to explore the codebase first" | Fine. Throw away exploration, then start with TDD. |
-| "Test is hard to write = skip it" | Hard to test = hard to use. Listen to the test — simplify the design. |
-| "TDD will slow me down" | TDD is faster than debugging. Pragmatic = test-first. |
-| "The plan.json is too complex for one-test-at-a-time" | Complex plans need MORE discipline, not less. One behavior per test. |
+| "Too simple to test" | Simple code breaks. The test takes 30 seconds. |
+| "I'll write tests after" | A test that passes immediately proves nothing. RED is mandatory. |
+| "Already manually verified" | Ad-hoc ≠ systematic. No record, no re-run, no regression catch. |
+| "Deleting the implementation and restarting is wasteful" | Sunk cost. Unverified code is debt, not progress. |
+| "Keep it as reference, then write tests" | You will adapt the test to it. That is testing-after. Delete means delete. |
+| "Test is hard to write, skip it" | Hard to test = hard to use. Simplify the design instead. |
+| "TDD will slow me down" | TDD is faster than debugging. |
+| "plan.json is too complex for one-test-at-a-time" | Complex plans need more discipline, not less. |
 | "MSW setup is too heavy for this test" | MSW is the only acceptable mock boundary. Set it up. |
-| "This is different because..." | No. That thought IS the rationalization. Follow the rules. |
+| "It went green, so the test works" | Green means they agree. Mutate it and find out. |
+| "This is different because…" | No. That thought IS the rationalization. |
 
 **Violating the letter of the rules is violating the spirit of the rules.**
 
-## Red Flags — STOP and Start Over
-
-- Writing implementation before test
-- Test passes immediately on first run
-- Asserting on mock call counts instead of rendered output
-- Mock setup is longer than the test logic
-- Adding methods to production code "for testing"
-- Can't explain why a test failed
-- Rationalizing "just this once"
+Stop and start over on any of: implementation written before its test; a test that passes on the first run; assertions on mock call counts instead of rendered output; mock setup longer than the test; production methods added "for testing"; a failure you cannot explain.

@@ -6,7 +6,7 @@ A collection of Claude Code plugins that cover the full software delivery lifecy
 
 ## Plugins
 
-### [Planning Plugin](./planning-plugin/) `v1.5.1`
+### [Planning Plugin](./planning-plugin/) `v1.7.0`
 
 Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
 
@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v2.0.0`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.2.9`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 

@@ -548,7 +548,9 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -559,6 +561,8 @@ Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự á
 | `baseDir` | Thư mục cơ sở cho mã nguồn được sinh | `"app/src"` |
 | `appDir` | Thư mục chứa `vite.config.*` và `package.json` — tất cả lệnh build/test chạy ở đây | Tự động từ `baseDir` |
 | `eslintTemplate` | Tự động tạo `eslint.config.js` từ template đi kèm khi chưa có cấu hình ESLint | `true` |
+| `prettierTemplate` | Tự động tạo `prettier.config.js` + `.prettierignore` khi chưa có cấu hình Prettier. Kiểm tra định dạng là **tư vấn** — báo cáo nhưng không chặn | `true` |
+| `i18n` | Bề mặt nội dung UI của sản phẩm: `languages` (tập hợp mà "mọi ngôn ngữ được hỗ trợ" trỏ tới) và `lookupFns` (các helper có khóa literal được kiểm tra). Là cơ sở cho spec key-coverage toàn ứng dụng | *(không có — bỏ qua để tắt kiểm tra)* |
 
 ## Cấu trúc dự án được sinh
 
@@ -594,7 +598,8 @@ Tệp trạng thái trong `docs/specs/{feature}/.implementation/frontend/`:
 | `e2e-report.json` | Kết quả kiểm thử E2E với chi tiết kịch bản (đầu vào cho chế độ E2E của fe-fix) |
 | `debug-report.json` | Kết quả phiên gỡ lỗi với nhật ký giả thuyết |
 | `delta-plan.json` | Kế hoạch thay đổi đặc tả gia tăng (đầu vào cho delta fe-gen, lưu trữ sau thực thi) |
-| `.lock` | Ngăn thực thi đồng thời (tự động hết hạn sau 30 phút) |
+| `.lock` | Khóa phạm vi tính năng (`holder` / `pid` / `acquiredAt`) |
+| `docs/specs/.app.lock` | Khóa phạm vi ứng dụng cho tệp route trung tâm, cấu hình i18n và tập hợp handler MSW |
 
 ### Máy trạng thái tiến độ
 
@@ -611,7 +616,7 @@ planned → generated → verified → reviewed → done
 
 ### An toàn tệp trạng thái
 
-- **Cơ chế khóa**: Các skill sửa đổi tệp trạng thái sẽ lấy `.lock` trước khi bắt đầu. Ngăn thực thi đồng thời của fe-gen/fe-verify/fe-review/fe-fix/fe-e2e trên cùng tính năng. Khóa cũ (>30 phút) được tự động xóa.
+- **Cơ chế khóa**: Hai phạm vi, lấy theo thứ tự — khóa tính năng `.lock` (fe-gen/fe-verify/fe-review/fe-fix/fe-e2e trên cùng một tính năng) rồi `docs/specs/.app.lock` (mọi ghi vào tệp route trung tâm, cấu hình i18n hoặc tập hợp handler MSW — khóa tính năng không bảo vệ những tệp này). Chỉ phá khóa khi chủ sở hữu đã biến mất: kiểm tra `pid` trước, và quy tắc 30 phút là dọn khóa ma chứ không phải timeout một tiến trình đang chạy — sáu giai đoạn TDD của fe-gen vượt quá mốc này một cách hợp lệ.
 - **Quy tắc Read-Modify-Write**: Luôn đọc nội dung tệp mới nhất trước khi ghi. Chỉ hợp nhất các trường đã thay đổi — bảo toàn tất cả trường hiện có.
 - **Timestamp giai đoạn**: Mỗi giai đoạn TDD ghi lại `completedAt` để hỗ trợ tiếp tục chính xác và phát hiện độ mới của kế hoạch.
 - **Phát hiện lỗi thời**: fe-fix cảnh báo khi tệp nguồn thay đổi kể từ lần đánh giá cuối. fe-review cảnh báo khi đặc tả thay đổi kể từ lần sinh mã.
@@ -696,7 +701,8 @@ skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-rev
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
+                 prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
 ```
 

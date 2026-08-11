@@ -16,7 +16,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`
+1. Read `.claude/frontend-react-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`, `devPort` (default `5173` when absent)
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
@@ -25,6 +25,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 7. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+8. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 **Tool branch (`e2eTool`).** The steps below are the **`agent-browser`** path (default). The only mode-aware element on that path is the dev-server launch (Step 3), which branches on `routerMode` per the **Router-mode command matrix** in the plugin CLAUDE.md. When **`e2eTool == playwright`**, `playwright.config.ts` `webServer` owns the dev server — follow the **Playwright mode** overrides marked inline in Steps 1, 2, 3, 3.5, 4, 5, 6, and 7; the lock, user confirmation, report save, and progress-update steps are shared and unchanged. Reference `templates/e2e-playwright.md` for the Playwright patterns.
 
@@ -38,22 +39,26 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 2. Read `plan.json` → extract `feature`, `e2eTests`, `routes`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`, and `standalone` (default `false`) — passed to the runner, which branches its spec reads on it
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - Accepted statuses: `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `escalated`, `done`
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
-6. **E2E scenarios check** — verify `e2eTests` exists and is non-empty in plan.json:
-   - If `e2eTests` is absent or empty:
-     > "No E2E scenarios defined in the implementation plan."
-     > "Add multi-page test scenarios to `test-scenarios.md` and re-run `/frontend-react-plugin:fe-plan {feature}`."
+2. **E2E scenarios check** — verify `e2eTests` exists and is non-empty in plan.json:
+   - If `e2eTests` is absent or empty — branch on the progress file's `standalone` flag:
+     - Non-standalone:
+       > "No E2E scenarios defined in the implementation plan."
+       > "Add multi-page test scenarios to `test-scenarios.md` and re-run `/frontend-react-plugin:fe-plan {feature}`."
+     - Standalone (`standalone: true` — there is no `test-scenarios.md` and never will be):
+       > "No E2E scenarios in the plan. Standalone plans derive generic flows per screen — re-run `/frontend-react-plugin:fe-plan {feature} --standalone` (the planner now emits them), or add `e2eTests[]` entries to plan.json by hand."
+     - Stop here in both cases.
      - Stop here.
 
 6b. **Route-to-scenario URL validation** — cross-check E2E URLs against route definitions:
@@ -67,7 +72,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      > "Available routes: {list of route paths}"
      > "Options: 1. Continue anyway  2. Update plan first (`/frontend-react-plugin:fe-plan {feature}`)"
 
-7. **Agent-browser CLI check**:
+1. **Agent-browser CLI check**:
    ```bash
    agent-browser --version 2>&1
    ```
@@ -78,12 +83,12 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      > "  cargo install agent-browser"
      - Stop here.
 
-8. **Agent-browser skill check** — verify `.claude/skills/agent-browser/SKILL.md` exists:
+2. **Agent-browser skill check** — verify `.claude/skills/agent-browser/SKILL.md` exists:
    - If not found:
      > "Agent-browser skill not installed. Run `/frontend-react-plugin:fe-init` to install external skills."
      - Stop here.
 
-> **Playwright mode:** skip prerequisite checks 7–8 above (they are agent-browser-only) and run these instead, from `{appDir}` (prefix `cd {appDir} &&` unless `appDir` is `"."`):
+> **Playwright mode:** skip the **Agent-browser CLI check** and **Agent-browser skill check** above (items 1–2 — agent-browser-only) and run these instead, from `{appDir}` (prefix `cd {appDir} &&` unless `appDir` is `"."`):
 > - **Playwright CLI check** — `npx playwright --version 2>&1`. If not found:
 >   > "Playwright is not installed. Add it with: `pnpm add -D @playwright/test` (then run `npx playwright install` once for the browser binaries)."
 >   - Stop here.
@@ -94,17 +99,12 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 ### Lock Acquire
 
-Check `docs/specs/{feature}/.implementation/frontend/.lock`:
-- If file exists:
-  - Read `lockedAt` and `operation`
-  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
-  - Otherwise:
-    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
-    - Stop here.
-- Create lock file:
-  ```json
-  { "lockedAt": "{ISO timestamp}", "operation": "fe-e2e" }
-  ```
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-e2e"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Confirm with User
 
@@ -224,7 +224,9 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - baseDir: {baseDir}
   - appDir: {appDir}
-  - port: {port}
+  - srcPath: {srcPath}
+  - standalone: {standalone}
+  - port: {port — agent-browser mode: the port Step 3 chose; Playwright mode: Step 3 is skipped, so pass `devPort` from config (default 5173), the same value foundation's Step 5c baked into playwright.config.ts webServer}
   - e2eTool: {e2eTool}
   - routerMode: {routerMode}
   - e2eTests: {e2eTests from plan.json}
@@ -248,7 +250,10 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
 
 **On failure (agent error, not test failure):**
 - Record the error
-- Proceed to Step 5 (cleanup) and Step 7 (stop server)
+- Proceed to **Step 5 (stop dev server)**, then synthesize a failed report — `status: "failed"` with `failureKind: "agent-error"` (**not** `status: "error"`; the save and progress steps map only `completed`/`partial`/`failed`, so an `error` status has no mapping and leaves the progress file stale), the
+  agent's error text, zero scenarios executed — and run **Step 7 (save report)** and **Step 8
+  (update progress)** with it before releasing the lock. Step 7 is Save Report and Step 5 is the
+  server shutdown; skipping them leaves no record that the run happened and no status transition.
 
 ### Step 5: Stop Dev Server
 
@@ -333,8 +338,13 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update:
 ```
 
 **2. Status update** — update `implementation.status` based on E2E result:
-- If all scenarios passed (`e2e.status` is `"pass"`) AND current `implementation.status` is `"fixing"`:
+- If all scenarios passed (`e2e.status` is `"pass"`) AND current `implementation.status` is
+  `"fixing"` AND `implementation.fix.mode` is `"e2e"`:
   → Set `implementation.status = "done"` (E2E fix loop completed)
+- If all passed but `implementation.fix.mode` is `"review"` (or absent — a fix that predates the
+  field): do **not** promote. The review fix has not been re-reviewed; say so and name
+  `/frontend-react-plugin:fe-review {feature}` as the next step. A green E2E run exercises flows,
+  not review findings — promoting here skips the re-review the fix flow requires.
 - Otherwise: do not change `implementation.status`
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `fix`, `debug`), then write back the complete file.

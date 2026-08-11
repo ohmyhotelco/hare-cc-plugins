@@ -32,6 +32,7 @@ The skill will provide these parameters in the prompt:
 - `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.
 - `existingPlanFile` — (optional) path to existing plan.json (provided when `incrementalMode` is `true`)
 - `deltaOutputFile` — (optional) delta output path (e.g., `docs/specs/{feature}/.implementation/frontend/delta-plan.json`)
+- `i18n` — **optional**; the config i18n block (`languages`, `lookupFns`). `i18n.languages` is what the plan's locale entries and every generator iterate over. **Absent → fall back to `ko/en/ja/vi`; never invent a set.** A configured language that no generator emits fails the key-coverage gate with nothing able to satisfy it.
 
 ## Process
 
@@ -41,10 +42,14 @@ The skill will provide these parameters in the prompt:
    - Check `status` (reviewing | finalized)
    - Extract `workingLanguage`
 
-2. **Spec files** — Read 3 files from `specDir`:
-   - `{feature}-spec.md` → overview, user stories, functional requirements (FR/BR/AC)
-   - `screens.md` → screen definitions (Layout, Components, User Actions), error handling
-   - `test-scenarios.md` → NFR, test scenarios
+2. **Spec files** — Read from `specDir`. **Check `standalone` first**: standalone mode creates only
+   `{feature}-spec.md`, so reading the other two unconditionally fails on every standalone run.
+   - `standalone: true` → read **only** `{feature}-spec.md`. Derive screens from its screen section
+     and skip test scenarios entirely; a standalone plan has no `TS-nnn` to reference, which the
+     skill already tells the user.
+   - otherwise → read all three: `{feature}-spec.md` (overview, user stories, FR/BR/AC),
+     `screens.md` (screen definitions, error handling), `test-scenarios.md` (NFR, test scenarios).
+     A missing file here is a real error — report it rather than continuing with a partial plan.
 
 3. **UI DSL** — Check `uiDslDir`:
    - `manifest.json` → screen list, navigation graph, dataEntities
@@ -63,7 +68,14 @@ The skill will provide these parameters in the prompt:
    - Generate default CRUD API methods per entity (GET list, GET by id, POST, PUT, DELETE)
    - Default validation rules: non-nullable → `required`, email → `email`, string → `maxLength: 255`
    - Generate CRUD-based generic test cases (no TS-nnn references)
-   - Set `source` field to `"standalone"` instead of `"FR-nnn"`
+   - Derive `e2eTests[]` the same way: one generic flow per screen/entity (list → create → edit →
+     delete), `source` citing the FR ids, no TS references. An empty `e2eTests[]` here would make
+     `fe-e2e` demand a `test-scenarios.md` that standalone mode never creates.
+   - Keep the real requirement id in `source` (`"FR-nnn"` — the standalone spec stub does number
+     its functional requirements) and set the plan's top-level `"standalone": true` instead.
+     Writing the literal `"standalone"` into `source` destroys the old-fingerprint extraction in
+     Phase 3.1, which is built entirely from `source` values: every requirement would then look
+     newly added on the first incremental replan.
 
 6. **Shared layout reference** — Check for shared layout:
    a. If `uiDslDir/manifest.json` exists:
@@ -236,7 +248,7 @@ User-facing text per screen → namespace + key list:
 
 - label, placeholder, validation message, button text
 - error message, toast message
-- 4 languages (ko, en, ja, vi)
+- one entry per language in the config `i18n.languages` (fallback ko, en, ja, vi when no `i18n` block)
 
 #### 2.8 shadcn/ui Dependencies
 
@@ -334,9 +346,22 @@ Non-TDD phases (`tdd: false`) specify only `verify[]`.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
 
+> **Standalone applies here too.** Phase 3 re-reads the spec to diff it. When the progress file says `standalone: true`, only `{feature}-spec.md` exists — derive the diff from it and omit `TS-nnn` fingerprints, exactly as full planning does. Reading `screens.md` / `test-scenarios.md` unconditionally fails every incremental replan of a standalone feature.
+
+> **Route every generated file kind, including the config-gated ones.** Phase routing must map `schemas/{entity}Schema.ts` → `foundation` (`formStack == rhf-zod`) and, in framework mode, `routes/{name}.tsx` route modules → `page-tdd`. A file kind missing from the routing table is absent from `affectedFiles` and `scopedFiles`, so a delta that needs it generates a page whose schema or route module never appears — the build fails on the import.
+
 When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and execute this phase instead. Phase 0 and Phase 1 are still executed to read the current spec and analyze the project.
 
 #### 3.1 Load Existing Plan
+
+> **Standalone branch (operative, not advisory).** When the progress file says `standalone: true`:
+> in 3.1 item 3, parse FR/BR/AC/US ids **and screen ids** — standalone full planning derives
+> screens from the spec's screen section and pages carry `source: "screen: {id}"` with a hash over
+> that section (canonical-text precedence), so a replan that drops screen ids can never recompute a
+> page hash and classifies every unchanged page as modified, forever. Only TS-nnn and error codes
+> are absent. In 3.2 item 1, read **only** `{feature}-spec.md` — `screens.md` and
+> `test-scenarios.md` do not exist in standalone mode and reading them fails the replan outright;
+> screen text comes from the spec's screen sections.
 
 1. Read `existingPlanFile` → parse the full plan.json
 2. Extract the **old spec fingerprint**: collect all `source` field values from every entry across `types[]`, `api[]`, `stores[]`, `components[]`, `pages[]`, `tests[]`, `e2eTests[]`, `sharedLayouts[]`
@@ -346,6 +371,9 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - Screen IDs (kebab-case) → from `screens.md` or UI DSL `manifest.json`
    - Error codes (E-nnn) → from `screens.md` error handling
 4. Record the mapping: `{ specId → [plan entries that reference it] }`
+5. Collect each source-bearing object's `sourceHash` — **at every nesting level**, not only the
+   top-level arrays: `api[].queries.hooks[]` (the schema nests hook records there, not at `api[].queries[]`), `components[].validation[]`, and `tests[].cases[]` carry
+   their own. Objects from a plan that predates `sourceHash` have none; record them as `hashless`.
 
 #### 3.2 Extract Current Spec Fingerprint
 
@@ -354,7 +382,34 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - `screens.md` → extract screen IDs, component lists, error codes, field lists
    - `test-scenarios.md` → extract all TS-nnn with their content
 2. If UI DSL is available: read `manifest.json` → extract screen IDs, dataEntities, navigation edges
-3. Record as the **new spec fingerprint**: `{ specId → content hash or summary }`
+3. Record as the **new spec fingerprint**, two views of the same read:
+   - `{ specId → normalized text }` — for **added/removed** detection by ID set.
+   - For each existing source-bearing object, **recompute its scalar hash the same way full
+     planning did** (algorithm below) from the current text of the IDs its `source` lists — this
+     is what its stored `sourceHash` is compared against. Comparing a per-ID map against a
+     per-object scalar is not executable; the comparison unit is the **object**, and a multi-ID
+     object counts as modified when any of its IDs' text changed (a safe over-approximation —
+     it routes at file granularity anyway).
+
+   **The hash algorithm is fixed, or nothing ever matches across runs:** first 8 hex chars of
+   SHA-256 over the referenced requirement/scenario texts, concatenated in `source` order, each
+   text normalized first (strip leading/trailing whitespace per line, collapse runs of internal
+   whitespace to one space, drop blank lines). Any agent hashing differently marks every entry
+   modified on every replan, which degrades incremental planning into a permanent full delta.
+
+> **`sourceHash` is written by full planning, here, on every entry that carries a `source`** — a
+> short (8-hex) hash of the referenced requirement/scenario text as it reads in the spec at plan
+> time. The examples above show the field; emit it on every `types[]`/`api[]`/`stores[]`/
+> `components[]`/`pages[]`/`tests[]`/`e2eTests[]` entry. Without it the comparison below has
+> nothing to compare.
+>
+> **Same-ID modification detection needs the old content, and `source` ids alone cannot provide
+> it.** Full planning therefore writes a `sourceHash` (short hash of the referenced requirement
+> text) next to every entry's `source`, and this phase compares it against the new hash. For
+> `hashless` entries (legacy plans), a same-ID content change is **undetectable** — do not guess:
+> list those ids in the delta summary under "content comparison unavailable (plan predates
+> sourceHash)" and tell the user to re-run full generation if any of them changed. Treating
+> undetectable as unchanged silently drops real spec edits.
 
 #### 3.3 Compute Spec Diff
 
@@ -372,12 +427,15 @@ Compare old fingerprint against new fingerprint:
    - Removed TS → remove test case
    - Removed error code → remove handler scenario, error UI
 
-3. **Modified**: IDs in both fingerprints but with different content
-   - Compare field-by-field for entity changes (fields added/removed/type-changed)
-   - Compare component lists for screen composition changes
-   - Compare validation rules for business rule changes
-   - Compare endpoint signatures for API changes
-   - For each modification, record the specific `change` description and affected `fields`
+3. **Modified**: source-bearing **objects** whose recomputed scalar hash differs from their stored
+   `sourceHash` (3.2). The unit is the object, never the ID — a multi-ID object's changed hash
+   proves only that at least one of its IDs' text changed, so record the **object identity**
+   (section + `name`/`file`) and list **all** of its source IDs conservatively in `specRefs`;
+   `specChanges.modified` counts modified **objects**. Then, to describe the change:
+   - Compare the object's plan fields against the new spec text field-by-field (fields
+     added/removed/type-changed, component lists, validation rules, endpoint signatures)
+   - Record the specific `change` description and affected `fields`
+   - `hashless` objects go to `contentComparisonUnavailable[]`, never into `modified`
 
 #### 3.4 Compute Dependency Cascade
 
@@ -422,11 +480,11 @@ For `remove` operations, produce `changeDetail`:
 #### 3.6 Map to Phases
 
 Assign each affected file to its TDD phase:
-- `types/`, `mocks/`, `layouts/` → `foundation`
+- `types/`, `mocks/`, `layouts/`, `schemas/` (`formStack == rhf-zod`) → `foundation`
 - `api/` → `api-tdd`
 - `stores/` → `store-tdd`
 - `components/`, `__tests__/*Component*`, `__tests__/*Form*`, `__tests__/*Table*` → `component-tdd`
-- `pages/`, `__tests__/*Page*` → `page-tdd`
+- `pages/`, `__tests__/*Page*`, framework-mode `routes/{name}.tsx` route modules → `page-tdd`
 - `routes.tsx`, `i18n.ts`, locale JSON files, MSW global files → `integration`
 
 Determine phase action:
@@ -434,6 +492,23 @@ Determine phase action:
 - `partial` — some files affected in this phase
 
 #### 3.7 Generate Plan Patch
+
+**Normative:** every `modifications` entry carries the modified object's updated `source` and its
+**recalculated `sourceHash`** (same fixed algorithm as Phase 3.2).
+
+**Modifications MERGE, never replace.** Identity key per section: `name` (types, stores,
+components, **api** — an `api[]` entry is the service object, which has `name`/`file`/`endpoint`;
+`method`+`path` identify records **inside** `api[].methods[]` and match no top-level entry, so a
+patch keyed on them merges into nothing while `planPatched: true` blocks the retry), `file`
+(pages, tests), `id` (e2eTests). Method-level changes ship as a listed `methods` array, which
+replaces wholesale per the array rule. `fe-gen` locates the
+matching object and overwrites **only the fields the patch lists**; every unlisted field
+(`file`, `fields`, `enums`, `dtos`, …) survives untouched. A listed array field replaces the whole
+array (no element-wise merge). `change` is transient metadata for the executor — it is **not**
+written into the persisted plan object. Wholesale replacement would delete the entry's file path
+and field list, leaving downstream phases unable to locate what they must modify. `fe-gen` applies the patch
+verbatim, so a patch omitting the new hash leaves the old one in `plan.json`, and the same spec
+change is re-detected as new on every subsequent incremental plan — forever.
 
 Compute the patch to apply to plan.json after delta execution:
 - `additions`: new entries to add to plan.json sections (types, api, stores, components, pages, tests, e2eTests, routes.entries)
@@ -456,6 +531,10 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
   "mode": "incremental",
   "basePlanFile": "{existingPlanFile}",
   "basePlanTimestamp": "{ISO timestamp of existing plan.json file}",
+  "contentComparisonUnavailable": [
+    { "object": "types[] EntityName", "sourceIds": ["FR-002", "BR-003"],
+      "reason": "plan predates sourceHash" }
+  ],
   "specChanges": {
     "added": [
       {
@@ -570,6 +649,9 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
     }
   },
   "planJsonPatch": {
+    // every modified entry's patch INCLUDES its recalculated sourceHash — fe-gen persists the
+    // patch verbatim, so a modification that keeps the old hash is re-detected as changed on
+    // every subsequent incremental plan, generating the same delta forever.
     "additions": {
       "pages": [
         {
@@ -577,7 +659,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
           "file": "{baseDir}/features/{feature}/pages/EntityExportPage.tsx",
           "screenId": "entity-export",
           "route": "/path/to/entities/export",
-          "source": "FR-007, screen: entity-export"
+          "source": "FR-007, screen: entity-export", "sourceHash": "7f4b012a"
         }
       ],
       "tests": [
@@ -586,7 +668,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
           "file": "{baseDir}/features/{feature}/__tests__/EntityExportPage.test.tsx",
           "type": "page",
           "cases": [
-            { "name": "shows export configuration form", "source": "TS-070" }
+            { "name": "shows export configuration form", "source": "TS-070", "sourceHash": "4775e82a" }
           ]
         }
       ],
@@ -598,7 +680,9 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
       "types": [
         {
           "name": "EntityName",
-          "change": "Add Archived to EntityStatus enum values"
+          "change": "Add Archived to EntityStatus enum values",
+          "source": "FR-002, BR-003",
+          "sourceHash": "c91d40b7"
         }
       ]
     },
@@ -612,6 +696,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
   "largeDeltaWarning": false,
   "summary": {
     "specChanges": { "added": 1, "modified": 1, "removed": 1 },
+    "contentComparisonUnavailable": 0,
     "affectedFiles": { "create": 2, "modify": 6, "remove": 2 },
     "phasesAffected": ["foundation", "component-tdd", "page-tdd", "integration"],
     "phasesSkipped": ["api-tdd", "store-tdd"]
@@ -654,6 +739,20 @@ Delta Plan for '{feature}':
 
 ## Output Format
 
+> **`sourceHash` is part of the schema, not an optional annotation.** Every object below that
+> carries a requirement/scenario/screen-bearing `source` (FR/BR/AC/US/TS ids or screen ids)
+> carries a sibling `sourceHash` — computed with the **fixed algorithm defined in Phase 3.2**
+> (first 8 hex of SHA-256 over the referenced texts, concatenated in `source` order, normalized).
+> That definition governs this write too: hashing any other way marks every entry modified on the
+> first incremental replan.
+> Layout markers (`"_shared"`) are exempt; a DSL filename is **not a `source`** — it lives in the
+> entry's `dslFile` field, and the page's `source` carries the screen ID (plus any FRs). **Canonical
+> text for a screen ID's hash, one fixed precedence:** the screen's section in `screens.md` when
+> that file exists, else the DSL `screen-{id}.json` content, else (standalone) the spec's screen
+> section — full planning and Phase 3.2 must pick by this same rule or page hashes never match. Incremental
+> planning's same-ID change detection compares against these; an entry without one is `hashless`
+> and its edits become undetectable.
+
 Save to the `outputFile` path in the following JSON structure.
 
 **Config-conditional fields** (present only under the matching config; the example below is the
@@ -692,7 +791,7 @@ admin/library-mode default so all appear with default values):
         { "name": "EntityStatus", "values": ["Active", "Inactive", "Pending"] }
       ],
       "dtos": ["CreateEntityDto", "UpdateEntityDto"],
-      "source": "screen: entity-list, entity-create | FR-001, FR-002"
+      "source": "screen: entity-list, entity-create | FR-001, FR-002", "sourceHash": "4f6ed1a0"
     }
   ],
   "api": [
@@ -713,12 +812,12 @@ admin/library-mode default so all appear with default values):
       "queries": {
         "keysFactory": "entityKeys",
         "hooks": [
-          { "name": "entityListQuery", "type": "query", "source": "FR-001", "invalidates": [] },
-          { "name": "entityInfiniteQuery", "type": "infinite", "source": "FR-002", "invalidates": [] },
-          { "name": "createEntityMutation", "type": "mutation", "source": "FR-003", "invalidates": ["entityKeys.all"] }
+          { "name": "entityListQuery", "type": "query", "source": "FR-001", "sourceHash": "d9d12d49", "invalidates": [] },
+          { "name": "entityInfiniteQuery", "type": "infinite", "source": "FR-002", "sourceHash": "cd683353", "invalidates": [] },
+          { "name": "createEntityMutation", "type": "mutation", "source": "FR-003", "sourceHash": "1c5b6a93", "invalidates": ["entityKeys.all"] }
         ]
       },
-      "source": "FR-001 ~ FR-005"
+      "source": "FR-001 ~ FR-005", "sourceHash": "8d0f695d"
     }
   ],
   "stores": [
@@ -728,7 +827,7 @@ admin/library-mode default so all appear with default values):
       "state": ["list", "selected", "filters", "pagination", "loading"],
       "actions": ["fetchList", "fetchById", "setFilters", "setPage", "clearSelected"],
       "usedBy": ["EntityListPage", "EntityDetailPage"],
-      "source": "screens: entity-list, entity-detail"
+      "source": "screens: entity-list, entity-detail", "sourceHash": "a97897ee"
     }
   ],
   "components": [
@@ -739,7 +838,7 @@ admin/library-mode default so all appear with default values):
       "usedBy": ["EntityCreatePage", "EntityEditPage"],
       "fields": ["field1", "field2"],
       "validation": [
-        { "field": "email", "rules": ["required", "email", "maxLength:255"], "source": "BR-001" }
+        { "field": "email", "rules": ["required", "email", "maxLength:255"], "source": "BR-001", "sourceHash": "4f777be5" }
       ],
       "formSchema": {
         "//": "formStack == rhf-zod only — zod field specs derived from validation + errorMapping",
@@ -748,14 +847,14 @@ admin/library-mode default so all appear with default values):
           { "name": "email", "zod": "z.string().min(1, 'entityForm.email.required').email('entityForm.email.invalid').max(255)" }
         ]
       },
-      "source": "screens: entity-create, entity-edit"
+      "source": "screens: entity-create, entity-edit", "sourceHash": "83f310be"
     },
     {
       "name": "EntityTable",
       "file": "{baseDir}/features/{feature}/components/EntityTable.tsx",
       "type": "data-table",
       "columns": ["col1", "col2", "actions"],
-      "source": "screen: entity-list"
+      "source": "screen: entity-list", "sourceHash": "1b56e74c"
     }
   ],
   "pages": [
@@ -777,7 +876,8 @@ admin/library-mode default so all appear with default values):
       "loader": { "data": ["entityApi.getList"], "params": [] },
       "meta": { "titleKey": "entityList.title" },
       "routeModuleFile": "{baseDir}/features/{feature}/routes/entity-list.tsx",
-      "source": "screen-entity-list.json"
+      "source": "screen: entity-list", "sourceHash": "5d2c91af",
+      "dslFile": "screen-entity-list.json"
     }
   ],
   "sharedLayouts": [
@@ -845,7 +945,7 @@ admin/library-mode default so all appear with default values):
   },
   "i18n": {
     "namespace": "{feature}",
-    "languages": ["ko", "en", "ja", "vi"],
+    "languages": ["ko", "en", "ja", "vi"],   // ← from config i18n.languages; this is only the fallback
     "keyGroups": {
       "pages": ["entityList.title", "entityList.searchPlaceholder", "entityList.empty"],
       "form": ["entityForm.field1.label", "entityForm.field2.label"],
@@ -914,8 +1014,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/entityApi.test.ts",
       "type": "api",
       "cases": [
-        { "name": "fetches entity list", "source": "TS-001, FR-001" },
-        { "name": "creates entity", "source": "TS-002, FR-003" }
+        { "name": "fetches entity list", "source": "TS-001, FR-001", "sourceHash": "443b220f" },
+        { "name": "creates entity", "source": "TS-002, FR-003", "sourceHash": "2fe6f654" }
       ],
       "dependencies": ["types", "api", "mocks"]
     },
@@ -924,8 +1024,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/entityStore.test.ts",
       "type": "store",
       "cases": [
-        { "name": "sets list and total", "source": "TS-010" },
-        { "name": "resets on setFilters", "source": "TS-011" }
+        { "name": "sets list and total", "source": "TS-010", "sourceHash": "9850b24d" },
+        { "name": "resets on setFilters", "source": "TS-011", "sourceHash": "32627ca1" }
       ],
       "dependencies": ["types", "stores"]
     },
@@ -934,8 +1034,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/EntityForm.test.tsx",
       "type": "component",
       "cases": [
-        { "name": "renders form fields", "source": "TS-020" },
-        { "name": "calls onSubmit", "source": "TS-021" }
+        { "name": "renders form fields", "source": "TS-020", "sourceHash": "4c3c7305" },
+        { "name": "calls onSubmit", "source": "TS-021", "sourceHash": "d745fdc3" }
       ],
       "dependencies": ["types", "components"]
     },
@@ -944,10 +1044,10 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
       "type": "page",
       "cases": [
-        { "name": "shows loading state", "source": "TS-030" },
-        { "name": "shows empty state", "source": "TS-031" },
-        { "name": "shows error state", "source": "TS-032" },
-        { "name": "shows entity list", "source": "TS-033" }
+        { "name": "shows loading state", "source": "TS-030", "sourceHash": "839e7cc9" },
+        { "name": "shows empty state", "source": "TS-031", "sourceHash": "3f2da30f" },
+        { "name": "shows error state", "source": "TS-032", "sourceHash": "d85338e1" },
+        { "name": "shows entity list", "source": "TS-033", "sourceHash": "09b2955a" }
       ],
       "dependencies": ["types", "pages", "mocks"]
     }
@@ -956,7 +1056,7 @@ admin/library-mode default so all appear with default values):
     {
       "id": "E2E-001",
       "name": "Create entity end-to-end flow",
-      "source": "TS-050, TS-051, TS-052",
+      "source": "TS-050, TS-051, TS-052", "sourceHash": "0243282d",
       "startUrl": "/path/to/entities/new",
       "prerequisites": "authenticated user with 'admin' permission",
       "steps": [
@@ -970,7 +1070,7 @@ admin/library-mode default so all appear with default values):
     {
       "id": "E2E-002",
       "name": "Edit entity end-to-end flow",
-      "source": "TS-060, TS-061",
+      "source": "TS-060, TS-061", "sourceHash": "fcce0a26",
       "startUrl": "/path/to/entities/ent-001/edit",
       "prerequisites": "authenticated user, entity ent-001 exists",
       "steps": [
@@ -1032,6 +1132,11 @@ admin/library-mode default so all appear with default values):
       "skills": ["react-router-{routerMode}-mode"]
     }
   ],
+  "openApprovals": [
+    { "id": "OA-1", "what": "phone validation accepts KR formats only",
+      "why": "spec \u00a74.2 defers international formats to v2",
+      "status": "pending", "owner": null, "at": "2026-08-11" }
+  ],
   "summary": {
     "totalFiles": 14,
     "types": 2,
@@ -1052,6 +1157,15 @@ admin/library-mode default so all appear with default values):
   }
 }
 ```
+
+**`openApprovals[]`** (optional; omit when empty) records deliberate deviations from the spec so a
+reviewer stops re-raising a decision that has already been made — see CLAUDE.md § Deliberate
+Deviations. This agent may write an entry only as **`status: "pending"` with `owner: null`**: a
+proposal, not an approval. Only a human sets `status: "approved"` with a named `owner`, and only an
+approved entry silences a reviewer. Writing `approved` here would let the pipeline authorize its own
+scope reductions, which is the exact failure the field exists to prevent.
+
+On a delta run, carry existing entries forward verbatim — an approval survives regeneration.
 
 ## User Summary Template
 

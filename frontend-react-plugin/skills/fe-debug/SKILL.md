@@ -16,11 +16,12 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
-2. If `appDir` is missing, use default value `"."` (project root)
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `baseDir`
+2. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root)
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -37,7 +38,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Generated files check** — verify that the `baseDir` directory exists:
+1. **Generated files check** — verify that the `baseDir` directory exists:
    - If the directory does not exist:
      > "Generated code not found."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
@@ -71,7 +72,9 @@ Task(subagent_type: "debugger", prompt: "
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - problemDescription: {problemDescription}
+  - routerMode: {routerMode}
 
   Follow the 4-phase methodology defined in agents/debugger.md.
   Write the debug report to docs/specs/{feature}/.implementation/frontend/debug-report.json.

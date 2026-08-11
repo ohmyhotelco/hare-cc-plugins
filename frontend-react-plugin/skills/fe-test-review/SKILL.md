@@ -16,12 +16,23 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 
 1. Read `.claude/frontend-react-plugin.json`
 2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
-3. Extract `baseDir` and `appDir` from config
+3. Extract `baseDir` and `appDir` from config. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root)
 
+4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 ### Step 1: Determine Scope
 
 - If argument provided: audit the specified test file or directory
 - If no argument: audit all test files under `{baseDir}/`
+
+**Spec anchors.** If `targetPath` resolves inside `{baseDir}/features/{feature}/` **and**
+`docs/specs/{feature}/.progress/{feature}.json` exists, read its `workingLanguage` and pass
+`specDir: docs/specs/{feature}/{workingLanguage}` — the reviewer then follows each test's anchor to
+the spec line and checks the test's premise, not just its form. Otherwise omit `specDir`; the report
+records anchor resolution as `not-checked`.
+
+**A missing or empty target is `unverifiable`, never a pass.** Confirm the resolved target exists
+before launching the agent; if it does not, say so and stop. If the agent reports `unverifiable`,
+surface that verbatim — do not render it as a passing audit.
 
 ### Step 2: Launch Test Reviewer
 
@@ -33,7 +44,9 @@ Task(subagent_type: "test-reviewer", prompt: "
   - targetPath: {targetPath}
   - baseDir: {baseDir}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - projectRoot: {cwd}
+  - specDir: {specDir or omit}
 
   Follow the process defined in agents/test-reviewer.md.
   Return the audit report as text.

@@ -20,16 +20,30 @@ The coordinator skill provides:
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework switches the route-integration target to `{baseDir}/routes.ts` + the `prerender` array.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — gates the `QueryClientProvider` wiring.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
 - `mockFirst` — `true` | `false`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 - `skills` — list of external skill paths to read
+- `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
 > **Backward compatibility.** New keys default to their pre-OTA values when absent
 > (`routerMode=declarative`, `serverState=zustand-only`); every new branch below is gated on a new value —
 > an admin-default config wires routes/i18n/MSW/build byte-identically to today.
+
+## App lock (required)
+
+Every step below that edits an **app-wide** file — the central route file (Step 3),
+`{appDir}/react-router.config.ts` `prerender` (Step 3, framework mode), the central i18n config
+(Step 5), and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
+`docs/specs/.app.lock` per CLAUDE.md § Lock file: acquire, **re-read the target file**, edit,
+release. The feature lock this agent runs under does not protect these files; another feature
+integrating concurrently writes the same ones.
+
+Hold it across the read-modify-write only — never across a `tsc`, `typegen`, or build run. Release
+on every exit, including a fallback-to-manual-guidance branch and a failed verification.
 
 ## Process
 
@@ -168,6 +182,8 @@ Derive the import alias prefix from `localesDir` using the project's tsconfig pa
 export const {featureExportName} = {
   namespace: '{feature}',
   resources: {
+    // one entry per language in plan.i18n.languages — iterate it, do not hardcode.
+    // The four below are the fallback set used only when config has no i18n block.
     ko: () => import('{localesAlias}/ko/{feature}.json'),
     en: () => import('{localesAlias}/en/{feature}.json'),
     ja: () => import('{localesAlias}/ja/{feature}.json'),
@@ -175,6 +191,10 @@ export const {featureExportName} = {
   },
 };
 ```
+
+**Emitting the fixed four when `i18n.languages` says otherwise is a defect**, in both directions: a
+configured `fr` gets no registration (its keys then fail the coverage gate), and an unconfigured `ja`
+gets an import of a resource file nothing generates, which fails the build.
 
 ### Step 5: i18n Auto-Integration
 
@@ -266,10 +286,10 @@ npx tsc --noEmit 2>&1
 2. **Config found** → detect config type and run. Lint both the feature directory and any global files modified by this agent:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
-   npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1
+   npx eslint {srcPath}/features/{feature}/ {list of modified global files} 2>&1
 
    # If .eslintrc* exists (legacy config, ESLint v8):
-   npx eslint {baseDir}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
+   npx eslint {srcPath}/features/{feature}/ {list of modified global files} --ext .ts,.tsx 2>&1
    ```
    Note: "modified global files" includes `{baseDir}/mocks/handlers.ts`, `{baseDir}/mocks/server.ts`, `{baseDir}/mocks/browser.ts`, and any central route/i18n files that were auto-integrated.
 3. **Config not found** → template fallback (same logic as fe-verify Step 2.2):
@@ -279,11 +299,11 @@ npx tsc --noEmit 2>&1
       - Read `templates/eslint-config.md` from the plugin directory → generate `eslint.config.js` at project root
       - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency missing → skip with install instructions
-      - If all installed → run `npx eslint {baseDir}/features/{feature}/ {list of modified global files} 2>&1`
+      - If all installed → run `npx eslint {srcPath}/features/{feature}/ {list of modified global files} 2>&1`
 
 **c. Full test suite:**
 ```bash
-npx vitest run {baseDir}/features/{feature}/ --reporter=verbose 2>&1
+npx vitest run {srcPath}/features/{feature}/ --reporter=verbose 2>&1
 ```
 
 **d. Build:** mode-aware per the CLAUDE.md Router-mode command matrix:
@@ -363,7 +383,7 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 
 ### i18n
 - [ ] All user-facing text has i18n keys
-- [ ] 4 languages (ko, en, ja, vi)
+- [ ] one locale file per language in `i18n.languages` (config fallback: ko, en, ja, vi) — never a hardcoded four
 - [ ] Feature i18n file: `{baseDir}/features/{feature}/i18n.ts`
 - [ ] Namespace separation
 

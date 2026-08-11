@@ -32,7 +32,32 @@ touching the new questions behaves exactly as before.
    > ```
    > "Do you want to reconfigure? This will overwrite the existing settings."
 3. If the user declines, stop here
-4. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
+4. **Structural-change guard — evaluated AFTER the new answers exist.** Step 1 only **snapshots
+   the old config**; the comparison below runs **after Step 2g (all knobs collected) and before
+   Step 3 writes the file** — at Step 1 the new values do not exist yet, so "changes a structural
+   knob" cannot be evaluated here, and a guard run here either never fires or warns about a change
+   it cannot name. Before overwriting, glob `docs/specs/*/.progress/*.json` for any
+   feature whose `implementation.status` is beyond `planned`. If any exist AND the reconfiguration
+   changes a **structural** knob (`baseDir`, `appDir`, `routerMode`, `appProfile`, `serverState`,
+   `formStack`), list the affected features and warn:
+   > "{N} generated feature(s) were built against the current settings. Changing {knob} leaves
+   > their plan.json and generated code pointing at the old {directory/router shape}, while
+   > fe-gen/fe-verify will use the new one — builds split across directories or framework commands
+   > run against Vite-mode plans. Each listed feature needs a full re-plan and re-generation
+   > (`fe-plan` → `fe-gen`) after this change."
+   - Require an explicit second confirmation naming the consequence; if declined, keep the old
+     config and stop. Non-structural knobs (`mockFirst`, `eslintTemplate`, `prettierTemplate`,
+     `i18n`) reconfigure without this guard — `i18n` changes surface through the key-coverage
+     spec's fingerprint instead.
+   - **`e2eTool` sits in between**: switching to `playwright` with generated features leaves no
+     harness (`playwright.config.ts` / `e2e/fixtures.ts` are scaffolded by foundation-generator,
+     which only runs inside `fe-gen`), so the next `fe-e2e` stops with "run fe-gen first" — a
+     guided stop, not a dead end, but a surprise. Warn at reconfiguration time:
+     > "Switching e2eTool to playwright: the Playwright harness does not exist yet. The next
+     > `fe-gen` run for any feature scaffolds it (a preflight that runs in full, delta, and resume
+     > modes alike — fe-gen Step 1.9); `fe-e2e` will refuse until then."
+     No second confirmation required — the consequence is one guided re-run, not split state.
+5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
 
 ### Step 1b: Ask for App Profile
 
@@ -112,6 +137,42 @@ If the user selects **yes**:
      > pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
      > ```
 
+### Step 2d-2: Ask for Prettier Template
+
+Ask whether to auto-scaffold a Prettier config when the project has none.
+
+Present:
+- **yes** (default) — Auto-generate `prettier.config.js` + `.prettierignore` from the bundled
+  template. The format check is **advisory** — it is reported but never fails a gate.
+- **no** — Skip formatting entirely.
+
+Default: `yes`. Record as `prettierTemplate`.
+
+If **yes**: glob for an existing config (`prettier.config.*`, `.prettierrc*`) and say it will be left
+alone if found; otherwise check `package.json` for `prettier` and `eslint-config-prettier` and, when
+missing, display `pnpm add -D prettier eslint-config-prettier`. Never install it here.
+
+### Step 2d-3: Ask for the i18n Copy Surface
+
+Ask which languages the **application UI** ships in. This is the product's copy surface, not the
+`workingLanguage` the plugin talks to you in.
+
+Present the plugin default (`ko`, `en`, `ja`, `vi`) and let the user narrow or extend it. Record as:
+
+```json
+"i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
+```
+
+- `languages` — what "every supported language" resolves to for the key-coverage spec.
+- `lookupFns` — the i18n lookup helpers whose literal keys are checked (default `["t"]`; add project
+  wrappers such as `tx` if the codebase uses one).
+- `localesDir` is not repeated here — it already comes from the plan (`{baseDir}/locales`).
+
+Skipping this leaves the block out, which is a supported choice: `foundation-generator` then
+generates no key-coverage spec and `fe-verify` reports the i18n axis as `skipped`. It is never
+inferred from the locale directory — a language present as a folder but absent from this list would
+otherwise be silently exempt from coverage.
+
 ### Step 2e: Ask for Server-State Strategy
 
 Ask how server data (API responses) is managed.
@@ -144,6 +205,11 @@ Present:
 
 Default: by profile — `agent-browser` for admin, `playwright` for ota. Record as `e2eTool`.
 
+### Step 2h: Run the Reconfiguration Guards (reconfiguration only)
+
+Now that every new value exists, compare against the Step 1 snapshot and run the **structural-change
+guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the old config, stop.
+
 ### Step 3: Write Configuration
 
 1. Ensure the `.claude/` directory exists in the project root
@@ -165,17 +231,24 @@ Default: by profile — `agent-browser` for admin, `playwright` for ota. Record 
   "formStack": "{native | rhf-zod}",
   "e2eTool": "{agent-browser | playwright}",
   "renderingDefault": "{ssr | ssg | spa — framework mode only}",
+  "devPort": 5173,
   "mockFirst": {true or false based on Step 2b},
   "baseDir": "{selected path from Step 2c}",
   "appDir": "{auto-derived from baseDir}",
-  "eslintTemplate": {true or false based on Step 2d}
+  "eslintTemplate": {true or false based on Step 2d},
+  "prettierTemplate": {true or false based on Step 2d-2},
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
+- `devPort` (written in the ota example above): the dev-server port fe-e2e uses and Playwright's scaffolded `webServer` bakes in — default `5173`, edit it in the config file when that port is taken. Changing it after the harness exists does **not** rewrite `playwright.config.ts`; fe-gen's preflight detects the mismatch and says what to align.
 - `renderingDefault` is written only in framework mode (default `ssr`); it is the fallback rendering for a
   page whose plan does not specify one. Absent keys fall back to admin defaults on read
   (`appProfile=admin`, `routerMode` as written, `serverState=zustand-only`, `formStack=native`,
-  `e2eTool=agent-browser`).
+  `e2eTool=agent-browser`, `prettierTemplate=true`).
+- `i18n` is written only when Step 2d-3 produced one. Absent → no key-coverage spec is generated and
+  `fe-verify` reports that axis as `skipped`. It is the one key with **no default**: guessing the
+  supported language set would make coverage claims about languages nobody confirmed.
 
 ### Step 4: Install External Skills
 

@@ -14,11 +14,12 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`
-2. If `appDir` is missing, use default value `"."` (project root)
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
+2. If `sourceBaseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+4. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -28,25 +29,27 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
      > "Please run `/frontend-react-plugin:fe-plan {feature}` first."
      - Stop here.
 
-2. Read `plan.json` → extract `baseDir`, file list from all sections (types, api, stores, components, pages, tests)
+2. Read `plan.json` → extract its `baseDir` as **`featureDir`** (e.g. `app/src/features/{feature}`) and the file list from all sections (types, api, stores, components, pages, tests)
+
+> **Never collapse these two into one `baseDir`.** Config `baseDir` is the source root; plan `baseDir` is the feature directory. Reading the second into the same name makes every later `{baseDir}` reference point at the feature directory — which is why the app-wide i18n spec must be looked for under `sourceBaseDir`, not `featureDir`. `fe-gen` keeps them apart as `planBaseDir`; do the same here.
 
 3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` indicates code has been generated:
+1. **Status check** — verify `implementation.status` indicates code has been generated:
    - If status is `"planned"`, `"gen-failed"`, or absent:
      > "No generated code found (current status: '{status}')."
      > "Please run `/frontend-react-plugin:fe-gen {feature}` first."
      - Stop here.
 
-6. **Demotion warning** — if `implementation.status` is `done` or `reviewed`:
+2. **Demotion warning** — if `implementation.status` is `done` or `reviewed`:
    > "This feature is currently '{status}'. Re-running verification will reset the status to 'verified' or 'verify-failed', discarding review progress."
    > "Continue?"
    - If the user declines, stop here.
 
-7. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
+3. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
    - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt`
    - If spec is newer:
@@ -56,7 +59,7 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
      > "Continue with verification anyway?"
      - If the user declines, stop here.
 
-8. **File existence check** — Verify that all files specified in the plan actually exist:
+4. **File existence check** — Verify that all files specified in the plan actually exist:
    - Use Glob to check existence of each file path
    - If missing files are found, display a warning:
      > "Warning: {count} planned files not found:"
@@ -64,17 +67,12 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 ### Lock Acquire
 
-Check `docs/specs/{feature}/.implementation/frontend/.lock`:
-- If file exists:
-  - Read `lockedAt` and `operation`
-  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
-  - Otherwise:
-    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
-    - Stop here.
-- Create lock file:
-  ```json
-  { "lockedAt": "{ISO timestamp}", "operation": "fe-verify" }
-  ```
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-verify"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Run Verification
 
@@ -113,10 +111,10 @@ npx tsc --noEmit 2>&1
 2. **Config found** → detect config type and run:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
-   npx eslint {baseDir} 2>&1
+   npx eslint {srcPath} 2>&1
 
    # If .eslintrc* exists (legacy config, ESLint v8):
-   npx eslint {baseDir} --ext .ts,.tsx 2>&1
+   npx eslint {srcPath} --ext .ts,.tsx 2>&1
    ```
 3. **Config not found** → template fallback:
    a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
@@ -132,7 +130,7 @@ npx tsc --noEmit 2>&1
         > ```
       - If all dependencies are installed → run:
         ```bash
-        npx eslint {baseDir} 2>&1
+        npx eslint {srcPath} 2>&1
         ```
 
 - exit code 0 → pass
@@ -158,11 +156,62 @@ npx react-router build 2>&1
 Check `tests[]` in plan.json:
 - If `tests[]` is not empty:
   ```bash
-  npx vitest run {baseDir} 2>&1
+  npx vitest run {srcPath} 2>&1
   ```
   - exit code 0 → pass
   - exit code != 0 → fail (collect list of failed tests)
 - If `tests[]` does not exist or is empty: skipped ("no tests planned")
+
+#### 2.5 i18n Key Coverage
+
+Not a separate run — the app-wide spec (`templates/i18n-key-coverage.md`) is part of the 2.4 suite.
+This step reads what that run produced:
+
+1. No `i18n` block in `.claude/frontend-react-plugin.json` → `skipped`, reason "no i18n config".
+   Stop here.
+2. Glob `{sourceBaseDir}/__tests__/i18n-key-coverage.test.ts` — the **source root**, where
+   `foundation-generator` writes it. It is an app-wide invariant, never a per-feature file.
+   - **Absent** → `fail`, reason "i18n key-coverage spec not generated". `fe-fix` cannot produce it,
+     so name `/frontend-react-plugin:fe-gen {feature}` as the remedy.
+   - **Present but its results are not in the 2.4 output** → `fail`, reason "spec not collected:
+     {path}". A file that exists but never ran is not a pass — that is the whole reason this step
+     reads the output rather than the filesystem. (When 2.4 itself was `skipped` for having no
+     planned tests, run the spec directly: `npx vitest run {srcPath}/__tests__/i18n-key-coverage.test.ts 2>&1`.)
+   - **Present and collected** → report its pass/fail plus the `uncheckable` (dynamic key) count.
+     Uncheckable keys never fail the gate; the count is reported so a growing hole stays visible.
+   - **Present but built for a different config** → `fail`, reason "i18n spec is stale: built for
+     {spec's languages/lookupFns}, config now says {current}". The spec records the `i18n` block it
+     was generated from; compare it against the current config. Without this check a spec generated
+     before a language was added keeps passing while never testing that language — a check that
+     verifies nothing but reports success. Remedy: `/frontend-react-plugin:fe-gen {feature}`.
+
+#### 2.6 Format Check (advisory)
+
+Per `templates/prettier-config.md`: glob for a Prettier config, scaffold from the template when
+absent and `prettierTemplate` is `true`/unset, skip silently when it is `false`, and record
+`skipped` (printing the `pnpm add -D` line) when `prettier` is not installed. Then:
+
+```bash
+npx prettier --check . 2>&1
+```
+
+Exit ≠ 0 is an **advisory warning only** — report the count and name `npx prettier --write .`.
+It never sets `verify-failed`, and never contributes to Overall FAIL. Do not run `--write` here.
+
+### Result taxonomy
+
+Every check above reports exactly one of these, and a reason is required for the last two:
+
+| Result | Means |
+|---|---|
+| `pass` | ran, and the output says it passed |
+| `fail` | ran, and the output says it failed |
+| `skipped` | deliberately not applicable — no tests planned, no i18n block, flag off |
+| `not-run` + reason | should have run but could not — tool missing, deps absent, timed out |
+
+`skipped` and `not-run` are **not** passes and must never be folded into one. "The tool was absent"
+and "there was nothing to check" lead to different next actions, and collapsing either into `pass`
+is the silent-hole failure this taxonomy exists to prevent.
 
 ### Step 3: Display Report
 
@@ -172,13 +221,19 @@ Display the verification results:
 Verification Report for '{feature}':
 
   TypeScript:  {pass/fail} ({error count} errors, {warning count} warnings)
-  ESLint:      {pass/fail/skipped} ({error count} errors, {warning count} warnings)
+  ESLint:      {pass/fail/skipped/not-run} ({error count} errors, {warning count} warnings)
   Build:       {pass/fail}
   Tests:       {pass/fail/skipped} ({passed}/{total})
+  i18n keys:   {pass/fail/skipped} ({uncheckable} dynamic keys uncheckable)
+  Format:      {pass/warn/skipped} ({file count} files differ)   ← advisory
   E2E:         {pass/partial/fail/not-run} ({passed}/{total} scenarios)
 
   Overall: {PASS/FAIL}
 ```
+
+A `skipped` or `not-run` line always prints its reason next to it.
+
+Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`templates/prettier-config.md`).
 
 The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{feature}.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 
@@ -203,12 +258,19 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `veri
       "tsc": { "status": "pass", "errors": 0, "warnings": 0 },
       "eslint": { "status": "pass", "errors": 0, "warnings": 0 },
       "build": { "status": "pass" },
-      "tests": { "status": "pass", "passed": 10, "total": 10 }
+      "tests": { "status": "pass", "passed": 10, "total": 10 },
+      "i18nKeys": { "status": "pass", "uncheckable": 3 },
+      "format": { "status": "warn", "filesDiffering": 4 }
     }
   }
 }
 
-Note: Set `implementation.status` to `"verified"` (all pass) or `"verify-failed"` (any fail).
+Note: Set `implementation.status` to `"verified"` or `"verify-failed"`. `verified` requires tsc,
+eslint, build, tests, and i18nKeys to each be `pass` or `skipped`; any `fail` or `not-run` sets
+`verify-failed`. `format` never participates — it is advisory.
+
+Every `skipped` and `not-run` entry carries a `reason` string. A check that did not run is recorded
+as what it was, never omitted and never rewritten as `pass`.
 ```
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `review`, `fix`, `debug`), then write back the complete file.

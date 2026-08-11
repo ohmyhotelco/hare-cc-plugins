@@ -4,6 +4,14 @@
 
 set -euo pipefail
 
+# jq is required for every read below; without it the script would abort under `set -e` at the
+# first substitution and print nothing at all — including the "no configuration" notice.
+if ! command -v jq >/dev/null 2>&1; then
+  echo ""
+  echo "[Frontend React Plugin] jq not found — session checks skipped."
+  exit 0
+fi
+
 # Read hook input from stdin
 INPUT=$(cat)
 

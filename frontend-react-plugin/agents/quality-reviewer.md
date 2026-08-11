@@ -19,6 +19,7 @@ The skill will provide these parameters in the prompt:
 - `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied.
 
 ### Standalone Mode
 
@@ -45,6 +46,14 @@ The skill will provide these parameters in the prompt:
    - Glob: `{projectBase}/features/*/` → verify existing module structure
    - Check import style and naming conventions of existing code
 4. **Generated files** — read all generated files under `baseDir`
+5. **Accepted deviations** — read `plan.json` `openApprovals[]` (absent → none). An entry with
+   `status: "approved"` **and** a named `owner` (not `TBD`, not an agent) is a decision already
+   taken: do **not** re-raise a matching issue. List it once under "accepted deviations" so it stays
+   visible, and keep reviewing everything else.
+   A `pending` entry, or one whose `owner` is missing, is **not** approval — the plan is written by
+   the pipeline, so honoring a self-written `pending` would let the pipeline approve its own
+   shortcuts. Report those as normal issues and say an approval is outstanding.
+   See CLAUDE.md § Deliberate Deviations.
 
 #### Phase 0-S: Standalone Mode
 
@@ -56,6 +65,23 @@ The skill will provide these parameters in the prompt:
    - Otherwise: use `baseDir` from config to derive project base
    - Glob: `{projectBase}/features/*/` → learn existing conventions
 5. **Target files** — read all `.ts`/`.tsx` files under `targetPath` (excluding `__tests__/`, `node_modules/`, `dist/`)
+
+### Phase 0-guard: Nothing to audit is not a pass
+
+Before scoring, check the collection:
+
+Which input is checked depends on the mode — **pipeline mode receives `baseDir`, not `targetPath`**,
+so an unconditional `targetPath` check aborts every pipeline review after a passing spec review:
+
+- **Standalone (0-S)** — `targetPath` does not exist → report **`unverifiable`**, name the path, stop.
+- **Pipeline (0-P)** — `baseDir` does not exist → report **`unverifiable`**, name it, stop.
+- **Either mode** — zero source files collected → report **`unverifiable`** with the glob patterns
+  tried and the resolved directory, stop. Do not score.
+
+Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md
+§ Verification Philosophy: a statement about the state of the evidence is itself a claim).
+`unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 
 ### Phase 1: Review — 8 Dimensions
 

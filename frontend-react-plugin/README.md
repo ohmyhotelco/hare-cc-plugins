@@ -544,7 +544,9 @@ The plugin uses `.claude/frontend-react-plugin.json` in the project directory (c
   "mockFirst": true,
   "baseDir": "app/src",
   "appDir": "app",
-  "eslintTemplate": true
+  "eslintTemplate": true,
+  "prettierTemplate": true,
+  "i18n": { "languages": ["ko", "en", "ja", "vi"], "lookupFns": ["t"] }
 }
 ```
 
@@ -555,6 +557,8 @@ The plugin uses `.claude/frontend-react-plugin.json` in the project directory (c
 | `baseDir` | Base directory for generated source code | `"app/src"` |
 | `appDir` | Directory containing `vite.config.*` and `package.json` — all build/test commands run here | Auto-derived from `baseDir` |
 | `eslintTemplate` | Auto-generate `eslint.config.js` from bundled template when no ESLint config exists | `true` |
+| `prettierTemplate` | Auto-generate `prettier.config.js` + `.prettierignore` when no Prettier config exists. The format check is **advisory** — reported, never blocking | `true` |
+| `i18n` | The product's UI copy surface: `languages` (what "every supported language" resolves to) and `lookupFns` (helpers whose literal keys are checked). Drives the app-wide key-coverage spec | *(none — omit to skip the check)* |
 
 ## Generated Project Structure
 
@@ -590,7 +594,8 @@ State files under `docs/specs/{feature}/.implementation/frontend/`:
 | `e2e-report.json` | E2E test results with scenario details (input for fe-fix E2E mode) |
 | `debug-report.json` | Debug session results with hypothesis log |
 | `delta-plan.json` | Incremental spec change plan (input for delta fe-gen, archived after execution) |
-| `.lock` | Concurrent execution prevention (auto-expires after 30 min) |
+| `.lock` | Feature-scoped concurrency guard (`holder` / `pid` / `acquiredAt`) |
+| `docs/specs/.app.lock` | App-wide guard for the central route file, i18n config, and MSW handler aggregate |
 
 ### Progress State Machine
 
@@ -607,7 +612,7 @@ planned → generated → verified → reviewed → done
 
 ### State File Safety
 
-- **Lock mechanism**: Skills that modify state files acquire `.lock` before starting. Prevents concurrent execution of fe-gen/fe-verify/fe-review/fe-fix/fe-e2e on the same feature. Stale locks (>30 min) are auto-removed.
+- **Lock mechanism**: Two scopes, taken in order — the feature `.lock` (fe-gen/fe-verify/fe-review/fe-fix/fe-e2e on one feature) then `docs/specs/.app.lock` (any write to the central route file, i18n config, or MSW handler aggregate, which the feature lock does not protect). A lock is broken only once its holder is gone: `pid` is checked first, and the 30-minute rule sweeps ghost locks rather than timing out a live run — fe-gen's six TDD phases legitimately exceed it.
 - **Read-Modify-Write rule**: Always read latest file content before writing. Merge only changed fields — preserve all existing fields.
 - **Phase timestamps**: Each TDD phase records `completedAt` for precise resume and plan freshness detection.
 - **Staleness detection**: fe-fix warns when source files changed since last review. fe-review warns when spec changed since generation.
@@ -692,7 +697,8 @@ skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-rev
                  fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
-templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md, e2e-testing.md)
+templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,
+                 prettier-config.md, i18n-key-coverage.md, e2e-testing.md)
 docs/            Documentation
 ```
 

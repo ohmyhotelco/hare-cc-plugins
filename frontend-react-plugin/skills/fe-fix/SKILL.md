@@ -16,13 +16,14 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`). If `sourceBaseDir` is missing, use default value `"src"`. Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
 4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
 5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
+6. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
 ### Step 1: Validate Prerequisites
 
@@ -39,7 +40,17 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-5. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`:
+1. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`.
+   **E2E exception**: also accept `generated`, `verified`, and `verify-failed` **when**
+   `e2e-report.json` exists, contains failures, is newer than `review-report.json` (or no
+   review report exists), **and is newer than `implementation.generatedAt`** — that combination
+   forces `fixMode = "e2e"`. The `generatedAt` condition is load-bearing: after a regeneration the
+   old failing report still sits on disk (generation clears the progress *field*, not the report
+   *file*), and without it this exception routes freshly generated code into a fix loop against a
+   report that describes deleted code. A stale report → refuse as before and name
+   `/frontend-react-plugin:fe-e2e {feature}` to produce a current one. `fe-e2e` runs from those
+   statuses and its failure path names this command as the remedy; without this exception that
+   loop dead-ends on a status check aimed at the review flow.
    - If status is not one of these:
      > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', 'escalated', or 'done'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
@@ -48,13 +59,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Status is 'escalated'. The review report may be outdated or absent."
      > "If no review-report.json exists, run `/frontend-react-plugin:fe-review {feature}` first."
 
-6. **Fix mode detection** — determine whether to fix review issues or E2E issues:
+2. **Fix mode detection** — determine whether to fix review issues or E2E issues:
    - Read `docs/specs/{feature}/.implementation/frontend/review-report.json` → extract `timestamp` (if exists)
    - Read `docs/specs/{feature}/.implementation/frontend/e2e-report.json` → extract `timestamp`, `status`, `summary` (if exists)
    - **E2E fix mode** if ALL of the following are true:
      - `e2e-report.json` exists
      - `e2e-report.json` has failures (`status` is `"partial"` or `"failed"`)
-     - `e2e-report.json` `timestamp` is newer than `review-report.json` `timestamp` (or review-report.json does not exist)
+     - `e2e-report.json` `timestamp` is newer than `review-report.json` `timestamp` (or review-report.json does not exist) **and newer than `implementation.generatedAt`** — the same stale-report guard as the Step 1 status exception; the two mode decisions must agree, or a status the exception admits gets routed by this item into fixing against a pre-regeneration report
    - **Tie-breaker**: If both reports exist and have identical timestamps (edge case):
      - Default to **review fix mode** (review issues take priority over E2E issues)
      - Inform the user:
@@ -78,7 +89,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
      - Stop here.
 
-7. **Code change detection** — compare source file timestamps against the active report:
+1. **Code change detection** — compare source file timestamps against the active report:
    - Determine which report to check: if `fixMode` is `"e2e"` → use `e2e-report.json` `timestamp`; otherwise → use `review-report.json` `timestamp`
    - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/` and get its mtime
    - If any source file is newer than the active report's `timestamp`:
@@ -89,13 +100,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
      > "Continue with the current report?"
      - If the user declines, stop here.
 
-8. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
+2. **Fix round check** — read `implementation.fix.round` from the progress file (default: 0):
    - If `round >= 3`:
      > "This is fix round {round+1}. Three previous fix attempts have not resolved all issues."
      > "Consider: revise the plan (`/frontend-react-plugin:fe-plan {feature}`), debug specific issues (`/frontend-react-plugin:fe-debug {feature}`), or proceed anyway."
      - If the user declines, stop here.
 
-9. **Report validation** — validate the active report based on `fixMode`:
+3. **Report validation** — validate the active report based on `fixMode`:
 
    **Review fix mode** (`fixMode` is `"review"`):
    a. Read `review-report.json` → validate structure:
@@ -119,17 +130,12 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Lock Acquire
 
-Check `docs/specs/{feature}/.implementation/frontend/.lock`:
-- If file exists:
-  - Read `lockedAt` and `operation`
-  - If more than 30 minutes have elapsed since `lockedAt` → stale lock, delete and proceed
-  - Otherwise:
-    > "Another operation is in progress: '{operation}' (started: {lockedAt})"
-    - Stop here.
-- Create lock file:
-  ```json
-  { "lockedAt": "{ISO timestamp}", "operation": "fe-fix" }
-  ```
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-fix"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+
+**Release on every exit below.** Any "stop here" from this point on — a user declining a
+confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
+taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
+every later command refusing it (CLAUDE.md § Lock file).
 
 ### Step 2: Parse & Display Issue Summary
 
@@ -183,6 +189,7 @@ Task(subagent_type: "review-fixer", prompt: "
   - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
   - feature: {feature}
   - baseDir: {baseDir}/
+  - sourceBaseDir: {sourceBaseDir}
   - projectRoot: {cwd}
   - fixMode: {fixMode}
   - reviewReportFile: docs/specs/{feature}/.implementation/frontend/review-report.json
@@ -191,6 +198,7 @@ Task(subagent_type: "review-fixer", prompt: "
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
+  - srcPath: {srcPath}
   - e2eTool: {e2eTool}
 
   Follow the process defined in agents/review-fixer.md.
@@ -326,6 +334,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
     "status": "fixing | escalated",
     "fix": {
       "status": "completed | partial | failed",
+      "mode": "{fixMode — \"review\" or \"e2e\"}",
       "round": 1,
       "timestamp": "{ISO timestamp}",
       "fixed": 7,
@@ -342,6 +351,10 @@ Note: Set `implementation.status` as follows:
 - fix failed (all escalated) → `"escalated"`
 
 Note: Increment `fix.round` from the previous value (or set to 1 if absent).
+
+**Remove `implementation.e2e` when this fix changed production code** (any fix mode — a review-mode
+fix edits the same components E2E exercised). A preserved E2E pass now describes an app that no
+longer exists; `fe-e2e` re-runs cheaply, a false "Pipeline complete" does not.
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.
 
