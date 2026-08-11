@@ -225,7 +225,7 @@ parity. See `templates/e2e-playwright.md`.
 
 - `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
   runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
-  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {port}`;
+  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {devPort}`;
   library modes → `npx vite --port {port}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).
 
@@ -284,6 +284,24 @@ npx react-router typegen 2>&1
 Confirm: zero errors. If errors exist, fix and re-verify.
 
 ## Output Format
+
+**`mode: playwright-harness-only` reports this shape and nothing more** — the full schema below
+demands `feature`, `filesCreated.types/mocks`, and `verification.tsc`, none of which a harness-only
+run produces (Step 6 never runs), and fabricating them would be a false claim:
+
+```json
+{
+  "agent": "foundation-generator",
+  "mode": "playwright-harness-only",
+  "status": "completed | failed",
+  "harness": {
+    "playwrightConfig": "scaffolded | present",
+    "fixtures": "scaffolded | present"
+  },
+  "error": "only when failed"
+}
+```
+
 
 ```json
 {

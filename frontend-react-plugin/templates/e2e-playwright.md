@@ -17,7 +17,7 @@ Only the realization differs.
 
 ## Harness (scaffolded once per app by `foundation-generator`)
 - `playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'`, `webServer` runs the mode-aware
-  dev command (from the CLAUDE.md command matrix) with `VITE_ENABLE_MOCKS=true` and `reuseExistingServer`.
+  dev command (from the CLAUDE.md command matrix) on the config `devPort` (default `5173`) with `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` — which trusts whatever already answers on that port, so a port collision means testing the wrong server; set `devPort` when 5173 is taken.
   Framework mode → `npx react-router dev --port {port}`; library modes → `npx vite --port {port}`.
 - `e2e/fixtures.ts` — auth/state-setup helpers and page-object base.
 

@@ -39,7 +39,7 @@ WIRING = {
     "planFile", "specDir", "uiDslDir", "prototypeDir", "deltaFile", "scopedFiles", "deltaMode",
     "routerMode", "serverState", "formStack", "e2eTool", "mockFirst", "renderingDefault",
     "i18n", "localesDir", "prettierTemplate", "eslintTemplate", "skills", "fixMode",
-    "reviewReportFile", "e2eReportFile",
+    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode",
 }
 
 # Only tools whose use leaves a *syntactically distinctive* trace. `Write` and `Edit` are ordinary

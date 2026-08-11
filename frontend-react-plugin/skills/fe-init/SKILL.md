@@ -231,6 +231,7 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
   "formStack": "{native | rhf-zod}",
   "e2eTool": "{agent-browser | playwright}",
   "renderingDefault": "{ssr | ssg | spa — framework mode only}",
+  "devPort": 5173,
   "mockFirst": {true or false based on Step 2b},
   "baseDir": "{selected path from Step 2c}",
   "appDir": "{auto-derived from baseDir}",
