@@ -67,7 +67,7 @@ Generates production React code based on the implementation plan (plan.json) usi
      > "1. Execute delta (regenerate only {summary.affectedFiles.create + summary.affectedFiles.modify + summary.affectedFiles.remove} affected files)"
      > "2. Execute full generation (ignore delta, regenerate everything)"
      > "3. View delta details"
-     - If user chooses 1: `genMode = "delta"`, proceed to Lock Acquire then Step 2-D
+     - If user chooses 1: `genMode = "delta"`, proceed to Lock Acquire — which runs Step 1.9 — then Step 2-D
      - If user chooses 2: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
      - If user chooses 3: display full delta summary, then re-ask 1 or 2
    - If delta-plan.json does not exist: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
@@ -93,6 +93,12 @@ Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` w
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
 every later command refusing it (CLAUDE.md § Lock file).
+
+**Then run Step 1.9 (Playwright Harness Preflight) immediately — every mode, before any branch.**
+The preflight's own heading says "every mode", but a heading routes nothing: the delta branch jumps
+Lock Acquire → Step 2-D and a fresh-start resume jumps to Step 3, and both would sail past it —
+after an e2eTool switch, a delta run would then "succeed" with no harness and `fe-e2e` would refuse.
+This sentence is the single routing point that makes the heading true.
 
 ### Step 2: Confirm with User
 
@@ -125,9 +131,21 @@ If the user declines, stop here.
 
 ### Step 1.9: Playwright Harness Preflight (every mode)
 
-When `e2eTool == "playwright"` and **either** `{appDir}/playwright.config.ts` **or**
-`{appDir}/e2e/fixtures.ts` is absent (check both — fe-e2e requires both, and the config alone is
-not proof of a complete harness), scaffold now, before any phases:
+When `e2eTool == "playwright"`:
+
+**Both files present → validate, don't skip blindly.** Read `playwright.config.ts`'s `webServer`
+line and compare against the current config: port ≠ `devPort`, or command family ≠ `routerMode`
+(Vite command in a framework project, or vice versa) → **stop** with:
+> "playwright.config.ts serves port {baked} via {baked command}; config now says devPort {devPort} /
+> routerMode {routerMode}. Align `.claude/frontend-react-plugin.json` or edit playwright.config.ts,
+> then re-run."
+Scaffolding writes only absent files, so a later config change can never propagate into an existing
+config on its own — without this check the runner trusts a port the config stopped naming, and with
+`reuseExistingServer` that can silently test an unrelated server. (Stopping, not rewriting: the
+config may be user-owned, and clobbering it is worse than asking.)
+
+**Either file absent** (check both — fe-e2e requires both, and the config alone is not proof of a
+complete harness) → scaffold now, before any phases:
 
 ```
 Agent(subagent_type: "foundation-generator", prompt: "

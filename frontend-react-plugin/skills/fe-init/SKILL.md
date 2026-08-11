@@ -241,6 +241,7 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
 }
 ```
 
+- `devPort` (written in the ota example above): the dev-server port fe-e2e uses and Playwright's scaffolded `webServer` bakes in — default `5173`, edit it in the config file when that port is taken. Changing it after the harness exists does **not** rewrite `playwright.config.ts`; fe-gen's preflight detects the mismatch and says what to align.
 - `renderingDefault` is written only in framework mode (default `ssr`); it is the fallback rendering for a
   page whose plan does not specify one. Absent keys fall back to admin defaults on read
   (`appProfile=admin`, `routerMode` as written, `serverState=zustand-only`, `formStack=native`,

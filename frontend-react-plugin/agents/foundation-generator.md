@@ -226,7 +226,7 @@ parity. See `templates/e2e-playwright.md`.
 - `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
   runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
   `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {devPort}`;
-  library modes → `npx vite --port {port}`).
+  library modes → `npx vite --port {devPort}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).
 
 **Mock-state reset policy:** handlers are stateless by default; the mutable fixture DB (`mockEntityDb`) is

@@ -522,6 +522,7 @@ An **ota** config instead reads (with `renderingDefault` present only in framewo
   "formStack": "rhf-zod",
   "e2eTool": "playwright",
   "renderingDefault": "ssr",
+  "devPort": 5173,
   "mockFirst": true,
   "baseDir": "app/app",
   "appDir": "app",
