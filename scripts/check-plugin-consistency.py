@@ -225,6 +225,73 @@ def check_stale_number_refs(files: dict[str, tuple[Path, str]]) -> list[Finding]
     return out
 
 
+def check_section_refs(files: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """A prose reference to a numbered section must carry that section's current name.
+
+    Round 5 swapped two section headings (2-D.6 <-> 2-D.7) and every prose reference written
+    against the old numbering silently inverted its meaning. Numbers rot when sections move;
+    a name beside the number turns the rot visible. So: a bare `2-D.N` reference is a finding,
+    and a named one must match the heading that N currently carries.
+    """
+    out = []
+    for name, (path, text) in files.items():
+        heads = {m.group(1): m.group(2).strip()
+                 for m in re.finditer(r"^#{3,4}\s+(2-D\.[\dF]+):\s*(.+?)\s*$", text, re.M)}
+        if not heads:
+            continue
+        for m in re.finditer(r"(?<![#.\w])(2-D\.[\d]+)(?!:)", text):
+            sec = m.group(1)
+            line_start = text.rfind("\n", 0, m.start()) + 1
+            line = text[line_start: text.find("\n", m.start())]
+            if line.lstrip().startswith("#"):
+                continue
+            title = heads.get(sec)
+            if title is None:
+                out.append(Finding(str(path), lineno(text, m.start()), "section-ref",
+                                   f"references section {sec}, which does not exist"))
+                continue
+            # a name must appear near the reference and match the current heading
+            ctx = text[m.end(): m.end() + 90]
+            first_word = re.sub(r"\s*\(.*", "", title).split()[0].rstrip("(").lower()
+            if first_word not in ctx.lower() and first_word not in line.lower():
+                out.append(Finding(str(path), lineno(text, m.start()), "section-ref",
+                                   f'bare/mismatched reference to {sec} — its current heading is '
+                                   f'"{title}"; name the section beside the number so a heading '
+                                   f"swap cannot silently invert the meaning"))
+    return out
+
+
+def check_duplicate_json_keys(files: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """No object in a fenced JSON example may define the same key twice.
+
+    Two mechanical edits in different rounds each added `sourceHash` to the same example object,
+    with different values. JSON consumers keep one and drop the other, and nothing defines which —
+    a single-line syntax check cannot see it because the members sit on different lines.
+    """
+    out = []
+    for name, (path, text) in files.items():
+        for bm in re.finditer(r"```json[c]?\n(.*?)```", text, re.S):
+            block, base = bm.group(1), bm.start(1)
+            stack: list[dict] = []
+            for lm in re.finditer(r'[{}]|"([\w-]+)"\s*:', block):
+                tok = lm.group(0)
+                if tok == "{":
+                    stack.append({})
+                elif tok == "}":
+                    if stack:
+                        stack.pop()
+                elif stack is not None and lm.group(1) and stack:
+                    key = lm.group(1)
+                    if key in stack[-1]:
+                        out.append(Finding(str(path), lineno(text, base + lm.start()),
+                                           "duplicate-json-key",
+                                           f'object defines "{key}" twice (first at line '
+                                           f"{lineno(text, base + stack[-1][key])})"))
+                    else:
+                        stack[-1][key] = lm.start()
+    return out
+
+
 def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
     """A skill must declare every tool its body actually uses."""
     out = []
@@ -401,6 +468,8 @@ def run(plugin: Path) -> list[Finding]:
             + check_command_paths(every)
             + check_ordered_lists(every)
             + check_stale_number_refs(every)
+            + check_section_refs(every)
+            + check_duplicate_json_keys(every)
             + check_references(plugin, every))
 
 

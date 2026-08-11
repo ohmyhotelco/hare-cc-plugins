@@ -43,8 +43,15 @@ touching the new questions behaves exactly as before.
    > (`fe-plan` → `fe-gen`) after this change."
    - Require an explicit second confirmation naming the consequence; if declined, keep the old
      config and stop. Non-structural knobs (`mockFirst`, `eslintTemplate`, `prettierTemplate`,
-     `e2eTool`, `i18n`) reconfigure without this guard — `i18n` changes surface through the
-     key-coverage spec's fingerprint instead.
+     `i18n`) reconfigure without this guard — `i18n` changes surface through the key-coverage
+     spec's fingerprint instead.
+   - **`e2eTool` sits in between**: switching to `playwright` with generated features leaves no
+     harness (`playwright.config.ts` / `e2e/fixtures.ts` are scaffolded by foundation-generator,
+     which only runs inside `fe-gen`), so the next `fe-e2e` stops with "run fe-gen first" — a
+     guided stop, not a dead end, but a surprise. Warn at reconfiguration time:
+     > "Switching e2eTool to playwright: the Playwright harness does not exist yet. The next
+     > `fe-gen` run for any feature scaffolds it; `fe-e2e` will refuse until then."
+     No second confirmation required — the consequence is one guided re-run, not split state.
 5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
 
 ### Step 1b: Ask for App Profile

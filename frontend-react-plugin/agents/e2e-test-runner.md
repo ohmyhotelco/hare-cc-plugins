@@ -57,8 +57,8 @@ Read TWO sources for agent-browser knowledge:
      `specDir/screens.md` (expected UI elements, screen layouts)
    - `standalone: true` → read `specDir/{feature}-spec.md` instead; the other two files do not
      exist and never will. Scenario detail comes from the plan's `e2eTests[]` (FR-cited generic
-     flows) plus the spec's screen section. This applies to **both** runner modes — the Playwright
-     path shares this Step 0 context load.
+     flows) plus the spec's screen section. Playwright mode does **not** share this step (it
+     skips Steps 0–4) — P0 carries its own copy of this branch.
 
 ### Step 1: Session Setup
 
@@ -256,7 +256,11 @@ When `e2eTool == playwright` (ota-profile default), realize and run the scenario
 ### P0: Load Context
 - Read `templates/e2e-playwright.md` (Playwright patterns).
 - Read `planFile` → `e2eTests[]`, `routes.entries`, plus `serverState` / `routerMode` (SSR/loader awareness).
-- Read `specDir/test-scenarios.md` (TS-nnn descriptions) and `specDir/screens.md` (expected UI).
+- Spec context — **branch on the `standalone` input exactly as Step 0 item 3 does** (Playwright mode
+  skips Steps 0–4, so that branch does not run for it; this one is P0's own):
+  - `standalone: false` → read `specDir/test-scenarios.md` (TS-nnn descriptions) and
+    `specDir/screens.md` (expected UI).
+  - `standalone: true` → read `specDir/{feature}-spec.md` instead; the other two files do not exist.
 - Read `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` (auth/state helpers + page-object base, scaffolded once per app by foundation-generator).
 
 ### P1: Realize Specs

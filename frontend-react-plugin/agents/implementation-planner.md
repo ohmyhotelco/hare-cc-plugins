@@ -367,8 +367,9 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - Screen IDs (kebab-case) → from `screens.md` or UI DSL `manifest.json`
    - Error codes (E-nnn) → from `screens.md` error handling
 4. Record the mapping: `{ specId → [plan entries that reference it] }`
-5. Collect each entry's `sourceHash` (written at full-plan time — see 3.3 note). Entries from a
-   plan that predates `sourceHash` have none; record them as `hashless`.
+5. Collect each source-bearing object's `sourceHash` — **at every nesting level**, not only the
+   top-level arrays: `api[].queries[]`, `components[].validation[]`, and `tests[].cases[]` carry
+   their own. Objects from a plan that predates `sourceHash` have none; record them as `hashless`.
 
 #### 3.2 Extract Current Spec Fingerprint
 
@@ -377,7 +378,20 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - `screens.md` → extract screen IDs, component lists, error codes, field lists
    - `test-scenarios.md` → extract all TS-nnn with their content
 2. If UI DSL is available: read `manifest.json` → extract screen IDs, dataEntities, navigation edges
-3. Record as the **new spec fingerprint**: `{ specId → content hash or summary }`
+3. Record as the **new spec fingerprint**, two views of the same read:
+   - `{ specId → normalized text }` — for **added/removed** detection by ID set.
+   - For each existing source-bearing object, **recompute its scalar hash the same way full
+     planning did** (algorithm below) from the current text of the IDs its `source` lists — this
+     is what its stored `sourceHash` is compared against. Comparing a per-ID map against a
+     per-object scalar is not executable; the comparison unit is the **object**, and a multi-ID
+     object counts as modified when any of its IDs' text changed (a safe over-approximation —
+     it routes at file granularity anyway).
+
+   **The hash algorithm is fixed, or nothing ever matches across runs:** first 8 hex chars of
+   SHA-256 over the referenced requirement/scenario texts, concatenated in `source` order, each
+   text normalized first (strip leading/trailing whitespace per line, collapse runs of internal
+   whitespace to one space, drop blank lines). Any agent hashing differently marks every entry
+   modified on every replan, which degrades incremental planning into a permanent full delta.
 
 > **`sourceHash` is written by full planning, here, on every entry that carries a `source`** — a
 > short (8-hex) hash of the referenced requirement/scenario text as it reads in the spec at plan
@@ -471,6 +485,11 @@ Determine phase action:
 - `partial` — some files affected in this phase
 
 #### 3.7 Generate Plan Patch
+
+**Normative:** every `modifications` entry carries the modified object's updated `source` and its
+**recalculated `sourceHash`** (same fixed algorithm as Phase 3.2). `fe-gen` applies the patch
+verbatim, so a patch omitting the new hash leaves the old one in `plan.json`, and the same spec
+change is re-detected as new on every subsequent incremental plan — forever.
 
 Compute the patch to apply to plan.json after delta execution:
 - `additions`: new entries to add to plan.json sections (types, api, stores, components, pages, tests, e2eTests, routes.entries)
@@ -617,8 +636,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
           "file": "{baseDir}/features/{feature}/pages/EntityExportPage.tsx",
           "screenId": "entity-export",
           "route": "/path/to/entities/export",
-          "source": "FR-007, screen: entity-export", "sourceHash": "7f4b012a",
-          "sourceHash": "a3f91c2e"
+          "source": "FR-007, screen: entity-export", "sourceHash": "7f4b012a"
         }
       ],
       "tests": [
@@ -639,7 +657,9 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
       "types": [
         {
           "name": "EntityName",
-          "change": "Add Archived to EntityStatus enum values"
+          "change": "Add Archived to EntityStatus enum values",
+          "source": "FR-002, BR-003",
+          "sourceHash": "c91d40b7"
         }
       ]
     },
@@ -740,8 +760,7 @@ admin/library-mode default so all appear with default values):
         { "name": "EntityStatus", "values": ["Active", "Inactive", "Pending"] }
       ],
       "dtos": ["CreateEntityDto", "UpdateEntityDto"],
-      "source": "screen: entity-list, entity-create | FR-001, FR-002", "sourceHash": "4f6ed1a0",
-      "sourceHash": "7be40d18"
+      "source": "screen: entity-list, entity-create | FR-001, FR-002", "sourceHash": "4f6ed1a0"
     }
   ],
   "api": [

@@ -182,7 +182,7 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
 
 0. **Skip if already applied**: if `generation-state.json` has `planPatched: true`, this is a
    resume and the patch already ran — applying additions twice duplicates plan entries. Skip to
-   2-D.4.
+   2-D.4 (**Execute Delta Phases**).
 1. Read current `plan.json`
 2. Apply `planJsonPatch.additions` — add new entries to the respective arrays
 3. Apply `planJsonPatch.modifications` — update existing entries
@@ -195,7 +195,7 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
 
 For each phase in order (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`):
 
-**If the phase's `generation-state.json` status is already `"completed"`** (a resume — 2-D.2
+**If the phase's `generation-state.json` status is already `"completed"`** (a resume — 2-D.2 (**Initialize Delta Generation State**)
 preserved it): log "Skipping {phase} (completed in the interrupted run)" and continue. Without this
 check the loop keys on `deltaAction` alone and re-executes edits that already landed, duplicating
 fixtures, routes, handlers, and locale entries.
@@ -316,7 +316,7 @@ If `createFiles` is non-empty AND the phase is `integration`:
 **On completion** — branch on the agent's reported `status` first:
 - `"partial"` (some operations escalated) or `"failed"` → this phase is **not** complete. Record it
   as `"failed"` with the escalated operations listed, keep `delta-plan.json` active (do **not**
-  archive in 2-D.6), skip 2-D.7's `generated` write, follow the failure path (2-D.F) instead —
+  archive in 2-D.7 (**Archive Delta**)), skip 2-D.6 (**Update Progress**)'s `generated` write, follow the failure path (2-D.F) instead —
   final status `gen-failed`. Recording a partial phase as completed archives the delta and promotes
   code with unapplied changes into review as `generated`.
 - `"completed"` → update generation-state.json for this phase:
@@ -690,7 +690,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 - Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
 
 **Also remove `implementation.e2e`**: regeneration changed the code, so a prior E2E pass is stale
-evidence — see 2-D.7 for the same rule on the delta path.
+evidence — see 2-D.6 (**Update Progress (Delta)**) for the same rule on the delta path.
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug` — but not `e2e`, removed above), then write back the complete file.
 
