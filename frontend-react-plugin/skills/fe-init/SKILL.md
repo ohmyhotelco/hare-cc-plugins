@@ -32,7 +32,11 @@ touching the new questions behaves exactly as before.
    > ```
    > "Do you want to reconfigure? This will overwrite the existing settings."
 3. If the user declines, stop here
-4. **Structural-change guard.** Before overwriting, glob `docs/specs/*/.progress/*.json` for any
+4. **Structural-change guard — evaluated AFTER the new answers exist.** Step 1 only **snapshots
+   the old config**; the comparison below runs **after Step 2g (all knobs collected) and before
+   Step 3 writes the file** — at Step 1 the new values do not exist yet, so "changes a structural
+   knob" cannot be evaluated here, and a guard run here either never fires or warns about a change
+   it cannot name. Before overwriting, glob `docs/specs/*/.progress/*.json` for any
    feature whose `implementation.status` is beyond `planned`. If any exist AND the reconfiguration
    changes a **structural** knob (`baseDir`, `appDir`, `routerMode`, `appProfile`, `serverState`,
    `formStack`), list the affected features and warn:
@@ -50,7 +54,8 @@ touching the new questions behaves exactly as before.
      which only runs inside `fe-gen`), so the next `fe-e2e` stops with "run fe-gen first" — a
      guided stop, not a dead end, but a surprise. Warn at reconfiguration time:
      > "Switching e2eTool to playwright: the Playwright harness does not exist yet. The next
-     > `fe-gen` run for any feature scaffolds it; `fe-e2e` will refuse until then."
+     > `fe-gen` run for any feature scaffolds it (a preflight that runs in full, delta, and resume
+     > modes alike — fe-gen Step 1.9); `fe-e2e` will refuse until then."
      No second confirmation required — the consequence is one guided re-run, not split state.
 5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
 
@@ -199,6 +204,11 @@ Present:
   self-correction).
 
 Default: by profile — `agent-browser` for admin, `playwright` for ota. Record as `e2eTool`.
+
+### Step 2h: Run the Reconfiguration Guards (reconfiguration only)
+
+Now that every new value exists, compare against the Step 1 snapshot and run the **structural-change
+guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the old config, stop.
 
 ### Step 3: Write Configuration
 

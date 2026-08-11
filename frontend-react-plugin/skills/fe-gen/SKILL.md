@@ -47,11 +47,17 @@ Generates production React code based on the implementation plan (plan.json) usi
    - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
    - `prototypes/{feature}/` → `prototypeAvailable`
 
-2. Check for existing generation state:
-   - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists:
+2. Check for existing generation state — **but a pending `delta-plan.json` outranks it**: if
+   `delta-plan.json` exists, go straight to item 3 (**Delta detection**) regardless of what the
+   state file says; handling old state first would route the run into resume/fresh-start and the
+   delta would never be seen.
+   - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists (and no
+     pending delta):
      - Read it and check `currentPhase` and phase statuses
      - If `deltaMode` is `true` in the state file: skip resume offer, proceed to item 3 (**Delta detection**), which handles resume
-     - Otherwise: offer to resume from the last incomplete phase
+     - Otherwise: offer to resume from the last incomplete phase. A phase with `status: "skipped"`
+       and `skipKind: "auto"` counts as **complete** here — it is a planned no-op, not unfinished
+       work.
 
 3. **Delta detection** — check if a delta plan exists:
    - If `docs/specs/{feature}/.implementation/frontend/delta-plan.json` exists:
@@ -116,6 +122,15 @@ Ask:
 > "Proceed with code generation?"
 
 If the user declines, stop here.
+
+### Step 1.9: Playwright Harness Preflight (every mode)
+
+When `e2eTool == "playwright"` and `{appDir}/playwright.config.ts` is absent, scaffold the harness
+now — run foundation-generator's Step 5c scaffold (app-lock guarded) before any phases. This runs in
+**full, delta, and resume modes alike**: delta delegates its foundation phase to `delta-modifier`
+and resume skips completed phases, so without this preflight the fe-init reconfiguration message
+("the next fe-gen run scaffolds it") is a promise those two modes silently break — the user follows
+the remedy, it "succeeds", and `fe-e2e` still refuses.
 
 ### Step 2-D: Delta Execution (when `genMode = "delta"`)
 
@@ -185,7 +200,7 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
    2-D.4 (**Execute Delta Phases**).
 1. Read current `plan.json`
 2. Apply `planJsonPatch.additions` — add new entries to the respective arrays
-3. Apply `planJsonPatch.modifications` — update existing entries
+3. Apply `planJsonPatch.modifications` — **merge into** the existing entry matched by its section's identity key (planner Phase 3.7: `name` / `file` / `method`+`path` / `id`): overwrite only the fields the patch lists, keep every unlisted field, replace listed arrays wholesale, and do **not** persist the transient `change` field
 4. Apply `planJsonPatch.removals` — remove entries from the respective arrays
 5. Write the updated plan.json, then set `planPatched: true` in `generation-state.json`
 
@@ -705,9 +720,13 @@ Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
 When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`:
 
 1. Read the state file
-2. **All-completed check** — if every phase in the state file has `status: "completed"`:
-   > "Previous generation completed successfully. Re-running will start fresh."
-   - Delete generation-state.json and proceed to Step 3 (fresh start).
+2. **All-completed check** — if every phase has `status: "completed"` or `"skipped"` with
+   `skipKind: "auto"`:
+   - **If `delta-plan.json` exists**: do not start fresh — proceed to Step 1 item 3 (**Delta
+     detection**); the pending delta is the reason this run exists.
+   - Otherwise:
+     > "Previous generation completed successfully. Re-running will start fresh."
+     - Delete generation-state.json and proceed to Step 3 (fresh start).
 3. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against phase-level `completedAt` timestamps:
    - Get plan.json mtime (use `stat` or file system check)
    - For each completed phase (in order), compare plan.json mtime against `completedAt`:

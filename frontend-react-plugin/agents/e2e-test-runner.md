@@ -264,7 +264,7 @@ When `e2eTool == playwright` (ota-profile default), realize and run the scenario
 - Read `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` (auth/state helpers + page-object base, scaffolded once per app by foundation-generator).
 
 ### P1: Realize Specs
-One spec per scenario at `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. Map each `plan.json e2eTests[]` step (the tool-neutral schema — **unchanged**) to Playwright:
+One spec per scenario at `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. **No TS reference** (standalone scenarios cite FR ids): name and tag by the scenario's `e2eTests[].id` instead — `E2E-001.spec.ts` — never a literal `{TS-nnn}` placeholder or a collision-prone shared name. Map each `plan.json e2eTests[]` step (the tool-neutral schema — **unchanged**) to Playwright:
 
 | plan step | Playwright realization |
 |---|---|

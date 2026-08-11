@@ -22,7 +22,7 @@ Only the realization differs.
 - `e2e/fixtures.ts` — auth/state-setup helpers and page-object base.
 
 ## Spec realization
-- One spec per scenario: `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn.
+- One spec per scenario: `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. Scenarios without a TS reference (standalone plans cite FR ids) use the scenario's `e2eTests[].id` — `E2E-001.spec.ts` — for both filename and tag.
 - Step mapping: `navigate`→`page.goto`; `fill`→`getByLabel`/`getByRole().fill`; `click`→`getByRole().click`;
   `verify`→`expect(...)` **web-first assertions** (auto-retry) — never bare `waitForTimeout`; `wait`→a
   web-first assertion on the awaited condition.

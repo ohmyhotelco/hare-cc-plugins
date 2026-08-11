@@ -368,7 +368,7 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - Error codes (E-nnn) → from `screens.md` error handling
 4. Record the mapping: `{ specId → [plan entries that reference it] }`
 5. Collect each source-bearing object's `sourceHash` — **at every nesting level**, not only the
-   top-level arrays: `api[].queries[]`, `components[].validation[]`, and `tests[].cases[]` carry
+   top-level arrays: `api[].queries.hooks[]` (the schema nests hook records there, not at `api[].queries[]`), `components[].validation[]`, and `tests[].cases[]` carry
    their own. Objects from a plan that predates `sourceHash` have none; record them as `hashless`.
 
 #### 3.2 Extract Current Spec Fingerprint
@@ -423,12 +423,15 @@ Compare old fingerprint against new fingerprint:
    - Removed TS → remove test case
    - Removed error code → remove handler scenario, error UI
 
-3. **Modified**: IDs in both fingerprints but with different content
-   - Compare field-by-field for entity changes (fields added/removed/type-changed)
-   - Compare component lists for screen composition changes
-   - Compare validation rules for business rule changes
-   - Compare endpoint signatures for API changes
-   - For each modification, record the specific `change` description and affected `fields`
+3. **Modified**: source-bearing **objects** whose recomputed scalar hash differs from their stored
+   `sourceHash` (3.2). The unit is the object, never the ID — a multi-ID object's changed hash
+   proves only that at least one of its IDs' text changed, so record the **object identity**
+   (section + `name`/`file`) and list **all** of its source IDs conservatively in `specRefs`;
+   `specChanges.modified` counts modified **objects**. Then, to describe the change:
+   - Compare the object's plan fields against the new spec text field-by-field (fields
+     added/removed/type-changed, component lists, validation rules, endpoint signatures)
+   - Record the specific `change` description and affected `fields`
+   - `hashless` objects go to `contentComparisonUnavailable[]`, never into `modified`
 
 #### 3.4 Compute Dependency Cascade
 
@@ -487,7 +490,15 @@ Determine phase action:
 #### 3.7 Generate Plan Patch
 
 **Normative:** every `modifications` entry carries the modified object's updated `source` and its
-**recalculated `sourceHash`** (same fixed algorithm as Phase 3.2). `fe-gen` applies the patch
+**recalculated `sourceHash`** (same fixed algorithm as Phase 3.2).
+
+**Modifications MERGE, never replace.** Identity key per section: `name` (types, stores,
+components), `file` (pages, tests), `method`+`path` (api), `id` (e2eTests). `fe-gen` locates the
+matching object and overwrites **only the fields the patch lists**; every unlisted field
+(`file`, `fields`, `enums`, `dtos`, …) survives untouched. A listed array field replaces the whole
+array (no element-wise merge). `change` is transient metadata for the executor — it is **not**
+written into the persisted plan object. Wholesale replacement would delete the entry's file path
+and field list, leaving downstream phases unable to locate what they must modify. `fe-gen` applies the patch
 verbatim, so a patch omitting the new hash leaves the old one in `plan.json`, and the same spec
 change is re-detected as new on every subsequent incremental plan — forever.
 
@@ -512,6 +523,10 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
   "mode": "incremental",
   "basePlanFile": "{existingPlanFile}",
   "basePlanTimestamp": "{ISO timestamp of existing plan.json file}",
+  "contentComparisonUnavailable": [
+    { "object": "types[] EntityName", "sourceIds": ["FR-002", "BR-003"],
+      "reason": "plan predates sourceHash" }
+  ],
   "specChanges": {
     "added": [
       {
@@ -673,6 +688,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
   "largeDeltaWarning": false,
   "summary": {
     "specChanges": { "added": 1, "modified": 1, "removed": 1 },
+    "contentComparisonUnavailable": 0,
     "affectedFiles": { "create": 2, "modify": 6, "remove": 2 },
     "phasesAffected": ["foundation", "component-tdd", "page-tdd", "integration"],
     "phasesSkipped": ["api-tdd", "store-tdd"]
@@ -717,8 +733,15 @@ Delta Plan for '{feature}':
 
 > **`sourceHash` is part of the schema, not an optional annotation.** Every object below that
 > carries a requirement/scenario/screen-bearing `source` (FR/BR/AC/US/TS ids or screen ids)
-> carries a sibling `sourceHash` — a short (8-hex) hash of the referenced spec text at plan time.
-> Layout markers (`"_shared"`) and file pointers (`"screen-*.json"`) are exempt. Incremental
+> carries a sibling `sourceHash` — computed with the **fixed algorithm defined in Phase 3.2**
+> (first 8 hex of SHA-256 over the referenced texts, concatenated in `source` order, normalized).
+> That definition governs this write too: hashing any other way marks every entry modified on the
+> first incremental replan.
+> Layout markers (`"_shared"`) are exempt; a DSL filename is **not a `source`** — it lives in the
+> entry's `dslFile` field, and the page's `source` carries the screen ID (plus any FRs). **Canonical
+> text for a screen ID's hash, one fixed precedence:** the screen's section in `screens.md` when
+> that file exists, else the DSL `screen-{id}.json` content, else (standalone) the spec's screen
+> section — full planning and Phase 3.2 must pick by this same rule or page hashes never match. Incremental
 > planning's same-ID change detection compares against these; an entry without one is `hashless`
 > and its edits become undetectable.
 
@@ -845,7 +868,8 @@ admin/library-mode default so all appear with default values):
       "loader": { "data": ["entityApi.getList"], "params": [] },
       "meta": { "titleKey": "entityList.title" },
       "routeModuleFile": "{baseDir}/features/{feature}/routes/entity-list.tsx",
-      "source": "screen-entity-list.json"
+      "source": "screen: entity-list", "sourceHash": "5d2c91af",
+      "dslFile": "screen-entity-list.json"
     }
   ],
   "sharedLayouts": [

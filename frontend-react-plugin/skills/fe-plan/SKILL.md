@@ -181,6 +181,13 @@ Proceed to Step 3 (Launch Planner Agent) — the implementation-planner already 
 
 ### Step 2.5: Detect Shared Layout
 
+**Standalone features skip this step entirely** (read the progress file's `standalone` flag): the
+standalone planner rule is "shared layout detection: skip", and item 2 below reads `screens.md`,
+which standalone never creates — without this branch an existing standalone feature (spec mode by
+auto-detection, since its progress file exists) dies here and **never reaches Step 2.7's
+incremental detection**, making standalone replanning unreachable through this skill. Set
+`sharedLayoutIds = "none"` and continue to Step 2.7.
+
 1. If `uiDslAvailable` is true:
    - Read `docs/specs/{feature}/ui-dsl/manifest.json`
    - Check `layouts` array for entries with `"source": "_shared"`
@@ -262,8 +269,15 @@ Only executed when `planMode = "incremental"`.
    > "2. Switch to full regeneration"
    - If user chooses 2: discard delta-plan.json, set `planMode = "full"`, go to Step 3
 
-4. If no spec changes detected (`specChanges.added`, `modified`, and `removed` are all empty):
+4. If no spec changes detected (`specChanges.added`, `modified`, and `removed` are all empty)
+   **and `contentComparisonUnavailable` is empty**:
    > "No spec changes detected. The current plan is up to date."
+   When `contentComparisonUnavailable` is **non-empty**, this branch is forbidden — the honest
+   statement is "no *detectable* changes", which is not the same thing. Display the listed objects
+   and their source IDs with:
+   > "Content comparison unavailable for {N} object(s) (plan predates sourceHash). If any of these
+   > requirements changed, run full generation; incremental cannot see their edits."
+   and keep the delta only if other changes exist; otherwise delete it and stop as below.
    - **Delete the `delta-plan.json` the planner just wrote** and leave the progress file untouched.
      Left in place, the session hook and `fe-progress` report a pending delta, and following their
      `fe-gen` advice executes a zero-change delta that resets the status to `generated` and clears
