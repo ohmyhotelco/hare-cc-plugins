@@ -30,6 +30,8 @@ The coordinator skill provides:
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `feature` — feature name
 - `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
+- `mode` — `"full"` (default) | `"playwright-harness-only"`. The harness-only mode **runs Step 5c and nothing else** — no layouts, no types, no mocks, no per-feature work — then reports. It exists for fe-gen's Step 1.9 preflight, which must be able to produce the harness in delta/resume runs without executing a foundation phase outside phase-state tracking.
+- `devPort` — dev-server port for the scaffolded `webServer` command (default `5173`). Step 5c writes it into `playwright.config.ts`; fe-e2e passes the same value to the runner, so the two must come from the same place.
 - `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
 - `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
@@ -211,14 +213,18 @@ glob for the shell files and scaffold any that are **absent** from `templates/fr
 `routes.ts`, `root.tsx`, and the `entry.*.tsx` files live under `{baseDir}`; `react-router.config.ts` and
 the generated `.react-router/` types dir live in `{appDir}`.
 
-### Step 5c: Playwright E2E Harness (once per app, first feature)
+### Step 5c: Playwright E2E Harness (once per app, first feature — or `mode: playwright-harness-only`)
 
-Only when `e2eTool == playwright` **and** this is the first feature — glob `{appDir}/playwright.config.ts`
-and skip if present. Ported from the migration plugin's foundation harness **minus** legacy dual-run and
+Only when `e2eTool == playwright`. **Check each harness file independently, under the app lock**:
+glob `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` separately, and scaffold
+whichever is absent. The config file is **not** a sentinel for the whole harness — `fe-e2e` refuses
+unless **both** exist, so a scaffold interrupted after the config (or a project bringing its own
+config) would otherwise loop forever: every `fe-gen` skips "because the config exists" while every
+`fe-e2e` stops with "run fe-gen first". Ported from the migration plugin's foundation harness **minus** legacy dual-run and
 parity. See `templates/e2e-playwright.md`.
 
 - `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
-  runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** with
+  runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
   `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {port}`;
   library modes → `npx vite --port {port}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).

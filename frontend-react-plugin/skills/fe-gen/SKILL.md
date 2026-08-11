@@ -125,8 +125,29 @@ If the user declines, stop here.
 
 ### Step 1.9: Playwright Harness Preflight (every mode)
 
-When `e2eTool == "playwright"` and `{appDir}/playwright.config.ts` is absent, scaffold the harness
-now — run foundation-generator's Step 5c scaffold (app-lock guarded) before any phases. This runs in
+When `e2eTool == "playwright"` and **either** `{appDir}/playwright.config.ts` **or**
+`{appDir}/e2e/fixtures.ts` is absent (check both — fe-e2e requires both, and the config alone is
+not proof of a complete harness), scaffold now, before any phases:
+
+```
+Agent(subagent_type: "foundation-generator", prompt: "
+  Scaffold the Playwright harness only.
+
+  Parameters:
+  - mode: playwright-harness-only
+  - e2eTool: playwright
+  - appDir: {appDir}
+  - devPort: {devPort — from config, default 5173}
+  - projectRoot: {cwd}
+  - baseDir: {baseDir}
+  - srcPath: {srcPath}
+  - localesDir: {localesDir}
+")
+```
+
+`mode: playwright-harness-only` runs the agent's Step 5c and nothing else — launching it without
+the mode would execute a full foundation phase (layouts, types, mocks) outside phase-state
+tracking, which is exactly what a delta/resume preflight must not do. This runs in
 **full, delta, and resume modes alike**: delta delegates its foundation phase to `delta-modifier`
 and resume skips completed phases, so without this preflight the fe-init reconfiguration message
 ("the next fe-gen run scaffolds it") is a promise those two modes silently break — the user follows
@@ -200,7 +221,7 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
    2-D.4 (**Execute Delta Phases**).
 1. Read current `plan.json`
 2. Apply `planJsonPatch.additions` — add new entries to the respective arrays
-3. Apply `planJsonPatch.modifications` — **merge into** the existing entry matched by its section's identity key (planner Phase 3.7: `name` / `file` / `method`+`path` / `id`): overwrite only the fields the patch lists, keep every unlisted field, replace listed arrays wholesale, and do **not** persist the transient `change` field
+3. Apply `planJsonPatch.modifications` — **merge into** the existing entry matched by its section's identity key (planner Phase 3.7: `name` for types/stores/components/**api**, `file` for pages/tests, `id` for e2eTests): overwrite only the fields the patch lists, keep every unlisted field, replace listed arrays wholesale, and do **not** persist the transient `change` field
 4. Apply `planJsonPatch.removals` — remove entries from the respective arrays
 5. Write the updated plan.json, then set `planPatched: true` in `generation-state.json`
 

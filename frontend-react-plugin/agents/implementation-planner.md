@@ -355,9 +355,13 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
 #### 3.1 Load Existing Plan
 
 > **Standalone branch (operative, not advisory).** When the progress file says `standalone: true`:
-> in 3.1 item 3, parse only FR/BR/AC/US ids (there are no TS-nnn, screen ids, or error codes to
-> parse); in 3.2 item 1, read **only** `{feature}-spec.md` — `screens.md` and `test-scenarios.md`
-> do not exist in standalone mode and reading them fails the replan outright.
+> in 3.1 item 3, parse FR/BR/AC/US ids **and screen ids** — standalone full planning derives
+> screens from the spec's screen section and pages carry `source: "screen: {id}"` with a hash over
+> that section (canonical-text precedence), so a replan that drops screen ids can never recompute a
+> page hash and classifies every unchanged page as modified, forever. Only TS-nnn and error codes
+> are absent. In 3.2 item 1, read **only** `{feature}-spec.md` — `screens.md` and
+> `test-scenarios.md` do not exist in standalone mode and reading them fails the replan outright;
+> screen text comes from the spec's screen sections.
 
 1. Read `existingPlanFile` → parse the full plan.json
 2. Extract the **old spec fingerprint**: collect all `source` field values from every entry across `types[]`, `api[]`, `stores[]`, `components[]`, `pages[]`, `tests[]`, `e2eTests[]`, `sharedLayouts[]`
@@ -493,7 +497,11 @@ Determine phase action:
 **recalculated `sourceHash`** (same fixed algorithm as Phase 3.2).
 
 **Modifications MERGE, never replace.** Identity key per section: `name` (types, stores,
-components), `file` (pages, tests), `method`+`path` (api), `id` (e2eTests). `fe-gen` locates the
+components, **api** — an `api[]` entry is the service object, which has `name`/`file`/`endpoint`;
+`method`+`path` identify records **inside** `api[].methods[]` and match no top-level entry, so a
+patch keyed on them merges into nothing while `planPatched: true` blocks the retry), `file`
+(pages, tests), `id` (e2eTests). Method-level changes ship as a listed `methods` array, which
+replaces wholesale per the array rule. `fe-gen` locates the
 matching object and overwrites **only the fields the patch lists**; every unlisted field
 (`file`, `fields`, `enums`, `dtos`, …) survives untouched. A listed array field replaces the whole
 array (no element-wise merge). `change` is transient metadata for the executor — it is **not**

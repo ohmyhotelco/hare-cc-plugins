@@ -226,7 +226,7 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
   - appDir: {appDir}
   - srcPath: {srcPath}
   - standalone: {standalone}
-  - port: {port}
+  - port: {port — agent-browser mode: the port Step 3 chose; Playwright mode: Step 3 is skipped, so pass `devPort` from config (default 5173), the same value foundation's Step 5c baked into playwright.config.ts webServer}
   - e2eTool: {e2eTool}
   - routerMode: {routerMode}
   - e2eTests: {e2eTests from plan.json}
