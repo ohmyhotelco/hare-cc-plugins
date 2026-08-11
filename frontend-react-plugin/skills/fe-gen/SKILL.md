@@ -148,7 +148,9 @@ If the user declines, stop here.
 
 **Resume, don't reset.** If `generation-state.json` already exists with `deltaMode: true`, this is
 the resume of an interrupted delta — item 3 of Step 1 routes here for exactly that case. Preserve
-every phase whose `status` is `"completed"` (and its `completedAt`); set only the not-yet-completed
+every phase whose `status` is `"completed"` (and its `completedAt`), **and the top-level
+`planPatched` flag** — dropping it makes 2-D.3 reapply the plan patch, which duplicates plan
+entries, the exact defect the flag exists to prevent. Set only the not-yet-completed
 active phases to `"pending"`. Recreating all phases as pending reruns work that already happened —
 re-editing source files that were already delta-modified.
 
@@ -192,6 +194,11 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
 #### 2-D.4: Execute Delta Phases
 
 For each phase in order (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`):
+
+**If the phase's `generation-state.json` status is already `"completed"`** (a resume — 2-D.2
+preserved it): log "Skipping {phase} (completed in the interrupted run)" and continue. Without this
+check the loop keys on `deltaAction` alone and re-executes edits that already landed, duplicating
+fixtures, routes, handlers, and locale entries.
 
 **If `deltaAction = "skip"`**: Log "Skipping {phase} (no changes)" and continue to next phase.
 
@@ -380,12 +387,7 @@ Delta Generation Complete for '{feature}':
     Removed: {list of removed code blocks}
 ```
 
-#### 2-D.6: Archive Delta
-
-1. Rename `delta-plan.json` → `delta-plan.{timestamp}.json` (keep for audit)
-2. Remove `implementation.deltaFile` and `implementation.deltaDetectedAt` from the progress file
-
-#### 2-D.7: Update Progress (Delta)
+#### 2-D.6: Update Progress (Delta)
 
 Read `docs/specs/{feature}/.progress/{feature}.json` and update:
 
@@ -408,6 +410,17 @@ pass describes an app that no longer exists — preserving it lets a later `done
 complete" on stale evidence.
 
 **Merge rule**: preserve all existing fields except `implementation.e2e` (removed above). Only update `status`, `generatedAt`, and add `lastDelta`.
+
+#### 2-D.7: Archive Delta (last)
+
+1. Rename `delta-plan.json` → `delta-plan.{timestamp}.json` (keep for audit)
+2. Remove `implementation.deltaFile` and `implementation.deltaDetectedAt` from the progress file
+
+> Archiving runs **after** the progress write on purpose: interrupted between the two, the old
+> order left changed code with no active delta to resume and a progress file still claiming the
+> pre-delta state — the next `fe-gen` could only offer full generation. Interrupted in the new
+> order, the delta is still active and simply re-runs its (now completed, skipped-on-resume)
+> phases to reach this point again.
 
 #### 2-D.8: Next Steps
 

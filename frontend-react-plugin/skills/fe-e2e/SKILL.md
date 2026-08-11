@@ -39,7 +39,7 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 2. Read `plan.json` → extract `feature`, `e2eTests`, `routes`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
+3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`, and `standalone` (default `false`) — passed to the runner, which branches its spec reads on it
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
@@ -225,6 +225,7 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
   - baseDir: {baseDir}
   - appDir: {appDir}
   - srcPath: {srcPath}
+  - standalone: {standalone}
   - port: {port}
   - e2eTool: {e2eTool}
   - routerMode: {routerMode}

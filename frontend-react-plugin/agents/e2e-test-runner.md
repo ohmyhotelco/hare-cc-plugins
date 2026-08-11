@@ -19,6 +19,7 @@ The skill provides these parameters in the prompt:
 
 - `feature` — feature name
 - `planFile` — implementation plan path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
+- `standalone` — `true` | `false`; selects the spec-context branch in Step 0 item 3
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — base source directory (e.g., `"app/src"`)
 - `appDir` — directory containing `playwright.config.ts` / `package.json` (Playwright commands run from here; default `"."`)
@@ -50,11 +51,14 @@ Read TWO sources for agent-browser knowledge:
    - Assertion strategy
    - Anti-patterns
 
-3. **Plan and spec context**:
-   - Read `planFile` → extract `e2eTests[]` scenarios
-   - Read `specDir/test-scenarios.md` → full scenario descriptions for TS-nnn references
-   - Read `specDir/screens.md` → expected UI elements and screen layouts
-   - Read `planFile` → extract `routes.entries` for URL paths
+3. **Plan and spec context** — branch on the `standalone` input **before** reading:
+   - Read `planFile` → extract `e2eTests[]` scenarios and `routes.entries` for URL paths
+   - `standalone: false` → also read `specDir/test-scenarios.md` (full TS-nnn descriptions) and
+     `specDir/screens.md` (expected UI elements, screen layouts)
+   - `standalone: true` → read `specDir/{feature}-spec.md` instead; the other two files do not
+     exist and never will. Scenario detail comes from the plan's `e2eTests[]` (FR-cited generic
+     flows) plus the spec's screen section. This applies to **both** runner modes — the Playwright
+     path shares this Step 0 context load.
 
 ### Step 1: Session Setup
 

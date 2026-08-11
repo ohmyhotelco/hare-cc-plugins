@@ -42,8 +42,13 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 1. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`.
    **E2E exception**: also accept `generated`, `verified`, and `verify-failed` **when**
-   `e2e-report.json` exists, contains failures, and is newer than `review-report.json` (or no
-   review report exists) — that combination forces `fixMode = "e2e"`. `fe-e2e` runs from those
+   `e2e-report.json` exists, contains failures, is newer than `review-report.json` (or no
+   review report exists), **and is newer than `implementation.generatedAt`** — that combination
+   forces `fixMode = "e2e"`. The `generatedAt` condition is load-bearing: after a regeneration the
+   old failing report still sits on disk (generation clears the progress *field*, not the report
+   *file*), and without it this exception routes freshly generated code into a fix loop against a
+   report that describes deleted code. A stale report → refuse as before and name
+   `/frontend-react-plugin:fe-e2e {feature}` to produce a current one. `fe-e2e` runs from those
    statuses and its failure path names this command as the remedy; without this exception that
    loop dead-ends on a status check aimed at the review flow.
    - If status is not one of these:
@@ -60,7 +65,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
    - **E2E fix mode** if ALL of the following are true:
      - `e2e-report.json` exists
      - `e2e-report.json` has failures (`status` is `"partial"` or `"failed"`)
-     - `e2e-report.json` `timestamp` is newer than `review-report.json` `timestamp` (or review-report.json does not exist)
+     - `e2e-report.json` `timestamp` is newer than `review-report.json` `timestamp` (or review-report.json does not exist) **and newer than `implementation.generatedAt`** — the same stale-report guard as the Step 1 status exception; the two mode decisions must agree, or a status the exception admits gets routed by this item into fixing against a pre-regeneration report
    - **Tie-breaker**: If both reports exist and have identical timestamps (edge case):
      - Default to **review fix mode** (review issues take priority over E2E issues)
      - Inform the user:

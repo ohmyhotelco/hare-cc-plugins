@@ -32,7 +32,20 @@ touching the new questions behaves exactly as before.
    > ```
    > "Do you want to reconfigure? This will overwrite the existing settings."
 3. If the user declines, stop here
-4. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
+4. **Structural-change guard.** Before overwriting, glob `docs/specs/*/.progress/*.json` for any
+   feature whose `implementation.status` is beyond `planned`. If any exist AND the reconfiguration
+   changes a **structural** knob (`baseDir`, `appDir`, `routerMode`, `appProfile`, `serverState`,
+   `formStack`), list the affected features and warn:
+   > "{N} generated feature(s) were built against the current settings. Changing {knob} leaves
+   > their plan.json and generated code pointing at the old {directory/router shape}, while
+   > fe-gen/fe-verify will use the new one — builds split across directories or framework commands
+   > run against Vite-mode plans. Each listed feature needs a full re-plan and re-generation
+   > (`fe-plan` → `fe-gen`) after this change."
+   - Require an explicit second confirmation naming the consequence; if declined, keep the old
+     config and stop. Non-structural knobs (`mockFirst`, `eslintTemplate`, `prettierTemplate`,
+     `e2eTool`, `i18n`) reconfigure without this guard — `i18n` changes surface through the
+     key-coverage spec's fingerprint instead.
+5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
 
 ### Step 1b: Ask for App Profile
 

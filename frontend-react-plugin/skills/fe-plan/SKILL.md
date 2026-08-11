@@ -40,9 +40,13 @@ decides it), and a "spec must exist" check either kills the legitimate first-eve
 if evaluated after the `mkdir -p`, always passes because the mkdir just created the directory being
 checked. The existing nets downstream are the right ones: Step 0.5 auto-detection asks the user when
 no spec exists, and Step 1 stops on a missing spec in spec mode. The one residue a typo can leave is
-the directory this section created — so **on any exit before the first artifact write, remove the
-directory tree along with the lock if and only if this run created it** (it did not exist before the
-`mkdir -p`). A pre-existing directory is never removed.
+the directory this section created — so on any exit before the first artifact write, if this run
+created the directory (it did not exist before the `mkdir -p`): **delete this run's own lock file,
+then remove the now-empty directories with non-recursive `rmdir`, innermost first.** Never
+`rm -rf`: between deleting our lock and removing the directory, another session may legitimately
+acquire a new lock in it, and a recursive delete would destroy that live lock. `rmdir` on a
+non-empty directory fails harmlessly, which is exactly the right outcome — someone else is using
+it now. A pre-existing directory is never removed.
 
 Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
 CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
@@ -260,7 +264,11 @@ Only executed when `planMode = "incremental"`.
 
 4. If no spec changes detected (`specChanges.added`, `modified`, and `removed` are all empty):
    > "No spec changes detected. The current plan is up to date."
-   - Stop here.
+   - **Delete the `delta-plan.json` the planner just wrote** and leave the progress file untouched.
+     Left in place, the session hook and `fe-progress` report a pending delta, and following their
+     `fe-gen` advice executes a zero-change delta that resets the status to `generated` and clears
+     valid E2E evidence — a full pipeline demotion with no code change behind it.
+   - Stop here (release the lock).
 
 5. Confirm:
    > "Proceed with incremental plan? Run `/frontend-react-plugin:fe-gen {feature}` to apply the delta."

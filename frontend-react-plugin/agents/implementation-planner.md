@@ -379,6 +379,12 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
 2. If UI DSL is available: read `manifest.json` → extract screen IDs, dataEntities, navigation edges
 3. Record as the **new spec fingerprint**: `{ specId → content hash or summary }`
 
+> **`sourceHash` is written by full planning, here, on every entry that carries a `source`** — a
+> short (8-hex) hash of the referenced requirement/scenario text as it reads in the spec at plan
+> time. The examples above show the field; emit it on every `types[]`/`api[]`/`stores[]`/
+> `components[]`/`pages[]`/`tests[]`/`e2eTests[]` entry. Without it the comparison below has
+> nothing to compare.
+>
 > **Same-ID modification detection needs the old content, and `source` ids alone cannot provide
 > it.** Full planning therefore writes a `sourceHash` (short hash of the referenced requirement
 > text) next to every entry's `source`, and this phase compares it against the new hash. For
@@ -601,6 +607,9 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
     }
   },
   "planJsonPatch": {
+    // every modified entry's patch INCLUDES its recalculated sourceHash — fe-gen persists the
+    // patch verbatim, so a modification that keeps the old hash is re-detected as changed on
+    // every subsequent incremental plan, generating the same delta forever.
     "additions": {
       "pages": [
         {
@@ -608,7 +617,8 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
           "file": "{baseDir}/features/{feature}/pages/EntityExportPage.tsx",
           "screenId": "entity-export",
           "route": "/path/to/entities/export",
-          "source": "FR-007, screen: entity-export"
+          "source": "FR-007, screen: entity-export", "sourceHash": "7f4b012a",
+          "sourceHash": "a3f91c2e"
         }
       ],
       "tests": [
@@ -617,7 +627,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
           "file": "{baseDir}/features/{feature}/__tests__/EntityExportPage.test.tsx",
           "type": "page",
           "cases": [
-            { "name": "shows export configuration form", "source": "TS-070" }
+            { "name": "shows export configuration form", "source": "TS-070", "sourceHash": "4775e82a" }
           ]
         }
       ],
@@ -685,6 +695,13 @@ Delta Plan for '{feature}':
 
 ## Output Format
 
+> **`sourceHash` is part of the schema, not an optional annotation.** Every object below that
+> carries a requirement/scenario/screen-bearing `source` (FR/BR/AC/US/TS ids or screen ids)
+> carries a sibling `sourceHash` — a short (8-hex) hash of the referenced spec text at plan time.
+> Layout markers (`"_shared"`) and file pointers (`"screen-*.json"`) are exempt. Incremental
+> planning's same-ID change detection compares against these; an entry without one is `hashless`
+> and its edits become undetectable.
+
 Save to the `outputFile` path in the following JSON structure.
 
 **Config-conditional fields** (present only under the matching config; the example below is the
@@ -723,7 +740,8 @@ admin/library-mode default so all appear with default values):
         { "name": "EntityStatus", "values": ["Active", "Inactive", "Pending"] }
       ],
       "dtos": ["CreateEntityDto", "UpdateEntityDto"],
-      "source": "screen: entity-list, entity-create | FR-001, FR-002"
+      "source": "screen: entity-list, entity-create | FR-001, FR-002", "sourceHash": "4f6ed1a0",
+      "sourceHash": "7be40d18"
     }
   ],
   "api": [
@@ -744,12 +762,12 @@ admin/library-mode default so all appear with default values):
       "queries": {
         "keysFactory": "entityKeys",
         "hooks": [
-          { "name": "entityListQuery", "type": "query", "source": "FR-001", "invalidates": [] },
-          { "name": "entityInfiniteQuery", "type": "infinite", "source": "FR-002", "invalidates": [] },
-          { "name": "createEntityMutation", "type": "mutation", "source": "FR-003", "invalidates": ["entityKeys.all"] }
+          { "name": "entityListQuery", "type": "query", "source": "FR-001", "sourceHash": "d9d12d49", "invalidates": [] },
+          { "name": "entityInfiniteQuery", "type": "infinite", "source": "FR-002", "sourceHash": "cd683353", "invalidates": [] },
+          { "name": "createEntityMutation", "type": "mutation", "source": "FR-003", "sourceHash": "1c5b6a93", "invalidates": ["entityKeys.all"] }
         ]
       },
-      "source": "FR-001 ~ FR-005"
+      "source": "FR-001 ~ FR-005", "sourceHash": "8d0f695d"
     }
   ],
   "stores": [
@@ -759,7 +777,7 @@ admin/library-mode default so all appear with default values):
       "state": ["list", "selected", "filters", "pagination", "loading"],
       "actions": ["fetchList", "fetchById", "setFilters", "setPage", "clearSelected"],
       "usedBy": ["EntityListPage", "EntityDetailPage"],
-      "source": "screens: entity-list, entity-detail"
+      "source": "screens: entity-list, entity-detail", "sourceHash": "a97897ee"
     }
   ],
   "components": [
@@ -770,7 +788,7 @@ admin/library-mode default so all appear with default values):
       "usedBy": ["EntityCreatePage", "EntityEditPage"],
       "fields": ["field1", "field2"],
       "validation": [
-        { "field": "email", "rules": ["required", "email", "maxLength:255"], "source": "BR-001" }
+        { "field": "email", "rules": ["required", "email", "maxLength:255"], "source": "BR-001", "sourceHash": "4f777be5" }
       ],
       "formSchema": {
         "//": "formStack == rhf-zod only — zod field specs derived from validation + errorMapping",
@@ -779,14 +797,14 @@ admin/library-mode default so all appear with default values):
           { "name": "email", "zod": "z.string().min(1, 'entityForm.email.required').email('entityForm.email.invalid').max(255)" }
         ]
       },
-      "source": "screens: entity-create, entity-edit"
+      "source": "screens: entity-create, entity-edit", "sourceHash": "83f310be"
     },
     {
       "name": "EntityTable",
       "file": "{baseDir}/features/{feature}/components/EntityTable.tsx",
       "type": "data-table",
       "columns": ["col1", "col2", "actions"],
-      "source": "screen: entity-list"
+      "source": "screen: entity-list", "sourceHash": "1b56e74c"
     }
   ],
   "pages": [
@@ -945,8 +963,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/entityApi.test.ts",
       "type": "api",
       "cases": [
-        { "name": "fetches entity list", "source": "TS-001, FR-001" },
-        { "name": "creates entity", "source": "TS-002, FR-003" }
+        { "name": "fetches entity list", "source": "TS-001, FR-001", "sourceHash": "443b220f" },
+        { "name": "creates entity", "source": "TS-002, FR-003", "sourceHash": "2fe6f654" }
       ],
       "dependencies": ["types", "api", "mocks"]
     },
@@ -955,8 +973,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/entityStore.test.ts",
       "type": "store",
       "cases": [
-        { "name": "sets list and total", "source": "TS-010" },
-        { "name": "resets on setFilters", "source": "TS-011" }
+        { "name": "sets list and total", "source": "TS-010", "sourceHash": "9850b24d" },
+        { "name": "resets on setFilters", "source": "TS-011", "sourceHash": "32627ca1" }
       ],
       "dependencies": ["types", "stores"]
     },
@@ -965,8 +983,8 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/EntityForm.test.tsx",
       "type": "component",
       "cases": [
-        { "name": "renders form fields", "source": "TS-020" },
-        { "name": "calls onSubmit", "source": "TS-021" }
+        { "name": "renders form fields", "source": "TS-020", "sourceHash": "4c3c7305" },
+        { "name": "calls onSubmit", "source": "TS-021", "sourceHash": "d745fdc3" }
       ],
       "dependencies": ["types", "components"]
     },
@@ -975,10 +993,10 @@ admin/library-mode default so all appear with default values):
       "file": "{baseDir}/features/{feature}/__tests__/EntityListPage.test.tsx",
       "type": "page",
       "cases": [
-        { "name": "shows loading state", "source": "TS-030" },
-        { "name": "shows empty state", "source": "TS-031" },
-        { "name": "shows error state", "source": "TS-032" },
-        { "name": "shows entity list", "source": "TS-033" }
+        { "name": "shows loading state", "source": "TS-030", "sourceHash": "839e7cc9" },
+        { "name": "shows empty state", "source": "TS-031", "sourceHash": "3f2da30f" },
+        { "name": "shows error state", "source": "TS-032", "sourceHash": "d85338e1" },
+        { "name": "shows entity list", "source": "TS-033", "sourceHash": "09b2955a" }
       ],
       "dependencies": ["types", "pages", "mocks"]
     }
@@ -987,7 +1005,7 @@ admin/library-mode default so all appear with default values):
     {
       "id": "E2E-001",
       "name": "Create entity end-to-end flow",
-      "source": "TS-050, TS-051, TS-052",
+      "source": "TS-050, TS-051, TS-052", "sourceHash": "0243282d",
       "startUrl": "/path/to/entities/new",
       "prerequisites": "authenticated user with 'admin' permission",
       "steps": [
@@ -1001,7 +1019,7 @@ admin/library-mode default so all appear with default values):
     {
       "id": "E2E-002",
       "name": "Edit entity end-to-end flow",
-      "source": "TS-060, TS-061",
+      "source": "TS-060, TS-061", "sourceHash": "fcce0a26",
       "startUrl": "/path/to/entities/ent-001/edit",
       "prerequisites": "authenticated user, entity ent-001 exists",
       "steps": [
