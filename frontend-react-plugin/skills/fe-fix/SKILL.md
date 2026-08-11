@@ -40,7 +40,12 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
 
-1. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`:
+1. **Status check** — verify `implementation.status` is `review-failed`, `reviewed`, `fixing`, `resolved`, `escalated`, or `done`.
+   **E2E exception**: also accept `generated`, `verified`, and `verify-failed` **when**
+   `e2e-report.json` exists, contains failures, and is newer than `review-report.json` (or no
+   review report exists) — that combination forces `fixMode = "e2e"`. `fe-e2e` runs from those
+   statuses and its failure path names this command as the remedy; without this exception that
+   loop dead-ends on a status check aimed at the review flow.
    - If status is not one of these:
      > "Current status is '{status}'. fe-fix requires status 'review-failed', 'reviewed', 'fixing', 'resolved', 'escalated', or 'done'."
      > "Please run `/frontend-react-plugin:fe-review {feature}` first."
@@ -324,6 +329,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
     "status": "fixing | escalated",
     "fix": {
       "status": "completed | partial | failed",
+      "mode": "{fixMode — \"review\" or \"e2e\"}",
       "round": 1,
       "timestamp": "{ISO timestamp}",
       "fixed": 7,
@@ -340,6 +346,10 @@ Note: Set `implementation.status` as follows:
 - fix failed (all escalated) → `"escalated"`
 
 Note: Increment `fix.round` from the previous value (or set to 1 if absent).
+
+**Remove `implementation.e2e` when this fix changed production code** (any fix mode — a review-mode
+fix edits the same components E2E exercised). A preserved E2E pass now describes an app that no
+longer exists; `fe-e2e` re-runs cheaply, a false "Pipeline complete" does not.
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `debug`), then write back the complete file.
 

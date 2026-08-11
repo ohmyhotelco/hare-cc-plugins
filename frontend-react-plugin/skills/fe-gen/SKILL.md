@@ -146,7 +146,13 @@ If the user declines, stop here.
 
 #### 2-D.2: Initialize Delta Generation State
 
-Create or update `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
+**Resume, don't reset.** If `generation-state.json` already exists with `deltaMode: true`, this is
+the resume of an interrupted delta — item 3 of Step 1 routes here for exactly that case. Preserve
+every phase whose `status` is `"completed"` (and its `completedAt`); set only the not-yet-completed
+active phases to `"pending"`. Recreating all phases as pending reruns work that already happened —
+re-editing source files that were already delta-modified.
+
+Otherwise (fresh delta), create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
 
 ```json
 {
@@ -172,11 +178,14 @@ Set `status = "skipped"` with `skipKind: "auto"` for phases with `deltaAction = 
 
 Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **before** executing delta phases. This ensures tdd-cycle-runner and other agents can find plan entries for new files.
 
+0. **Skip if already applied**: if `generation-state.json` has `planPatched: true`, this is a
+   resume and the patch already ran — applying additions twice duplicates plan entries. Skip to
+   2-D.4.
 1. Read current `plan.json`
 2. Apply `planJsonPatch.additions` — add new entries to the respective arrays
 3. Apply `planJsonPatch.modifications` — update existing entries
 4. Apply `planJsonPatch.removals` — remove entries from the respective arrays
-5. Write the updated plan.json
+5. Write the updated plan.json, then set `planPatched: true` in `generation-state.json`
 
 > Note: If delta execution fails later, plan.json still reflects the intended state. This is safe because plan.json describes what *should* exist, not what *does* exist — generation-state.json tracks actual completion.
 
@@ -297,7 +306,13 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
 If `createFiles` is non-empty AND the phase is `integration`:
 - Use the integration-generator agent (same as full generation). It already uses targeted Edit for existing aggregator files.
 
-**On completion**: Update generation-state.json for this phase:
+**On completion** — branch on the agent's reported `status` first:
+- `"partial"` (some operations escalated) or `"failed"` → this phase is **not** complete. Record it
+  as `"failed"` with the escalated operations listed, keep `delta-plan.json` active (do **not**
+  archive in 2-D.6), skip 2-D.7's `generated` write, follow the failure path (2-D.F) instead —
+  final status `gen-failed`. Recording a partial phase as completed archives the delta and promotes
+  code with unapplied changes into review as `generated`.
+- `"completed"` → update generation-state.json for this phase:
 ```json
 {
   "{phase}": {
@@ -388,7 +403,11 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update:
 }
 ```
 
-**Merge rule**: preserve all existing fields. Only update `status`, `generatedAt`, and add `lastDelta`.
+**Also remove `implementation.e2e`** in this same write: the delta changed code, so a prior E2E
+pass describes an app that no longer exists — preserving it lets a later `done` read as "Pipeline
+complete" on stale evidence.
+
+**Merge rule**: preserve all existing fields except `implementation.e2e` (removed above). Only update `status`, `generatedAt`, and add `lastDelta`.
 
 #### 2-D.8: Next Steps
 
@@ -657,7 +676,10 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementat
 - `skipKind` is the discriminator, never the presence of free text: a missing `skipKind` on a `skipped` phase is treated as `"user"` (blocking), because a phase whose skip nobody classified is not a phase anyone confirmed was safe to omit
 - Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
 
-**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug`), then write back the complete file.
+**Also remove `implementation.e2e`**: regeneration changed the code, so a prior E2E pass is stale
+evidence — see 2-D.7 for the same rule on the delta path.
+
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug` — but not `e2e`, removed above), then write back the complete file.
 
 Update generation-state.json with final status.
 

@@ -68,7 +68,14 @@ The skill will provide these parameters in the prompt:
    - Generate default CRUD API methods per entity (GET list, GET by id, POST, PUT, DELETE)
    - Default validation rules: non-nullable → `required`, email → `email`, string → `maxLength: 255`
    - Generate CRUD-based generic test cases (no TS-nnn references)
-   - Set `source` field to `"standalone"` instead of `"FR-nnn"`
+   - Derive `e2eTests[]` the same way: one generic flow per screen/entity (list → create → edit →
+     delete), `source` citing the FR ids, no TS references. An empty `e2eTests[]` here would make
+     `fe-e2e` demand a `test-scenarios.md` that standalone mode never creates.
+   - Keep the real requirement id in `source` (`"FR-nnn"` — the standalone spec stub does number
+     its functional requirements) and set the plan's top-level `"standalone": true` instead.
+     Writing the literal `"standalone"` into `source` destroys the old-fingerprint extraction in
+     Phase 3.1, which is built entirely from `source` values: every requirement would then look
+     newly added on the first incremental replan.
 
 6. **Shared layout reference** — Check for shared layout:
    a. If `uiDslDir/manifest.json` exists:
@@ -347,6 +354,11 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
 
 #### 3.1 Load Existing Plan
 
+> **Standalone branch (operative, not advisory).** When the progress file says `standalone: true`:
+> in 3.1 item 3, parse only FR/BR/AC/US ids (there are no TS-nnn, screen ids, or error codes to
+> parse); in 3.2 item 1, read **only** `{feature}-spec.md` — `screens.md` and `test-scenarios.md`
+> do not exist in standalone mode and reading them fails the replan outright.
+
 1. Read `existingPlanFile` → parse the full plan.json
 2. Extract the **old spec fingerprint**: collect all `source` field values from every entry across `types[]`, `api[]`, `stores[]`, `components[]`, `pages[]`, `tests[]`, `e2eTests[]`, `sharedLayouts[]`
 3. Parse the source references into a set of atomic IDs:
@@ -355,6 +367,8 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - Screen IDs (kebab-case) → from `screens.md` or UI DSL `manifest.json`
    - Error codes (E-nnn) → from `screens.md` error handling
 4. Record the mapping: `{ specId → [plan entries that reference it] }`
+5. Collect each entry's `sourceHash` (written at full-plan time — see 3.3 note). Entries from a
+   plan that predates `sourceHash` have none; record them as `hashless`.
 
 #### 3.2 Extract Current Spec Fingerprint
 
@@ -364,6 +378,14 @@ When `incrementalMode` is `true`, skip Phase 2 (Produce Implementation Plan) and
    - `test-scenarios.md` → extract all TS-nnn with their content
 2. If UI DSL is available: read `manifest.json` → extract screen IDs, dataEntities, navigation edges
 3. Record as the **new spec fingerprint**: `{ specId → content hash or summary }`
+
+> **Same-ID modification detection needs the old content, and `source` ids alone cannot provide
+> it.** Full planning therefore writes a `sourceHash` (short hash of the referenced requirement
+> text) next to every entry's `source`, and this phase compares it against the new hash. For
+> `hashless` entries (legacy plans), a same-ID content change is **undetectable** — do not guess:
+> list those ids in the delta summary under "content comparison unavailable (plan predates
+> sourceHash)" and tell the user to re-run full generation if any of them changed. Treating
+> undetectable as unchanged silently drops real spec edits.
 
 #### 3.3 Compute Spec Diff
 
@@ -431,11 +453,11 @@ For `remove` operations, produce `changeDetail`:
 #### 3.6 Map to Phases
 
 Assign each affected file to its TDD phase:
-- `types/`, `mocks/`, `layouts/` → `foundation`
+- `types/`, `mocks/`, `layouts/`, `schemas/` (`formStack == rhf-zod`) → `foundation`
 - `api/` → `api-tdd`
 - `stores/` → `store-tdd`
 - `components/`, `__tests__/*Component*`, `__tests__/*Form*`, `__tests__/*Table*` → `component-tdd`
-- `pages/`, `__tests__/*Page*` → `page-tdd`
+- `pages/`, `__tests__/*Page*`, framework-mode `routes/{name}.tsx` route modules → `page-tdd`
 - `routes.tsx`, `i18n.ts`, locale JSON files, MSW global files → `integration`
 
 Determine phase action:

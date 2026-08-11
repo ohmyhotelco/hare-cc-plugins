@@ -30,7 +30,19 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 skill and takes the feature lock like the others — a plan written while `fe-gen` is generating from
 the previous plan leaves the two disagreeing about what exists.
 
-**Create the lock's parent first.** `docs/specs/{feature}/.implementation/frontend/` does not exist for a feature being planned standalone for the first time, and lock creation fails there before the steps that would create it ever run. `mkdir -p` the directory, then acquire. For a **non-standalone** feature, confirm `docs/specs/{feature}/` exists first and stop with "spec not found" if it does not — otherwise a mistyped feature name silently scaffolds a directory tree for a feature nobody has.
+**Create the lock's parent first.** `docs/specs/{feature}/.implementation/frontend/` does not exist
+for a feature being planned standalone for the first time, and lock creation fails there before the
+steps that would create it ever run. Note whether the directory already existed, `mkdir -p` it, then
+acquire.
+
+Do **not** try to reject a mistyped feature name here — at this point the mode is unknown (`Step 0.5`
+decides it), and a "spec must exist" check either kills the legitimate first-ever standalone run or,
+if evaluated after the `mkdir -p`, always passes because the mkdir just created the directory being
+checked. The existing nets downstream are the right ones: Step 0.5 auto-detection asks the user when
+no spec exists, and Step 1 stops on a missing spec in spec mode. The one residue a typo can leave is
+the directory this section created — so **on any exit before the first artifact write, remove the
+directory tree along with the lock if and only if this run created it** (it did not exist before the
+`mkdir -p`). A pre-existing directory is never removed.
 
 Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
 CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
@@ -43,9 +55,11 @@ user declining at Step 4-I or Step 4.
 
 1. Check if `--standalone` flag is present in the argument
    - If `--standalone` is present: `mode = "standalone"`, skip to Step 1-S
-   - If absent: `mode = "spec"`, proceed to Step 1
+   - If absent: **do not choose a mode here** — continue to item 2, which decides. Setting
+     `mode = "spec"` here would bypass auto-detection entirely, so a first-ever standalone run
+     without the flag would hit "spec not found" instead of being offered standalone mode.
 
-2. **Auto-detection** — if `--standalone` is not specified, check if `docs/specs/{feature}/.progress/{feature}.json` exists:
+2. **Auto-detection** — the flag is absent, so check if `docs/specs/{feature}/.progress/{feature}.json` exists:
    - If not found:
      > "No planning-plugin specification found for '{feature}'."
      > "Options:"

@@ -52,9 +52,13 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
      - Stop here.
 
 2. **E2E scenarios check** — verify `e2eTests` exists and is non-empty in plan.json:
-   - If `e2eTests` is absent or empty:
-     > "No E2E scenarios defined in the implementation plan."
-     > "Add multi-page test scenarios to `test-scenarios.md` and re-run `/frontend-react-plugin:fe-plan {feature}`."
+   - If `e2eTests` is absent or empty — branch on the progress file's `standalone` flag:
+     - Non-standalone:
+       > "No E2E scenarios defined in the implementation plan."
+       > "Add multi-page test scenarios to `test-scenarios.md` and re-run `/frontend-react-plugin:fe-plan {feature}`."
+     - Standalone (`standalone: true` — there is no `test-scenarios.md` and never will be):
+       > "No E2E scenarios in the plan. Standalone plans derive generic flows per screen — re-run `/frontend-react-plugin:fe-plan {feature} --standalone` (the planner now emits them), or add `e2eTests[]` entries to plan.json by hand."
+     - Stop here in both cases.
      - Stop here.
 
 6b. **Route-to-scenario URL validation** — cross-check E2E URLs against route definitions:
@@ -333,8 +337,13 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update:
 ```
 
 **2. Status update** — update `implementation.status` based on E2E result:
-- If all scenarios passed (`e2e.status` is `"pass"`) AND current `implementation.status` is `"fixing"`:
+- If all scenarios passed (`e2e.status` is `"pass"`) AND current `implementation.status` is
+  `"fixing"` AND `implementation.fix.mode` is `"e2e"`:
   → Set `implementation.status = "done"` (E2E fix loop completed)
+- If all passed but `implementation.fix.mode` is `"review"` (or absent — a fix that predates the
+  field): do **not** promote. The review fix has not been re-reviewed; say so and name
+  `/frontend-react-plugin:fe-review {feature}` as the next step. A green E2E run exercises flows,
+  not review findings — promoting here skips the re-review the fix flow requires.
 - Otherwise: do not change `implementation.status`
 
 **Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `planFile`, `tddPhases`, `verification`, `review`, `fix`, `debug`), then write back the complete file.

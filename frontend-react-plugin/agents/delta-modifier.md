@@ -70,10 +70,12 @@ Each file operation from `delta-plan.json` is classified:
 
 3. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green and the spec-anchor rule
 
-4. **Spec** — read 3 files from `specDir`:
+4. **Spec** — read from `specDir`. **Check the progress file's `standalone` flag first**: when
+   `true`, only `{feature}-spec.md` exists — read it plus `plan.json` and skip the other two, or
+   every standalone delta with a foundation/modify/remove operation stops right here.
    - `{feature}-spec.md` → functional requirements (FR/BR/AC)
-   - `screens.md` → screen definitions, error handling
-   - `test-scenarios.md` → test scenarios (TS-nnn)
+   - `screens.md` → screen definitions, error handling *(non-standalone only)*
+   - `test-scenarios.md` → test scenarios (TS-nnn) *(non-standalone only)*
 
 5. **External skills** — load per phase:
    - `foundation`: none

@@ -28,6 +28,11 @@ The skill provides these parameters in the prompt:
 - `e2eTests` — E2E test scenarios from plan.json `e2eTests[]`
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 
+> **Standalone features have only `{feature}-spec.md`.** When the progress file says
+> `standalone: true`, `screens.md` and `test-scenarios.md` do not exist — in **both** runner
+> modes, derive flow context from `{feature}-spec.md` plus the plan's `e2eTests[]` entries
+> (which cite FR ids, not TS-nnn) and skip every read of the other two files.
+
 ## Process
 
 ### Step 0: Load Context
