@@ -292,6 +292,38 @@ def check_duplicate_json_keys(files: dict[str, tuple[Path, str]]) -> list[Findin
     return out
 
 
+def check_version_sync(plugin: Path) -> list[Finding]:
+    """plugin.json, marketplace.json, and the root README's version label must agree.
+
+    The repo rule synced the first two; the root README's `v{X}` labels were in nobody's rule and
+    rotted silently — two of five were stale when this rule was written (one of them mine, missed
+    across fourteen version-bumping commits; one predating the branch entirely).
+    """
+    import json
+    out = []
+    pj_path = plugin / ".claude-plugin" / "plugin.json"
+    if not pj_path.exists():
+        return out
+    version = json.loads(pj_path.read_text()).get("version", "")
+    root = plugin.parent
+    mp_path = root / ".claude-plugin" / "marketplace.json"
+    if mp_path.exists():
+        for entry in json.loads(mp_path.read_text()).get("plugins", []):
+            if entry.get("name") == plugin.name and entry.get("version") != version:
+                out.append(Finding(str(mp_path), 1, "version-sync",
+                                   f"{plugin.name}: marketplace says {entry.get('version')}, "
+                                   f"plugin.json says {version}"))
+    readme = root / "README.md"
+    if readme.exists():
+        text = readme.read_text()
+        m = re.search(rf"\(\./{re.escape(plugin.name)}/\)\s+`v([\d.]+)`", text)
+        if m and m.group(1) != version:
+            out.append(Finding(str(readme), lineno(text, m.start()), "version-sync",
+                               f"{plugin.name}: root README label is v{m.group(1)}, "
+                               f"plugin.json says {version}"))
+    return out
+
+
 def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]:
     """A skill must declare every tool its body actually uses."""
     out = []
@@ -470,7 +502,8 @@ def run(plugin: Path) -> list[Finding]:
             + check_stale_number_refs(every)
             + check_section_refs(every)
             + check_duplicate_json_keys(every)
-            + check_references(plugin, every))
+            + check_references(plugin, every)
+            + check_version_sync(plugin))
 
 
 def main(argv: list[str]) -> int:

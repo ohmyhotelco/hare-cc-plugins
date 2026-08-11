@@ -43,6 +43,6 @@ Each plugin's `plugin.json` and the root `.claude-plugin/marketplace.json` must 
 **Rule**: When changing `version`, `keywords`, or `description` in a plugin's `.claude-plugin/plugin.json`, the corresponding entry in the root `.claude-plugin/marketplace.json` must also be updated **in the same commit**.
 
 Fields to synchronize:
-- `version` — must match exactly
+- `version` — must match exactly, **including the root `README.md` plugin-list label** (`` `vX.Y.Z` `` beside each plugin heading) — the label sat outside this rule and rotted silently until `scripts/check-plugin-consistency.py` gained a `version-sync` rule that now enforces all three locations
 - `keywords` — must match exactly
 - `description` — must match exactly
