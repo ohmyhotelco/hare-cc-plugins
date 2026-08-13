@@ -142,8 +142,8 @@ adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"
 `fm-route --flag-on` (Step 1b) tell an already-fixed finding from a still-open one instead of
 re-surfacing every finding forever. See `templates/codex-audit.md`.
 
-**Refresh `sourcePaths` from `fix-report.json.filesChanged`** (Read-Modify-Write: add files the
-fixer created, drop ones it removed). `sourcePaths[]` is axis 1 of the page's watch paths, and
+**Refresh `sourcePaths` from `fix-report.json`** (Read-Modify-Write: add every `filesChanged[]`
+entry, drop every `filesRemoved[]` entry — a rename appears in both). `sourcePaths[]` is axis 1 of the page's watch paths, and
 only `fm-gen`/`fm-delta` used to maintain it — so a fixer refactor that renamed files left the
 gate watching paths that no longer exist and *not* watching the replacements. When every
 recorded path disappears that way, `fm-route` Step 1a blocks (correctly, but on a page nobody

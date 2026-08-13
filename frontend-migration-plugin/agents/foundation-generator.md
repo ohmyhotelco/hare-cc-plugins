@@ -107,9 +107,11 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 - `{targetDir}` types, `mocks/`, copied assets under the app's public dir, and (if new) the app
   harness configs.
 - Your report carries `filesChanged[]`: **every** file this phase created or modified, as
-  **repo-relative** paths (the tracker `sourcePaths` basis — prefix `appDir`). `fm-gen` records
-  `sourcePaths` from exactly these lists; an omitted or app-relative path leaves a file the gates
-  can never watch.
+  **repo-relative** paths (the tracker `sourcePaths` basis). Files under `appDir` carry the
+  `appDir` prefix; the rare root-level file this phase legitimately owns (a workspace test config)
+  is still listed, repo-relative — never omitted because it falls outside `appDir`. `fm-gen`
+  records `sourcePaths` from exactly these lists; an omitted or wrongly-based path leaves a file
+  the gates can never watch.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: files created, assets copied (count + any missing sources),
   harness status (created/existing), and any missing deps to install.
 
