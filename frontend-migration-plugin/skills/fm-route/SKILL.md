@@ -132,7 +132,12 @@ moved** — re-run the script with `--manifest` and diff it against the manifest
 `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
 answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
 computable, so if the manifest is missing, say the aggregate moved and stop there rather than
-inventing a file list. Send the user back to **`fm-verify`** — the chain head. Naming "those
+inventing a file list. If the manifest diff shows `DELETED` entries whose replacements exist under
+new names (a rename or refactor outside the pipeline), **refresh `sourcePaths` first**
+(Read-Modify-Write under `.tracker.lock`: drop the deleted paths, add the replacements) — re-running
+the chain over the stale list would record fresh-looking evidence that watches only paths which no
+longer exist and none of their replacements. Then send the user back to **`fm-verify`** — the chain
+head. Naming "those
 gates" invites `fm-e2e`/`fm-parity`, which require exactly `verified`/`e2e-passed` and refuse the
 `parity-passed` this step runs at; when only `e2e` or `parity` is stale the named set contains
 nothing that accepts. `fm-verify` takes a gate-passed page (with its demotion warning) and the
@@ -228,9 +233,9 @@ unavailable, skip this step.
 prompt a human — but it means the state can move
 between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
 for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
-`routePrepared`, Step 1a's hashes, and the cascade-divergence check (unresolved, unrecorded `real`
-rows in `cascade-diff.json` vs `owner-decisions.md` — a concurrent `fm-cascade` can publish new
-rows between the unlocked read and this lock). A concurrent `fm-fix` or `fm-delta` can demote the page
+`routePrepared`, Step 1a's hashes, and the cascade-divergence check (every `real` row in
+`cascade-diff.json` must be fixed or `status: approved` in `owner-decisions.md` — `pending` blocks —
+because a concurrent `fm-cascade` can publish new rows between the unlocked read and this lock). A concurrent `fm-fix` or `fm-delta` can demote the page
 while the operator is reading the Step 1b findings, and the whole point of those guards is that a
 flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
 `--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates

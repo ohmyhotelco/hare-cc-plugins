@@ -98,7 +98,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
-  **running the script**, never an inline pipeline:
+  **running the script** once with `--manifest` and hashing its output — never by re-implementing
+  its records with an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)

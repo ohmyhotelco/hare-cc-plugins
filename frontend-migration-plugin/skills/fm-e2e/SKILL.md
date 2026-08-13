@@ -63,7 +63,8 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
-  **running the script**, never an inline pipeline:
+  **running the script** once with `--manifest` and hashing its output — never by re-implementing
+  its records with an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)

@@ -144,9 +144,10 @@ divergence is fixed before behavioural evidence is gathered against it.
 
 Proposed as **advisory-with-teeth**, not an automatic FAIL: some divergences are intended, and a
 migration may deliberately drop a legacy rule. The stage requires each divergence to be either fixed
-or recorded in `owner-decisions.md` with a reason, and `fm-route --flag-on` should refuse while
-unresolved, unrecorded divergences exist — mirroring how the plugin already treats Codex `high`
-findings.
+or recorded in `owner-decisions.md` **and owner-approved** (`status: approved` with `by`/`when` —
+the stage writes items as `pending`; the approval is the owner's), and `fm-route --flag-on` refuses
+while unresolved or unapproved divergences exist — mirroring how the plugin already treats Codex
+`high` findings.
 
 The alternative (hard FAIL on any non-empty diff) was considered and not proposed: the ZH
 `font-weight` row above is a real divergence that belongs to a different ticket's file, and a hard

@@ -75,7 +75,10 @@ partial-credit fallback here — an unrun cascade diff is `not-run`, never a pas
 
 ### Step 3: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock
-file; age alone never breaks a live holder's lock).
+file; age alone never breaks a live holder's lock). Then delete any leftover
+`cascade-diff.next.json`: any live run holds this lock, so a staging file here is an orphan from a
+crashed run — measured on a tree neither of Step 6's hashes describes — and Step 6 would promote
+it if the differ later failed before writing its own.
 
 ### Step 4: Diff
 Before launching, compute the **pre-run** `tree` hash over the page's watch-path union — same

@@ -6,9 +6,12 @@ tools: Read, Glob, Grep, Bash, Write
 
 # Cascade Differ
 
-You produce `cascade-diff.json` — every computed-style divergence between legacy's global stylesheet
-and the migrated app's, measured on the page's real markup. Read `templates/cascade-diff.md` before
-you start; it holds the invariant, the property list, the font trap and the two fix shapes.
+You produce the page's cascade-diff artifact — every computed-style divergence between legacy's
+global stylesheet and the migrated app's, measured on the page's real markup. Write it to
+`outPath` **exactly as given** (the coordinator stages it as `cascade-diff.next.json` and promotes
+it to `cascade-diff.json` only after its tree check — never write the canonical name yourself).
+Read `templates/cascade-diff.md` before you start; it holds the invariant, the property list, the
+font trap and the two fix shapes.
 
 You receive from the coordinator (no session history): `app`, `page`, `legacyCssPath`,
 `targetCssPath`, `markupSource`, `viewport`, `propsOverride`, `keepFonts`, `pluginRoot`, `outPath`,
