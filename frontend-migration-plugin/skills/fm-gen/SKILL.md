@@ -66,7 +66,10 @@ and 5.3) — so a successful extraction leaves the plan byte-identical.
   `unresolved` it is *accepted as evidence*.
 
 ### Step 3: Lock
-**With `--force`, rewrite `generation-state.json` with every phase pending here** — once the lock
+**With `--force`, rewrite `generation-state.json` with every phase pending here — and every
+phase's persisted `filesChanged[]` cleared** (a full regeneration owns all its files; a stale list
+surviving into a force run that fails early would feed Step 5 paths from the previous
+generation) — once the lock
 is held and the Step 2 refusals have passed. Doing it in Step 2 would let a run that is about to
 be refused destroy the ledger, and would reset the ledger of another session's generation already
 in progress. Without it, a `--force` run that dies in an early phase leaves the later phases still
@@ -96,7 +99,9 @@ re-running this phase — which would fail the same way.
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
 `done`/`failed`, record `currentPhase`, and **persist the phase's `filesChanged[]`** on its entry —
 Step 5's `sourcePaths` union reads these recorded lists, and a resumed session cannot recover an
-unpersisted list without re-running the completed phase. On a phase failure, **stop running further phases and
+unpersisted list without re-running the completed phase. On a **retried** phase, union the retry's
+list with the entry's existing one — files a failed attempt created still exist when the retry
+reuses them unchanged and does not relist them; `--force` (Step 3) is the only reset. On a phase failure, **stop running further phases and
 continue to Step 5** — do not return from the skill here. Step 5 is what writes `gen-failed`,
 records `sourcePaths` for the files the completed phases did write, clears the stale gate fields,
 and **releases the lock**. Returning from this step instead would leave the page at `planned` over
