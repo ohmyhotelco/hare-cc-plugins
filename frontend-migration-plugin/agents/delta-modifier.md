@@ -68,6 +68,10 @@ when the page injects markup it does not author → `fm-e2e` → `fm-parity`).
 
 ## Output
 - The targeted edits/creates/removes under `{targetDir}`.
+- Your report carries `filesChanged[]`: **every** file this delta created, modified, or removed
+  (removed ones flagged), as **repo-relative** paths (the tracker `sourcePaths` basis — prefix
+  `appDir`). `fm-delta` refreshes `sourcePaths` from exactly this list; an omitted or app-relative
+  path leaves a file the gates can never watch.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: ops applied, tests pass/fail with evidence, fm-fix edits
   confirmed preserved, and the re-entry point — `fm-verify` when the ops applied and the tools
   pass; **`fm-delta` again** when you report failing tsc/Vitest, since `fm-delta` then stops

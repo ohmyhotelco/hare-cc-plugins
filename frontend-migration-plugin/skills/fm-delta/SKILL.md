@@ -168,8 +168,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
-  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
-  removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
+  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` from the modifier's
+  `filesChanged[]` (repo-relative — add created/modified files, drop removed ones; a report
+  without the list is incomplete evidence: re-collect before recording), and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
   `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
   and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the

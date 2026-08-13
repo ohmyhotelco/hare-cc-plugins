@@ -89,6 +89,10 @@ See `templates/tdd-rules.md`.
 
 ## Output
 - This phase's source + tests under `{targetDir}`.
+- Your report carries `filesChanged[]`: **every** file this phase created or modified, as
+  **repo-relative** paths (the tracker `sourcePaths` basis — prefix `appDir`). `fm-gen` records
+  `sourcePaths` from exactly these lists; an omitted or app-relative path leaves a file the gates
+  can never watch.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: files created, RED and GREEN evidence (test counts +
   pass/fail with the vitest summary line) for each unit, and anything deferred.
 

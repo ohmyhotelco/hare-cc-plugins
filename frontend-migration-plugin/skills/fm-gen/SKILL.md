@@ -108,7 +108,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
 2. Record `apps[app].pages[page].sourcePaths` — the repo-relative paths of the files the phases
-   created or modified under `appDir`, collected from each phase's own report. This is the page's
+   created or modified under `appDir`, collected from each phase report's `filesChanged[]`. A
+   phase report missing that list, or carrying paths not prefixed with `appDir`, is **incomplete
+   evidence**: do not record `sourcePaths` from it — re-collect from the phase before recording
+   (an unwatched file evades every later freshness hash). This is the page's
    **axis 1** of its watch paths — axis 2 is the plan's `sharedDeps[]` mapped to
    `{packagesDir}/<package>` and axis 3 is the page's `migration-plan.json` itself, and every hash is
    taken over the **union of all three** (CLAUDE.md → "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
