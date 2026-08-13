@@ -65,7 +65,10 @@ tool summary — evidence before claims (CLAUDE.md 5-step gate).
 ## Output — `fix-report.json`
 ```jsonc
 {
-  "mode": "verify-fix", "page": "...", "filesChanged": ["..."],
+  // filesChanged: REPO-RELATIVE paths (the tracker sourcePaths basis — prefix appDir);
+  // fm-fix merges them into sourcePaths, and an app-relative path there would watch a
+  // nonexistent root path.
+  "mode": "verify-fix", "page": "...", "filesChanged": ["apps/web-mobile/app/components/terms/terms.tsx"],
   "fixes": [{ "issue": "...", "change": "...", "anchor": "file:line" }],
   "regenRequired": false,
   "gateRerun": { "tool": "vitest", "result": "pass", "evidence": "...summary line..." },

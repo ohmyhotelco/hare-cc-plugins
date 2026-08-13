@@ -57,6 +57,10 @@ server the runner needs.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
 
+**Merge `filesChanged[]` whatever the result** — pass, fail, or `not-run`. The files exist in the
+tree now, and a later passing run that reuses them unchanged will not list them again; skipping
+the merge on a failed first attempt is how a spec ends up permanently unwatched.
+
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
