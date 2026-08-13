@@ -152,6 +152,11 @@ pass you did not observe (CLAUDE.md 5-step gate).
   // It is not "pass": an unmeasured scenario is not a passing one.
   "result": "pass | fail | not-run",
   "notRunScenarios": [{ "name": "...", "reason": "staging gateway not configured: nicePay" }],
+  // EVERY file this run created or modified under appDir — specs, page objects, fixtures,
+  // helpers alike. The coordinator merges exactly this list into sourcePaths and treats any
+  // other watch-path delta as concurrent movement (a refused pass). An omitted helper is a
+  // file the gate can never watch.
+  "filesChanged": ["e2e/pages/hotel-booking-info.spec.ts", "e2e/support/overload.ts"],
   "ranAt": "ISO"
 }
 ```

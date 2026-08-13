@@ -85,11 +85,13 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
-  **First merge the spec files the runner reports created or modified into `sourcePaths`**
-  (Read-Modify-Write under `.tracker.lock`) — a spec outside the watch union can be weakened later
-  without moving the recorded tree — then compute the record-time manifest/hash over the updated
-  union. Compare with Step 3's pre-run manifest: every differing path must be one the runner itself
-  reported as its own work (the specs it realized). Any **other** difference means the watch paths
+  **First merge the runner's `filesChanged[]` into `sourcePaths`** (Read-Modify-Write under
+  `.tracker.lock`) — every file it created or modified: specs, page objects, fixtures, helpers
+  alike, since any of them outside the watch union can be weakened later without moving the
+  recorded tree — then compute the record-time manifest/hash over the updated union. Compare with
+  Step 3's pre-run manifest: every differing path must appear in that same `filesChanged[]`
+  (`e2e-report.json` — a report without the field cannot support this comparison: treat the run as
+  unverifiable and re-run). Any **other** difference means the watch paths
   moved while the gate ran — record **no pass**, leave the status unchanged, discard the temp
   manifests, and say to re-run. Only when the pass is recorded, promote the manifest
   (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
