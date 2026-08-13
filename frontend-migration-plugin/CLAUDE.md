@@ -799,7 +799,10 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
   - Gate skills also save the `--manifest` output to
     `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv` (create the
-    directory first) and pass that repo-relative path back as `--exclude`. The redirect target must
+    directory first) and pass that repo-relative path back as `--exclude`. Write it to a temp file
+    and promote it only when the pass records — on a pre-run/record-time mismatch the previous
+    manifest must survive, or the recorded `tree` and the on-disk file list describe different
+    trees. The redirect target must
     be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.

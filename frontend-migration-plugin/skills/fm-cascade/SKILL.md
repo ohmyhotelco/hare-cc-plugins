@@ -78,6 +78,9 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 file; age alone never breaks a live holder's lock).
 
 ### Step 4: Diff
+Before launching, compute the **pre-run** `tree` hash over the page's watch-path union — same
+script and union as the gates (CLAUDE.md → Gate Result Accounting F). Step 6 compares against it.
+
 Launch `cascade-differ` (Agent) with only its params: `app`, `page`, `legacyCssPath`,
 `targetCssPath`, `markupSource` (the page's captured documents if it has them — golden fixtures, MSW
 response fixtures — else the target-app URL to scrape the rendered container from), `viewport`,
@@ -113,8 +116,13 @@ current.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around the `tracker.json` write below — after
 the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file).
 
-1. Verify `cascade-diff.json` exists and parses (`jq empty`).
-2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].cascade` =
+1. Recompute the `tree` hash and compare with Step 4's pre-run hash. If they differ, the tree
+   moved while the diff ran (a package rewrite, a concurrent fix): the measurement describes a
+   tree that no longer exists — record the stage `not-run`, do **not** publish this report as
+   current, and re-run from Step 4. A stale-but-clean report published after a concurrent clear
+   would silently vouch for styles nobody measured.
+2. Verify `cascade-diff.json` exists and parses (`jq empty`).
+3. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].cascade` =
    `{ runAt, nodesCompared, propsCompared, languages, real, consequence, artifact, unresolved }`,
    and `updatedAt`. **Never advance `status`.** A run that changed **no** file leaves the page's
    state untouched — evidence only. A run that **did** change files (a ported rule, a scoped
@@ -125,10 +133,10 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
    removed (the same refresh `fm-fix` performs): a new stylesheet outside the watch union would let
    later edits to it pass every freshness check unnoticed. The `cascade` record itself stays: it
    describes the latest run of this stage.
-3. Every **real** divergence left unfixed goes to `owner-decisions.md` as an explicit-approval item
+4. Every **real** divergence left unfixed goes to `owner-decisions.md` as an explicit-approval item
    with the values and the node count. An intended divergence is a decision, and a decision is
    recorded, not assumed. `fm-route --flag-on` reads these.
-4. Release the lock.
+5. Release the lock.
 
 ### Step 7: Turn the fix into a gate
 A diff run is evidence at a point in time. For each **real** divergence fixed, add a regression
@@ -136,6 +144,10 @@ assertion to the page's e2e suite, written from the **invariant** rather than th
 (`templates/cascade-diff.md` → *Turning a finding into a gate*). Then prove it is not vacuous:
 disable the fix → the test must fail → restore → it must pass. Record both outcomes. A test that
 passes with the fix removed protects nothing, and the pipeline has no other way to know that.
+
+Then merge the new spec files into `sourcePaths` (same Read-Modify-Write under `.tracker.lock` as
+Step 6) — Step 6's refresh ran before these files existed, and a spec outside the watch union goes
+stale silently.
 
 ### Step 8: Report
 In `workingLanguage`: nodes and properties compared, languages/documents covered, the three bucket

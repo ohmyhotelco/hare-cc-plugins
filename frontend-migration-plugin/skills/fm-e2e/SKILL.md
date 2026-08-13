@@ -71,13 +71,16 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   mkdir -p "$(dirname "$MAN")"
   {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN"
+      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN.tmp"
   ```
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   Compare this hash with the pre-run hash from Step 3: if they differ, the watch paths moved while
-  the gate ran — record **no pass**, leave the status unchanged, and say to re-run.
+  the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`, and say to
+  re-run. Only when the pass is recorded, promote the manifest (`mv "$MAN.tmp" "$MAN"`) — an
+  overwritten manifest beside a refused pass would pair the old recorded `tree` with a file list
+  from a different tree.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
 
