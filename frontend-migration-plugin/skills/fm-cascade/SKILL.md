@@ -131,7 +131,9 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
 is nothing to check or promote. Item 3 records `cascade` as `{ runAt, notRun: true, reason }`
 instead of the counts (and its changed-files rule still applies if this session changed any file);
 item 4 is untouched; then continue to Step 7, which has nothing to convert but still releases the
-lock.
+lock. A canonical `cascade-diff.json` that survives this branch (a first-run failure with no code
+change) stays as history — the newer `notRun` record marks it non-current, and `fm-route` reads
+exactly that pairing as `not-run` while still enforcing the file's unapproved `real` rows.
 
 1. Recompute the `tree` hash and compare with Step 4's pre-run hash. If they differ, the tree
    moved while the diff ran (a package rewrite, a concurrent fix): the measurement describes a

@@ -194,6 +194,11 @@ legacy → target · node count`, the same handling as unresolved Codex `high` f
 divergence proceeds without further ceremony: deciding it is intended is the owner's call, and the
 **approval** — not the item fm-cascade wrote — is that call.
 
+Before judging the file, compare it with the tracker: a `cascade` record with `notRun: true` and a
+`runAt` **newer** than the file's own `runAt` means the latest attempt failed and the file is an
+older run's history — report the stage `not-run` (the file does not vouch for the current tree),
+but still enforce its unapproved `real` rows: blocking evidence does not expire.
+
 Absence of `cascade-diff.json` is **not** a block and not a pass — it is `not-run`, reported as such.
 Do not infer it was unnecessary. But if the page injects markup it does not author (CMS rich text,
 i18n values containing HTML, editor output) and `fm-parity`'s visual gate is anything other than

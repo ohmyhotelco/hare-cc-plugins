@@ -813,6 +813,10 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     `fm-verify`.
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
+    One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
+    its specs) compares **manifests**, not bare hashes — every differing path must be the gate's own
+    reported work, merged into `sourcePaths` before the record-time hash; any other difference
+    records no pass.
   - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
     retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
     `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
