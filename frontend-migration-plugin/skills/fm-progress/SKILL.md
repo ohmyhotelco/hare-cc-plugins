@@ -77,7 +77,9 @@ and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-rout
 would prepare a second flip over an in-flight one),
 else `routePrepared` set → `--flag-on`, else `--flag-off`:
 analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
-verified→`fm-e2e`, e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
+verified→`fm-e2e` (say to run `fm-cascade` first when the page injects markup it does not author,
+and surface a `cascade` record with `unresolved > 0` — those rows block `fm-route --flag-on` until
+fixed or recorded), e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
 `--flag-on --confirm-live` per the three sub-states above, `*-failed`→`fm-fix`, `done`→no command.
 
 This skill is read-only — it never acquires the lock or mutates state.

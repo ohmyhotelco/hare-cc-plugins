@@ -5,7 +5,7 @@ sang **React Router v7**, theo bản kế hoạch di trú v2 đã chỉnh sửa.
 (agent và pipeline riêng) nhưng dùng chung quy ước stack với `frontend-react-plugin` để mã React
 sinh ra nhất quán.
 
-> Trạng thái: tooling đã hoàn chỉnh (v1.1.0). Plugin **không** chứa các app sản phẩm — nó vận hành
+> Trạng thái: tooling đã hoàn chỉnh (v1.2.0). Plugin **không** chứa các app sản phẩm — nó vận hành
 > trên một monorepo v2 (`apps/` + `packages/`) do dự án di trú dựng lên.
 
 ## Plugin làm gì
@@ -107,6 +107,7 @@ Sau khi đã đủ điều kiện tiên quyết:
 /frontend-migration-plugin:fm-plan hotel-booking-info      # → migration-plan.json (cây, rendering, cổng, kịch bản e2e)
 /frontend-migration-plugin:fm-gen hotel-booking-info       # trang RR v7 qua TDD → trạng thái: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info    # build/tsc/vitest → verified   (cổng 1)
+/frontend-migration-plugin:fm-cascade hotel-booking-info   # diff stylesheet với CSS legacy (trang chèn markup ngoài; bằng chứng, advisory)
 /frontend-migration-plugin:fm-e2e hotel-booking-info       # Playwright + dual-run → e2e-passed   (cổng 2)
 /frontend-migration-plugin:fm-parity hotel-booking-info    # visual/contract/webview/telemetry → parity-passed   (cổng 3)
 
@@ -124,7 +125,7 @@ cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). **Một ngoại
 spec i18n key-coverage cần `fm-gen <page> --force`, không phải `fm-fix` — `fm-fix` chỉ chạy lại
 các công cụ build, tất cả đều pass, nên nó báo thành công rồi gặp lại đúng lỗi đó.
 Trang quay về `generated`, nên chạy lại
-toàn bộ chuỗi: `fm-verify` → `fm-e2e` → `fm-parity`.
+toàn bộ chuỗi: `fm-verify` → (`fm-cascade` với trang chèn markup ngoài) → `fm-e2e` → `fm-parity`.
 
 ## Luồng làm việc
 
@@ -139,6 +140,7 @@ toàn bộ chuỗi: `fm-verify` → `fm-e2e` → `fm-parity`.
 [vòng lặp theo trang]
 /fm-analyze <page> → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                              │ fail → /fm-fix
+                                   /fm-cascade (diff CSS legacy theo từng node — trang chèn markup không tự tạo)
                                    /fm-e2e   (cổng Playwright)
                                    /fm-parity (visual/contract/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, có cổng kiểm)
@@ -161,7 +163,7 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 ## Skills
 
 `fm-init` · `fm-analyze` · `fm-style-spec` · `fm-extract` · `fm-plan` · `fm-gen` · `fm-verify` · `fm-fix` ·
-`fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
+`fm-cascade` · `fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
 `fm-test-review` · `fm-secret-audit` · `fm-audit-codex`
 
 Đầu vào/đầu ra, agent tương ứng và trạng thái tracker của từng skill: xem `docs/skill-reference.md`.

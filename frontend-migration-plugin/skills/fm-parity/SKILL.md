@@ -29,6 +29,10 @@ point to `fm-style-spec {page}` and stop).
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
+Before launching the verifier, compute the **pre-run** `tree` hash — same script, same watch-path
+union as Step 4. Step 4 compares its record-time hash against this one: a gate may record a pass
+only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+
 Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which the verifier needs to resolve each capture's
 `provenance.side` (`templates/capture-provenance.md`; an unresolved side counts as absent and fails
@@ -94,17 +98,29 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
-  **running the script**, never an inline pipeline:
+  **running the script** once with `--manifest` and hashing its output — never by re-implementing
+  its records with an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/parity.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
+      --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN.tmp"
+  TREE=$(git hash-object -- "$MAN.tmp")
   ```
 
+  **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
+  records (its own construction), so hashing the manifest file yields the same `tree` — atomically.
+  Two separate executions could straddle a change and record a hash the manifest does not describe.
+  On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
+  `unverifiable`), exit 1 is an error.
+
+  Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths moved while
+  the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`, and say to
+  re-run. Only when the pass is recorded, promote the manifest (`mv "$MAN.tmp" "$MAN"`) — an
+  overwritten manifest beside a refused pass would pair the old recorded `tree` with a file list
+  from a different tree.
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from

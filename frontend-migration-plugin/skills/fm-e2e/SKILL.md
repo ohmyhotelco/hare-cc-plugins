@@ -35,10 +35,19 @@ an earlier session or on another machine.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
+Before launching the runner, compute the **pre-run** manifest and `tree` hash — one `--manifest`
+execution saved to a temp pre-run manifest, hash via `git hash-object` (the same one-execution
+rule as Step 4), over the same watch-path union. Step 4 compares against both: this gate
+legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
+(CLAUDE.md → Gate Result Accounting E).
+
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
 (`templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
-`app`, `page`, `planPath`, `targetDir`,
+`app`, `page`, `planPath`, `styleSpecPath` =
+`docs/migration/{app}/{page}/style-spec.json` (its `contentDependent` elements drive the runner's
+standing containment-overload scenario; absent → the runner reports that scenario `not-run`),
+`targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `stagingConfig`, `outPath` =
 `docs/migration/{app}/{page}/e2e-report.json`, `workingLanguage`. The skill starts/stops any dev
 server the runner needs.
@@ -48,6 +57,10 @@ server the runner needs.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
 
+**Merge `filesChanged[]` whatever the result** — pass, fail, or `not-run`. The files exist in the
+tree now, and a later passing run that reuses them unchanged will not list them again; skipping
+the merge on a failed first attempt is how a spec ends up permanently unwatched.
+
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
@@ -56,19 +69,40 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
-  **running the script**, never an inline pipeline:
+  **running the script** once with `--manifest` and hashing its output — never by re-implementing
+  its records with an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/e2e.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN"
+      --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN.tmp"
+  TREE=$(git hash-object -- "$MAN.tmp")
   ```
+
+  **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
+  records (its own construction), so hashing the manifest file yields the same `tree` — atomically.
+  Two separate executions could straddle a change and record a hash the manifest does not describe.
+  On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
+  `unverifiable`), exit 1 is an error.
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
+  **First merge the runner's `filesChanged[]` into `sourcePaths`** (Read-Modify-Write under
+  `.tracker.lock`) — every file it created or modified: specs, page objects, fixtures, helpers
+  alike, since any of them outside the watch union can be weakened later without moving the
+  recorded tree. The paths are **repo-relative** (the `sourcePaths` basis); one that does not
+  start with `{appDir}` is the runner's mistake — resolve it against `appDir` before merging, or
+  the hash watches a nonexistent root path. Then compute the record-time manifest/hash over the
+  updated union. Compare with
+  Step 3's pre-run manifest: every differing path must appear in that same `filesChanged[]`
+  (`e2e-report.json` — a report without the field cannot support this comparison: treat the run as
+  unverifiable and re-run). Any **other** difference means the watch paths
+  moved while the gate ran — record **no pass**, leave the status unchanged, discard the temp
+  manifests, and say to re-run. Only when the pass is recorded, promote the manifest
+  (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
+  recorded `tree` with a file list from a different tree.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
 

@@ -50,6 +50,13 @@ add it rather than risk a broken edit.
 
 ## Output
 - `routes.tsx`, `i18n.ts`, and central-file integrations (or manual-guidance snippets).
+- Your report carries `filesChanged[]`: **every** file this phase created or modified —
+  including the central files (route table, i18n registration, MSW aggregation) — as
+  **repo-relative** paths (the tracker `sourcePaths` basis). `fm-gen` records `sourcePaths` from
+  exactly these lists; an omitted or app-relative path leaves a file the gates can never watch.
+  The list is the phase's **output set, not its write log**: a file this phase owns but left
+  byte-identical because it already existed is still listed — an unlisted reused file silently
+  drops out of the watch set when `fm-gen` rewrites `sourcePaths`.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: what was wired, rendering mode applied, and any manual
   steps left for the user.
 

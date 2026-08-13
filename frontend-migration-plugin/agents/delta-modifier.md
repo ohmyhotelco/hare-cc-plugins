@@ -63,11 +63,15 @@ Apply the mapping catalog for any new Angular idiom. Import shared logic from `@
 
 ## Verify
 Run vitest + tsc from `{appDir}` for the touched scope; read the output. Report pass/fail with
-evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify` → `fm-e2e` →
-`fm-parity`).
+evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify` → `fm-cascade`
+when the page injects markup it does not author → `fm-e2e` → `fm-parity`).
 
 ## Output
 - The targeted edits/creates/removes under `{targetDir}`.
+- Your report carries `filesChanged[]`: **every** file this delta created, modified, or removed
+  (removed ones flagged), as **repo-relative** paths (the tracker `sourcePaths` basis — prefix
+  `appDir`). `fm-delta` refreshes `sourcePaths` from exactly this list; an omitted or app-relative
+  path leaves a file the gates can never watch.
 - Final message (in `workingLanguage`) — keep it short; the report is the record: ops applied, tests pass/fail with evidence, fm-fix edits
   confirmed preserved, and the re-entry point — `fm-verify` when the ops applied and the tools
   pass; **`fm-delta` again** when you report failing tsc/Vitest, since `fm-delta` then stops

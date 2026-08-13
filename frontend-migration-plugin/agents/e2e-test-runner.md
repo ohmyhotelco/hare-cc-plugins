@@ -10,7 +10,8 @@ You prove the new page behaves like the legacy page. This is the per-page functi
 route flip is not allowed until it passes.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
-`e2eScenarios`), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
+`e2eScenarios`), `styleSpecPath` (`style-spec.json` — its `contentDependent` elements drive the
+standing containment-overload scenario), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
 (payment-gateway test endpoints), `outPath` (`e2e-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip state
 (each dual-run leg resolves its `provenance.side` from these), `workingLanguage`. Read
 `templates/e2e-testing.md`, plus `templates/capture-provenance.md` for the `provenance` block each
@@ -34,6 +35,25 @@ Tag each spec with the scenario name and its `legacyAnchor`. Use condition-based
 `waitForTimeout`) and semantic selectors. **Burn-in each newly written spec** (`--repeat-each=5`)
 before the gate run — a single failure across runs means it is flaky; fix it now. See
 `templates/e2e-testing.md` "Flakiness prevention".
+
+**Plus one standing scenario the plan does not have to list: the containment overload.** For every
+element `style-spec.json` (at `styleSpecPath`) flags `contentDependent: true`, write a spec that
+drives an overload into the element (pad the labels, add rows) and then asserts **both** halves —
+engagement **on the axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`,
+`textOverflow`: `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed
+value `ellipsis` — the marker is paint, not geometry; vertical — `overflowY`, `webkitLineClamp`:
+`el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal overflow —
+the horizontal pair asserted on a wrap/clamp element fails correct code; `maxWidth`: the box held
+at the cap under overload; `minWidth`: the box held the floor under shrink pressure, not content
+overload; `overscrollBehavior`: computed-value check only),
+so the test is not vacuous, **and** `documentElement.scrollWidth <= clientWidth`, so the page
+absorbed none of it. `styleSpecPath` absent or unreadable → record this standing scenario in
+`e2e-report.json` as `not-run` with the reason and continue with the planned scenarios — an
+unmeasured scenario is not a pass, and a missing spec must not abort the report. The fixture's natural content is exactly what cannot test this: on
+OMH-912 `/event/:seq` the two-group fixture's tabs fit, every behaviour scenario passed, and a real
+board gave the page 337px of horizontal scroll. Add the page-level invariant on the default render
+too — it is one line and it catches overflow from elements no spec indexes. Design:
+`docs/design/containment-fidelity-generation.md`.
 
 ### 3. Choose the run mode per scenario
 - **non-transactional** → run against the new app with **MSW** intercepting the network
@@ -132,6 +152,13 @@ pass you did not observe (CLAUDE.md 5-step gate).
   // It is not "pass": an unmeasured scenario is not a passing one.
   "result": "pass | fail | not-run",
   "notRunScenarios": [{ "name": "...", "reason": "staging gateway not configured: nicePay" }],
+  // EVERY file this run created or modified under appDir — specs, page objects, fixtures,
+  // helpers alike — as REPO-RELATIVE paths (the same basis as tracker sourcePaths: prefix
+  // appDir). The coordinator merges exactly this list into sourcePaths and treats any other
+  // watch-path delta as concurrent movement (a refused pass). An omitted helper is a file the
+  // gate can never watch; an app-relative path here would make it watch a nonexistent one.
+  "filesChanged": ["apps/web-mobile/e2e/pages/hotel-booking-info.spec.ts",
+                   "apps/web-mobile/e2e/support/overload.ts"],
   "ranAt": "ISO"
 }
 ```

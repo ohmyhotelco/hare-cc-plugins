@@ -58,7 +58,9 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 
 ### Step 2: Clear stale staging, then compute the delta (planner incremental mode)
 **Under the lock**, first **clear the page's gate authorization** — `gateEvidence`, the legacy
-`verifiedAt`/`e2ePassedAt`/`parityPassedAt`, `routePrepared`/`flagKey` (take `.tracker.lock`). Do it
+`verifiedAt`/`e2ePassedAt`/`parityPassedAt`, `routePrepared`/`flagKey` (take `.tracker.lock`), plus
+the `cascade` record and the page's `cascade-diff*.json` files — `fm-route` reads that file
+directly, so a pre-drift cascade report left on disk would still bind the flip. Do it
 *now*, before anything is computed or applied: from this point the page is known to be drifted, and
 an abort at any later step must not leave it route-authorized over code the drift already
 invalidated. Step 5 re-clears the same set; clearing twice is harmless, clearing late is not.
@@ -121,7 +123,9 @@ after the user has chosen it.
      no eyeballing). It applies ops in cascade order and preserves fm-fix edits.
 
     3. **Read the modifier's result before going on.** `delta-modifier` reports pass/fail rather
-       than aborting. On failing tsc/Vitest, **release the page `.lock` and stop** — Step 5's
+       than aborting. On failing tsc/Vitest, first **merge its `filesChanged[]` into `sourcePaths`**
+       (under `.tracker.lock`) — the files it already created exist in the tree, and a retry that
+       reuses them unchanged will not list them again — then **release the page `.lock` and stop** — Step 5's
        release is the only other one on this branch, so stopping without it strands the page under
        a lock whose holder has ended. Report the failure and leave
        `migration-plan.next.json` / `analysis.next.json` staged. Step 5 promotes the staged
@@ -134,7 +138,8 @@ after the user has chosen it.
   the page `.lock`**, in this order:
   1. **Clear the page's gate authorization** — `gateEvidence`, the legacy
      `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and `routePrepared`/`flagKey` (take `.tracker.lock`
-     for that write). The drift that brought you here means the recorded passes describe legacy the
+     for that write), plus the `cascade` record and the page's `cascade-diff*.json` files (`fm-route`
+     reads that file directly). The drift that brought you here means the recorded passes describe legacy the
      page no longer matches, and **legacy source is not a watch-path axis**, so nothing else will
      notice. Until this write lands the page is still route-authorized over known-stale code.
   2. **Delete `migration-plan.next.json` and `analysis.next.json`** so a later run cannot mistake an
@@ -165,8 +170,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
   before recording. Archive the delta as `delta-plan.{timestamp}.json`.
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
-  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` for any file the delta created or
-  removed, and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
+  key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` from the modifier's
+  `filesChanged[]` (repo-relative — add created/modified files, drop removed ones; a report
+  without the list is incomplete evidence: re-collect before recording), and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
   `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
   and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
@@ -179,7 +185,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 
 ### Step 6: Report (incremental path)
 In `workingLanguage`: ops applied, tests pass/fail with evidence, confirmation that prior fixes
-were preserved, and the re-entry point — `/frontend-migration-plugin:fm-verify {page}` → fm-e2e →
-fm-parity. (On the **Full** path the skill already ended in Step 4 after releasing the lock and
+were preserved, and the re-entry point — `/frontend-migration-plugin:fm-verify {page}` →
+(`fm-cascade` when the page injects markup it does not author) → fm-e2e → fm-parity. (On the **Full** path the skill already ended in Step 4 after releasing the lock and
 printing the `fm-analyze` → `fm-style-spec` → `fm-plan` → `fm-gen --force` next-steps — that
 instruction is its report.)

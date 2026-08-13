@@ -42,6 +42,10 @@ its holder is gone — CLAUDE.md → Lock file) before running the gate. If held
 ### Step 2: Resolve the run directory
 All commands run from `{monorepoRoot}/{appDir}`. If `appDir` is `"."`, run from root.
 
+Before the first tool runs, compute the **pre-run** `tree` hash — same script, same watch-path
+union as Step 6. Step 6 compares its record-time hash against this one: a gate may record a pass
+only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+
 ### Step 3: TypeScript (composite-aware)
 Read `tsconfig.json` in `{appDir}`:
 - has a `references` array → `npx tsc -b 2>&1`
@@ -107,21 +111,32 @@ Update `tracker.json` (Read-Modify-Write):
   `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
-  **running the script**, never an inline pipeline:
+  **running the script** once with `--manifest` and hashing its output — never by re-implementing
+  its records with an inline pipeline:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/verify.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-      --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>... > "$MAN"
+      --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>... > "$MAN.tmp"
+  TREE=$(git hash-object -- "$MAN.tmp")
   ```
+
+  **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
+  records (its own construction), so hashing the manifest file yields the same `tree` — atomically.
+  Two separate executions could straddle a change and record a hash the manifest does not describe.
+  On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
+  `unverifiable`), exit 1 is an error.
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
-  `{appDir}`.
+  `{appDir}`. Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths
+  moved while the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`,
+  and say to re-run. Only when the pass is recorded, promote the manifest
+  (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
+  recorded `tree` with a file list from a different tree.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
@@ -160,7 +175,10 @@ In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the e
 counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `not collected` /
 `not-observed` / `skipped`), the
 Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
-`/frontend-migration-plugin:fm-e2e {page}`; on fail → `/frontend-migration-plugin:fm-fix {page}`
+`/frontend-migration-plugin:fm-cascade {page}` when the page injects markup it does not author (CMS
+rich text, i18n values containing HTML, editor output — the case no element-indexed style spec and no
+jsdom test can cover), otherwise `/frontend-migration-plugin:fm-e2e {page}`; on fail →
+`/frontend-migration-plugin:fm-fix {page}`
 — **except the absent i18n key-coverage spec** (Step 4a), whose remedy is
 `/frontend-migration-plugin:fm-gen {page} --force`. `fm-fix` cannot produce that spec: its
 `verify-fix` mode re-runs tsc/build/vitest/eslint, all of which pass, so it would report a

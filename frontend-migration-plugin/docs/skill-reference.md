@@ -17,6 +17,7 @@ holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock s
 | `fm-plan` | `migration-planner` | `analysis.json` + `style-spec.json` + catalog → `migration-plan.json` | `planned` |
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
 | `fm-verify` | — | build / tsc / vitest / eslint (hard) from `appDir`, Prettier advisory | `verified` / `verify-failed` |
+| `fm-cascade` | `cascade-differ` | legacy's compiled CSS vs the app's, diffed node-by-node on the page's real markup → `cascade-diff.json` | none — adds evidence to a page at `verified`, does not advance it |
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` / stays `e2e-passed` on `not-run` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |

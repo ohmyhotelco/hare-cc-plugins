@@ -127,10 +127,32 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
 1. **Side-by-side compare** the legacy and v2 renders axis by axis (the two *renders*, not each against
    its own baseline) — covering EVERY axis: frame/container, **inter-element spacing/gaps** (list↔pager,
    section, item, title↔body — the most-missed axis), **icons/glyphs** (existence + faithful render +
-   position + size + open/active state), alignment, control geometry, color/border, typography.
+   position + size + open/active state), alignment, control geometry, color/border, typography,
+   **containment/overflow**.
 2. Add a **host-runnable computed-style probe for every content-independent axis** — not a subset — so
    each is guarded deterministically in CI. A page that pins color but not the pager gap or the toggle
    icon is an incomplete probe set = a `fail`, not a pass.
+2b. **Assert the containment invariant — a screenshot cannot decide this axis.** Overflow properties do
+   nothing until there is more content than the fixture has, so comparing the default render is
+   permanently blind to them. OMH-912 `/event/:seq` passed this gate and shipped 337px of horizontal
+   page scroll. So, at every viewport × language: (a) `documentElement.scrollWidth <= clientWidth` on
+   the default render — the one check that catches the failure without knowing which element caused
+   it, including elements the style-spec index does not contain; (b) for every element the spec flags
+   `contentDependent`, drive a **synthetic overload** and assert BOTH halves — engagement **on the
+   axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`, `textOverflow`:
+   `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed value
+   `ellipsis` — the marker is paint, not geometry; vertical — `overflowY`, `webkitLineClamp`:
+   `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal
+   overflow; `maxWidth`: the box held at the cap under content overload; `minWidth`: the box held
+   the floor under shrink pressure — narrowing the container, the one load a content overload
+   cannot apply; `overscrollBehavior`: computed-value check, no overload metric exists; otherwise the check is
+   vacuous, and the horizontal pair asserted on a wrap/clamp element fails correct code) and the
+   page invariant; (c) for every
+   `structure[].injectedDocument` frame, the frame's width ≤ the viewport and the frame document's own
+   `body` computes `overflow-x: hidden` — nothing outside the frame can establish this; (d) every
+   `nonComputable[]` entry has a counterpart rule in the v2 stylesheet (these have no computed-style
+   surface, so it is a stylesheet check, not a probe). Design:
+   `docs/design/containment-fidelity-generation.md`.
 3. Treat any axis diff **inside** the compared content-area (spacing, icon, alignment) as a parity item
    to fix or explicitly accept — never fold it silently into a lift-out delta. A lift-out width change
    moves centered controls' absolute position; itemize that, don't accept it by default.

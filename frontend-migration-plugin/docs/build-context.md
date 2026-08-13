@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-08-07)
+## Status (2026-08-12)
 
-- **Build complete — v1.1.0.** 17 `fm-*` skills, 16 agents, 16 templates, multilingual README,
+- **Build complete — v1.2.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -937,6 +937,62 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   discriminators in both next-step advisors.
 
   Origin: rounds 1-17, 2026-08-07.
+- **v1.2.0 — containment fidelity.** The fifth fidelity axis, and the first one whose defect the
+  answer key **had already captured and then thrown away**. Measured on OMH-912 mobile `/event/:seq`,
+  Pixel 7: the migrated page gave the whole document **337px** of horizontal scroll
+  (`document.scrollWidth` 748 vs a 412 viewport) with the city-tab pills hanging past the right edge,
+  where legacy is 100% wide with a 16px inset and never scrolls sideways. The raw probe
+  (`detail-probe-raw.json`) recorded `overflowX: "auto"` on `.promotion-tab-header`; `style-spec.json`
+  recorded `display/alignItems/height/marginBottom` and nothing else. The value was dropped at the
+  curation step because the probed board (seq 100226) has **one** city group, so the strip could not
+  overflow and the property had no observable effect — the same single-instance blind spot the spec
+  had already hit on that element for its INACTIVE tab state, and treated as a one-off about *state*
+  rather than a general fact about *layout*. Three independent mechanisms, three fixes:
+  (A) a **`containment` axis** (`overflowX/overflowY/maxWidth/minWidth/flexWrap/whiteSpace/
+  textOverflow/webkitLineClamp/overscrollBehavior`) transcribed **verbatim**, exempt from the "is this
+  worth recording" filter every other axis is subject to — these properties do nothing until the
+  content overflows, so that filter is precisely a defect generator for them — plus
+  `contentDependent: true` naming an instance that could not exercise the axis, which binds the
+  generator (must implement) and the gate (must overload).
+  (B) **`nonComputable[]`** for rules with no `getComputedStyle` surface at all:
+  `::-webkit-scrollbar{display:none}` is unreadable by any probe over any property list, and legacy
+  pairs it with `overflow-x:auto` in **3 of 3** mobile occurrences (`_contents.scss:1037`,
+  `_contents.scss:1593`, `_components.scss:1216`) — hence the **overflow twin rule**: a non-`visible`
+  overflow triggers a source grep for its scrollbar rule, even on a live capture. Fixing the overflow
+  without its twin ships a scrollbar legacy does not have.
+  (C) **injected-document containment** — a page rendering CMS HTML into `iframe srcdoc` has a styling
+  surface no page-level artifact reaches: not the spec, not `fm-cascade`, not the parent stylesheet.
+  Legacy's own attempt at it, `.promotion-detail iframe * { margin:0; padding:0 }`
+  (`_contents.scss:1572-1577`), has never applied to anything. So the sheet is composed **into** the
+  document being assembled — after sanitising, first child, no `!important`, marked and idempotent —
+  capping it at the frame and giving a wider subtree its own scroll instead of `scrolling="no"`'s
+  silent clip. That is a deviation from legacy's clip, so it is an `acceptedDeltas[]` entry, not a
+  silent improvement.
+  The gate item is deliberately **not** another probe value: it is the page invariant
+  `documentElement.scrollWidth <= clientWidth`, asserted under a synthetic overload, with both halves
+  checked (the element really overflowed / the page did not) so the test cannot be vacuous. An
+  element-indexed probe only catches what it enumerates; the invariant catches the failure without
+  knowing which element caused it, including elements no index contains — which matters because every
+  existing stage looked only at the content it was handed: `fm-style-spec` curated at n=1, unit tests
+  run in jsdom (no stylesheet, no CSS assertion possible), `fm-verify` cannot observe layout, `fm-e2e`
+  asserted which products show per tab, `fm-parity` photographed a default render whose two short tabs
+  fit, and `fm-cascade` stops at the frame boundary. Reflected into `templates/style-spec.md`
+  (axis + `contentDependent` + `nonComputable[]` + traps G/H/I), `style-spec-extractor` (verbatim
+  capture, twin grep, `injectedDocument` marking), `tdd-cycle-runner` (build it; compose the frame
+  sheet; overload-based self-verify), `visual-parity-checklist` (**Containment & overflow** as an axis
+  with its own protocol), `parity-verifier` (step 2b), and `e2e-test-runner` (a standing overload
+  scenario). Origin: OMH-912, page-owner report after `parity-passed`, 2026-08-12. Design:
+  `docs/design/containment-fidelity-generation.md`.
+  Pre-merge dual audit (Claude + Codex, 2026-08-13) closed nine defects before this landed: the
+  overload assertion made **per-axis** (the horizontal pair asserted on a wrap/clamp element fails
+  correct code — tdd-cycle-runner, parity-verifier, e2e-test-runner, checklist, design §E);
+  `.tracker.lock` on the cascade tracker write; the fixed-divergence re-run + stale-verify re-entry
+  in fm-cascade Steps 5/8; the differ script wired into `cascade-differ` (copied into `appDir` so
+  ESM resolves the app's own Playwright) with the selector-convention trap surfaced in the agent's
+  read path; device validation + actual-viewport provenance and invalid-document recording in
+  `cascade-diff.mjs`; `styleSpecPath` added to the e2e contract on both sides; lock-staleness
+  wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
+  the advisory gate; and the keyword/version triplet synced at **1.2.0**.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

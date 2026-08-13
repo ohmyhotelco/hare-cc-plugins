@@ -132,7 +132,16 @@ moved** — re-run the script with `--manifest` and diff it against the manifest
 `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
 answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
 computable, so if the manifest is missing, say the aggregate moved and stop there rather than
-inventing a file list. Send the user back to **`fm-verify`** — the chain head. Naming "those
+inventing a file list. If the manifest diff shows `DELETED` entries whose replacements exist under
+new names (a rename or refactor outside the pipeline), **refresh `sourcePaths` first — under the
+page lock** (acquire it for this write even though the flip is refused: a pre-lock tracker
+mutation races any live same-page writer; take `.tracker.lock` for the write itself, then release
+both): drop the deleted paths, add the replacements. When the saved manifest is **missing**, check
+the recorded `sourcePaths` against the filesystem instead — entries that no longer exist mean a
+rename nothing on disk can map; refresh the list from the files that actually exist (the fm-gen
+phase reports, `git log --follow`) before any re-run. Re-running the chain over a stale list would
+record fresh-looking evidence that watches only paths which no longer exist and none of their
+replacements. Then send the user back to **`fm-verify`** — the chain head. Naming "those
 gates" invites `fm-e2e`/`fm-parity`, which require exactly `verified`/`e2e-passed` and refuse the
 `parity-passed` this step runs at; when only `e2e` or `parity` is stale the named set contains
 nothing that accepts. `fm-verify` takes a gate-passed page (with its demotion warning) and the
@@ -177,6 +186,26 @@ because there is nothing to compare against:
   a mismatch and not a pass: report the script's message and stop. A gate cannot be judged on
   evidence that could not be computed.
 
+**Cascade divergences (`fm-cascade`).** If `cascade-diff.json` exists, every divergence it classified
+`real` must be either fixed (absent from the latest run) or **owner-approved** in
+`owner-decisions.md`: an entry with `status: approved`, `by`, and `when`. Unresolved rows, and rows
+whose entry is `pending` or incomplete, **block** — surfaced individually with `tag · property ·
+legacy → target · node count`, the same handling as unresolved Codex `high` findings. An approved
+divergence proceeds without further ceremony: deciding it is intended is the owner's call, and the
+**approval** — not the item fm-cascade wrote — is that call.
+
+Before judging the file, compare it with the tracker: a `cascade` record with `notRun: true` and a
+`runAt` **newer** than the file's own `runAt` means the latest attempt failed and the file is an
+older run's history — report the stage `not-run` (the file does not vouch for the current tree),
+but still enforce its unapproved `real` rows: blocking evidence does not expire.
+
+Absence of `cascade-diff.json` is **not** a block and not a pass — it is `not-run`, reported as such.
+Do not infer it was unnecessary. But if the page injects markup it does not author (CMS rich text,
+i18n values containing HTML, editor output) and `fm-parity`'s visual gate is anything other than
+`pass`, say plainly in the report that **no stage has checked the cascade for the majority of this
+page's DOM** — the combination is the exact hole `fm-cascade` was built for, and it is invisible in a
+gate table that shows `fm-verify: pass`.
+
 A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
 freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.
 
@@ -213,7 +242,12 @@ unavailable, skip this step.
 prompt a human — but it means the state can move
 between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
 for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
-`routePrepared`, and Step 1a's hashes. A concurrent `fm-fix` or `fm-delta` can demote the page
+`routePrepared`, Step 1a's hashes, Step 1b's Codex-finding adjudication state (a concurrent audit
+can publish a new `high` between the unlocked check and this lock), and the cascade-divergence
+check (every `real` row in `cascade-diff.json` must be fixed or `status: approved` **with
+`by`/`when`** in `owner-decisions.md` — `pending` or incomplete blocks, the same criteria as the
+unlocked check — because a concurrent `fm-cascade` can publish new rows between the unlocked read
+and this lock). A concurrent `fm-fix` or `fm-delta` can demote the page
 while the operator is reading the Step 1b findings, and the whole point of those guards is that a
 flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
 `--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates

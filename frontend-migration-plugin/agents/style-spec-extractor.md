@@ -35,7 +35,7 @@ later); `npx playwright` is verified by `fm-init`.
 1. Write a throwaway probe script under a temp path: it launches chromium, navigates to `legacyUrl`
    at the spec viewport, waits for load, and for each `styleSurface` element runs
    `getComputedStyle` — reading the properties for each axis in `templates/style-spec.md`
-   (frame, spacing, icons, alignment, controlGeometry, colorBorder, typography). Probe **every state
+   (frame, spacing, icons, alignment, controlGeometry, colorBorder, typography, containment). Probe **every state
    listed in the element's `styleSurface.states`** (hover/active/disabled/open — drive it via the
    state class or `:hover`/`:active` emulation) and **every instance its `instanceSelector` names**,
    writing them into the axis `states`. A declared state/instance you cannot capture goes into
@@ -91,6 +91,39 @@ Do NOT block. Resolve the cascade from source:
 
 Live wins: if a value is `live-confirmed`, never overwrite it with a source-derived one.
 
+## Containment — the one axis you transcribe VERBATIM (traps G, H, I)
+
+Everything else on this page is a curation job: you read ~50 properties and write down the ones that
+matter. For `containment` (`overflowX`, `overflowY`, `maxWidth`, `minWidth`, `flexWrap`, `whiteSpace`,
+`textOverflow`, `webkitLineClamp`, `overscrollBehavior`) that judgement is the defect, because these
+properties **do nothing until the content overflows** — and a single probed instance usually has no
+overflow to observe. OMH-912: the raw probe read `overflowX: "auto"` on `.promotion-tab-header`, the
+spec kept only `display/alignItems/height/marginBottom` because the probed board had ONE tab, and the
+generated page shipped with 337px of horizontal page scroll.
+
+1. **Write every non-initial containment value on sight** — `overflowX` ≠ `visible`, `flexWrap` ≠
+   `nowrap`, `maxWidth` ≠ `none`, `whiteSpace` ≠ `normal` — with no "does it matter here" filter. A
+   value you drop because the element happened to fit is the exact failure above.
+2. **Flag the unrepresentative instance.** If the probed instance could not exercise the axis (one tab
+   in a strip, one row in a list, an empty description), set `contentDependent: true` and a `why`
+   naming the reason. That flag is a contract: the generator must implement the value, and the gate
+   must drive the element with a synthetic overload instead of the fixture's natural content.
+3. **The overflow twin grep.** A probe has no surface for `::-webkit-scrollbar` — no property list
+   returns it. So for every element whose `overflowX`/`overflowY` is not `visible`, grep the source
+   sheets for a `::-webkit-scrollbar` rule on the same selector and record it in `nonComputable[]`
+   with its `legacyAnchor` and `pairedWith`. Do this **even on a live capture**. In the legacy mobile
+   sheets the pairing is 3 for 3; a scrolling strip with no scrollbar rule is a finding to confirm,
+   not a default.
+4. **Sweep the other non-computable rules** the same way for the elements you probed: `::before` /
+   `::after` `content`, `::placeholder`, `::selection`, and any `@media` / `@supports` block whose
+   condition your capture viewport did not match.
+5. **Mark injected-document surfaces.** If an element renders operator/CMS HTML into a nested browsing
+   context (`iframe srcdoc`, `[srcdoc]`), add a `structure[]` entry with `injectedDocument: true`.
+   Nothing you can capture reaches inside it — not this spec, not `fm-cascade`, not the parent
+   stylesheet (legacy's own `.promotion-detail iframe *` rule is dead code for exactly this reason).
+   The entry tells `tdd-cycle-runner` to compose the containment stylesheet into the document itself;
+   it is **not** coverage of the document's contents, so do not report it as such.
+
 ## Structure & assets (traps D and B)
 
 - Carry `styleSurface`'s nesting into `structure[]`: each wrapper, what it wraps, its anchor, and a
@@ -103,8 +136,9 @@ Live wins: if a value is `live-confirmed`, never overwrite it with a source-deri
 
 Write to `outPath` (Read-Modify-Write if it exists — preserve prior `acceptedDeltas`). Follow
 `templates/style-spec.md` exactly: `legacySource` (incl. its `provenance` block), `elements[]`
-(selector, role, legacyAnchor, confidence, `axes`), `assets[]`, `structure[]`, `acceptedDeltas`,
-`unconfirmed`. Cross-reference analysis anchors so `fm-gen` and `fm-parity` can trace each value.
+(selector, role, legacyAnchor, confidence, `axes`), `assets[]`, `structure[]`, `nonComputable[]`,
+`acceptedDeltas`, `unconfirmed`. Cross-reference analysis anchors so `fm-gen` and `fm-parity` can
+trace each value.
 
 ## Rules
 - The live render is the reference; committed CSS is not. Prefer `live-confirmed`, fall back to
@@ -120,7 +154,11 @@ Write to `outPath` (Read-Modify-Write if it exists — preserve prior `acceptedD
 - Read-only against legacy source; the files you write are `style-spec.json` and (on live capture)
   the `legacy-baseline.png` screenshot under the page dir, plus a throwaway probe script under a temp
   path.
+- **Containment is never curated.** Every other axis is a judgement about what matters; this one is a
+  transcription. See the section above — the filter that is correct for `typography` is a defect
+  generator for `overflow`.
 - Keep the final message short (in `workingLanguage`): element count, live-confirmed vs
-  source-derived counts, asset count, any structure wrappers, whether the live URL was reached, and
+  source-derived counts, asset count, any structure wrappers, any `contentDependent` /
+  `injectedDocument` flags raised, `nonComputable[]` count, whether the live URL was reached, and
   the **resolved `side`** (`legacy` / `unresolved` — an unresolved baseline is not reusable
   downstream, so say it here rather than letting `fm-parity` discover it).

@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.1.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.2.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -209,6 +209,11 @@ in later phases.
 [per-page loop, repeated per page]
   /fm-analyze → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                         │ (fail → /fm-fix)
+                              /fm-cascade (stylesheet-level diff vs legacy; needs legacy's CSS,
+                                           not a running legacy host. Run it for any page that
+                                           injects markup it does not author — CMS rich text,
+                                           i18n values containing HTML, editor output; advisory —
+                                           fm-route reports a missing run, it does not block on one)
                               /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                               /fm-parity (visual / contract / WebView / telemetry; fail → /fm-fix)
                               /fm-route --flag-off (PR1) → --flag-on (PR2) → --confirm-live
@@ -221,6 +226,19 @@ Two hard gates run in series after generation: `fm-verify` (technical: build / t
 Vitest / ESLint, plus an advisory Prettier check) then `fm-parity` (legacy equivalence).
 `fm-e2e` (Playwright) is the functional gatekeeper between them. A route flip (`fm-route --flag-on`) is permitted only when
 `fm-verify`, `fm-e2e`, and `fm-parity` all pass for the page.
+
+`fm-cascade` sits between `fm-verify` and `fm-e2e` and is **evidence, not a status** — it does not
+advance the page. It exists because the other stages share a structural blind spot: `fm-style-spec`
+is element-indexed (it probes what `analysis.json.styleSurface` names), generated unit tests run in
+jsdom (which applies no CSS at all), and `fm-parity` needs both hosts live and is the stage most
+often blocked. Markup the page does not author — CMS rich text, i18n values containing HTML, editor
+output — falls through all three: hundreds of nodes that no index can enumerate, and when
+`fm-parity` is blocked the page ships with zero style evidence for most of its DOM. `fm-cascade`
+covers it with legacy's compiled CSS alone. Each divergence it finds is fixed, or recorded in
+`owner-decisions.md` and **owner-approved** (`status: approved` with `by`/`when` — fm-cascade
+writes items as `pending`; the approval is the owner's, never the stage's); `fm-route --flag-on`
+refuses while unresolved or unapproved ones remain — the same handling as Codex `high` findings.
+See `docs/design/cascade-diff-gate.md`.
 
 ## Per-page State Machine
 
@@ -288,6 +306,8 @@ docs/migration/
     ├── style-spec.json                ← fm-style-spec
     ├── migration-plan.json            ← fm-plan
     ├── generation-state.json          ← fm-gen (resume)
+    ├── cascade-diff.json              ← fm-cascade (classified; fm-route reads its `real` rows)
+    ├── cascade-diff.raw.json          ← fm-cascade (the differ script's raw measurement)
     ├── e2e-report.json                ← fm-e2e
     ├── parity-report.json             ← fm-parity
     ├── fix-report.json                ← fm-fix
@@ -328,7 +348,7 @@ fields:
 
 | Lock | Scope | Held by |
 | --- | --- | --- |
-| `docs/migration/{app}/{page}/.lock` | one page's work | the 10 page skills + `codex-auditor` |
+| `docs/migration/{app}/{page}/.lock` | one page's work | the 11 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
 | **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
@@ -654,6 +674,22 @@ eyeballing them. It shares the visual axes with `templates/visual-parity-checkli
 the generation **target** (front), the checklist is the parity **gate** (back), one legacy-truth
 source. See `docs/design/style-spec-generation.md`.
 
+**Containment fidelity** (v1.2.0) closes the class of style defect the answer key structurally could
+not carry: properties that do nothing until the content overflows. On OMH-912 mobile `/event/:seq` the
+raw probe read `overflow-x: auto` on the city-tab strip, the spec curated it away because the measured
+board had **one** tab and the strip could not overflow, and the page shipped — through verify, e2e and
+parity — with **337px** of horizontal page scroll (`document.scrollWidth` 748 on a 412 viewport) and
+the pills hanging past the right edge. Three mechanisms, three fixes: a `containment` axis captured
+**verbatim** with a `contentDependent` flag for unrepresentative instances (curation is correct for
+`typography` and is a defect generator for `overflow`); `nonComputable[]` for rules with no
+`getComputedStyle` surface at all (`::-webkit-scrollbar` and friends, source-resolved even on a live
+capture, via the **overflow twin rule**); and a containment stylesheet composed **into** any injected
+document, since no parent sheet crosses a nested browsing context — legacy's own attempt at it is dead
+code. The gate item is a page **invariant**
+(`documentElement.scrollWidth <= clientWidth`, under a synthetic overload), not another probe value:
+it catches the failure without knowing which element caused it. Design:
+`docs/design/containment-fidelity-generation.md`.
+
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest, and ESLint (hard) pass from `appDir`; Prettier
   `--check` runs as an advisory warning (non-blocking). See "Lint & Format Gate".
@@ -765,12 +801,22 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
   - Gate skills also save the `--manifest` output to
     `$(git rev-parse --show-toplevel)/docs/migration/{app}/{page}/gate-tree/{gate}.tsv` (create the
-    directory first) and pass that repo-relative path back as `--exclude`. The redirect target must
+    directory first) and pass that repo-relative path back as `--exclude`. Write it to a temp file
+    and promote it only when the pass records — on a pre-run/record-time mismatch the previous
+    manifest must survive, or the recorded `tree` and the on-disk file list describe different
+    trees. Derive the record-time `tree` from that same temp file (`git hash-object -- "$MAN.tmp"`
+    — the script's aggregate is by construction the hash of its records), never from a second
+    script execution, which could straddle a change and record a hash the manifest does not
+    describe. The redirect target must
     be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
+    One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
+    its specs) compares **manifests**, not bare hashes — every differing path must be the gate's own
+    reported work, merged into `sourcePaths` before the record-time hash; any other difference
+    records no pass.
   - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
     retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
     `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.

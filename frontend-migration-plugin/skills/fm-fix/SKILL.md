@@ -107,8 +107,10 @@ Read `fix-report.json`:
   would otherwise see a complete `generation-state.json` and do nothing). Setting `generated` here
   would claim a generation that never ran and point the session hook at `fm-verify`.
 - gate re-run `pass` → **set the status to `generated` and clear every trace the fix invalidated**:
-  `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`, and
-  `routePrepared` / `flagKey` — the set `fm-gen` Step 5.3 and `fm-delta` Step 5 also clear, for
+  `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`,
+  `routePrepared` / `flagKey`, plus the `cascade` record and the page's `cascade-diff*.json` files
+  (`fm-route` reads that file directly; a pre-fix report — clean or not — describes a tree this
+  fix just changed) — the set `fm-gen` Step 5.3 and `fm-delta` Step 5 also clear, for
   exactly the same reason: **this skill changed code.** **Do not clear `regenRequiredAt`**: it
   means a full `fm-gen` is owed, and this skill does not perform one. Its `verify-fix` mode cannot
   produce the i18n key-coverage spec at all (`fm-verify` Step 7), so clearing it would drop the
@@ -140,8 +142,8 @@ adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"
 `fm-route --flag-on` (Step 1b) tell an already-fixed finding from a still-open one instead of
 re-surfacing every finding forever. See `templates/codex-audit.md`.
 
-**Refresh `sourcePaths` from `fix-report.json.filesChanged`** (Read-Modify-Write: add files the
-fixer created, drop ones it removed). `sourcePaths[]` is axis 1 of the page's watch paths, and
+**Refresh `sourcePaths` from `fix-report.json`** (Read-Modify-Write: add every `filesChanged[]`
+entry, drop every `filesRemoved[]` entry — a rename appears in both). `sourcePaths[]` is axis 1 of the page's watch paths, and
 only `fm-gen`/`fm-delta` used to maintain it — so a fixer refactor that renamed files left the
 gate watching paths that no longer exist and *not* watching the replacements. When every
 recorded path disappears that way, `fm-route` Step 1a blocks (correctly, but on a page nobody
@@ -152,7 +154,8 @@ Release the lock.
 ### Step 6: Report
 In `workingLanguage`: mode, files changed, the gate re-run result with evidence, and the next
 step. On a successful fix the page is at `generated`, so the next step is the **whole chain**:
-`/frontend-migration-plugin:fm-verify {page}` → `fm-e2e` → `fm-parity` → `fm-route --flag-off`.
+`/frontend-migration-plugin:fm-verify {page}` → (`fm-cascade` when the page injects markup it does
+not author — fm-verify's report says when) → `fm-e2e` → `fm-parity` → `fm-route --flag-off`.
 Say that plainly, including that a prior `--flag-off` no longer counts (`routePrepared` was
 cleared) — the fixed code needs its own code PR and its own route-stage audit. On `regenRequired`
 the next step is `fm-gen {page} --force` instead. Those re-runs are **required, not advisory**:

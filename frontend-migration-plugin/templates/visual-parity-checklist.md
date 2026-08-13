@@ -44,6 +44,24 @@ That fallback has THREE failure modes this checklist exists to prevent:
    capture as legacy; a visual gate passing on three non-legacy "legacy screenshots"). **A file name
    is a claim, not provenance** — hence step 0 below.
 
+## When this gate is BLOCKED — what still can be measured
+
+This gate needs both hosts live, which makes it the stage most often blocked (a dead legacy host, an
+unbuilt dependency, a scenario waiting on another milestone). A blocked visual gate is `not-run`, and
+`not-run` is never a pass — but it is also not a reason to record no style evidence at all.
+
+`fm-cascade` measures the stylesheet half of this comparison from legacy's **compiled CSS alone**, no
+legacy host required: same markup, same engine, same viewport, stylesheet as the only variable,
+diffed over every node. It cannot replace this gate — it is blind to assets, fonts, real layout, and
+anything outside its property list — but it converts "we know nothing" into "we know the rules
+agree", which is most of what a blocked page is missing. Run it and say in the report which half was
+covered and which was not. See `templates/cascade-diff.md`.
+
+The converse also holds and is worth stating in any report that passes this gate: a screenshot
+comparison is a *sample* of the cascade. It confirms the pixels it photographed, at the viewports it
+used, in the states it drove — it does not establish that the two stylesheets agree. When both stages
+have run, say so; when only one has, say which.
+
 ## Protocol when a pixel diff is impossible (the normal PC case)
 
 0. **Resolve both sides' provenance before comparing anything.** For each artifact you are about to
@@ -107,6 +125,51 @@ decision.
   border radius; border width/style.
 - **Typography** — font family, size, weight, line-height, letter-spacing, tabular-nums — the wrapper
   frame's typography context (CMS-inline internals are exempt only where the plan says so).
+- **Containment & overflow** — what happens when the content does *not* fit. Unlike every other axis
+  this one is **not** settled by comparing the default render, because in the default render there is
+  usually nothing to contain. See the protocol below.
+
+### Containment: the axis a screenshot cannot decide
+
+A screenshot compares the content the fixture happened to have. `overflow`, `flex-wrap`, `min-width`,
+`white-space` and `-webkit-line-clamp` only do anything when there is *more* of it, so a default-only
+comparison is permanently blind to them — the same structural blindness the **States** section
+describes, along a different dimension.
+
+That is how OMH-912 mobile `/event/:seq` passed this gate and shipped with **337px** of horizontal
+page scroll (`document.scrollWidth` 748 on a 412 viewport), the city-tab pills hanging past the right
+edge: the fixture had two short tabs, they fit, the screenshots matched. Legacy's
+`overflow-x: auto` + `::-webkit-scrollbar{display:none}` (`_contents.scss:1590-1596`) was never
+reproduced, and nothing in this checklist asked.
+
+**Protocol — assert the invariant, not just the values.** At every viewport × language in the matrix:
+
+1. **The page invariant, on the default render.**
+   `document.documentElement.scrollWidth <= document.documentElement.clientWidth`. This is the item
+   that catches the failure **without knowing which element caused it** — including elements the
+   style-spec index does not contain.
+2. **Synthetic overload for every `contentDependent` element** the spec flags. Drive real overflow
+   into it (pad the labels, add rows), then assert **both** halves: engagement **on the axis the
+   property controls** — horizontal (`overflowX`, `whiteSpace: nowrap`, `textOverflow`):
+   `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed value
+   `ellipsis` (the marker is paint, not geometry — clipped text without it passes every scroll
+   metric); vertical (`overflowY`, `webkitLineClamp`):
+   `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: the children wrapped and
+   `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS the wrap failing; `maxWidth`:
+   drive content past the cap and assert the box held at it; `minWidth`: apply shrink pressure
+   (narrow the container — content overload cannot exercise a lower bound) and assert the box held
+   the floor; `overscrollBehavior`: no overload metric exists — assert the computed value — **and**
+   the page invariant above still holds. Asserting only the second half passes a test that never
+   overflowed anything; asserting the horizontal pair on a wrap/clamp element fails a correct
+   implementation.
+3. **Injected-document frames** (`structure[].injectedDocument`): the frame element's width ≤ the
+   viewport, and the frame's own `document.body` computes `overflow-x: hidden`. Nothing outside the
+   frame can establish this — a parent-side probe reads the parent's box, not the document's.
+4. **`nonComputable[]` counterparts.** Each entry (`::-webkit-scrollbar`, `::placeholder`, …) has a
+   matching rule in the v2 stylesheet. These have no `getComputedStyle` surface, so this is a
+   stylesheet check, not a probe.
+
+Design: `docs/design/containment-fidelity-generation.md`.
 
 ## Lift-out interaction (public pages shed the my-page shell)
 
