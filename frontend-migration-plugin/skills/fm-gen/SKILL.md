@@ -94,7 +94,9 @@ configured, and `fm-verify` Step 4a makes an absent spec a hard failure whose on
 re-running this phase — which would fail the same way.
 
 After each phase, update `generation-state.json` (Read-Modify-Write): mark the phase
-`done`/`failed`, record `currentPhase`. On a phase failure, **stop running further phases and
+`done`/`failed`, record `currentPhase`, and **persist the phase's `filesChanged[]`** on its entry —
+Step 5's `sourcePaths` union reads these recorded lists, and a resumed session cannot recover an
+unpersisted list without re-running the completed phase. On a phase failure, **stop running further phases and
 continue to Step 5** — do not return from the skill here. Step 5 is what writes `gen-failed`,
 records `sourcePaths` for the files the completed phases did write, clears the stale gate fields,
 and **releases the lock**. Returning from this step instead would leave the page at `planned` over
