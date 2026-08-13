@@ -88,7 +88,10 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   **First merge the runner's `filesChanged[]` into `sourcePaths`** (Read-Modify-Write under
   `.tracker.lock`) — every file it created or modified: specs, page objects, fixtures, helpers
   alike, since any of them outside the watch union can be weakened later without moving the
-  recorded tree — then compute the record-time manifest/hash over the updated union. Compare with
+  recorded tree. The paths are **repo-relative** (the `sourcePaths` basis); one that does not
+  start with `{appDir}` is the runner's mistake — resolve it against `appDir` before merging, or
+  the hash watches a nonexistent root path. Then compute the record-time manifest/hash over the
+  updated union. Compare with
   Step 3's pre-run manifest: every differing path must appear in that same `filesChanged[]`
   (`e2e-report.json` — a report without the field cannot support this comparison: treat the run as
   unverifiable and re-run). Any **other** difference means the watch paths

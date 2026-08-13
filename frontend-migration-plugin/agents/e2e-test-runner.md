@@ -153,10 +153,12 @@ pass you did not observe (CLAUDE.md 5-step gate).
   "result": "pass | fail | not-run",
   "notRunScenarios": [{ "name": "...", "reason": "staging gateway not configured: nicePay" }],
   // EVERY file this run created or modified under appDir — specs, page objects, fixtures,
-  // helpers alike. The coordinator merges exactly this list into sourcePaths and treats any
-  // other watch-path delta as concurrent movement (a refused pass). An omitted helper is a
-  // file the gate can never watch.
-  "filesChanged": ["e2e/pages/hotel-booking-info.spec.ts", "e2e/support/overload.ts"],
+  // helpers alike — as REPO-RELATIVE paths (the same basis as tracker sourcePaths: prefix
+  // appDir). The coordinator merges exactly this list into sourcePaths and treats any other
+  // watch-path delta as concurrent movement (a refused pass). An omitted helper is a file the
+  // gate can never watch; an app-relative path here would make it watch a nonexistent one.
+  "filesChanged": ["apps/web-mobile/e2e/pages/hotel-booking-info.spec.ts",
+                   "apps/web-mobile/e2e/support/overload.ts"],
   "ranAt": "ISO"
 }
 ```
