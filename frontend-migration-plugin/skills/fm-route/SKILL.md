@@ -178,11 +178,12 @@ because there is nothing to compare against:
   evidence that could not be computed.
 
 **Cascade divergences (`fm-cascade`).** If `cascade-diff.json` exists, every divergence it classified
-`real` must be either fixed (absent from the latest run) or recorded in `owner-decisions.md` with a
-reason. Unresolved, unrecorded ones **block** — surfaced individually with `tag · property · legacy →
-target · node count`, the same handling as unresolved Codex `high` findings. A `real` divergence that
-IS recorded proceeds without further ceremony: deciding a divergence is intended is the owner's call,
-and the record is that call.
+`real` must be either fixed (absent from the latest run) or **owner-approved** in
+`owner-decisions.md`: an entry with `status: approved`, `by`, and `when`. Unresolved rows, and rows
+whose entry is `pending` or incomplete, **block** — surfaced individually with `tag · property ·
+legacy → target · node count`, the same handling as unresolved Codex `high` findings. An approved
+divergence proceeds without further ceremony: deciding it is intended is the owner's call, and the
+**approval** — not the item fm-cascade wrote — is that call.
 
 Absence of `cascade-diff.json` is **not** a block and not a pass — it is `not-run`, reported as such.
 Do not infer it was unnecessary. But if the page injects markup it does not author (CMS rich text,

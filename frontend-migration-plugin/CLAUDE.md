@@ -235,8 +235,10 @@ often blocked. Markup the page does not author — CMS rich text, i18n values co
 output — falls through all three: hundreds of nodes that no index can enumerate, and when
 `fm-parity` is blocked the page ships with zero style evidence for most of its DOM. `fm-cascade`
 covers it with legacy's compiled CSS alone. Each divergence it finds is fixed, or recorded in
-`owner-decisions.md` with a reason; `fm-route --flag-on` refuses while unresolved, unrecorded ones
-remain — the same handling as Codex `high` findings. See `docs/design/cascade-diff-gate.md`.
+`owner-decisions.md` and **owner-approved** (`status: approved` with `by`/`when` — fm-cascade
+writes items as `pending`; the approval is the owner's, never the stage's); `fm-route --flag-on`
+refuses while unresolved or unapproved ones remain — the same handling as Codex `high` findings.
+See `docs/design/cascade-diff-gate.md`.
 
 ## Per-page State Machine
 
@@ -802,7 +804,10 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     directory first) and pass that repo-relative path back as `--exclude`. Write it to a temp file
     and promote it only when the pass records — on a pre-run/record-time mismatch the previous
     manifest must survive, or the recorded `tree` and the on-disk file list describe different
-    trees. The redirect target must
+    trees. Derive the record-time `tree` from that same temp file (`git hash-object -- "$MAN.tmp"`
+    — the script's aggregate is by construction the hash of its records), never from a second
+    script execution, which could straddle a change and record a hash the manifest does not
+    describe. The redirect target must
     be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.

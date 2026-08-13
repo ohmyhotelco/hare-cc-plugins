@@ -86,7 +86,9 @@ Launch `cascade-differ` (Agent) with only its params: `app`, `page`, `legacyCssP
 response fixtures — else the target-app URL to scrape the rendered container from), `viewport`,
 `propsOverride` (`--props`), `keepFonts` (`--keep-fonts`), `pluginRoot` (where
 `scripts/cascade-diff.mjs` lives), `outPath` =
-`docs/migration/{app}/{page}/cascade-diff.json`, `appDir`, `workingLanguage`.
+`docs/migration/{app}/{page}/cascade-diff.next.json` (staging — Step 6 promotes it to
+`cascade-diff.json` only after the tree check, so `fm-route` can never read a report the check has
+not validated), `appDir`, `workingLanguage`.
 
 ### Step 5: Classify every divergence
 Read the agent's report and put **each** row in exactly one bucket — this is the stage's actual work,
@@ -118,10 +120,12 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
 
 1. Recompute the `tree` hash and compare with Step 4's pre-run hash. If they differ, the tree
    moved while the diff ran (a package rewrite, a concurrent fix): the measurement describes a
-   tree that no longer exists — record the stage `not-run`, do **not** publish this report as
-   current, and re-run from Step 4. A stale-but-clean report published after a concurrent clear
-   would silently vouch for styles nobody measured.
-2. Verify `cascade-diff.json` exists and parses (`jq empty`).
+   tree that no longer exists — delete `cascade-diff.next.json`, record the stage `not-run`, and
+   re-run from Step 4. A stale-but-clean report published after a concurrent clear would silently
+   vouch for styles nobody measured.
+2. Verify `cascade-diff.next.json` exists and parses (`jq empty`), then promote it:
+   `mv` → `cascade-diff.json`. The canonical file changes only on a run the tree check just
+   validated.
 3. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].cascade` =
    `{ runAt, nodesCompared, propsCompared, languages, real, consequence, artifact, unresolved }`,
    and `updatedAt`. **Never advance `status`.** A run that changed **no** file leaves the page's
@@ -133,9 +137,12 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
    removed (the same refresh `fm-fix` performs): a new stylesheet outside the watch union would let
    later edits to it pass every freshness check unnoticed. The `cascade` record itself stays: it
    describes the latest run of this stage.
-4. Every **real** divergence left unfixed goes to `owner-decisions.md` as an explicit-approval item
-   with the values and the node count. An intended divergence is a decision, and a decision is
-   recorded, not assumed. `fm-route --flag-on` reads these.
+4. Every **real** divergence left unfixed goes to `owner-decisions.md` as an item with
+   `status: pending` — the divergence identity (`tag · property · legacy → target · nodes`), the
+   reason, and empty `by`/`when` for the owner to fill. **Writing the item is not the approval**:
+   deciding a divergence is intended is the owner's call, and this stage cannot make it.
+   `fm-route --flag-on` proceeds only on entries the owner has flipped to `status: approved` (with
+   `by` and `when`); a `pending` entry blocks exactly like an unrecorded row.
 5. Release the lock.
 
 ### Step 7: Turn the fix into a gate

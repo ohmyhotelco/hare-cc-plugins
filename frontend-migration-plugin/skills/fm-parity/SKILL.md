@@ -104,10 +104,16 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/parity.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>...
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN.tmp"
+  TREE=$(git hash-object -- "$MAN.tmp")
   ```
+
+  **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
+  records (its own construction), so hashing the manifest file yields the same `tree` — atomically.
+  Two separate executions could straddle a change and record a hash the manifest does not describe.
+  On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
+  `unverifiable`), exit 1 is an error.
 
   Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths moved while
   the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`, and say to

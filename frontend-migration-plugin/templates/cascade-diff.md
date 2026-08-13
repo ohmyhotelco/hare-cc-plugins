@@ -107,8 +107,9 @@ in the same table; do not chase these separately. Re-run after fixing the cause 
 finding. Fix the harness and re-run.
 
 A property whose target value is *more* correct than legacy's is still reported. Deciding that a
-divergence is intended is the owner's call, recorded in `owner-decisions.md` — never the differ's,
-and never silent.
+divergence is intended is the owner's call, recorded in `owner-decisions.md` as an **approved**
+entry (`status: approved`, `by`, `when`) — never the differ's, never silent, and never a `pending`
+item presented as a decision.
 
 ## Fixing what it finds
 
