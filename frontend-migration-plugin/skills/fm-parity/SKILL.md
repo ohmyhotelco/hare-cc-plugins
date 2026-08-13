@@ -29,6 +29,10 @@ point to `fm-style-spec {page}` and stop).
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
+Before launching the verifier, compute the **pre-run** `tree` hash — same script, same watch-path
+union as Step 4. Step 4 compares its record-time hash against this one: a gate may record a pass
+only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+
 Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which the verifier needs to resolve each capture's
 `provenance.side` (`templates/capture-provenance.md`; an unresolved side counts as absent and fails
@@ -105,6 +109,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN"
   ```
 
+  Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths moved while
+  the gate ran — record **no pass**, leave the status unchanged, and say to re-run.
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from

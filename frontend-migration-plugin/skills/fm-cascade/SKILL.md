@@ -121,8 +121,10 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
    revert, a new regression test) applies the same rule as `fm-fix`: set `status` to `generated`
    and clear `gateEvidence` (all gates), the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`,
    and `routePrepared`/`flagKey` — this skill changed code, so every prior gate PASS rests on a
-   tree that no longer exists. The `cascade` record itself stays: it describes the latest run of
-   this stage.
+   tree that no longer exists. Also **refresh `sourcePaths`** with any file this stage created or
+   removed (the same refresh `fm-fix` performs): a new stylesheet outside the watch union would let
+   later edits to it pass every freshness check unnoticed. The `cascade` record itself stays: it
+   describes the latest run of this stage.
 3. Every **real** divergence left unfixed goes to `owner-decisions.md` as an explicit-approval item
    with the values and the node count. An intended divergence is a decision, and a decision is
    recorded, not assumed. `fm-route --flag-on` reads these.

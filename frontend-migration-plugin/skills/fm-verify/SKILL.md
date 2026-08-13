@@ -42,6 +42,10 @@ its holder is gone — CLAUDE.md → Lock file) before running the gate. If held
 ### Step 2: Resolve the run directory
 All commands run from `{monorepoRoot}/{appDir}`. If `appDir` is `"."`, run from root.
 
+Before the first tool runs, compute the **pre-run** `tree` hash — same script, same watch-path
+union as Step 6. Step 6 compares its record-time hash against this one: a gate may record a pass
+only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+
 ### Step 3: TypeScript (composite-aware)
 Read `tsconfig.json` in `{appDir}`:
 - has a `references` array → `npx tsc -b 2>&1`
@@ -121,7 +125,8 @@ Update `tracker.json` (Read-Modify-Write):
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
-  `{appDir}`.
+  `{appDir}`. Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths
+  moved while the gate ran — record **no pass**, leave the status unchanged, and say to re-run.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never

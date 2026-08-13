@@ -35,6 +35,10 @@ an earlier session or on another machine.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
+Before launching the runner, compute the **pre-run** `tree` hash — same script, same watch-path
+union as Step 4. Step 4 compares its record-time hash against this one: a gate may record a pass
+only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
 (`templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
@@ -72,6 +76,8 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
+  Compare this hash with the pre-run hash from Step 3: if they differ, the watch paths moved while
+  the gate ran — record **no pass**, leave the status unchanged, and say to re-run.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
 

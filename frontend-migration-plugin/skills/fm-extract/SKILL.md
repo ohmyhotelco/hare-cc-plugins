@@ -127,8 +127,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    The mechanics: `packages/shared-*` is watch-path
    axis 2 of every page whose `migration-plan.json` `sharedDeps[]` names it, so rewriting a package
    outdates those pages' `gateEvidence` exactly as regenerating their own code would. For each such
-   page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, and
-   `routePrepared`/`flagKey` — the same set `fm-gen` and `fm-delta` clear — **and, for a page at
+   page clear `gateEvidence`, the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`,
+   `routePrepared`/`flagKey`, plus the `cascade` record and the page's `cascade-diff*.json` files
+   (`fm-route` reads that file directly; a pre-rewrite report — clean or not — describes styles the
+   package rewrite may have changed) — the same set `fm-gen` and `fm-delta` clear — **and, for a page at
    `verified`/`e2e-passed`/`parity-passed`, set the status back to `generated`**, the same demotion
    those two apply when code changes (a page below `verified` keeps its status; the demotion is not
    a promotion). Clearing the evidence but leaving the gate-passed status is what walks the session
