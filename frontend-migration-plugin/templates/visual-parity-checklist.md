@@ -153,7 +153,9 @@ reproduced, and nothing in this checklist asked.
    property controls** — horizontal (`overflowX`, `whiteSpace: nowrap`, `textOverflow`):
    `el.scrollWidth - el.clientWidth > 0`; vertical (`overflowY`, `webkitLineClamp`):
    `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: the children wrapped and
-   `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS the wrap failing — **and** the
+   `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS the wrap failing; size caps
+   (`maxWidth`/`minWidth`): drive content past the cap and assert the box held at it;
+   `overscrollBehavior`: no overload metric exists — assert the computed value — **and** the
    page invariant above still holds. Asserting only the second half passes a test that never
    overflowed anything; asserting the horizontal pair on a wrap/clamp element fails a correct
    implementation.

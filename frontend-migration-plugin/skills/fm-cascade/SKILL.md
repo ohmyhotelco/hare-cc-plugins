@@ -27,9 +27,11 @@ gate that covers this, and it needs both hosts live. This stage covers it with l
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
 (`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, the app's `legacyPort` / `port`,
 `pluginRoot` (absolute; where `scripts/cascade-diff.mjs` lives — absent → stop: the differ cannot
-run, and an unrun diff is `not-run`, never a pass), and `workingLanguage`. Resolve `viewport` from
-the page's `style-spec.json` → `legacySource.provenance.viewport` when that file exists, else the
-differ's default device (`Pixel 7`) — and say in the report which was used.
+run, and an unrun diff is `not-run`, never a pass), and `workingLanguage`. Resolve `viewport` as
+`{width}x{height}` from the page's `style-spec.json` → `legacySource.provenance.viewport` when the
+file exists **and** carries it (a source-fallback spec may omit it — capture-provenance records
+dimensions, never a device name); otherwise leave it unset and the differ uses its default device
+(`Pixel 7`). Say in the report which was used.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and
 carry the keys this stage reads. Config-file presence is not app presence — a `--app` naming an
@@ -63,11 +65,13 @@ legacy host is otherwise down, because that is the case this stage was built for
 
 ### Step 2a: Ensure probe run permission
 The agent runs the probe as a **sub-agent**, so session approvals do not transfer. The probe is
-`node .cascade-diff.tmp.mjs …` run from `appDir` (the agent copies the differ script there —
-`agents/cascade-differ.md` Step 3). Ensure `.claude/settings.json` `permissions.allow` covers it
-(e.g. `Bash(node .cascade-diff.tmp.mjs *)`); if missing, add it (Read-Modify-Write) and note it in
-the report. Without it the probe cannot launch and there is no partial-credit fallback here — an
-unrun cascade diff is `not-run`, never a pass.
+three plain commands (`agents/cascade-differ.md` Step 3): `cp` the differ script to
+`{appDir}/.cascade-diff.tmp.mjs`, `node {appDir}/.cascade-diff.tmp.mjs …` with absolute arguments
+(no `cd`, no `&&` — a compound command would not match a `node`-prefixed allow rule), `rm` the
+copy. Ensure `.claude/settings.json` `permissions.allow` covers the `node` call with `appDir`
+expanded (e.g. `Bash(node /abs/path/apps/web-mobile/.cascade-diff.tmp.mjs *)`); if missing, add it
+(Read-Modify-Write) and note it in the report. Without it the probe cannot launch and there is no
+partial-credit fallback here — an unrun cascade diff is `not-run`, never a pass.
 
 ### Step 3: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock

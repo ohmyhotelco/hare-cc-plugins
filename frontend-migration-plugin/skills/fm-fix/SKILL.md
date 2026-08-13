@@ -152,7 +152,8 @@ Release the lock.
 ### Step 6: Report
 In `workingLanguage`: mode, files changed, the gate re-run result with evidence, and the next
 step. On a successful fix the page is at `generated`, so the next step is the **whole chain**:
-`/frontend-migration-plugin:fm-verify {page}` → `fm-e2e` → `fm-parity` → `fm-route --flag-off`.
+`/frontend-migration-plugin:fm-verify {page}` → (`fm-cascade` when the page injects markup it does
+not author — fm-verify's report says when) → `fm-e2e` → `fm-parity` → `fm-route --flag-off`.
 Say that plainly, including that a prior `--flag-off` no longer counts (`routePrepared` was
 cleared) — the fixed code needs its own code PR and its own route-stage audit. On `regenRequired`
 the next step is `fm-gen {page} --force` instead. Those re-runs are **required, not advisory**:

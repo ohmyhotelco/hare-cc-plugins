@@ -44,8 +44,10 @@ language (VI) as the only user of `<th>` and another (EN) as the only one where 
 on the initial border width. One language is not a sample.
 
 If the page has no captured documents, scrape the rendered container **once** from the running target
-app and use that same string on both sides. Never scrape legacy for one side and the target for the
-other — that reintroduces markup as a variable and you would be measuring two things at once.
+app, save the string to a temp `.html` file (one per language when the page has them), and pass
+**that file's path** to `--markup` — the script reads files, never URLs. The same file feeds both
+sides. Never scrape legacy for one side and the target for the other — that reintroduces markup as a
+variable and you would be measuring two things at once.
 
 ## Step 3 — Run the differ
 
@@ -58,24 +60,30 @@ because apps disagree which one their per-language rules hang off (`html.lang-zh
 It keeps `fontFamily` in the property list as the tripwire: a mismatch surviving neutralisation
 announces itself on every node instead of hiding inside `width`.
 
-Copy it into the app and run it from there — ESM resolves `import "playwright"` from the
-**script's** location, not the cwd, so the copy is what lets it use the app's own Playwright
-install:
+Copy it into the app, then run the copy — as **three separate commands**, no `cd`, no `&&`. ESM
+resolves `import "playwright"` from the **script's** location, not the cwd, so the copy inside the
+app is all that binds it to the app's Playwright; separate commands keep each exit status visible
+(an `rm` chained after the differ masks a failed run behind a successful cleanup):
 
 ```bash
 cp {pluginRoot}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
-cd {appDir} && node .cascade-diff.tmp.mjs \
+node {appDir}/.cascade-diff.tmp.mjs \
   --legacy-css <legacyCssPath> --target-css <targetCssPath> \
-  --markup <markupSource> --device "<viewport>" \
-  --out <absolute path>/docs/migration/{app}/{page}/cascade-diff.raw.json
+  --markup "<absolute markup path/glob>" \
+  --viewport <WxH when set — omit the flag when unset> \
+  --out <absolute>/docs/migration/{app}/{page}/cascade-diff.raw.json
 rm {appDir}/.cascade-diff.tmp.mjs
 ```
 
-Give `--out` an **absolute** path — the command runs from `appDir`, so a repo-relative path lands in
-the wrong tree. Map `propsOverride` → `--props`, `keepFonts` → `--keep-fonts`. If the page's
-`styleSurface` has a container the markup normally sits inside, pass `--container-class` **only when
-the migration actually applies that class** — and say in the artifact that you did. A class present
-on one side and not the other is another loose variable.
+Every path argument is **absolute** — the cwd is not the app. Check the differ's exit status before
+cleanup and classification: non-zero means the run is invalid — do not classify its output.
+`viewport` arrives as `{width}x{height}` (the spec's capture viewport) and maps to `--viewport`;
+unset → omit the flag and the script uses its default device profile (`--device` exists for the
+rare case you are explicitly given a Playwright device *name*). Map `propsOverride` → `--props`,
+`keepFonts` → `--keep-fonts`. If the page's `styleSurface` has a container the markup normally sits
+inside, pass `--container-class` **only when the migration actually applies that class** — and say
+in the artifact that you did. A class present on one side and not the other is another loose
+variable.
 
 The script validates the device name, records the actual viewport/DPR in the raw report, and lists
 any document it had to reject (node-count mismatch) under `documents[].invalid`. A rejected document

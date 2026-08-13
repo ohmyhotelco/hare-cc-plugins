@@ -227,9 +227,11 @@ docEl.scrollWidth  - docEl.clientWidth <= 0   // …and the page did not grow
 The first half is **per-axis**: the strip above is a horizontal scroller, so it proves engagement
 on `scrollWidth`; a vertical scroller or a `-webkit-line-clamp` proves it on
 `scrollHeight - clientHeight > 0`; a `flex-wrap: wrap` proves it by wrapping — growing taller with
-**no** horizontal overflow, because horizontal overflow is the wrap failing. The horizontal pair
-asserted blindly on a wrap/clamp element fails a correct implementation. The second half is
-universal.
+**no** horizontal overflow, because horizontal overflow is the wrap failing; a size cap
+(`max-width`/`min-width`) proves it by holding the box at the cap under the overload; and
+`overscroll-behavior` has no overload metric at all — it is asserted as a computed value. The
+horizontal pair asserted blindly on a wrap/clamp element fails a correct implementation. The second
+half is universal.
 
 …plus, for each injected-document frame: the frame element's width ≤ the viewport, and the frame
 document's own `body` computes `overflow-x: hidden`.

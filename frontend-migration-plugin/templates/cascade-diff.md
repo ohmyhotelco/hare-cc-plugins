@@ -67,10 +67,10 @@ was not.
 Note what is **not** required: a running legacy server. Only its CSS. That is what makes this stage
 available when `fm-parity` is blocked on a dead or unreachable legacy host.
 
-The measurement itself is `scripts/cascade-diff.mjs`, run from `appDir` via a temp copy
-(`cp {pluginRoot}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs`) — ESM resolves
-`import "playwright"` from the script's location, not the cwd, so the copy is what lets it use the
-app's own Playwright install. See `agents/cascade-differ.md` Step 3.
+The measurement itself is `scripts/cascade-diff.mjs`, copied to `{appDir}/.cascade-diff.tmp.mjs`
+and run from there with absolute arguments — ESM resolves `import "playwright"` from the script's
+location, not the cwd, so the copy is what lets it use the app's own Playwright install. See
+`agents/cascade-differ.md` Step 3.
 
 ## Property list
 

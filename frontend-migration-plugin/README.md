@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v1.1.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v1.2.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -25,7 +25,8 @@ New to the migration? These terms recur throughout:
   big-bang rewrite. The flip happens at each app's configured edge — an app-layer / entry **nginx**
   routing block, or a **CloudFront** behavior — selected per app (`flipMechanism`, default `nginx`).
 - **The per-page loop** — every page goes through the same sequence: `analyze → style-spec → plan →
-  gen → verify → e2e → parity → route`. One page at a time.
+  gen → verify → (cascade, for pages that inject markup they do not author) → e2e → parity →
+  route`. One page at a time.
 - **Three parity gates** — after a page is generated it must pass, in order: `fm-verify`
   (technical: build/types/unit tests + ESLint; Prettier is advisory), `fm-e2e` (does it behave
   like legacy?), `fm-parity`
@@ -116,6 +117,7 @@ After the prerequisites are met:
 /frontend-migration-plugin:fm-plan hotel-booking-info     # → migration-plan.json (tree, rendering, gates, e2e scenarios)
 /frontend-migration-plugin:fm-gen hotel-booking-info      # RR v7 page via TDD → status: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info   # build/tsc/vitest → verified   (gate 1)
+/frontend-migration-plugin:fm-cascade hotel-booking-info  # stylesheet diff vs legacy (foreign-markup pages; evidence, advisory)
 /frontend-migration-plugin:fm-e2e hotel-booking-info      # Playwright + dual-run → e2e-passed   (gate 2)
 /frontend-migration-plugin:fm-parity hotel-booking-info   # visual/contract/webview/telemetry → parity-passed   (gate 3)
 
@@ -130,7 +132,8 @@ After the prerequisites are met:
 
 Each step writes its artifact under `docs/migration/{app}/{page}/` and advances the page's status
 in the tracker. If a gate fails, run `fm-fix <page>` (it auto-detects which gate). The page then
-returns to `generated`, so re-run the chain: `fm-verify` → `fm-e2e` → `fm-parity`. **One
+returns to `generated`, so re-run the chain: `fm-verify` → (`fm-cascade` for foreign-markup pages)
+→ `fm-e2e` → `fm-parity`. **One
 exception:** a `fm-verify` failure for a missing i18n key-coverage spec needs
 `fm-gen <page> --force`, not `fm-fix` — `fm-fix` re-runs the build tools, which all pass, so it
 would report success and land on the same failure. `fm-verify` says so in its own report.
@@ -199,8 +202,9 @@ tracker state it sets.
 
 - **A gate failed.** Run `/frontend-migration-plugin:fm-fix <page>` — it auto-detects the mode
   (verify/e2e/parity) from the latest failing report, applies the smallest fix, and re-runs the
-  gate. The page then returns to `generated`, so re-run the whole chain (`fm-verify` → `fm-e2e` →
-  `fm-parity`) — a fix changes code, which invalidates every gate, not just the one that failed.
+  gate. The page then returns to `generated`, so re-run the whole chain (`fm-verify` →
+  (`fm-cascade` for foreign-markup pages) → `fm-e2e` → `fm-parity`) — a fix changes code, which
+  invalidates every gate, not just the one that failed.
 - **The legacy page changed after I migrated it.** Run `/frontend-migration-plugin:fm-delta
   <page>` — it re-migrates only the changed surface and preserves your accumulated fixes (large
   deltas fall back to a full `fm-gen`). The PostToolUse hook warns you when this happens.

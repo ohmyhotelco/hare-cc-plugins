@@ -42,8 +42,12 @@ drives an overload into the element (pad the labels, add rows) and then asserts 
 engagement **on the axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`,
 `textOverflow`: `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
 `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal overflow —
-the horizontal pair asserted on a wrap/clamp element fails correct code), so the test is not
-vacuous, **and** `documentElement.scrollWidth <= clientWidth`, so the page absorbed none of it. The fixture's natural content is exactly what cannot test this: on
+the horizontal pair asserted on a wrap/clamp element fails correct code; size caps —
+`maxWidth`/`minWidth`: the box held at the cap; `overscrollBehavior`: computed-value check only),
+so the test is not vacuous, **and** `documentElement.scrollWidth <= clientWidth`, so the page
+absorbed none of it. `styleSpecPath` absent or unreadable → record this standing scenario in
+`e2e-report.json` as `not-run` with the reason and continue with the planned scenarios — an
+unmeasured scenario is not a pass, and a missing spec must not abort the report. The fixture's natural content is exactly what cannot test this: on
 OMH-912 `/event/:seq` the two-group fixture's tabs fit, every behaviour scenario passed, and a real
 board gave the page 337px of horizontal scroll. Add the page-level invariant on the default render
 too — it is one line and it catches overflow from elements no spec indexes. Design:

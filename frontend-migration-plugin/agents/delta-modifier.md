@@ -63,8 +63,8 @@ Apply the mapping catalog for any new Angular idiom. Import shared logic from `@
 
 ## Verify
 Run vitest + tsc from `{appDir}` for the touched scope; read the output. Report pass/fail with
-evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify` → `fm-e2e` →
-`fm-parity`).
+evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify` → `fm-cascade`
+when the page injects markup it does not author → `fm-e2e` → `fm-parity`).
 
 ## Output
 - The targeted edits/creates/removes under `{targetDir}`.

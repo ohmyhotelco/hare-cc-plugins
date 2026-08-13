@@ -8,16 +8,20 @@
 // Needs legacy's compiled CSS, NOT a running legacy host — which is the point: it is available in
 // exactly the situations where fm-parity is blocked.
 //
-// Usage — run from the target app's directory via a temp copy. ESM resolves `import "playwright"`
-// from the SCRIPT's location, not the cwd, so the copy is what lets it use the app's own install:
+// Usage — copy into the target app, then run the copy (from any cwd, all paths absolute). ESM
+// resolves `import "playwright"` from the SCRIPT's location, not the cwd, so the copy is what lets
+// it use the app's own install:
 //   cp scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
-//   cd {appDir} && node .cascade-diff.tmp.mjs \
+//   node {appDir}/.cascade-diff.tmp.mjs \
 //     --legacy-css http://localhost:4204/styles.css \
 //     --target-css http://localhost:30221/app/app.css \
-//     --markup "app/components/terms/__golden__/terms-100060-*.html" \
+//     --markup "/abs/appDir/app/components/terms/__golden__/terms-100060-*.html" \
 //     --out /abs/path/docs/migration/mobile/privacy/cascade-diff.raw.json \
-//     [--device "Pixel 7"] [--keep-fonts] [--props a,b,c] [--container-class cms-html] \
-//     [--lang-class-prefix lang-]
+//     [--device "Pixel 7"] [--viewport 412x915[@2.625]] [--keep-fonts] [--props a,b,c] \
+//     [--container-class cms-html] [--lang-class-prefix lang-]
+//   rm {appDir}/.cascade-diff.tmp.mjs
+// --viewport overrides the device profile's dimensions (e.g. with the style-spec's capture
+// viewport, which is recorded as width/height, not as a device name).
 //
 // --container-class applies a class to the TARGET root only. Use it only when the migration really
 // applies that class there, and say so in the report — otherwise it is a second loose variable.
@@ -50,7 +54,23 @@ if (!devices[deviceName]) {
   process.exit(2);
 }
 const device = devices[deviceName];
-const viewportLabel = `${device.viewport.width}x${device.viewport.height} @${device.deviceScaleFactor} (${deviceName})`;
+
+// --viewport WxH[@dpr] overrides the device profile's dimensions. The style-spec records its
+// capture viewport as width/height (capture-provenance), not as a device name — this flag is how
+// that value reaches the render without pretending to be a device.
+const viewportArg = flag("viewport");
+let vpOverride = null;
+if (viewportArg) {
+  const m = viewportArg.match(/^(\d+)x(\d+)(?:@([\d.]+))?$/);
+  if (!m) {
+    console.error(`cascade-diff: --viewport must be WxH or WxH@dpr, got "${viewportArg}".`);
+    process.exit(2);
+  }
+  vpOverride = { width: +m[1], height: +m[2], dpr: m[3] ? +m[3] : device.deviceScaleFactor };
+}
+const viewportLabel = vpOverride
+  ? `${vpOverride.width}x${vpOverride.height} @${vpOverride.dpr} (${deviceName} profile, --viewport override)`
+  : `${device.viewport.width}x${device.viewport.height} @${device.deviceScaleFactor} (${deviceName})`;
 
 // The properties a document's appearance actually rests on. Not "all properties" — getComputedStyle
 // enumerates hundreds, most derived or irrelevant, and the noise buries the signal.
@@ -154,7 +174,12 @@ const files = resolveMarkup(markupGlob);
 if (!files.length) throw new Error(`no markup matched ${markupGlob}`);
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ ...device });
+const ctx = await browser.newContext({
+  ...device,
+  ...(vpOverride
+    ? { viewport: { width: vpOverride.width, height: vpOverride.height }, deviceScaleFactor: vpOverride.dpr }
+    : {}),
+});
 
 const divergences = new Map();
 let nodesCompared = 0;
@@ -208,7 +233,10 @@ const rows = [...divergences.values()]
 // The script does NOT classify rows into real / consequence / artifact — that is judgement, and it
 // belongs to the agent reading this output (templates/cascade-diff.md → Reading the report).
 // It does flag the one signature it can recognise mechanically.
-const fontArtifact = rows.find((r) => r.property === "fontFamily" && r.nodes > nodesCompared * 0.5);
+// Summed across tags: the aggregation key splits fontFamily rows per tag, so no single row may
+// clear 50% even when the whole document diverges — which is exactly the signature to catch.
+const fontNodes = rows.filter((r) => r.property === "fontFamily").reduce((s, r) => s + r.nodes, 0);
+const fontArtifact = fontNodes > nodesCompared * 0.5 ? { nodes: fontNodes } : null;
 
 console.log(`\ncascade-diff — ${nodesCompared} nodes, ${PROPS.length} properties, ${files.length} document(s)`);
 console.log(`  legacy CSS  ${legacy.bytes} bytes  ${legacy.src}`);
@@ -220,7 +248,10 @@ for (const d of perDoc) console.log(d.invalid
   ? `  ${d.lang.padEnd(3)}  INVALID — ${d.invalid}`
   : `  ${d.lang.padEnd(3)} ${String(d.nodes).padStart(5)} nodes  ${d.diffs} divergent readings`);
 
-if (!rows.length) {
+const invalidCount = perDoc.filter((d) => d.invalid).length;
+if (!rows.length && invalidCount) {
+  console.log(`\n  no divergences measured, but ${invalidCount} document(s) were INVALID — the run is incomplete, not a pass.\n`);
+} else if (!rows.length) {
   console.log("\n  0 divergences. The two stylesheets compute identically on this markup.\n");
 } else {
   console.log(`\n  ${rows.length} distinct divergences:\n`);
