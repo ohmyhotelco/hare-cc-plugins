@@ -144,9 +144,9 @@ the actual viewport the script recorded) and `sources` over, then the classified
     "fonts": "neutralised identically on both sides (Arial, sans-serif !important)",
     "lang": "set per document"
   },
-  "sources": {
-    "legacyCss": { "path": "…/styles.css", "bytes": 292024, "compiled": true, "via": "legacy dev server :4204/styles.css — CSS only, the host was not serving the page" },
-    "targetCss": { "path": "…/app.css", "bytes": 76256, "compiled": true, "via": "target dev server :30221/app/app.css (vite-unwrapped)" }
+  "sources": {                                       // same keys as the raw report (legacy/target, src/bytes) + your provenance notes
+    "legacy": { "src": "…/styles.css", "bytes": 292024, "compiled": true, "via": "legacy dev server :4204/styles.css — CSS only, the host was not serving the page" },
+    "target": { "src": "…/app.css", "bytes": 76256, "compiled": true, "via": "target dev server :30221/app/app.css (vite-unwrapped)" }
   },
   "nodesCompared": 4143,
   "propsCompared": 33,

@@ -138,8 +138,10 @@ See `templates/tdd-rules.md`.
      `whiteSpace: nowrap`, `textOverflow`): `el.scrollWidth - el.clientWidth > 0`; vertical
      (`overflowY`, `webkitLineClamp`): `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it
      wrapped (grew taller) with `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS
-     the wrap failing; size caps (`maxWidth`/`minWidth`): drive content past the cap and assert the
-     box held at it; `overscrollBehavior`: no overload metric exists — assert the computed value —
+     the wrap failing; `maxWidth`: drive content past the cap and assert the box held at it;
+     `minWidth`: apply shrink pressure (narrow the container — content overload cannot exercise a
+     lower bound) and assert the box held the floor; `overscrollBehavior`: no overload metric
+     exists — assert the computed value —
      and the document absorbed none of it
      (`documentElement.scrollWidth - clientWidth <= 0`). The horizontal pair asserted on a wrapping
      or clamping element fails correct code. A jsdom unit test cannot see any of this — it applies

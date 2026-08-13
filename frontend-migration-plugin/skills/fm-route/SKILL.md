@@ -227,7 +227,9 @@ unavailable, skip this step.
 prompt a human — but it means the state can move
 between the check and the write. **Re-verify, once the lock is held, exactly the checks this action ran**: Step 0a's precondition
 for every action, and — for plain `--flag-on` only — Step 1's gate guard, Step 1-pre's
-`routePrepared`, and Step 1a's hashes. A concurrent `fm-fix` or `fm-delta` can demote the page
+`routePrepared`, Step 1a's hashes, and the cascade-divergence check (unresolved, unrecorded `real`
+rows in `cascade-diff.json` vs `owner-decisions.md` — a concurrent `fm-cascade` can publish new
+rows between the unlocked read and this lock). A concurrent `fm-fix` or `fm-delta` can demote the page
 while the operator is reading the Step 1b findings, and the whole point of those guards is that a
 flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
 `--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates

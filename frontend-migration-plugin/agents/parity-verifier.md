@@ -142,8 +142,9 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
    axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`, `textOverflow`:
    `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
    `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal
-   overflow; size caps — `maxWidth`/`minWidth`: the box held at the cap under the overload;
-   `overscrollBehavior`: computed-value check, no overload metric exists; otherwise the check is
+   overflow; `maxWidth`: the box held at the cap under content overload; `minWidth`: the box held
+   the floor under shrink pressure — narrowing the container, the one load a content overload
+   cannot apply; `overscrollBehavior`: computed-value check, no overload metric exists; otherwise the check is
    vacuous, and the horizontal pair asserted on a wrap/clamp element fails correct code) and the
    page invariant; (c) for every
    `structure[].injectedDocument` frame, the frame's width ≤ the viewport and the frame document's own

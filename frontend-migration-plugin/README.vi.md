@@ -107,6 +107,7 @@ Sau khi đã đủ điều kiện tiên quyết:
 /frontend-migration-plugin:fm-plan hotel-booking-info      # → migration-plan.json (cây, rendering, cổng, kịch bản e2e)
 /frontend-migration-plugin:fm-gen hotel-booking-info       # trang RR v7 qua TDD → trạng thái: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info    # build/tsc/vitest → verified   (cổng 1)
+/frontend-migration-plugin:fm-cascade hotel-booking-info   # diff stylesheet với CSS legacy (trang chèn markup ngoài; bằng chứng, advisory)
 /frontend-migration-plugin:fm-e2e hotel-booking-info       # Playwright + dual-run → e2e-passed   (cổng 2)
 /frontend-migration-plugin:fm-parity hotel-booking-info    # visual/contract/webview/telemetry → parity-passed   (cổng 3)
 
@@ -124,7 +125,7 @@ cổng fail, chạy `fm-fix <page>` (tự nhận diện cổng). **Một ngoại
 spec i18n key-coverage cần `fm-gen <page> --force`, không phải `fm-fix` — `fm-fix` chỉ chạy lại
 các công cụ build, tất cả đều pass, nên nó báo thành công rồi gặp lại đúng lỗi đó.
 Trang quay về `generated`, nên chạy lại
-toàn bộ chuỗi: `fm-verify` → `fm-e2e` → `fm-parity`.
+toàn bộ chuỗi: `fm-verify` → (`fm-cascade` với trang chèn markup ngoài) → `fm-e2e` → `fm-parity`.
 
 ## Luồng làm việc
 
@@ -139,6 +140,7 @@ toàn bộ chuỗi: `fm-verify` → `fm-e2e` → `fm-parity`.
 [vòng lặp theo trang]
 /fm-analyze <page> → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                              │ fail → /fm-fix
+                                   /fm-cascade (diff CSS legacy theo từng node — trang chèn markup không tự tạo)
                                    /fm-e2e   (cổng Playwright)
                                    /fm-parity (visual/contract/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, có cổng kiểm)

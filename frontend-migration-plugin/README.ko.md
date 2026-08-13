@@ -103,6 +103,7 @@ Playwright로 실행합니다.
 /frontend-migration-plugin:fm-plan hotel-booking-info      # → migration-plan.json (트리·렌더링·게이트·e2e 시나리오)
 /frontend-migration-plugin:fm-gen hotel-booking-info       # RR v7 페이지 TDD → 상태: generated
 /frontend-migration-plugin:fm-verify hotel-booking-info    # build/tsc/vitest → verified   (게이트 1)
+/frontend-migration-plugin:fm-cascade hotel-booking-info   # 레거시 CSS와 스타일시트 diff (외부 마크업 주입 페이지; 증거, advisory)
 /frontend-migration-plugin:fm-e2e hotel-booking-info       # Playwright + dual-run → e2e-passed   (게이트 2)
 /frontend-migration-plugin:fm-parity hotel-booking-info    # 시각/계약/webview/telemetry → parity-passed   (게이트 3)
 
@@ -120,7 +121,8 @@ Playwright로 실행합니다.
 인한 `fm-verify` 실패는 `fm-fix`가 아니라 `fm-gen <page> --force`가 필요합니다 — `fm-fix`는 빌드
 도구를 다시 돌릴 뿐이고 전부 통과하므로, 성공을 보고한 뒤 같은 실패로 되돌아옵니다.
 수정 후 페이지는 `generated`로 돌아가므로
-`fm-verify` → `fm-e2e` → `fm-parity` 체인 전체를 다시 실행합니다.
+`fm-verify` → (외부 마크업 주입 페이지는 `fm-cascade`) → `fm-e2e` → `fm-parity` 체인 전체를 다시
+실행합니다.
 
 ## 워크플로우
 
@@ -135,6 +137,7 @@ Playwright로 실행합니다.
 [페이지 루프]
 /fm-analyze <page> → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                              │ 실패 → /fm-fix
+                                   /fm-cascade (레거시 CSS와 노드 단위 diff — 비저작 마크업 주입 페이지)
                                    /fm-e2e   (Playwright 게이트키퍼)
                                    /fm-parity (시각/계약/webview/telemetry)
                                    /fm-route --flag-off (PR1) → --flag-on (PR2, 게이트 가드)

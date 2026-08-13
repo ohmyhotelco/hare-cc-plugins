@@ -122,6 +122,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    `verifiedAt` and the two gate report files, so the authoritative traces would survive this
    regeneration and re-authorize a flip on code no gate has seen. The report files are not deleted
    (`fm-fix` reads them) — the tracker's claim about them is what has to go.
+   Delete the page's `cascade-diff*.json` and clear the tracker `cascade` record too — `fm-route`
+   reads that file directly, and a clean pre-regeneration report would silently vouch for markup
+   this regeneration may have changed.
    **Clear `routePrepared` and `flagKey` too.** `fm-route` Step 1-pre accepts `routePrepared: true`
    as proof the code PR was prepared; left standing, a regenerated page reaches `--flag-on` without
    a fresh `--flag-off`, skipping the route-stage Codex audit that step exists to force.

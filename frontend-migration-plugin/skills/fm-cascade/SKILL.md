@@ -103,6 +103,10 @@ innocent rule.
 If any **real** row was fixed, re-run Step 4 after the fixes land: "fixed" means **absent from the
 latest run** — that is what `fm-route` reads — and the consequence rows attributed to it must be
 gone from the same run. `cascade-diff.json` and the tracker record always describe the latest run.
+If the re-run itself fails (probe exit non-zero), the stage is `not-run` for the changed tree:
+record it that way in Step 6 and in the report. The stale artifact stays only as history — its
+unresolved rows keep blocking `fm-route`, which is the safe direction — but never present it as
+current.
 
 ### Step 6: Record
 
@@ -112,8 +116,13 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
 1. Verify `cascade-diff.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].cascade` =
    `{ runAt, nodesCompared, propsCompared, languages, real, consequence, artifact, unresolved }`,
-   and `updatedAt`. **Do not advance `status`** — this stage adds evidence to a page at `verified`;
-   it does not move it.
+   and `updatedAt`. **Never advance `status`.** A run that changed **no** file leaves the page's
+   state untouched — evidence only. A run that **did** change files (a ported rule, a scoped
+   revert, a new regression test) applies the same rule as `fm-fix`: set `status` to `generated`
+   and clear `gateEvidence` (all gates), the legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt`,
+   and `routePrepared`/`flagKey` — this skill changed code, so every prior gate PASS rests on a
+   tree that no longer exists. The `cascade` record itself stays: it describes the latest run of
+   this stage.
 3. Every **real** divergence left unfixed goes to `owner-decisions.md` as an explicit-approval item
    with the values and the node count. An intended divergence is a decision, and a decision is
    recorded, not assumed. `fm-route --flag-on` reads these.

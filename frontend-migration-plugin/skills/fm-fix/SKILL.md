@@ -107,8 +107,10 @@ Read `fix-report.json`:
   would otherwise see a complete `generation-state.json` and do nothing). Setting `generated` here
   would claim a generation that never ran and point the session hook at `fm-verify`.
 - gate re-run `pass` → **set the status to `generated` and clear every trace the fix invalidated**:
-  `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`, and
-  `routePrepared` / `flagKey` — the set `fm-gen` Step 5.3 and `fm-delta` Step 5 also clear, for
+  `gateEvidence` (all gates), the legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt`,
+  `routePrepared` / `flagKey`, plus the `cascade` record and the page's `cascade-diff*.json` files
+  (`fm-route` reads that file directly; a pre-fix report — clean or not — describes a tree this
+  fix just changed) — the set `fm-gen` Step 5.3 and `fm-delta` Step 5 also clear, for
   exactly the same reason: **this skill changed code.** **Do not clear `regenRequiredAt`**: it
   means a full `fm-gen` is owed, and this skill does not perform one. Its `verify-fix` mode cannot
   produce the i18n key-coverage spec at all (`fm-verify` Step 7), so clearing it would drop the
