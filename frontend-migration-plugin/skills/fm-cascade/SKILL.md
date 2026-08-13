@@ -81,7 +81,12 @@ crashed run — measured on a tree neither of Step 6's hashes describes — and 
 it if the differ later failed before writing its own.
 
 ### Step 4: Diff
-Before launching, compute the **pre-run** `tree` hash over the page's watch-path union — same
+Before **each** launch (first run or a Step 5 re-run), delete any existing
+`cascade-diff.next.json` — the differ writes fresh or nothing. Without this, a re-run that fails
+before writing leaves the pre-fix staging on disk, and Step 6's tree check (taken at this launch)
+would pass and promote a report the fixes have already invalidated.
+
+Then compute the **pre-run** `tree` hash over the page's watch-path union — same
 script and union as the gates (CLAUDE.md → Gate Result Accounting F). Step 6 compares against it.
 
 Launch `cascade-differ` (Agent) with only its params: `app`, `page`, `legacyCssPath`,
