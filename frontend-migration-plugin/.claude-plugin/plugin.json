@@ -29,7 +29,9 @@
     "secret-audit",
     "clean-code",
     "test-review",
-    "codex-audit"
+    "codex-audit",
+    "cascade-diff",
+    "containment"
   ],
   "license": "MIT",
   "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/frontend-migration-plugin",

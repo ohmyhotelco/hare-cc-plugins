@@ -148,6 +148,8 @@ would report success and land on the same failure. `fm-verify` says so in its ow
 [per-page loop]
 /fm-analyze <page>   → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                                │ fail → /fm-fix
+                                     /fm-cascade (legacy CSS vs the app's, node by node —
+                                                  for pages that inject markup they do not author)
                                      /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                                      /fm-parity (visual/contract/webview/telemetry; fail → /fm-fix)
                                      /fm-route --flag-off (PR1) → --flag-on (PR2, gate-guarded)
@@ -179,6 +181,7 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-gen` | Generate the RR v7 page via per-phase TDD |
 | `fm-verify` | Technical gate: build / tsc / vitest / eslint (hard); prettier --check (advisory) |
 | `fm-fix` | Targeted repair loop for verify/e2e/parity failures |
+| `fm-cascade` | Stylesheet-level diff vs legacy over every node (evidence, not a status) |
 | `fm-e2e` | Playwright E2E gatekeeper (legacy dual-run, staging gateways) |
 | `fm-parity` | Visual / contract / WebView / telemetry parity |
 | `fm-route` | Strangler Fig route flip (2-PR feature flag; per-app nginx or CloudFront edge) |

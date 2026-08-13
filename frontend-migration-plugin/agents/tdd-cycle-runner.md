@@ -47,8 +47,8 @@ absent, proceed without it (the install is non-blocking).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
      `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX. **Style to the
      `style-spec`, not by eye:** reproduce each `styleTargets` element's axis values (frame,
-     spacing, icons, alignment, control geometry, color/border, typography) as Tailwind/arbitrary
-     values that match the spec; keep the legacy class name for traceability but a matching class
+     spacing, icons, alignment, control geometry, color/border, typography, **containment**) as
+     Tailwind/arbitrary values that match the spec; keep the legacy class name for traceability but a matching class
      name is **not** evidence the style is right — the spec values are the target. Preserve the
      spec's `structure` wrappers (don't flatten a wrapping box into siblings). Use the
      `foundation-generator`-copied assets for sprites/backgrounds. **Self-verify:** after Green,
@@ -115,4 +115,27 @@ See `templates/tdd-rules.md`.
   value or treat a matching class name as done; reproduce the spec's values and preserve its
   structure. Just as legacy *behavior* is never trimmed (no YAGNI rung), legacy *style* is never
   approximated away — the parity gate re-probes it against live legacy.
+- **The page never scrolls sideways** (component/page phases; design:
+  `docs/design/containment-fidelity-generation.md`). Three obligations, all of which shipped broken
+  on OMH-912 `/event/:seq` — 337px of horizontal page scroll with the city-tab pills hanging past the
+  right edge, on a page that had passed verify, e2e and parity:
+  1. **Implement the `containment` axis, especially where the spec measured no effect.** A
+     `contentDependent: true` entry means the probed instance could not exercise the value (one tab in
+     a strip, one row in a list) — it is a value you MUST write, not one you may skip because the
+     fixture fits. Its `nonComputable[]` twin ships with it: an `overflow-x:auto` strip whose legacy
+     rule also hides the scrollbar needs both halves, or it renders a scrollbar legacy does not have.
+  2. **Compose the containment stylesheet into every `structure[].injectedDocument` surface.** No
+     parent stylesheet crosses a nested browsing context — legacy's own attempt at it is dead code —
+     so the sheet goes into the document you assemble: compose it AFTER sanitising (the trust boundary
+     is for operator content, not for your CSS), as the first child with no `!important` (equal
+     specificity, later wins, so the operator keeps the last word), marked and idempotent (a
+     client-side re-parse must not stack a second copy). It caps the document at the frame and gives a
+     wider subtree its own horizontal scroll instead of clipping it — which is a **deviation** from
+     legacy's clip, so record it in `acceptedDeltas[]` rather than shipping a silent improvement.
+  3. **Self-verify with an overload, not with the fixture.** For each `contentDependent` element,
+     write a test that first makes the content overflow, then asserts BOTH halves: the element really
+     did outgrow its box (`el.scrollWidth - el.clientWidth > 0`, so the test is not vacuous) and the
+     document did not (`documentElement.scrollWidth - clientWidth <= 0`). A jsdom unit test cannot see
+     this — it applies no stylesheet — so the class assertion belongs in the unit test and the
+     measurement belongs in the e2e/parity layer.
 - If a needed shared package is missing, stop and report (the plan should have flagged it).

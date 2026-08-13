@@ -84,6 +84,83 @@ and the gate probe speak one language:
   border-radius, hit area.
 - `colorBorder` — background/text/border color + active/hover/disabled variants; radius; border.
 - `typography` — font-family, size, weight, line-height, letter-spacing, tabular-nums.
+- `containment` — what happens when the content does **not** fit: `overflowX`, `overflowY`,
+  `maxWidth`, `minWidth`, `flexWrap`, `whiteSpace`, `textOverflow`, `webkitLineClamp`,
+  `overscrollBehavior`. Distinct from `frame` ("how big is this box") and captured under a different
+  rule — see below.
+
+### `containment` is captured VERBATIM (trap G)
+
+Every other axis is curated: the extractor records what visibly matters. For `containment` that
+filter is a defect generator, because these properties **do nothing until the content overflows**, and
+a probe of one instance routinely has no overflow to observe.
+
+The failure this rule exists to stop, measured on OMH-912 mobile `/event/:seq`: the raw probe read
+`overflowX: "auto"` on `.promotion-tab-header`; the spec recorded only
+`display/alignItems/height/marginBottom`, because the probed board had **one** city group and the
+strip therefore could not overflow. The generated strip shipped without it, and a real board's tabs
+gave the whole page **337px** of horizontal scroll with the pills hanging past the right edge
+(`document.scrollWidth` 748 vs a 412 viewport). Legacy's rule was three lines away in
+`_contents.scss:1590-1596` the whole time.
+
+So: transcribe every non-initial containment value from the probe **even when the probed instance had
+nothing to contain**. `overflowX` ≠ `visible`, `flexWrap` ≠ `nowrap`, `maxWidth` ≠ `none`,
+`whiteSpace` ≠ `normal` are all recorded on sight, with no "does this matter here" judgement.
+
+When the probed instance **could not exercise** the axis — one tab in a tab strip, one row in a list,
+an empty description — say so:
+
+```json
+"containment": { "overflowX": "auto", "contentDependent": true,
+                 "why": "probed seq 100226 has 1 city group; the strip cannot overflow at n=1" }
+```
+
+`contentDependent: true` binds both downstream stages: `tdd-cycle-runner` MUST implement the value
+(it is not dismissible as "measured 0"), and the gate MUST drive the element with a **synthetic
+overload** instead of the fixture's natural content. It is also the honest record of what the capture
+did and did not establish.
+
+## Non-computable rules (trap H)
+
+`getComputedStyle(el)` has no surface for a scrollbar part, so `::-webkit-scrollbar { display: none }`
+is invisible to **any** probe over **any** property list. This is not a curation mistake — it is
+outside what the capture method can express. The same hole covers `::before`/`::after` content,
+`::placeholder`, `::selection`, and rules inside `@media`/`@supports` blocks the capture viewport did
+not match.
+
+These are resolved from the **source cascade even on a live capture** (a live capture is not a reason
+to skip the grep — it is structurally incapable of returning them) and recorded in a top-level
+`nonComputable[]`:
+
+```json
+"nonComputable": [
+  { "selector": ".promotion-tab-header::-webkit-scrollbar",
+    "kind": "pseudo-element",
+    "declarations": { "display": "none" },
+    "legacyAnchor": "_contents.scss:1594",
+    "pairedWith": ".promotion-tab-header",
+    "why": "no computed-style surface — source-resolved" }
+]
+```
+
+**The overflow twin rule.** Whenever a captured `overflowX`/`overflowY` is not `visible`, grep the
+source for a `::-webkit-scrollbar` rule on the same selector and record it. In the legacy mobile
+sheets that pairing is 3 for 3 (`_contents.scss:1037`, `_contents.scss:1593`, `_components.scss:1216`)
+— a scrolling strip with **no** scrollbar rule is a finding to confirm, not a default. Fixing the
+overflow without its twin ships a visible scrollbar legacy does not have.
+
+## Injected documents are unreachable from here (trap I)
+
+A page that renders operator HTML into a nested browsing context (`iframe srcdoc`, `[srcdoc]`) has a
+styling surface **no** page-level artifact can reach: not this spec, not `fm-cascade`, not the parent
+stylesheet. Legacy's own attempt at it is dead code — `_contents.scss:1572-1577` declares
+`.promotion-detail iframe * { margin:0; padding:0 }`, which has never applied to anything, because a
+parent sheet cannot cross the boundary.
+
+Record the frame as one element (its own box is real and worth capturing) and add a `structure[]`
+entry naming it an **injected-document surface**, so `tdd-cycle-runner` composes the containment
+stylesheet into the document it assembles — the only reachable place. Do not treat the frame's entry
+as coverage of its contents. See `docs/design/containment-fidelity-generation.md` §D.
 
 ## Structure (trap D)
 
@@ -144,6 +221,20 @@ and otherwise **fetches `liveUrl`**, so a live-only asset is never silently miss
       }
     },
     {
+      "selector": ".promotion-tab-header",           // the scroll container the pills sit in
+      "role": "city tab strip",
+      "legacyAnchor": "_contents.scss:1590",
+      "confidence": "live-confirmed",
+      "axes": {
+        "frame":       { "height": "40px" },
+        "spacing":     { "marginBottom": "15px" },
+        // VERBATIM — recorded although the probed board had ONE tab and could not overflow.
+        "containment": { "overflowX": "auto", "flexWrap": "nowrap",
+                         "contentDependent": true,
+                         "why": "probed seq 100226 has 1 city group; cannot overflow at n=1" }
+      }
+    },
+    {
       "selector": ".rate-star",
       "role": "hotel rating star",
       "legacyAnchor": "_contents.scss:210",
@@ -161,7 +252,15 @@ and otherwise **fetches `liveUrl`**, so a live-only asset is never silently miss
   "structure": [
     { "wrapper": ".promotion-detail", "wraps": ["iframe.marketing", ".recommend-products"],
       "legacyAnchor": "event.component.html:88 (ngTemplateOutlet)",
-      "note": "one bordered box around iframe + recommendations — do not flatten into siblings" }
+      "note": "one bordered box around iframe + recommendations — do not flatten into siblings" },
+    { "wrapper": "iframe.marketing", "injectedDocument": true,   // trap I — nested browsing context
+      "legacyAnchor": "event-detail.component.html:4 ([srcdoc])",
+      "note": "no parent sheet/spec/cascade-diff reaches inside; tdd-cycle-runner composes the containment stylesheet into the document itself" }
+  ],
+  "nonComputable": [                                 // trap H — rules no getComputedStyle can return
+    { "selector": ".promotion-tab-header::-webkit-scrollbar", "kind": "pseudo-element",
+      "declarations": { "display": "none" }, "legacyAnchor": "_contents.scss:1594",
+      "pairedWith": ".promotion-tab-header", "why": "no computed-style surface — source-resolved" }
   ],
   "acceptedDeltas": [],                              // agreed exceptions (e.g. a shared design-token color)
   "unconfirmed": []                                  // selectors whose values are source-derived, pending live confirmation
@@ -177,6 +276,24 @@ and otherwise **fetches `liveUrl`**, so a live-only asset is never silently miss
 | C invisible CSS trick | iframe `-8px` bleed, section padding | computed style captures it regardless of markup visibility |
 | D markup flattening | one wrapping box split into siblings | `structure[]` records the wrapper; generator preserves it |
 | F stale source | button 52/15 (source) vs 48/10 (live) | `live-confirmed` computed value supersedes committed CSS |
+| G content-dependent property dropped | `overflow-x:auto` captured at n=1, curated away as a no-op, page scrolls 337px sideways at n=6 | `containment` captured verbatim + `contentDependent` + the synthetic-overload gate |
+| H non-computable rule | `::-webkit-scrollbar`, `::placeholder`, `@media`-conditional rules — no computed-style surface at all | `nonComputable[]` resolved from source + the overflow twin rule |
+| I unreachable nested context | a document injected into a frame; legacy's own parent-side rule for it is dead code | `structure[].injectedDocument` → containment sheet composed into the document |
+
+## What this spec structurally CANNOT close
+
+A style spec is **element-indexed**: it captures the elements `analysis.json.styleSurface` names. So
+it cannot cover markup the page does not author — CMS rich text, i18n values containing HTML, editor
+output, anything reaching the DOM through `innerHTML` / `dangerouslySetInnerHTML`. Those subtrees are
+unknown at analysis time and routinely 500–1000 nodes; enumerating them in an index is not merely
+tedious, it is impossible, because the content changes without a deploy.
+
+Record the injecting container as one element (its own inherited values are real and worth capturing)
+and **do not** treat that entry as coverage of its descendants. The descendants belong to
+`fm-cascade`, which diffs the two stylesheets over every node instead of over an index — see
+`templates/cascade-diff.md`. The failure this prevents is concrete: on OMH-848 `/privacy` the spec
+recorded 13/13 elements live-confirmed and the page still shipped with every table border missing,
+because all 88 affected cells were inside the one container the spec had marked done.
 
 ## Acceptance (definition of done)
 

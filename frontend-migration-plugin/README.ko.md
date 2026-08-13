@@ -157,7 +157,7 @@ Playwright로 실행합니다.
 ## 스킬
 
 `fm-init` · `fm-analyze` · `fm-style-spec` · `fm-extract` · `fm-plan` · `fm-gen` · `fm-verify` · `fm-fix` ·
-`fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
+`fm-cascade` · `fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
 `fm-test-review` · `fm-secret-audit` · `fm-audit-codex`
 
 각 스킬의 입출력·구동 에이전트·트래커 상태는 `docs/skill-reference.md` 참고.

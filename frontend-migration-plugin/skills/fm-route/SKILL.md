@@ -177,6 +177,20 @@ because there is nothing to compare against:
   a mismatch and not a pass: report the script's message and stop. A gate cannot be judged on
   evidence that could not be computed.
 
+**Cascade divergences (`fm-cascade`).** If `cascade-diff.json` exists, every divergence it classified
+`real` must be either fixed (absent from the latest run) or recorded in `owner-decisions.md` with a
+reason. Unresolved, unrecorded ones **block** — surfaced individually with `tag · property · legacy →
+target · node count`, the same handling as unresolved Codex `high` findings. A `real` divergence that
+IS recorded proceeds without further ceremony: deciding a divergence is intended is the owner's call,
+and the record is that call.
+
+Absence of `cascade-diff.json` is **not** a block and not a pass — it is `not-run`, reported as such.
+Do not infer it was unnecessary. But if the page injects markup it does not author (CMS rich text,
+i18n values containing HTML, editor output) and `fm-parity`'s visual gate is anything other than
+`pass`, say plainly in the report that **no stage has checked the cascade for the majority of this
+page's DOM** — the combination is the exact hole `fm-cascade` was built for, and it is invisible in a
+gate table that shows `fm-verify: pass`.
+
 A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
 freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.
 

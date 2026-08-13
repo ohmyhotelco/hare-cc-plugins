@@ -35,6 +35,16 @@ Tag each spec with the scenario name and its `legacyAnchor`. Use condition-based
 before the gate run — a single failure across runs means it is flaky; fix it now. See
 `templates/e2e-testing.md` "Flakiness prevention".
 
+**Plus one standing scenario the plan does not have to list: the containment overload.** For every
+element `style-spec.json` flags `contentDependent: true`, write a spec that forces the element to
+overflow (pad the labels, add rows) and then asserts **both** halves — `el.scrollWidth -
+el.clientWidth > 0`, so the test is not vacuous, **and** `documentElement.scrollWidth <= clientWidth`,
+so the page absorbed none of it. The fixture's natural content is exactly what cannot test this: on
+OMH-912 `/event/:seq` the two-group fixture's tabs fit, every behaviour scenario passed, and a real
+board gave the page 337px of horizontal scroll. Add the page-level invariant on the default render
+too — it is one line and it catches overflow from elements no spec indexes. Design:
+`docs/design/containment-fidelity-generation.md`.
+
 ### 3. Choose the run mode per scenario
 - **non-transactional** → run against the new app with **MSW** intercepting the network
   (deterministic). Use `VITE_ENABLE_MOCKS=true` (or the app's flag).

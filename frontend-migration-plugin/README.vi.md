@@ -161,7 +161,7 @@ Chuyển route (`fm-route --flag-on`) bị từ chối trừ khi cả ba cổng 
 ## Skills
 
 `fm-init` · `fm-analyze` · `fm-style-spec` · `fm-extract` · `fm-plan` · `fm-gen` · `fm-verify` · `fm-fix` ·
-`fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
+`fm-cascade` · `fm-e2e` · `fm-parity` · `fm-route` · `fm-progress` · `fm-delta` · `fm-clean-code` ·
 `fm-test-review` · `fm-secret-audit` · `fm-audit-codex`
 
 Đầu vào/đầu ra, agent tương ứng và trạng thái tracker của từng skill: xem `docs/skill-reference.md`.

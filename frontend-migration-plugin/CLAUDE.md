@@ -209,6 +209,10 @@ in later phases.
 [per-page loop, repeated per page]
   /fm-analyze → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                         │ (fail → /fm-fix)
+                              /fm-cascade (stylesheet-level diff vs legacy; needs legacy's CSS,
+                                           not a running legacy host. Required for any page that
+                                           injects markup it does not author — CMS rich text,
+                                           i18n values containing HTML, editor output)
                               /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                               /fm-parity (visual / contract / WebView / telemetry; fail → /fm-fix)
                               /fm-route --flag-off (PR1) → --flag-on (PR2) → --confirm-live
@@ -221,6 +225,17 @@ Two hard gates run in series after generation: `fm-verify` (technical: build / t
 Vitest / ESLint, plus an advisory Prettier check) then `fm-parity` (legacy equivalence).
 `fm-e2e` (Playwright) is the functional gatekeeper between them. A route flip (`fm-route --flag-on`) is permitted only when
 `fm-verify`, `fm-e2e`, and `fm-parity` all pass for the page.
+
+`fm-cascade` sits between `fm-verify` and `fm-e2e` and is **evidence, not a status** — it does not
+advance the page. It exists because the other stages share a structural blind spot: `fm-style-spec`
+is element-indexed (it probes what `analysis.json.styleSurface` names), generated unit tests run in
+jsdom (which applies no CSS at all), and `fm-parity` needs both hosts live and is the stage most
+often blocked. Markup the page does not author — CMS rich text, i18n values containing HTML, editor
+output — falls through all three: hundreds of nodes that no index can enumerate, and when
+`fm-parity` is blocked the page ships with zero style evidence for most of its DOM. `fm-cascade`
+covers it with legacy's compiled CSS alone. Each divergence it finds is fixed, or recorded in
+`owner-decisions.md` with a reason; `fm-route --flag-on` refuses while unresolved, unrecorded ones
+remain — the same handling as Codex `high` findings. See `docs/design/cascade-diff-gate.md`.
 
 ## Per-page State Machine
 
@@ -653,6 +668,22 @@ Playwright probe, asset inventory, markup structure) so `fm-gen` builds to real 
 eyeballing them. It shares the visual axes with `templates/visual-parity-checklist.md`: the spec is
 the generation **target** (front), the checklist is the parity **gate** (back), one legacy-truth
 source. See `docs/design/style-spec-generation.md`.
+
+**Containment fidelity** (v1.2.0) closes the class of style defect the answer key structurally could
+not carry: properties that do nothing until the content overflows. On OMH-912 mobile `/event/:seq` the
+raw probe read `overflow-x: auto` on the city-tab strip, the spec curated it away because the measured
+board had **one** tab and the strip could not overflow, and the page shipped — through verify, e2e and
+parity — with **337px** of horizontal page scroll (`document.scrollWidth` 748 on a 412 viewport) and
+the pills hanging past the right edge. Three mechanisms, three fixes: a `containment` axis captured
+**verbatim** with a `contentDependent` flag for unrepresentative instances (curation is correct for
+`typography` and is a defect generator for `overflow`); `nonComputable[]` for rules with no
+`getComputedStyle` surface at all (`::-webkit-scrollbar` and friends, source-resolved even on a live
+capture, via the **overflow twin rule**); and a containment stylesheet composed **into** any injected
+document, since no parent sheet crosses a nested browsing context — legacy's own attempt at it is dead
+code. The gate item is a page **invariant**
+(`documentElement.scrollWidth <= clientWidth`, under a synthetic overload), not another probe value:
+it catches the failure without knowing which element caused it. Design:
+`docs/design/containment-fidelity-generation.md`.
 
 Gate definitions (owning task):
 - **verify** (AA-43): build, `tsc`, Vitest, and ESLint (hard) pass from `appDir`; Prettier
