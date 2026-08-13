@@ -118,7 +118,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    created or modified (under `appDir`, plus any root-level file a phase legitimately owns),
    collected from **every** phase's recorded `filesChanged[]` in `generation-state.json` —
    including phases completed by an earlier resumed run: a resume that rewrites the list from only
-   the current run's phases silently drops watched files. A phase report missing the list, or
+   the current run's phases silently drops watched files. Each list is the phase's **output set**
+   (reused-but-unchanged files included — the agents' contracts say so), which is what makes this
+   full rewrite safe. A phase report missing the list, or
    carrying paths that do not resolve from the repo root, is **incomplete evidence**: do not
    record `sourcePaths` from it — re-collect from the phase before recording (an unwatched file
    evades every later freshness hash). This is the page's
