@@ -27,7 +27,7 @@ held identical.
 | engine + version | one browser launch, two pages in the same context |
 | viewport + DPR | column widths and any `@media` branch depend on it |
 | **font stack** | see *The font trap* below — this one bites |
-| `lang` attribute | drives per-language font sheets, line breaking and `text-transform` |
+| `lang` attribute **and** `lang-…` class | drives per-language font sheets, line breaking and `text-transform`; apps disagree which convention their per-language rules hang off (`html.lang-zh` vs `html[lang="zh"]`), so the differ sets **both, on both sides** |
 
 Any divergence in the report is then attributable to the stylesheets. If a second variable is loose,
 the report is noise and will send its reader after the wrong rule.
@@ -66,6 +66,11 @@ was not.
 
 Note what is **not** required: a running legacy server. Only its CSS. That is what makes this stage
 available when `fm-parity` is blocked on a dead or unreachable legacy host.
+
+The measurement itself is `scripts/cascade-diff.mjs`, run from `appDir` via a temp copy
+(`cp {pluginRoot}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs`) — ESM resolves
+`import "playwright"` from the script's location, not the cwd, so the copy is what lets it use the
+app's own Playwright install. See `agents/cascade-differ.md` Step 3.
 
 ## Property list
 

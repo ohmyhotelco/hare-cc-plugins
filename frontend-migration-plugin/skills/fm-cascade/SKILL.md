@@ -25,8 +25,11 @@ gate that covers this, and it needs both hosts live. This stage covers it with l
 
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
-(`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, the app's `legacyPort` / `port`, and
-`workingLanguage`.
+(`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, the app's `legacyPort` / `port`,
+`pluginRoot` (absolute; where `scripts/cascade-diff.mjs` lives — absent → stop: the differ cannot
+run, and an unrun diff is `not-run`, never a pass), and `workingLanguage`. Resolve `viewport` from
+the page's `style-spec.json` → `legacySource.provenance.viewport` when that file exists, else the
+differ's default device (`Pixel 7`) — and say in the report which was used.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and
 carry the keys this stage reads. Config-file presence is not app presence — a `--app` naming an
@@ -58,21 +61,24 @@ already be resolved.
 Legacy does **not** need to be serving the page — only its stylesheet. Say so in the report when the
 legacy host is otherwise down, because that is the case this stage was built for.
 
-### Step 2a: Ensure Playwright run permission
-The agent runs the probe as a **sub-agent**, so session approvals do not transfer. Ensure
-`.claude/settings.json` `permissions.allow` includes the Playwright command (e.g.
-`Bash(npx playwright *)`); if missing, add it (Read-Modify-Write) and note it in the report. Without
-it the probe cannot launch and there is no partial-credit fallback here — an unrun cascade diff is
-`not-run`, never a pass.
+### Step 2a: Ensure probe run permission
+The agent runs the probe as a **sub-agent**, so session approvals do not transfer. The probe is
+`node .cascade-diff.tmp.mjs …` run from `appDir` (the agent copies the differ script there —
+`agents/cascade-differ.md` Step 3). Ensure `.claude/settings.json` `permissions.allow` covers it
+(e.g. `Bash(node .cascade-diff.tmp.mjs *)`); if missing, add it (Read-Modify-Write) and note it in
+the report. Without it the probe cannot launch and there is no partial-credit fallback here — an
+unrun cascade diff is `not-run`, never a pass.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale after 30 min).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock
+file; age alone never breaks a live holder's lock).
 
 ### Step 4: Diff
 Launch `cascade-differ` (Agent) with only its params: `app`, `page`, `legacyCssPath`,
 `targetCssPath`, `markupSource` (the page's captured documents if it has them — golden fixtures, MSW
 response fixtures — else the target-app URL to scrape the rendered container from), `viewport`,
-`propsOverride` (`--props`), `keepFonts` (`--keep-fonts`), `outPath` =
+`propsOverride` (`--props`), `keepFonts` (`--keep-fonts`), `pluginRoot` (where
+`scripts/cascade-diff.mjs` lives), `outPath` =
 `docs/migration/{app}/{page}/cascade-diff.json`, `appDir`, `workingLanguage`.
 
 ### Step 5: Classify every divergence
@@ -90,7 +96,15 @@ Never report a count without this classification: "37 divergences" where 23 are 
 are a font artifact is a misleading number, and the misleading number is what makes someone port an
 innocent rule.
 
+If any **real** row was fixed, re-run Step 4 after the fixes land: "fixed" means **absent from the
+latest run** — that is what `fm-route` reads — and the consequence rows attributed to it must be
+gone from the same run. `cascade-diff.json` and the tracker record always describe the latest run.
+
 ### Step 6: Record
+
+**Tracker lock.** Take `docs/migration/.tracker.lock` around the `tracker.json` write below — after
+the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file).
+
 1. Verify `cascade-diff.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].cascade` =
    `{ runAt, nodesCompared, propsCompared, languages, real, consequence, artifact, unresolved }`,
@@ -113,4 +127,7 @@ In `workingLanguage`: nodes and properties compared, languages/documents covered
 counts, each **real** divergence as `tag · property · legacy → target · node count` with its
 disposition (fixed / recorded for approval), any harness artifact found and what was done about it,
 the negative-control result for each new test, and whether legacy was reached by CSS only or was
-serving. Next step: `/frontend-migration-plugin:fm-e2e {page}`.
+serving. Next step: if this stage changed any file — a ported rule, a scoped revert, a new
+regression test — the page's verify evidence is stale (the tree changed):
+`/frontend-migration-plugin:fm-verify {page}`. Only a run that changed nothing (every real row
+recorded, none fixed) proceeds straight to `/frontend-migration-plugin:fm-e2e {page}`.

@@ -10,7 +10,8 @@ You prove the new page behaves like the legacy page. This is the per-page functi
 route flip is not allowed until it passes.
 
 You receive (no session history): `app`, `page`, `planPath` (`migration-plan.json` →
-`e2eScenarios`), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
+`e2eScenarios`), `styleSpecPath` (`style-spec.json` — its `contentDependent` elements drive the
+standing containment-overload scenario), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
 (payment-gateway test endpoints), `outPath` (`e2e-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip state
 (each dual-run leg resolves its `provenance.side` from these), `workingLanguage`. Read
 `templates/e2e-testing.md`, plus `templates/capture-provenance.md` for the `provenance` block each
@@ -36,10 +37,13 @@ before the gate run — a single failure across runs means it is flaky; fix it n
 `templates/e2e-testing.md` "Flakiness prevention".
 
 **Plus one standing scenario the plan does not have to list: the containment overload.** For every
-element `style-spec.json` flags `contentDependent: true`, write a spec that forces the element to
-overflow (pad the labels, add rows) and then asserts **both** halves — `el.scrollWidth -
-el.clientWidth > 0`, so the test is not vacuous, **and** `documentElement.scrollWidth <= clientWidth`,
-so the page absorbed none of it. The fixture's natural content is exactly what cannot test this: on
+element `style-spec.json` (at `styleSpecPath`) flags `contentDependent: true`, write a spec that
+drives an overload into the element (pad the labels, add rows) and then asserts **both** halves —
+engagement **on the axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`,
+`textOverflow`: `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
+`el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal overflow —
+the horizontal pair asserted on a wrap/clamp element fails correct code), so the test is not
+vacuous, **and** `documentElement.scrollWidth <= clientWidth`, so the page absorbed none of it. The fixture's natural content is exactly what cannot test this: on
 OMH-912 `/event/:seq` the two-group fixture's tabs fit, every behaviour scenario passed, and a real
 board gave the page 337px of horizontal scroll. Add the page-level invariant on the default render
 too — it is one line and it catches overflow from elements no spec indexes. Design:

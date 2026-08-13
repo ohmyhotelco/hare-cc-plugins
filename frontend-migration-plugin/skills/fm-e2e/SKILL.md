@@ -38,7 +38,10 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
 (`templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
-`app`, `page`, `planPath`, `targetDir`,
+`app`, `page`, `planPath`, `styleSpecPath` =
+`docs/migration/{app}/{page}/style-spec.json` (its `contentDependent` elements drive the runner's
+standing containment-overload scenario; absent → the runner reports that scenario `not-run`),
+`targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `stagingConfig`, `outPath` =
 `docs/migration/{app}/{page}/e2e-report.json`, `workingLanguage`. The skill starts/stops any dev
 server the runner needs.

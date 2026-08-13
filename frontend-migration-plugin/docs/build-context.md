@@ -983,6 +983,16 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   with its own protocol), `parity-verifier` (step 2b), and `e2e-test-runner` (a standing overload
   scenario). Origin: OMH-912, page-owner report after `parity-passed`, 2026-08-12. Design:
   `docs/design/containment-fidelity-generation.md`.
+  Pre-merge dual audit (Claude + Codex, 2026-08-13) closed nine defects before this landed: the
+  overload assertion made **per-axis** (the horizontal pair asserted on a wrap/clamp element fails
+  correct code — tdd-cycle-runner, parity-verifier, e2e-test-runner, checklist, design §E);
+  `.tracker.lock` on the cascade tracker write; the fixed-divergence re-run + stale-verify re-entry
+  in fm-cascade Steps 5/8; the differ script wired into `cascade-differ` (copied into `appDir` so
+  ESM resolves the app's own Playwright) with the selector-convention trap surfaced in the agent's
+  read path; device validation + actual-viewport provenance and invalid-document recording in
+  `cascade-diff.mjs`; `styleSpecPath` added to the e2e contract on both sides; lock-staleness
+  wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
+  the advisory gate; and the keyword/version triplet synced at **1.2.0**.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

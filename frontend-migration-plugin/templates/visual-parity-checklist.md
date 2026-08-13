@@ -149,10 +149,14 @@ reproduced, and nothing in this checklist asked.
    that catches the failure **without knowing which element caused it** — including elements the
    style-spec index does not contain.
 2. **Synthetic overload for every `contentDependent` element** the spec flags. Drive real overflow
-   into it (pad the labels, add rows), then assert **both** halves:
-   `el.scrollWidth - el.clientWidth > 0` (the element really did overflow — otherwise the check is
-   vacuous) **and** the page invariant above still holds. Asserting only the second half passes a
-   test that never overflowed anything.
+   into it (pad the labels, add rows), then assert **both** halves: engagement **on the axis the
+   property controls** — horizontal (`overflowX`, `whiteSpace: nowrap`, `textOverflow`):
+   `el.scrollWidth - el.clientWidth > 0`; vertical (`overflowY`, `webkitLineClamp`):
+   `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: the children wrapped and
+   `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS the wrap failing — **and** the
+   page invariant above still holds. Asserting only the second half passes a test that never
+   overflowed anything; asserting the horizontal pair on a wrap/clamp element fails a correct
+   implementation.
 3. **Injected-document frames** (`structure[].injectedDocument`): the frame element's width ≤ the
    viewport, and the frame's own `document.body` computes `overflow-x: hidden`. Nothing outside the
    frame can establish this — a parent-side probe reads the parent's box, not the document's.

@@ -11,8 +11,8 @@ and the migrated app's, measured on the page's real markup. Read `templates/casc
 you start; it holds the invariant, the property list, the font trap and the two fix shapes.
 
 You receive from the coordinator (no session history): `app`, `page`, `legacyCssPath`,
-`targetCssPath`, `markupSource`, `viewport`, `propsOverride`, `keepFonts`, `outPath`, `appDir`,
-`workingLanguage`.
+`targetCssPath`, `markupSource`, `viewport`, `propsOverride`, `keepFonts`, `pluginRoot`, `outPath`,
+`appDir`, `workingLanguage`.
 
 You **measure and report**. You do not edit application code — the coordinator decides what to fix.
 
@@ -30,17 +30,10 @@ Before you report anything, state in the artifact which variables you held and h
 Both must be **compiled**. If a path you were given is raw SCSS/LESS, stop and say so; do not
 compile it yourself and do not proceed on source. An uncompiled cascade is a different cascade.
 
-Target CSS under Vite arrives wrapped in a JS module:
-
-```js
-const s = fs.readFileSync(targetCssPath, "utf8");
-const m = s.match(/const __vite__css = ("[\s\S]*?")\n/);
-const css = m ? JSON.parse(m[1]) : s;      // JSON.parse unescapes it correctly
-```
-
-Sanity-check both: a stylesheet under ~2 KB is almost certainly an error page or a stub. Say so and
-stop rather than diffing against nothing — an empty legacy sheet makes every target rule look like an
-addition, which reads as a clean pass in the wrong direction.
+The script (Step 3) fetches URLs itself, unwraps Vite's JS-module wrapper
+(`const __vite__css = "…"`), and refuses stubs (< 2 KB — an empty legacy sheet makes every target
+rule look like an addition, which reads as a clean pass in the wrong direction) and uncompiled
+SCSS. Your job is to hand it the right sources: the real compiled sheet on each side.
 
 ## Step 2 — Resolve the markup
 
@@ -54,41 +47,47 @@ If the page has no captured documents, scrape the rendered container **once** fr
 app and use that same string on both sides. Never scrape legacy for one side and the target for the
 other — that reintroduces markup as a variable and you would be measuring two things at once.
 
-## Step 3 — Render both sides
+## Step 3 — Run the differ
 
-One browser launch, one context, two pages. Same viewport and DPR. Same `lang` attribute. Wrap the
-markup in a minimal host document and inline each stylesheet.
+The measurement is `scripts/cascade-diff.mjs` — you run it, you do not rebuild it. It renders the
+same markup twice in one engine with the stylesheet as the only variable, and it already carries the
+harness lessons: fonts neutralised identically on both sides unless `keepFonts` (the font trap), and
+**both** language conventions set on both sides — the `lang` attribute *and* the `lang-xx` class —
+because apps disagree which one their per-language rules hang off (`html.lang-zh` vs
+`html[lang="zh"]`, the selector-convention trap; `--lang-class-prefix` overrides the class prefix).
+It keeps `fontFamily` in the property list as the tripwire: a mismatch surviving neutralisation
+announces itself on every node instead of hiding inside `width`.
 
-**Neutralise fonts unless `keepFonts` is set.** Inject the *same* `font-family` override into both
-sides at a specificity that beats both stylesheets:
+Copy it into the app and run it from there — ESM resolves `import "playwright"` from the
+**script's** location, not the cwd, so the copy is what lets it use the app's own Playwright
+install:
 
-```html
-<style>${css}</style>
-<style>#root, #root * { font-family: Arial, sans-serif !important }</style>
+```bash
+cp {pluginRoot}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
+cd {appDir} && node .cascade-diff.tmp.mjs \
+  --legacy-css <legacyCssPath> --target-css <targetCssPath> \
+  --markup <markupSource> --device "<viewport>" \
+  --out <absolute path>/docs/migration/{app}/{page}/cascade-diff.raw.json
+rm {appDir}/.cascade-diff.tmp.mjs
 ```
 
-Fonts usually live in stylesheets other than the main one (per-language `@font-face` sheets, vendored
-web-font CSS, a `<link>` in the host document), so loading only the two main sheets leaves the sides
-on different fonts. Different font ⇒ different intrinsic width ⇒ different column distribution and
-wrap points ⇒ a report full of `width` rows that look exactly like a missing layout rule.
+Give `--out` an **absolute** path — the command runs from `appDir`, so a repo-relative path lands in
+the wrong tree. Map `propsOverride` → `--props`, `keepFonts` → `--keep-fonts`. If the page's
+`styleSurface` has a container the markup normally sits inside, pass `--container-class` **only when
+the migration actually applies that class** — and say in the artifact that you did. A class present
+on one side and not the other is another loose variable.
 
-Keep `fontFamily` in the property list anyway. It is the tripwire: if a mismatch survives
-neutralisation it then shows up directly, on every node, which is unmistakable — instead of hiding
-inside `width`.
+The script validates the device name, records the actual viewport/DPR in the raw report, and lists
+any document it had to reject (node-count mismatch) under `documents[].invalid`. A rejected document
+is a failed run: fix the markup source and re-run — never report around it.
 
-If the page's `styleSurface` also has a container that the markup normally sits inside, apply its
-class to the root on the target side only when the migration actually applies it there — and say in
-the artifact that you did. A class present on one side and not the other is another loose variable.
+## Step 4 — Read the raw report
 
-## Step 4 — Collect and diff
-
-For every element under the root, on both sides, read the property list from
-`templates/cascade-diff.md` (or `propsOverride`). Compare **index for index**: the two renders have
-identical markup, so node *i* on one side is node *i* on the other. If the node counts differ, stop —
-something changed the markup and the run is invalid.
-
-Aggregate by `(tag, property, legacyValue, targetValue)` with a node count. Per-node output on a
-900-node document is unreadable and hides the shape; the aggregate is the finding.
+The script compares **index for index** (identical markup ⇒ node *i* is node *i*), aggregates by
+`(tag, property, legacyValue, targetValue)` with a node count — per-node output on a 900-node
+document is unreadable and hides the shape; the aggregate is the finding — and flags the one
+signature it can recognise mechanically (`likelyFontArtifact`). Everything from here on is your
+judgement on those rows.
 
 ## Step 5 — Classify
 
@@ -122,6 +121,9 @@ is worse than an open question — the origin case had a genuinely-missing legac
 
 ## Step 7 — Write the artifact
 
+Compose `outPath` from the raw report plus your classification — carry `heldConstant` (including
+the actual viewport the script recorded) and `sources` over, then the classified rows:
+
 ```jsonc
 {
   "page": "privacy",
@@ -129,7 +131,7 @@ is worse than an open question — the origin case had a genuinely-missing legac
   "runAt": "2026-08-12T08:40:00Z",
   "heldConstant": {
     "engine": "chromium 141.0.0",
-    "viewport": "Pixel 7 (412x915 @2.625)",
+    "viewport": "412x915 @2.625 (Pixel 7)",
     "markup": "app/components/terms/__golden__/terms-100060-{ko,en,ja,zh,vi}.html",
     "fonts": "neutralised identically on both sides (Arial, sans-serif !important)",
     "lang": "set per document"
@@ -139,7 +141,7 @@ is worse than an open question — the origin case had a genuinely-missing legac
     "targetCss": { "path": "…/app.css", "bytes": 76256, "compiled": true, "via": "target dev server :30221/app/app.css (vite-unwrapped)" }
   },
   "nodesCompared": 4143,
-  "propsCompared": 28,
+  "propsCompared": 33,
   "languages": ["KO", "EN", "JA", "ZH", "VI"],
   "divergences": [
     {

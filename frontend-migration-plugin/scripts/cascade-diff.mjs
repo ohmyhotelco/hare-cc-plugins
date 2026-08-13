@@ -8,13 +8,16 @@
 // Needs legacy's compiled CSS, NOT a running legacy host — which is the point: it is available in
 // exactly the situations where fm-parity is blocked.
 //
-// Usage:
-//   node cascade-diff.mjs \
+// Usage — run from the target app's directory via a temp copy. ESM resolves `import "playwright"`
+// from the SCRIPT's location, not the cwd, so the copy is what lets it use the app's own install:
+//   cp scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
+//   cd {appDir} && node .cascade-diff.tmp.mjs \
 //     --legacy-css http://localhost:4204/styles.css \
 //     --target-css http://localhost:30221/app/app.css \
-//     --markup "apps/web-mobile/app/components/terms/__golden__/terms-100060-*.html" \
-//     --out docs/migration/mobile/privacy/cascade-diff.json \
-//     [--device "Pixel 7"] [--keep-fonts] [--props a,b,c] [--container-class cms-html]
+//     --markup "app/components/terms/__golden__/terms-100060-*.html" \
+//     --out /abs/path/docs/migration/mobile/privacy/cascade-diff.raw.json \
+//     [--device "Pixel 7"] [--keep-fonts] [--props a,b,c] [--container-class cms-html] \
+//     [--lang-class-prefix lang-]
 //
 // --container-class applies a class to the TARGET root only. Use it only when the migration really
 // applies that class there, and say so in the report — otherwise it is a second loose variable.
@@ -42,6 +45,12 @@ if (!legacyCssArg || !targetCssArg || !markupGlob) {
   console.error("cascade-diff: --legacy-css, --target-css and --markup are all required.");
   process.exit(2);
 }
+if (!devices[deviceName]) {
+  console.error(`cascade-diff: unknown Playwright device "${deviceName}" — a typo here would silently run on defaults while the report claimed the device.`);
+  process.exit(2);
+}
+const device = devices[deviceName];
+const viewportLabel = `${device.viewport.width}x${device.viewport.height} @${device.deviceScaleFactor} (${deviceName})`;
 
 // The properties a document's appearance actually rests on. Not "all properties" — getComputedStyle
 // enumerates hundreds, most derived or irrelevant, and the noise buries the signal.
@@ -145,7 +154,7 @@ const files = resolveMarkup(markupGlob);
 if (!files.length) throw new Error(`no markup matched ${markupGlob}`);
 
 const browser = await chromium.launch();
-const ctx = await browser.newContext({ ...devices[deviceName] });
+const ctx = await browser.newContext({ ...device });
 
 const divergences = new Map();
 let nodesCompared = 0;
@@ -163,6 +172,10 @@ for (const file of files) {
   if (L.length !== T.length) {
     console.error(`!! ${file}: node count differs (${L.length} vs ${T.length}) — run invalid.`);
     console.error("   Identical markup must yield identical node counts. Something changed the markup.");
+    // Recorded in the report too — a consumer reading only the JSON must see the hole, not a
+    // complete-looking document list with one language silently missing.
+    perDoc.push({ file: path.basename(file), lang: lang.toUpperCase(), nodes: null, diffs: null,
+      invalid: `node count differs (${L.length} vs ${T.length})` });
     process.exitCode = 1;
     continue;
   }
@@ -201,8 +214,11 @@ console.log(`\ncascade-diff — ${nodesCompared} nodes, ${PROPS.length} properti
 console.log(`  legacy CSS  ${legacy.bytes} bytes  ${legacy.src}`);
 console.log(`  target CSS  ${target.bytes} bytes  ${target.src}`);
 console.log(`  fonts       ${keepFonts ? "NOT neutralised (--keep-fonts)" : "neutralised identically on both sides"}`);
+console.log(`  viewport    ${viewportLabel}`);
 if (containerClass) console.log(`  container   .${containerClass} applied to the TARGET root only`);
-for (const d of perDoc) console.log(`  ${d.lang.padEnd(3)} ${String(d.nodes).padStart(5)} nodes  ${d.diffs} divergent readings`);
+for (const d of perDoc) console.log(d.invalid
+  ? `  ${d.lang.padEnd(3)}  INVALID — ${d.invalid}`
+  : `  ${d.lang.padEnd(3)} ${String(d.nodes).padStart(5)} nodes  ${d.diffs} divergent readings`);
 
 if (!rows.length) {
   console.log("\n  0 divergences. The two stylesheets compute identically on this markup.\n");
@@ -232,6 +248,7 @@ if (outPath) {
       {
         heldConstant: {
           engine: `chromium (playwright ${deviceName})`,
+          viewport: viewportLabel,
           markup: markupGlob,
           fonts: keepFonts ? "NOT neutralised" : "neutralised identically on both sides",
           containerClass: containerClass || null,
@@ -240,6 +257,7 @@ if (outPath) {
         nodesCompared,
         propsCompared: PROPS.length,
         documents: perDoc,
+        invalidDocuments: perDoc.filter((d) => d.invalid).length,
         divergences: rows,
         likelyFontArtifact: Boolean(fontArtifact),
       },

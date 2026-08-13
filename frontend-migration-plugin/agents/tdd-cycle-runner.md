@@ -133,9 +133,14 @@ See `templates/tdd-rules.md`.
      wider subtree its own horizontal scroll instead of clipping it — which is a **deviation** from
      legacy's clip, so record it in `acceptedDeltas[]` rather than shipping a silent improvement.
   3. **Self-verify with an overload, not with the fixture.** For each `contentDependent` element,
-     write a test that first makes the content overflow, then asserts BOTH halves: the element really
-     did outgrow its box (`el.scrollWidth - el.clientWidth > 0`, so the test is not vacuous) and the
-     document did not (`documentElement.scrollWidth - clientWidth <= 0`). A jsdom unit test cannot see
-     this — it applies no stylesheet — so the class assertion belongs in the unit test and the
-     measurement belongs in the e2e/parity layer.
+     write a test that first drives an overload, then asserts BOTH halves: the element engaged its
+     containment **on the axis the property controls** — horizontal (`overflowX`,
+     `whiteSpace: nowrap`, `textOverflow`): `el.scrollWidth - el.clientWidth > 0`; vertical
+     (`overflowY`, `webkitLineClamp`): `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it
+     wrapped (grew taller) with `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS
+     the wrap failing — and the document absorbed none of it
+     (`documentElement.scrollWidth - clientWidth <= 0`). The horizontal pair asserted on a wrapping
+     or clamping element fails correct code. A jsdom unit test cannot see any of this — it applies
+     no stylesheet — so the class assertion belongs in the unit test and the measurement belongs in
+     the e2e/parity layer.
 - If a needed shared package is missing, stop and report (the plan should have flagged it).

@@ -210,9 +210,10 @@ in later phases.
   /fm-analyze → /fm-style-spec → /fm-plan → /fm-gen → /fm-verify
                                         │ (fail → /fm-fix)
                               /fm-cascade (stylesheet-level diff vs legacy; needs legacy's CSS,
-                                           not a running legacy host. Required for any page that
+                                           not a running legacy host. Run it for any page that
                                            injects markup it does not author — CMS rich text,
-                                           i18n values containing HTML, editor output)
+                                           i18n values containing HTML, editor output; advisory —
+                                           fm-route reports a missing run, it does not block on one)
                               /fm-e2e   (Playwright gatekeeper; fail → /fm-fix)
                               /fm-parity (visual / contract / WebView / telemetry; fail → /fm-fix)
                               /fm-route --flag-off (PR1) → --flag-on (PR2) → --confirm-live

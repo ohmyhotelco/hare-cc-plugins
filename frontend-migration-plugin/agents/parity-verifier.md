@@ -138,8 +138,12 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
    page scroll. So, at every viewport × language: (a) `documentElement.scrollWidth <= clientWidth` on
    the default render — the one check that catches the failure without knowing which element caused
    it, including elements the style-spec index does not contain; (b) for every element the spec flags
-   `contentDependent`, drive a **synthetic overload** and assert BOTH `el.scrollWidth - el.clientWidth
-   > 0` (it really did overflow — otherwise the check is vacuous) and the page invariant; (c) for every
+   `contentDependent`, drive a **synthetic overload** and assert BOTH halves — engagement **on the
+   axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`, `textOverflow`:
+   `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
+   `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal
+   overflow; otherwise the check is vacuous, and the horizontal pair asserted on a wrap/clamp
+   element fails correct code) and the page invariant; (c) for every
    `structure[].injectedDocument` frame, the frame's width ≤ the viewport and the frame document's own
    `body` computes `overflow-x: hidden` — nothing outside the frame can establish this; (d) every
    `nonComputable[]` entry has a counterpart rule in the v2 stylesheet (these have no computed-style

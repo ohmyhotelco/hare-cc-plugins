@@ -224,6 +224,13 @@ strip.scrollWidth - strip.clientWidth  >  0   // the row outgrew its box…
 docEl.scrollWidth  - docEl.clientWidth <= 0   // …and the page did not grow
 ```
 
+The first half is **per-axis**: the strip above is a horizontal scroller, so it proves engagement
+on `scrollWidth`; a vertical scroller or a `-webkit-line-clamp` proves it on
+`scrollHeight - clientHeight > 0`; a `flex-wrap: wrap` proves it by wrapping — growing taller with
+**no** horizontal overflow, because horizontal overflow is the wrap failing. The horizontal pair
+asserted blindly on a wrap/clamp element fails a correct implementation. The second half is
+universal.
+
 …plus, for each injected-document frame: the frame element's width ≤ the viewport, and the frame
 document's own `body` computes `overflow-x: hidden`.
 
