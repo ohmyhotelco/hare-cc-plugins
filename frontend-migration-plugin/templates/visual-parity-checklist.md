@@ -151,7 +151,9 @@ reproduced, and nothing in this checklist asked.
 2. **Synthetic overload for every `contentDependent` element** the spec flags. Drive real overflow
    into it (pad the labels, add rows), then assert **both** halves: engagement **on the axis the
    property controls** — horizontal (`overflowX`, `whiteSpace: nowrap`, `textOverflow`):
-   `el.scrollWidth - el.clientWidth > 0`; vertical (`overflowY`, `webkitLineClamp`):
+   `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed value
+   `ellipsis` (the marker is paint, not geometry — clipped text without it passes every scroll
+   metric); vertical (`overflowY`, `webkitLineClamp`):
    `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: the children wrapped and
    `el.scrollWidth <= el.clientWidth`, because horizontal overflow IS the wrap failing; `maxWidth`:
    drive content past the cap and assert the box held at it; `minWidth`: apply shrink pressure

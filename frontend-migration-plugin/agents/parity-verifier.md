@@ -140,7 +140,8 @@ So the visual gate MUST, per `templates/visual-parity-checklist.md`:
    it, including elements the style-spec index does not contain; (b) for every element the spec flags
    `contentDependent`, drive a **synthetic overload** and assert BOTH halves — engagement **on the
    axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`, `textOverflow`:
-   `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
+   `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed value
+   `ellipsis` — the marker is paint, not geometry; vertical — `overflowY`, `webkitLineClamp`:
    `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal
    overflow; `maxWidth`: the box held at the cap under content overload; `minWidth`: the box held
    the floor under shrink pressure — narrowing the container, the one load a content overload

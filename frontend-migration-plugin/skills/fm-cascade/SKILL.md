@@ -127,6 +127,12 @@ tracker. Absence plus the `not-run` record is the honest state.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around the `tracker.json` write below — after
 the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file).
 
+**Failed run (no staging file).** When the differ failed and wrote nothing, skip items 1–2 — there
+is nothing to check or promote. Item 3 records `cascade` as `{ runAt, notRun: true, reason }`
+instead of the counts (and its changed-files rule still applies if this session changed any file);
+item 4 is untouched; then continue to Step 7, which has nothing to convert but still releases the
+lock.
+
 1. Recompute the `tree` hash and compare with Step 4's pre-run hash. If they differ, the tree
    moved while the diff ran (a package rewrite, a concurrent fix): the measurement describes a
    tree that no longer exists — delete `cascade-diff.next.json`, record the stage `not-run`, and

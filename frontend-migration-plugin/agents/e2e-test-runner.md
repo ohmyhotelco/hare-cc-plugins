@@ -40,7 +40,8 @@ before the gate run — a single failure across runs means it is flaky; fix it n
 element `style-spec.json` (at `styleSpecPath`) flags `contentDependent: true`, write a spec that
 drives an overload into the element (pad the labels, add rows) and then asserts **both** halves —
 engagement **on the axis the property controls** (horizontal — `overflowX`, `whiteSpace: nowrap`,
-`textOverflow`: `el.scrollWidth - el.clientWidth > 0`; vertical — `overflowY`, `webkitLineClamp`:
+`textOverflow`: `el.scrollWidth - el.clientWidth > 0`, and for `textOverflow` also the computed
+value `ellipsis` — the marker is paint, not geometry; vertical — `overflowY`, `webkitLineClamp`:
 `el.scrollHeight - el.clientHeight > 0`; `flexWrap: wrap`: it wrapped with no horizontal overflow —
 the horizontal pair asserted on a wrap/clamp element fails correct code; `maxWidth`: the box held
 at the cap under overload; `minWidth`: the box held the floor under shrink pressure, not content

@@ -230,9 +230,10 @@ on `scrollWidth`; a vertical scroller or a `-webkit-line-clamp` proves it on
 **no** horizontal overflow, because horizontal overflow is the wrap failing; `max-width` proves it
 by holding the box at the cap under content overload, `min-width` by holding the floor under
 **shrink pressure** — narrowing the container, the one load a content overload cannot apply; and
-`overscroll-behavior` has no overload metric at all — it is asserted as a computed value. The
-horizontal pair asserted blindly on a wrap/clamp element fails a correct implementation. The second
-half is universal.
+`overscroll-behavior` has no overload metric at all — it is asserted as a computed value. Note
+`text-overflow`'s limit: the scroll metric proves the overflow, not the marker — the ellipsis is
+paint, so its computed value is asserted alongside. The horizontal pair asserted blindly on a
+wrap/clamp element fails a correct implementation. The second half is universal.
 
 …plus, for each injected-document frame: the frame element's width ≤ the viewport, and the frame
 document's own `body` computes `overflow-x: hidden`.

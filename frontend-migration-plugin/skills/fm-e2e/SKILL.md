@@ -35,9 +35,11 @@ an earlier session or on another machine.
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
-Before launching the runner, compute the **pre-run** `tree` hash — same script, same watch-path
-union as Step 4. Step 4 compares its record-time hash against this one: a gate may record a pass
-only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+Before launching the runner, compute the **pre-run** manifest and `tree` hash — one `--manifest`
+execution saved to a temp pre-run manifest, hash via `git hash-object` (the same one-execution
+rule as Step 4), over the same watch-path union. Step 4 compares against both: this gate
+legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
+(CLAUDE.md → Gate Result Accounting E).
 
 Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
@@ -83,11 +85,15 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
-  Compare this hash with the pre-run hash from Step 3: if they differ, the watch paths moved while
-  the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`, and say to
-  re-run. Only when the pass is recorded, promote the manifest (`mv "$MAN.tmp" "$MAN"`) — an
-  overwritten manifest beside a refused pass would pair the old recorded `tree` with a file list
-  from a different tree.
+  **First merge the spec files the runner reports created or modified into `sourcePaths`**
+  (Read-Modify-Write under `.tracker.lock`) — a spec outside the watch union can be weakened later
+  without moving the recorded tree — then compute the record-time manifest/hash over the updated
+  union. Compare with Step 3's pre-run manifest: every differing path must be one the runner itself
+  reported as its own work (the specs it realized). Any **other** difference means the watch paths
+  moved while the gate ran — record **no pass**, leave the status unchanged, discard the temp
+  manifests, and say to re-run. Only when the pass is recorded, promote the manifest
+  (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
+  recorded `tree` with a file list from a different tree.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
 
