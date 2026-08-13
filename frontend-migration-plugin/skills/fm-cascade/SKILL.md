@@ -117,9 +117,10 @@ If any **real** row was fixed, re-run Step 4 after the fixes land: "fixed" means
 latest run** — that is what `fm-route` reads — and the consequence rows attributed to it must be
 gone from the same run. `cascade-diff.json` and the tracker record always describe the latest run.
 If the re-run itself fails (probe exit non-zero), the stage is `not-run` for the changed tree:
-record it that way in Step 6 and in the report. The stale artifact stays only as history — its
-unresolved rows keep blocking `fm-route`, which is the safe direction — but never present it as
-current.
+record it that way in Step 6 and in the report, and **delete `cascade-diff.json`** — the pre-fix
+report describes a tree this session's fixes just changed, and a clean or fully-approved one left
+on disk would silently vouch for the new tree at `fm-route`, which reads the file, not the
+tracker. Absence plus the `not-run` record is the honest state.
 
 ### Step 6: Record
 
@@ -151,7 +152,8 @@ the page lock this stage already holds, released right after the write (CLAUDE.m
    deciding a divergence is intended is the owner's call, and this stage cannot make it.
    `fm-route --flag-on` proceeds only on entries the owner has flipped to `status: approved` (with
    `by` and `when`); a `pending` entry blocks exactly like an unrecorded row.
-5. Release the lock.
+
+The lock is **not** released here — Step 7 still writes files and tracker state under it.
 
 ### Step 7: Turn the fix into a gate
 A diff run is evidence at a point in time. For each **real** divergence fixed, add a regression
@@ -163,6 +165,9 @@ passes with the fix removed protects nothing, and the pipeline has no other way 
 Then merge the new spec files into `sourcePaths` (same Read-Modify-Write under `.tracker.lock` as
 Step 6) — Step 6's refresh ran before these files existed, and a spec outside the watch union goes
 stale silently.
+
+Finally, **release the page lock** — this is the stage's release point for every path that reached
+Step 6 (a run with nothing to convert releases here too, after skipping the conversion).
 
 ### Step 8: Report
 In `workingLanguage`: nodes and properties compared, languages/documents covered, the three bucket
