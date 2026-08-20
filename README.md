@@ -71,6 +71,29 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 ---
 
+### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.1.0`
+
+Develops Spring WebFlux backend applications using CQRS architecture and strict
+Test-Driven Development, with dual R2DBC/MyBatis data-layer support. Deliberately a
+separate plugin from backend-springboot-plugin (MVC + JPA) rather than a version
+bump of it -- each plugin stays simple with a single stack. See
+`backend-webflux-plugin/docs/decisions.md` for the data-profile, web-layer,
+migration, database, driver, and coverage-tool decision record.
+
+**Pipeline**: `be-init` -> `be-crud` -> `be-code` (TDD) -> `be-verify` -> `be-review` <-> `be-fix` -> `be-commit`
+
+**Key features**:
+- CQRS scaffold generation for both R2DBC (`ReactiveCrudRepository`) and MyBatis
+  (blocking JDBC offloaded to `Schedulers.boundedElastic()`) data profiles
+- `RouterFunction`/`HandlerFunction` functional web layer by default, `@RestController`
+  as a named exception
+- Strict RED-GREEN TDD with `WebTestClient` + `StepVerifier`
+- Verification gate (build + checkstyle + tests + JaCoco coverage, report-only) before review
+- Review-fix loop: 6-dimension code review + TDD-disciplined auto-fix + re-review
+- Java 21, Spring Boot 4.x, Gradle, MySQL 8.0.33, manual SQL migrations, JUnit 5
+
+---
+
 ### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.2.0`
 
 Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
@@ -103,6 +126,12 @@ planning-plugin                 backend-springboot-plugin
                                       │
                                       └── Spring Boot API (CQRS + TDD)
 
+planning-plugin                 backend-webflux-plugin
+     │                                │
+     └── (independent) ───────────────┘
+                                      │
+                                      └── Spring WebFlux API (CQRS + TDD, R2DBC/MyBatis)
+
 planning-plugin                 homepage-plugin
      │                                │
      └── (independent) ───────────────┘
@@ -112,6 +141,7 @@ planning-plugin                 homepage-plugin
 
 - **planning-plugin → frontend-react-plugin**: Specs, UI DSL, and prototypes flow from planning to frontend code generation. The frontend plugin can also run standalone without planning-plugin.
 - **backend-springboot-plugin**: Operates independently with its own work document system and TDD workflow. Does not require planning-plugin.
+- **backend-webflux-plugin**: Operates independently, same as backend-springboot-plugin. Separate plugin, separate stack (WebFlux + R2DBC/MyBatis vs MVC + JPA) -- see `backend-webflux-plugin/docs/decisions.md`.
 - **homepage-plugin**: Operates independently with its own interactive planning. Does not require planning-plugin.
 
 ## Installation
@@ -124,6 +154,7 @@ planning-plugin                 homepage-plugin
 /plugin install planning-plugin@ohmyhotelco --scope project
 /plugin install frontend-react-plugin@ohmyhotelco --scope project
 /plugin install backend-springboot-plugin@ohmyhotelco --scope project
+/plugin install backend-webflux-plugin@ohmyhotelco --scope project
 /plugin install homepage-plugin@ohmyhotelco --scope project
 /plugin install frontend-migration-plugin@ohmyhotelco --scope project
 ```

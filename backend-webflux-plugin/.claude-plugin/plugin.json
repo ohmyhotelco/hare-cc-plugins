@@ -1,0 +1,9 @@
+{
+  "name": "backend-webflux-plugin",
+  "version": "0.1.0",
+  "description": "Spring WebFlux backend development plugin with dual R2DBC/MyBatis data profiles, CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, JaCoco coverage gate, and security audit for Claude Code",
+  "author": {
+    "name": "Daniel"
+  },
+  "keywords": ["backend", "spring-boot", "webflux", "reactive", "java", "gradle", "cqrs", "tdd", "r2dbc", "mybatis", "mysql", "jacoco", "coverage", "checkstyle", "code-review", "build", "debug", "pipeline", "security", "spec-driven", "planning-plugin"]
+}
