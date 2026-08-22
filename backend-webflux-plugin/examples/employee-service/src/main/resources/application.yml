@@ -1,0 +1,15 @@
+spring:
+  application:
+    name: employee-service
+  # Sample-only: H2 R2DBC in-memory so this project runs with zero external services.
+  # Production usage of the plugin's default profile targets MySQL 8.0.33 via
+  # io.asyncer:r2dbc-mysql (see docs/decisions.md Decision 4 and Decision 5); swap the
+  # r2dbc.url below to r2dbc:mysql://... to point at a real MySQL instance instead.
+  r2dbc:
+    url: r2dbc:h2:mem:///employeedb;DB_CLOSE_DELAY=-1
+    username: sa
+    password: ""
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql

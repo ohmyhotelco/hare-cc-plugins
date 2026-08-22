@@ -134,6 +134,39 @@
       ]
     },
     {
+      "name": "backend-webflux-plugin",
+      "description": "Spring WebFlux backend development plugin with dual R2DBC/MyBatis data profiles, CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, JaCoco coverage gate, and security audit for Claude Code",
+      "version": "0.1.0",
+      "author": {
+        "name": "Daniel"
+      },
+      "source": "./backend-webflux-plugin/",
+      "category": "development",
+      "keywords": [
+        "backend",
+        "spring-boot",
+        "webflux",
+        "reactive",
+        "java",
+        "gradle",
+        "cqrs",
+        "tdd",
+        "r2dbc",
+        "mybatis",
+        "mysql",
+        "jacoco",
+        "coverage",
+        "checkstyle",
+        "code-review",
+        "build",
+        "debug",
+        "pipeline",
+        "security",
+        "spec-driven",
+        "planning-plugin"
+      ]
+    },
+    {
       "name": "frontend-migration-plugin",
       "description": "Claude Code plugin that drives the Angular 15 to React Router v7 migration: Angular source analysis, framework-agnostic shared-package extraction, RR v7 page generation, legacy-parity gates (Playwright E2E, visual, contract, WebView, telemetry), and Strangler Fig progress tracking",
       "version": "1.2.0",
