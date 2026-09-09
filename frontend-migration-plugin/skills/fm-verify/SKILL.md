@@ -138,6 +138,14 @@ Update `tracker.json` (Read-Modify-Write):
   (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
   recorded `tree` with a file list from a different tree.
 
+  **Then stage the promoted manifest so it ships with its stamp.** Run `git add "$MAN"` now. The
+  manifest and the `gateEvidence.verify` stamp in `tracker.json` are one piece of evidence and must
+  land in the SAME commit — `fm-route` Step 1a blocks the flip if either is missing from HEAD, or if
+  the committed manifest does not match the committed stamp. The manifest is derived evidence under
+  `docs/`, easy to leave unstaged while `tracker.json` is committed (and the reverse is just as easy);
+  writing to the working tree is not the same as committing evidence, and this recurs on every
+  re-stamp because a re-stamp rewrites the manifest.
+
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `verifiedAt` for

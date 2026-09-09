@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.2.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.2.1)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -809,6 +809,23 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     script execution, which could straddle a change and record a hash the manifest does not
     describe. The redirect target must
     be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
+  - **The manifest and its stamp are one piece of evidence and ship in the SAME commit.** The stamp
+    lives in `tracker.json` (`gateEvidence.{gate}.tree`) and the manifest under
+    `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`; by construction the stamp IS
+    `git hash-object` of that manifest, so what ships in HEAD must reproduce it. Gate skills stage the
+    manifest right after promoting (`git add "$MAN"`), and `fm-route` Step 1a — before the live
+    recompute — enforces committed-vs-committed integrity in both directions: the stamp read from
+    HEAD's `tracker.json` must be present and equal the working-tree stamp (else the stamp is
+    uncommitted), the committed manifest blob (`git rev-parse HEAD:…/gate-tree/{gate}.tsv`) must be
+    present (else the manifest is uncommitted or the checkout is behind a merged PR1) and equal that
+    stamp (else the two contradict — the PR #330 git-add miss). The live recompute cannot see any of
+    this: the source did not move, so it passes. A gate with no stamp in either tree is the sole
+    carve-out (unverifiable, no evidence to enforce); because that carve-out keys on empty reads, the
+    check requires `jq` and **fails closed** when it is absent (a hard gate must not skip silently, unlike
+    the plugin's advisory `jq` readers). Precondition: neither the manifest path nor its `.tsv.tmp`
+    sibling carries a content-altering `gitattributes` filter (clean/eol) — they are plain evidence, and
+    a `*.tsv`/`*.tmp`/`docs/**` normalization would make the committed blob, the stamp, and the
+    unfiltered freshness aggregate disagree on a consistent pipeline.
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`

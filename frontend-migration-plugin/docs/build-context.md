@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-08-12)
 
-- **Build complete — v1.2.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
+- **Build complete — v1.2.1.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -993,6 +993,37 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   `cascade-diff.mjs`; `styleSpecPath` added to the e2e contract on both sides; lock-staleness
   wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
   the advisory gate; and the keyword/version triplet synced at **1.2.0**.
+- **v1.2.1 — committed-manifest invariant.** A gate-accounting hole, not a fidelity axis. Gate Result
+  Accounting E already had the gate skills write both a stamp (`gateEvidence.{gate}.tree`) and a
+  manifest file (`gate-tree/{gate}.tsv`) whose `git hash-object` **is** that stamp by construction —
+  but nothing enforced that identity at commit time. The skills stopped at `mv "$MAN.tmp" "$MAN"`
+  (writing the working tree), not at committing it, so a `git add` miss shipped a stamp whose manifest
+  was still the previous run's. `fm-route` Step 1a recomputes the hash live from the watch paths, so
+  when the page's source has not moved (e.g. a master merge that missed its watchset) the recompute
+  equals the stamp and the flip passes — the committed manifest is never compared to the stamp, and
+  the contradiction is invisible to the pipeline. OMH-750 PR #330 hit exactly this: the tracker
+  stamped 480 rows while the committed TSVs were still 442, and only a human reviewer counting rows
+  caught it, costing a whole review round. Two doc-only fixes: (A) `fm-route` Step 1a, before the live
+  recompute, enforces committed-vs-committed integrity in both directions — the stamp read from HEAD's
+  `tracker.json` must be present and match the working-tree stamp (else the stamp is uncommitted), and
+  the committed manifest blob (`git rev-parse HEAD:…/gate-tree/{gate}.tsv`) must be present and equal
+  it (else the manifest is uncommitted, the checkout is behind a merged PR1, or — the PR #330 case —
+  the two contradict); the sole carve-out is a gate with no stamp in either tree (unverifiable). (B)
+  the three gate skills stage the promoted manifest (`git add "$MAN"`) and state that manifest and
+  stamp must land in one commit — prevention paired with A's detection. Several rounds of isolated
+  pre-merge adversarial audit drove the design here: the first-cut one-way blob check false-blocked (a
+  cwd-relative `git status` that no-ops off `appDir`; a stamp read from HEAD diverging from the live
+  recompute's working-tree stamp), under-caught (the mirror git-add miss — manifest committed, stamp
+  not — slipped the carve-out), fail-opened when `jq` was absent or broken (empty reads hit the
+  no-stamp carve-out), and surfaced a `gitattributes` filter hole (the stamp hashes a `.tsv.tmp` path,
+  the committed blob a `.tsv` path). The final shape: a two-way committed-vs-committed check that fails
+  closed on any unreadable evidence, a "no content-altering filter on the gate-tree subtree"
+  precondition, and a self-diagnosing recovery (a real miss clears on re-commit; only a filter
+  violation survives it, which `git check-attr` then names) — chosen over a cleverer re-hash arbiter
+  that kept sprouting edge cases. No script change: the defect is in the procedure that
+  fails to commit the script's output, not the script. Reflected into `fm-route`/`fm-verify`/`fm-e2e`/
+  `fm-parity` and CLAUDE.md → "Gate Result Accounting" E. Origin: OMH-750, three review rounds on
+  PR #330, 2026-09-09.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks
