@@ -214,7 +214,10 @@ No runnable suite; deliverables are English instruction docs, verified by docume
 - "When has a page's parity converged?" — still the open convergence question the v0.14.1 doc left.
 - **Which revision ships.** Step 1a treats HEAD as shipping and relies on the operator running it
   on the merged base checkout. A configured base branch (`git fetch` + `--rev origin/<base>`) would
-  make "PR1 not merged" a mechanical block instead of a precondition sentence.
+  make "PR1 not merged" a mechanical block instead of a precondition sentence — both audits of
+  v1.3.0 ranked this the largest remaining gap.
+- **File mode is not recorded.** Both modes hash blob ids only, so a `100644`↔`100755` flip on a
+  watched file is invisible. No watched file is executed by the app; noted, not fixed.
 - **`verify` is stale on the first pass by construction.** `fm-e2e` merges the specs it realizes
   into `sourcePaths`, so the `verify` stamp was taken over a smaller set than the one every consumer
   recomputes; the first `--flag-on` blocks on it and the chain re-runs once. Pre-existing; needs

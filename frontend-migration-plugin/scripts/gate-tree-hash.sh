@@ -37,6 +37,7 @@
 #                 read into a temporary index so the same pathspec engine enumerates it and the
 #                 records are the tree's own blob ids: on a clean checkout of a commit that holds
 #                 the gated content, this prints the same manifest and the same hash the gate did.
+#                 (One shape has no committed equivalent by nature: a `dirty:` submodule suffix.)
 #   --exclude P   drop path P from the set. Callers pass the manifest file they are about
 #                 to write, so the evidence never describes itself. Literal, repeatable.
 #   --            end of options; every later argument is a watch path, even `--manifest`.
@@ -68,7 +69,7 @@ while [ "$#" -gt 0 ]; do
   if [ "$END_OPTS" -eq 0 ]; then
     case $1 in
       --manifest) MANIFEST=1; shift; continue ;;
-      --rev)      [ "$#" -ge 2 ] || { echo "gate-tree-hash: --rev needs a revision" >&2; exit 1; }
+      --rev)      [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "gate-tree-hash: --rev needs a revision" >&2; exit 1; }
                   REV=$2; shift 2; continue ;;
       --exclude)  [ "$#" -ge 2 ] || { echo "gate-tree-hash: --exclude needs a path" >&2; exit 1; }
                   EXCLUDES+=("$2"); shift 2; continue ;;
@@ -103,6 +104,18 @@ SPECS=()
 for e in ${EXCLUDES[@]+"${EXCLUDES[@]}"}; do SPECS+=(":(exclude,literal)$e"); done
 for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 
+# A watch path that exists but is gitignored is dropped by `--exclude-standard` below and is absent
+# from every committed tree, so both modes would agree on a set that lacks a file the gate ran on.
+# Rule 3: refuse. (`check-ignore` says nothing about tracked files, so only an untracked ignored
+# path can reach this — the exact case that never ships.)
+for p in "${PATHS[@]}"; do
+  if [ -e "$p" ] && git check-ignore -q -- "$p" 2>/dev/null; then
+    echo "gate-tree-hash: watch path is gitignored, cannot record: $p" >&2
+    echo "  An ignored file never reaches a commit. Un-ignore it, or drop it from the watch paths." >&2
+    exit 1
+  fi
+done
+
 TMPDIR_BASE=${TMPDIR:-/tmp}
 # The trap is installed before the 2nd and 3rd mktemp, so a failure of either still cleans up.
 LIST=""; RECS=""; SORTED=""; IDX=""
@@ -111,17 +124,30 @@ LIST=$(mktemp "$TMPDIR_BASE/gate-tree-list.XXXXXX")
 RECS=$(mktemp "$TMPDIR_BASE/gate-tree-recs.XXXXXX")
 SORTED=$(mktemp "$TMPDIR_BASE/gate-tree-sorted.XXXXXX")
 
+# One record shape for every entry read from an index (the sparse branch below, and every entry in
+# --rev mode): the two consumers of this switch must never drift, or the committed-tree and
+# working-tree hashes disagree on unchanged content and Step 1a reads that as an uncommitted file.
+emit_index_record() {  # mode sha path
+  case $1 in
+    120000) echo "gate-tree-hash: watch path contains a symlink, cannot record: $3" >&2
+            echo "  Exclude it with --exclude, or keep symlinks out of the watch paths." >&2
+            return 1 ;;
+    160000) printf 'GITLINK %s %s\n' "$2" "$3" ;;
+    *)      printf '%s %s\n'         "$2" "$3" ;;
+  esac
+}
+
 # --rev: enumerate a temporary index populated from <rev> — the same `git ls-files` and the same
 # literal/exclude pathspecs as the working-tree mode below, so the two modes agree on the SET; the
 # records are the tree's blob ids, so they agree on the CONTENT whenever the tree holds what the
 # working tree held. Decided on the index mode, like the working-tree mode: a symlink is refused
 # (same outcome on every mode, or a flip would pass on one checkout and fail on another), a gitlink
-# records the pointer (a tree has no checkout to be `moved`/`dirty` against), everything else is a
-# blob. No DELETED shape exists here: a path the tree lacks is simply not a record, which differs
-# from the working-tree manifest exactly when the working tree still had it.
+# records the pointer (a tree has no checkout to be `dirty` against), everything else is a
+# blob. A path the tree lacks is simply not a record — the same shape the working-tree mode gives a
+# tracked file that is gone from disk, so a committed deletion reproduces the gate's manifest.
 if [ -n "$REV" ]; then
   IDX=$(mktemp "$TMPDIR_BASE/gate-tree-idx.XXXXXX")
-  if ! GIT_INDEX_FILE=$IDX git read-tree "$REV" 2>/dev/null; then
+  if ! GIT_INDEX_FILE=$IDX git read-tree "$REV"; then   # git's own diagnostic names the cause
     echo "gate-tree-hash: cannot read tree of $REV" >&2; exit 1
   fi
   if ! GIT_INDEX_FILE=$IDX git ls-files -s --full-name -z -- "${SPECS[@]}" > "$LIST"; then
@@ -142,13 +168,7 @@ if [ -n "$REV" ]; then
   fi
   while IFS= read -r line; do
     mode=${line%% *}; rest=${line#* }; sha=${rest%% *}; f=${line#*$'\t'}
-    case $mode in
-      120000) echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
-              echo "  Exclude it with --exclude, or keep symlinks out of the watch paths." >&2
-              exit 1 ;;
-      160000) printf 'GITLINK %s %s\n' "$sha" "$f" ;;
-      *)      printf '%s %s\n' "$sha" "$f" ;;
-    esac
+    emit_index_record "$mode" "$sha" "$f" || exit 1
   done < "$SORTED" > "$RECS"
   if [ "$MANIFEST" -eq 1 ]; then cat "$RECS"; else git hash-object --stdin < "$RECS"; fi
   exit 0
@@ -219,8 +239,12 @@ while IFS= read -r -d '' f; do
       fi
       sub=""
       if [ -e "$f/.git" ]; then
+        # The checkout's HEAD is the record: it is what the gate built against, and what the parent
+        # commit carries once the pointer is staged — so `--rev` reproduces it. The pointer is the
+        # record only when there is no checkout to read (an uninitialized clone at the pointer
+        # records the same sha as an initialized one sitting on it).
         s_head=$(git -C "$f" rev-parse HEAD 2>/dev/null || true)
-        [ -n "$s_head" ] && [ "$s_head" != "$o" ] && sub=" moved:$s_head"
+        [ -n "$s_head" ] && o=$s_head
         # Local, uncommitted work inside the submodule moves neither the parent's pointer nor
         # the submodule's HEAD, so without this the gate ran against bytes it could not name.
         # `diff HEAD` carries the tracked content; the porcelain listing adds untracked PATHS
@@ -252,7 +276,10 @@ while IFS= read -r -d '' f; do
       exit 1
     fi
   else
-    # Not on disk. Skip-worktree (a sparse checkout deliberately omits it) or deleted.
+    # Not on disk. Skip-worktree (a sparse checkout deliberately omits it) or deleted. A deleted
+    # tracked file is NOT a record: the diff against the gate's manifest already names it, and a
+    # DELETED marker would have no committed equivalent — once the deletion is committed the `--rev`
+    # recompute simply lacks the path, and a gate taken over the deletion must match it.
     # Use `-t`, not `-v`: `-v` LOWERCASES its tag when the entry is ALSO assume-unchanged
     # (skip-worktree reads `S`, both bits read `s`), so a case-sensitive match on `S` alone
     # reported a sparse file as DELETED. `-t` reports `S` for skip-worktree either way.
@@ -263,17 +290,10 @@ while IFS= read -r -d '' f; do
           echo "gate-tree-hash: cannot resolve sparse entry: $f" >&2; exit 1
         fi
         # Same OUTCOME the on-disk branches give, or a sparse checkout and a full one disagree
-        # on an unchanged entry. A symlink is refused there, so it is refused here too — even
-        # though the index blob would be exact, recording it would make the gate pass under a
-        # sparse checkout and fail under a full one.
-        case $(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}') in
-          120000) echo "gate-tree-hash: watch path contains a symlink, cannot record: $f" >&2
-                  echo "  Exclude it with --exclude, or keep symlinks out of the watch paths." >&2
-                  exit 1 ;;
-          160000) printf 'GITLINK %s %s\n'  "$o" "$f" ;;   # a sparse gitlink keeps its shape
-          *)      printf '%s %s\n'          "$o" "$f" ;;
-        esac ;;
-      *) printf 'DELETED %s\n' "$f" ;;
+        # on an unchanged entry (a symlink is refused there, so it is refused here too).
+        emit_index_record "$(git ls-files -s -- ":(literal)$f" 2>/dev/null | awk 'NR==1{print $1}')" "$o" "$f" \
+          || exit 1 ;;
+      *) : ;;   # deleted on disk: no record (see above)
     esac
   fi
 done < "$SORTED" > "$RECS"

@@ -112,8 +112,10 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
 ## 2-PR flag flow (both mechanisms)
 1. **Code PR** — `fm-route <page> --flag-off`: prepare the routing rule, **OFF / not-active**
    (nginx: routing block + flag entry, default OFF; cloudfront: manifest behavior `active: false`).
-   The RR v7 code merges; users still get legacy.
-2. **Flag-ON PR** — `fm-route <page> --flag-on`: one-line flip, **only after `fm-verify` +
+   PR1 carries the page's `docs/migration/{app}/{page}/` evidence and its `tracker.json` rows —
+   the gate skills and `--flag-off` stage them. The RR v7 code merges; users still get legacy.
+2. **Flag-ON PR** — `fm-route <page> --flag-on`, run on the **merged base checkout** (Step 1a
+   treats HEAD as what ships): one-line flip, **only after `fm-verify` +
    `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise). This edits the artifact
    and records `flipPrOpenedAt`; the page stays `parity-passed`.
 2b. **Confirm live** — `fm-route <page> --flag-on --confirm-live`, run once that PR is merged **and

@@ -1019,8 +1019,20 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   attribute), and the gate skills promote and stage manifest + `tracker.json` in one self-contained
   block, with `--flag-off` staging the tracker it writes last. `fm-init` now refuses a
   `monorepoRoot` that is not the git toplevel — the evidence paths were already root-addressed and
-  a nested layout split them from the rest. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review
-  rounds 2026-09-14.
+  a nested layout split them from the rest. A dual audit of the frozen tree (Claude `code-review`
+  + Codex, 2026-09-14) then closed: the working-tree mode's `DELETED` and `moved:` shapes, which
+  had no committed equivalent and false-staled a gated deletion once committed (a gone file is now
+  simply not a record; a checked-out submodule records its HEAD); a gitignored watch path, dropped
+  by `--exclude-standard` in both modes and so never shipped yet never noticed (refused); `--rev ""`
+  silently selecting the working-tree mode; `--flag-off` staging the live page lock and staging
+  *before* the route audit wrote its part (Step 4c, after 4b, lock and `*.tmp` excluded, and
+  `fm-init` gitignores them); the evidence-committed check reading the whole shared `tracker.json`
+  (page-scoped via `jq` now) and tripping on the skill's own lock at Step 2's re-verify; the
+  "committed ≠, working tree =" verdict assuming the working tree is newer (the named file's
+  history against `gateEvidence.at` decides) and "working tree ≠" always meaning re-run (a matching
+  committed tree means a stray local edit — discard it); fm-init's `pwd` string test failing on a
+  symlinked checkout (`--show-cdup`); and one record emitter shared by the sparse and `--rev`
+  branches. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

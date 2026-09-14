@@ -300,6 +300,8 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
+├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp` — locks and pre-run
+│                                        manifests are transient and never reach a commit
 ├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
 │                                        page `.lock` below, but guards `packages/shared-*` work,
 │                                        which is not page-scoped)
@@ -828,8 +830,8 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     its specs) compares **manifests**, not bare hashes — every differing path must be the gate's own
     reported work, merged into `sourcePaths` before the record-time hash; any other difference
     records no pass.
-  - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
-    retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
+  - A record with no `tree` — including one whose computation returned `unverifiable` at record
+    time — is non-blocking; no retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
     `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
 - **F (watch paths).** Three axes, hashed as one set:
   1. `tracker.json` `sourcePaths[]` — the files the generation phases wrote under `appDir`,

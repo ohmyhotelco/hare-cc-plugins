@@ -110,6 +110,9 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   mv "$MAN.tmp" "$MAN" && git add -- "$MAN" "$REPO/docs/migration/tracker.json"
   ```
 
+  If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
+  stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
+
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
 

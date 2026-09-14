@@ -144,6 +144,9 @@ Update `tracker.json` (Read-Modify-Write):
   mv "$MAN.tmp" "$MAN" && git add -- "$MAN" "$REPO/docs/migration/tracker.json"
   ```
 
+  If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
+  stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
+
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `verifiedAt` for
