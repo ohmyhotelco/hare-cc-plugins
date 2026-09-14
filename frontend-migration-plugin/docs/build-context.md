@@ -11,7 +11,7 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-08-12)
+## Status (2026-09-14)
 
 - **Build complete — v1.2.1.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
@@ -994,36 +994,30 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
   the advisory gate; and the keyword/version triplet synced at **1.2.0**.
 - **v1.2.1 — committed-manifest invariant.** A gate-accounting hole, not a fidelity axis. Gate Result
-  Accounting E already had the gate skills write both a stamp (`gateEvidence.{gate}.tree`) and a
-  manifest file (`gate-tree/{gate}.tsv`) whose `git hash-object` **is** that stamp by construction —
-  but nothing enforced that identity at commit time. The skills stopped at `mv "$MAN.tmp" "$MAN"`
-  (writing the working tree), not at committing it, so a `git add` miss shipped a stamp whose manifest
-  was still the previous run's. `fm-route` Step 1a recomputes the hash live from the watch paths, so
-  when the page's source has not moved (e.g. a master merge that missed its watchset) the recompute
-  equals the stamp and the flip passes — the committed manifest is never compared to the stamp, and
-  the contradiction is invisible to the pipeline. OMH-750 PR #330 hit exactly this: the tracker
-  stamped 480 rows while the committed TSVs were still 442, and only a human reviewer counting rows
-  caught it, costing a whole review round. Two doc-only fixes: (A) `fm-route` Step 1a, before the live
-  recompute, enforces committed-vs-committed integrity in both directions — the stamp read from HEAD's
-  `tracker.json` must be present and match the working-tree stamp (else the stamp is uncommitted), and
-  the committed manifest blob (`git rev-parse HEAD:…/gate-tree/{gate}.tsv`) must be present and equal
-  it (else the manifest is uncommitted, the checkout is behind a merged PR1, or — the PR #330 case —
-  the two contradict); the sole carve-out is a gate with no stamp in either tree (unverifiable). (B)
-  the three gate skills stage the promoted manifest (`git add "$MAN"`) and state that manifest and
-  stamp must land in one commit — prevention paired with A's detection. Several rounds of isolated
-  pre-merge adversarial audit drove the design here: the first-cut one-way blob check false-blocked (a
-  cwd-relative `git status` that no-ops off `appDir`; a stamp read from HEAD diverging from the live
-  recompute's working-tree stamp), under-caught (the mirror git-add miss — manifest committed, stamp
-  not — slipped the carve-out), fail-opened when `jq` was absent or broken (empty reads hit the
-  no-stamp carve-out), and surfaced a `gitattributes` filter hole (the stamp hashes a `.tsv.tmp` path,
-  the committed blob a `.tsv` path). The final shape: a two-way committed-vs-committed check that fails
-  closed on any unreadable evidence, a "no content-altering filter on the gate-tree subtree"
-  precondition, and a self-diagnosing recovery (a real miss clears on re-commit; only a filter
-  violation survives it, which `git check-attr` then names) — chosen over a cleverer re-hash arbiter
-  that kept sprouting edge cases. No script change: the defect is in the procedure that
-  fails to commit the script's output, not the script. Reflected into `fm-route`/`fm-verify`/`fm-e2e`/
-  `fm-parity` and CLAUDE.md → "Gate Result Accounting" E. Origin: OMH-750, three review rounds on
-  PR #330, 2026-09-09.
+  Accounting E had the gate skills write both a stamp (`gateEvidence.{gate}.tree`) and a manifest
+  (`gate-tree/{gate}.tsv`) whose `git hash-object` **is** that stamp by construction — but nothing
+  enforced that identity at commit time. The skills stopped at `mv "$MAN.tmp" "$MAN"`, so a `git add`
+  miss shipped a stamp whose committed manifest was the previous run's, and `fm-route` Step 1a's live
+  recompute — hashed from the watch paths, which had not moved — equaled the stamp and passed. OMH-750
+  PR #330 hit exactly this (tracker stamped at 480 rows, committed TSVs at 442); a human counting rows
+  caught it. Doc-only fix in two halves: (A) `fm-route` Step 1a, before the live recompute, compares
+  committed evidence against committed evidence for all three gates — HEAD's stamp must equal the
+  working-tree stamp, and the committed manifest blob must exist and equal it — requiring `jq` and
+  failing closed on any read it cannot complete; (B) the gate skills promote and stage the manifest
+  *and* `tracker.json` in one self-contained block on the pass branch. The pre-merge review
+  (2026-09-14, a throwaway monorepo driving the skill text verbatim) reshaped the recovery: the first
+  cut said "re-commit the current manifest, and a mismatch that survives is a `gitattributes` filter",
+  which is a no-op from a fresh clone (the working tree *is* the committed 442-row file) and, on the
+  `WT != HEAD` branch, "commit the current tracker" downgraded a correct HEAD when the working-tree
+  tracker was the reverted one — both sent the operator hunting a filter that did not exist. Recovery
+  now splits by what is wrong: a stamp that differs between the trees is the operator's to resolve
+  (commit the staged pair a re-run left, or restore the tracker from HEAD), and a manifest defect
+  regenerates the manifest with the script — its `--no-filters` hash equals the stamp iff the watch
+  paths have not moved, and a mismatch is the ordinary stale-gate path. The same
+  pass moved the stamp to `git hash-object --no-filters`, which makes it equal the script's `--stdin`
+  aggregate unconditionally and retired a latent permanent block under any `*.tmp` attribute; the
+  only remaining precondition is no content-altering rule on the committed `.tsv` path. Origin:
+  OMH-750, three review rounds on PR #330, 2026-09-09; revised on PR #65 review, 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

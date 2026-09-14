@@ -99,6 +99,16 @@ from): the rule lives in the instructions, the basis is missing from the output.
   to `"."` — passing that repo-relative path back as `--exclude`. Step 1a diffs against it. A record with no `tree` (written before this field) stays `unverifiable` —
   acknowledged, non-blocking, no retro-adjudication.
 
+  **The saved manifest and the stamp are one piece of evidence, and the flip checks the committed
+  pair.** The stamp is `git hash-object --no-filters` of the manifest, so what HEAD holds must
+  reproduce it — yet the first realization stopped at writing the working tree, and OMH-750 PR #330
+  committed a re-recorded stamp beside the previous run's manifest; the live recompute could not see
+  it because the source had not moved. Step 1a therefore first compares committed against committed
+  (HEAD's stamp = working-tree stamp, committed blob = stamp) for all three gates, fails closed on
+  any read it cannot complete, and recovers by regenerating the manifest from the watch paths — the
+  on-disk copy is not evidence of anything (a fresh clone holds the committed one). The gate skills
+  stage manifest and tracker together on the pass branch.
+
   The legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` stay for backward compatibility;
   `gateEvidence` wins when present. Because a regeneration invalidates them just as surely as it
   invalidates `gateEvidence`, `fm-gen` and `fm-delta` clear all four together — plus `routePrepared`
@@ -182,6 +192,10 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    files that differ from the gate's saved `--manifest`. Absent `tree` or absent `gateEvidence` =
    `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
+4a. `fm-route` Step 1a first checks committed evidence for all three gates — HEAD's stamp equals the
+   working-tree stamp, and the committed `gate-tree/{gate}.tsv` blob exists and equals it — failing
+   closed on unreadable evidence and recovering by regeneration; gate skills stage the promoted
+   manifest with `tracker.json` and hash the stamp with `--no-filters`.
 5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
    watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy

@@ -117,109 +117,81 @@ page's **watch paths** from three recorded sources — never by guessing which f
 
 **Committed-evidence integrity — check this BEFORE the live recompute below; it catches a
 distinct failure the live recompute cannot see.** The live recompute answers "did the page's code
-move since the gate ran"; this answers "is the evidence that ships in the commit self-consistent and
-actually committed". They are different questions, and a `git add` miss makes the second fail while
-the first passes (the source did not move, so the recompute equals the stamp — PR #330 shipped a
-tracker stamped at 480 rows beside a committed manifest of 442). By construction the recorded
-`gateEvidence.{gate}.tree` IS `git hash-object` of the saved manifest — the gate skills set
-`TREE=$(git hash-object -- "$MAN.tmp")` and promote that same file to `gate-tree/{gate}.tsv` — so
-what ships in HEAD must reproduce that. Read three values, comparing **committed evidence against
-committed evidence** (a working-tree copy may itself be uncommitted, so it cannot be the reference):
+move since the gate ran"; this answers "is the evidence that ships in HEAD self-consistent". A
+`git add` miss fails the second while the first passes — the source did not move, so the recompute
+equals the stamp (PR #330 shipped a tracker stamped at 480 rows beside a committed manifest of 442).
+By construction `gateEvidence.{gate}.tree` IS `git hash-object --no-filters` of the saved manifest
+(the gate skills hash `$MAN.tmp` and promote that same file to `gate-tree/{gate}.tsv`), so HEAD
+must reproduce it. Read three values, comparing committed evidence against committed evidence — a
+working-tree copy may itself be uncommitted, so it cannot be the reference:
 
 ```sh
 command -v jq >/dev/null 2>&1 || { echo "jq not found — cannot verify committed gate evidence"; exit 1; }
-REPO=$(git rev-parse --show-toplevel)
+REPO=$(git rev-parse --show-toplevel) || exit 1
+git rev-parse --verify -q HEAD >/dev/null || { echo "no readable HEAD — fail closed"; exit 1; }
 
 # A read that FAILS (bad jq, malformed JSON) is not an empty field — block, do not skip.
 WT_STAMP=$(jq -r --arg a "{app}" --arg p "{page}" --arg g "{gate}" \
     '.apps[$a].pages[$p].gateEvidence[$g].tree // ""' "$REPO/docs/migration/tracker.json") \
     || { echo "cannot read working-tree tracker.json — fail closed"; exit 1; }
 
-# tracker.json genuinely absent from HEAD is a legitimate empty; a jq error on present JSON is not.
+# HEAD is verified above, so a failing `git show` means the path is absent from HEAD — a legitimate empty.
 if HEAD_TRACKER=$(git show "HEAD:docs/migration/tracker.json" 2>/dev/null); then
   HEAD_STAMP=$(printf '%s' "$HEAD_TRACKER" | jq -r --arg a "{app}" --arg p "{page}" --arg g "{gate}" \
       '.apps[$a].pages[$p].gateEvidence[$g].tree // ""') \
       || { echo "cannot parse HEAD tracker.json — fail closed"; exit 1; }
 else
-  HEAD_STAMP=""   # tracker.json not in HEAD at all
+  HEAD_STAMP=""
 fi
 
 BLOB=$(git rev-parse --verify --quiet "HEAD:docs/migration/{app}/{page}/gate-tree/{gate}.tsv" || true)
 ```
 
-**`jq` is required and this gate fails CLOSED on any read it cannot complete.** The reads pass
-identifiers as `--arg` data, never interpolated into the program (a page name with a `"` or `\` would
-otherwise build a malformed filter). The carve-out below keys on a stamp being *genuinely absent*, so
-it must never be reached by a read that merely *failed*: `jq` missing, `jq` too old for the filter, or
-a malformed `tracker.json` would all yield an empty string while `BLOB` still resolves from `git`, and
-treating that as "no stamp" would silently skip the check and ship the exact PR #330 defect. So an
-absent `jq` and any non-zero read exit are a **block** — report and stop; only a *successful* read that
-returns `""` counts as empty for the carve-out. (The plugin's advisory readers,
-`session-init.sh`/`check-staleness.sh`, skip loudly when `jq` is missing; a hard gate on an
-irreversible step skipping would be fail-open, so this one blocks instead — the one trade is that a
-grandfathered page with no stamp, on a `jq`-less host, also blocks until `jq` is installed rather than
-proceeding; a cheap, recoverable false-block chosen over a catastrophic false pass.)
+**`jq` is required and this gate fails CLOSED on any read it cannot complete.** Identifiers are
+passed as `--arg` data, never interpolated into the program. The carve-out below keys on a stamp
+being *genuinely absent*, and a read that merely *failed* (`jq` missing or too old, malformed
+`tracker.json`, an unreadable HEAD) would look the same while `BLOB` still resolves — so every such
+failure is a block, unlike the plugin's advisory `jq` readers, which skip loudly. The one trade: a
+page with no stamp on a `jq`-less host blocks until `jq` is installed.
 
-Judge in this order — each block is a mechanical evidence defect, **not** a stale gate and **not** a
-re-run: the page's code is unchanged and the live recompute below would pass. Recovery is cheap
-(re-stage / commit the evidence, no code or gate re-run); do not flip until it clears.
+Run this for **all three gates** (`verify`, `e2e`, `parity`), whether or not the working-tree
+`tracker.json` carries a record for it — a record dropped from the working tree while HEAD still has
+one is a disagreement, and iterating the working tree's records would never see it. Judge in this
+order. Each block is an evidence defect, not a gate verdict: the live recompute has not run yet, so
+say nothing about it.
 
-Run this per gate that carries a `gateEvidence.{gate}` record at all — including one recorded without
-a `tree` — so the carve-out below is actually reachable (do not inherit the live recompute's
-"has a `tree`" filter, or the no-stamp case never gets here).
+- **`WT_STAMP` empty AND `HEAD_STAMP` empty** → no stamp anywhere: nothing to enforce; fall through
+  to the existing unverifiable path below. This is the ONLY skip.
+- **`WT_STAMP` != `HEAD_STAMP`** (one side empty counts) → the working tree carries an uncommitted
+  change to this page's stamp. **Block.** Which side is current is not decidable from the trees — a
+  gate re-run since the last commit is newer than HEAD, a reverted or hand-merged tracker is older —
+  and only the operator knows which happened: after a re-run, commit the staged pair it left
+  (manifest + `tracker.json`); otherwise restore `tracker.json` from HEAD. Then re-check.
+- **`BLOB` empty** → the manifest is not in HEAD. **Block.** If PR1 is merged, this checkout is
+  behind — check out the commit that carries it; otherwise regenerate (below).
+- **`BLOB` != `HEAD_STAMP`** → the committed manifest and the committed stamp disagree — the PR #330
+  git-add miss. **Block**; regenerate.
+- **`BLOB` == `HEAD_STAMP`** (and the stamps agree) → self-consistent. Continue to the live recompute.
 
-- **`WT_STAMP` empty AND `HEAD_STAMP` empty** (both reads succeeded per the guard above) → the gate has
-  no stamp anywhere. There is nothing to contradict; skip this check and fall through to the existing
-  unverifiable path below (a page verified before these fields existed). This is the ONLY skip — a
-  stamp present in either tree means there is evidence to enforce, and a *failed* read is never empty
-  here (it blocked above).
-- **`HEAD_STAMP` empty but `WT_STAMP` present** → the stamp is in the working tree's `tracker.json`
-  but was never committed. This is the mirror of the manifest miss: staging the manifest without its
-  stamp. **Block** — commit the `gateEvidence.{gate}` record in the same commit as the manifest.
-- **`WT_STAMP` != `HEAD_STAMP`** → the stamp was re-recorded in the working tree but that change is
-  not committed; the two trees disagree on what the evidence is. **Block** — commit the current
-  `tracker.json`, then re-check (both halves of Step 1a must judge the same committed stamp).
-- **`BLOB` empty** (the manifest path is not in HEAD) → the committed evidence is missing its
-  manifest. **Block**, and name the two causes so the operator picks the right fix: if PR1 (the code
-  PR that carries the manifest) is merged, this checkout is simply behind — check out the branch/
-  commit that includes it; if it was never committed, commit the manifest in the same commit as the
-  stamp. (Do not weaken this to a pass — a missing committed manifest is exactly the ship-nothing
-  case this check exists for.)
-- **`BLOB` != `HEAD_STAMP`** → the committed manifest and the committed stamp disagree. Under the
-  precondition below (no byte-altering attribute on this subtree) this has exactly one cause: a git-add
-  miss — the stamp was re-recorded while the manifest was left at the previous run (the PR #330 case).
-  **Block** — `git add` the current manifest and commit it in the SAME commit as the stamp, then
-  re-check. This recurs on every re-stamp, because a re-stamp rewrites the file — see the prevention
-  note in the gate skills' Record step (fm-verify Step 6, fm-e2e/fm-parity Step 4). Do NOT try to
-  decide "stale vs filter" by re-hashing the manifest: once committed, a clean filter has already
-  mangled the blob and the working-tree copy may be a dirty re-promote, so no hash of either side is a
-  reliable arbiter. Instead let the recovery self-diagnose: **if the mismatch persists after you have
-  committed the exact current manifest**, the cause is not a stale manifest but a content-altering
-  `gitattributes` filter violating the precondition — run `git check-attr filter text eol -- <path>
-  <path>.tmp` across every layer (in-repo, parent dirs, `.git/info/attributes`, global
-  `core.attributesFile`), remove the offending attribute on the gate-tree subtree, and re-stamp. The
-  ordinary fix clears a real miss in one commit; only a precondition violation survives it, which is
-  the signal.
-- **`BLOB` == `HEAD_STAMP`** (and the stamp checks above passed) → the committed evidence is
-  self-consistent. Continue to the live recompute.
+**Recovery — regenerate; never re-hash or re-commit what is on disk.** The working-tree manifest is
+not a trustworthy copy of the stamped one (a fresh clone holds the committed one; a re-stamp may have
+rewritten it), so re-committing it can leave the block in place while proving nothing. The script is
+the only arbiter:
 
-**Precondition — no content-altering filter anywhere the manifest bytes are hashed.** This identity
-holds only if `git`'s stored blob of `gate-tree/{gate}.tsv` is byte-identical to what the gate hashed.
-`git hash-object <path>` applies that path's `gitattributes` (clean filter, eol) by default, and the
-gate hashes the stamp from `$MAN.tmp` (a `.tsv.tmp` path) while `BLOB` is the committed `.tsv` blob and
-the freshness aggregate is computed unfiltered (`--stdin`, no path). So a content-altering filter or
-eol rule matching **either** the `.tsv` path (breaks `BLOB` vs stamp) **or** the `.tsv.tmp` path
-(breaks the stamp vs both the committed blob and the freshness aggregate — the base identity the whole
-design rests on) would false-block a fully consistent pipeline. The rule can live in **any** attributes
-layer — in-repo `.gitattributes` (`*.tsv`, `*.tmp`, a broad `docs/**`), a parent directory's,
-`.git/info/attributes`, or a global `core.attributesFile` — and `core.autocrlf` has the same effect.
-These manifests are plain evidence under `docs/`; keep that whole subtree (the `.tsv` and its
-`.tsv.tmp` sibling) free of content-altering attributes. A slip is diagnosable, not just aspirational:
-as the `BLOB != HEAD_STAMP` block above describes, a violation is the case that survives re-committing
-the exact current manifest, and `git check-attr filter text eol -- <path> <path>.tmp` then names the
-offending attribute across every layer (in-repo, parent dirs, `.git/info/attributes`, global
-`core.attributesFile`). A declared `text=auto`/`eol=lf` that leaves the LF manifest's bytes unchanged
-is not a violation and will not survive that re-commit.
+```sh
+REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/{gate}.tsv"
+{pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>... > "$MAN.tmp"
+git hash-object --no-filters -- "$MAN.tmp"
+```
+
+The hash equals the stamp iff the watch paths have not moved since the gate ran. Equal: promote
+(`mv "$MAN.tmp" "$MAN"`), commit the manifest, re-check. Not equal: discard `"$MAN.tmp"` — the page
+moved since the gate ran, and the remedy is the chain from `fm-verify`, exactly as for a stale live
+recompute below. A mismatch that survives a re-committed regeneration is a content-altering
+`gitattributes` rule (clean filter / eol) on `gate-tree/*.tsv` — `git add` then stores a different
+blob than the gate hashed, and this check false-blocks a consistent pipeline. Keep that subtree free
+of such rules in every attributes layer; `git check-attr filter text eol -- <path>` names the offender.
 
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 

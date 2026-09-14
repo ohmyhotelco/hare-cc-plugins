@@ -804,28 +804,16 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     directory first) and pass that repo-relative path back as `--exclude`. Write it to a temp file
     and promote it only when the pass records — on a pre-run/record-time mismatch the previous
     manifest must survive, or the recorded `tree` and the on-disk file list describe different
-    trees. Derive the record-time `tree` from that same temp file (`git hash-object -- "$MAN.tmp"`
-    — the script's aggregate is by construction the hash of its records), never from a second
-    script execution, which could straddle a change and record a hash the manifest does not
-    describe. The redirect target must
-    be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
-  - **The manifest and its stamp are one piece of evidence and ship in the SAME commit.** The stamp
-    lives in `tracker.json` (`gateEvidence.{gate}.tree`) and the manifest under
-    `docs/migration/{app}/{page}/gate-tree/{gate}.tsv`; by construction the stamp IS
-    `git hash-object` of that manifest, so what ships in HEAD must reproduce it. Gate skills stage the
-    manifest right after promoting (`git add "$MAN"`), and `fm-route` Step 1a — before the live
-    recompute — enforces committed-vs-committed integrity in both directions: the stamp read from
-    HEAD's `tracker.json` must be present and equal the working-tree stamp (else the stamp is
-    uncommitted), the committed manifest blob (`git rev-parse HEAD:…/gate-tree/{gate}.tsv`) must be
-    present (else the manifest is uncommitted or the checkout is behind a merged PR1) and equal that
-    stamp (else the two contradict — the PR #330 git-add miss). The live recompute cannot see any of
-    this: the source did not move, so it passes. A gate with no stamp in either tree is the sole
-    carve-out (unverifiable, no evidence to enforce); because that carve-out keys on empty reads, the
-    check requires `jq` and **fails closed** when it is absent (a hard gate must not skip silently, unlike
-    the plugin's advisory `jq` readers). Precondition: neither the manifest path nor its `.tsv.tmp`
-    sibling carries a content-altering `gitattributes` filter (clean/eol) — they are plain evidence, and
-    a `*.tsv`/`*.tmp`/`docs/**` normalization would make the committed blob, the stamp, and the
-    unfiltered freshness aggregate disagree on a consistent pipeline.
+    trees. Derive the record-time `tree` from that same temp file
+    (`git hash-object --no-filters -- "$MAN.tmp"` — the script's aggregate is by construction the
+    hash of its records), never from a second script execution, which could straddle a change and
+    record a hash the manifest does not describe. The redirect target must be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
+  - **The manifest and its stamp are one piece of evidence: both in HEAD, and equal.** The stamp is
+    `git hash-object --no-filters` of the manifest by construction, so the committed blob must
+    reproduce it. Gate skills stage both with the pass; `fm-route` Step 1a enforces it before the
+    live recompute (which cannot see it — the source did not move), requires `jq`, fails closed on
+    any unreadable evidence, and recovers by regenerating the manifest, never by re-committing the
+    on-disk copy. Precondition: no content-altering `gitattributes` rule on `gate-tree/*.tsv`.
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`

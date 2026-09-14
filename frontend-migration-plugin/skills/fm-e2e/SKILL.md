@@ -36,7 +36,7 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 
 ### Step 3: Run the gate
 Before launching the runner, compute the **pre-run** manifest and `tree` hash — one `--manifest`
-execution saved to a temp pre-run manifest, hash via `git hash-object` (the same one-execution
+execution saved to a temp pre-run manifest, hash via `git hash-object --no-filters` (the same one-execution
 rule as Step 4), over the same watch-path union. Step 4 compares against both: this gate
 legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
 (CLAUDE.md → Gate Result Accounting E).
@@ -78,7 +78,7 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   mkdir -p "$(dirname "$MAN")"
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN.tmp"
-  TREE=$(git hash-object -- "$MAN.tmp")
+  TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
 
   **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
@@ -100,19 +100,18 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   (`e2e-report.json` — a report without the field cannot support this comparison: treat the run as
   unverifiable and re-run). Any **other** difference means the watch paths
   moved while the gate ran — record **no pass**, leave the status unchanged, discard the temp
-  manifests, and say to re-run. Only when the pass is recorded, promote the manifest
-  (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
-  recorded `tree` with a file list from a different tree.
+  manifests, and say to re-run. Only when the pass is recorded, promote the manifest — an overwritten
+  manifest beside a refused pass would pair the old recorded `tree` with a file list from a
+  different tree — and stage it with the tracker: the two are one piece of evidence, and
+  `fm-route` Step 1a blocks unless both are in HEAD and agree:
+
+  ```sh
+  REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/e2e.tsv"
+  mv "$MAN.tmp" "$MAN" && git add -- "$MAN" "$REPO/docs/migration/tracker.json"
+  ```
+
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
-
-  **Then stage the promoted manifest so it ships with its stamp.** Run `git add "$MAN"` now. The
-  manifest and the `gateEvidence.e2e` stamp in `tracker.json` are one piece of evidence and must
-  land in the SAME commit — `fm-route` Step 1a blocks the flip if either is missing from HEAD, or if
-  the committed manifest does not match the committed stamp. The manifest is derived evidence under
-  `docs/`, easy to leave unstaged while `tracker.json` is committed (and the reverse is just as easy);
-  writing to the working tree is not the same as committing evidence, and this recurs on every
-  re-stamp because a re-stamp rewrites the manifest.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
