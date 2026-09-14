@@ -239,10 +239,11 @@ When Step 1 had to draft its own Proposed Solution:
 Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 
 ```
-Skill(skill: "be-crud", args: "{EntityName} field1:Type1 field2:Type2 ...")
+Skill(skill: "be-crud", args: "{EntityName} field1:Type1 field2:Type2 ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
-- Do not let this ask for domain or data profile -- both were already
+- `--domain` and `--profile` are the answers `be-crud` would otherwise ask
+  for; passing them is what keeps this run unattended -- both were already
   decided in Step 1. If `config.dataProfile == "both"` and the skill still
   prompts, answer with the value decided in Step 1 (default `r2dbc` unless
   Step 1 found a reason to match an existing `mybatis` module).

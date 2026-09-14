@@ -1,7 +1,7 @@
 ---
 name: be-crud
 description: "Generate CRUD scaffold for an entity using CQRS layered architecture (R2DBC or MyBatis, functional or annotated web layer)."
-argument-hint: "<EntityName> [field:Type ...] | --all <feature-name>"
+argument-hint: "<EntityName> [field:Type ...] [--domain <domain>] [--profile r2dbc|mybatis] | --all <feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Bash
 ---
@@ -187,7 +187,8 @@ If no fields are provided, ask the user:
 > "Example: `email:String displayName:String status:String`"
 > "Standard fields (`sequence`, `id`, `createdAt`, `updatedAt`) are added automatically."
 
-If `config.dataProfile == "both"` and this is a new entity (no existing module to match), ask:
+If `config.dataProfile == "both"` and this is a new entity (no existing module to match), use
+`--profile` when given (an unattended caller such as `be-jira-auto` passes it); otherwise ask:
 > "Data profile for `{EntityName}`? `r2dbc` (default, simplest reactive path) or `mybatis` (match an existing MyBatis-based module's conventions / complex queries)."
 > Default to `r2dbc` if the user does not answer.
 
@@ -212,7 +213,8 @@ Do not ask the user for fields — they are already defined in the plan.
 
 #### Manual mode
 
-Ask the user which domain this entity belongs to:
+Use `--domain` when given (an unattended caller such as `be-jira-auto` passes it); otherwise ask
+the user which domain this entity belongs to:
 > "Which domain does `{EntityName}` belong to? (e.g., `hr`, `leave`, `attendance`)"
 
 #### Spec-driven mode
@@ -253,6 +255,14 @@ If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 
 ### Step 3: Read Templates
 
+**Precondition — the project exists.** This skill writes sources and a migration *into* a Spring
+Boot WebFlux project; it generates no build file, wrapper or application class. Before reading
+templates, confirm `build.gradle.kts`/`build.gradle` declares what the entity's profile compiles
+against — `spring-boot-starter-webflux`, `com.github.f4b6a3:uuid-creator`, and for `r2dbc`:
+`spring-boot-starter-data-r2dbc` + `io.asyncer:r2dbc-mysql`; for `mybatis`:
+`mybatis-spring-boot-starter` + `mysql-connector-j`. Anything missing → **stop** and print the
+dependency lines to add, rather than generating sources that cannot compile.
+
 Read these templates for code patterns:
 - `templates/cqrs-module.md` — package layout, and pointers to the profile/web-layer files below
 - `templates/entity-conventions.md` — shared DTO/exception/validator conventions
@@ -287,9 +297,9 @@ File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sq
 
 **R2DBC**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — `@Table`/`@Column`-annotated class per `templates/entity-conventions-r2dbc.md` Entity Template.
 
-**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler).
+**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler) and the `mybatis.mapper-locations: classpath:mapper/**/*.xml` entry in `application.yml` (without it the XML is never loaded — see the template).
 
-Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`.
+Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`; otherwise emit a plain getter and setter per field — the executors and processors call `getId()`/`setEmail()`/…, so private fields alone do not compile.
 
 #### 3. Repository (R2DBC only)
 

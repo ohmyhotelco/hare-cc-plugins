@@ -27,8 +27,13 @@ public record EmployeeController(
     }
 
     @GetMapping("/hr/employees/{id}")
-    public Mono<EmployeeView> find(@PathVariable UUID id) {
-        return findProcessor.process(new FindEmployee(id));
+    public Mono<ResponseEntity<EmployeeView>> find(@PathVariable UUID id) {
+        // The processor's empty Mono is the not-found signal; a bare Mono<EmployeeView> would
+        // answer 200 with an empty body. The status depends on the async result, so the
+        // ResponseEntity form is the one Spring documents for it.
+        return findProcessor.process(new FindEmployee(id))
+            .map(ResponseEntity::ok)
+            .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     @ExceptionHandler(DuplicateEmailException.class)

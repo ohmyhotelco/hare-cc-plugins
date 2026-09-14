@@ -27,15 +27,13 @@ Set up the Backend WebFlux Plugin configuration for this project.
 
 Scan the project to detect settings automatically:
 
-1. **Build tool**: Look for `build.gradle.kts` (gradle-kotlin), `build.gradle` (gradle-groovy), or `pom.xml` (maven)
+1. **Build tool**: Look for `build.gradle.kts` (gradle-kotlin) or `build.gradle` (gradle-groovy). A `pom.xml` with neither → **stop, write no config**: every gate row in this plugin is a Gradle task (`classes`, `checkstyleMain`, `jacocoTestReport`, `--tests`), so a Maven project would be configured "successfully" and fail every gate — say so and stop.
 2. **Java version**: Parse whichever build file was detected in item 1:
    - `build.gradle.kts` (gradle-kotlin): `java.toolchain.languageVersion` or `sourceCompatibility`
    - `build.gradle` (gradle-groovy): same keys, Groovy syntax (`sourceCompatibility = '21'` or `languageVersion = JavaLanguageVersion.of(21)`)
-   - `pom.xml` (maven): `<properties><java.version>` or `<maven.compiler.release>`
    - If the field can't be parsed from the detected build file, leave it undetected — do not guess a version from an unrelated file.
 3. **Spring Boot version**: Parse whichever build file was detected in item 1:
    - `build.gradle.kts` / `build.gradle`: the `org.springframework.boot` entry in the plugins block
-   - `pom.xml`: the `<parent><artifactId>spring-boot-starter-parent</artifactId><version>` value, or the `spring-boot.version` property if the project doesn't use the starter parent
    - If the field can't be parsed from the detected build file, leave it undetected — do not guess a version from an unrelated file.
 4. **Base package**: Find the first directory level under `src/main/java/` that contains `.java` files
 5. **Data profile**: Check dependencies for `spring-boot-starter-data-r2dbc` (→ `r2dbc` present) and `mybatis-spring-boot-starter` (→ `mybatis` present). Both present → `"both"`. Only one present → that profile. Neither present → default `"both"` (plugin default, see `docs/decisions.md` Decision 1)
@@ -48,8 +46,9 @@ Scan the project to detect settings automatically:
 9. **Checkstyle**: Check if `checkstyle` plugin is applied in build file
 10. **Coverage**: Check if `jacoco` plugin is applied (default: enabled regardless, since this plugin's gate always reports it — see `templates/coverage-gate.md`)
 11. **Lombok**: Check if `lombok` is in dependencies
-12. **Build command**: Default to `./gradlew build` for Gradle, `mvn package` for Maven
-13. **Test command**: Default to `./gradlew test` for Gradle, `mvn test` for Maven
+12. **Gradle command**: `./gradlew` when the wrapper exists, else `gradle` — the invocation every task-level gate row (`classes`, `checkstyleMain`, `jacocoTestReport`, `--tests`) is built on. Appending a task to the *build* command would run the full `build` every time and misattribute one failure to every row
+13. **Build command**: `{gradleCommand} build`
+14. **Test command**: `{gradleCommand} test`
 
 ### Step 3: Confirm with User
 
@@ -111,8 +110,13 @@ The user replies "looks good" → proceed to Step 4 with these values as-is.
 no detected value. Present the plugin defaults explicitly instead of leaving fields
 blank, and say so:
 
-> "No `build.gradle.kts`, `build.gradle`, or `pom.xml` found — this looks like a new
-> project. Using plugin defaults below; correct any that don't match your plan:"
+> "No `build.gradle.kts` or `build.gradle` found — this looks like a new project. Using
+> plugin defaults below; correct any that don't match your plan. Note: `be-crud` scaffolds
+> **into** an existing Spring Boot WebFlux project — it writes sources and a migration, not
+> a build file, wrapper or application class. Create the project first (Spring Initializr:
+> WebFlux + the starters for your data profile — `spring-boot-starter-data-r2dbc` +
+> `io.asyncer:r2dbc-mysql`, and/or `mybatis-spring-boot-starter` + `mysql-connector-j` —
+> plus `com.github.f4b6a3:uuid-creator`), then run `be-crud`:"
 > ```
 > Java Version:      21 (default, undetected)
 > Spring Boot:       4.0.2 (default, undetected)
@@ -140,6 +144,7 @@ Write `.claude/backend-webflux-plugin.json`:
   "javaVersion": "{value}",
   "springBootVersion": "{value}",
   "buildTool": "{value}",
+  "gradleCommand": "{value}",
   "buildCommand": "{value}",
   "testCommand": "{value}",
   "basePackage": "{value}",

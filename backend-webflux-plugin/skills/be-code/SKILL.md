@@ -65,7 +65,7 @@ If the argument is a feature name (not a file path):
      - Check if `{workDocDir}/{kebab-case-entity}.md` exists
      - If exists: extract `- [ ]` scenarios
      - If not exists: mark for auto-generation in Step 3
-   - **Multi-entity iteration**: Steps 3 through 3.7 execute once (scenarios, lock, pipeline init for all entities). Steps 4 through 6 (the TDD cycle, build, and report) then execute once for the whole batch, not per entity — see Step 4's "Multi-entity batching" note. Step 7 (pipeline-state bookkeeping) still executes per entity in dependency order.
+   - **Multi-entity iteration**: Steps 3 through 3.7 execute once (scenarios, lock, the per-entity demotion check in Step 3.6a, pipeline init for the confirmed entities). Steps 4 through 6 (the TDD cycle, build, and report) then execute once for the whole batch, not per entity — see Step 4's "Multi-entity batching" note. Step 7 (pipeline-state bookkeeping) still executes per entity in dependency order.
 4. If the argument is a feature name and not `planAvailable`:
    - First, check if `{workDocDir}/{feature-name}.md` exists
      - If found: treat it as the work document — read it, extract `- [ ]` scenarios, and skip to Step 3.5 (same as file path mode)
@@ -145,7 +145,7 @@ Follow the original manual flow:
    > "Continue?"
    If the user declines, stop here.
 
-**Multi-entity mode**: Skip this step here. Demotion check is performed per-entity at the start of Step 4, before the single batched `implement` agent call.
+**Multi-entity mode**: Skip this step here. The demotion check is performed per-entity in Step 3.6a, after the lock and before Step 3.7 writes any progress file.
 
 ### Step 3.6: Acquire Lock
 
@@ -155,6 +155,24 @@ Follow the original manual flow:
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature-name}" }`
 
 **Multi-entity mode**: The lock is acquired once here and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.
+
+### Step 3.6a: Per-entity Demotion Check
+
+Multi-entity mode only (single-entity runs did this in Step 3.5). Before Step 3.7 writes any
+progress file, loop over every entity in
+`entityDependencyOrder` and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
+1. If it exists, read `pipeline.status`
+2. If status is `"verified"`, `"reviewed"`, `"done"`, `"fixing"`, or `"escalated"`: warn the user (same messages as Step 3.5) and ask for confirmation for this entity
+3. If the user declines for a specific entity: leave it out of the batch and proceed to the next entity's check
+
+Build `confirmedEntities` from every entity that was not declined, in dependency
+order. If `confirmedEntities` ends up empty, do not launch the implement agent and
+do not run Step 5's build (there is nothing new to build) — go directly to Step 6
+and produce its combined report with an empty "Entities implemented" list and the
+full "Entities skipped" list (Step 6's own format already covers this; do not skip
+Step 6 itself, since it is the only step that renders that report). Step 7 then
+runs with an empty `confirmedEntities` loop — it has nothing to update, so it just
+releases the lock.
 
 ### Step 3.7: Initialize Pipeline State
 
@@ -176,10 +194,10 @@ For each entity being processed, create or update `{workDocDir}/.progress/{kebab
    ```
 3. If progress file exists: **read-modify-write** — update only `pipeline.status` to `"implementing"` and refresh scenario counts. **Preserve all existing fields** including `specSource`, `pipeline.verification`, `pipeline.review`, etc.
 
-**Multi-entity mode: run Step 4's per-entity demotion check first, and initialize only the
-entities it confirmed.** This step writes `"implementing"`; a check that runs after it reads the
-status it just wrote, never warns, and a `done`/`verified` entity is demoted without the consent
-CLAUDE.md § Demotion Warning requires. An entity the user declined keeps its progress file untouched.
+**Multi-entity mode: initialize only the entities Step 3.6a confirmed.** This step writes
+`"implementing"`; a check that ran after it would read the status it just wrote, never warn, and
+demote a `done`/`verified` entity without the consent CLAUDE.md § Demotion Warning requires. An
+entity the user declined keeps its progress file untouched.
 
 ### Step 4: TDD Cycle
 
@@ -189,22 +207,6 @@ separate `implement` agent per entity repeats that agent's own Phase 0 context l
 (conventions, templates) for no benefit, since it never changes across entities in
 the same run. Step 7 (pipeline-state bookkeeping) still runs per entity, since each
 entity has its own progress file.
-
-**Per-entity demotion check (multi-entity mode only)**: Before Step 3.7 writes any
-progress file (and so before the implement agent launches), loop over every entity in
-`entityDependencyOrder` and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
-1. If it exists, read `pipeline.status`
-2. If status is `"verified"`, `"reviewed"`, `"done"`, `"fixing"`, or `"escalated"`: warn the user (same messages as Step 3.5) and ask for confirmation for this entity
-3. If the user declines for a specific entity: leave it out of the batch and proceed to the next entity's check
-
-Build `confirmedEntities` from every entity that was not declined, in dependency
-order. If `confirmedEntities` ends up empty, do not launch the implement agent and
-do not run Step 5's build (there is nothing new to build) — go directly to Step 6
-and produce its combined report with an empty "Entities implemented" list and the
-full "Entities skipped" list (Step 6's own format already covers this; do not skip
-Step 6 itself, since it is the only step that renders that report). Step 7 then
-runs with an empty `confirmedEntities` loop — it has nothing to update, so it just
-releases the lock.
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 

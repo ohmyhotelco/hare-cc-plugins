@@ -5,6 +5,7 @@ import com.example.employee.query.GetEmployeePage;
 import com.example.employee.view.EmployeeView;
 import com.example.employee.view.PageCarrier;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Mono;
 
@@ -14,7 +15,7 @@ public record GetEmployeePageQueryProcessor(
 ) {
 
     public Mono<PageCarrier<EmployeeView>> process(GetEmployeePage query) {
-        var pageable = PageRequest.of(query.page(), query.size());
+        var pageable = PageRequest.of(query.page(), query.size(), Sort.by("sequence"));
         return employeeRepository.findAllBy(pageable)
             .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()))
             .collectList()

@@ -29,7 +29,7 @@ dependencies {
     // archived dev.miku driver). Not used at runtime by this sample (H2 in-memory is
     // used so the sample runs without an external MySQL instance) but included so the
     // generated build reflects the real production dependency this plugin always pins.
-    runtimeOnly("io.asyncer:r2dbc-mysql:1.1.3")
+    runtimeOnly("io.asyncer:r2dbc-mysql:1.4.3")
 
     // Sample-only runtime database: H2 R2DBC in-memory, so `./gradlew test` and
     // `./gradlew bootRun` work with zero external services; H2 runs in MySQL mode and boots

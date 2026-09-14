@@ -13,6 +13,12 @@ INPUT=$(cat)
 FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""')
 [ -n "$FILE_PATH" ] || exit 0
 
+# A PostToolUse hook's plain stdout goes to the transcript/debug log only — Claude never sees it.
+# The one channel that reaches the model is the JSON `hookSpecificOutput.additionalContext` field.
+nudge() {
+  jq -n --arg m "$1" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $m}}'
+}
+
 # Check if a Java source or build file was modified
 case "$FILE_PATH" in
   *.java)
@@ -20,10 +26,10 @@ case "$FILE_PATH" in
     # Build validation is deferred to be-verify/be-build to avoid noise on every edit.
     ;;
   *build.gradle*|*settings.gradle*)
-    echo "[Backend Plugin] Build config changed. Run /backend-webflux-plugin:be-build to validate."
+    nudge "[Backend Plugin] Build config changed. Run /backend-webflux-plugin:be-build to validate."
     ;;
   *resources/migration*)
-    echo "[Backend Plugin] Migration file changed. Run /backend-webflux-plugin:be-build to validate schema."
+    nudge "[Backend Plugin] Migration file changed. Run /backend-webflux-plugin:be-build to validate schema."
     ;;
   *)
     # Non-Java file, skip

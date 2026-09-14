@@ -69,7 +69,7 @@ For each hypothesis (starting with most likely):
 2. **Run verification**:
    - If test failure: run the failing test class
    - If build error: run the build
-   - If compilation: run `{buildCommand} classes`
+   - If compilation: run `{gradleCommand} classes` (`config.gradleCommand`; absent → `./gradlew`)
 3. **Check result**:
    - If verification passes: proceed to Phase 4 (Confirm)
    - If verification fails: **revert the change** and try the next hypothesis

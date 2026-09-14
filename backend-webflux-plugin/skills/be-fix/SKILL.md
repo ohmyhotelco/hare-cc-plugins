@@ -117,7 +117,7 @@ The agent's classification reasoning per issue is preserved in `fix-report.json`
 
 ### Step 5: Display Fix Report
 
-**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check that `summary.total` equals the issue count computed in Step 2. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, and stop before Step 6 — do not update pipeline state (Step 6) from a report you could not verify.
+**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check that `summary.total` equals the issue count computed in Step 2. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
 
 Show results in the working language:
 
@@ -209,7 +209,7 @@ Given this excerpt from `review-report-employee-create.json` (Step 1):
 {
   "summary": { "critical": 1, "warning": 1, "suggestion": 0, "totalIssues": 2 },
   "dimensions": {
-    "jpa_patterns": { "issues": [
+    "data_layer": { "issues": [
       { "severity": "critical",
         "file": "src/main/java/.../CreateEmployeeCommandExecutor.java", "line": 28,
         "message": "No validation that email is unique before insert",
@@ -230,7 +230,7 @@ Step 2 computes: Critical 1, Warning 1, Suggestion 0, total 2. `review-report.js
 ```json
 {
   "summary": { "total": 2, "fixed": 2, "alreadyResolved": 0, "escalated": 0, "tddCount": 1, "directCount": 1 },
-  "tddFixes": [{ "issueId": "jpa_patterns-0", "implementation": "Added email-uniqueness check + DuplicateEmailException before insert" }],
+  "tddFixes": [{ "issueId": "data_layer-0", "implementation": "Added email-uniqueness check + DuplicateEmailException before insert" }],
   "directFixes": [{ "issueId": "logging-0", "change": "Replaced + with {} placeholder" }],
   "verification": { "compilation": "pass", "checkstyle": "pass", "tests": "pass (18/18)", "build": "pass" }
 }

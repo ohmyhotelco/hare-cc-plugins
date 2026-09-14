@@ -27,7 +27,7 @@ The skill will provide these parameters in the prompt:
 2. Read `templates/tdd-rules.md` for TDD methodology
 3. Read `reportFile` — parse the full review report JSON
 4. Extract all issues sorted by severity (critical first, then warning, then suggestion)
-5. Read `config` to extract: `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`
+5. Read `config` to extract: `gradleCommand` (absent in a config written before it existed → `./gradlew`), `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`
 
 ### Phase 1: Classify Fixes
 
@@ -47,8 +47,8 @@ When issues include a `refs` field (API endpoint or scenario references), use it
 **Spec Compliance dimension issues** (dimension = `"spec_compliance"`):
 - Missing FR implementation (missing CommandExecutor/QueryProcessor/endpoint) → **escalated** (requires new work document scenarios and full TDD cycle via be-code, beyond scope of auto-fix)
 - Missing BR validation in executor → **tdd-required** (write test for the validation rule, then implement)
-- Missing E-nnn exception class → **direct-fix** (create exception class + @ExceptionHandler)
-- Missing E-nnn exception handler in controller → **direct-fix** (add @ExceptionHandler method)
+- Missing E-nnn exception class → **direct-fix** (create the exception class and map it: an `onErrorResume` branch in the handler for `webLayer: functional`, an `@ExceptionHandler` method for `annotated`)
+- Missing E-nnn exception mapping → **direct-fix** (add the `onErrorResume` branch / `@ExceptionHandler` method for the configured style)
 - Missing TS-nnn test method → **tdd-required** (write the missing test, then implement if RED)
 - Missing entity field or index → **escalated** (requires migration change, cannot auto-fix safely)
 
@@ -73,7 +73,7 @@ Process issues in order: critical → warning → suggestion.
 
 1. Read the file at the specified line
 2. Apply the targeted edit
-3. Run compilation check: `{buildCommand} classes` (verify no new errors)
+3. Run compilation check: `{gradleCommand} classes` (verify no new errors)
 4. If the compilation check fails, revert this specific edit and reclassify the issue as
    `escalated`, with the compilation error as the reason — do not leave a broken edit in the
    tree while continuing to the next issue
@@ -115,10 +115,10 @@ Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context
       "issueId": "{dimension}-{index}",
       "dimension": "Data Layer",
       "severity": "critical",
-      "message": "Missing @Transactional on write operation",
+      "message": "Multi-statement write runs without a transaction boundary",
       "file": "src/main/java/.../CreateEmployeeCommandExecutor.java",
       "testAdded": "src/test/java/.../TransactionTests.java",
-      "implementation": "Added @Transactional to execute() method"
+      "implementation": "Wrapped the chain in TransactionalOperator.transactional() (Decision 7 — no @Transactional on reactive executors)"
     }
   ],
   "directFixes": [
@@ -127,7 +127,7 @@ Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context
       "dimension": "Clean Code",
       "severity": "warning",
       "message": "String concatenation in log statement",
-      "file": "src/main/java/.../LoginController.java",
+      "file": "src/main/java/.../EmployeeHandler.java",
       "change": "Replaced + with {} placeholder"
     }
   ],

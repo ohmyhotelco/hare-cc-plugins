@@ -10,44 +10,69 @@ plugins {
 }
 
 checkstyle {
-    toolVersion = "13.3.0"  // or latest
+    toolVersion = "10.20.2"   // what examples/employee-service pins and passes its gate with
     maxErrors = 0
     maxWarnings = 0
     configFile = file("config/checkstyle/checkstyle.xml")
 }
 ```
 
-## Key Rules
+## `config/checkstyle/checkstyle.xml`
 
-### Line Length
-- Maximum 100 characters per line
-- Applies to both code and comments
+This is the file `be-init`/`be-crud` scaffold and `be-verify` runs — the same one the sample project
+ships. What it enforces is exactly the module list below; `code-reviewer` Dimension 3 judges
+"checkstyle rules" against **this**, not against conventions the file does not carry.
 
-### Imports
-- Standard Java packages first (`java.*`, `javax.*`)
-- Third-party packages second
-- Static imports last
-- Alphabetically sorted within each group
-- No star imports (`*`) -- always import specific classes
+```xml
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<module name="Checker">
+    <property name="charset" value="UTF-8"/>
+    <property name="severity" value="error"/>
 
-### Naming Conventions
+    <module name="NewlineAtEndOfFile"/>
+    <module name="FileTabCharacter"/>
+    <module name="LineLength">
+        <property name="max" value="120"/>
+    </module>
+
+    <module name="TreeWalker">
+        <module name="UnusedImports"/>
+        <module name="AvoidStarImport"/>
+        <module name="RedundantImport"/>
+        <module name="WhitespaceAround">
+            <property name="tokens" value="ASSIGN, EQUAL, NOT_EQUAL"/>
+        </module>
+        <module name="ModifierOrder"/>
+    </module>
+</module>
+```
+
+## Enforced Rules (one per module above)
+
+| Module | Rule |
+|--------|------|
+| `LineLength` | Maximum **120** characters per line, code and comments alike |
+| `UnusedImports` / `RedundantImport` / `AvoidStarImport` | Every import used, none duplicated, no `*` imports |
+| `WhitespaceAround` | Spaces around `=`, `==`, `!=` |
+| `ModifierOrder` | JLS order: `public`, `protected`, `private`, `abstract`, `static`, `final`, `transient`, `volatile`, `synchronized`, `native`, `strictfp` |
+| `FileTabCharacter` | No tabs (4-space indentation) |
+| `NewlineAtEndOfFile` | File ends with a newline |
+
+## Conventions (followed by the templates, **not** enforced by the file above)
 
 | Element | Pattern | Example |
 |---------|---------|---------|
 | Package | `lowercase.separated.by.dots` | `com.example.hr` |
-| Type | `PascalCase` | `EmployeeController` |
-| Method | `camelCase` (`_` allowed in tests) | `findById`, `valid_request_returns_200` |
+| Type | `PascalCase` | `EmployeeHandler` |
+| Method | `camelCase` (`_` allowed in tests) | `findByExternalId`, `valid_request_returns_201_Created` |
 | Variable | `camelCase` | `employeeRepository` |
 | Constant | `UPPER_SNAKE_CASE` | `MAX_PAGE_SIZE` |
 
-### Formatting
-- 4-space indentation (no tabs)
-- No trailing whitespace
-- Newline at end of file
-- Braces on same line for classes, methods, and control structures
-
-### Modifiers
-- Correct order: `public`, `protected`, `private`, `abstract`, `static`, `final`, `transient`, `volatile`, `synchronized`, `native`, `strictfp`
+Imports grouped `java.*` → third-party → static, alphabetical within a group; braces on the same
+line. A reviewer may mention these as suggestions, never as checkstyle violations.
 
 ### Suppressions
 
@@ -67,10 +92,10 @@ Create `config/checkstyle/checkstyle-suppressions.xml` for legitimate exceptions
 
 | Violation | Fix |
 |-----------|-----|
-| `LineLength` | Break line at 100 chars, align continuation |
-| `UnusedImports` | Remove unused import statement |
+| `LineLength` | Break line at 120 chars, align continuation |
+| `UnusedImports` / `RedundantImport` | Remove the import |
 | `AvoidStarImport` | Replace `import java.util.*` with specific imports |
-| `MissingJavadocType` | Add Javadoc to public class/interface |
-| `ModifierOrder` | Reorder modifiers to standard sequence |
-| `WhitespaceAround` | Add space around operators and keywords |
-| `FinalNewline` | Add empty line at end of file |
+| `ModifierOrder` | Reorder modifiers to the JLS sequence |
+| `WhitespaceAround` | Add spaces around `=`, `==`, `!=` |
+| `FileTabCharacter` | Replace tabs with 4 spaces |
+| `NewlineAtEndOfFile` | Add a trailing newline |

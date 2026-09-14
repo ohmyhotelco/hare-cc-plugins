@@ -101,7 +101,14 @@ Run the test class:
 ```
 
 - **Expected**: test FAILS on assertion (not compilation)
-- **If test passes**: STOP. Report to user: "Test passed without implementation. This scenario may already be covered or the test is incorrect."
+- **If test passes against unchanged production code**: the scenario is already implemented — on a
+  `be-crud` scaffold that is the normal case for the standard create/list/find/409/400 scenarios, which
+  the generated executor, processors and handler satisfy before any TDD cycle. Do not stub the code
+  out to force a red, and do not stop: record the test (it is the scenario's regression pin), mark the
+  scenario `- [x]` with the note "covered by scaffold", and continue to the next scenario. STOP only
+  when the test passes for a reason you cannot name — an assertion that cannot fail, a test aimed at
+  the wrong method — and report: "Test passed without implementation and the scaffold does not
+  explain it: {test} — the test is likely incorrect."
 - **If compilation error**: fix the stub/signature, not the test
 
 #### Step 4: Implement (GREEN)

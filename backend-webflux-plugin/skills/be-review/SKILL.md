@@ -224,7 +224,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    - Verdict PASS with 0 issues → `"done"`
    - Verdict PASS with warnings/suggestions → `"reviewed"`
    - Verdict FAIL → `"review-failed"`
-4. Reset fix round counter: set `pipeline.fix.round` to `0` (clear stale round counter from previous review-fix cycles so that a new fix cycle starts fresh)
+4. Fix round counter: reset `pipeline.fix.round` to `0` **only when the verdict is PASS** — a FAIL keeps it, or `be-fix`'s round-3 guard (Step 3) can never trigger inside the review ↔ fix loop, since every review would zero what every fix incremented
 5. Write back (read-modify-write)
 
 If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock`.

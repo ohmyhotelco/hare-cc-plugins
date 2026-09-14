@@ -363,6 +363,16 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 ---
 
+### `/backend-webflux-plugin:be-jira-auto`
+
+**Syntax**: `/backend-webflux-plugin:be-jira-auto <JIRA-KEY>`
+
+Runs the whole chain from a Jira ticket — `be-crud` → `be-code` → `be-verify` → (`be-review` +
+`be-security`) → `be-fix` → `be-commit` — implementing the ticket's own Technical Approach when it
+states one, or drafting a Proposed Solution and stopping for confirmation when it does not. It is a
+skill rather than a subagent because the steps it drives launch agents, and a subagent cannot.
+Never pushes, opens a pull request, or touches the Jira issue.
+
 ### `/backend-webflux-plugin:be-recall`
 
 **Syntax**: `/backend-webflux-plugin:be-recall [section]`

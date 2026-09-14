@@ -34,7 +34,7 @@ public class Employee {
     @Column("updated_at")
     private LocalDateTime updatedAt;
 
-    // Lombok @Getter @Setter when lombokEnabled: true
+    // Lombok @Getter @Setter when lombokEnabled: true; plain getters/setters otherwise
 }
 ```
 
@@ -150,13 +150,27 @@ public record GetEmployeePageQueryProcessor(
     EmployeeRepository employeeRepository
 ) {
     public Mono<PageCarrier<EmployeeView>> process(GetEmployeePage query) {
-        var pageable = PageRequest.of(query.page(), query.size());
+        // Always sorted: without an ORDER BY a LIMIT/OFFSET page is not stable across
+        // requests, and a row can appear on two pages while another is never listed.
+        var pageable = PageRequest.of(query.page(), query.size(), Sort.by("sequence"));
         return employeeRepository.findAllBy(pageable)
             .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()))
             .collectList()
             .zipWith(employeeRepository.count())
             .map(tuple -> new PageCarrier<>(
                 tuple.getT1(), query.page(), query.size(), tuple.getT2()));
+    }
+}
+
+@Component
+public record FindEmployeeQueryProcessor(
+    EmployeeRepository employeeRepository
+) {
+    // findByExternalId, never findById: the latter is ReactiveCrudRepository's Long
+    // sequence-PK lookup. An empty Mono is the not-found signal the web layer maps to 404.
+    public Mono<EmployeeView> process(FindEmployee query) {
+        return employeeRepository.findByExternalId(query.id())
+            .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()));
     }
 }
 ```

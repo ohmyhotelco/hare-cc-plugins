@@ -44,13 +44,16 @@ If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` e
 If a feature argument was provided:
 
 1. Read the work document path from progress file (`workDocument` field)
-2. Compare modification times using the Bash tool, in ISO 8601 UTC on both sides:
-   - The work document's mtime: `date -u -Iseconds -r {workDocPath}` — `-r FILE` is the one
-     mtime form BSD (macOS) and GNU `date` share; `stat -c %Y` and `date -d` are GNU-only and
-     fail with `illegal option` on macOS
-   - The progress file's `updatedAt` as written (ISO 8601 UTC per `templates/progress-schema.md`)
-   - Compare the two strings: same format, same zone, so plain text order is time order. A
-     missing or unreadable mtime means the check is skipped, never assumed
+2. Compare modification times using the Bash tool, both reduced to `YYYY-MM-DDTHH:MM:SS` UTC:
+   - The work document's mtime: `date -u -r {workDocPath} +%Y-%m-%dT%H:%M:%S` — `-r FILE` is
+     the one mtime form BSD (macOS) and GNU `date` share; `stat -c %Y` and `date -d` are
+     GNU-only and fail with `illegal option` on macOS
+   - The progress file's `updatedAt`, first 19 characters (it is UTC per
+     `templates/progress-schema.md`; this drops a `Z`/`+00:00` suffix or fractional seconds, which
+     is why raw strings are never compared — `2026-…Z` and `2026-…+00:00` are the same instant and
+     different text)
+   - Compare the two 19-character strings: same format, same zone, so text order is time order;
+     equal means not stale. A missing or unreadable mtime means the check is skipped, never assumed
 3. If the work document is newer:
    > "Warning: Work document has been modified since last pipeline update ({updatedAt})."
    > "New or modified scenarios may not be reflected in the current code."
@@ -84,10 +87,14 @@ command timed out after 600000ms"` or `"verification tooling error: ./gradlew:
 command not found"`), and continue to the remaining steps per the "always run all
 steps" rule in Constraints.
 
+`{config.gradleCommand}` below is the wrapper (`./gradlew`); a config written before the key existed
+has none — use `./gradlew`. Never append a task to `buildCommand`: it already runs `build`, so every
+row would run the whole build and one failure would surface in all of them.
+
 #### 1.1: Compilation Check
 
 ```bash
-{config.buildCommand} classes testClasses 2>&1
+{config.gradleCommand} classes testClasses 2>&1
 ```
 
 - **Pass**: exit code 0, no `error:` lines
@@ -96,7 +103,7 @@ steps" rule in Constraints.
 #### 1.2: Checkstyle Check (if `config.checkstyle == true`)
 
 ```bash
-{config.buildCommand} checkstyleMain checkstyleTest 2>&1
+{config.gradleCommand} checkstyleMain checkstyleTest 2>&1
 ```
 
 - **Pass**: exit code 0, no violations
@@ -127,7 +134,7 @@ Note: Gradle caching ensures previously-passed tasks complete instantly. This st
 #### 1.5: Coverage Check (if `config.coverage == true`) — report-only, see `docs/decisions.md` Decision 6
 
 ```bash
-{config.buildCommand} jacocoTestReport 2>&1
+{config.gradleCommand} jacocoTestReport 2>&1
 ```
 
 - **Pass**: task completes successfully and `build/reports/jacoco/test/jacocoTestReport.xml` exists and is parseable
@@ -176,7 +183,7 @@ Failures:
     duplicate_email_returns_409_Conflict — expected 409 but was 500
 
   [Checkstyle] src/main/java/com/example/data/Employee.java:3
-    Line length exceeds 100 characters
+    Line length exceeds 120 characters
 
   [Coverage] jacocoTestReport task failed — see build/reports/jacoco/ for details
 ```
@@ -224,7 +231,7 @@ from Step 0.5 using `hotel-room.json`.
 
 Continuing the `create-employee` run above, suppose the work document was instead
 edited at `2026-08-19T15:10:00Z` — after `updatedAt` (`14:30:00Z`). Step 0.6 computes
-the mtime via `date -u -Iseconds -r`, compares it with `updatedAt` as ISO 8601 text,
+the mtime via `date -u -r … +%Y-%m-%dT%H:%M:%S`, compares it with `updatedAt`'s first 19 characters,
 finds the work document newer, and shows:
 
 > "Warning: Work document has been modified since last pipeline update (2026-08-19T14:30:00Z)."

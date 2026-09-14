@@ -47,7 +47,7 @@ R2DBC in the same system.
   support well
 - Database: configurable (default **MySQL 8.0.33** — not PostgreSQL; see
   `docs/decisions.md` Decision 4)
-- R2DBC MySQL driver: pin `io.asyncer:r2dbc-mysql:1.1.3` — never `dev.miku:*`
+- R2DBC MySQL driver: pin `io.asyncer:r2dbc-mysql:1.4.3` (the 1.4 line is the one that supports Spring Boot 4 / Spring Data R2DBC 4; 1.1.x predates it) — never `dev.miku:*`
   (archived; see `docs/decisions.md` Decision 5)
 - Migration: manual SQL files under `{resourcesDir}/migration/V{n}__{description}.sql`
   — no Flyway, no Liquibase (see `docs/decisions.md` Decision 3). Application of the

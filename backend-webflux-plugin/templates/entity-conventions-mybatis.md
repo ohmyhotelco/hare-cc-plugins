@@ -22,7 +22,7 @@ public class Employee {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Lombok @Getter @Setter when lombokEnabled: true
+    // Lombok @Getter @Setter when lombokEnabled: true; plain getters/setters otherwise
 }
 ```
 
@@ -73,7 +73,10 @@ collection as a critical issue — the fix is always "move to
 
 ## Mapper XML
 
-`src/main/resources/mapper/EmployeeMapper.xml`:
+`src/main/resources/mapper/EmployeeMapper.xml` — and `application.yml` must carry
+`mybatis.mapper-locations: classpath:mapper/**/*.xml`: the starter's default is empty, and on its own
+MyBatis looks only next to the interface's package path, so an unregistered XML surfaces as
+`BindingException: Invalid bound statement` on the first call, not at startup:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -229,6 +232,21 @@ public record GetEmployeePageQueryProcessor(
                 return new PageCarrier<>(views, query.page(), query.size(), total);
             })
             .subscribeOn(Schedulers.boundedElastic());
+    }
+}
+
+@Component
+public record FindEmployeeQueryProcessor(
+    EmployeeMapper employeeMapper
+) {
+    // The mapper's findById takes the external UUID (there is no Spring Data name clash in
+    // MyBatis). Mono.justOrEmpty turns a null row into the empty Mono the web layer maps to 404;
+    // the blocking call is offloaded like every other mapper call.
+    public Mono<EmployeeView> process(FindEmployee query) {
+        return Mono.fromCallable(() -> employeeMapper.findById(query.id()))
+            .subscribeOn(Schedulers.boundedElastic())
+            .flatMap(e -> Mono.justOrEmpty(e))
+            .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()));
     }
 }
 ```

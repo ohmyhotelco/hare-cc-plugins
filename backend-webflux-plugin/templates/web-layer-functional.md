@@ -11,7 +11,7 @@ public class EmployeeRouter {
     @Bean
     public RouterFunction<ServerResponse> employeeRoutes(EmployeeHandler handler) {
         return RouterFunctions.route()
-            .POST("/hr/employees", handler::create)
+            .POST("/hr/employees", RequestPredicates.accept(MediaType.APPLICATION_JSON), handler::create)
             .GET("/hr/employees", handler::list)
             .GET("/hr/employees/{id}", handler::find)
             .build();

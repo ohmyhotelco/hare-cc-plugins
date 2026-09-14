@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # pre-commit-check.sh - Pre-commit security verification
 #
@@ -30,6 +30,7 @@ SENSITIVE_PATTERNS=(
     "-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----"
     "jdbc:postgresql://[^\"' ]*"
     "jdbc:mysql://[^\"' ]*"
+    "r2dbc:[a-z]+://[^\"' ]*@[^\"' ]*"
     "jwt[._-]secret\s*[:=]\s*[\"'][^\"']+[\"']"
     "signing[._-]key\s*[:=]\s*[\"'][^\"']+[\"']"
 )
@@ -53,14 +54,15 @@ run_security_check() {
         result+="$dangerous_files\n"
         result+="\`\`\`\n\n"
         result+="> **Block**: These files should not be committed.\n\n"
-        ((issues_found++))
+        issues_found=$((issues_found + 1))   # not ((x++)): it exits 1 at 0 and set -e would abort the scan
     fi
 
     # 2. Sensitive patterns in code
     local sensitive_matches=""
     local combined_pattern=$(IFS='|'; echo "${SENSITIVE_PATTERNS[*]}")
 
-    sensitive_matches=$(git diff --cached 2>/dev/null | grep -E "^\+" | grep -E "$combined_pattern" | head -5 || true)
+    # -i: `PASSWORD="…"`, `Password: '…'` and `JWT_SECRET=` are the same secret as their lowercase forms
+    sensitive_matches=$(git diff --cached 2>/dev/null | grep -E "^\+" | grep -iE "$combined_pattern" | head -5 || true)
 
     if [ -n "$sensitive_matches" ]; then
         result+="#### Sensitive Patterns Detected\n\n"
@@ -68,7 +70,7 @@ run_security_check() {
         result+="$sensitive_matches\n"
         result+="\`\`\`\n\n"
         result+="> **Block**: Sensitive information detected in staged changes.\n\n"
-        ((issues_found++))
+        issues_found=$((issues_found + 1))   # not ((x++)): it exits 1 at 0 and set -e would abort the scan
     fi
 
     # Result summary

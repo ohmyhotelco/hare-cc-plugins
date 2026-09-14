@@ -15,5 +15,8 @@ spring:
     password: ""
   sql:
     init:
-      mode: always
+      # `embedded`, not `always`: initialises the in-memory H2 and nothing else, so the
+      # documented r2dbc:mysql swap does NOT run the DDL against a real database at startup
+      # (Decision 3: this plugin never applies migrations).
+      mode: embedded
       schema-locations: classpath:migration/V1__create_employee_table.sql

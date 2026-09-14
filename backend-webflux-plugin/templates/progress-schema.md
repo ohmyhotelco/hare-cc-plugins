@@ -58,7 +58,7 @@ Created by `be-crud` (per entity). Updated by pipeline skills (be-crud, be-code,
       "previousStatus": "implementing",
       "timestamp": "2026-03-30T15:30:00Z",
       "classification": "test-failure",
-      "rootCause": "Missing @Transactional on executor",
+      "rootCause": "Write chain not wrapped in TransactionalOperator",
       "filesModified": ["src/main/java/.../CreateEmployeeCommandExecutor.java"]
     }
   }

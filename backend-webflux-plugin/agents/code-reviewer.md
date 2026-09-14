@@ -234,31 +234,38 @@ Calculate dimension scores and overall verdict:
 
 ## Output Format
 
+Return **one JSON object** — the exact envelope `be-review` Step 3.5 validates and Step 4 saves as
+`review-report-{feature}.json`. No prose before or after it; the skill renders the human-readable
+table itself.
+
+```json
+{
+  "timestamp": "{ISO 8601}",
+  "target": "{targetPath}",
+  "filesReviewed": 15,
+  "dimensions": {
+    "api_contract": { "score": 9, "issues": [
+      { "severity": "warning", "file": "src/main/java/.../EmployeeHandler.java", "line": 42,
+        "rule": "Missing 404 mapping", "message": "find() returns 200 with an empty body",
+        "suggestion": "switchIfEmpty(ServerResponse.notFound().build())",
+        "refs": ["GET /hr/employees/{id}"] }
+    ] },
+    "data_layer":      { "score": 7,  "issues": [] },
+    "clean_code":      { "score": 8,  "issues": [] },
+    "logging":         { "score": 6,  "issues": [] },
+    "test_quality":    { "score": 9,  "issues": [] },
+    "architecture":    { "score": 10, "issues": [] },
+    "spec_compliance": { "score": 9,  "issues": [] }
+  },
+  "summary": { "overallScore": 8.2, "verdict": "PASS", "critical": 0, "warning": 3, "suggestion": 2, "totalIssues": 5 }
+}
 ```
-Code Review Report
-==================
 
-Target: {targetPath}
-Files reviewed: {count}
-
-Dimension Scores:
-  1. API Contract:           {score}/10
-  2. Data Layer:             {score}/10
-  3. Clean Code:             {score}/10
-  4. Logging:                {score}/10
-  5. Test Quality:           {score}/10
-  6. Architecture:           {score}/10
-  7. Spec Compliance:        {score}/10  (only when planFile provided)
-
-Overall: {PASS | FAIL}
-
-Issues ({total} found):
-  Critical: {count}
-  Warning:  {count}
-  Suggestion: {count}
-
-{Issue details sorted by severity, then by dimension}
-```
+- `dimensions` carries exactly the six keys above, plus `spec_compliance` only when `planFile` was
+  provided (omit the key otherwise — a placeholder score fails validation).
+- Every issue has non-empty `file`, `line`, `suggestion`; `severity` is `critical` | `warning` |
+  `suggestion`. `summary` counts are computed from the `issues[]` arrays, and `verdict` follows the
+  Phase 3 rules — the skill recomputes both and rejects a mismatch.
 
 ## Constraints
 

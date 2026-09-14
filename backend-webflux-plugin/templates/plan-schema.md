@@ -23,7 +23,7 @@ Mapping from spec/UI DSL types to Java and database column types:
 | `email` | `String` | `VARCHAR(255)` | Add email-format validation rule |
 | `phone` | `String` | `VARCHAR(50)` | Add phone-format validation rule |
 | `url` | `String` | `VARCHAR(2048)` | Add URL-format validation rule |
-| `uuid` | `UUID` | `UUID` | Import `java.util.UUID` |
+| `uuid` | `UUID` | `CHAR(36)` | Import `java.util.UUID`; MySQL has no UUID column type (the external `id` column uses the same mapping — see `entity-conventions*.md`) |
 | `enum` | `String` | `VARCHAR(50)` | Java enum type when values are defined in spec |
 | Entity reference | Entity class | FK (`BIGINT`, manual SQL `REFERENCES`) | R2DBC: resolve via a repository call in the executor (no relationship-mapping annotations); MyBatis: resolve via a mapper join or a second mapper call |
 
