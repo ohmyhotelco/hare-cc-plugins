@@ -44,10 +44,13 @@ If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` e
 If a feature argument was provided:
 
 1. Read the work document path from progress file (`workDocument` field)
-2. Compare modification times using the Bash tool:
-   - Get the work document's mtime as a Unix timestamp: `stat -c %Y {workDocPath}` (works on Linux, macOS, and Git Bash/WSL on Windows — this plugin's declared toolset only includes Bash, not PowerShell, for this check)
-   - Convert the progress file's `updatedAt` (ISO 8601) to a Unix timestamp for comparison: `date -d "{updatedAt}" +%s`
-   - If `stat`/`date` are unavailable in the environment, fall back to comparing `updatedAt` directly against `date -u -Iseconds -r {workDocPath}` as ISO 8601 strings — both sort correctly as plain text when in the same format
+2. Compare modification times using the Bash tool, in ISO 8601 UTC on both sides:
+   - The work document's mtime: `date -u -Iseconds -r {workDocPath}` — `-r FILE` is the one
+     mtime form BSD (macOS) and GNU `date` share; `stat -c %Y` and `date -d` are GNU-only and
+     fail with `illegal option` on macOS
+   - The progress file's `updatedAt` as written (ISO 8601 UTC per `templates/progress-schema.md`)
+   - Compare the two strings: same format, same zone, so plain text order is time order. A
+     missing or unreadable mtime means the check is skipped, never assumed
 3. If the work document is newer:
    > "Warning: Work document has been modified since last pipeline update ({updatedAt})."
    > "New or modified scenarios may not be reflected in the current code."
@@ -221,8 +224,8 @@ from Step 0.5 using `hotel-room.json`.
 
 Continuing the `create-employee` run above, suppose the work document was instead
 edited at `2026-08-19T15:10:00Z` — after `updatedAt` (`14:30:00Z`). Step 0.6 computes
-the mtime via `stat -c %Y` and the `updatedAt` epoch via `date -d`, finds the work
-document newer, and shows:
+the mtime via `date -u -Iseconds -r`, compares it with `updatedAt` as ISO 8601 text,
+finds the work document newer, and shows:
 
 > "Warning: Work document has been modified since last pipeline update (2026-08-19T14:30:00Z)."
 > "New or modified scenarios may not be reflected in the current code."

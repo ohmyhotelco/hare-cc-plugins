@@ -176,6 +176,11 @@ For each entity being processed, create or update `{workDocDir}/.progress/{kebab
    ```
 3. If progress file exists: **read-modify-write** — update only `pipeline.status` to `"implementing"` and refresh scenario counts. **Preserve all existing fields** including `specSource`, `pipeline.verification`, `pipeline.review`, etc.
 
+**Multi-entity mode: run Step 4's per-entity demotion check first, and initialize only the
+entities it confirmed.** This step writes `"implementing"`; a check that runs after it reads the
+status it just wrote, never warns, and a `done`/`verified` entity is demoted without the consent
+CLAUDE.md § Demotion Warning requires. An entity the user declined keeps its progress file untouched.
+
 ### Step 4: TDD Cycle
 
 **Multi-entity batching**: When processing multiple entities (plan-driven mode),
@@ -185,9 +190,9 @@ separate `implement` agent per entity repeats that agent's own Phase 0 context l
 the same run. Step 7 (pipeline-state bookkeeping) still runs per entity, since each
 entity has its own progress file.
 
-**Per-entity demotion check (multi-entity mode only)**: Before launching the
-implement agent, loop over every entity in `entityDependencyOrder` and check
-`{workDocDir}/.progress/{kebab-case-entity}.json`:
+**Per-entity demotion check (multi-entity mode only)**: Before Step 3.7 writes any
+progress file (and so before the implement agent launches), loop over every entity in
+`entityDependencyOrder` and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
 1. If it exists, read `pipeline.status`
 2. If status is `"verified"`, `"reviewed"`, `"done"`, `"fixing"`, or `"escalated"`: warn the user (same messages as Step 3.5) and ask for confirmation for this entity
 3. If the user declines for a specific entity: leave it out of the batch and proceed to the next entity's check

@@ -12,6 +12,7 @@ import com.example.employee.querymodel.GetEmployeePageQueryProcessor;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebInputException;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
@@ -25,8 +26,13 @@ public record EmployeeHandler(
 
     public Mono<ServerResponse> create(ServerRequest request) {
         return request.bodyToMono(CreateEmployee.class)
+            // An empty body completes without a value; without this, flatMap is skipped and
+            // `.then(201)` still answers Created for a command that never ran.
+            .switchIfEmpty(Mono.error(new ServerWebInputException("request body is required")))
             .flatMap(createExecutor::execute)
             .then(ServerResponse.status(HttpStatus.CREATED).build())
+            .onErrorResume(ServerWebInputException.class,
+                e -> ServerResponse.badRequest().build())
             .onErrorResume(DuplicateEmailException.class,
                 e -> ServerResponse.status(HttpStatus.CONFLICT).build())
             .onErrorResume(InvalidEmailFormatException.class,

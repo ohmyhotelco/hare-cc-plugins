@@ -77,6 +77,16 @@ class PostTests {
     }
 
     @Test
+    void empty_body_returns_400_Bad_Request() {
+        // An empty bodyToMono completes without emitting, which skips flatMap and lets
+        // `.then(201)` answer as if the command had run -- nothing is persisted.
+        webTestClient.post().uri("/hr/employees")
+            .header("Content-Type", "application/json")
+            .exchange()
+            .expectStatus().isBadRequest();
+    }
+
+    @Test
     void empty_display_name_returns_400_Bad_Request() {
         var command = new CreateEmployee(nextEmail(), "");
 

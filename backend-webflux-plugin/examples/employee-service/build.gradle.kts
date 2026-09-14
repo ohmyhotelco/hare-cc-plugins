@@ -32,7 +32,8 @@ dependencies {
     runtimeOnly("io.asyncer:r2dbc-mysql:1.1.3")
 
     // Sample-only runtime database: H2 R2DBC in-memory, so `./gradlew test` and
-    // `./gradlew bootRun` work with zero external services. See src/main/resources/schema.sql.
+    // `./gradlew bootRun` work with zero external services; H2 runs in MySQL mode and boots
+    // from the real migration under src/main/resources/migration (see application.yml).
     runtimeOnly("io.r2dbc:r2dbc-h2")
     runtimeOnly("com.h2database:h2")
 

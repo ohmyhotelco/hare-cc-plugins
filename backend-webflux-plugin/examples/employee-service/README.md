@@ -18,15 +18,16 @@ due to time constraints, but the pattern itself is fully documented in the templ
 
 ## Runtime database
 
-This sample runs against an **in-memory H2** database via R2DBC
-(`src/main/resources/schema.sql`), not MySQL, so it builds and runs with zero external
-services. `docs/decisions.md` Decision 4 sets the plugin's real production default to
-MySQL 8.0.33 via `io.asyncer:r2dbc-mysql` (Decision 5) — that driver is included in
-this project's `build.gradle.kts` as a `runtimeOnly` dependency to demonstrate the
-correct pin, and `src/main/resources/migration/V1__create_employee_table.sql` is the
-real MySQL-syntax migration `be-crud` would generate. It is not applied by this
-sample; `src/main/resources/schema.sql` is a hand-kept H2-dialect translation used
-only so the sample can run standalone.
+This sample runs against an **in-memory H2** database via R2DBC, not MySQL, so it
+builds and runs with zero external services. H2 runs in MySQL mode with lower-cased,
+case-insensitive identifiers (see `application.yml`), so the sample boots from the
+**real** migration, `src/main/resources/migration/V1__create_employee_table.sql` — the
+MySQL-syntax file `be-crud` would generate — and every query is written in MySQL's
+unquoted form, exactly what runs after the `r2dbc:mysql://` swap (to MySQL a
+double-quoted identifier is a string literal). `docs/decisions.md` Decision 4 sets the
+plugin's real production default to MySQL 8.0.33 via `io.asyncer:r2dbc-mysql`
+(Decision 5); that driver is included in `build.gradle.kts` as a `runtimeOnly`
+dependency to demonstrate the correct pin.
 
 ## Running the verification gate
 

@@ -38,6 +38,10 @@ public record EmployeeController(
     @ExceptionHandler(InvalidEmailFormatException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public void handleInvalidEmail() {}
+
+    @ExceptionHandler(InvalidDisplayNameException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public void handleInvalidDisplayName() {}
 }
 ```
 

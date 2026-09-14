@@ -16,8 +16,10 @@ public interface EmployeeRepository extends ReactiveCrudRepository<Employee, Lon
     // for the sequence primary key (see CLAUDE.md dual-key convention), so this method
     // is named findByExternalId -- a name Spring Data's derivation cannot match to the
     // "id" field on its own.
-    @Query("SELECT \"sequence\", \"id\", \"email\", \"display_name\", \"created_at\", \"updated_at\" "
-        + "FROM \"employee\" WHERE \"id\" = :id")
+    // Unquoted identifiers, as templates/entity-conventions-r2dbc.md writes them: MySQL
+    // (the production target) reads a double-quoted identifier as a string literal.
+    @Query("SELECT sequence, id, email, display_name, created_at, updated_at "
+        + "FROM employee WHERE id = :id")
     Mono<Employee> findByExternalId(UUID id);
 
     Flux<Employee> findAllBy(Pageable pageable);

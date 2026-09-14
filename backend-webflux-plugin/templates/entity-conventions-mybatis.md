@@ -37,9 +37,14 @@ public interface EmployeeMapper {
 
     List<Employee> findAllPage(@Param("offset") int offset, @Param("limit") int limit);
 
+    long count();
+
     void insert(Employee employee);
 }
 ```
+
+Every method here has a bound statement in the XML below — MyBatis fails at the first call, not
+at startup, with `BindingException: Invalid bound statement` when one is missing.
 
 ## Mapper Naming — `{Entity}Mapper` / `{Entity}FluxMapper` / `Batch{Entity}Mapper`
 
@@ -75,22 +80,75 @@ collection as a critical issue — the fix is always "move to
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.data.EmployeeMapper">
 
+    <!-- MyBatis ships no UUID type handler: a CHAR(36) column reads back as String and cannot
+         be set on the UUID field, and a UUID parameter falls to setObject(). The result map
+         and every #{id} name the handler explicitly. -->
+    <resultMap id="employee" type="com.example.data.Employee">
+        <id     property="sequence"    column="sequence"/>
+        <result property="id"          column="id" typeHandler="com.example.data.UuidTypeHandler"/>
+        <result property="email"       column="email"/>
+        <result property="displayName" column="display_name"/>
+        <result property="createdAt"   column="created_at"/>
+        <result property="updatedAt"   column="updated_at"/>
+    </resultMap>
+
     <select id="existsByEmail" resultType="boolean">
         SELECT COUNT(*) > 0 FROM employee WHERE email = #{email}
     </select>
 
-    <select id="findById" resultType="com.example.data.Employee">
-        SELECT sequence, id, email, display_name AS displayName,
-               created_at AS createdAt, updated_at AS updatedAt
-        FROM employee WHERE id = #{id}
+    <select id="findById" resultMap="employee">
+        SELECT sequence, id, email, display_name, created_at, updated_at
+        FROM employee WHERE id = #{id, typeHandler=com.example.data.UuidTypeHandler}
+    </select>
+
+    <select id="findAllPage" resultMap="employee">
+        SELECT sequence, id, email, display_name, created_at, updated_at
+        FROM employee ORDER BY sequence LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM employee
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="sequence">
         INSERT INTO employee (id, email, display_name, created_at, updated_at)
-        VALUES (#{id}, #{email}, #{displayName}, #{createdAt}, #{updatedAt})
+        VALUES (#{id, typeHandler=com.example.data.UuidTypeHandler}, #{email}, #{displayName},
+                #{createdAt}, #{updatedAt})
     </insert>
 
 </mapper>
+```
+
+`src/main/java/{basePackage}/data/UuidTypeHandler.java`, generated once per project:
+
+```java
+@MappedTypes(UUID.class)
+public class UuidTypeHandler extends BaseTypeHandler<UUID> {
+    @Override
+    public void setNonNullParameter(PreparedStatement ps, int i, UUID parameter, JdbcType jdbcType)
+            throws SQLException {
+        ps.setString(i, parameter.toString());
+    }
+
+    @Override
+    public UUID getNullableResult(ResultSet rs, String columnName) throws SQLException {
+        return toUuid(rs.getString(columnName));
+    }
+
+    @Override
+    public UUID getNullableResult(ResultSet rs, int columnIndex) throws SQLException {
+        return toUuid(rs.getString(columnIndex));
+    }
+
+    @Override
+    public UUID getNullableResult(CallableStatement cs, int columnIndex) throws SQLException {
+        return toUuid(cs.getString(columnIndex));
+    }
+
+    private static UUID toUuid(String value) {
+        return value == null ? null : UUID.fromString(value);
+    }
+}
 ```
 
 ## Command Executor — Bridging Blocking MyBatis Calls into the Reactive Pipeline

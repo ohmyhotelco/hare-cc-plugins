@@ -322,7 +322,7 @@ Interrupt skills (usable at any stage):
 Standalone audit skills (usable independently):
   be-data, be-api-review, be-clean-code, be-logging, be-test-review, be-security, be-integrate-review
 
-Automated entry point: the `jira-auto` agent runs this same be-crud → be-code → be-verify →
+Automated entry point: the `be-jira-auto` skill runs this same be-crud → be-code → be-verify →
 (be-review + be-security) → be-fix → be-commit chain end to end from a Jira ticket, stopping
 at be-commit — it never pushes, opens a pull request, or touches the Jira issue itself.
 be-security only runs for tickets that add a new entity/endpoint (or mention anything
@@ -383,7 +383,6 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `code-reviewer` -- Multi-dimension code review (API, data layer, clean code, logging, tests, architecture, + optional spec compliance)
 - `review-fixer` -- TDD-disciplined fixer that reads review reports and applies targeted fixes
 - `debugger` -- Systematic debugger using 4-phase methodology (reproduce, hypothesize, test, confirm)
-- `jira-auto` -- Orchestrator that implements a ticket's own stated Technical Approach directly when present, or drafts a Proposed Solution and stops for user confirmation when not, classifies the ticket into a tier (easy/normal/extreme) to scale the review gate, and drives the full be-crud → be-code → be-verify → (be-review + be-security) → be-fix → be-commit pipeline end to end via the Skill tool, instead of running each be-* skill by hand
 
 ## Skills
 
@@ -398,6 +397,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 | `/backend-webflux-plugin:be-verify` | Verification gate (build + checkstyle + tests + coverage) |
 | `/backend-webflux-plugin:be-review` | Orchestrated code review (6 dimensions + optional spec compliance) |
 | `/backend-webflux-plugin:be-fix` | TDD-disciplined fix from review report |
+| `/backend-webflux-plugin:be-jira-auto` | Jira-to-commit orchestrator: runs the whole chain from a ticket (a skill, not a subagent — the steps it drives launch agents) |
 | `/backend-webflux-plugin:be-commit` | Smart commit from staged changes |
 
 ### Utility

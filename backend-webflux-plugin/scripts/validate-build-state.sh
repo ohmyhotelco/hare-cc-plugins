@@ -6,8 +6,11 @@ CONFIG_FILE="${PWD}/.claude/backend-webflux-plugin.json"
 # Skip if no config
 [ -f "$CONFIG_FILE" ] || exit 0
 
-# Get the file path from tool input (passed as $1 by Claude Code)
-FILE_PATH="${1:-}"
+# Claude Code hands a hook its input as JSON on stdin (`tool_input.file_path` for Write/Edit),
+# never as a positional argument — `$1` was always empty and this hook never fired.
+command -v jq >/dev/null 2>&1 || exit 0
+INPUT=$(cat)
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""')
 [ -n "$FILE_PATH" ] || exit 0
 
 # Check if a Java source or build file was modified

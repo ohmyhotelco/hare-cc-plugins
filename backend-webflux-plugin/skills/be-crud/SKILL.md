@@ -81,6 +81,9 @@ Input: `be-crud Employee email:String displayName:String`
      src/main/java/com/example/view/EmployeeView.java
      src/main/java/com/example/hr/api/EmployeeRouter.java
      src/main/java/com/example/hr/api/EmployeeHandler.java
+     src/main/java/com/example/hr/EmployeePropertyValidator.java
+     src/main/java/com/example/hr/InvalidEmailFormatException.java
+     src/main/java/com/example/hr/InvalidDisplayNameException.java
      src/main/java/com/example/hr/DuplicateEmailException.java
      src/main/java/com/example/hr/EmployeeNotFoundException.java
      work/features/employee.md
@@ -276,7 +279,7 @@ Generate the following files in order. Use the entity's resolved `dataProfile` (
 File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sql`
 
 - Determine `{next}` and `{snake_case_entity}` using the Shared Derivation Rules above
-- Generate `CREATE TABLE` with MySQL syntax: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL UNIQUE`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL UNIQUE`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 - Add indexes for unique fields
 - This file is generated only — never executed by this skill (see `docs/decisions.md` Decision 3)
 
@@ -284,7 +287,7 @@ File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sq
 
 **R2DBC**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — `@Table`/`@Column`-annotated class per `templates/entity-conventions-r2dbc.md` Entity Template.
 
-**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml`.
+**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler).
 
 Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`.
 
@@ -293,8 +296,12 @@ Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`.
 File: `{sourceDir}/{basePackage}/data/{EntityName}Repository.java`
 
 - Extends `ReactiveCrudRepository<{EntityName}, Long>`
-- `findById(UUID id)` returning `Mono<{EntityName}>`
+- `findByExternalId(UUID id)` returning `Mono<{EntityName}>`, with the explicit `@Query` from
+  `templates/entity-conventions-r2dbc.md` — `findById(Long)` is already the sequence-PK lookup
+  `ReactiveCrudRepository` provides, and derivation cannot bind a differently named method to the
+  `id` field
 - `existsBy{UniqueField}` returning `Mono<Boolean>` for unique fields
+- `findAllBy(Pageable)` returning `Flux<{EntityName}>` for the page query
 
 MyBatis entities skip this file (the mapper interface + XML generated in Step 2 covers persistence).
 
@@ -350,8 +357,13 @@ Both styles: POST (201), GET list (200), GET single (200/404).
 - Include PUT, PATCH, DELETE routes/endpoints if defined in the plan
 - Map all exceptions from `plan.json.exceptions[]` for this entity to the router's error chain or `@ExceptionHandler` methods
 
-#### 8. Exceptions
+#### 8. Validator and Exceptions
 
+File: `{sourceDir}/{basePackage}/{domain}/{EntityName}PropertyValidator.java` — `@Component`, one
+`validate{Field}` method per validated field, per `templates/entity-conventions.md` § Validation
+Utility Template. The command executor (Step 4 #4) injects it; a scaffold without it does not compile.
+File: `{sourceDir}/{basePackage}/{domain}/Invalid{Field}Exception.java` — one per validated field
+(the validator throws them; the handler/controller maps them to 400)
 File: `{sourceDir}/{basePackage}/{domain}/Duplicate{UniqueField}Exception.java` (for each unique field)
 File: `{sourceDir}/{basePackage}/{domain}/{EntityName}NotFoundException.java`
 

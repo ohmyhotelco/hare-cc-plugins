@@ -40,7 +40,12 @@ public record FindEmployee(UUID id) {}
 
 public record GetEmployeePage(int page, int size) {
     public GetEmployeePage {
+        // Clamp both ends: PageRequest.of() throws IllegalArgumentException on size < 1 or
+        // page < 0, and inside a flatMap that surfaces as a 500, not the 400 the handler
+        // maps for a malformed number.
+        if (size < 1) size = 10;
         if (size > 20) size = 20;
+        if (page < 0) page = 0;
     }
 }
 ```

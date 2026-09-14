@@ -60,7 +60,7 @@ branch it actually needs:
 `src/main/resources/migration/V{N}__create_employee_table.sql`:
 
 ```sql
-CREATE TABLE employee (
+CREATE TABLE IF NOT EXISTS employee (
     sequence     BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
     id           CHAR(36)     NOT NULL UNIQUE,
     email        VARCHAR(255) NOT NULL UNIQUE,

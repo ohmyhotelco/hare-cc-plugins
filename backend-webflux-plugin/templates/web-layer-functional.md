@@ -26,11 +26,18 @@ public record EmployeeHandler(
 ) {
     public Mono<ServerResponse> create(ServerRequest request) {
         return request.bodyToMono(CreateEmployee.class)
+            // An empty body completes without a value; without this, flatMap is skipped and
+            // `.then(201)` still answers Created for a command that never ran.
+            .switchIfEmpty(Mono.error(new ServerWebInputException("request body is required")))
             .flatMap(createExecutor::execute)
             .then(ServerResponse.status(HttpStatus.CREATED).build())
+            .onErrorResume(ServerWebInputException.class,
+                e -> ServerResponse.badRequest().build())
             .onErrorResume(DuplicateEmailException.class,
                 e -> ServerResponse.status(HttpStatus.CONFLICT).build())
             .onErrorResume(InvalidEmailFormatException.class,
+                e -> ServerResponse.badRequest().build())
+            .onErrorResume(InvalidDisplayNameException.class,
                 e -> ServerResponse.badRequest().build());
     }
 
@@ -40,8 +47,10 @@ public record EmployeeHandler(
         // functional runtime does not auto-translate a thrown exception into 400 the way
         // an annotated @RequestParam binding does, so the mapping has to be explicit here.
         return Mono.fromCallable(() -> {
-                var page = Integer.parseInt(request.param("page").orElse("0"));
-                var size = Integer.parseInt(request.param("size").orElse("10"));
+                // ServerRequest exposes queryParam(); param() is the WebMvc.fn API and
+                // does not compile against WebFlux.
+                var page = Integer.parseInt(request.queryParam("page").orElse("0"));
+                var size = Integer.parseInt(request.queryParam("size").orElse("10"));
                 return new GetEmployeePage(page, size);
             })
             .flatMap(pageProcessor::process)

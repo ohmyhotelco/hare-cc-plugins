@@ -1,19 +1,26 @@
 ---
-name: jira-auto
-description: Jira-to-commit orchestrator that implements a ticket's own stated Technical Approach directly when present, or drafts a Proposed Solution and stops for user confirmation when not, classifies the ticket into a tier (easy/normal/extreme) to scale the review gate, and drives the full be-crud -> be-code -> be-verify -> (be-review + be-security) -> be-fix -> be-commit pipeline end to end via the Skill tool, instead of the user running each be-* skill one at a time
-model: opus
-tools: Bash, Read, Write, Edit, Grep, Glob, Skill, ToolSearch
+name: be-jira-auto
+description: "Jira-to-commit orchestrator that implements a ticket's own stated Technical Approach directly when present, or drafts a Proposed Solution and stops for user confirmation when not, classifies the ticket into a tier (easy/normal/extreme) to scale the review gate, and drives the full be-crud -> be-code -> be-verify -> (be-review + be-security) -> be-fix -> be-commit pipeline end to end via the Skill tool, instead of the user running each be-* skill one at a time"
+argument-hint: "<JIRA-KEY>"
+user-invocable: true
+allowed-tools: Bash, Read, Write, Edit, Grep, Glob, Skill, Agent, ToolSearch
 ---
 
-# Jira Auto Agent
+# be-jira-auto — Jira Auto Orchestrator
 
-Orchestrator agent. Given a Jira issue key, it derives the same inputs a
+Orchestrator skill. Given a Jira issue key, it derives the same inputs a
 human would type into `be-crud`/`be-code`, then delegates every actual
 step to the plugin's own `be-*` skills via the `Skill` tool -- it never
 reimplements scaffold generation, TDD, verification, review, or fix logic
-itself. This agent is the automated counterpart of manually running
+itself. This skill is the automated counterpart of manually running
 `be-crud` -> `be-code` -> `be-verify` -> `be-review` -> `be-fix` ->
 `be-commit` in sequence (see `CLAUDE.md` § Pipeline).
+
+**A skill, not a subagent, on purpose.** `be-code`, `be-build`, `be-review` and `be-fix` each
+launch an agent (`implement`, `build-doctor`, `code-reviewer`, `review-fixer`) with the `Agent`
+tool, and a Claude Code subagent has no `Agent` tool — it cannot spawn subagents. Run as an agent,
+four of the seven pipeline steps below could not execute as written. As a skill it runs in the
+main session, where `Skill` and `Agent` both exist.
 
 ## Golden Rules
 
@@ -21,19 +28,19 @@ itself. This agent is the automated counterpart of manually running
   `be-review`, `be-fix`, `be-commit`). Call it through `Skill`, read its
   output, then move on -- never skip a step, never reorder, never
   reimplement a skill's job inline.
-- This agent runs unattended: it cannot answer a skill's interactive
+- This skill runs unattended: it cannot answer a skill's interactive
   confirmation prompts mid-run. Resolve every input a skill would
   otherwise ask for (data profile, domain, fields, scenarios) *before*
   calling that skill, and pass it explicitly. When a question genuinely
   cannot be answered from the ticket, stop with `NEEDS-INPUT` rather than
   guessing.
-- **The ticket's own Technical Approach outranks this agent's judgment.**
+- **The ticket's own Technical Approach outranks this skill's judgment.**
   When the Jira issue already states a technical approach/solution, that
   is the design -- extract from it and implement directly, do not
   re-derive or second-guess it (see Step 1). Only when the ticket has no
-  stated approach does this agent draft one itself, and a self-drafted
+  stated approach does this skill draft one itself, and a self-drafted
   design must be confirmed by the user before implementation starts (see
-  Step 1.5) -- an agent-authored design is a proposal, not a mandate.
+  Step 1.5) -- a self-drafted design is a proposal, not a mandate.
 - Never skip `be-verify` or `be-review`, even for a ticket that looks
   small -- CLAUDE.md § Verification Philosophy explicitly rejects "the
   change is small, no need to verify" as a rationalization, and this
@@ -43,7 +50,7 @@ itself. This agent is the automated counterpart of manually running
 - Never push, open a pull request, or comment on / transition the Jira
   issue. The plugin's own pipeline (`CLAUDE.md` § Pipeline) ends at
   `be-commit` -- stay there. Push/PR/Jira-status is a manual decision for
-  the user, made outside this agent.
+  the user, made outside this skill.
 - Report in the working language read from
   `.claude/backend-webflux-plugin.json` (`workingLanguage`), matching the
   language every other skill in this plugin already reports in.
@@ -79,7 +86,7 @@ ticket.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
-This agent does not hardcode which Jira integration is wired up -- a
+This skill does not hardcode which Jira integration is wired up -- a
 project may have a cloud Atlassian connector, a local/self-hosted MCP
 gateway, or both, and the exact tool name differs per setup (e.g.
 `mcp__claude_ai_Atlassian__getJiraIssue` vs.
@@ -244,10 +251,10 @@ Skill(skill: "be-crud", args: "{EntityName} field1:Type1 field2:Type2 ...")
 - No entity involved at all (pure logic/bug-fix ticket on an existing
   endpoint): note "Step 3: skipped -- no new entity" and continue to Step 4.
 
-### Step 3.5: Extend an Existing Entity (conditional) -- this agent's own tools
+### Step 3.5: Extend an Existing Entity (conditional) -- this skill's own tools
 
 For every entity Step 1/1.5 marked "extend, not create", performed by
-this agent directly (`Write`/`Edit`/`Bash`), **before** Step 4 authors the
+this skill directly (`Write`/`Edit`/`Bash`), **before** Step 4 authors the
 work document -- there is no "alter" skill in this plugin, so this is not
 `be-crud`'s job and not `implement`'s job either; `implement` only ever
 sees a scenario list, never "this entity needs a new column" as a task in
@@ -276,7 +283,7 @@ its own right:
 ### Step 4: Author the Work Document Before Calling `be-code`
 
 Mandatory, even when Step 3 already generated
-`{workDocDir}/{kebab-case-entity}.md` via `be-crud` -- this agent cannot
+`{workDocDir}/{kebab-case-entity}.md` via `be-crud` -- this skill cannot
 answer `be-code`'s "review and confirm to proceed" prompt (`skills/be-code/SKILL.md`
 Step 3), so the work document must already exist and be final before Step
 5 runs.
@@ -331,7 +338,7 @@ Skill(skill: "be-build", args: "{feature}")
 ```
 
 `be-build` already retries internally up to 3 times -- call it **once**,
-never wrap it in an outer retry loop of this agent's own. Then re-run
+never wrap it in an outer retry loop of this skill's own. Then re-run
 `be-verify {feature}` once to confirm:
 
 - PASS -- go to Step 7.
@@ -455,8 +462,8 @@ silently.
   -- extract from it, do not second-guess a decision the ticket already
   made.
 - Implementing a self-drafted Proposed Solution (Step 1.5) without
-  stopping for confirmation first -- an agent-authored design is a
-  proposal, not a mandate, and this agent has no way to detect the user
+  stopping for confirmation first -- a self-drafted design is a
+  proposal, not a mandate, and this skill has no way to detect the user
   silently disagreed with it once code already exists.
 - Calling `be-crud` on an entity that already exists (discards its
   pipeline history -- see `skills/be-crud/SKILL.md` Step 2.5).
@@ -476,7 +483,7 @@ silently.
   discard the user's own uncommitted work without asking.
 - Pushing, opening a pull request, or commenting on / transitioning the
   Jira issue -- none of that is part of this plugin's pipeline, and none
-  of it has this agent's explicit authorization to act on the user's
+  of it has this skill's explicit authorization to act on the user's
   behalf.
 - Reporting `DONE` without a real short hash confirmed via
   `git rev-parse --short HEAD`.
@@ -506,4 +513,4 @@ next step for the user.
 ```
 
 For `NEEDS-INPUT`, the report must contain the exact questions the user
-needs to answer before re-invoking this agent.
+needs to answer before re-invoking this skill.

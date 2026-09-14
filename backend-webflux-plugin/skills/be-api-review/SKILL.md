@@ -69,7 +69,7 @@ Flag violations:
   `request.bodyToMono(Command.class)` (functional) or `@RequestBody` (annotated) → **warning** if a raw `Map`/primitive is used instead
 - GET response should use a View record (from `view/` package) → **warning**
 - Path variables for resource identifiers: `request.pathVariable("id")` (functional) or `@PathVariable UUID id` (annotated) → **suggestion**
-- Query parameters for filtering/pagination: `request.param("page")` (functional) or `@RequestParam` (annotated) → **suggestion**
+- Query parameters for filtering/pagination: `request.queryParam("page")` (functional — `param()` is WebMvc.fn and does not exist on WebFlux `ServerRequest`) or `@RequestParam` (annotated) → **suggestion**
 - Handler/controller methods must return `Mono<ServerResponse>` (functional) or `Mono<T>`/`Flux<T>` (annotated) — never a materialized/blocking type → **critical**: a blocking return type blocks the Netty event loop
 
 #### Exception Handling
