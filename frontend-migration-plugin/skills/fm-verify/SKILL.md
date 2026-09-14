@@ -137,7 +137,7 @@ Update `tracker.json` (Read-Modify-Write):
   and say to re-run. Only when the pass is recorded, promote the manifest — an overwritten
   manifest beside a refused pass would pair the old recorded `tree` with a file list from a
   different tree — and stage it with the tracker: the two are one piece of evidence, and
-  `fm-route` Step 1a blocks unless both are in HEAD and agree:
+  `fm-route` Step 1a blocks while either is uncommitted:
 
   ```sh
   REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/verify.tsv"

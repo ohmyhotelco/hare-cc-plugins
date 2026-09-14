@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-09-14)
 
-- **Build complete — v1.2.1.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
+- **Build complete — v1.3.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -993,31 +993,34 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   `cascade-diff.mjs`; `styleSpecPath` added to the e2e contract on both sides; lock-staleness
   wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
   the advisory gate; and the keyword/version triplet synced at **1.2.0**.
-- **v1.2.1 — committed-manifest invariant.** A gate-accounting hole, not a fidelity axis. Gate Result
-  Accounting E had the gate skills write both a stamp (`gateEvidence.{gate}.tree`) and a manifest
-  (`gate-tree/{gate}.tsv`) whose `git hash-object` **is** that stamp by construction — but nothing
-  enforced that identity at commit time. The skills stopped at `mv "$MAN.tmp" "$MAN"`, so a `git add`
-  miss shipped a stamp whose committed manifest was the previous run's, and `fm-route` Step 1a's live
-  recompute — hashed from the watch paths, which had not moved — equaled the stamp and passed. OMH-750
-  PR #330 hit exactly this (tracker stamped at 480 rows, committed TSVs at 442); a human counting rows
-  caught it. Doc-only fix in two halves: (A) `fm-route` Step 1a, before the live recompute, compares
-  committed evidence against committed evidence for all three gates — HEAD's stamp must equal the
-  working-tree stamp, and the committed manifest blob must exist and equal it — requiring `jq` and
-  failing closed on any read it cannot complete; (B) the gate skills promote and stage the manifest
-  *and* `tracker.json` in one self-contained block on the pass branch. The pre-merge review
-  (2026-09-14, a throwaway monorepo driving the skill text verbatim) reshaped the recovery: the first
-  cut said "re-commit the current manifest, and a mismatch that survives is a `gitattributes` filter",
-  which is a no-op from a fresh clone (the working tree *is* the committed 442-row file) and, on the
-  `WT != HEAD` branch, "commit the current tracker" downgraded a correct HEAD when the working-tree
-  tracker was the reverted one — both sent the operator hunting a filter that did not exist. Recovery
-  now splits by what is wrong: a stamp that differs between the trees is the operator's to resolve
-  (commit the staged pair a re-run left, or restore the tracker from HEAD), and a manifest defect
-  regenerates the manifest with the script — its `--no-filters` hash equals the stamp iff the watch
-  paths have not moved, and a mismatch is the ordinary stale-gate path. The same
-  pass moved the stamp to `git hash-object --no-filters`, which makes it equal the script's `--stdin`
-  aggregate unconditionally and retired a latent permanent block under any `*.tmp` attribute; the
-  only remaining precondition is no content-altering rule on the committed `.tsv` path. Origin:
-  OMH-750, three review rounds on PR #330, 2026-09-09; revised on PR #65 review, 2026-09-14.
+- **v1.3.0 — committed-tree freshness (`--rev HEAD`).** The gates hash the *working tree* — they run
+  on uncommitted code — so the flip's freshness check (`fm-route` Step 1a, a working-tree recompute)
+  could never say whether the *commit* carried what was gated. Two holes fell out of that, found in
+  order. First, OMH-750 PR #330: a re-recorded stamp committed beside the previous run's manifest
+  (`git add` miss); the recompute equaled the stamp because the source had not moved, and a human
+  counting rows caught it. PR #65's first cut (doc-only, "v1.2.1") added a committed-manifest ==
+  stamp check with jq reads of HEAD's tracker, a five-way judgement and a "self-diagnosing"
+  recovery; two isolated review rounds driving the skill text verbatim through a throwaway monorepo
+  found the recovery a no-op from a fresh clone, a HEAD-downgrading branch, an unreachable-looking
+  fail-open, and — decisive — the second hole: a *component* left out of the commit passes the
+  manifest check and the working-tree recompute alike, and PR2 flips code no gate ran on. The
+  manifest identity was the wrong depth. `scripts/gate-tree-hash.sh --rev <rev>` (+29 lines) reads
+  the revision into a temporary index and enumerates it with the same `git ls-files` pathspecs as
+  the working-tree mode, records the tree's blob ids, and on a clean checkout of the gated commit
+  prints the same manifest and the same hash the gate did. Step 1a now: run on the merged base
+  checkout (HEAD is what ships — an unmerged PR1 branch passes for code the base lacks); require the
+  page's evidence under `docs/migration/` to be committed (`git status --porcelain -- ':(top)…'`);
+  recompute each gate twice — `--rev HEAD` and the working tree — against the stamp. Committed ≠ with
+  working tree = is an uncommitted/unmerged file (commit, never re-run); working tree ≠ is the stale
+  gate. The manifest is diagnostics again ("which files"), read from whichever copy hashes to the
+  stamp; the five-way jq judgement, the regeneration recovery and the gitattributes precondition
+  are gone. Kept from the first cut: the stamp is hashed `--no-filters` (equals the script's
+  `--stdin` aggregate unconditionally; retired a latent permanent block under any `*.tmp`
+  attribute), and the gate skills promote and stage manifest + `tracker.json` in one self-contained
+  block, with `--flag-off` staging the tracker it writes last. `fm-init` now refuses a
+  `monorepoRoot` that is not the git toplevel — the evidence paths were already root-addressed and
+  a nested layout split them from the rest. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review
+  rounds 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

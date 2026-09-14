@@ -99,15 +99,17 @@ from): the rule lives in the instructions, the basis is missing from the output.
   to `"."` — passing that repo-relative path back as `--exclude`. Step 1a diffs against it. A record with no `tree` (written before this field) stays `unverifiable` —
   acknowledged, non-blocking, no retro-adjudication.
 
-  **The saved manifest and the stamp are one piece of evidence, and the flip checks the committed
-  pair.** The stamp is `git hash-object --no-filters` of the manifest, so what HEAD holds must
-  reproduce it — yet the first realization stopped at writing the working tree, and OMH-750 PR #330
-  committed a re-recorded stamp beside the previous run's manifest; the live recompute could not see
-  it because the source had not moved. Step 1a therefore first compares committed against committed
-  (HEAD's stamp = working-tree stamp, committed blob = stamp) for all three gates, fails closed on
-  any read it cannot complete, and recovers by regenerating the manifest from the watch paths — the
-  on-disk copy is not evidence of anything (a fresh clone holds the committed one). The gate skills
-  stage manifest and tracker together on the pass branch.
+  **What ships must be what was gated — and a working-tree hash cannot say so.** The gates run on
+  uncommitted code, so their stamp describes the working tree; a file left out of the commit still
+  hashes fine on disk, and so does evidence committed a run behind (OMH-750 PR #330's manifest, 38
+  rows stale beside its stamp). Checking the committed manifest against the stamp (PR #65's first
+  cut) sat at the wrong depth — it proved the evidence self-consistent while a component missing
+  from HEAD passed. The script grew `--rev <rev>`: the revision read into a temporary index and
+  enumerated with the same pathspecs, records the tree's blob ids, identical output to the
+  working-tree mode on a clean checkout of the gated commit. Step 1a runs on the merged base
+  checkout, requires the page's `docs/migration/` evidence committed, and recomputes each gate
+  against HEAD and against the working tree; the manifest is diagnostics only, read from whichever
+  copy hashes to the stamp.
 
   The legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` stay for backward compatibility;
   `gateEvidence` wins when present. Because a regeneration invalidates them just as surely as it
@@ -192,10 +194,10 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    files that differ from the gate's saved `--manifest`. Absent `tree` or absent `gateEvidence` =
    `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
-4a. `fm-route` Step 1a first checks committed evidence for all three gates — HEAD's stamp equals the
-   working-tree stamp, and the committed `gate-tree/{gate}.tsv` blob exists and equals it — failing
-   closed on unreadable evidence and recovering by regeneration; gate skills stage the promoted
-   manifest with `tracker.json` and hash the stamp with `--no-filters`.
+4a. `fm-route` Step 1a runs on the merged base checkout, blocks while the page's `docs/migration/`
+   evidence is uncommitted, and recomputes each gate with `--rev HEAD` as well as the working tree —
+   committed ≠ with working tree = is "commit / merge", never a re-run; gate skills stage the
+   promoted manifest with `tracker.json` and hash the stamp with `--no-filters`.
 5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
    watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
@@ -210,12 +212,9 @@ No runnable suite; deliverables are English instruction docs, verified by docume
   separately; some of it becomes unnecessary once these land.
 - `web-pc-e2e.yml` not being a PR gate — a monorepo CI-config matter, cited only as F's backdrop.
 - "When has a page's parity converged?" — still the open convergence question the v0.14.1 doc left.
-- **Recompute against HEAD, as a script.** The committed-evidence check (v1.2.1) proves HEAD's
-  manifest matches the stamp, and the live recompute proves the *working tree* matches it — neither
-  proves HEAD's *source* does, so a `git add` miss on one component still flips code no gate ran on.
-  A `gate-tree-hash.sh --rev HEAD` mode hashing `git ls-tree` records would close that at the right
-  depth and subsume the blob==stamp identity, and would move Step 1a's inline bash — the shape the
-  script's own header warns against — into one implementation. Script change; separate PR.
+- **Which revision ships.** Step 1a treats HEAD as shipping and relies on the operator running it
+  on the merged base checkout. A configured base branch (`git fetch` + `--rev origin/<base>`) would
+  make "PR1 not merged" a mechanical block instead of a precondition sentence.
 - **`verify` is stale on the first pass by construction.** `fm-e2e` merges the specs it realizes
   into `sourcePaths`, so the `verify` stamp was taken over a smaller set than the one every consumer
   recomputes; the first `--flag-on` blocks on it and the chain re-runs once. Pre-existing; needs

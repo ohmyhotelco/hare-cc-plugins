@@ -5,7 +5,7 @@
 # Write and Edit tools. A legacy file changed by `git checkout`, a Bash command, an IDE, or a
 # `git pull` is invisible here. Drift detection is therefore best-effort notification, never a
 # guarantee — the guarantee lives in the gate-evidence content hash, which is recomputed from the
-# working tree at flip time regardless of who changed it.
+# committed tree and the working tree at flip time regardless of who changed it.
 # Warns when legacy Angular source changes after a page has been migrated (stale -> delta),
 # or when an analysis/plan file is edited after generation has advanced.
 

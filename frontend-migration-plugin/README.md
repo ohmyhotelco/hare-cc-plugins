@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v1.2.1). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v1.3.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -57,8 +57,7 @@ This plugin is **tooling**; it assumes the migration project has set up the work
 - A **v2 monorepo** with: `apps/legacy-*` (the Angular apps under migration), `apps/web-*` (the
   new React Router v7 apps), and `packages/` (the shared packages).
 - **`git`** (the gate-evidence hash and both session hooks shell out to it) and **`jq`** (both
-  hooks read the tracker through it and degrade to silence without it; `fm-route --flag-on`
-  **requires** it — its committed-evidence check fails closed rather than skip).
+  hooks read the tracker through it; without it they degrade to silence).
 - **Node + pnpm** (pnpm workspaces), and **Playwright browsers** installed (`npx playwright
   install`) for the E2E and visual gates.
 - The **legacy Angular source** reachable for analysis.

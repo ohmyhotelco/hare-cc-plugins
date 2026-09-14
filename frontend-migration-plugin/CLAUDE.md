@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.2.1)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.3.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -127,6 +127,8 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   The `{app}` to interpolate is the one the *named page* lives under — `docs/migration/{app}/{page}/`
   — which is not always the printing skill's own `app`: `fm-extract` is one skill resolving one app
   while its dependent pages span all three.
+- `monorepoRoot` — must be the **git toplevel** (`fm-init` refuses otherwise): the gate evidence is
+  addressed from the git root, everything else from here, and the two must coincide.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
   how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
@@ -790,12 +792,14 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   - **One executable, never reimplemented inline:**
 
     ```sh
-    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] \
+    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] [--rev <rev>] \
         --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
     ```
 
     Producers and consumers pass the **same `--exclude` and the same `--`**, or the two hashes are
-    incomparable. The script's own file documents how it records each entry; do not restate it here.
+    incomparable. `--rev <rev>` hashes the committed tree instead of the working tree with the same
+    set semantics, so the two modes agree exactly when the commit carries what the gate hashed. The
+    script's own file documents how it records each entry; do not restate it here.
   - It exits **2** printing `unverifiable` when no watch path resolves, and **1** writing nothing on
     any other error. `unverifiable` on a page that **has** a recorded `tree` is a *change*:
     `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
@@ -808,14 +812,16 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     (`git hash-object --no-filters -- "$MAN.tmp"` — the script's aggregate is by construction the
     hash of its records), never from a second script execution, which could straddle a change and
     record a hash the manifest does not describe. The redirect target must be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
-  - **The manifest and its stamp are one piece of evidence: both in HEAD, and equal.** The stamp is
-    `git hash-object --no-filters` of the manifest by construction, so the committed blob must
-    reproduce it. Gate skills stage both with the pass; `fm-route` Step 1a enforces it before the
-    live recompute (which cannot see it — the source did not move), requires `jq`, fails closed on
-    any unreadable evidence, and recovers by regenerating the manifest, never by re-committing the
-    on-disk copy. Precondition: no `filter` attribute on `gate-tree/*.tsv` (`text`/`eol` do not alter it).
-  - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
-    `fm-verify`.
+  - **What ships must be what was gated.** The gates hash the working tree because they run before
+    the code is committed, so a file left out of the commit still hashes fine on disk — and the
+    evidence itself (`tracker.json`, `gate-tree/`, the reports) can be committed a run behind
+    (OMH-750 PR #330). `fm-route --flag-on` Step 1a therefore runs on the merged base checkout,
+    requires the page's evidence under `docs/migration/` to be committed, and recomputes each
+    gate's `tree` twice — `--rev HEAD` (what ships) and the working tree (nothing uncommitted rides
+    into PR2) — both against the stamp. Gate skills stage the manifest and tracker with the pass.
+  - `fm-route --flag-on` Step 1a is a **hard** gate: a working-tree mismatch is a stale gate (re-run
+    the chain from `fm-verify`); a committed-tree mismatch alone is an uncommitted or unmerged file
+    (commit / merge — never a re-run).
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
     One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
@@ -832,8 +838,8 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
      directory `{packagesDir}/<package>` — the symbol is not a path.
   3. the page's `migration-plan.json` itself.
 
-  `fm-route` Step 1a and `fm-progress` resolve them identically; a consumer resolving fewer can
-  never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically; a consumer resolving
+  fewer can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
   `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
   clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must

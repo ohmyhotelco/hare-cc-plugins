@@ -23,7 +23,11 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
 
 ### Step 2: Detect the Monorepo Layout
 
-1. Determine `monorepoRoot` (default: current directory `.`).
+1. Determine `monorepoRoot` (default: current directory `.`). **It must be the git toplevel**:
+   `git rev-parse --show-toplevel` must equal `pwd`. The gate evidence (`docs/migration/tracker.json`,
+   `gate-tree/*.tsv`) is addressed from the git root by the gate skills and `fm-route`, while every
+   other `docs/migration/` path is `monorepoRoot`-relative; a nested layout splits the two and the
+   freshness gate false-blocks on every page. Refuse to write the config from anywhere else.
 1a. **`pluginRoot` is written by the SessionStart hook, not here.** The five skills that shell
    out to `scripts/gate-tree-hash.sh` read it from config, but this skill cannot compute it: a
    Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
