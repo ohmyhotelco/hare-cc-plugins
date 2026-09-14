@@ -37,8 +37,10 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 ### Step 3: Run the gate
 Before launching the runner, compute the **pre-run** manifest and `tree` hash — one `--manifest`
 execution saved to a temp pre-run manifest, hash via `git hash-object --no-filters` (the same one-execution
-rule as Step 4), over the same watch-path union — axes 1–3 **plus `e2ePaths[]`** (CLAUDE.md →
-Gate Result Accounting F). Step 4 compares against both: this gate
+rule as Step 4), over the same watch-path union — all of axis 1, this gate hashes the `{appDir}/e2e/`
+entries `verify` leaves out (CLAUDE.md → Gate Result Accounting F). Save it as `"$MAN.pre.tmp"` beside
+the manifest (the `*.tmp` suffix keeps it out of every commit) and delete it once Step 4 has
+compared. Step 4 compares against both: this gate
 legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
 (CLAUDE.md → Gate Result Accounting E).
 
@@ -88,17 +90,18 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
   `unverifiable`), exit 1 is an error.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines
-  **plus `e2ePaths[]`**; resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's
-  `sharedDeps[]` here. **First record the runner's `filesChanged[]` under `e2ePaths[]`**
-  (Read-Modify-Write under `.tracker.lock`; add, never drop) — every file it created or modified:
-  specs, page objects, fixtures, helpers alike, since any of them outside the watch union can be
-  weakened later without moving the recorded tree. **Not into `sourcePaths[]`**: that is what
-  `verify` stamped, and it ran before these files existed — merging them there made every first
-  `--flag-on` stale and every re-run of this gate (which rewrites specs) re-stale it. The paths are
-  **repo-relative** (the `sourcePaths` basis); one that does not start with `{appDir}` is the
-  runner's mistake — resolve it against `appDir` before recording, or the hash watches a
-  nonexistent root path. Then compute the record-time manifest/hash over the updated union. Compare with
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
+  all of axis 1, including the `{appDir}/e2e/` entries `verify` leaves out; resolve `packagesDir`
+  and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here. **First merge the runner's
+  `filesChanged[]` into `sourcePaths`** (Read-Modify-Write under `.tracker.lock`) — every file it
+  created or modified: specs, page objects, fixtures, helpers alike, since any of them outside the
+  watch union can be weakened later without moving the recorded tree — **skipping any path
+  `git check-ignore -q` accepts** (a `storageState`, a trace: never committed, and the script refuses
+  an ignored watch path), and **dropping any `{appDir}/e2e/` entry whose file is gone** (a spec the
+  runner renamed is its own work, not concurrent movement). The paths are **repo-relative** (the
+  `sourcePaths` basis); one that does not start with `{appDir}` is the runner's mistake — resolve it
+  against `appDir` before merging, or the hash watches a nonexistent root path. Then compute the
+  record-time manifest/hash over the updated union. Compare with
   Step 3's pre-run manifest: every differing path must appear in that same `filesChanged[]`
   (`e2e-report.json` — a report without the field cannot support this comparison: treat the run as
   unverifiable and re-run). Any **other** difference means the watch paths

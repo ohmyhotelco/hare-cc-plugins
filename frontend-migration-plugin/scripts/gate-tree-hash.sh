@@ -28,7 +28,8 @@
 #                 (1) the page's tracker `sourcePaths[]`, (2) each migration-plan `sharedDeps[]`
 #                 entry mapped @omh/<pkg>:<sym> -> {packagesDir}/<pkg>, and (3) the page's own
 #                 `migration-plan.json`. Resolved from the repo root regardless of the caller's
-#                 working directory, and matched LITERALLY.
+#                 working directory, and matched LITERALLY. (Which axis-1 entries a given gate
+#                 passes is the caller's rule — CLAUDE.md F: `verify` leaves out `{appDir}/e2e/`.)
 #   --manifest    print the per-file records instead of the aggregate hash.
 #   --rev <rev>   hash what the COMMITTED tree <rev> holds at the watch paths instead of the
 #                 working tree. The gates hash the working tree (they run on uncommitted code);
@@ -114,11 +115,15 @@ for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 # directory are a different matter: the repository declared them build output (node_modules, dist),
 # they are neither hashed nor shipped, and both modes agree on that — by design, not by omission.
 for p in "${PATHS[@]}"; do
-  if { [ -e "$p" ] || [ -L "$p" ]; } && git check-ignore -q -- "$p" 2>/dev/null; then
-    echo "gate-tree-hash: watch path is gitignored, cannot record: $p" >&2
-    echo "  An ignored file never reaches a commit. Un-ignore it, or drop it from the watch paths." >&2
-    exit 1
-  fi
+  { [ -e "$p" ] || [ -L "$p" ]; } || continue
+  git check-ignore -q -- "$p" 2>/dev/null && rc=0 || rc=$?   # `set -e` would abort on the ordinary "not ignored" 1
+  case $rc in
+    0) echo "gate-tree-hash: watch path is gitignored, cannot record: $p" >&2
+       echo "  An ignored file never reaches a commit. Un-ignore it, or drop it from the watch paths." >&2
+       exit 1 ;;
+    1) ;;   # not ignored
+    *) echo "gate-tree-hash: git check-ignore failed ($rc) on: $p" >&2; exit 1 ;;   # an error is not "not ignored"
+  esac
 done
 
 TMPDIR_BASE=${TMPDIR:-/tmp}
@@ -249,7 +254,7 @@ while IFS= read -r -d '' f; do
         # revision hashed only the untracked *paths*, so editing an existing untracked file inside
         # the submodule left the digest unmoved while the build consumed the new bytes.
         if d=$( { git -C "$f" diff HEAD
-                  git -C "$f" submodule status --recursive 2>/dev/null | grep '^[-+U]' || true
+                  git -C "$f" submodule status --recursive 2>/dev/null | grep '^[+U]' || true
                   git -C "$f" ls-files --others --exclude-standard -z \
                     | LC_ALL=C sort -z \
                     | while IFS= read -r -d '' u; do

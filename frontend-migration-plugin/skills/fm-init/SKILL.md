@@ -131,7 +131,8 @@ details — they can be refined when those phases begin.
    plugin `CLAUDE.md` → "Configuration"). Include `contractsDir` **only when** the
    `docs/migration/api-contracts/` directory was detected in Step 2; otherwise omit the key.
 2. Make `docs/migration/.gitignore` carry `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — create it, or
-   append whichever lines an existing one lacks. The page, tracker, package and app locks, the gate
+   append whichever lines an existing one lacks (with a leading newline: a file that ends without
+   one would glue the rule onto its last line). The page, tracker, package and app locks, the gate
    skills' pre-run manifests and `fm-delta`'s proposed baselines are transient; a page-directory
    `git add` (`fm-route --flag-off`) would otherwise stage a live lock into PR1. Commit it with the
    config (`fm-route` Step 4c also stages it). Then create `docs/migration/tracker.json` if absent:

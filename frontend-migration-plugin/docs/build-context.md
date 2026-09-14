@@ -1042,7 +1042,19 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   working tree =" was dropped — the operator decides, no date does; and the first-flip loop got its
   structural fix: `e2ePaths[]` is a fourth axis hashed by `e2e`/`parity` only, so `verify`'s stamp
   keeps describing what `verify` ran on and an `fm-e2e` re-run that rewrites specs cannot re-stale
-  it. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
+  it. A third round found the field form of that fix leaky — legacy trackers, `fm-cascade` and the
+  runner contract still put specs in `sourcePaths`, so the two lists overlapped and the loop
+  survived — and replaced it with a rule on the path: `verify` leaves out every axis-1 entry under
+  `{appDir}/e2e/`, whoever added it; producers merge into `sourcePaths` as before, skipping
+  gitignored runner outputs (a `storageState` the script would refuse). Also closed: a staged
+  tracker record (the page record is now read from working tree, index and HEAD); `-` in
+  `submodule status` read as dirty (it means uninitialized); `check-ignore`'s error exit read as
+  "not ignored"; `.gitignore` appends gluing onto a last line without a newline; `--show-cdup`
+  evaluated from a persisted `{appDir}` cwd; the evidence-clearing guidance discarding a Step 1b
+  adjudication or an owner approval; "discard" aimed at another page's live `packages/` work; the
+  working-tree-resolves-nothing carve-out re-running a chain when HEAD still matched; and every
+  action staging the tracker it wrote (PR2 and the rollback PR carry `flipPrOpenedAt`/`flipped`).
+  Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

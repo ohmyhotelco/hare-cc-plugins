@@ -831,25 +831,30 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
     One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
     its specs) compares **manifests**, not bare hashes — every differing path must be the gate's own
-    reported work, merged into `sourcePaths` before the record-time hash; any other difference
-    records no pass.
+    reported work, merged into `sourcePaths` before the record-time hash (F: `verify` will not hash
+    the `{appDir}/e2e/` part of it); any other difference records no pass.
   - A record with no `tree` — including one whose computation returned `unverifiable` at record
     time — is non-blocking; no retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
     `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
-- **F (watch paths).** Three axes, hashed as one set:
+- **F (watch paths).** Three axes, hashed as one set (with one per-gate carve-out below):
   1. `tracker.json` `sourcePaths[]` — the files the generation phases wrote under `appDir`,
      recorded by `fm-gen` Step 5 and `fm-delta` Step 5.
   2. each `migration-plan.json` `sharedDeps[]` entry `@omh/<package>:<symbol>`, mapped to the
      directory `{packagesDir}/<package>` — the symbol is not a path.
   3. the page's `migration-plan.json` itself.
-  4. **for `e2e` and `parity` only:** `tracker.json` `e2ePaths[]` — the specs, page objects and
-     helpers `fm-e2e` realized, recorded by `fm-e2e` Step 4 (and by `fm-fix`/`fm-delta` for files
-     under `{appDir}/e2e/`). `verify` does not hash them: it ran before they existed, and a spec is
-     not shipped code — hashing them into its set made the first `--flag-on` of every page stale
-     and every `fm-e2e` re-run (which rewrites specs) re-stale it, a loop with no exit.
+
+  **One carve-out, by path: `verify` leaves out every axis-1 entry under `{appDir}/e2e/`.** The
+  specs, page objects and helpers `fm-e2e` realizes (and `fm-cascade`/`fm-fix` add) live there and are
+  merged into `sourcePaths[]` like any generated file — but `verify` ran before they existed, and a
+  spec is not shipped code. Hashing them into `verify`'s set made the first `--flag-on` of every page
+  stale and every `fm-e2e` re-run (which rewrites specs) re-stale it: a loop with no exit. `e2e` and
+  `parity` hash the full set. The rule is on the path, not on who added the entry, so a tracker
+  written before it and an entry added by any skill fall under it alike. **A gitignored path is
+  never a watch path**: it never reaches a commit and the script refuses it — every merge into
+  `sourcePaths[]` skips paths `git check-ignore -q` accepts (a Playwright `storageState`, a trace).
 
   `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically, per gate; a consumer
-  resolving fewer (or more) can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  resolving a different set can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
   `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
   clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must

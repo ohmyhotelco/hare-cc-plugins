@@ -129,8 +129,9 @@ Update `tracker.json` (Read-Modify-Write):
   On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
   `unverifiable`), exit 1 is an error.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
-  **not `e2ePaths[]`**, which `fm-e2e` has not realized yet;
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines,
+  **minus every axis-1 entry under `{appDir}/e2e/`** (F's carve-out: `fm-e2e` has not realized
+  them yet, and a re-run rewrites them);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`. Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths

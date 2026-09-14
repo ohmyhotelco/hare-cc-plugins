@@ -42,8 +42,8 @@ In `workingLanguage`, show:
   Step 1a does — `tracker.json` `sourcePaths[]`, each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>`, **and the page's
   `migration-plan.json` itself (axis 3)** — omitting axis 3 makes every recomputation differ from
-  the producers' and reports every page stale on unchanged code — **plus `e2ePaths[]` for the `e2e`
-  and `parity` stamps only** (axis 4; `verify` did not hash them) — then
+  the producers' and reports every page stale on unchanged code — **for the `verify` stamp, minus
+  every axis-1 entry under `{appDir}/e2e/`** (F's carve-out; `e2e`/`parity` hash all of it) — then
   re-compute the watch-path content hash by running
   `{pluginRoot}/scripts/gate-tree-hash.sh --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv
   -- <watch path>...` — the same `--exclude` and `--` that gate passed, or the sets differ and

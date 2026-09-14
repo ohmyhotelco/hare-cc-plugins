@@ -198,9 +198,10 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    evidence is uncommitted, and recomputes each gate with `--rev HEAD` as well as the working tree —
    four verdicts (fresh / commit-or-discard, the operator's call / discard a stray edit / stale);
    gate skills stage the promoted manifest with `tracker.json` and hash the stamp with
-   `--no-filters`; `e2e`/`parity` hash `e2ePaths[]` in addition, `verify` does not.
+   `--no-filters`; `verify` leaves the `{appDir}/e2e/` part of axis 1 out, `e2e`/`parity` hash all of it.
 5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
-   watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
+   watch-path basis (including the plan — omitting it reports every page stale; minus `{appDir}/e2e/`
+   for `verify`), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
    `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, **and `routePrepared`/`flagKey`**; `fm-delta` Step 5
    refreshes and clears the same, so a regenerated page never carries a PASS for code that no longer
@@ -219,3 +220,6 @@ No runnable suite; deliverables are English instruction docs, verified by docume
   v1.3.0 ranked this the largest remaining gap.
 - **File mode is not recorded.** Both modes hash blob ids only, so a `100644`↔`100755` flip on a
   watched file is invisible. No watched file is executed by the app; noted, not fixed.
+- **A dirty submodule's digest is textual.** `git diff HEAD` renders a nested dirty submodule as a
+  marker and a binary change as "differ", so two different dirty states can share a `dirty:` digest.
+  A `dirty:` record never ships (Step 1a names it as having no committed form); noted, not fixed.

@@ -124,7 +124,6 @@ after the user has chosen it.
 
     3. **Read the modifier's result before going on.** `delta-modifier` reports pass/fail rather
        than aborting. On failing tsc/Vitest, first **merge its `filesChanged[]` into `sourcePaths`**
-       (entries under `{appDir}/e2e/` into `e2ePaths[]` — CLAUDE.md → Gate Result Accounting F)
        (under `.tracker.lock`) — the files it already created exist in the tree, and a retry that
        reuses them unchanged will not list them again — then **release the page `.lock` and stop** — Step 5's
        release is the only other one on this branch, so stopping without it strands the page under
@@ -172,8 +171,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 - Update `tracker.json` (Read-Modify-Write): set status back to `generated` (the page must re-pass
   the gates), record `deltaAppliedAt`, refresh the tracker `styleSpec` summary when Step 4 re-extracted the answer
   key (otherwise it keeps describing the pre-drift capture), refresh `sourcePaths` from the modifier's
-  `filesChanged[]` (repo-relative — add created/modified files, drop removed ones; entries under
-  `{appDir}/e2e/` go to `e2ePaths[]`; a report
+  `filesChanged[]` (repo-relative — add created/modified files, drop removed ones; a report
   without the list is incomplete evidence: re-collect before recording), and **clear `gateEvidence` together with the legacy `verifiedAt` / `e2ePassedAt` /
   `parityPassedAt`** — the page's code changed, so every prior gate PASS now rests on superseded code
   and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`

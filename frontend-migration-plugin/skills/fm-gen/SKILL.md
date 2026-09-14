@@ -121,10 +121,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    the current run's phases silently drops watched files. Each list is the phase's **output set**
    (reused-but-unchanged files included — the agents' contracts say so), which is what makes this
    full rewrite safe **for the generation-owned files**. Entries merged into `sourcePaths` by
-   `fm-fix`/`fm-delta` (page objects, helpers) are not the phases' to drop:
+   `fm-e2e`/`fm-fix`/`fm-delta` (specs, page objects, helpers) are not the phases' to drop:
    re-add every prior entry whose file still exists on disk — only an entry whose file is gone
-   leaves the list. `e2ePaths[]` (the specs and helpers `fm-e2e` realized — CLAUDE.md → Gate
-   Result Accounting F) is kept the same way, and is never merged into `sourcePaths`. A phase report missing the list, or
+   leaves the list. A phase report missing the list, or
    carrying paths that do not resolve from the repo root, is **incomplete evidence**: do not
    record `sourcePaths` from it — re-collect from the phase before recording (an unwatched file
    evades every later freshness hash). This is the page's
