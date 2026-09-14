@@ -113,27 +113,101 @@ page's **watch paths** from three recorded sources — never by guessing which f
    gates passed, it changes what ships without touching a single file in axes 1 or 2 — so a plan
    swapped from `/tested` to `/untested` would flip a path no report ever evaluated. **The three gate
    skills hash all three axes; hashing fewer here can never match, and Step 1a is a hard gate with no
-   acknowledgement path — the flip would be unreachable for every page, permanently.**
+   acknowledgement path — the flip would be unreachable for every page, permanently.** One per-gate
+   carve-out, CLAUDE.md F: for `verify`, drop every axis-1 entry under `{appDir}/e2e/` — `fm-verify`
+   did — and hash all of it for `e2e` and `parity`.
 
-Hash the union by **running the script** the gate skills ran — never an inline pipeline:
+**Where this runs.** HEAD is what this step treats as shipping, so run `--flag-on` on the checkout
+of the **merged base branch** — PR1 landed and pulled. On an unmerged PR1 branch every check below
+passes for code the base branch does not have, and PR2 would flip traffic to it. And, **from the
+project root** (the shell's cwd persists across calls and the gate skills leave it at `{appDir}`, where
+a `{monorepoRoot}` of `.` means the wrong directory), `git -C {monorepoRoot} rev-parse --show-cdup` must
+exit 0 **and** print nothing (outside a repository it prints nothing and exits 128): a config from
+before v1.3.0 nested below the git toplevel addresses evidence at paths the checks below cannot see
+— refuse and send the user to `fm-init`.
+
+**Evidence must be committed.** This page's record in `tracker.json` and its `docs/migration/{app}/{page}/`
+must match HEAD — the stamps, manifests and reports the flip stands on are PR1's record, and a
+working-tree copy proves nothing to a reviewer or to the next checkout:
 
 ```sh
-{pluginRoot}/scripts/gate-tree-hash.sh \
-    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
+REPO=$(git rev-parse --show-toplevel)
+command -v jq >/dev/null || { echo "jq missing — compare the whole tracker.json instead"; exit 1; }
+REC='.apps[$a].pages[$p]'
+WT=$(jq -Sc --arg a "{app}" --arg p "{page}" "$REC" "$REPO/docs/migration/tracker.json") || exit 1
+IX=$(git show :docs/migration/tracker.json    | jq -Sc --arg a "{app}" --arg p "{page}" "$REC"); [ -n "$IX" ] || exit 1
+HD=$(git show HEAD:docs/migration/tracker.json | jq -Sc --arg a "{app}" --arg p "{page}" "$REC"); [ -n "$HD" ] || exit 1
+[ "$WT" = "$IX" ] && [ "$IX" = "$HD" ] || echo "page record differs across working tree / index / HEAD"
+git status --porcelain -uall --ignored -- ':(top)docs/migration/{app}/{page}' \
+    ':(top,exclude)docs/migration/{app}/{page}/.lock' ':(top,exclude,glob)docs/migration/{app}/{page}/**/*.tmp' \
+    ':(top,exclude,glob)docs/migration/{app}/{page}/*.next.json'
+git -C "$REPO" --literal-pathspecs diff --cached --quiet -- <watch path>...   # all three axes, all of axis 1
 ```
 
-A gate whose recomputed hash differs from its recorded `gateEvidence.{gate}.tree` is **stale**.
+All three must be silent (the last: exit 0). The record is read from three trees — working tree,
+**index**, HEAD — because a staged record is what the next commit ships and neither the working
+tree nor HEAD shows it; an unreadable tree is an `exit 1`, not an empty match. The record is
+page-scoped on purpose — `tracker.json`
+is shared, and another page's in-flight rows are not this flip's business; the `jq` guard is there
+because an empty diff from a tool that did not run is not a pass — without `jq`, compare the whole
+file (`git status --porcelain -- ':(top)docs/migration/tracker.json'`: stricter, may block on another
+page's work). `-uall` defeats `status.showUntrackedFiles=no`; `--ignored` surfaces a report or manifest
+a repository ignore rule keeps out of every commit (an ignored evidence file is `!!`, and a block);
+`:(top)` resolves from the repo root whatever the cwd; the page lock, `*.tmp` and `*.next.json` are
+transient, excluded here and gitignored by `fm-init`. The staged check exists because both recomputes
+below hash the tree and the disk, never the index — a staged edit on a watched file is invisible to
+them and is exactly what the next commit ships. Anything printed → **block**. Which way to clear it
+only the operator knows: something this pipeline wrote since PR1 — a gate re-run's pair, a Step 1b
+adjudication in `codex-audit.json`, an owner approval in `owner-decisions.md` — commit it; a drift
+nobody meant (a revert, a stash, a hand merge) — restore this page's record from HEAD's
+`tracker.json`, never commit it.
+
+**Two recomputes per gate, one script, same flags.** Hash the union by **running the script** the
+gate skills ran — never an inline pipeline — once against the committed tree and once against the
+working tree:
+
+```sh
+{pluginRoot}/scripts/gate-tree-hash.sh --rev HEAD \
+    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...   # what ships
+{pluginRoot}/scripts/gate-tree-hash.sh \
+    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...   # what is on disk
+```
+
 **Pass the same `--exclude` and `--` that gate passed.** The producer excluded its own manifest so
 the evidence would not describe itself; a consumer omitting either flag hashes a different set, and
 every comparison then fails as a permanent hard block on correct code.
 
+Judge each gate on both hashes against its recorded `gateEvidence.{gate}.tree`:
+
+- **Both equal** → fresh: what ships is what was gated, and nothing uncommitted rides into PR2.
+- **Committed ≠, working tree =** → the working tree holds the gated content and HEAD does not.
+  **Block**, and name the files — the `--rev HEAD --manifest` output diffed against the gated
+  manifest. The hashes say which tree holds the gated bytes, not which is newer, and no timestamp
+  decides that (squash and rebase rewrite dates): the operator does. Either the file was left out
+  of PR1's commit (a file untracked when the gate ran included) — commit it, no re-run — or HEAD was
+  changed on purpose after the gate and the working tree is a stale copy — discard it, and the gate
+  is stale (below). A `dirty:` submodule record has no committed form at all: commit inside the
+  submodule and re-run. The gates hash the working tree because they run before the code is
+  committed; only this recompute can say the commit carried it (OMH-750 PR #330 shipped a manifest
+  38 rows behind its stamp, and a component left out the same way passes every working-tree check).
+- **Committed =, working tree ≠** → HEAD carries the gated content; the working tree has an
+  uncommitted edit on the named files that would ride into PR2 (an IDE format, a stray save).
+  **Block**; stash it — or discard it if it is yours: under `{packagesDir}` it may be another page's
+  live `fm-extract`/`fm-fix` work — and re-check. Not a re-run, and never a commit.
+- **Both ≠** → the page moved since the gate ran: **stale**, handled below. (A checkout that
+  received PR1's evidence without its code lands here as well — the named files' history shows the
+  commit this checkout lacks; merge it rather than re-run.)
+
+**The gated manifest**, for naming files, is whichever copy hashes with `git hash-object
+--no-filters` to the stamp — `git show HEAD:docs/migration/{app}/{page}/gate-tree/{gate}.tsv` or the
+working-tree file (a re-stamp rewrites it; a checkout may hold an older one). If neither does, say
+the aggregate moved and stop there rather than inventing a file list.
+
 **This is a hard gate: a stale gate blocks the flip.** Name the stale gates **and the files that
-moved** — re-run the script with `--manifest` and diff it against the manifest that gate saved at
-`docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
-answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
-computable, so if the manifest is missing, say the aggregate moved and stop there rather than
-inventing a file list. If the manifest diff shows `DELETED` entries whose replacements exist under
-new names (a rename or refactor outside the pipeline), **refresh `sourcePaths` first — under the
+moved** — re-run the script with `--manifest` and diff it against the gated manifest; the stored
+`tree` is a single aggregate and a diff against it is not computable. If the manifest diff shows
+entries the recompute no longer lists whose replacements exist under new names (a rename or
+refactor outside the pipeline), **refresh `sourcePaths` first — under the
 page lock** (acquire it for this write even though the flip is refused: a pre-lock tracker
 mutation races any live same-page writer; take `.tracker.lock` for the write itself, then release
 both): drop the deleted paths, add the replacements. When the saved manifest is **missing**, check
@@ -155,7 +229,8 @@ every page by construction — the gates run on generated code *before* it is co
 `+dirty`, and once PR1 merged its merge commit touched every path in `sourcePaths[]` by definition.
 Neither condition could be cleared by re-running. Comparing **content** dissolves both: a merge
 changes the commit graph, not the bytes, so an untouched page hashes identically and passes with no
-prompt at all. The hash moves only when the page's code or a shared package it imports actually
+prompt at all. The `--rev HEAD` recompute is that same comparison against the committed tree — a
+merge that changed no bytes still matches, and it is what proves the commit carries the gated content. The hash moves only when the page's code or a shared package it imports actually
 changed — which is the case the rule exists for, and the one that must block. (OMH-754 PR #184
 shipped a `visual: PASS` standing on a screenshot 21 commits stale; under this rule it does not
 reach the flip.)
@@ -174,7 +249,11 @@ because there is nothing to compare against:
   - **No `tree` recorded** → `unverifiable`, acknowledge and proceed. Nothing was ever claimed.
   - **A `tree` IS recorded and the recompute now resolves nothing** → **block**. The gate hashed a
     non-empty file set; that set has since vanished from the working tree and the index, which is a
-    change to the watched surface, not an absence of evidence. The usual cause is a refactor that
+    change to the watched surface, not an absence of evidence — **unless the other recompute still
+    equals the stamp**: from `--rev HEAD` alone it is the "committed ≠, working tree =" verdict
+    (commit or merge); from the working tree alone while `--rev HEAD` matches it is "committed =,
+    working tree ≠" (the files were removed locally — restore them from HEAD). Neither is a
+    re-run. The usual cause is a refactor that
     renamed every `sourcePaths[]` entry — and since the replacements are not in `sourcePaths[]`,
     they are not watched at all. Send the user to **`fm-verify`** and let the chain re-run in order —
     same reason as above; `fm-e2e`/`fm-parity` refuse `parity-passed` (which re-records `sourcePaths`
@@ -285,6 +364,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
+  Step 4c stages the evidence, after the route audit has written its part.
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
   the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for
   the code PR on `--flag-off`. Say so in the report, and read the field accordingly: `flipPrOpenedAt`
@@ -324,6 +404,30 @@ spawn `codex-auditor` (Agent) for the `route` stage (params: `app`, `page`, `sta
 `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`) — Codex's final
 independent sign-off of the whole page. Advisory; its high-severity findings are what the
 `--flag-on` acknowledgement (Step 1b) will surface.
+
+### Step 4c: Stage the evidence (every action)
+Every action wrote `tracker.json` in Step 4, and the PR that action prepares carries it — PR1, the
+one-line PR2, the rollback PR — or `flipPrOpenedAt` / `flipped` / `revertedAt` exist in one working
+tree only and every other checkout re-arms the flip. Stage it. `--flag-off` additionally stages the
+page's evidence, after Step 4b — the route audit is part of the record PR1 must carry:
+
+```sh
+REPO=$(git rev-parse --show-toplevel)
+git add -- "$REPO/docs/migration/tracker.json"
+# --flag-off only:
+for l in .lock '.*.lock' '*.tmp' '*.next.json'; do   # the ignore file fm-init writes; older projects lack it
+  grep -qxF -- "$l" "$REPO/docs/migration/.gitignore" 2>/dev/null || printf '\n%s\n' "$l" >> "$REPO/docs/migration/.gitignore"
+done
+git add -- "$REPO/docs/migration/.gitignore" "$REPO/docs/migration/{app}/{page}"
+```
+
+The ignore file (appended with a leading newline — a file that ends without one would glue the
+rule onto its last line) is what keeps a live lock, a pre-run manifest or `fm-delta`'s proposed baseline out
+of the directory add (an `:(exclude)` pathspec naming an ignored file makes `git add` exit 1 with
+the ignored-path advice, so the ignore rule is the mechanism, not a pathspec), and it ships with PR1
+so every later checkout has it. The gate skills staged the tracker as of their pass; this write
+supersedes that index entry. Staging here leaves nothing for Step 1a's evidence check to find but a
+later change.
 
 ### Step 5: Report
 In `workingLanguage`: action, the `flipMechanism` and the artifact edited (the nginx routing block

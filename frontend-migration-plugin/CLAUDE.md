@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.2.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.3.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -127,6 +127,8 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   The `{app}` to interpolate is the one the *named page* lives under — `docs/migration/{app}/{page}/`
   — which is not always the printing skill's own `app`: `fm-extract` is one skill resolving one app
   while its dependent pages span all three.
+- `monorepoRoot` — must be the **git toplevel** (`fm-init` refuses otherwise): the gate evidence is
+  addressed from the git root, everything else from here, and the two must coincide.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
   how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
@@ -298,6 +300,8 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
+├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — locks,
+│                                        pre-run manifests and proposed baselines never reach a commit
 ├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
 │                                        page `.lock` below, but guards `packages/shared-*` work,
 │                                        which is not page-scoped)
@@ -790,12 +794,14 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   - **One executable, never reimplemented inline:**
 
     ```sh
-    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] \
+    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] [--rev <rev>] \
         --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
     ```
 
     Producers and consumers pass the **same `--exclude` and the same `--`**, or the two hashes are
-    incomparable. The script's own file documents how it records each entry; do not restate it here.
+    incomparable. `--rev <rev>` hashes the committed tree instead of the working tree with the same
+    set semantics, so the two modes agree exactly when the commit carries what the gate hashed. The
+    script's own file documents how it records each entry; do not restate it here.
   - It exits **2** printing `unverifiable` when no watch path resolves, and **1** writing nothing on
     any other error. `unverifiable` on a page that **has** a recorded `tree` is a *change*:
     `fm-route` Step 1a blocks on it, and grandfathers only the never-recorded case.
@@ -804,31 +810,51 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     directory first) and pass that repo-relative path back as `--exclude`. Write it to a temp file
     and promote it only when the pass records — on a pre-run/record-time mismatch the previous
     manifest must survive, or the recorded `tree` and the on-disk file list describe different
-    trees. Derive the record-time `tree` from that same temp file (`git hash-object -- "$MAN.tmp"`
-    — the script's aggregate is by construction the hash of its records), never from a second
-    script execution, which could straddle a change and record a hash the manifest does not
-    describe. The redirect target must
-    be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
-  - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
-    `fm-verify`.
+    trees. Derive the record-time `tree` from that same temp file
+    (`git hash-object --no-filters -- "$MAN.tmp"` — the script's aggregate is by construction the
+    hash of its records), never from a second script execution, which could straddle a change and
+    record a hash the manifest does not describe. The redirect target must be the real repo root — gate skills run from `{appDir}`, and `{monorepoRoot}` defaults to `"."`.
+  - **What ships must be what was gated.** The gates hash the working tree because they run before
+    the code is committed, so a file left out of the commit still hashes fine on disk — and the
+    evidence itself (`tracker.json`, `gate-tree/`, the reports) can be committed a run behind
+    (OMH-750 PR #330). `fm-route --flag-on` Step 1a therefore runs on the merged base checkout,
+    requires the page's evidence under `docs/migration/` to be committed, and recomputes each
+    gate's `tree` twice — `--rev HEAD` (what ships) and the working tree (nothing uncommitted rides
+    into PR2) — both against the stamp. Gate skills stage the manifest and tracker with the pass
+    (`tracker.json` is one file: the stage carries whatever rows are current, and another page's
+    row without its artifacts is that page's own Step 1a to catch).
+  - `fm-route --flag-on` Step 1a is a **hard** gate with four verdicts, defined there: fresh; the
+    committed tree lacks the gated content (commit, or discard a stale working copy — the operator
+    decides, no timestamp does); a stray uncommitted edit (discard); stale (re-run the chain from
+    `fm-verify`).
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
     One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
     its specs) compares **manifests**, not bare hashes — every differing path must be the gate's own
-    reported work, merged into `sourcePaths` before the record-time hash; any other difference
-    records no pass.
-  - A record with no `tree`, or a computation that returned `unverifiable`, is non-blocking — no
-    retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
+    reported work, merged into `sourcePaths` before the record-time hash (F: `verify` will not hash
+    the `{appDir}/e2e/` part of it); any other difference records no pass.
+  - A record with no `tree` — including one whose computation returned `unverifiable` at record
+    time — is non-blocking; no retro-adjudication. Legacy `verifiedAt`/`e2ePassedAt`/`parityPassedAt` stay for compatibility;
     `gateEvidence` wins when present. `at` is ISO-8601 with time; date-only is a rule violation.
-- **F (watch paths).** Three axes, hashed as one set:
+- **F (watch paths).** Three axes, hashed as one set (with one per-gate carve-out below):
   1. `tracker.json` `sourcePaths[]` — the files the generation phases wrote under `appDir`,
      recorded by `fm-gen` Step 5 and `fm-delta` Step 5.
   2. each `migration-plan.json` `sharedDeps[]` entry `@omh/<package>:<symbol>`, mapped to the
      directory `{packagesDir}/<package>` — the symbol is not a path.
   3. the page's `migration-plan.json` itself.
 
-  `fm-route` Step 1a and `fm-progress` resolve them identically; a consumer resolving fewer can
-  never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  **One carve-out, by path: `verify` leaves out every axis-1 entry under `{appDir}/e2e/`.** The
+  specs, page objects and helpers `fm-e2e` realizes (and `fm-cascade`/`fm-fix` add) live there and are
+  merged into `sourcePaths[]` like any generated file — but `verify` ran before they existed, and a
+  spec is not shipped code. Hashing them into `verify`'s set made the first `--flag-on` of every page
+  stale and every `fm-e2e` re-run (which rewrites specs) re-stale it: a loop with no exit. `e2e` and
+  `parity` hash the full set. The rule is on the path, not on who added the entry, so a tracker
+  written before it and an entry added by any skill fall under it alike. **A gitignored path is
+  never a watch path**: it never reaches a commit and the script refuses it — every merge into
+  `sourcePaths[]` skips paths `git check-ignore -q` accepts (a Playwright `storageState`, a trace).
+
+  `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically, per gate; a consumer
+  resolving a different set can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
   `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
   clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must

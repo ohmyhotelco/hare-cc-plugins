@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-08-12)
+## Status (2026-09-14)
 
-- **Build complete — v1.2.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
+- **Build complete — v1.3.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -993,6 +993,68 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   `cascade-diff.mjs`; `styleSpecPath` added to the e2e contract on both sides; lock-staleness
   wording aligned to the holder-alive rule; the CLAUDE.md "Required" overclaim softened to match
   the advisory gate; and the keyword/version triplet synced at **1.2.0**.
+- **v1.3.0 — committed-tree freshness (`--rev HEAD`).** The gates hash the *working tree* — they run
+  on uncommitted code — so the flip's freshness check (`fm-route` Step 1a, a working-tree recompute)
+  could never say whether the *commit* carried what was gated. Two holes fell out of that, found in
+  order. First, OMH-750 PR #330: a re-recorded stamp committed beside the previous run's manifest
+  (`git add` miss); the recompute equaled the stamp because the source had not moved, and a human
+  counting rows caught it. PR #65's first cut (doc-only, "v1.2.1") added a committed-manifest ==
+  stamp check with jq reads of HEAD's tracker, a five-way judgement and a "self-diagnosing"
+  recovery; two isolated review rounds driving the skill text verbatim through a throwaway monorepo
+  found the recovery a no-op from a fresh clone, a HEAD-downgrading branch, an unreachable-looking
+  fail-open, and — decisive — the second hole: a *component* left out of the commit passes the
+  manifest check and the working-tree recompute alike, and PR2 flips code no gate ran on. The
+  manifest identity was the wrong depth. `scripts/gate-tree-hash.sh --rev <rev>` (+29 lines) reads
+  the revision into a temporary index and enumerates it with the same `git ls-files` pathspecs as
+  the working-tree mode, records the tree's blob ids, and on a clean checkout of the gated commit
+  prints the same manifest and the same hash the gate did. Step 1a now: run on the merged base
+  checkout (HEAD is what ships — an unmerged PR1 branch passes for code the base lacks); require the
+  page's evidence under `docs/migration/` to be committed (`git status --porcelain -- ':(top)…'`);
+  recompute each gate twice — `--rev HEAD` and the working tree — against the stamp. Committed ≠ with
+  working tree = is an uncommitted/unmerged file (commit, never re-run); working tree ≠ is the stale
+  gate. The manifest is diagnostics again ("which files"), read from whichever copy hashes to the
+  stamp; the five-way jq judgement, the regeneration recovery and the gitattributes precondition
+  are gone. Kept from the first cut: the stamp is hashed `--no-filters` (equals the script's
+  `--stdin` aggregate unconditionally; retired a latent permanent block under any `*.tmp`
+  attribute), and the gate skills promote and stage manifest + `tracker.json` in one self-contained
+  block, with `--flag-off` staging the tracker it writes last. `fm-init` now refuses a
+  `monorepoRoot` that is not the git toplevel — the evidence paths were already root-addressed and
+  a nested layout split them from the rest. A dual audit of the frozen tree (Claude `code-review`
+  + Codex, 2026-09-14) then closed: the working-tree mode's `DELETED` and `moved:` shapes, which
+  had no committed equivalent and false-staled a gated deletion once committed (a gone file is now
+  simply not a record; a checked-out submodule records its HEAD); a gitignored watch path, dropped
+  by `--exclude-standard` in both modes and so never shipped yet never noticed (refused); `--rev ""`
+  silently selecting the working-tree mode; `--flag-off` staging the live page lock and staging
+  *before* the route audit wrote its part (Step 4c, after 4b, lock and `*.tmp` excluded, and
+  `fm-init` gitignores them); the evidence-committed check reading the whole shared `tracker.json`
+  (page-scoped via `jq` now) and tripping on the skill's own lock at Step 2's re-verify; the
+  "committed ≠, working tree =" verdict assuming the working tree is newer (the named file's
+  history against `gateEvidence.at` decides) and "working tree ≠" always meaning re-run (a matching
+  committed tree means a stray local edit — discard it); fm-init's `pwd` string test failing on a
+  symlinked checkout (`--show-cdup`); and one record emitter shared by the sparse and `--rev`
+  branches. A second dual audit of that tree: a staged-but-not-on-disk edit was invisible to both
+  recomputes (index guard added); an ignored report or manifest satisfied the evidence check
+  (`--ignored`), as did `status.showUntrackedFiles=no` (`-uall`) and a missing `jq` (guard);
+  removing `DELETED` had opened an empty-record success (hash of zero bytes — one shared tail now
+  judges record count for both modes); a clean submodule with a clean nested submodule read
+  `dirty:`; an empty watch path meant "everything"; `:(exclude)` of an ignored lock made `git add`
+  exit 1, so Step 4c relies on the ignore file and ships it; the timestamp rule for "committed ≠,
+  working tree =" was dropped — the operator decides, no date does; and the first-flip loop got its
+  structural fix: `e2ePaths[]` is a fourth axis hashed by `e2e`/`parity` only, so `verify`'s stamp
+  keeps describing what `verify` ran on and an `fm-e2e` re-run that rewrites specs cannot re-stale
+  it. A third round found the field form of that fix leaky — legacy trackers, `fm-cascade` and the
+  runner contract still put specs in `sourcePaths`, so the two lists overlapped and the loop
+  survived — and replaced it with a rule on the path: `verify` leaves out every axis-1 entry under
+  `{appDir}/e2e/`, whoever added it; producers merge into `sourcePaths` as before, skipping
+  gitignored runner outputs (a `storageState` the script would refuse). Also closed: a staged
+  tracker record (the page record is now read from working tree, index and HEAD); `-` in
+  `submodule status` read as dirty (it means uninitialized); `check-ignore`'s error exit read as
+  "not ignored"; `.gitignore` appends gluing onto a last line without a newline; `--show-cdup`
+  evaluated from a persisted `{appDir}` cwd; the evidence-clearing guidance discarding a Step 1b
+  adjudication or an owner approval; "discard" aimed at another page's live `packages/` work; the
+  working-tree-resolves-nothing carve-out re-running a chain when HEAD still matched; and every
+  action staging the tracker it wrote (PR2 and the rollback PR carry `flipPrOpenedAt`/`flipped`).
+  Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

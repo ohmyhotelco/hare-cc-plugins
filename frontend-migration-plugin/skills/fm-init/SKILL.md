@@ -23,7 +23,14 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
 
 ### Step 2: Detect the Monorepo Layout
 
-1. Determine `monorepoRoot` (default: current directory `.`).
+1. Determine `monorepoRoot` (default: current directory `.`). **It must be the git toplevel**:
+   `git -C {monorepoRoot} rev-parse --show-cdup` must exit 0 **and** print nothing (outside a
+   repository it prints nothing and exits 128; a string comparison of `pwd` against
+   `--show-toplevel` fails on a symlinked checkout that is the root). The gate
+   evidence (`docs/migration/tracker.json`, `gate-tree/*.tsv`) is addressed from the git root by the
+   gate skills and `fm-route`, while every other `docs/migration/` path is `monorepoRoot`-relative;
+   a nested layout splits the two and the freshness gate false-blocks on every page. Refuse to write
+   the config otherwise, and re-check after the user corrects paths in item 3.
 1a. **`pluginRoot` is written by the SessionStart hook, not here.** The five skills that shell
    out to `scripts/gate-tree-hash.sh` read it from config, but this skill cannot compute it: a
    Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
@@ -123,7 +130,12 @@ details — they can be refined when those phases begin.
 1. Write `.claude/frontend-migration-plugin.json` with the gathered values (schema in the
    plugin `CLAUDE.md` → "Configuration"). Include `contractsDir` **only when** the
    `docs/migration/api-contracts/` directory was detected in Step 2; otherwise omit the key.
-2. Create `docs/migration/tracker.json` if absent:
+2. Make `docs/migration/.gitignore` carry `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — create it, or
+   append whichever lines an existing one lacks (with a leading newline: a file that ends without
+   one would glue the rule onto its last line). The page, tracker, package and app locks, the gate
+   skills' pre-run manifests and `fm-delta`'s proposed baselines are transient; a page-directory
+   `git add` (`fm-route --flag-off`) would otherwise stage a live lock into PR1. Commit it with the
+   config (`fm-route` Step 4c also stages it). Then create `docs/migration/tracker.json` if absent:
    ```json
    {
      "apps": { "pc": { "pages": {} }, "mobile": { "pages": {} }, "hana": { "pages": {} } },

@@ -120,7 +120,7 @@ Update `tracker.json` (Read-Modify-Write):
   mkdir -p "$(dirname "$MAN")"
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>... > "$MAN.tmp"
-  TREE=$(git hash-object -- "$MAN.tmp")
+  TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
 
   **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
@@ -129,14 +129,25 @@ Update `tracker.json` (Read-Modify-Write):
   On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
   `unverifiable`), exit 1 is an error.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines,
+  **minus every axis-1 entry under `{appDir}/e2e/`** (F's carve-out: `fm-e2e` has not realized
+  them yet, and a re-run rewrites them);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`. Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths
   moved while the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`,
-  and say to re-run. Only when the pass is recorded, promote the manifest
-  (`mv "$MAN.tmp" "$MAN"`) — an overwritten manifest beside a refused pass would pair the old
-  recorded `tree` with a file list from a different tree.
+  and say to re-run. Only when the pass is recorded, promote the manifest — an overwritten
+  manifest beside a refused pass would pair the old recorded `tree` with a file list from a
+  different tree — and stage it with the tracker: the two are one piece of evidence, and
+  `fm-route` Step 1a blocks while either is uncommitted:
+
+  ```sh
+  REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/verify.tsv"
+  mv "$MAN.tmp" "$MAN" && git add -- "$MAN" "$REPO/docs/migration/tracker.json"
+  ```
+
+  If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
+  stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
 
   If it prints `unverifiable` (exit 2 — no watch paths resolved), record **no `tree`** and say so:
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never

@@ -107,7 +107,7 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   mkdir -p "$(dirname "$MAN")"
   {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN.tmp"
-  TREE=$(git hash-object -- "$MAN.tmp")
+  TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
 
   **One execution produces both.** The script's aggregate is `git hash-object` of exactly these
@@ -118,10 +118,22 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 
   Compare this hash with the pre-run hash from Step 2: if they differ, the watch paths moved while
   the gate ran — record **no pass**, leave the status unchanged, discard `"$MAN.tmp"`, and say to
-  re-run. Only when the pass is recorded, promote the manifest (`mv "$MAN.tmp" "$MAN"`) — an
-  overwritten manifest beside a refused pass would pair the old recorded `tree` with a file list
-  from a different tree.
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
+  re-run. Only when the pass is recorded, promote the manifest — an overwritten
+  manifest beside a refused pass would pair the old recorded `tree` with a file list from a
+  different tree — and stage it with the tracker: the two are one piece of evidence, and
+  `fm-route` Step 1a blocks while either is uncommitted:
+
+  ```sh
+  REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/parity.tsv"
+  mv "$MAN.tmp" "$MAN" && git add -- "$MAN" "$REPO/docs/migration/tracker.json"
+  ```
+
+  If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
+  stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
+
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
+  all of axis 1, including `{appDir}/e2e/` (this gate runs after the specs exist, and a weakened
+  spec must stale it);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.

@@ -99,6 +99,18 @@ from): the rule lives in the instructions, the basis is missing from the output.
   to `"."` — passing that repo-relative path back as `--exclude`. Step 1a diffs against it. A record with no `tree` (written before this field) stays `unverifiable` —
   acknowledged, non-blocking, no retro-adjudication.
 
+  **What ships must be what was gated — and a working-tree hash cannot say so.** The gates run on
+  uncommitted code, so their stamp describes the working tree; a file left out of the commit still
+  hashes fine on disk, and so does evidence committed a run behind (OMH-750 PR #330's manifest, 38
+  rows stale beside its stamp). Checking the committed manifest against the stamp (PR #65's first
+  cut) sat at the wrong depth — it proved the evidence self-consistent while a component missing
+  from HEAD passed. The script grew `--rev <rev>`: the revision read into a temporary index and
+  enumerated with the same pathspecs, records the tree's blob ids, identical output to the
+  working-tree mode on a clean checkout of the gated commit. Step 1a runs on the merged base
+  checkout, requires the page's `docs/migration/` evidence committed, and recomputes each gate
+  against HEAD and against the working tree; the manifest is diagnostics only, read from whichever
+  copy hashes to the stamp.
+
   The legacy `verifiedAt` / `e2ePassedAt` / `parityPassedAt` stay for backward compatibility;
   `gateEvidence` wins when present. Because a regeneration invalidates them just as surely as it
   invalidates `gateEvidence`, `fm-gen` and `fm-delta` clear all four together — plus `routePrepared`
@@ -182,8 +194,14 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    files that differ from the gate's saved `--manifest`. Absent `tree` or absent `gateEvidence` =
    `unverifiable`, acknowledged and non-blocking; absent `sourcePaths` = `unverifiable` on that axis
    only, and the report names which axis it checked.
+4a. `fm-route` Step 1a runs on the merged base checkout, blocks while the page's `docs/migration/`
+   evidence is uncommitted, and recomputes each gate with `--rev HEAD` as well as the working tree —
+   four verdicts (fresh / commit-or-discard, the operator's call / discard a stray edit / stale);
+   gate skills stage the promoted manifest with `tracker.json` and hash the stamp with
+   `--no-filters`; `verify` leaves the `{appDir}/e2e/` part of axis 1 out, `e2e`/`parity` hash all of it.
 5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
-   watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
+   watch-path basis (including the plan — omitting it reports every page stale; minus `{appDir}/e2e/`
+   for `verify`), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
    `verifiedAt`/`e2ePassedAt`/`parityPassedAt`, **and `routePrepared`/`flagKey`**; `fm-delta` Step 5
    refreshes and clears the same, so a regenerated page never carries a PASS for code that no longer
@@ -196,3 +214,12 @@ No runnable suite; deliverables are English instruction docs, verified by docume
   separately; some of it becomes unnecessary once these land.
 - `web-pc-e2e.yml` not being a PR gate — a monorepo CI-config matter, cited only as F's backdrop.
 - "When has a page's parity converged?" — still the open convergence question the v0.14.1 doc left.
+- **Which revision ships.** Step 1a treats HEAD as shipping and relies on the operator running it
+  on the merged base checkout. A configured base branch (`git fetch` + `--rev origin/<base>`) would
+  make "PR1 not merged" a mechanical block instead of a precondition sentence — both audits of
+  v1.3.0 ranked this the largest remaining gap.
+- **File mode is not recorded.** Both modes hash blob ids only, so a `100644`↔`100755` flip on a
+  watched file is invisible. No watched file is executed by the app; noted, not fixed.
+- **A dirty submodule's digest is textual.** `git diff HEAD` renders a nested dirty submodule as a
+  marker and a binary change as "differ", so two different dirty states can share a `dirty:` digest.
+  A `dirty:` record never ships (Step 1a names it as having no committed form); noted, not fixed.
