@@ -57,7 +57,8 @@ This plugin is **tooling**; it assumes the migration project has set up the work
 - A **v2 monorepo** with: `apps/legacy-*` (the Angular apps under migration), `apps/web-*` (the
   new React Router v7 apps), and `packages/` (the shared packages).
 - **`git`** (the gate-evidence hash and both session hooks shell out to it) and **`jq`** (both
-  hooks read the tracker through it; without it they degrade to silence).
+  hooks read the tracker through it and degrade to silence without it; `fm-route --flag-on`
+  **requires** it — its committed-evidence check fails closed rather than skip).
 - **Node + pnpm** (pnpm workspaces), and **Playwright browsers** installed (`npx playwright
   install`) for the E2E and visual gates.
 - The **legacy Angular source** reachable for analysis.

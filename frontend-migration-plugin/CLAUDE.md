@@ -813,7 +813,7 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     reproduce it. Gate skills stage both with the pass; `fm-route` Step 1a enforces it before the
     live recompute (which cannot see it — the source did not move), requires `jq`, fails closed on
     any unreadable evidence, and recovers by regenerating the manifest, never by re-committing the
-    on-disk copy. Precondition: no content-altering `gitattributes` rule on `gate-tree/*.tsv`.
+    on-disk copy. Precondition: no `filter` attribute on `gate-tree/*.tsv` (`text`/`eol` do not alter it).
   - `fm-route --flag-on` Step 1a is a **hard** gate on a `tree` mismatch: re-run the chain from
     `fm-verify`.
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`

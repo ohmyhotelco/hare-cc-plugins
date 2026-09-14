@@ -210,3 +210,13 @@ No runnable suite; deliverables are English instruction docs, verified by docume
   separately; some of it becomes unnecessary once these land.
 - `web-pc-e2e.yml` not being a PR gate — a monorepo CI-config matter, cited only as F's backdrop.
 - "When has a page's parity converged?" — still the open convergence question the v0.14.1 doc left.
+- **Recompute against HEAD, as a script.** The committed-evidence check (v1.2.1) proves HEAD's
+  manifest matches the stamp, and the live recompute proves the *working tree* matches it — neither
+  proves HEAD's *source* does, so a `git add` miss on one component still flips code no gate ran on.
+  A `gate-tree-hash.sh --rev HEAD` mode hashing `git ls-tree` records would close that at the right
+  depth and subsume the blob==stamp identity, and would move Step 1a's inline bash — the shape the
+  script's own header warns against — into one implementation. Script change; separate PR.
+- **`verify` is stale on the first pass by construction.** `fm-e2e` merges the specs it realizes
+  into `sourcePaths`, so the `verify` stamp was taken over a smaller set than the one every consumer
+  recomputes; the first `--flag-on` blocks on it and the chain re-runs once. Pre-existing; needs
+  either a per-gate watch set or an `fm-e2e` re-stamp of `verify` after the merge.

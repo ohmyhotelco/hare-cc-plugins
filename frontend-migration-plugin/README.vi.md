@@ -53,7 +53,8 @@ Plugin này là **tooling**; giả định dự án di trú đã chuẩn bị wo
   đã xác nhận, đó là nguồn schema **chính thức** cho `shared-types`/`shared-data` (không có thì
   fallback về trích xuất ngược từ legacy).
 - **`git`** (hash bằng chứng cổng và cả hai session hook đều dùng) và **`jq`** (cả hai hook đọc
-  tracker qua nó; thiếu nó thì hook lặng lẽ ngừng hoạt động).
+  tracker qua nó; thiếu nó thì hook lặng lẽ ngừng hoạt động, nhưng `fm-route --flag-on` **bắt buộc**
+  có nó — kiểm tra bằng chứng đã commit sẽ fail-closed thay vì bỏ qua).
 - **Node + pnpm** (pnpm workspaces), và **trình duyệt Playwright** đã cài (`npx playwright
   install`) cho cổng E2E và visual.
 - **Mã nguồn Angular cũ** có thể truy cập để phân tích.

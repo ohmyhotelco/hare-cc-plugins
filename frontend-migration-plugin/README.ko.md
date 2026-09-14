@@ -49,7 +49,8 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 - **`contractsDir`**(선택, 기본 `docs/migration/api-contracts/`) — 확정된 백엔드 계약이 있으면
   `shared-types`/`shared-data`의 **정본** 스키마 소스가 됩니다(없으면 레거시 역추출로 폴백).
 - **`git`**(게이트 증거 해시와 두 세션 훅이 사용) 및 **`jq`**(두 훅이 트래커를 읽는 데 사용 —
-  없으면 훅이 조용히 비활성화됩니다).
+  없으면 훅은 조용히 비활성화되지만, `fm-route --flag-on`은 **필수** — 커밋된 증거 검사가 건너뛰지
+  않고 fail-closed 됩니다).
 - **Node + pnpm**(pnpm workspaces), E2E·시각 게이트용 **Playwright 브라우저**(`npx playwright
   install`)
 - 분석 가능한 **레거시 Angular 소스**

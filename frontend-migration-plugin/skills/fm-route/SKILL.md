@@ -128,15 +128,17 @@ working-tree copy may itself be uncommitted, so it cannot be the reference:
 ```sh
 command -v jq >/dev/null 2>&1 || { echo "jq not found — cannot verify committed gate evidence"; exit 1; }
 REPO=$(git rev-parse --show-toplevel) || exit 1
-git rev-parse --verify -q HEAD >/dev/null || { echo "no readable HEAD — fail closed"; exit 1; }
 
 # A read that FAILS (bad jq, malformed JSON) is not an empty field — block, do not skip.
 WT_STAMP=$(jq -r --arg a "{app}" --arg p "{page}" --arg g "{gate}" \
     '.apps[$a].pages[$p].gateEvidence[$g].tree // ""' "$REPO/docs/migration/tracker.json") \
     || { echo "cannot read working-tree tracker.json — fail closed"; exit 1; }
 
-# HEAD is verified above, so a failing `git show` means the path is absent from HEAD — a legitimate empty.
-if HEAD_TRACKER=$(git show "HEAD:docs/migration/tracker.json" 2>/dev/null); then
+# Presence in HEAD is decided by ls-tree (empty = genuinely absent; it fails on an unreadable HEAD);
+# once present, the blob must READ — a `git show` failure is not an absence.
+IN_HEAD=$(git ls-tree HEAD -- docs/migration/tracker.json) || { echo "cannot read HEAD — fail closed"; exit 1; }
+if [ -n "$IN_HEAD" ]; then
+  HEAD_TRACKER=$(git show "HEAD:docs/migration/tracker.json") || { echo "cannot read HEAD tracker.json — fail closed"; exit 1; }
   HEAD_STAMP=$(printf '%s' "$HEAD_TRACKER" | jq -r --arg a "{app}" --arg p "{page}" --arg g "{gate}" \
       '.apps[$a].pages[$p].gateEvidence[$g].tree // ""') \
       || { echo "cannot parse HEAD tracker.json — fail closed"; exit 1; }
@@ -150,7 +152,7 @@ BLOB=$(git rev-parse --verify --quiet "HEAD:docs/migration/{app}/{page}/gate-tre
 **`jq` is required and this gate fails CLOSED on any read it cannot complete.** Identifiers are
 passed as `--arg` data, never interpolated into the program. The carve-out below keys on a stamp
 being *genuinely absent*, and a read that merely *failed* (`jq` missing or too old, malformed
-`tracker.json`, an unreadable HEAD) would look the same while `BLOB` still resolves — so every such
+`tracker.json`, an unreadable HEAD or blob) would look the same while `BLOB` still resolves — so every such
 failure is a block, unlike the plugin's advisory `jq` readers, which skip loudly. The one trade: a
 page with no stamp on a `jq`-less host blocks until `jq` is installed.
 
@@ -165,8 +167,9 @@ say nothing about it.
 - **`WT_STAMP` != `HEAD_STAMP`** (one side empty counts) → the working tree carries an uncommitted
   change to this page's stamp. **Block.** Which side is current is not decidable from the trees — a
   gate re-run since the last commit is newer than HEAD, a reverted or hand-merged tracker is older —
-  and only the operator knows which happened: after a re-run, commit the staged pair it left
-  (manifest + `tracker.json`); otherwise restore `tracker.json` from HEAD. Then re-check.
+  and only the operator knows which happened: after a re-run, commit the pair it left (manifest +
+  `tracker.json`); otherwise restore **this page's record** (`apps[app].pages[page]`) from HEAD's
+  `tracker.json` — never the whole file, which every page shares. Then re-check.
 - **`BLOB` empty** → the manifest is not in HEAD. **Block.** If PR1 is merged, this checkout is
   behind — check out the commit that carries it; otherwise regenerate (below).
 - **`BLOB` != `HEAD_STAMP`** → the committed manifest and the committed stamp disagree — the PR #330
@@ -180,18 +183,21 @@ the only arbiter:
 
 ```sh
 REPO=$(git rev-parse --show-toplevel); MAN="$REPO/docs/migration/{app}/{page}/gate-tree/{gate}.tsv"
+mkdir -p "$(dirname "$MAN")"
 {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
-    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>... > "$MAN.tmp"
+    --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>... > "$MAN.tmp" \
+    || { rm -f "$MAN.tmp"; exit 1; }   # exit 1 / 2: not a mismatch — the live recompute's rules below apply
 git hash-object --no-filters -- "$MAN.tmp"
 ```
 
 The hash equals the stamp iff the watch paths have not moved since the gate ran. Equal: promote
 (`mv "$MAN.tmp" "$MAN"`), commit the manifest, re-check. Not equal: discard `"$MAN.tmp"` — the page
 moved since the gate ran, and the remedy is the chain from `fm-verify`, exactly as for a stale live
-recompute below. A mismatch that survives a re-committed regeneration is a content-altering
-`gitattributes` rule (clean filter / eol) on `gate-tree/*.tsv` — `git add` then stores a different
-blob than the gate hashed, and this check false-blocks a consistent pipeline. Keep that subtree free
-of such rules in every attributes layer; `git check-attr filter text eol -- <path>` names the offender.
+recompute below. A mismatch that survives a re-committed regeneration is a `filter` attribute
+(clean/smudge — LFS is the usual one) on `gate-tree/*.tsv`: `git add` then stores a different blob
+than the gate hashed, and this check false-blocks a consistent pipeline. `text`/`eol` rules do not
+alter an LF-only manifest's blob. Keep that subtree free of filters in every attributes layer;
+`git check-attr filter -- <path>` names the offender.
 
 Hash the union by **running the script** the gate skills ran — never an inline pipeline:
 
@@ -206,8 +212,10 @@ the evidence would not describe itself; a consumer omitting either flag hashes a
 every comparison then fails as a permanent hard block on correct code.
 
 **This is a hard gate: a stale gate blocks the flip.** Name the stale gates **and the files that
-moved** — re-run the script with `--manifest` and diff it against the manifest that gate saved at
-`docs/migration/{app}/{page}/gate-tree/{gate}.tsv`. That saved manifest is the only thing that can
+moved** — re-run the script with `--manifest` and diff it against the **committed** manifest
+(`git show HEAD:docs/migration/{app}/{page}/gate-tree/{gate}.tsv` — the copy the committed-evidence
+check just proved matches the stamp; the working-tree file may be a regeneration or an uncommitted
+re-stamp). That saved manifest is the only thing that can
 answer "which files"; the stored `tree` is a single aggregate and a diff against it is not
 computable, so if the manifest is missing, say the aggregate moved and stop there rather than
 inventing a file list. If the manifest diff shows `DELETED` entries whose replacements exist under
@@ -363,6 +371,9 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
+  Then stage the evidence the code PR must carry — `git add -- "$REPO/docs/migration/tracker.json"
+  "$REPO/docs/migration/{app}/{page}"` (`REPO=$(git rev-parse --show-toplevel)`): the gate skills
+  staged the tracker as of their pass, and this write supersedes that index entry.
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
   the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for
   the code PR on `--flag-off`. Say so in the report, and read the field accordingly: `flipPrOpenedAt`
