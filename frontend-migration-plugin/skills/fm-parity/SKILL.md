@@ -131,7 +131,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
   stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines;
+  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines
+  **plus `e2ePaths[]`** (this gate runs after the specs exist, and a weakened spec must stale it);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.

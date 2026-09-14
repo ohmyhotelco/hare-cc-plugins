@@ -1032,7 +1032,17 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   history against `gateEvidence.at` decides) and "working tree ≠" always meaning re-run (a matching
   committed tree means a stray local edit — discard it); fm-init's `pwd` string test failing on a
   symlinked checkout (`--show-cdup`); and one record emitter shared by the sparse and `--rev`
-  branches. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
+  branches. A second dual audit of that tree: a staged-but-not-on-disk edit was invisible to both
+  recomputes (index guard added); an ignored report or manifest satisfied the evidence check
+  (`--ignored`), as did `status.showUntrackedFiles=no` (`-uall`) and a missing `jq` (guard);
+  removing `DELETED` had opened an empty-record success (hash of zero bytes — one shared tail now
+  judges record count for both modes); a clean submodule with a clean nested submodule read
+  `dirty:`; an empty watch path meant "everything"; `:(exclude)` of an ignored lock made `git add`
+  exit 1, so Step 4c relies on the ignore file and ships it; the timestamp rule for "committed ≠,
+  working tree =" was dropped — the operator decides, no date does; and the first-flip loop got its
+  structural fix: `e2ePaths[]` is a fourth axis hashed by `e2e`/`parity` only, so `verify`'s stamp
+  keeps describing what `verify` ran on and an `fm-e2e` re-run that rewrites specs cannot re-stale
+  it. Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

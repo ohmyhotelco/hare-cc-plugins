@@ -196,8 +196,9 @@ No runnable suite; deliverables are English instruction docs, verified by docume
    only, and the report names which axis it checked.
 4a. `fm-route` Step 1a runs on the merged base checkout, blocks while the page's `docs/migration/`
    evidence is uncommitted, and recomputes each gate with `--rev HEAD` as well as the working tree —
-   committed ≠ with working tree = is "commit / merge", never a re-run; gate skills stage the
-   promoted manifest with `tracker.json` and hash the stamp with `--no-filters`.
+   four verdicts (fresh / commit-or-discard, the operator's call / discard a stray edit / stale);
+   gate skills stage the promoted manifest with `tracker.json` and hash the stamp with
+   `--no-filters`; `e2e`/`parity` hash `e2ePaths[]` in addition, `verify` does not.
 5. `fm-progress` lists `parity-passed` pages whose `tree` no longer matches on the same three-axis
    watch-path basis (including the plan — omitting it reports every page stale), and declares `allowed-tools` that include `Bash` (the check shells out to `git`).
 6. `fm-gen` Step 5 records `sourcePaths[]` and clears `gateEvidence`, the legacy
@@ -218,7 +219,3 @@ No runnable suite; deliverables are English instruction docs, verified by docume
   v1.3.0 ranked this the largest remaining gap.
 - **File mode is not recorded.** Both modes hash blob ids only, so a `100644`↔`100755` flip on a
   watched file is invisible. No watched file is executed by the app; noted, not fixed.
-- **`verify` is stale on the first pass by construction.** `fm-e2e` merges the specs it realizes
-  into `sourcePaths`, so the `verify` stamp was taken over a smaller set than the one every consumer
-  recomputes; the first `--flag-on` blocks on it and the chain re-runs once. Pre-existing; needs
-  either a per-gate watch set or an `fm-e2e` re-stamp of `verify` after the merge.

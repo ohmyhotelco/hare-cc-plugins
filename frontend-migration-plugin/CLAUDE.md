@@ -300,8 +300,8 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
-├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp` — locks and pre-run
-│                                        manifests are transient and never reach a commit
+├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — locks,
+│                                        pre-run manifests and proposed baselines never reach a commit
 ├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
 │                                        page `.lock` below, but guards `packages/shared-*` work,
 │                                        which is not page-scoped)
@@ -820,10 +820,13 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     (OMH-750 PR #330). `fm-route --flag-on` Step 1a therefore runs on the merged base checkout,
     requires the page's evidence under `docs/migration/` to be committed, and recomputes each
     gate's `tree` twice — `--rev HEAD` (what ships) and the working tree (nothing uncommitted rides
-    into PR2) — both against the stamp. Gate skills stage the manifest and tracker with the pass.
-  - `fm-route --flag-on` Step 1a is a **hard** gate: a working-tree mismatch is a stale gate (re-run
-    the chain from `fm-verify`); a committed-tree mismatch alone is an uncommitted or unmerged file
-    (commit / merge — never a re-run).
+    into PR2) — both against the stamp. Gate skills stage the manifest and tracker with the pass
+    (`tracker.json` is one file: the stage carries whatever rows are current, and another page's
+    row without its artifacts is that page's own Step 1a to catch).
+  - `fm-route --flag-on` Step 1a is a **hard** gate with four verdicts, defined there: fresh; the
+    committed tree lacks the gated content (commit, or discard a stale working copy — the operator
+    decides, no timestamp does); a stray uncommitted edit (discard); stale (re-run the chain from
+    `fm-verify`).
   - **A gate records a pass only if its watch paths did not move while it ran.** Compute `tree`
     before the first tool and again at record time; if they differ, record no pass and say to re-run.
     One carve-out: a gate whose own runner legitimately writes watch-path files (`fm-e2e` realizing
@@ -839,9 +842,14 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   2. each `migration-plan.json` `sharedDeps[]` entry `@omh/<package>:<symbol>`, mapped to the
      directory `{packagesDir}/<package>` — the symbol is not a path.
   3. the page's `migration-plan.json` itself.
+  4. **for `e2e` and `parity` only:** `tracker.json` `e2ePaths[]` — the specs, page objects and
+     helpers `fm-e2e` realized, recorded by `fm-e2e` Step 4 (and by `fm-fix`/`fm-delta` for files
+     under `{appDir}/e2e/`). `verify` does not hash them: it ran before they existed, and a spec is
+     not shipped code — hashing them into its set made the first `--flag-on` of every page stale
+     and every `fm-e2e` re-run (which rewrites specs) re-stale it, a loop with no exit.
 
-  `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically; a consumer resolving
-  fewer can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
+  `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically, per gate; a consumer
+  resolving fewer (or more) can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
   `verifiedAt`/`e2ePassedAt`/`parityPassedAt` and the route fields `routePrepared`/`flagKey`** —
   clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must

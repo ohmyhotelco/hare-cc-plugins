@@ -71,11 +71,14 @@ while [ "$#" -gt 0 ]; do
       --manifest) MANIFEST=1; shift; continue ;;
       --rev)      [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "gate-tree-hash: --rev needs a revision" >&2; exit 1; }
                   REV=$2; shift 2; continue ;;
-      --exclude)  [ "$#" -ge 2 ] || { echo "gate-tree-hash: --exclude needs a path" >&2; exit 1; }
+      --exclude)  [ "$#" -ge 2 ] && [ -n "$2" ] || { echo "gate-tree-hash: --exclude needs a path" >&2; exit 1; }
                   EXCLUDES+=("$2"); shift 2; continue ;;
       --)         END_OPTS=1; shift; continue ;;
     esac
   fi
+  # An empty watch path becomes the pathspec `:(literal)` — which matches EVERYTHING — and would
+  # hash the whole repository past the no-paths guard below.
+  [ -n "$1" ] || { echo "gate-tree-hash: empty watch path" >&2; exit 1; }
   PATHS+=("$1"); shift
 done
 
@@ -104,12 +107,14 @@ SPECS=()
 for e in ${EXCLUDES[@]+"${EXCLUDES[@]}"}; do SPECS+=(":(exclude,literal)$e"); done
 for p in "${PATHS[@]}"; do SPECS+=(":(literal)$p"); done
 
-# A watch path that exists but is gitignored is dropped by `--exclude-standard` below and is absent
-# from every committed tree, so both modes would agree on a set that lacks a file the gate ran on.
-# Rule 3: refuse. (`check-ignore` says nothing about tracked files, so only an untracked ignored
-# path can reach this — the exact case that never ships.)
+# A NAMED watch path that exists but is gitignored is dropped by `--exclude-standard` below and is
+# absent from every committed tree, so both modes would agree on a set that lacks a file the gate
+# ran on. Rule 3: refuse. (`check-ignore` says nothing about tracked files, so only an untracked
+# ignored path can reach this — the exact case that never ships.) Ignored files INSIDE a watched
+# directory are a different matter: the repository declared them build output (node_modules, dist),
+# they are neither hashed nor shipped, and both modes agree on that — by design, not by omission.
 for p in "${PATHS[@]}"; do
-  if [ -e "$p" ] && git check-ignore -q -- "$p" 2>/dev/null; then
+  if { [ -e "$p" ] || [ -L "$p" ]; } && git check-ignore -q -- "$p" 2>/dev/null; then
     echo "gate-tree-hash: watch path is gitignored, cannot record: $p" >&2
     echo "  An ignored file never reaches a commit. Un-ignore it, or drop it from the watch paths." >&2
     exit 1
@@ -153,9 +158,6 @@ if [ -n "$REV" ]; then
   if ! GIT_INDEX_FILE=$IDX git ls-files -s --full-name -z -- "${SPECS[@]}" > "$LIST"; then
     echo "gate-tree-hash: git ls-files failed" >&2; exit 1
   fi
-  if [ "$(tr -dc '\0' < "$LIST" | wc -c | tr -d '[:space:]')" -eq 0 ]; then
-    echo "unverifiable"; exit 2
-  fi
   # `ls-files -s` records are "<mode> <sha> <stage>\t<path>", NUL-terminated. A path containing a
   # newline is refused (the working-tree mode refuses it too) BEFORE the NUL->newline reshaping
   # below, which would otherwise split it into two records that look like evidence.
@@ -170,20 +172,14 @@ if [ -n "$REV" ]; then
     mode=${line%% *}; rest=${line#* }; sha=${rest%% *}; f=${line#*$'\t'}
     emit_index_record "$mode" "$sha" "$f" || exit 1
   done < "$SORTED" > "$RECS"
-  if [ "$MANIFEST" -eq 1 ]; then cat "$RECS"; else git hash-object --stdin < "$RECS"; fi
-  exit 0
-fi
+else
+# ---- working-tree mode ----
 
 # Enumerate once, into a file, with the exit status checked. Piping this into a counter
 # would hide a git failure as "zero entries", i.e. as `unverifiable`.
 if ! git ls-files --cached --others --exclude-standard --full-name -z -- "${SPECS[@]}" > "$LIST"; then
   echo "gate-tree-hash: git ls-files failed" >&2
   exit 1
-fi
-
-if [ "$(tr -dc '\0' < "$LIST" | wc -c | tr -d '[:space:]')" -eq 0 ]; then
-  echo "unverifiable"
-  exit 2
 fi
 
 # Sort into a file with the status checked. Feeding `sort` through a process substitution
@@ -253,7 +249,7 @@ while IFS= read -r -d '' f; do
         # revision hashed only the untracked *paths*, so editing an existing untracked file inside
         # the submodule left the digest unmoved while the build consumed the new bytes.
         if d=$( { git -C "$f" diff HEAD
-                  git -C "$f" submodule status --recursive 2>/dev/null
+                  git -C "$f" submodule status --recursive 2>/dev/null | grep '^[-+U]' || true
                   git -C "$f" ls-files --others --exclude-standard -z \
                     | LC_ALL=C sort -z \
                     | while IFS= read -r -d '' u; do
@@ -297,7 +293,16 @@ while IFS= read -r -d '' f; do
     esac
   fi
 done < "$SORTED" > "$RECS"
+fi
 
+# ONE tail for both modes. The empty-set check is on the RECORDS, not the enumeration: a tracked
+# file that is gone from disk is enumerated but not recorded, so a watch set that is entirely
+# deleted has entries and no records — and no records must be `unverifiable`, never the hash of
+# zero bytes (rule 3; both modes agree on this exactly because it is judged here).
+if [ ! -s "$RECS" ]; then
+  echo "unverifiable"
+  exit 2
+fi
 if [ "$MANIFEST" -eq 1 ]; then
   cat "$RECS"
 else

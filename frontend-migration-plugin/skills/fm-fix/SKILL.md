@@ -143,7 +143,9 @@ adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"
 re-surfacing every finding forever. See `templates/codex-audit.md`.
 
 **Refresh `sourcePaths` from `fix-report.json`** (Read-Modify-Write: add every `filesChanged[]`
-entry, drop every `filesRemoved[]` entry — a rename appears in both). `sourcePaths[]` is axis 1 of the page's watch paths, and
+entry, drop every `filesRemoved[]` entry — a rename appears in both; an entry under the app's e2e
+directory — `{appDir}/e2e/` — goes to `e2ePaths[]` instead, the list `fm-e2e` owns, CLAUDE.md → Gate
+Result Accounting F). `sourcePaths[]` is axis 1 of the page's watch paths, and
 only `fm-gen`/`fm-delta` used to maintain it — so a fixer refactor that renamed files left the
 gate watching paths that no longer exist and *not* watching the replacements. When every
 recorded path disappears that way, `fm-route` Step 1a blocks (correctly, but on a page nobody
