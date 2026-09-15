@@ -171,10 +171,10 @@ omit the blank line and body.
 Check the command's exit code:
 
 - **Non-zero exit** (for example a pre-commit hook rejected the commit): the commit did
-  **not** happen. Undo Step 6.5 entirely — restore the `pipeline.fix.round` values and remove the
-  `pipeline.verification.committed` marks it wrote (keep the originals in memory for this; the
-  verification was not consumed and the fix cycle did not end), re-staging the same files Step 6.5
-  re-staged. Show the command's output to the user verbatim, explain that no commit
+  **not** happen. Undo Step 6.5 entirely — under `{workDocDir}/.progress/.lock` again, re-reading each file
+  first and restoring only the two fields it wrote (`pipeline.fix.round` to the value kept in
+  memory, `pipeline.verification.committed` removed; the verification was not consumed and the
+  fix cycle did not end), re-staging the same files Step 6.5 re-staged. Show the command's output to the user verbatim, explain that no commit
   was created, and **stop** — do not proceed to Step 8.
 - **Zero exit**: proceed to Step 8.
 

@@ -9,11 +9,16 @@ CONFIG_FILE="${PWD}/.claude/backend-webflux-plugin.json"
 # every session start, resume and clear (hooks.json), because the marketplace cache path is
 # version-pinned and moves on upgrade; never cached in a project config, which would go stale.
 # Silent on success; a failure is said out loud, since be-verify/be-review/be-commit stop without it.
-PLUGIN_ROOT=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd -P) || PLUGIN_ROOT=""
-DATA_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin"
+# One file per user, by design: the install is per user. Two sessions on different installs of
+# this plugin (an upgrade in flight) get the last writer's -- and fail closed at the tree check.
+# $0 resolved through symlinks first: a hook invoked via a link would otherwise record the link's
+# parent. The file is written whole then renamed, so a concurrent reader never sees it empty.
+self=$0; while [ -L "$self" ]; do l=$(readlink -- "$self") || break; case $l in /*) self=$l ;; *) self="$(dirname "$self")/$l" ;; esac; done
+PLUGIN_ROOT=$(cd "$(dirname "$self")/.." 2>/dev/null && pwd -P) || PLUGIN_ROOT=""
+DATA_DIR="${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/plugins/data/backend-webflux-plugin"
 if [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/scripts/source-tree-hash.sh" ]; then
-  { mkdir -p "$DATA_DIR" && printf '%s\n' "$PLUGIN_ROOT" > "$DATA_DIR/pluginRoot"; } 2>/dev/null \
-    || echo "[Backend WebFlux Plugin] Warning: could not write $DATA_DIR/pluginRoot"
+  { mkdir -p "$DATA_DIR" && printf '%s\n' "$PLUGIN_ROOT" > "$DATA_DIR/pluginRoot.$$" && mv -f "$DATA_DIR/pluginRoot.$$" "$DATA_DIR/pluginRoot"; } 2>/dev/null \
+    || { rm -f "$DATA_DIR/pluginRoot.$$" 2>/dev/null; echo "[Backend WebFlux Plugin] Warning: could not write $DATA_DIR/pluginRoot"; }
 else
   echo "[Backend WebFlux Plugin] Warning: could not locate the plugin install from \$0 -- pluginRoot not recorded"
 fi

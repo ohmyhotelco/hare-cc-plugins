@@ -47,7 +47,7 @@ If any feature progress files exist in `{workDocDir}/.progress/` with `pipeline.
 > "Feature '{feature}' is in 'verify-failed' status. Re-run `/backend-webflux-plugin:be-verify {feature}` to update."
 
 If changes were kept, every feature at `verified`, `reviewed` or `done` **whose `pipeline.verification.committed` is not `true`** now carries a status its code
-no longer earned (a committed feature's record is history — the current ticket's own verification covers the whole tree, and demoting it would stop every later ticket at be-commit): set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
+no longer earned (a committed feature's record is history — the current ticket's own verification covers the whole tree, and demoting it would stop every later ticket at be-commit). If there is no such feature — every `verified`/`reviewed`/`done` record is committed, so nothing would re-verify the edited tree — demote those instead, removing their `committed` mark: set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
 situation — be-verify re-admits it without a prompt, be-review refuses it until then) with
 `pipeline.build: { "timestamp", "previousStatus", "filesModified": [...] }`, read-modify-write under
 `{workDocDir}/.progress/.lock` taken and released around the writes (CLAUDE.md § State File Safety;

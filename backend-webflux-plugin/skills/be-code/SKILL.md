@@ -138,7 +138,7 @@ Follow the original manual flow:
    > "This feature is currently '{status}'. Re-running TDD implementation will reset the pipeline status to 'implementing', discarding verification/review progress."
    > "Continue?"
    If the user declines, stop here.
-3. `fixing` and `escalated` are covered by item 2 — one confirmation, not two. `resolved` counts only when the `previousStatus` recorded beside it (`pipeline.debug` or `pipeline.build`) is itself past `implementing` — be-debug resolving a mid-implementation failure leaves nothing to discard, and the prompt would be false.
+3. `fixing` and `escalated` are covered by item 2 — one confirmation, not two. `resolved` counts only when the `previousStatus` recorded beside it (`pipeline.debug` or `pipeline.build` — whichever has the newer `timestamp`, the one that produced this `resolved`) is itself past `implementing` — be-debug resolving a mid-implementation failure leaves nothing to discard, and the prompt would be false.
 
 **Plan-driven mode** (one entity or many): Skip this step here. Step 3.7 writes `{kebab-case-entity}.json`, not `{feature-name}.json`, so a check on the feature name would never see the entity's status — the demotion check is performed per entity in Step 3.6a, after the lock and before Step 3.7 writes any progress file.
 

@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-init.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/session-init.sh\"",
             "timeout": 10,
             "statusMessage": "Checking backend-webflux-plugin configuration..."
           }
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/validate-build-state.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}/scripts/validate-build-state.sh\"",
             "timeout": 5,
             "statusMessage": "Checking build state..."
           }

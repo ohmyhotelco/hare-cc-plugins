@@ -37,8 +37,9 @@ SEP='[[:space:]]*[:?]?=[[:space:]]*|[[:space:]]*:[[:space:]]*'
 # A quoted literal that is a value: starts with anything but a ${placeholder} (a leading `$` that is
 # not followed by `{` -- `"$uperSecret9"` -- is a value).
 QUOTED_VALUE='["'"'"'](\$[^{"'"'"']|[^"'"'"'$])[^"'"'"']*["'"'"']'
-# A bare value: not a quote, not a $placeholder, not a {{template}}, not a comment
-BARE_VALUE='[^"'"'"'$\{#[:space:]][^[:space:]#]*'
+# A bare value: not a quote, not a $placeholder, not a {{template}}, not a comment, and not a
+# second separator character (`TOKEN := x` is key + `:=` + x, not key + `:` + `=`)
+BARE_VALUE='[^"'"'"'$\{#=:[:space:]][^[:space:]#]*'
 # Vendor shapes are secrets in ANY file, a template included.
 VENDOR_PATTERNS=(
     "sk-[a-zA-Z0-9]{20,}"
@@ -83,8 +84,15 @@ CONFIG_PATTERNS=(
     "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"
     # XML: the attribute form (`<property name=\"password\" value=\"x\"/>`, MyBatis/Spring/logback) and
     # the element form (`<password>x</password>`); a \${placeholder} value is neither
-    "name=[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"'][[:space:]]+value=${QUOTED_VALUE}"
+    "name[[:space:]]*=[[:space:]]*[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"'][^>]*value[[:space:]]*=[[:space:]]*${QUOTED_VALUE}"
+    "value[[:space:]]*=[[:space:]]*${QUOTED_VALUE}[^>]*name[[:space:]]*=[[:space:]]*[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"']"
     "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<\$[:space:]][^<]*</"
+    # command lines in scripts and Dockerfiles: `--password hunter2` / `--password=hunter2`,
+    # `-Dspring.r2dbc.password=x` anywhere on the line, `curl -u user:pass`, `Authorization: Basic …`
+    "(^|[[:space:]])--([A-Za-z0-9-]*-)?${KEY}[= ]${BARE_VALUE}"
+    "(^|[[:space:]])-D[A-Za-z0-9_.-]*${KEY}=${BARE_VALUE}"
+    "(^|[[:space:]])(-u|--user)[= ][^:[:space:]\$]+:[^[:space:]\$@]+"
+    "[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]]|$)"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
 PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"
@@ -117,8 +125,16 @@ BOM=$(printf '\357\273\277')
 # Every value the line assigns to a secret-named key, one per line, quotes stripped -- ALL of them,
 # so a trailing `token: none` cannot excuse the `password: "hunter2"` before it.
 values_of() {   # $1 = line
-    printf '%s\n' "$1" | grep -oiE "${KEY}[\"']?\\]?(${SEP})[\"']?[^\"'[:space:]]*" \
-        | sed -E "s/^[^:=?[:space:]]*[\"']?\\]?(${SEP})//I; s/^[\"']//; s/[\"'].*$//"
+    {   # `key: v` / `key=v` / `key ?= v` / `-Dkey=v` / `--key=v`
+        printf '%s\n' "$1" | grep -oiE "${KEY}[\"']?\\]?(${SEP})[\"']?[^\"'[:space:]]*" \
+            | sed -E "s/^[^:=?[:space:]]*[\"']?\\]?(${SEP})//I"
+        # `key v` (.properties, `ENV KEY v`, `--key v`)
+        printf '%s\n' "$1" | grep -oiE "(^|[[:space:]._-])${KEY}[[:space:]]+[^\"'[:space:]=:]+" | grep -viE "[:=]" \
+            | sed -E "s/^.*${KEY}[[:space:]]+//I"
+        # XML `<key>v</key>` and `name=\"key\" … value=\"v\"` (either order)
+        printf '%s\n' "$1" | grep -oiE "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<]*" | sed -E 's/^[^>]*>//'
+        printf '%s\n' "$1" | grep -oiE "value[[:space:]]*=[[:space:]]*[\"'][^\"']*" | sed -E "s/^value[[:space:]]*=[[:space:]]*[\"']//"
+    } 2>/dev/null | sed -E "s/^[\"']//; s/[\"'].*$//" | grep -v '^$'
 }
 # True when the line assigns at least one value and every one matches the exemption regex.
 exempt_line() {   # $1 = line, $2 = regex

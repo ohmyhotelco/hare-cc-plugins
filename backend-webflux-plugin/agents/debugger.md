@@ -76,7 +76,7 @@ For each hypothesis (starting with most likely):
 
 Important:
 - Set Bash tool timeout to 600000ms for all Gradle commands
-- After each failed hypothesis, cleanly revert ALL changes before trying the next
+- After each failed hypothesis, cleanly revert ALL changes before trying the next — by restoring the content you read from each file before editing it (keep it in memory or aside); `git checkout -- file` restores the last COMMIT and would erase uncommitted work that predates this debug run
 - Do not modify tests to make them pass — fix the production code
 
 ### Phase 4: Confirm

@@ -250,8 +250,8 @@ When Step 1 had to draft its own Proposed Solution:
 3. Otherwise: resolve the default branch
    (`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`
    then `master`), `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git fetch` (an expired credential, a passphrase or an unknown host key must fail, not prompt an unattended run — `GIT_TERMINAL_PROMPT` covers git's own credential prompt only, `BatchMode` covers SSH's), then
-   `git checkout -b {jiraKey}-{slug}` from the freshly fetched default
-   branch. `{slug}` is a short kebab-case form of the Jira summary (up to
+   `git checkout -b {jiraKey}-{slug} origin/{default}` -- with the start
+   point spelled out; without it the branch forks from whatever HEAD is. `{slug}` is a short kebab-case form of the Jira summary (up to
    ~5 meaningful words).
 4. Confirm the working tree is on the right branch and clean -- or, on a
    resume, dirty only under item 1's locations -- before Step 3.
@@ -261,7 +261,7 @@ When Step 1 had to draft its own Proposed Solution:
 Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 
 ```
-Skill(skill: "be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
+Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
 - `--domain` and `--profile` are the answers `be-crud` would otherwise ask
@@ -344,7 +344,7 @@ Step 3), so the work document must already exist and be final before Step
 For each entry of `features` (Step 4 item 4), in dependency order:
 
 ```
-Skill(skill: "be-code", args: "{workDocDir}/{one feature}.md --yes")
+Skill(skill: "backend-webflux-plugin:be-code", args: "{workDocDir}/{one feature}.md --yes")
 ```
 
 - Because the work document already exists, `be-code` enters file-path
@@ -366,7 +366,7 @@ processed, and a FAIL on any entry stops the run at that entry (later entries de
 ### Step 6: Verify -- `be-verify`
 
 ```
-Skill(skill: "be-verify", args: "{feature} --yes")
+Skill(skill: "backend-webflux-plugin:be-verify", args: "{feature} --yes")
 ```
 
 - `--yes` answers `be-verify`'s demotion/staleness confirmations (a resume re-entering here from `reviewed`/`done`/`escalated`) — this run decided the re-entry; the report is still read in full.
@@ -381,7 +381,7 @@ Skill(skill: "be-verify", args: "{feature} --yes")
 #### Step 6.1: Auto-fix the build -- `be-build` (at most one call)
 
 ```
-Skill(skill: "be-build", args: "")   # be-build takes no argument: it builds the project, not a feature
+Skill(skill: "backend-webflux-plugin:be-build", args: "")   # be-build takes no argument: it builds the project, not a feature
 ```
 
 `be-build` already retries internally up to 3 times -- call it **once**,
@@ -394,17 +394,15 @@ never wrap it in an outer retry loop of this skill's own. Then re-run
 
 ### Step 7: Gate -- `be-review` (always) + `be-security` (tiered)
 
-`be-review` and `be-security` are independent of each other -- neither
-reads the other's output, `be-security` writes nothing and takes no lock,
-and `be-review`'s writes (the report, the progress file, under
-`.progress/.lock`) touch nothing `be-security` reads -- so issue both
-`Skill` calls in the same turn to run them concurrently instead of
-sequencing them (a `be-security` that one day persists a report or takes
-the lock ends this concurrency):
+A `Skill` call loads that skill's steps into this same session -- nothing
+runs in parallel, and two multi-step procedures loaded in one turn
+interleave their stops and lock handling. Run them one after the other,
+`be-security` first (read-only, no lock, no report file -- its findings
+are read from its own output before `be-review`'s steps begin):
 
 ```
-Skill(skill: "be-review", args: "{feature}")
-Skill(skill: "be-security", args: "{sourceDir}/{basePackage}/")   # the whole package: executors, repositories and queries live outside {domain}/
+Skill(skill: "backend-webflux-plugin:be-security", args: "{sourceDir}/{basePackage}/")   # the whole package: executors, repositories and queries live outside {domain}/
+Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
 ```
 
 Run `be-security` when tier is `normal` or `extreme`, or when Step 1's
@@ -444,19 +442,19 @@ new entity/endpoint surface" and treat this step as `be-review`-only.
 ### Step 8: Fix Loop (conditional, at most 2 rounds) -- `be-fix` -> `be-verify` -> `be-review`
 
 ```
-Skill(skill: "be-fix", args: "{feature}")
+Skill(skill: "backend-webflux-plugin:be-fix", args: "{feature}")
 ```
 
 then -- a fix changed code, and `be-review` refuses a `fixing` feature until it is re-verified:
 
 ```
-Skill(skill: "be-verify", args: "{feature} --yes")
+Skill(skill: "backend-webflux-plugin:be-verify", args: "{feature} --yes")
 ```
 
 (`Overall: FAIL` here → one `be-build` + re-verify exactly as Step 6.1; still FAIL → `ABORTED`.) Then
 
 ```
-Skill(skill: "be-review", args: "{feature}")
+Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
 ```
 
 - **Read `pipeline.fix.round` before every `be-fix` call**, not only the
@@ -466,7 +464,8 @@ Skill(skill: "be-review", args: "{feature}")
   prompt -- stop with `NEEDS-INPUT` instead of calling. (A feature
   entering at round 1 passes the first check and would reach round 3 on
   the second call without this.)
-- **Read `fix-report.json` and `pipeline.status` before calling
+- **Read `{workDocDir}/.progress/fix-report-{feature}.json` (the path
+  `pipeline.fix.reportFile` records) and `pipeline.status` before calling
   `be-verify`/`be-review`.** If `escalated[]` is non-empty, or the status
   is `escalated` (the post-fix build failed even with every issue marked
   fixed -- `be-verify` would prompt on it) -- stop with `NEEDS-INPUT` and
@@ -495,9 +494,10 @@ Skill(skill: "be-review", args: "{feature}")
    `pipeline.verification.tree` differs from the current
    `{pluginRoot}/scripts/source-tree-hash.sh`, run
    `be-verify {feature} --yes` then `be-review {feature}`; a FAIL goes
-   through Step 8 for that feature (its bounds apply). Repeat until every
-   feature's tree matches -- the last pass changes nothing, so it converges
-   in at most one extra round per feature.
+   through Step 8 for that feature (its bounds apply). A pass that changed
+   nothing settles the tree; a pass in which a fix changed it is followed by
+   at most **one** more pass -- two features whose fixes keep invalidating
+   each other do not converge, so a third pass is `NEEDS-INPUT` naming both.
 1. Diff the current `git status --porcelain -z` (NUL-separated: a quoted
    or renamed record is otherwise misread) against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
@@ -519,7 +519,7 @@ Skill(skill: "be-review", args: "{feature}")
    mismatch here means item 2 missed a file: stage it (a file outside the
    Step 2 locations is not this feature's -- stop with `NEEDS-INPUT`).
 3. ```
-   Skill(skill: "be-commit", args: "topic: {jiraKey} <one-line summary>")
+   Skill(skill: "backend-webflux-plugin:be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```
 4. Read `be-commit`'s own report; take the short hash from the
    `git rev-parse --short HEAD` output it printed -- never fabricate one.
@@ -576,9 +576,10 @@ silently.
 - Routing a `be-security` Critical finding into the `be-fix` loop, or
   fixing it inline -- there is no automated security-fix contract in this
   plugin; stop with `NEEDS-INPUT` instead.
-- Running `be-security` sequentially after `be-review` when both were
-  scheduled -- issue both `Skill` calls in the same turn since neither
-  depends on the other.
+- Loading `be-review` and `be-security` in the same turn "to run them
+  concurrently" -- a `Skill` call runs inline in this session; two loaded
+  at once interleave their stops and lock handling. `be-security` first,
+  then `be-review`.
 - Running `git add -A`/`git add .`, or `git stash`/`git checkout .` to
   discard the user's own uncommitted work without asking.
 - Pushing, opening a pull request, or commenting on / transitioning the

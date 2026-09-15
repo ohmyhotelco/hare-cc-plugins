@@ -130,14 +130,20 @@ def check_agent_params(agents: dict[str, tuple[Path, str]]) -> list[Finding]:
 
 
 def check_call_sites(skills: dict[str, tuple[Path, str]],
-                     agents: dict[str, tuple[Path, str]]) -> list[Finding]:
+                     agents: dict[str, tuple[Path, str]],
+                     plugin_name: str = "") -> list[Finding]:
     """A launcher must pass every parameter the launched agent declares and actually uses."""
     out = []
     for sname, (spath, stext) in skills.items():
         # a launch may qualify the agent with its plugin (`backend-webflux-plugin:code-reviewer`):
-        # two installed plugins can ship an agent of the same name
-        for m in re.finditer(r'(?:Agent|Task)\(subagent_type:\s*"(?:[a-z0-9-]+:)?([a-z0-9-]+)"', stext):
-            agent = m.group(1)
+        # two installed plugins can ship an agent of the same name -- and the qualifier must then
+        # be THIS plugin's, or the launch reaches the other plugin's agent
+        for m in re.finditer(r'(?:Agent|Task)\(subagent_type:\s*"(?:([a-z0-9-]+):)?([a-z0-9-]+)"', stext):
+            qualifier, agent = m.group(1), m.group(2)
+            if qualifier and plugin_name and qualifier != plugin_name:
+                out.append(Finding(str(spath), lineno(stext, m.start()), "foreign-agent",
+                                   f"launches `{qualifier}:{agent}` but this plugin is `{plugin_name}`"))
+                continue
             if agent not in agents:
                 out.append(Finding(str(spath), lineno(stext, m.start()), "missing-agent",
                                    f"launches `{agent}` but agents/{agent}.md does not exist"))
@@ -494,7 +500,7 @@ def run(plugin: Path) -> list[Finding]:
         every[f"template:{p.stem}"] = (p, p.read_text())
 
     return (check_agent_params(agents)
-            + check_call_sites(skills, agents)
+            + check_call_sites(skills, agents, plugin.name)
             + check_passed_but_unbound(skills)
             + check_tool_permissions(skills)
             + check_lock_reachability(skills)

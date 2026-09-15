@@ -228,9 +228,9 @@ Failures:
 7. Step 3 updates `pipeline.status` to `"verified"` and releases the lock.
 8. Step 4 suggests `/backend-webflux-plugin:be-review create-employee`.
 
-**Edge case — multi-entity disambiguation (Step 0.3)** — `/backend-webflux-plugin:be-verify hotel-onboarding`
+**Edge case — multi-entity disambiguation (Step 0 item 4)** — `/backend-webflux-plugin:be-verify hotel-onboarding`
 
-No file exists at `{workDocDir}/.progress/hotel-onboarding.json`. Step 0.3 scans
+No file exists at `{workDocDir}/.progress/hotel-onboarding.json`. Step 0 item 4 scans
 `{workDocDir}/.progress/*.json` and finds two progress files whose
 `specSource.feature` both equal `"hotel-onboarding"`: `hotel.json` (entity `Hotel`)
 and `hotel-room.json` (entity `HotelRoom`) — the spec produced two entities under one

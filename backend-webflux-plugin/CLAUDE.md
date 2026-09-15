@@ -369,7 +369,7 @@ Running a skill from an earlier pipeline stage demotes the status. Skills must w
 
 ### State File Safety
 
-**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed.
+**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and build-doctor agents rewrite it after each scenario / issue / attempt (the skill that took it is blocked on the agent), and staleness counts from the last refresh.
 
 Lock file format:
 ```json

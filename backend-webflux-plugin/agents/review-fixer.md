@@ -64,7 +64,9 @@ Process issues in order: critical → warning → suggestion.
 4. Apply minimum fix to pass the test (GREEN)
 5. Run test class again — verify all tests pass
 6. Maximum 3 attempts per fix; if still failing, revert everything written for this issue in
-   steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state, then
+   steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state — from the
+   snapshot of each file taken before this issue's first edit, never `git checkout -- file`, which
+   restores the last COMMIT and erases earlier fixes in the same file — then
    classify as `escalated`. Never move to the next issue with a failed fix's partial changes
    still in the tree — the fix-report's `escalated[].reason` is the only trace of the attempt
    that should remain
@@ -74,7 +76,7 @@ Process issues in order: critical → warning → suggestion.
 1. Read the file at the specified line
 2. Apply the targeted edit
 3. Run compilation check: `{gradleCommand} classes` (verify no new errors)
-4. If the compilation check fails, revert this specific edit and reclassify the issue as
+4. If the compilation check fails, revert this specific edit (restore the pre-edit content you read in item 1) and reclassify the issue as
    `escalated`, with the compilation error as the reason — do not leave a broken edit in the
    tree while continuing to the next issue
 
@@ -164,6 +166,7 @@ Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context
 - For TDD fixes: follow strict RED-GREEN methodology (no code without failing test)
 - For direct fixes: verify compilation after each edit
 - Maximum 3 attempts per TDD fix before escalating
+- After each issue, rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
 - Never leave an escalated issue's changes (test and/or edit) in the tree — revert before
   moving to the next issue (see Phase 2)
 - Preserve existing code intent — apply minimum necessary change
