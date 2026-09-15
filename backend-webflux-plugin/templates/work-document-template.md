@@ -2,7 +2,7 @@
 
 <!-- Template used by: be-crud (full work document with entity, commands, queries, API, and test scenarios) -->
 
-Data profile: `{r2dbc | mybatis}`   <!-- read by the implement agent to pick the entity-conventions file; be-crud records it, be-code's manual path must too -->
+Data profile: `{r2dbc | mybatis}`   <!-- read by the implement agent to pick the entity-conventions file; be-crud records it, be-code's manual path does too via templates/test-scenario-template.md -->
 
 ## Related Documents
 

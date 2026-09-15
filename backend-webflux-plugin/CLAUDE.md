@@ -232,8 +232,9 @@ public record EmployeeView(UUID id, String email, String displayName) {}
   - `PATCH` -- partial update (200 OK)
   - `DELETE` -- remove (204 No Content)
 - URL: kebab-case, plural resources: `/hr/employees/{id}/profile-image`
-- Error responses: domain exceptions mapped to HTTP status codes via a router-level
-  `onErrorResume` chain (functional style) or `@ExceptionHandler` (annotated style)
+- Error responses: domain exceptions mapped to HTTP status codes via the handler's
+  `onErrorResume` chain (functional style -- in `{Entity}Handler`, not the `RouterFunction`
+  bean; see `templates/web-layer-functional.md`) or `@ExceptionHandler` (annotated style)
 
 ## Test-Driven Development
 
@@ -359,6 +360,8 @@ At any point:
 ```
 
 State is tracked in `{workDocDir}/.progress/{feature}.json`. See `templates/progress-schema.md` for the full schema.
+
+**A status is only as good as the tree it was earned on.** `be-verify` records `scripts/source-tree-hash.sh` (src/, build and settings files, config/, gradle/) as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and treat a `verified`/`reviewed`/`done` status on a different tree as stale — the code goes back through `be-verify`. Editing source after verification never demotes the status by itself; the hash is what makes the edit visible.
 
 ### Demotion Warning
 

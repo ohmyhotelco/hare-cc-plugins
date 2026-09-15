@@ -186,11 +186,9 @@ Release lock: delete `{workDocDir}/.progress/.lock` (always release — lock was
   > "Address escalated issues manually, then re-verify and re-review:"
   > `/backend-webflux-plugin:be-verify {feature}` → `/backend-webflux-plugin:be-review {feature}`
 
-- **Build fails after fixes**:
-  > "Build failed after applying fixes. Run auto-fix:"
-  > `/backend-webflux-plugin:be-build`
-  > "Then re-run review:"
-  > `/backend-webflux-plugin:be-review {feature}`
+- **Build fails after fixes** (status is now `escalated`, which be-review refuses; be-verify re-admits it after a confirmation):
+  > "Build failed after applying fixes. Run auto-fix, then re-verify and re-review:"
+  > `/backend-webflux-plugin:be-build` → `/backend-webflux-plugin:be-verify {feature}` → `/backend-webflux-plugin:be-review {feature}`
 
 ## Error Handling
 

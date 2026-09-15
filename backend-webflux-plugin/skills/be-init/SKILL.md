@@ -46,7 +46,7 @@ Scan the project to detect settings automatically:
 9. **Checkstyle**: `true` when the `checkstyle` plugin is applied in the build file. If it is applied but `config/checkstyle/checkstyle.xml` is missing, offer to write the file from `templates/checkstyle-config.md` (that is the only place it is scaffolded; without it `checkstyleMain` fails on a missing config). A project that has its own file keeps it — the reviewer judges by the project's file
 10. **Coverage**: `true` only when the `jacoco` plugin is applied in the build file. Nothing in this plugin adds it, and with `coverage: true` on a project without it `be-verify`'s Coverage row fails (`jacocoTestReport` not found) and so does `Overall` — on every run. Absent → `false`, and tell the user in Step 3 how to enable it: the Gradle block in `templates/coverage-gate.md`, then re-run `be-init`
 11. **Lombok**: Check if `lombok` is in dependencies
-12. **Gradle command**: `./gradlew` when the wrapper exists, else `gradle` — the invocation every task-level gate row (`classes`, `checkstyleMain`, `jacocoTestReport`, `--tests`) is built on. Appending a task to the *build* command would run the full `build` every time and misattribute one failure to every row
+12. **Gradle command**: `./gradlew` when the wrapper exists, else `gradle` — the invocation every task-level gate row (`classes`, `checkstyleMain`, `jacocoTestReport`, `--tests`) is built on. **No build file at all** (fresh repository): `./gradlew` — Spring Initializr ships the wrapper, and a `gradle` baked in now would run the system Gradle (absent, or a different version) against the project created next. Appending a task to the *build* command would run the full `build` every time and misattribute one failure to every row
 13. **Build command**: `{gradleCommand} build`
 14. **Test command**: `{gradleCommand} test`
 
@@ -123,6 +123,7 @@ blank, and say so:
 > Java Version:      21 (default, undetected)
 > Spring Boot:       4.0.2 (default, undetected)
 > Build Tool:        gradle-kotlin (default, undetected)
+> Gradle Command:    ./gradlew (Initializr ships the wrapper)
 > ...
 > ```
 

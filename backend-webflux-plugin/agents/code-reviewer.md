@@ -26,7 +26,7 @@ The skill will provide these parameters in the prompt:
 1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
    execution-facing subset of the plugin CLAUDE.md)
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `dataProfile`, `webLayer`, `database`, `checkstyle`, `lombokEnabled`
-3. Scan `targetPath` to identify all Java files for review, **and the matching test tree under `config.testDir`** (Dimension 5 judges test naming, assertions and coverage — it cannot from production code alone), and — when the path is the base package — `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` as well: the Data Layer dimension's migration and MyBatis checks are about those files, and a `targetPath` limited to `{domain}/` cannot see them
+3. Scan `targetPath` to identify all Java files for review, **and the matching test tree under `config.testDir`** — the same path relative to `sourceDir`, so `{sourceDir}/{basePackage}/hr/` pairs with `{testDir}/{basePackage}/hr/` (Dimension 5 judges test naming, assertions and coverage — it cannot from production code alone), and — when the path is the base package — `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` as well: the Data Layer dimension's migration and MyBatis checks are about those files, and a `targetPath` limited to `{domain}/` cannot see them. `filesReviewed` in the envelope is the count of exactly these files — production `.java` + test `.java` + resources — and `be-review` recomputes the same count
 4. Categorize files: entities, repositories/mappers, commands, executors, queries, processors, views, routers/handlers/controllers, tests, exceptions, validators, configs
 5. If `planFile` is provided:
    - Read `plan.json` and parse entities, commands, queries, endpoints, exceptions, validationRules, testScenarios
@@ -148,7 +148,7 @@ Apply the sub-checks matching `config.dataProfile` for each file (both sets when
   - No business logic in handlers/controllers (validation, transformation, if/else branching)
   - No direct `Repository`/`Mapper` calls from handlers/controllers
   - No HTTP/web concerns in executors or processors (`ServerRequest`, `ResponseEntity`)
-  - Domain exceptions mapped to HTTP status in the router's `onErrorResume` chain (functional) or `@ExceptionHandler` (annotated), not in executors
+  - Domain exceptions mapped to HTTP status in the handler's `onErrorResume` chain (functional -- the mapping lives in `{Entity}Handler`, never in the `RouterFunction` bean) or `@ExceptionHandler` (annotated), not in executors
 - **Dependency Direction**:
   - Dependencies flow inward: router/handler → business logic → data
   - No circular dependencies between packages
@@ -176,7 +176,7 @@ Skip this dimension entirely when `planFile` was not provided. When evaluated:
 
 3. **Error Code Coverage** -- For each E-nnn in `plan.json.exceptions[]`:
    - Verify the exception class exists with the planned class name
-   - Verify the router's error-handling chain (or `@ExceptionHandler`) maps it to the correct HTTP status code
+   - Verify the handler's `onErrorResume` chain (or `@ExceptionHandler`) maps it to the correct HTTP status code
    - Missing exception class → **critical** issue with `refs: ["E-nnn"]`
    - Missing exception handling → **warning** issue with `refs: ["E-nnn"]`
 

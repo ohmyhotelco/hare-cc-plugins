@@ -64,11 +64,15 @@ public record EmployeeHandler(
 
     public Mono<ServerResponse> find(ServerRequest request) {
         var id = request.pathVariable("id");
+        // The 400 mapping is attached to the parse alone: an IllegalArgumentException raised
+        // further down (a corrupt CHAR(36) row failing UUID.fromString in the converter) is a
+        // server fault and must stay a 500, not be reported as the caller's mistake.
         return Mono.fromCallable(() -> UUID.fromString(id))
+            .onErrorMap(IllegalArgumentException.class, e -> new ServerWebInputException("id must be a UUID"))
             .flatMap(uuid -> findProcessor.process(new FindEmployee(uuid)))
             .flatMap(result -> ServerResponse.ok().bodyValue(result))
             .switchIfEmpty(ServerResponse.notFound().build())
-            .onErrorResume(IllegalArgumentException.class, e -> ServerResponse.badRequest().build());
+            .onErrorResume(ServerWebInputException.class, e -> ServerResponse.badRequest().build());
     }
 }
 ```

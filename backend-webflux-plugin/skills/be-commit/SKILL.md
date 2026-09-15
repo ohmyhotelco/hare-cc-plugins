@@ -35,7 +35,11 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
    > "Warning: Feature '{feature}' is in '{status}' status — review/verification may not be complete."
    > "Continue with commit?"
    If the user declines, stop here.
-4. If all features are `reviewed`, `done`, or no progress files exist: proceed without warning
+4. For each `reviewed`/`done` feature, compare `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` with its `pipeline.verification.tree`; different (or the field missing):
+   > "Warning: the source tree changed after feature '{feature}' was verified — the review describes different code. Re-run be-verify and be-review first."
+   > "Continue with commit?"
+   If the user declines, stop here.
+5. If all features are `reviewed`, `done` with a matching tree, or no progress files exist: proceed without warning
 
 ### Step 2: Parse Arguments
 
@@ -126,6 +130,23 @@ If validation fails, revise the message.
 
 Note: CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
 
+### Step 6.5: Close the Fix Cycle
+
+Before the commit, for every feature progress file whose status is `reviewed` or `done`, set
+`pipeline.fix.round` to `0` (read-modify-write, preserving everything else) — under
+`{workDocDir}/.progress/.lock`, taken and released around the writes exactly as every other
+progress-file writer does (CLAUDE.md § State File Safety); if the lock is held by a live operation,
+skip the reset and say so rather than wait. The counter bounds fix attempts within one review cycle;
+a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes the
+next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt an unattended
+`be-jira-auto` run cannot answer.
+
+This runs before Step 7, not after: a progress file that is tracked and staged would otherwise be
+committed with the old round and dirty again the moment the commit lands. For such a file — listed by
+`git diff --cached --name-only` — refresh its staged copy with `git add -- {file}`: the one `git add`
+this skill makes, on a path the user already staged. A tracked but unstaged progress file stays
+unstaged.
+
 ### Step 7: Execute Commit
 
 A multi-paragraph body passed via `-m "{message}"` is fragile (shell quoting can mangle or
@@ -150,16 +171,6 @@ Check the command's exit code:
   was created, and **stop** — do not proceed to Step 8.
 - **Zero exit**: proceed to Step 8.
 
-### Step 7.5: Close the Fix Cycle
-
-For every feature progress file whose status is `reviewed` or `done`, set `pipeline.fix.round` to `0`
-(read-modify-write, preserving everything else) — under `{workDocDir}/.progress/.lock`, taken and
-released around the writes exactly as every other progress-file writer does (CLAUDE.md § State File
-Safety); if the lock is held by a live operation, skip the reset and say so rather than wait. The counter bounds fix attempts within one review
-cycle; a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes
-the next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt an unattended
-`be-jira-auto` run cannot answer.
-
 ### Step 8: Report
 
 Only report a commit after Step 7 exited zero. Get the actual hash from the repository —
@@ -175,6 +186,6 @@ Report using the hash this command printed:
 
 ### Constraints
 
-- **Never run `git add`** -- only operate on already-staged changes
-- **Never modify the staging area** -- the user controls what is staged
+- **Never run `git add`** on a path the user has not staged -- only operate on already-staged changes (Step 6.5 refreshes an already-staged progress file, nothing else)
+- **Never add to or remove from the staging area** -- the user controls what is staged
 - If the diff is too large to summarize in 50 characters, focus on the primary change

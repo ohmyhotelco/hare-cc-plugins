@@ -94,7 +94,7 @@ EmployeeHandlerTest > duplicate_email_returns_409_Conflict FAILED
 
 Each attempt targets the same `expected: 409 but was: 500` failure with a different theory,
 and each fails to move the assertion, so build-doctor's progress check (agents/build-doctor.md
-§ Step 5) reverts it before the next attempt starts from a clean `EmployeeRouter.java`:
+§ Step 5) reverts it before the next attempt starts from a clean `EmployeeHandler.java`:
 
 - Attempt 1: added an `onErrorResume` branch matching `DuplicateEmailException` directly —
   still 500 (Reactor had wrapped the exception, so the predicate never matched). Reverted.
@@ -112,10 +112,10 @@ Report:
 >  but was: 500
 > ```
 > "Error category: test"
-> "Root cause: DuplicateEmailException thrown by CreateEmployeeCommandExecutor is not caught by the router's onErrorResume chain, so it falls through to the default 500 handler."
+> "Root cause: DuplicateEmailException thrown by CreateEmployeeCommandExecutor is not caught by the handler's onErrorResume chain, so it falls through to the default 500 handler."
 > "Changes kept (made progress, still present): (none)"
-> "Changes reverted (made no progress): src/main/java/com/example/hr/api/EmployeeRouter.java — three onErrorResume predicate attempts (direct type match, wrapper unwrap, message match), all reverted after none moved the assertion off 500."
-> "Suggestion: unwrap the wrapped exception (or match on the wrapper type) in the router's onErrorResume predicate before checking for DuplicateEmailException — confirm the actual wrapper class via a debugger breakpoint or a temporary log of the exception's class name, since three guesses at the wrapper shape were wrong."
+> "Changes reverted (made no progress): src/main/java/com/example/hr/api/EmployeeHandler.java — three onErrorResume predicate attempts (direct type match, wrapper unwrap, message match), all reverted after none moved the assertion off 500."
+> "Suggestion: unwrap the wrapped exception (or match on the wrapper type) in the handler's onErrorResume predicate before checking for DuplicateEmailException — confirm the actual wrapper class via a debugger breakpoint or a temporary log of the exception's class name, since three guesses at the wrapper shape were wrong."
 
 ### Constraints
 

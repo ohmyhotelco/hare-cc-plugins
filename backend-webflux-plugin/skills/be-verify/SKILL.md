@@ -1,7 +1,7 @@
 ---
 name: be-verify
 description: "Read-only verification gate: runs build, checkstyle, tests, and JaCoco coverage and reports structured PASS/FAIL per step — never fixes anything. Use this before be-review to confirm a feature is ready for code review; use be-build instead when you want auto-fix applied. Supports English, Korean, and Vietnamese output via the workingLanguage config."
-argument-hint: "[feature-name]"
+argument-hint: "[feature-name] [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash
 ---
@@ -16,12 +16,14 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. If feature argument provided:
+3. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
    - If `{workDocDir}/.progress/{feature}.json` exists: read it for pipeline context
    - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found (multi-entity feature), list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
    - If no matches: warn that no progress file exists for this feature and proceed without pipeline context (same as no-feature mode)
 
 ### Step 0.5: Demotion Check
+
+`--yes` answers this step's and Step 0.6's confirmations with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts below are asked.
 
 If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
 
@@ -91,6 +93,8 @@ command timed out after 600000ms"` or `"verification tooling error: ./gradlew:
 command not found"`), and continue to the remaining steps per the "always run all
 steps" rule in Constraints.
 
+Before 1.1, record the tree the gate is about to run against: `tree=$(${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
+
 `{config.gradleCommand}` below is the wrapper (`./gradlew`); a config written before the key existed
 has none — use `./gradlew`. Never append a task to `buildCommand`: it already runs `build`, so every
 row would run the whole build and one failure would surface in all of them.
@@ -134,6 +138,7 @@ Note: Gradle caching ensures previously-passed tasks complete instantly. This st
 
 - **Pass**: exit code 0, clean build
 - **Fail**: collect build errors not caught by previous steps
+- **1.3 FAILed**: do not run this — mark FAIL with reason `tests failed (1.3); build not re-run`. `build` depends on `test`, and a failed task is never up-to-date, so the run would only repeat the red suite (a third time with 1.5) inside the same 10-minute budget
 
 #### 1.5: Coverage Check (if `config.coverage == true`) — report-only, see `docs/decisions.md` Decision 6
 
@@ -144,6 +149,7 @@ Note: Gradle caching ensures previously-passed tasks complete instantly. This st
 - **Pass**: task completes successfully and `build/reports/jacoco/test/jacocoTestReport.xml` exists and is parseable
 - **Fail**: task fails, or the XML report is missing/unparseable
 - **Skip**: if `config.coverage == false`
+- **1.3 FAILed**: run `{config.gradleCommand} jacocoTestReport -x test` instead — the report task reads the execution data 1.3 wrote; without `-x test` it re-runs the red suite first
 - Parse the line-coverage percentage from the XML report's top-level `<counter type="LINE">` element:
   `linePercent = covered / (covered + missed) * 100`, rounded to 1 decimal place — see `templates/coverage-gate.md` for the exact XML shape
 - **This percentage never gates PASS/FAIL in this sub-task.** A low percentage is
@@ -176,6 +182,8 @@ lines covered` is expected and correct while no real test suite exists yet.
 `Overall` is computed from Compilation/Checkstyle/Tests/Build **and the Coverage row's
 PASS/FAIL** — a JaCoCo task that fails or produces no parseable report is a broken gate, not a low
 number. Only the percentage is report-only (Decision 6); `SKIP` never fails `Overall`.
+`Overall` is also FAIL when `source-tree-hash.sh` recomputed after 1.5 differs from the `tree` recorded
+before 1.1 (`source changed during verification`): the rows describe a tree that no longer exists.
 
 If any step fails, show the first few errors:
 
@@ -261,15 +269,16 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
      "checkstyle": { "status": "pass|fail|skip", "violations": 0 },
      "tests": { "status": "pass|fail", "passed": 25, "total": 25 },
      "build": { "status": "pass|fail" },
-     "coverage": { "status": "pass|fail|skip", "linePercent": 12.3, "thresholdEnforced": false }
+     "coverage": { "status": "pass|fail|skip", "linePercent": 12.3, "thresholdEnforced": false },
+     "tree": "{the hash recorded before 1.1}"
    }
    ```
 3. Update `pipeline.status` from the same rows `Overall` is computed from (Step 2):
    - `Overall: PASS` — compilation, checkstyle, tests, build pass and the Coverage row is PASS or SKIP → `"verified"` (the coverage *percentage* never matters)
    - `Overall: FAIL` — any of those rows FAIL, a Coverage row FAIL (report not produced/unparseable) included → `"verify-failed"`; `pipeline.verification.status` is `"fail"` in the same write
-4. Write back the progress file (read-modify-write: preserve all other fields)
+4. Write back the progress file (read-modify-write: preserve all other fields). If the write fails (permissions, disk, a file that no longer parses), report the error and the Step 2 result — the gate ran; only its record did not land — and still release the lock below.
 
-If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock`.
+If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock` — on every exit from here on, the write failure included.
 
 ### Step 4: Suggest Next Action
 
@@ -281,6 +290,6 @@ If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.prog
 
 - **Read-only gate**: Do NOT modify any source code
 - Do NOT attempt to fix any issues — that is be-build's job
-- Always run all 5 steps even if earlier steps fail (collect all issues at once)
+- Always run all 5 steps even if earlier steps fail (collect all issues at once) — the one exception is 1.4 after a failed 1.3, which is FAIL by dependency without a run (see 1.4)
 - Never wire a coverage threshold/failure rule in this skill — see `docs/decisions.md` Decision 6. If the team confirms a threshold later, that is a separate, explicit change to this file and to `templates/coverage-gate.md`, not an implicit one
 - Report in the working language from config

@@ -71,7 +71,7 @@ public class DuplicateEmailException extends RuntimeException {
 }
 ```
 
-Mapped to HTTP status in the router's error handling (functional style, see
+Mapped to HTTP status in the handler's `onErrorResume` chain (functional style, see
 `templates/web-layer-functional.md`) or via `@ExceptionHandler` (annotated style,
 see `templates/web-layer-annotated.md`).
 

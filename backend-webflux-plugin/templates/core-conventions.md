@@ -62,8 +62,9 @@ Unless explicitly overridden in the feature document:
 - `POST` create (201), `GET` read (200), `PUT` full replace (200), `PATCH` partial
   update (200), `DELETE` remove (204)
 - URL: kebab-case, plural resources: `/hr/employees/{id}/profile-image`
-- Domain exceptions mapped to HTTP status via a router-level `onErrorResume` chain
-  (functional style) or `@ExceptionHandler` (annotated style)
+- Domain exceptions mapped to HTTP status via the handler's `onErrorResume` chain
+  (functional style -- in `{Entity}Handler`, not the `RouterFunction` bean) or
+  `@ExceptionHandler` (annotated style)
 
 ## CQRS Scope Note
 

@@ -458,10 +458,11 @@ Read-only gate: compilation, checkstyle, tests, full build, JaCoco coverage (rep
 
 Multi-dimension code review (6 core + optional spec compliance) with scored dimensions. Issues include severity, suggestions, and refs tracing back to API endpoints or test scenarios.
 
-### Step 6: Fix & Re-Review
+### Step 6: Fix, Re-Verify & Re-Review
 
 ```
 /backend-webflux-plugin:be-fix employee
+/backend-webflux-plugin:be-verify employee
 /backend-webflux-plugin:be-review employee
 ```
 

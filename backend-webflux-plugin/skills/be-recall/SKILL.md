@@ -124,7 +124,7 @@ violations" even when the code is riddled with them. Run exactly one branch.
     not `/employee`)
   - `ServerResponse.status(...)` codes that don't match the API Conventions
     table (e.g. a POST handler returning `200` instead of `201`)
-  - Missing router-level `onErrorResume` mapping for a domain exception
+  - Missing handler-level `onErrorResume` mapping for a domain exception
 - If `webLayer == "annotated"` (the named exception — a domain deliberately
   mirroring an existing annotated-controller module): scan `*Controller.java`
   files for:

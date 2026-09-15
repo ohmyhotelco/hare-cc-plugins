@@ -162,7 +162,7 @@ Check each in-scope file against these rules. Every match found here is a
 
 9. **Entity/POJO Design**
    - Entity/POJO does not follow the `sequence` + UUID `id` dual key pattern
-   - R2DBC: mutable `id` field (should only be set once, at creation)
+   - `id` assigned outside the creating executor — a `setId` in an update or query path rewrites the external key (the scaffold's class-level `@Setter` and the single `setId(UuidCreator.getTimeOrderedEpoch())` at creation are the expected shape, not a finding)
    - R2DBC: `@Table`/`@Column` names do not match the manual SQL migration's table/column names
    - MyBatis: mapper XML result-column aliases do not match the POJO's field names
 

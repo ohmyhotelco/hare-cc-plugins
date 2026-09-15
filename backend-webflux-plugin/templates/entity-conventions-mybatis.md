@@ -85,7 +85,10 @@ MyBatis looks only next to the interface's package path, so an unregistered XML 
 
     <!-- MyBatis ships no UUID type handler: a CHAR(36) column reads back as String and cannot
          be set on the UUID field, and a UUID parameter falls to setObject(). The result map
-         and every #{id} name the handler explicitly. -->
+         and every #{id} name the handler explicitly -- and so does EVERY other UUID-typed
+         property (a correlationId, an actor id, a UUID reference): every <result> for it and
+         every #{...} that binds it carries typeHandler=...UuidTypeHandler, exactly like id.
+         An enum property needs nothing: the default EnumTypeHandler maps it by name. -->
     <resultMap id="employee" type="com.example.data.Employee">
         <id     property="sequence"    column="sequence"/>
         <result property="id"          column="id" typeHandler="com.example.data.UuidTypeHandler"/>

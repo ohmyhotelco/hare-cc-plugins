@@ -209,10 +209,12 @@ Warnings (1):
     Context propagation; the value is lost once execution crosses the
     .subscribeOn(Schedulers.boundedElastic()) hop in the MyBatis query path, so
     log lines emitted from the offloaded call lose the requestId correlation.
-  Fix: Add `Hooks.enableAutomaticContextPropagation()` (Reactor 3.5+) plus the
-    `io.micrometer:context-propagation` dependency so MDC entries are captured
-    into and restored from the Reactor Context across scheduler boundaries — a
-    plain WebFilter calling MDC.put alone is not sufficient on this stack.
+  Fix (all three parts of Rule 7 — the hook alone does nothing for MDC):
+    (1) `io.micrometer:context-propagation` + `Hooks.enableAutomaticContextPropagation()`
+    at startup; (2) a `ThreadLocalAccessor` for "requestId" registered with
+    `ContextRegistry.getInstance().registerThreadLocalAccessor(...)`; (3) the filter
+    puts the id into the Reactor Context — `chain.filter(exchange).contextWrite(ctx ->
+    ctx.put("requestId", id))` — so the accessor restores MDC on every hop.
 ```
 
 ## See Also

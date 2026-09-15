@@ -125,13 +125,13 @@ Follow the original manual flow:
    > {scenario list}
    > "Please review. I'll remove scenarios marked with `?` unless you confirm them."
 5. Wait for user approval before proceeding
-6. Save approved scenarios to `{workDocDir}/{feature-name}.md`
+6. Save approved scenarios to `{workDocDir}/{feature-name}.md`, with the template's `Data profile:` line resolved exactly as the plan path above does — the implement agent reads it to choose the entity-conventions file, and a document without it leaves the profile to a guess
 
 ### Step 3.5: Demotion Check
 
 `--yes` answers this step's and Step 3.6a's confirmation with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts below are asked.
 
-**Single-entity mode** (file path or single entity): If `{workDocDir}/.progress/{feature-name}.json` exists:
+**Work-document mode** (file path, or a feature name with a work document and no plan): If `{workDocDir}/.progress/{feature-name}.json` exists:
 
 1. Read `pipeline.status`
 2. If status is anything past `"implementing"` — `"implemented"`, `"verified"`, `"verify-failed"`, `"reviewed"`, `"review-failed"`, `"fixing"`, `"resolved"`, `"escalated"`, `"done"` — (CLAUDE.md § Demotion Warning: any earlier-stage skill resetting a later status asks first):
@@ -140,7 +140,7 @@ Follow the original manual flow:
    If the user declines, stop here.
 3. `fixing` and `escalated` are covered by item 2 — one confirmation, not two.
 
-**Multi-entity mode**: Skip this step here. The demotion check is performed per-entity in Step 3.6a, after the lock and before Step 3.7 writes any progress file.
+**Plan-driven mode** (one entity or many): Skip this step here. Step 3.7 writes `{kebab-case-entity}.json`, not `{feature-name}.json`, so a check on the feature name would never see the entity's status — the demotion check is performed per entity in Step 3.6a, after the lock and before Step 3.7 writes any progress file.
 
 ### Step 3.6: Acquire Lock
 
@@ -154,9 +154,9 @@ Follow the original manual flow:
 
 ### Step 3.6a: Per-entity Demotion Check
 
-Multi-entity mode only (single-entity runs did this in Step 3.5). Before Step 3.7 writes any
-progress file, loop over every entity in
-`entityDependencyOrder` and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
+Plan-driven mode only (work-document runs did this in Step 3.5). Before Step 3.7 writes any
+progress file, loop over every entity being processed (`targetEntity` alone, or all of
+`entityDependencyOrder`) and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
 1. If it exists, read `pipeline.status`
 2. If status is anything past `"implementing"` (the Step 3.5 list): warn the user (same messages as Step 3.5) and ask for confirmation for this entity
 3. If the user declines for a specific entity: leave it out of the batch and proceed to the next entity's check
@@ -172,7 +172,7 @@ releases the lock.
 
 ### Step 3.7: Initialize Pipeline State
 
-For each entity being processed, create or update `{workDocDir}/.progress/{kebab-case-entity}.json`:
+For each entity being processed, create or update `{workDocDir}/.progress/{kebab-case-entity}.json` (`{feature-name}.json` in work-document mode — the name Step 3.5 checked):
 
 1. Create `{workDocDir}/.progress/` directory if it does not exist
 2. If progress file does not exist, create it:
@@ -344,7 +344,7 @@ Invocation: `/backend-webflux-plugin:be-code employee`
 7. **Step 3.7**: `work/features/.progress/employee.json` created with `pipeline.status = "implementing"`, `scenarios.total = 3`.
 8. **Step 4**: Baseline captured (`git status --porcelain` → clean). `implement` agent launched with the work document. One RED-GREEN iteration, summarized:
    - RED: `PostTests.duplicate_email_returns_409_Conflict` written, fails — `DuplicateEmailException` does not exist yet.
-   - GREEN: `CreateEmployeeCommandExecutor` checks `EmployeeRepository.existsByEmail`, throws `DuplicateEmailException`; the router's `onErrorResume` maps it to 409. Test passes.
+   - GREEN: `CreateEmployeeCommandExecutor` checks `EmployeeRepository.existsByEmail`, throws `DuplicateEmailException`; the handler's `onErrorResume` maps it to 409. Test passes.
    - Scenario marked `- [x]`. The remaining two scenarios follow the same RED-GREEN pattern.
 9. **Step 5**: `./gradlew build` runs, exits 0.
 10. **Step 6**: Report, grounded in evidence (`git status --porcelain` against the Step 4 baseline, `git diff --stat`):
@@ -364,7 +364,7 @@ Invocation: `/backend-webflux-plugin:be-code employee`
       src/test/java/com/example/hr/api/employees/PostTests.java
 
     Files modified:
-      src/main/java/com/example/hr/api/EmployeeRouter.java
+      src/main/java/com/example/hr/api/EmployeeHandler.java
 
     Build: PASS
     ```

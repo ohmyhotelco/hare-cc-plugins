@@ -49,6 +49,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
    - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
+3. On every proceed path, compare the tree: `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
 
 ### Step 2.5: Work Document Staleness Check
 
@@ -119,7 +120,7 @@ Do not trust the agent's response as complete just because it returned. Before p
 2. **Numeric consistency** — `summary.totalIssues` equals the total number of entries across every dimension's `issues[]`, and `summary.critical` / `summary.warning` / `summary.suggestion` match the actual `severity` counts in those `issues[]`. A mismatch fails validation.
 3. **Score and verdict consistency** — recompute `summary.overallScore` as the mean of the dimension scores present (6 or 7), rounded to 1 decimal; a mismatch fails validation. Then recompute the verdict using the rules below (all dimensions >= 7 and zero critical issues → PASS, otherwise FAIL) and confirm it matches `summary.verdict`. A mismatch fails validation.
 4. **Agent failure or timeout** — the agent call errored, returned empty output, or was visibly truncated (e.g., an unterminated JSON object). Any of these fails validation.
-5. **Coverage** — `filesReviewed` is greater than 0 and equals the number of `.java` files under the target (plus the resources the agent was told to read), and `target` is the path Step 1 resolved; a report of zero files with six perfect scores is an agent that did not look, not a clean codebase.
+5. **Coverage** — `filesReviewed` is greater than 0 and equals the count of files `agents/code-reviewer.md` Phase 0 item 3 tells the agent to read: `.java` files under the target, plus `.java` files under the matching `{testDir}` path, plus (base-package target only) `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` — count them yourself; and `target` is the path Step 1 resolved; a report of zero files with six perfect scores is an agent that did not look, not a clean codebase.
 6. **Issue completeness** — every entry in every `issues[]` array has a non-empty `file`, `line`, and `suggestion` (the agent's Constraints require "file path, line number, and concrete fix suggestion" for every finding — see `agents/code-reviewer.md` Constraints). A blank field is evidence of truncation and fails validation.
 
 If any check fails — and likewise if writing the report (Step 4) or the progress file (Step 6) fails: do not leave a partial report, release the lock from Step 2.6 if one was acquired, and report to the user exactly which check failed (name the check and the offending field/dimension) instead of persisting a partial report as if it were complete. Stop here — do not proceed to Step 4.
@@ -239,7 +240,7 @@ If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.prog
 ```
 Next step: /backend-webflux-plugin:be-fix {feature}
   → Reads review-report.json and applies TDD-disciplined fixes
-  → After fixing, re-run /backend-webflux-plugin:be-review {feature}
+  → After fixing, re-run /backend-webflux-plugin:be-verify {feature}, then /backend-webflux-plugin:be-review {feature}
 ```
 
 ## Worked Examples
@@ -250,8 +251,8 @@ Input: `/backend-webflux-plugin:be-review employee-profile`
 
 1. Step 1.5 resolves `employee-profile` against `work/features/.progress/employee-profile.json`; `pipeline.status` is `"verified"`, so Step 2 proceeds without asking for confirmation.
 2. Step 2.7 finds `docs/specs/employee-profile/.implementation/backend/plan.json` → `specAvailable = true`.
-3. Step 2.6 acquires the lock, then Step 3 launches `code-reviewer` with `targetPath: src/main/java/com/example/hr/`, plus `planFile` and `specDir` — 7 dimensions are evaluated.
-4. Step 3.5 validates the response: all 7 dimension keys present, `summary.totalIssues` (5) matches the sum of `issues[]` across dimensions, recomputed verdict matches `summary.verdict` — validation passes.
+3. Step 2.6 acquires the lock, then Step 3 launches `code-reviewer` with `targetPath: src/main/java/com/example/` (a feature name targets the whole base package — Step 1), plus `planFile` and `specDir` — 7 dimensions are evaluated.
+4. Step 3.5 validates the response: all 7 dimension keys present, `summary.totalIssues` (5) matches the sum of `issues[]` across dimensions, recomputed verdict matches `summary.verdict`, `filesReviewed` (15) equals the 11 production + 3 test `.java` files plus the one migration — validation passes.
 5. Step 4 saves `work/features/.progress/review-report-employee-profile.json` with `overallScore: 8.2`, verdict `PASS`.
 6. Step 5 displays the report (3 warnings, 2 suggestions, 0 critical).
 7. Step 6 sets `pipeline.status` to `"reviewed"` and releases the lock. Step 7 suggests `/backend-webflux-plugin:be-fix employee-profile` to clean up the warnings, or proceeding straight to commit.

@@ -223,12 +223,19 @@ When Step 1 had to draft its own Proposed Solution:
    `git stash` or `git checkout .` to clear it yourself. **Exception -- a
    resume of this ticket:** when the current branch already carries
    `{jiraKey}` (item 2) and every dirty path lies under `{sourceDir}`,
-   `{testDir}`, `src/main/resources/migration/`, `src/main/resources/mapper/`
-   or `{workDocDir}`, the tree is this pipeline's own in-progress work left
-   by a `NEEDS-INPUT` exit (a three-failure pause, a security finding, an
-   escalation); keep it and continue from the step the last report named.
-   Any dirty path outside those directories is still someone else's work:
-   stop.
+   `{testDir}`, `src/main/resources/`, `config/`, `{workDocDir}`, or is a
+   `build.gradle(.kts)` / `settings.gradle(.kts)` file (be-crud edits
+   `application.yml`, `be-build` may edit the build file), the tree is this
+   pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
+   three-failure pause, a security finding, an escalation); keep it and
+   continue from the step the last report named — **but never past Step 6
+   when the code changed since it was verified**: compare
+   `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` with each feature's
+   `pipeline.verification.tree`; different (or missing) → re-enter at Step 6
+   for that feature, whatever the report named (a manual security fix, an
+   escalation resolved by hand: the review that may already have written
+   `done` describes the old tree). Any dirty path outside those locations
+   is still someone else's work: stop.
 2. If the current branch name already starts with `{jiraKey}` followed by
    a `-` or `_` (case-insensitive) -- not merely *contains* it, since
    `jiraKey = "OMH-10"` is a substring of an unrelated branch named
@@ -236,7 +243,7 @@ When Step 1 had to draft its own Proposed Solution:
    this in the final report.
 3. Otherwise: resolve the default branch
    (`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`
-   then `master`), `GIT_TERMINAL_PROMPT=0 git fetch` (an expired credential or an unknown host key must fail, not prompt an unattended run), then
+   then `master`), `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git fetch` (an expired credential, a passphrase or an unknown host key must fail, not prompt an unattended run — `GIT_TERMINAL_PROMPT` covers git's own credential prompt only, `BatchMode` covers SSH's), then
    `git checkout -b {jiraKey}-{slug}` from the freshly fetched default
    branch. `{slug}` is a short kebab-case form of the Jira summary (up to
    ~5 meaningful words).
@@ -353,9 +360,10 @@ processed, and a FAIL on any entry stops the run at that entry (later entries de
 ### Step 6: Verify -- `be-verify`
 
 ```
-Skill(skill: "be-verify", args: "{feature}")
+Skill(skill: "be-verify", args: "{feature} --yes")
 ```
 
+- `--yes` answers `be-verify`'s demotion/staleness confirmations (a resume re-entering here from `reviewed`/`done`/`escalated`) — this run decided the re-entry; the report is still read in full.
 - Read the 5-row report (Compilation/Checkstyle/Tests/Build/Coverage).
 - The coverage percentage is report-only (`docs/decisions.md` Decision 6)
   -- carry it into the final report, never treat the number as a failure
@@ -372,7 +380,7 @@ Skill(skill: "be-build", args: "{feature}")
 
 `be-build` already retries internally up to 3 times -- call it **once**,
 never wrap it in an outer retry loop of this skill's own. Then re-run
-`be-verify {feature}` once to confirm:
+`be-verify {feature} --yes` once to confirm:
 
 - PASS -- go to Step 7.
 - Still FAIL -- stop with status `ABORTED`, listing the exact FAIL rows
@@ -418,7 +426,9 @@ new entity/endpoint surface" and treat this step as `be-review`-only.
   description, suggestion) and asking the user to fix them manually (or
   via a manual `be-code`/`implement` edit), then re-run
   `/backend-webflux-plugin:be-security` to confirm before resuming this
-  agent.
+  agent — the resume re-enters at Step 6, not here: the fix changed the
+  tree, and the `be-review` that ran alongside may already have written
+  `reviewed`/`done` for code that no longer exists (Step 2's tree rule).
 - Warnings/Suggestions are non-blocking -- carry them into the Step 9/final
   report as-is; they do not gate progression to Step 8/9.
 
@@ -431,7 +441,7 @@ Skill(skill: "be-fix", args: "{feature}")
 then -- a fix changed code, and `be-review` refuses a `fixing` feature until it is re-verified:
 
 ```
-Skill(skill: "be-verify", args: "{feature}")
+Skill(skill: "be-verify", args: "{feature} --yes")
 ```
 
 (`Overall: FAIL` here → one `be-build` + re-verify exactly as Step 6.1; still FAIL → `ABORTED`.) Then
@@ -440,16 +450,18 @@ Skill(skill: "be-verify", args: "{feature}")
 Skill(skill: "be-review", args: "{feature}")
 ```
 
-- **Read `pipeline.fix.round` before the first `be-fix` call.** The
-  counter persists across runs (be-review zeroes it only on a clean PASS,
-  be-commit only after a commit); if it is already >= 2, one more call
-  reaches round 3 and `be-fix` Step 3's "Continue anyway?" prompt -- stop
-  with `NEEDS-INPUT` instead of calling.
-- **Read `fix-report.json` before calling `be-verify`/`be-review`.** If
-  `escalated[]` is non-empty -- whether the feature ended `escalated`
-  (every issue, or the post-fix build failed) or `fixing` (some fixed,
-  some escalated) -- stop with `NEEDS-INPUT` and list the escalated
-  issues verbatim. A partially escalated fix is a known unresolved issue;
+- **Read `pipeline.fix.round` before every `be-fix` call**, not only the
+  first. The counter persists across runs (be-review zeroes it only on a
+  clean PASS, be-commit only before a commit); if it is already >= 2, one
+  more call reaches round 3 and `be-fix` Step 3's "Continue anyway?"
+  prompt -- stop with `NEEDS-INPUT` instead of calling. (A feature
+  entering at round 1 passes the first check and would reach round 3 on
+  the second call without this.)
+- **Read `fix-report.json` and `pipeline.status` before calling
+  `be-verify`/`be-review`.** If `escalated[]` is non-empty, or the status
+  is `escalated` (the post-fix build failed even with every issue marked
+  fixed -- `be-verify` would prompt on it) -- stop with `NEEDS-INPUT` and
+  list the escalated issues, or the build failure, verbatim. A partially escalated fix is a known unresolved issue;
   re-verifying and re-reviewing around it can PASS-with-warnings and reach
   the commit with that issue still open. (`be-review` refuses `escalated`
   outright, and `be-verify` would re-admit the partial fix silently.)
@@ -470,14 +482,22 @@ Skill(skill: "be-review", args: "{feature}")
 
 1. Diff the current `git status --porcelain` against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
-   files this feature touched.
+   files this feature touched. On a resume, the baseline already held this
+   pipeline's own dirty files (Step 2's exception) -- add every dirty path
+   under the Step 2 locations too, or the migration and entity from the
+   first run are never staged and the commit is a partial feature.
 2. `git add <file1> <file2> ...` -- name every file explicitly. Never
    `git add -A` or `git add .`.
 2a. `be-commit` Step 1.5 asks "Continue with commit?" whenever ANY other
    feature under `{workDocDir}/.progress/` is not `reviewed`/`done` -- a
    prompt this run cannot answer. Read every progress file first; if one
    belongs to another feature and is in any other status, stop with
-   `NEEDS-INPUT` naming it instead of calling `be-commit`.
+   `NEEDS-INPUT` naming it instead of calling `be-commit`. Its Step 1.5
+   also prompts when a `reviewed`/`done` feature's
+   `pipeline.verification.tree` no longer matches
+   `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` -- recompute it
+   first; a mismatch here means something edited the tree during this run:
+   go back to Step 6.
 3. ```
    Skill(skill: "be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```

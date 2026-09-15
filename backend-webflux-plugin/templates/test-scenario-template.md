@@ -2,6 +2,8 @@
 
 <!-- Template used by: be-code (when drafting scenarios for a feature name without existing work document) -->
 
+Data profile: `{r2dbc | mybatis}`   <!-- read by the implement agent to pick the entity-conventions file; resolved as be-crud Step 1 does -->
+
 ## Related Documents
 
 - CLAUDE.md (development rules)
