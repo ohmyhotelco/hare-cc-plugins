@@ -283,9 +283,9 @@ Always flag these patterns:
   (query param, path variable, request body field) — `#{param}` is the safe form
 - Missing `@Valid` on `@RequestBody` parameters
 - Internal DB key (`sequence`, auto-increment ID) exposed in API response
-- Endpoints without authentication or authorization check, including a route
-  present in a `RouterFunction` but absent from the `SecurityWebFilterChain`'s path
-  matchers
+- A route present in a `RouterFunction` but absent from the `SecurityWebFilterChain`'s path
+  matchers — when the project has one (Rule 1: a project with no authentication layer gets
+  a single warning, never a per-endpoint Critical)
 - PII fields (email, phone, name) in log statements without masking
 - Hardcoded strings matching: `password=`, `secret=`, `api_key=`, `jdbc:`
 - `@CrossOrigin("*")` on authenticated endpoints

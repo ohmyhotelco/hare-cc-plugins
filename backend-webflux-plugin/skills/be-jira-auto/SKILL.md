@@ -281,7 +281,13 @@ its own right:
    cycle starts.
 3. Add a repository/mapper query method only if a scenario in Step 1/1.5
    actually needs one (e.g. `existsBy{NewField}` for a uniqueness check);
-   otherwise leave the repository/mapper untouched.
+   otherwise leave the repository/mapper untouched. A field the ticket calls
+   **unique** gets the same three parts `be-crud` emits for one: the ALTER
+   migration adds `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` (the
+   `existsBy` pre-check alone is a race -- two concurrent creates both pass
+   it, and only the constraint stops the second row), the executor maps a
+   `DataIntegrityViolationException` naming that constraint to
+   `Duplicate{Field}Exception`, and the web layer maps that to 409.
 4. Do not touch command/query/view DTOs or router/handler code here --
    that is ordinary TDD scope and belongs to `be-code` in Step 5, exactly
    like any other scenario.
@@ -373,7 +379,7 @@ of sequencing them:
 
 ```
 Skill(skill: "be-review", args: "{feature}")
-Skill(skill: "be-security", args: "{sourceDir}/{basePackage}/{domain}/")
+Skill(skill: "be-security", args: "{sourceDir}/{basePackage}/")   # the whole package: executors, repositories and queries live outside {domain}/
 ```
 
 Run `be-security` when tier is `normal` or `extreme`, or when Step 1's
@@ -408,13 +414,19 @@ new entity/endpoint surface" and treat this step as `be-review`-only.
 - Warnings/Suggestions are non-blocking -- carry them into the Step 9/final
   report as-is; they do not gate progression to Step 8/9.
 
-### Step 8: Fix Loop (conditional, at most 2 rounds) -- `be-fix` -> `be-review`
+### Step 8: Fix Loop (conditional, at most 2 rounds) -- `be-fix` -> `be-verify` -> `be-review`
 
 ```
 Skill(skill: "be-fix", args: "{feature}")
 ```
 
-then
+then -- a fix changed code, and `be-review` refuses a `fixing` feature until it is re-verified:
+
+```
+Skill(skill: "be-verify", args: "{feature}")
+```
+
+(`Overall: FAIL` here → one `be-build` + re-verify exactly as Step 6.1; still FAIL → `ABORTED`.) Then
 
 ```
 Skill(skill: "be-review", args: "{feature}")

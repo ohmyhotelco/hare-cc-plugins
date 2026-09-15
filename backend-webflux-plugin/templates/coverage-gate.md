@@ -60,7 +60,7 @@ test {
 
 ## Reading the Result
 
-`be-verify` runs `{buildCommand} jacocoTestReport` and parses the line-coverage
+`be-verify` runs `{gradleCommand} jacocoTestReport` (the wrapper — never a task appended to `buildCommand`) and parses the line-coverage
 percentage from `build/reports/jacoco/test/jacocoTestReport.xml`:
 
 ```xml

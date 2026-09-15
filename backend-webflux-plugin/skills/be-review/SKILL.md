@@ -21,7 +21,7 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 The argument can be:
 
-- **Feature name**: resolve to source directory by scanning `{sourceDir}/{basePackage}/` for a matching domain package, or use the feature's work document to identify related packages
+- **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
 - **Directory path**: use directly as the review target
 - **No argument**: review all source code in `{sourceDir}/{basePackage}/`. Before launching the agent, count the `.java` files under that path. If the count exceeds ~40 files, a full-repo pass risks a shallow or truncated review — tell the user the file count, list the top-level domain packages under `{basePackage}`, and ask them to either pick one package as the scoped target or confirm they want the full, unscoped review anyway.
 
@@ -39,14 +39,13 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
 
 1. Read progress file
 2. Check `pipeline.status`:
-   - If `"implementing"` or earlier: warn that code may be incomplete, ask user to confirm
-   - If `"implemented"`:
-     > "Verification (`be-verify`) has not been run for this feature. Build, checkstyle, or test issues may exist."
-     > "Consider running `/backend-webflux-plugin:be-verify {feature}` first. Continue with review anyway?"
-     If the user declines, stop here.
+   - If `"implementing"` or earlier, or `"implemented"`: **stop** — `be-verify` has not passed for this
+     feature, and a review PASS on unverified code sets `done`, which `be-commit` accepts: the review
+     would be the only gate between unbuilt code and a commit. Run
+     `/backend-webflux-plugin:be-verify {feature}` first.
    - If `"verified"`: proceed (normal flow)
    - If `"verify-failed"`: **stop** — the build, tests or checkstyle failed, and a review PASS on code that does not build would set `done` and let `be-commit` commit it. Run `/backend-webflux-plugin:be-build {feature}` (or `be-fix`/`be-debug`) and re-verify first.
-   - If `"fixing"` or `"resolved"`: proceed (normal flow — review after fix/debug is the expected path)
+   - If `"fixing"` or `"resolved"`: **stop** — the fix/debug changed code, so the last verification no longer describes it; run `/backend-webflux-plugin:be-verify {feature}` first (it re-admits the feature as `verified`)
    - If `"escalated"`:
      > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running review."
      > "Continue?"
@@ -67,6 +66,8 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    If the user declines, stop here.
 
 ### Step 2.6: Acquire Lock
+
+0. `mkdir -p {workDocDir}/.progress` — a project whose code was written without `be-crud` has no such directory yet, and a lock cannot be written into one that does not exist
 
 If a feature name was provided:
 

@@ -88,6 +88,8 @@ If `{workDocDir}/.progress/{feature}.json` exists:
 
 ### Step 3.5: Acquire Lock
 
+0. `mkdir -p {workDocDir}/.progress` — a project whose code was written without `be-crud` has no such directory yet, and a lock cannot be written into one that does not exist
+
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock

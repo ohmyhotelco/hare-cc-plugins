@@ -83,8 +83,8 @@ class EmployeeRepositoryTests {
     void find_by_email_returns_matching_employee() {
         var employee = createEmployee("test@example.com");
 
-        StepVerifier.create(repository.save(employee).then(repository.findByEmail("test@example.com")))
-            .assertNext(found -> assertThat(found).isNotNull())
+        StepVerifier.create(repository.save(employee).then(repository.existsByEmail("test@example.com")))
+            .assertNext(exists -> assertThat(exists).isTrue())
             .verifyComplete();
     }
 }
@@ -104,9 +104,9 @@ class EmployeeMapperTests {
         var employee = createEmployee("test@example.com");
         mapper.insert(employee);
 
-        var found = mapper.findByEmail("test@example.com");
+        var exists = mapper.existsByEmail("test@example.com");
 
-        assertThat(found).isNotNull();
+        assertThat(exists).isTrue();
     }
 }
 ```

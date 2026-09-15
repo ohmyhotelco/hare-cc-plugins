@@ -89,6 +89,16 @@ class PostTests {
     }
 
     @Test
+    void non_json_body_returns_415_Unsupported_Media_Type() {
+        // The route must exist for a wrong media type: 415, not 404.
+        webTestClient.post().uri("/hr/employees")
+            .header("Content-Type", "text/plain")
+            .bodyValue("email=x")
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    }
+
+    @Test
     void empty_body_returns_400_Bad_Request() {
         // An empty bodyToMono completes without emitting, which skips flatMap and lets
         // `.then(201)` answer as if the command had run -- nothing is persisted.

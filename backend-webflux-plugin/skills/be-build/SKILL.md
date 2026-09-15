@@ -39,7 +39,7 @@ was not observed in a real build run.
 
 **On success:**
 > "Build passed on attempt {1-3}."
-> "Exit code: 0. Tests: {passed}/{total} passed."
+> "Exit code: 0. Tests: {passed}/{total} passed."   (counts summed from `build/test-results/test/TEST-*.xml` — a passing Gradle run prints none)
 > {If changes were made: "Changes applied (attempt {n}): {file path} — {one-line description of the fix}" for each file}
 > {If no changes were made: "No changes were needed — build passed on the first attempt."}
 

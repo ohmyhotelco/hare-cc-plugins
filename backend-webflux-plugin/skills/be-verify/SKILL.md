@@ -30,11 +30,12 @@ If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` e
    > "This feature is currently '{status}'. Implementation may be incomplete — not all test scenarios have been finished."
    > "Continue with verification anyway?"
    If the user declines, stop here.
-3. If status is `"reviewed"`, `"review-failed"`, `"fixing"`, or `"done"`:
-   > "This feature is currently '{status}'. Re-running verification will reset the status, discarding review/fix progress."
+3. If status is `"fixing"` or `"resolved"`: proceed — a fix or a debug changed the code, and re-verifying it is the required next step before `be-review` will accept it (no confirmation).
+4. If status is `"reviewed"`, `"review-failed"`, or `"done"`:
+   > "This feature is currently '{status}'. Re-running verification will reset the status, discarding review progress."
    > "Continue?"
    If the user declines, stop here.
-4. If status is `"escalated"`:
+5. If status is `"escalated"`:
    > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running verification."
    > "Continue?"
    If the user declines, stop here.
@@ -63,6 +64,8 @@ If a feature argument was provided:
    If the user declines, stop here.
 
 ### Step 0.7: Acquire Lock
+
+0. `mkdir -p {workDocDir}/.progress` — a project whose code was written without `be-crud` has no such directory yet, and a lock cannot be written into one that does not exist
 
 If a feature argument was provided:
 
@@ -119,7 +122,7 @@ row would run the whole build and one failure would surface in all of them.
 
 - **Pass**: exit code 0, all tests pass
 - **Fail**: collect failed test names and assertion error messages
-- Parse test summary: `{passed} tests passed, {failed} tests failed`
+- Counts: Gradle prints no per-test numbers on a passing run, so read them from the JUnit XML it always writes — `build/test-results/test/TEST-*.xml`, summing the `tests`, `failures`, `errors`, `skipped` attributes of each `<testsuite>` (`passed = tests − failures − errors − skipped`). Never infer a count from console output that does not carry one
 
 #### 1.4: Full Build Check
 

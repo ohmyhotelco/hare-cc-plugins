@@ -138,14 +138,7 @@ Follow the original manual flow:
    > "This feature is currently '{status}'. Re-running TDD implementation will reset the pipeline status to 'implementing', discarding verification/review progress."
    > "Continue?"
    If the user declines, stop here.
-3. If status is `"fixing"`:
-   > "This feature is currently 'fixing' (be-fix in progress). Re-running implementation will overwrite fix changes."
-   > "Continue?"
-   If the user declines, stop here.
-4. If status is `"escalated"`:
-   > "This feature was escalated (manual intervention required). Running TDD implementation may build on unresolved issues."
-   > "Continue?"
-   If the user declines, stop here.
+3. `fixing` and `escalated` are covered by item 2 — one confirmation, not two.
 
 **Multi-entity mode**: Skip this step here. The demotion check is performed per-entity in Step 3.6a, after the lock and before Step 3.7 writes any progress file.
 
@@ -308,7 +301,7 @@ update `{workDocDir}/.progress/{kebab-case-entity}.json`:
 2. Update `pipeline.scenarios.completed` with final count of `- [x]` items in that entity's own work document
 3. Update `pipeline.status`:
    - All scenarios complete + build passes → `"implemented"`
-   - All scenarios complete + build fails → `"implemented"` (build issue is separate)
+   - All scenarios complete + build fails → `"implementing"` — code that does not build is not implemented, and `"implemented"` is the state `be-review` accepts; report the build failure and point at `be-build`
    - Some scenarios remain → `"implementing"`
 4. Update `updatedAt` timestamp
 5. Write back (read-modify-write — preserve all existing fields including `specSource`)
@@ -318,12 +311,12 @@ lock: delete `{workDocDir}/.progress/.lock`.
 
 Suggest next step:
 - **All entities implemented + build passes**: `/backend-webflux-plugin:be-verify {entity}` for each entity
-- **implemented + build fails**: `/backend-webflux-plugin:be-build`
+- **all scenarios done but the build fails** (status stays `implementing`): `/backend-webflux-plugin:be-build`
 - **implementing**: resume with `/backend-webflux-plugin:be-code {workDoc}`
 
 ### Error Handling
 
-- **3 consecutive test failures**: The implement agent will stop. Present the issue to the user with context and ask for guidance. This is a pause within the same run, not an abandoned operation — keep the lock held; it releases normally in Step 7 once the run resumes and completes.
+- **3 consecutive test failures**: The implement agent will stop. Present the issue to the user with context and ask for guidance. With `--yes` (an unattended caller) there is nobody to ask: release the lock, leave the status `implementing`, and stop with the scenario and the three failures named — `be-jira-auto` turns that into `NEEDS-INPUT`. Otherwise this is a pause within the same run, not an abandoned operation — keep the lock held; it releases normally in Step 7 once the run resumes and completes.
 - **Compilation errors during TDD**: The implement agent will fix stubs, not tests.
 - **User cancellation**: Save progress (completed scenarios remain `- [x]`). Release `{workDocDir}/.progress/.lock` before stopping, since Step 7 — which normally releases it — will not run. The user can re-run `be-code` with the same work document to resume.
 - **Implement agent fails unexpectedly, or Step 5's build command errors out entirely** (crashes or times out, as opposed to running and reporting `FAIL`): Release `{workDocDir}/.progress/.lock` immediately. In multi-entity mode, the single batched agent call stops wherever it was — any document later in the `workDocuments` list than the one it was on when it failed is untouched. Leave `pipeline.status` as `"implementing"` for every affected entity, preserve any `- [x]` scenarios already completed (read from each entity's own work document), and report which entities (if any) finished successfully before the failure. Do not report Step 6 as complete.

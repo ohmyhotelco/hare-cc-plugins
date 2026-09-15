@@ -33,10 +33,13 @@ LITERAL_PATTERNS=(
     "ghp_[a-zA-Z0-9]{36}"
     "xoxb-[0-9]{10,}"
     "AIza[0-9A-Za-z_-]{35}"
-    "-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----"
+    "-----BEGIN ([A-Z]+ )*PRIVATE KEY-----"   # RSA/EC/OPENSSH, PKCS#8 (bare) and ENCRYPTED alike
     # a quoted literal value on a secret-named key -- JSON "password": "x", YAML password: 'x',
     # Java password = "x". A ${PLACEHOLDER} inside the quotes is not a value.
     "[\"']?${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"'][^\"'\$][^\"']*[\"']"
+    # a ${PLACEHOLDER:default} whose default is a literal -- `password: \${DB_PASSWORD:hunter2}` ships
+    # hunter2 wherever the variable is unset. An empty default (`\${X:}`) is fine.
+    "${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"']?\\$\\{[A-Za-z_][A-Za-z0-9_.]*:[^}\"'[:space:]]+\\}"
     # a database URL is a secret only when it carries credentials (user:pass@host); a bare
     # jdbc:mysql://host/db is every MyBatis application.yml. r2dbc URLs may be pooled.
     "jdbc:[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
@@ -45,12 +48,12 @@ LITERAL_PATTERNS=(
 CONFIG_PATTERNS=(
     # a bare value on a secret-named key: not empty, not a ${placeholder}, not a comment, and
     # not one of YAML's null spellings (null, ~) -- see the post-filter below
-    "^\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]*[:=][[:space:]]*[^\"'\$\{#[:space:]][^[:space:]#]*"
+    "^\+[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_.-]*${KEY}[[:space:]]*[:=][[:space:]]*[^\"'\$\{#[:space:]][^[:space:]#]*"
 )
 CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini)$|(^|/)\.env(\.|$)'
 
 # Dangerous file NAMES (not paths that merely contain the word: ClientSecretProperties.java is code)
-DANGEROUS_FILE_PATTERNS='(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)(credentials|secrets?)(\.[a-z]+)?$|(^|/)application-prod\.'
+DANGEROUS_FILE_PATTERNS='(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)(credentials|secrets?)(\.(json|ya?ml|properties|env|txt|xml|toml|ini))?$|(^|/)application-prod\.'
 
 # Security check
 run_security_check() {
@@ -60,7 +63,8 @@ run_security_check() {
     result+="### Security Check\n\n"
 
     # 1. Dangerous file patterns
-    local dangerous_files=$(git diff --cached --name-only 2>/dev/null | grep -iE "$DANGEROUS_FILE_PATTERNS" || true)
+    # --diff-filter=AM: a DELETED .env/.pem is the corrective commit, not a new leak
+    local dangerous_files=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null | grep -iE "$DANGEROUS_FILE_PATTERNS" || true)
 
     if [ -n "$dangerous_files" ]; then
         result+="#### Dangerous Files Detected\n\n"
@@ -76,10 +80,13 @@ run_security_check() {
     local literal_pattern config_pattern staged_diff config_diff
     literal_pattern=$(IFS='|'; echo "${LITERAL_PATTERNS[*]}")
     config_pattern=$(IFS='|'; echo "${CONFIG_PATTERNS[*]}")
+    local root; root=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
     staged_diff=$(git diff --cached 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ " || true)
-    # config lines only: split the diff per file and keep the files whose NAME is configuration
-    config_diff=$(git diff --cached --name-only 2>/dev/null | grep -iE "$CONFIG_FILES" \
-        | while IFS= read -r f; do git diff --cached -- "$f" 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ "; done || true)
+    # config lines only: split the diff per file and keep the files whose NAME is configuration.
+    # `git -C "$root"`: --name-only prints root-relative paths, and a pathspec resolves against the
+    # cwd -- from an appDir the per-file diff was silently empty and this tier never ran.
+    config_diff=$(git -C "$root" diff --cached --name-only --diff-filter=AM 2>/dev/null | grep -iE "$CONFIG_FILES" \
+        | while IFS= read -r f; do git -C "$root" diff --cached -- "$f" 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ "; done || true)
     # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
     # The post-filter drops YAML nulls; the value class already excludes placeholders and comments.
     sensitive_matches=$( { printf '%s\n' "$staged_diff" | grep -iE "$literal_pattern";

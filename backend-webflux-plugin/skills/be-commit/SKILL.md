@@ -150,6 +150,14 @@ Check the command's exit code:
   was created, and **stop** — do not proceed to Step 8.
 - **Zero exit**: proceed to Step 8.
 
+### Step 7.5: Close the Fix Cycle
+
+For every feature progress file whose status is `reviewed` or `done`, set `pipeline.fix.round` to `0`
+(read-modify-write, preserving everything else). The counter bounds fix attempts within one review
+cycle; a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes
+the next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt an unattended
+`be-jira-auto` run cannot answer.
+
 ### Step 8: Report
 
 Only report a commit after Step 7 exited zero. Get the actual hash from the repository —

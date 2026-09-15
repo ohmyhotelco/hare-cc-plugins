@@ -65,7 +65,7 @@ Present detected values and ask the user to confirm or override:
 > Database:          {detected or "mysql"}
 > Migration:         {detected or "manual-sql"}
 > Checkstyle:        {detected or true}
-> Coverage:          {detected or true}   (report-only JaCoco gate — see docs/decisions.md Decision 6)
+> Coverage:          {detected or false}   (report-only JaCoco gate — see docs/decisions.md Decision 6)
 > Lombok:            {detected or true}
 > Architecture:      cqrs (default)
 > Work Doc Dir:      work/features (default)
@@ -115,8 +115,10 @@ blank, and say so:
 > **into** an existing Spring Boot WebFlux project — it writes sources and a migration, not
 > a build file, wrapper or application class. Create the project first (Spring Initializr:
 > WebFlux + the starters for your data profile — `spring-boot-starter-data-r2dbc` +
-> `io.asyncer:r2dbc-mysql`, and/or `mybatis-spring-boot-starter` + `mysql-connector-j` —
-> plus `com.github.f4b6a3:uuid-creator`), then run `be-crud`:"
+> `io.asyncer:r2dbc-mysql:1.4.3`, and/or `mybatis-spring-boot-starter:4.x` + `mysql-connector-j` —
+> plus `com.github.f4b6a3:uuid-creator`, and the test starters the generated tests compile against:
+> `spring-boot-starter-test`, `spring-boot-starter-webflux-test`, `reactor-test`, and
+> `spring-boot-starter-data-r2dbc-test` / `mybatis-spring-boot-starter-test`), then run `be-crud`:"
 > ```
 > Java Version:      21 (default, undetected)
 > Spring Boot:       4.0.2 (default, undetected)
@@ -174,11 +176,11 @@ doesn't match, stop and report the error instead of proceeding to Step 5.
 
 ### Step 6: Add Gradle Permission
 
-Check `.claude/settings.json` for Bash permissions. If `./gradlew *` is not in the allow list, inform the user:
+Check `.claude/settings.json` for Bash permissions. If `{gradleCommand} *` is not in the allow list, inform the user (`./gradlew *` for a wrapper project, `gradle *` when `gradleCommand` is `gradle` — an entry for the wrong one covers none of the gate commands):
 
 > "To enable Gradle commands, add this to your `.claude/settings.json` permissions.allow:"
 > ```
-> "Bash(./gradlew *)"
+> "Bash({gradleCommand} *)"
 > ```
 
 ### Step 7: Confirmation

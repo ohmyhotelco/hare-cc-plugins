@@ -486,7 +486,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `database`: `"mysql"` (default; what `be-crud` generates for) | `"h2"` (sample-only stand-in, MySQL mode) — `be-init` stops on any other value
 - `migration`: `"manual-sql"` (default, no runner) | `"flyway"` | `"liquibase"` (only if a project explicitly opts back in)
 - `checkstyle`: Whether checkstyle is enabled (default: true)
-- `coverage`: Whether the JaCoco coverage row runs in `be-verify` (default: true; report-only, no threshold — see `docs/decisions.md` Decision 6)
+- `coverage`: Whether the JaCoco coverage row runs in `be-verify` (`true` only when the `jacoco` plugin is applied — `be-init` detects it; the percentage is report-only, no threshold — see `docs/decisions.md` Decision 6)
 - `lombokEnabled`: Whether Lombok is used (default: true)
 - `workDocDir`: Directory for work documents (default: `work/features`)
 - `workingLanguage`: Language for user-facing output (`"en"` | `"ko"` | `"vi"`)

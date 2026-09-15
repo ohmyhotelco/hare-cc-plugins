@@ -141,7 +141,7 @@ Fix Applied:
   an empty body.
 
 Files Modified:
-  src/main/java/com/example/hr/api/EmployeeHandler.java:40-44 — added switchIfEmpty validation guard
+  src/main/java/com/example/hr/EmployeePropertyValidator.java:18 — null check in validateEmail() (throws InvalidEmailFormatException)
 
 Verification:
   Compilation: pass

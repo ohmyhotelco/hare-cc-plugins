@@ -44,7 +44,7 @@ Requires JDK 21+.
 All five pass as of this writing. `./gradlew build` runs compilation, checkstyle, and
 tests together; `jacocoTestReport` is `finalizedBy` from `test`, so a plain
 `./gradlew test` also produces `build/reports/jacoco/test/jacocoTestReport.xml`.
-Last verified line coverage: **90/94 lines (95.7%)** — reported for informational
+Last verified line coverage: **99/103 lines (96.1%)** — reported for informational
 purposes per the report-only gate, not enforced as a threshold.
 
 ## What's demonstrated
@@ -60,8 +60,8 @@ purposes per the report-only gate, not enforced as a threshold.
   `CreateEmployeeCommandExecutor.java`, backported to `templates/entity-conventions-r2dbc.md`)
 - `WebTestClient` + `@AutoConfigureWebTestClient` integration tests (`PostTests`,
   `GetTests`) — Spring Boot 4 requires the explicit annotation and the
-  `spring-boot-webtestclient` dependency; it is no longer bundled/auto-applied via
-  `spring-boot-starter-test` alone
+  `spring-boot-starter-webflux-test` starter (which brings `spring-boot-webtestclient`);
+  `spring-boot-starter-test` alone no longer does
 - `@DataR2dbcTest` repository test with `StepVerifier` (`EmployeeRepositoryTests`) —
   note its package moved in Spring Boot 4 to
   `org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest`, and it
