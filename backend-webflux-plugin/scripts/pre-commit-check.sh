@@ -8,6 +8,9 @@
 #
 
 set -e
+# Every pattern is ASCII; under a UTF-8 locale BSD sed/grep abort on the first non-UTF-8 byte (a
+# Latin-1 .properties) and the rest of that file went unscanned.
+export LC_ALL=C
 
 # Git repository check
 check_git_repo() {
@@ -27,22 +30,26 @@ check_git_repo() {
 #                      value -- in Java source the same shape is an assignment or a comparison.
 # ([[:space:]] inside brackets and between tokens: `\s` is a GNU extension, and inside a bracket it
 # is the two characters "\" and "s".)
-KEY='(password|passwd|pwd|secret|api[_-]?key|access[_-]?key|jwt[._-]?secret|signing[._-]?key|private[_-]?key|token)'
+KEY='(password|passwd|pwd|secret[_-]?key|secret|api[_-]?key|access[_-]?key|jwt[._-]?secret|signing[._-]?key|private[_-]?key|token)'
 # A separator between a key and its value: `key: v`, `key:v` (minified JSON, properties), `key = v`,
 # `key ?= v` (Makefile).
-SEP='[[:space:]]*[:?]?=[[:space:]]*|:[[:space:]]*'
+SEP='[[:space:]]*[:?]?=[[:space:]]*|[[:space:]]*:[[:space:]]*'
 # A quoted literal that is a value: starts with anything but a ${placeholder} (a leading `$` that is
 # not followed by `{` -- `"$uperSecret9"` -- is a value).
 QUOTED_VALUE='["'"'"'](\$[^{"'"'"']|[^"'"'"'$])[^"'"'"']*["'"'"']'
 # A bare value: not a quote, not a $placeholder, not a {{template}}, not a comment
 BARE_VALUE='[^"'"'"'$\{#[:space:]][^[:space:]#]*'
-LITERAL_PATTERNS=(
+# Vendor shapes are secrets in ANY file, a template included.
+VENDOR_PATTERNS=(
     "sk-[a-zA-Z0-9]{20,}"
     "AKIA[A-Z0-9]{16}"
     "ghp_[a-zA-Z0-9]{36}"
     "xoxb-[0-9]{10,}"
     "AIza[0-9A-Za-z_-]{35}"
     "-----BEGIN ([A-Z]+ )*PRIVATE KEY-----"   # RSA/EC/OPENSSH, PKCS#8 (bare) and ENCRYPTED alike
+)
+LITERAL_PATTERNS=(
+    "${VENDOR_PATTERNS[@]}"
     # a quoted literal value on a secret-named key -- JSON "password": "x", YAML password: 'x',
     # Java password = "x", Gradle Kotlin extra["password"] = "x"
     "[\"']?${KEY}[\"']?\\]?(${SEP})${QUOTED_VALUE}"
@@ -60,14 +67,15 @@ LITERAL_PATTERNS=(
     "jdbc:[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
     "r2dbc:(pool:)?[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
 )
-# Bare values, configuration files only. What may stand before the key: a YAML list dash
+# Bare values, configuration files only. The key may be quoted (`"password": x`) and carry any
+# prefix (`spring.datasource.password`, `clientSecret`, `DB_PASSWORD`). What may stand before it: a YAML list dash
 # (`- DB_PASSWORD=x`, compose), a flow-map opener (`creds: { password: x }`), a shell/Dockerfile/
 # Makefile assignment word (`export`/`readonly`/`local`/`declare -x`/`RUN export`/`ENV`/`ARG`), and
 # on an ENV/ARG line earlier `K=v` pairs (`ENV USER=app PASSWORD=x`). `ENV K v` is the other
 # Dockerfile spelling.
-CONFIG_PREFIX="^\\+[[:space:]]*(-[[:space:]]+)?([A-Za-z0-9_.-]+:[[:space:]]*)?\\{?[[:space:]]*((RUN[[:space:]]+)?(export|readonly|local|declare( -[a-zA-Z]+)*|ENV|ARG)[[:space:]]+)?([A-Za-z0-9_]+=[^[:space:]]*[[:space:]]+)*([A-Za-z0-9_.-]*[._-])?"
+CONFIG_PREFIX="^\\+[[:space:]]*(-[[:space:]]+)?([A-Za-z0-9_.-]+:[[:space:]]*)?\\{?[[:space:]]*((RUN[[:space:]]+)?(export|readonly|local|declare( -[a-zA-Z]+)*|ENV|ARG)[[:space:]]+)?([A-Za-z0-9_]+=[^[:space:]]*[[:space:]]+)*[\"']?[A-Za-z0-9_.-]*"
 CONFIG_PATTERNS=(
-    "${CONFIG_PREFIX}${KEY}(${SEP})${BARE_VALUE}"
+    "${CONFIG_PREFIX}${KEY}[\"']?(${SEP})${BARE_VALUE}"
     "^\\+[[:space:]]*(RUN[[:space:]]+)?(ENV|ARG)[[:space:]]+([A-Za-z0-9_.-]*[._-])?${KEY}[[:space:]]+${BARE_VALUE}"
     # a bearer token / JWT in a config file (three base64url segments) -- not in source, where a
     # test fixture's expired token is a fixture
@@ -75,14 +83,16 @@ CONFIG_PATTERNS=(
     "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
-PROPERTIES_PATTERN="^\\+[[:space:]]*([A-Za-z0-9_.-]*[._-])?${KEY}[[:space:]]+${BARE_VALUE}"
+PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"
 CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini|sh|bash|zsh)$|(^|/)\.env(\.|$)|(^|/)(Dockerfile|Makefile)(\.|$)'
 # What a matched VALUE may be and still not be a secret -- judged on every value the line assigns to
 # a secret-named key, never on the rest of the line (a `timeout=30` or a trailing `token: none`
 # must not excuse a `password="hunter2"` before it).
 # Bare tier: nulls, booleans, numbers and durations/sizes (30, 30s, 10MB -- not 0123abcd, a digit-led
 # secret), paths, the schema words. Quoted tier: only the schema words.
-NOT_A_BARE_VALUE='^(null|~|none|true|false|yes|no|[0-9]+(\.[0-9]+)?(ms|s|m|h|d|kb|mb|gb|k|g|b)?|/[^[:space:]]*|\./[^[:space:]]*|string)$'
+# References are not values either: a YAML tag (`!secret db_password`), a secret-manager URI
+# (`ref+vault://…`, `vault:…`, `op://…`, `arn:…`), an encrypted blob (`ENC[…]`), a URL without credentials.
+NOT_A_BARE_VALUE='^(null|~|none|true|false|yes|no|[0-9]+(\.[0-9]+)?(ms|s|m|h|d|kb|mb|gb|k|g|b)?|/[^[:space:]]*|\./[^[:space:]]*|string|![A-Za-z_].*|ref\+.*|vault:.*|op://.*|arn:.*|ENC\[.*|[a-z][a-z0-9+.-]*://[^@]*)$'
 NOT_A_QUOTED_VALUE='^(string|none)$'
 # Files a shell expands: there `"$1"` / `"$DB_PASSWORD"` is a reference, not a literal (in Java/JSON/YAML
 # `"$uperSecret9"` is a literal). Templates (`.env.example` …) skip the bare tier: `changeme` is their point.
@@ -132,9 +142,10 @@ run_security_check() {
     fi
 
     # 1. Dangerous file patterns
-    # --diff-filter=AM: a DELETED .env/.pem is the corrective commit, not a new leak
+    # --diff-filter=AMT: a DELETED .env/.pem is the corrective commit, not a new leak; T is a symlink
+    # replaced by a real file, which is an addition in every sense that matters here
     # -z: git quotes a non-ASCII path ("\303\274/.env"), and the closing quote defeats every $-anchored pattern
-    local dangerous_files=$(git diff --cached --no-renames --name-only --diff-filter=AM -z 2>/dev/null | tr '\0' '\n' | grep -iE "$DANGEROUS_FILE_PATTERNS" | grep -viE "$DANGEROUS_FILE_EXEMPT" || true)
+    local dangerous_files=$(git diff --cached --no-renames --name-only --diff-filter=AMT -z 2>/dev/null | tr '\0' '\n' | grep -iE "$DANGEROUS_FILE_PATTERNS" | grep -viE "$DANGEROUS_FILE_EXEMPT" || true)
 
     if [ -n "$dangerous_files" ]; then
         result+="#### Dangerous Files Detected\n\n"
@@ -147,8 +158,9 @@ run_security_check() {
 
     # 2. Sensitive patterns in code -- per staged file, so the file's name decides the tier
     local sensitive_matches=""
-    local literal_pattern config_pattern
+    local literal_pattern config_pattern vendor_pattern
     literal_pattern=$(IFS='|'; echo "${LITERAL_PATTERNS[*]}")
+    vendor_pattern=$(IFS='|'; echo "${VENDOR_PATTERNS[*]}")
     config_pattern=$(IFS='|'; echo "${CONFIG_PATTERNS[*]}")
     local root; root=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
     # `git -C "$root"`: --name-only prints root-relative paths, and a pathspec resolves against the
@@ -158,18 +170,22 @@ run_security_check() {
     # must come back byte-exact to be used as a pathspec.
     # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
     # Exemptions are decided on the matched VALUES alone (values_of), never on the whole line.
-    local f line exempt_quoted pattern
-    sensitive_matches=$(git -C "$root" diff --cached --no-renames --name-only --diff-filter=AM -z 2>/dev/null \
+    local f line lines exempt_quoted pattern is_template
+    sensitive_matches=$(git -C "$root" diff --cached --no-renames --name-only --diff-filter=AMT -z 2>/dev/null \
         | while IFS= read -r -d '' f; do
+            # a template's (`.env.example`) key values are placeholders -- only a vendor shape counts there
+            if printf '%s' "$f" | grep -qiE "$DANGEROUS_FILE_EXEMPT"; then is_template=1; else is_template=0; fi
             if printf '%s' "$f" | grep -qiE "$SHELL_FILES"; then exempt_quoted="$NOT_A_QUOTED_VALUE|$SHELL_REFERENCE"; else exempt_quoted="$NOT_A_QUOTED_VALUE"; fi
-            added_lines "$root" "$f" | grep -iE "$literal_pattern|^__GIT_DIFF_FAILED__" | while IFS= read -r line; do
+            lines=$(added_lines "$root" "$f")
+            printf '%s\n' "$lines" | grep -iE "$literal_pattern|^__GIT_DIFF_FAILED__" | while IFS= read -r line; do
+                if [ "$is_template" = 1 ] && ! printf '%s' "$line" | grep -qE "$vendor_pattern|^__GIT_DIFF_FAILED__"; then continue; fi
                 if exempt_line "$line" "$exempt_quoted"; then continue; fi
                 printf '%s\n' "$line"
             done
             if printf '%s' "$f" | grep -qiE "$CONFIG_FILES" && ! printf '%s' "$f" | grep -qiE "$DANGEROUS_FILE_EXEMPT"; then
                 # (no `case` here: bash 3.2 cannot parse a `)` pattern inside $( … ))
                 if printf '%s' "$f" | grep -qiE '\.properties$'; then pattern="$config_pattern|$PROPERTIES_PATTERN"; else pattern="$config_pattern"; fi
-                added_lines "$root" "$f" | grep -iE "$pattern" | while IFS= read -r line; do
+                printf '%s\n' "$lines" | grep -iE "$pattern" | while IFS= read -r line; do
                     if exempt_line "$line" "$NOT_A_BARE_VALUE"; then continue; fi
                     printf '%s\n' "$line"
                 done

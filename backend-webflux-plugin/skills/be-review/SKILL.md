@@ -49,7 +49,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
    - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
-3. On every proceed path, compare the tree: `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
+3. On every proceed path, compare the tree: `{config.pluginRoot}/scripts/source-tree-hash.sh` (exit 0 and a 40-hex id, else a tooling error — stop; a missing `config.pluginRoot` means the session has not been restarted since `be-init`) must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
 
 ### Step 2.5: Work Document Staleness Check
 

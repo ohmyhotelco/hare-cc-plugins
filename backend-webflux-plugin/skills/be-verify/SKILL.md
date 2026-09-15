@@ -93,7 +93,7 @@ command timed out after 600000ms"` or `"verification tooling error: ./gradlew:
 command not found"`), and continue to the remaining steps per the "always run all
 steps" rule in Constraints.
 
-Before 1.1, record the tree the gate is about to run against: `tree=$(${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
+Before 1.1, record the tree the gate is about to run against: `tree=$({config.pluginRoot}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). The script's contract: exit 0 and exactly one 40-hex id, or it failed — a non-zero exit, an empty or non-hex value, or a missing `config.pluginRoot` (restart the session; the SessionStart hook records it) is a tooling error: mark `Overall: FAIL` with reason `verification tooling error: source-tree-hash.sh …` and record no tree (an empty value compared to another empty value would read as "unchanged"). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
 
 `{config.gradleCommand}` below is the wrapper (`./gradlew`); a config written before the key existed
 has none — use `./gradlew`. Never append a task to `buildCommand`: it already runs `build`, so every
@@ -260,7 +260,7 @@ stops the skill before the lock is acquired.
 If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
 
 1. Read the progress file
-2. Update `pipeline.verification`:
+2. **Replace** `pipeline.verification` with this object (not merge: a `committed: true` left by an earlier be-commit would let the next commit skip its tree check):
    ```json
    {
      "status": "pass" | "fail",

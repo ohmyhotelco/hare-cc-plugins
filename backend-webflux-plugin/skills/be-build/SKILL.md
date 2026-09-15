@@ -46,6 +46,16 @@ was not observed in a real build run.
 If any feature progress files exist in `{workDocDir}/.progress/` with `pipeline.status == "verify-failed"`:
 > "Feature '{feature}' is in 'verify-failed' status. Re-run `/backend-webflux-plugin:be-verify {feature}` to update."
 
+If changes were kept, every feature at `verified`, `reviewed` or `done` now carries a status its code
+no longer earned: set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
+situation — be-verify re-admits it without a prompt, be-review refuses it until then) with
+`pipeline.build: { "timestamp", "previousStatus", "filesModified": [...] }`, read-modify-write under
+`{workDocDir}/.progress/.lock` taken and released around the writes (CLAUDE.md § State File Safety;
+a lock held by a live operation → skip and say so). Without this a `done` feature whose code
+be-build rewrote is still `done`, and a `committed` verification record would let be-commit skip
+even the tree check. Then:
+> "Feature '{feature}' was '{previousStatus}'; be-build changed {n} file(s) — now 'resolved'. Re-run `/backend-webflux-plugin:be-verify {feature}`, then `be-review`."
+
 **On failure (after 3 retries):**
 > "Build failed after 3 attempts."
 > "Exit code: {last non-zero exit code}. First surfaced on attempt {1-3}."

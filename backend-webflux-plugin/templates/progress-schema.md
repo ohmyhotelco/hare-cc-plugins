@@ -87,7 +87,7 @@ against a file mtime in the same shape; a local offset would compare as a differ
 | `review-failed` | Code review has critical issues | be-review |
 | `fixing` | Review fixes being applied | be-fix |
 | `done` | Review passed clean, ready to commit | be-review |
-| `resolved` | Debug issue fixed | be-debug |
+| `resolved` | A fix outside the review loop changed the code (be-debug resolved an issue; be-build kept an edit on a `verified`/`reviewed`/`done` feature) — re-verify | be-debug, be-build |
 | `escalated` | Manual intervention required | be-fix, be-debug |
 
 ## State Transitions

@@ -162,9 +162,18 @@ Write `.claude/backend-webflux-plugin.json`:
   "coverage": {value},
   "lombokEnabled": {value},
   "workDocDir": "{value}",
-  "workingLanguage": "{value}"
+  "workingLanguage": "{value}",
+  "pluginRoot": "{value}"
 }
 ```
+
+`pluginRoot` is the plugin's install directory — where `scripts/source-tree-hash.sh` and
+`scripts/pre-commit-check.sh` live. Nothing a skill can see names it (`${CLAUDE_PLUGIN_ROOT}` is
+expanded for `hooks/hooks.json` only), so the SessionStart hook writes it to
+`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` at every session
+start and refreshes the config key from then on: read that file here (`cat`), record its one line;
+if it is missing, omit the key and tell the user in Step 7 that `be-verify`/`be-review`/`be-commit`
+stop until the next session start records it.
 
 After the Write tool call returns, read `.claude/backend-webflux-plugin.json` back and
 confirm its contents match what was just written. This is the evidence Step 7's
@@ -191,6 +200,7 @@ Only reached if the Step 4 read-back succeeded. Display final configuration summ
 > "Backend WebFlux Plugin initialized successfully."
 > "Configuration saved to `.claude/backend-webflux-plugin.json`."
 > "Data profile: {dataProfile}. Web layer: {webLayer}. See `docs/decisions.md` if you want the rationale behind these defaults before changing them."
+> {When Step 4 could not record `pluginRoot`: "`pluginRoot` is not recorded yet — restart the session once before `be-verify`/`be-review`/`be-commit`; the SessionStart hook writes it."}
 >
 > "Available skills:"
 >

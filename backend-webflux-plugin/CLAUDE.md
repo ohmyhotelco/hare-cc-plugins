@@ -478,6 +478,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `springBootVersion`: Spring Boot version (e.g., "4.0.2")
 - `buildTool`: `"gradle-kotlin"` | `"gradle-groovy"` — Gradle only; every gate row is a Gradle task, so `be-init` stops on a `pom.xml`
 - `gradleCommand`: the wrapper the task-level gate rows run (`./gradlew`; `gradle` when no wrapper). Absent in a config written before the key existed → `./gradlew`
+- `pluginRoot`: the plugin's install directory, recorded by the SessionStart hook (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`); `be-verify`, `be-review`, `be-commit` and `be-jira-auto` run `{pluginRoot}/scripts/source-tree-hash.sh` / `pre-commit-check.sh` from it and stop when it is absent (restart the session)
 - `buildCommand`: Full build command (default: `{gradleCommand} build`)
 - `testCommand`: Test-only command (default: `./gradlew test`)
 - `basePackage`: Root Java package (e.g., "com.example")

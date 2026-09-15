@@ -37,7 +37,7 @@ Map argument to section:
 |----------|---------|--------|
 | (none) | All rules summary | CLAUDE.md (all sections) |
 | `commit` | Commit Standards | CLAUDE.md § Commit Standards |
-| `tdd` | TDD Process + Test Scenario Writing | CLAUDE.md § TDD + Scenario Rules |
+| `tdd` | TDD Process + Test Scenario Writing | CLAUDE.md § Test-Driven Development + templates/test-scenario-template.md |
 | `build` | Build Standards | CLAUDE.md § Build Standards |
 | `coding` | Coding Standards + Entity/DTO Conventions | CLAUDE.md § Coding Standards |
 | `api` | API Conventions + Naming | CLAUDE.md § API Conventions + Naming Conventions |

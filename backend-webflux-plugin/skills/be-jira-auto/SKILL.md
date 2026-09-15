@@ -218,20 +218,23 @@ When Step 1 had to draft its own Proposed Solution:
 
 ### Step 2: Prepare the Branch
 
-1. `git status --porcelain`. Not clean -- stop with `NEEDS-INPUT`: ask the
+1. `git status --porcelain -z` (NUL-separated, the form Step 9 diffs against). Not clean -- stop with `NEEDS-INPUT`: ask the
    user to commit or stash their own in-progress work first. Never run
    `git stash` or `git checkout .` to clear it yourself. **Exception -- a
    resume of this ticket:** when the current branch already carries
    `{jiraKey}` (item 2) and every dirty path lies under `{sourceDir}`,
-   `{testDir}`, `src/main/resources/`, `config/`, `{workDocDir}`, or is a
-   `build.gradle(.kts)` / `settings.gradle(.kts)` file (be-crud edits
-   `application.yml`, `be-build` may edit the build file), the tree is this
+   `{testDir}`, `src/main/resources/`, `config/`, `gradle/`, `buildSrc/`,
+   `{workDocDir}`, or is a `build.gradle(.kts)` / `settings.gradle(.kts)` /
+   `gradle.properties` / `gradlew` file (be-crud edits `application.yml`,
+   `be-build` may edit the build), the tree is this
    pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
    continue from the step the last report named, **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
-   re-enters at Step 6 instead whenever `${CLAUDE_PLUGIN_ROOT}/scripts/
-   source-tree-hash.sh` differs from the feature's
+   re-enters at Step 6 instead whenever `{config.pluginRoot}/scripts/
+   source-tree-hash.sh` (exit 0 and a 40-hex id, else `NEEDS-INPUT`: the
+   tooling is broken, or `config.pluginRoot` is unset -- restart the session)
+   differs from the feature's
    `pipeline.verification.tree` (a manual security fix, an escalation
    resolved by hand: the review that may already have written `done`
    describes the old tree). A report naming Step 3, 4 or 5 resumes there
@@ -485,6 +488,15 @@ Skill(skill: "be-review", args: "{feature}")
 
 ### Step 9: Stage and Commit -- `be-commit`
 
+0. Settle the tree first: Steps 6–8 ran per feature, and a later feature's
+   `be-fix`/`be-build` changed the tree every earlier feature was verified
+   on. For each feature (in `features` order) whose
+   `pipeline.verification.tree` differs from the current
+   `{config.pluginRoot}/scripts/source-tree-hash.sh`, run
+   `be-verify {feature} --yes` then `be-review {feature}`; a FAIL goes
+   through Step 8 for that feature (its bounds apply). Repeat until every
+   feature's tree matches -- the last pass changes nothing, so it converges
+   in at most one extra round per feature.
 1. Diff the current `git status --porcelain -z` (NUL-separated: a quoted
    or renamed record is otherwise misread) against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
@@ -501,10 +513,10 @@ Skill(skill: "be-review", args: "{feature}")
    `NEEDS-INPUT` naming it instead of calling `be-commit`. Its Step 1.5
    also prompts when a `reviewed`/`done` feature not yet
    `pipeline.verification.committed` has a `pipeline.verification.tree`
-   that differs from `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh
-   --staged` -- compute that once after item 2 and compare; a mismatch
-   here means item 2 missed a file or something edited the tree during
-   this run: stage the missing file, or go back to Step 6.
+   that differs from `{config.pluginRoot}/scripts/source-tree-hash.sh
+   --staged` -- compute that once after item 2 and compare; after item 0 a
+   mismatch here means item 2 missed a file: stage it (a file outside the
+   Step 2 locations is not this feature's -- stop with `NEEDS-INPUT`).
 3. ```
    Skill(skill: "be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```

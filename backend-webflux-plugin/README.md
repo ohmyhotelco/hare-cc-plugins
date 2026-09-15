@@ -584,7 +584,7 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
 │   ├── {Entity}.java
 │   ├── {Entity}Repository.java   <- R2DBC profile
 │   └── {Entity}Mapper.java       <- MyBatis profile
-├── config/                     <- Spring configuration beans (router config)
+├── config/                     <- Spring configuration beans (R2dbcConfig, WebClient, …) — the RouterFunction bean lives in {domain}/api/, not here
 └── {domain}/                   <- Domain-specific business logic
     ├── api/                    <- RouterFunction + HandlerFunction (default)
     │   ├── {Entity}Router.java
