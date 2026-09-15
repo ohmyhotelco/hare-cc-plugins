@@ -53,7 +53,11 @@ module_paths() {   # $1 = module dir ("" = root): the gate inputs under it
 # or is absolute is dropped -- git would reject it as a pathspec.
 settings_text() {   # $1 = settings file: comments stripped, newlines joined
     local src
-    if [ "$MODE" = staged ] && [ $IN_GIT = 1 ] && git cat-file -e ":$1" 2>/dev/null; then src=$(git show ":$1"); else [ -f "$1" ] && src=$(cat "$1") || return 0; fi
+    if [ "$MODE" = staged ] && [ $IN_GIT = 1 ]; then
+        # `:./file` -- relative to the cwd; a bare `:file` is the top-level's. Not in the index
+        # (untracked, staged-deleted) -> the commit has no such file -> no modules from it.
+        git cat-file -e ":./$1" 2>/dev/null && src=$(git show ":./$1") || return 0
+    else [ -f "$1" ] && src=$(cat "$1") || return 0; fi
     printf '%s\n' "$src" | sed -E 's#//.*$##; s/^[[:space:]]*#.*$//' | tr '\n' ' '
 }
 subprojects() {
@@ -63,10 +67,13 @@ subprojects() {
     { local s joined
       for s in settings.gradle settings.gradle.kts; do
           joined=$(settings_text "$s") || true; [ -n "$joined" ] || continue
-          printf '%s\n' "$joined" | grep -oE "(^|[^A-Za-z0-9_])include([[:space:]]*\\(|[[:space:]]+)[^)]*" | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" \
-              | sed -E 's/^://; s#:#/#g' || true
-          printf '%s\n' "$joined" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new[[:space:]]+File|file)[[:space:]]*\\([^)]*\\)" \
-              | sed -E "s/.*[\"']([^\"']+)[\"'][^\"']*\\)$/\\1/" || true
+          # the quoted strings directly after `include(` / `include ` / `include(listOf(` -- a run of
+          # quoted strings separated by commas; a `)` inside a quote is part of the path, and the
+          # first unquoted token (`rootProject.name = …` after a Groovy `include ':app'`) ends it
+          printf '%s\n' "$joined" | grep -oE "(^|[^A-Za-z0-9_])include([[:space:]]*\\([[:space:]]*(listOf[[:space:]]*\\([[:space:]]*)?|[[:space:]]+)([\"'][^\"']*[\"'][[:space:]]*,?[[:space:]]*)+" \
+              | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" | sed -E 's/^://; s#:#/#g' || true
+          printf '%s\n' "$joined" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new[[:space:]]+File|file)[[:space:]]*\\([^\"']*([\"'][^\"']*[\"'][^\"']*)*" \
+              | sed -E "s/.*[\"']([^\"']+)[\"'][^\"']*$/\\1/" || true
       done
       find . -maxdepth 4 \( -name .git -o -name .gradle -o -name build -o -name buildSrc -o -name node_modules \) -prune \
           -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##' | grep '/' | sed 's#/[^/]*$##' || true
@@ -125,7 +132,8 @@ else
         # everything not under the paths, straight from git (NUL-separated, so a path with a
         # newline survives): the whole tree minus one `:(exclude)` pathspec per gate path
         excl=(); for p in "${PATHS[@]}"; do excl+=(":(exclude,literal)$p"); done
-        GIT_INDEX_FILE="$T2" git ls-files -z --full-name -- "$top" "${excl[@]}" \
+        # `:/` is the whole tree, literally -- an absolute path would be a glob
+        GIT_INDEX_FILE="$T2" git ls-files -z --full-name -- ":/" "${excl[@]}" \
             | GIT_INDEX_FILE="$T2" git -C "$top" update-index -z --force-remove --stdin
     fi
 fi

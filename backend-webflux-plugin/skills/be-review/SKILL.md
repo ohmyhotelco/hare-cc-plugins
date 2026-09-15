@@ -1,7 +1,7 @@
 ---
 name: be-review
 description: "Run code review (6 dimensions + optional spec compliance) via code-reviewer agent and produce structured report."
-argument-hint: "<feature-name or target-path>"
+argument-hint: "<feature-name or target-path> [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -16,11 +16,11 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration); missing → stop: start a new session so the hook writes it.
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Determine Target
 
-The argument can be:
+Strip a trailing `--yes` flag first: it answers the Step 2 re-review confirmation and the Step 2.5 staleness prompt with yes — for an unattended caller (`be-jira-auto`) that has already decided; without it the prompts are asked. The argument can be:
 
 - **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
 - **Directory path**: use directly as the review target
@@ -73,7 +73,7 @@ If a feature name was provided:
 
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-review", "feature": "{feature}" }`
 
 If no feature name: skip lock acquisition.
@@ -101,6 +101,7 @@ Launch the `code-reviewer` agent (`subagent_type: "backend-webflux-plugin:code-r
 - `targetPath`: the resolved target path
 - `config`: parsed plugin config
 - `projectRoot`: current project root
+- `pluginRoot`: {pluginRoot}
 - `planFile`: path to plan.json (only when `specAvailable = true`, omit otherwise)
 - `specDir`: path to spec markdown directory (only when `specAvailable = true`, omit otherwise)
 

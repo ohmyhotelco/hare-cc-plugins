@@ -16,6 +16,11 @@ Run the project build. If it fails, automatically diagnose and fix issues with u
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
+
+### Step 0.5: Acquire Lock
+
+`mkdir -p {workDocDir}/.progress`; if `{workDocDir}/.progress/.lock` exists and its `lockedAt` is less than 30 minutes old, stop (another operation is in progress); older → remove it (and the directory its `snapshotDir` names). Write `{ "lockedAt": "{ISO 8601}", "operation": "be-build" }`. The build-doctor agent records its revert snapshot in this lock; Step 2's progress writes happen under it; release it (deleting the `snapshotDir` directory) on every exit, the agent erroring or timing out included.
 
 ### Step 1: Launch Build Doctor
 
@@ -50,8 +55,7 @@ If changes were kept, every feature at `verified`, `reviewed` or `done` **whose 
 no longer earned (a committed feature's record is history — the current ticket's own verification covers the whole tree, and demoting it would stop every later ticket at be-commit). If **every** progress file is a committed `reviewed`/`done` record — nothing is in flight (an `implementing`/`implemented`/`verify-failed`/`fixing`/`resolved`/`escalated` feature will be re-verified and counts as in flight), so nothing would re-verify the edited tree — demote the committed records instead, removing their `committed` mark: set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
 situation — be-verify re-admits it without a prompt, be-review refuses it until then) with
 `pipeline.build: { "timestamp", "previousStatus", "filesModified": [...] }`, read-modify-write under
-`{workDocDir}/.progress/.lock` taken and released around the writes (CLAUDE.md § State File Safety;
-a lock held by a live operation → skip and say so). Without this a `done` feature whose code
+the lock Step 0.5 took (CLAUDE.md § State File Safety). Without this a `done` feature whose code
 be-build rewrote is still `done`, and a `committed` verification record would let be-commit skip
 even the tree check. Then:
 > "Feature '{feature}' was '{previousStatus}'; be-build changed {n} file(s) — now 'resolved'. Re-run `/backend-webflux-plugin:be-verify {feature}`, then `be-review`."

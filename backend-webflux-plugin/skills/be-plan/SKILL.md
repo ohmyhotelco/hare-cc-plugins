@@ -16,7 +16,8 @@ Analyze a functional specification (planning-plugin output) and produce a struct
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. Read `config.architecture` — currently only `cqrs` is supported
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
+4. Read `config.architecture` — currently only `cqrs` is supported
 
 ### Step 0.5: Detect Mode
 
@@ -99,6 +100,7 @@ Agent(subagent_type: "backend-webflux-plugin:backend-planner", prompt: "
   - specDir: docs/specs/{feature}/{specLanguage}/
   - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
   - config: {serialized backend plugin config}
+  - pluginRoot: {pluginRoot}
   - projectRoot: {cwd}
   - outputFile: docs/specs/{feature}/.implementation/backend/plan.json
 

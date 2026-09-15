@@ -281,7 +281,7 @@ Always flag these patterns:
 - `@Query` with string concatenation (`"... " + param`)
 - MyBatis XML `${param}` substitution on a value traceable to request input
   (query param, path variable, request body field) — `#{param}` is the safe form
-- Missing `@Valid` on `@RequestBody` parameters
+- A persisted field with no `{Entity}PropertyValidator` check in the executor (this plugin does not use `@Valid` on DTOs)
 - Internal DB key (`sequence`, auto-increment ID) exposed in API response
 - A route present in a `RouterFunction` but absent from the `SecurityWebFilterChain`'s path
   matchers — when the project has one (Rule 1: a project with no authentication layer gets

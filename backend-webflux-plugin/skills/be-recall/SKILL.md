@@ -3,7 +3,7 @@ name: be-recall
 description: "Recall development rules and check for violations."
 argument-hint: "[commit | tdd | build | coding | api | data]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash
 ---
 
 # Recall Rules
@@ -24,7 +24,8 @@ never as a claim about the whole codebase.
    (webLayer, dataProfile) cannot be scoped correctly. Showing rules only."
    Guessing a profile instead of declaring it missing would risk scanning
    the wrong file shapes (see the `api`/`data` branching below).
-3. If present, read and hold onto two values — Step 3 branches on them so the
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; the plugin CLAUDE.md is `{pluginRoot}/CLAUDE.md`; missing → stop: start a new session so the hook writes it.
+4. If present, read and hold onto two values — Step 3 branches on them so the
    scan targets match what this project actually contains:
    - `webLayer` (default `"functional"` if absent)
    - `dataProfile` (default `"both"` if absent)

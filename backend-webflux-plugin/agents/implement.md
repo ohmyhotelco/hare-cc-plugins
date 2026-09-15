@@ -22,6 +22,7 @@ The skill will provide these parameters in the prompt:
   multi-entity mode), never launch this agent once per entity
 - `scenarios` -- (alternative) inline list of test scenarios
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
+- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `projectRoot` -- project root path
 
 ## Process
@@ -31,7 +32,7 @@ The skill will provide these parameters in the prompt:
 This phase runs once per agent invocation, even when `workDocuments` contains
 multiple documents — it is not repeated per document.
 
-0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
+0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions and
    architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md —
    see that file's own header for what it omits)
@@ -162,7 +163,7 @@ Update the work document: change `- [ ]` to `- [x]` for the completed scenario.
 - Never modify a failed test to make it pass -- fix the production code
 - Never write code not driven by a failing test
 - Never skip the RED verification step
-- After every test run (each attempt, GREEN or not), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now **when the file exists and its `operation` is `be-code`** (the skill that launched this agent; never create one, never touch another skill's) — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
+- After every test run (each attempt, GREEN or not), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now (read-modify-write: `snapshotDir` and the other fields stay) **when the file exists and its `operation` is `be-code`** (the skill that launched this agent; never create one, never touch another skill's) — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
 - Never run individual test methods -- always run the entire test class
 - Request user review after 3 consecutive test failures
 - Never leave a scenario's test or implementation changes in the tree after escalating on

@@ -31,7 +31,7 @@ check_git_repo() {
 # ([[:space:]] inside brackets and between tokens: `\s` is a GNU extension, and inside a bracket it
 # is the two characters "\" and "s".)
 # Line-oriented by design: a value on the line after its key (YAML `password: |`, JSON split across
-# lines, TOML `'''…'''`) and a short flag glued to its value (`mysql -phunter2`, indistinguishable
+# lines, TOML `'''…'''`), a `#`-led line inside a YAML block scalar (read as a comment) and a short flag glued to its value (`mysql -phunter2`, indistinguishable
 # from `tar -pxvf`) are not seen -- be-security's Secrets & Configuration audit covers the file.
 KEY='(password|passwd|pwd|secret[._-]?key|secret|api[._-]?key|access[._-]?key|jwt[._-]?secret|signing[._-]?key|private[._-]?key|token)'
 # A separator between a key and its value: `key: v`, `key:v` (minified JSON, properties), `key = v`,

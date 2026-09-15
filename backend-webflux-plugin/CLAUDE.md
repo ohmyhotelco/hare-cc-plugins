@@ -370,11 +370,11 @@ Running a skill from an earlier pipeline stage demotes the status. Skills must w
 
 ### State File Safety
 
-**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and debugger agents rewrite it after every Gradle run (the skill that took it is blocked on the agent), and staleness counts from the last refresh. Acquisition is check-then-write, not atomic: the lock guards against a forgotten or crashed run, not against two sessions racing on one project. An agent that keeps a revert snapshot records its directory as `snapshotDir` in the lock; whoever releases the lock — normally or after a crash — removes that directory.
+**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and debugger agents rewrite it after every Gradle run (the skill that took it is blocked on the agent), and staleness counts from the last refresh. Acquisition is check-then-write, not atomic: the lock guards against a forgotten or crashed run, not against two sessions racing on one project. An agent that keeps a revert snapshot records its directory as `snapshotDir` in the lock (read-modify-write, as is every `lockedAt` refresh — never a rewrite of the whole file); whoever releases the lock — normally, after a crash, or by removing it as stale — removes that directory first. A release deletes only a lock whose `operation` is the releasing skill's own.
 
 Lock file format:
 ```json
-{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature}" }
+{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature}", "snapshotDir": "{optional: an agent's revert snapshot, outside the repository}" }
 ```
 
 ## Agent Coordination

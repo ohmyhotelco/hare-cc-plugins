@@ -16,7 +16,7 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration); missing → stop: start a new session so the hook writes it.
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 4. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
    - If `{workDocDir}/.progress/{feature}.json` exists: read it for pipeline context
    - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found (multi-entity feature), list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
@@ -24,7 +24,7 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 ### Step 0.5: Demotion Check
 
-`--yes` answers items 4–5 below and Step 0.6 with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts are asked. Item 2 is not answered by `--yes`: under it, stop and report — an unattended caller reached verification with unfinished scenarios, and a PASS would certify a subset.
+`--yes` answers items 4–5 below and Step 0.6 with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts are asked. Item 2 under `--yes`: proceed when the work document has no `- [ ]` left (every scenario is done and only the final build failed — this gate is the judge of that); stop and report when a scenario is unfinished, since a PASS would certify a subset.
 
 If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
 
@@ -74,8 +74,8 @@ If a feature argument was provided:
 
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
-4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}" }`
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}" }` — and rewrite `lockedAt` to now before each of rows 1.1–1.5 (five ten-minute Gradle runs can outlast the 30-minute stale rule)
 
 If no feature argument: skip lock acquisition.
 
@@ -279,7 +279,7 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
    - `Overall: FAIL` — any of those rows FAIL, a Coverage row FAIL (report not produced/unparseable) included → `"verify-failed"`; `pipeline.verification.status` is `"fail"` in the same write
 4. Write back the progress file (read-modify-write: preserve all other fields). If the write fails (permissions, disk, a file that no longer parses), report the error and the Step 2 result — the gate ran; only its record did not land — and still release the lock below.
 
-If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock` — on every exit from here on, the write failure included.
+If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock` — on every exit from here on, the write failure included — but only if its `operation` is still `be-verify` (a lock another skill took after removing this one as stale is theirs: leave it and say so).
 
 ### Step 4: Suggest Next Action
 

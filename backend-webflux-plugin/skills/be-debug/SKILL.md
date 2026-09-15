@@ -16,6 +16,7 @@ Diagnose and fix runtime errors, test failures, or build issues using a structur
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, warn the user: config provides `buildCommand` and `testCommand` needed for verification. Without config, the debugger can diagnose and propose fixes but cannot run build/test verification (Phases 3-4 will be limited to code analysis only). Suggest running `/backend-webflux-plugin:be-init` first for full debugging capability.
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Gather Problem Context
 
@@ -38,7 +39,7 @@ If config is available and feature context exists (`{workDocDir}/.progress/{feat
 
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-debug", "feature": "{feature}" }`
 
 Why: a debugging session reverts and reapplies code changes across up to 3 hypotheses. If `be-verify`, `be-fix`, or another `be-debug` run is writing to the same feature's progress file concurrently, interleaved writes corrupt pipeline state — the lock makes this session's read-modify-write of that file exclusive.

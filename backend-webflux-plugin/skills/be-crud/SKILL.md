@@ -136,6 +136,7 @@ These mechanical transforms recur across the steps below — apply them exactly 
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
 3. Read `config.architecture` — currently only `cqrs` is supported
 4. Read `config.dataProfile` (`"r2dbc" | "mybatis" | "both"`) and `config.webLayer` (`"functional" | "annotated"`) — these gate which templates are used in Step 4. See `docs/decisions.md` Decision 1 and Decision 2.
+5. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 0.5: Detect Plan Mode
 
@@ -257,7 +258,7 @@ If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 1. Run `mkdir -p {workDocDir}/.progress` (Bash) — idempotent, safe to run even if the directory already exists. This is the directory both the lock file and the progress files (Step 6) live in.
 2. Check if `{workDocDir}/.progress/.lock` exists
 3. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-4. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+4. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
 5. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-crud", "feature": "{kebab-case-entity}" }`
 
 **Spec-all mode**: The lock is acquired once before the first entity and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.

@@ -18,6 +18,7 @@ This skill holds an exclusive cross-skill lock (`{workDocDir}/.progress/.lock`) 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Parse Argument
 
@@ -147,7 +148,7 @@ Follow the original manual flow:
 0. `mkdir -p {workDocDir}/.progress` — on the "start TDD without `be-crud`" path nothing has created it yet, and a lock cannot be written into a directory that does not exist
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature-name}" }`
 
 **Multi-entity mode**: The lock is acquired once here and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.
@@ -219,6 +220,7 @@ Launch the `implement` agent (`subagent_type: "backend-webflux-plugin:implement"
   `["{workDocDir}/leave-type.md", "{workDocDir}/leave-request.md"]`.
 - `config`: the parsed plugin config
 - `projectRoot`: current project root
+- `pluginRoot`: {pluginRoot}
 
 The implement agent loads its Phase 0 context once, then processes each document's
 scenarios in order (all of document 1's scenarios, then document 2's, ...):

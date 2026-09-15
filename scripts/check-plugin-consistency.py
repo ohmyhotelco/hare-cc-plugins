@@ -39,7 +39,7 @@ WIRING = {
     "planFile", "specDir", "uiDslDir", "prototypeDir", "deltaFile", "scopedFiles", "deltaMode",
     "routerMode", "serverState", "formStack", "e2eTool", "mockFirst", "renderingDefault",
     "i18n", "localesDir", "prettierTemplate", "eslintTemplate", "skills", "fixMode",
-    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode",
+    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode", "pluginRoot",
 }
 
 # Only tools whose use leaves a *syntactically distinctive* trace. `Write` and `Edit` are ordinary
@@ -50,7 +50,7 @@ TOOL_EVIDENCE = {
     "Bash": [r"```(?:bash|sh)\b", r"\bnpx [a-z@]", r"^\s*git \w", r"\bmkdir -p\b",
              r"\bpnpm (?:add|install|run) ", r"\bcd \{"],
     "Task": [r"\bTask\(subagent_type"],
-    "Agent": [r"\bAgent\(subagent_type"],
+    "Agent": [r"\bAgent\(subagent_type", r"subagent_type:\s*\""],   # call form and the prose form
 }
 
 
@@ -155,7 +155,7 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
             block = stext[m.start(): block_end if block_end != -1 else m.start() + 2000]
             used = {v for v, _ in placeholders(atext)}
             for p in sorted(declared_params(atext) & used & WIRING):
-                if re.search(rf"^\s*-\s+{re.escape(p)}\s*:", block, re.M):
+                if re.search(rf"^\s*-\s+`?{re.escape(p)}`?\s*:", block, re.M):   # `- param:` or `- `param`:`
                     continue
                 if re.search(rf"\b{re.escape(p)}\b.*\bomit\b", block):
                     continue

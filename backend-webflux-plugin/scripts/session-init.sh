@@ -18,7 +18,7 @@ PLUGIN_ROOT=$(cd "$(dirname "$self")/.." 2>/dev/null && pwd -P) || PLUGIN_ROOT="
 DATA_DIR="${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/plugins/data/backend-webflux-plugin"
 if [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/scripts/source-tree-hash.sh" ]; then
   { mkdir -p "$DATA_DIR" && printf '%s\n' "$PLUGIN_ROOT" > "$DATA_DIR/pluginRoot.$$" && mv -f "$DATA_DIR/pluginRoot.$$" "$DATA_DIR/pluginRoot"; } 2>/dev/null \
-    || { rm -f "$DATA_DIR/pluginRoot.$$" 2>/dev/null; echo "[Backend WebFlux Plugin] Warning: could not write $DATA_DIR/pluginRoot"; }
+    || { rm -f "$DATA_DIR/pluginRoot.$$" 2>/dev/null || true; echo "[Backend WebFlux Plugin] Warning: could not write $DATA_DIR/pluginRoot"; }
 else
   echo "[Backend WebFlux Plugin] Warning: could not locate the plugin install from \$0 -- pluginRoot not recorded"
 fi

@@ -16,6 +16,7 @@ The skill will provide these parameters in the prompt:
 - `targetPath` -- file or directory to review (e.g., `src/main/java/com/example/hr/`)
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
 - `projectRoot` -- project root path
+- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `planFile` -- (optional) path to `plan.json` from backend-planner. When provided, enables Dimension 7 (Spec Compliance)
 - `specDir` -- (optional) path to spec markdown directory. When provided alongside `planFile`, enables source reference in issues
 
@@ -23,7 +24,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
+0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
    execution-facing subset of the plugin CLAUDE.md)
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `dataProfile`, `webLayer`, `database`, `checkstyle`, `lombokEnabled`

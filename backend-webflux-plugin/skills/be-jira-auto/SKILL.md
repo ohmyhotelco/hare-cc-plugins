@@ -1,7 +1,7 @@
 ---
 name: be-jira-auto
 description: "Jira-to-commit orchestrator that implements a ticket's own stated Technical Approach directly when present, or drafts a Proposed Solution and stops for user confirmation when not, classifies the ticket into a tier (easy/normal/extreme) to scale the review gate, and drives the full be-crud -> be-code -> be-verify -> (be-review + be-security) -> be-fix -> be-commit pipeline end to end via the Skill tool, instead of the user running each be-* skill one at a time"
-argument-hint: "<JIRA-KEY>"
+argument-hint: "<JIRA-KEY> [notes: <text>]"
 user-invocable: true
 allowed-tools: Bash, Read, Write, Edit, Grep, Glob, Skill, Agent, ToolSearch
 ---
@@ -60,9 +60,9 @@ main session, where `Skill` and `Agent` both exist.
 The caller (a slash-command invocation, or the top-level session) provides
 these in the prompt:
 
-- `jiraKey` -- Jira issue key, e.g. `OMH-1234`, `ELS-3225` (required)
-- `projectRoot` -- project root path
-- `notes` -- (optional) extra constraints or a preferred approach from the
+- `jiraKey` -- Jira issue key, e.g. `OMH-1234`, `ELS-3225` (required): the first token of the argument
+- `projectRoot` -- project root path: the current working directory unless the caller names another
+- `notes` -- (optional) everything after `notes:` in the argument (`/backend-webflux-plugin:be-jira-auto OMH-1234 notes: jira-mcp: mcp__atlassian__…; start over`): extra constraints or a preferred approach from the
   user, carried verbatim into Step 0.5, Step 1, and Step 2 -- this is also
   where a Jira MCP preference from a prior `NEEDS-INPUT` round comes back
   in (see Step 0.5)
@@ -83,7 +83,7 @@ ticket.
 3. Record `buildCommand`, `testCommand`, `basePackage`, `sourceDir`,
    `testDir`, `workDocDir`, `dataProfile`, `webLayer`, `workingLanguage`
    for use in every later step.
-4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration); missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
+4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
@@ -234,7 +234,10 @@ When Step 1 had to draft its own Proposed Solution:
    names (written at every early stop and after the commit -- see Gates;
    absent → `NEEDS-INPUT` asking which step; `committed`/`DONE` → the
    ticket is finished: stop and say so, a fresh run on the same branch
-   starts over at Step 3 only when the user asks for it in `notes`),
+   starts over at Step 3 only when the user asks for it in `notes`). The
+   feature's own progress file wins over an older state: a step the state
+   names that the feature has already passed by hand (`done` on the current
+   tree, `verification.committed`) is skipped, not replayed. Then,
    **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
    re-enters at Step 6 instead whenever `{pluginRoot}/scripts/
@@ -413,7 +416,7 @@ are read from its own output before `be-review`'s steps begin):
 
 ```
 Skill(skill: "backend-webflux-plugin:be-security", args: "{sourceDir}/{basePackage}/")   # the whole package: executors, repositories and queries live outside {domain}/
-Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
+Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 ```
 
 Run `be-security` when tier is `normal` or `extreme`, or when Step 1's
@@ -465,7 +468,7 @@ Skill(skill: "backend-webflux-plugin:be-verify", args: "{feature} --yes")
 (`Overall: FAIL` here → one `be-build` + re-verify exactly as Step 6.1; still FAIL → `ABORTED`.) Then
 
 ```
-Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
+Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 ```
 
 - **Read `pipeline.fix.round` before every `be-fix` call**, not only the
@@ -504,7 +507,7 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
    on. For each feature (in `features` order) whose
    `pipeline.verification.tree` differs from the current
    `{pluginRoot}/scripts/source-tree-hash.sh`, run
-   `be-verify {feature} --yes` then `be-review {feature}`; a FAIL goes
+   `be-verify {feature} --yes` then `be-review {feature} --yes`; a FAIL goes
    through Step 8 for that feature (its bounds apply). A pass that changed
    nothing settles the tree; a pass in which a fix changed it is followed by
    at most **one** more pass -- two features whose fixes keep invalidating
@@ -549,14 +552,17 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
 | After Step 1 | Stated approach has no gap, or a Proposed Solution was fully drafted | `NEEDS-INPUT` -- quote the exact gap in the stated approach |
 | Step 1.5 | Only when Step 1 drafted its own proposal (no stated approach): user has confirmed/corrected it | `NEEDS-INPUT` -- report the full proposal + open questions, stop before any git/scaffold action |
 | Step 2 | Working tree clean before branching | `NEEDS-INPUT` -- ask the user to handle their own uncommitted work |
-| After Step 5 | `be-code` reports every scenario `- [x]`, build PASS | `NEEDS-INPUT` -- name the unfinished scenario/entity |
+| After Step 5 | `be-code` reports every scenario `- [x]` | `NEEDS-INPUT` -- name the unfinished scenario/entity (a failed final build with every scenario done goes to Step 6.1 instead) |
 | After Step 6/6.1 | `be-verify` Overall PASS (one `be-build` attempt allowed) | `ABORTED` -- list the FAIL rows |
 | Step 7 (`be-security` branch) | Zero Critical findings (when the gate ran) | `NEEDS-INPUT` -- quote every Critical finding, ask for a manual fix |
 | After Step 8 | `be-review` verdict PASS (at most 2 `be-fix` rounds) | `ABORTED` -- list remaining critical/warning issues |
 | Step 9 | `be-commit` exits 0 with a confirmed short hash | Report the commit failure verbatim, stop -- no retry |
 
 Every early stop (`NEEDS-INPUT`/`ABORTED`) writes the run state to
-`{workDocDir}/.progress/jira/{jiraKey}.json` — a subdirectory, so the
+`{workDocDir}/.progress/jira/{jiraKey}.json` (`mkdir -p` first; a stop
+before Step 0 resolved `workDocDir` or `jiraKey` writes nothing — there is
+nothing to resume; a field not known yet is `null`, `features` `[]`) — a
+subdirectory, so the
 `.progress/*.json` scans of be-commit and the other skills never read it
 as a progress file — `{ "step": "{N}", "status": "NEEDS-INPUT|ABORTED|
 committed|DONE", "feature": "{the entry being processed}", "features":

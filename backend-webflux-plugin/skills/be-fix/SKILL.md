@@ -30,6 +30,7 @@ Read the review report produced by `be-review` and apply targeted fixes using TD
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 0.5: Resolve Feature
 
@@ -94,7 +95,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
 
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
-3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock
+3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
 4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-fix", "feature": "{feature}" }`
 
 ### Step 4: Launch Review Fixer Agent
@@ -106,6 +107,7 @@ Launch the `review-fixer` agent (`subagent_type: "backend-webflux-plugin:review-
 - `reportFile`: path to `review-report.json`
 - `config`: parsed plugin config
 - `projectRoot`: current project root
+- `pluginRoot`: {pluginRoot}
 - `feature`: feature name
 
 The agent will:

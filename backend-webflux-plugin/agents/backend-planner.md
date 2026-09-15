@@ -17,6 +17,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` -- path to spec markdown files (e.g., `docs/specs/{feature}/en/`)
 - `uiDslDir` -- path to UI DSL directory (e.g., `docs/specs/{feature}/ui-dsl/`)
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
+- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `projectRoot` -- project root path
 - `outputFile` -- path to write plan.json
 
@@ -24,7 +25,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Read Spec & UI DSL
 
-0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
+0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions and
    architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md)
 2. Read `templates/plan-schema.md` for plan.json schema and type mapping reference

@@ -14,6 +14,7 @@ Set up the Backend WebFlux Plugin configuration for this project.
 
 ### Step 1: Check Existing Configuration
 
+0. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 1. Check if `.claude/backend-webflux-plugin.json` already exists in the current project directory
 2. If it exists, read the current configuration and show it to the user:
    > "Backend WebFlux Plugin is already configured:"
@@ -66,7 +67,7 @@ Present detected values and ask the user to confirm or override:
 > Migration:         {detected or "manual-sql"}
 > Checkstyle:        {detected or false}
 > Coverage:          {detected or false}   (report-only JaCoco gate — see docs/decisions.md Decision 6)
-> Lombok:            {detected or true}
+> Lombok:            {detected or false}
 > Architecture:      cqrs (default)
 > Work Doc Dir:      work/features (default)
 > Working Language:  en (default)
