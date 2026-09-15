@@ -23,6 +23,7 @@ EXIT
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -39,7 +40,7 @@ WIRING = {
     "planFile", "specDir", "uiDslDir", "prototypeDir", "deltaFile", "scopedFiles", "deltaMode",
     "routerMode", "serverState", "formStack", "e2eTool", "mockFirst", "renderingDefault",
     "i18n", "localesDir", "prettierTemplate", "eslintTemplate", "skills", "fixMode",
-    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode",
+    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode", "pluginRoot",
 }
 
 # Only tools whose use leaves a *syntactically distinctive* trace. `Write` and `Edit` are ordinary
@@ -50,7 +51,7 @@ TOOL_EVIDENCE = {
     "Bash": [r"```(?:bash|sh)\b", r"\bnpx [a-z@]", r"^\s*git \w", r"\bmkdir -p\b",
              r"\bpnpm (?:add|install|run) ", r"\bcd \{"],
     "Task": [r"\bTask\(subagent_type"],
-    "Agent": [r"\bAgent\(subagent_type"],
+    "Agent": [r"\bAgent\(subagent_type", r"(?<!Task\()subagent_type:\s*\""],   # call form and the prose form (a Task launch is not Agent evidence)
 }
 
 
@@ -130,22 +131,35 @@ def check_agent_params(agents: dict[str, tuple[Path, str]]) -> list[Finding]:
 
 
 def check_call_sites(skills: dict[str, tuple[Path, str]],
-                     agents: dict[str, tuple[Path, str]]) -> list[Finding]:
+                     agents: dict[str, tuple[Path, str]],
+                     plugin_name: str = "") -> list[Finding]:
     """A launcher must pass every parameter the launched agent declares and actually uses."""
     out = []
     for sname, (spath, stext) in skills.items():
-        for m in re.finditer(r'(?:Agent|Task)\(subagent_type:\s*"([a-z0-9-]+)"', stext):
-            agent = m.group(1)
+        # a launch may qualify the agent with its plugin (`backend-webflux-plugin:code-reviewer`):
+        # two installed plugins can ship an agent of the same name -- and the qualifier must then
+        # be THIS plugin's, or the launch reaches the other plugin's agent
+        # both the call form `Agent(subagent_type: "x")` and the prose form "Launch the `x` agent
+        # (`subagent_type: \"plugin:x\"`) with: - param: …" -- the parameter bullets follow either
+        for m in re.finditer(r'subagent_type:\s*"(?:([a-z0-9-]+):)?([a-z0-9-]+)"', stext):
+            qualifier, agent = m.group(1), m.group(2)
+            if qualifier and plugin_name and qualifier != plugin_name:
+                out.append(Finding(str(spath), lineno(stext, m.start()), "foreign-agent",
+                                   f"launches `{qualifier}:{agent}` but this plugin is `{plugin_name}`"))
+                continue
             if agent not in agents:
                 out.append(Finding(str(spath), lineno(stext, m.start()), "missing-agent",
                                    f"launches `{agent}` but agents/{agent}.md does not exist"))
                 continue
             _, atext = agents[agent]
-            block_end = stext.find('")', m.start())
-            block = stext[m.start(): block_end if block_end != -1 else m.start() + 2000]
+            # the block is this launch's own text: up to its closing `")`, the next launch, or 2000 chars
+            nxt = re.search(r'subagent_type:\s*"', stext[m.end():])
+            limit = m.end() + (nxt.start() if nxt else 2000)
+            block_end = stext.find('")', m.start(), limit)
+            block = stext[m.start(): block_end if block_end != -1 else limit]
             used = {v for v, _ in placeholders(atext)}
             for p in sorted(declared_params(atext) & used & WIRING):
-                if re.search(rf"^\s*-\s+{re.escape(p)}\s*:", block, re.M):
+                if re.search(rf"^\s*-\s+`?{re.escape(p)}`?\s*:", block, re.M):   # `- param:` or `- `param`:`
                     continue
                 if re.search(rf"\b{re.escape(p)}\b.*\bomit\b", block):
                     continue
@@ -164,14 +178,14 @@ def check_passed_but_unbound(skills: dict[str, tuple[Path, str]]) -> list[Findin
     """
     out = []
     for name, (path, text) in skills.items():
-        for m in re.finditer(r"^\s*-\s+(\w+):\s*\{(\w+)\}\s*$", text, re.M):
+        for m in re.finditer(r"^\s*-\s+`?(\w+)`?\s*:\s*\{(\w+)\}\s*$", text, re.M):   # `- param:` or `- `param`:`, space before the colon allowed
             param, var = m.group(1), m.group(2)
             if var not in WIRING:
                 continue
             # "Bound before use" — anywhere earlier in the skill, not only Step 0. A value may
             # legitimately be read from plan.json in Step 1 (localesDir) rather than from config.
             # Other launches' parameter lines do not count as a binding.
-            before = re.sub(r"^\s*-\s+\w+:\s*\{\w+\}\s*$", "", text[: m.start()], flags=re.M)
+            before = re.sub(r"^\s*-\s+`?\w+`?\s*:\s*\{\w+\}\s*$", "", text[: m.start()], flags=re.M)   # both bullet spellings
             if re.search(rf"`{var}`", before):
                 continue
             if re.search(rf"Derive `{var}`", before):
@@ -481,6 +495,21 @@ def load(d: Path, pattern: str) -> dict[str, tuple[Path, str]]:
     return out
 
 
+def plugin_name(plugin: Path) -> str:
+    """The name a launch qualifies an agent with is plugin.json's, not the checkout directory's."""
+    pj = plugin / ".claude-plugin" / "plugin.json"
+    try:
+        name = json.loads(pj.read_text()).get("name")
+    except Exception:
+        name = None
+    if not name:
+        # said out loud rather than silently using the directory: the qualifier check is only as
+        # good as the name it compares against
+        print(f"  warning: {pj} has no `name`; qualified launches are checked against `{plugin.name}`", file=sys.stderr)
+        return plugin.name
+    return name
+
+
 def run(plugin: Path) -> list[Finding]:
     agents = load(plugin / "agents", "*.md")
     skills = load(plugin / "skills", "*/SKILL.md")
@@ -492,7 +521,7 @@ def run(plugin: Path) -> list[Finding]:
         every[f"template:{p.stem}"] = (p, p.read_text())
 
     return (check_agent_params(agents)
-            + check_call_sites(skills, agents)
+            + check_call_sites(skills, agents, plugin_name(plugin))
             + check_passed_but_unbound(skills)
             + check_tool_permissions(skills)
             + check_lock_reachability(skills)

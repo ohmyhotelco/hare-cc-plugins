@@ -1,0 +1,530 @@
+---
+name: be-crud
+description: "Generate CRUD scaffold for an entity using CQRS layered architecture (R2DBC or MyBatis, functional or annotated web layer)."
+argument-hint: "<EntityName> [field:Type[:unique][:nullable][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] [--yes] | --all <feature-name> [--yes]"
+user-invocable: true
+allowed-tools: Read, Write, Glob, Bash
+---
+
+# CQRS CRUD Scaffold Generator
+
+Generate a complete CRUD scaffold for a new entity following the project's CQRS architecture on the WebFlux stack. Supports two modes:
+
+- **Manual mode** (default): `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
+- **Spec-driven mode**: `be-crud Employee` (when plan.json exists) or `be-crud --all employee-management`
+
+This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see plugin `CLAUDE.md` § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
+
+## Examples
+
+### Example 1 — easy case: manual mode, R2DBC
+
+Input: `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
+
+1. Step 0 reads config: `dataProfile: "both"`, `webLayer: "functional"` → Step 1 asks for the data profile; user accepts the default, `r2dbc`.
+2. Step 2 asks for the domain; user answers `hr`.
+3. Step 4 generates `Employee.java` (excerpt — full template in `templates/entity-conventions-r2dbc.md`):
+
+   ```java
+   @Table("employee")
+   public class Employee {
+       @Id
+       @Column("sequence")
+       private Long sequence;
+
+       @Column("id")
+       private UUID id;
+
+       @Column("email")
+       private String email;
+
+       @Column("display_name")
+       private String displayName;
+
+       @Column("created_at")
+       private LocalDateTime createdAt;
+
+       @Column("updated_at")
+       private LocalDateTime updatedAt;
+   }
+   ```
+
+4. Step 4 also generates the router bean (excerpt — full template in `templates/web-layer-functional.md`):
+
+   ```java
+   @Bean
+   public RouterFunction<ServerResponse> employeeRoutes(EmployeeHandler handler) {
+       return RouterFunctions.route()
+           .POST("/hr/employees", handler::create)
+           .GET("/hr/employees", handler::list)
+           .GET("/hr/employees/{id}", handler::find)
+           .build();
+   }
+   ```
+
+5. Step 5.1 Globs every path just written and confirms all files landed; Step 5.2 reports:
+
+   ```
+   CRUD Scaffold Generated: Employee (dataProfile: r2dbc, webLayer: functional)
+   ======================================
+
+   Files created (verified):
+     src/main/resources/migration/V1__create_employee_table.sql
+     src/main/java/com/example/data/Employee.java
+     src/main/java/com/example/data/EmployeeRepository.java
+     src/main/java/com/example/command/CreateEmployee.java
+     src/main/java/com/example/commandmodel/CreateEmployeeCommandExecutor.java
+     src/main/java/com/example/query/GetEmployeePage.java
+     src/main/java/com/example/query/FindEmployee.java
+     src/main/java/com/example/querymodel/GetEmployeePageQueryProcessor.java
+     src/main/java/com/example/querymodel/FindEmployeeQueryProcessor.java
+     src/main/java/com/example/view/EmployeeView.java
+     src/main/java/com/example/hr/api/EmployeeRouter.java
+     src/main/java/com/example/hr/api/EmployeeHandler.java
+     src/main/java/com/example/hr/EmployeePropertyValidator.java
+     src/main/java/com/example/hr/InvalidEmailFormatException.java
+     src/main/java/com/example/hr/InvalidDisplayNameException.java
+     src/main/java/com/example/hr/DuplicateEmailException.java
+     work/features/employee.md
+
+   Failed (not created — investigate before proceeding):
+     (none)
+
+   API Endpoints:
+     POST   /hr/employees           -> 201 Created
+     GET    /hr/employees?page&size -> 200 OK
+     GET    /hr/employees/{id}      -> 200 OK / 404
+   ```
+
+### Example 2 — tricky case: `--all` with one entity already mid-pipeline
+
+Input: `be-crud --all leave-management`, where `plan.json` lists `LeaveType` then `LeaveRequest` in `entityDependencyOrder`, and `{workDocDir}/.progress/leave-request.json` already has `pipeline.status: "implementing"` from a prior run.
+
+1. Step 2.6 acquires the lock once, before `LeaveType`.
+2. `LeaveType` has no existing progress file — Steps 1–6 run normally for it.
+3. For `LeaveRequest`, Step 2.5 finds the existing progress file and warns: "Entity 'LeaveRequest' already has pipeline progress (status: 'implementing'). Re-running scaffold will reset the status to 'scaffolded', discarding all pipeline history. Continue?"
+4. The user declines. Per Step 2.5's spec-all rule, `LeaveRequest` is skipped — not the whole `--all` run — and the lock stays held.
+5. Step 7 releases the lock once, after both entities have been attempted. The combined report separates what was generated from what was skipped:
+
+   ```
+   CRUD Scaffold Generated: leave-management (2 entities in plan)
+   ============================================================
+
+   Entities scaffolded (in dependency order):
+     1. LeaveType (r2dbc) — 3 endpoints, 5 scenarios
+
+   Entities skipped (demotion declined):
+     2. LeaveRequest — existing status was 'implementing'; no files touched
+
+   Total files created: 15
+   ```
+
+## Instructions
+
+### Shared Derivation Rules (used throughout)
+
+These mechanical transforms recur across the steps below — apply them exactly rather than re-deriving them ad hoc each time:
+
+- **PascalCase → snake_case** (table/column names, Step 4 #1): insert `_` before each uppercase letter that follows a lowercase letter or digit, then lowercase the result. `LeaveRequest` → `leave_request`.
+- **PascalCase → kebab-case** (progress file names, work document names — Steps 0.5, 2.5, 2.6, 6): same rule as snake_case, using `-` instead of `_`. `LeaveRequest` → `leave-request`.
+- **Pluralization for URL paths** (Step 2, `/{domain}/{entities}`): append `s` to the kebab-case form's last word, `es` if that word ends in `s`/`x`/`ch`/`sh`, or replace a consonant+`y` ending with `ies` (`category` → `categories`, `policy` → `policies`; `key` → `keys`). `leave-request` → `leave-requests`; `expense` → `expenses`.
+- **Next migration version number** (Step 4 #1): Glob `src/main/resources/migration/V*__*.sql`, extract the integer between `V` and the first `__` from each matched filename, take the max (0 if no files exist), and use `max + 1`. Plain integers, no zero-padding: `V1`, `V2`, … `V10`.
+
+### Step 0: Validate Configuration
+
+1. Read `.claude/backend-webflux-plugin.json`
+2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. Read `config.architecture` — currently only `cqrs` is supported
+4. Read `config.dataProfile` (`"r2dbc" | "mybatis" | "both"`) and `config.webLayer` (`"functional" | "annotated"`) — these gate which templates are used in Step 4. See `docs/decisions.md` Decision 1 and Decision 2.
+5. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
+
+### Step 0.5: Detect Plan Mode
+
+Determine whether to use spec-driven or manual mode:
+
+1. Check if `--all` flag is present in the argument:
+   - If `--all {feature-name}`: `mode = "spec-all"`, `feature = {feature-name}`
+   - Require plan.json to exist (see below); if not found, stop with error
+
+2. If no `--all` flag, parse the argument:
+   - If argument contains `field:Type` pairs (e.g., `Employee email:String`): `mode = "manual"`, skip to Step 1
+   - If argument is only an entity name (e.g., `Employee`) with no field definitions:
+     - Scan for plan.json files: glob `docs/specs/*/.implementation/backend/plan.json`
+     - For each found plan.json, read and check if `entities[].name` contains the entity name
+     - If found: `mode = "spec"`, extract `feature` from the path (the directory name between `specs/` and `/.implementation/`), read plan.json
+     - If multiple plans contain the same entity name: list matches and ask user to choose
+     - If not found: `mode = "manual"`, fall through to Step 1 (will ask for fields)
+
+3. For `mode = "spec"` or `mode = "spec-all"`:
+   - Read plan.json from `docs/specs/{feature}/.implementation/backend/plan.json`
+   - If plan.json does not exist:
+     > "No backend plan found. Run `/backend-webflux-plugin:be-plan {feature}` first."
+     - Stop here.
+   - Read `templates/plan-schema.md` for type mapping reference
+
+4. For `mode = "spec-all"`:
+   - Read `entityDependencyOrder` from plan.json
+   - Acquire lock once (Step 2.6) before the first entity
+   - For each entity in dependency order, execute Steps 1, 2, 2.5, 3, 3.5, 4, 5, 6 sequentially (skip Step 2.6 — lock is already held)
+   - If demotion check (Step 2.5) is declined for an entity: skip that entity and proceed to the next (do not stop the entire operation)
+   - Release lock once (Step 7) after all entities are processed (including when all entities were skipped)
+   - Display a combined report at the end
+   - Skip to Step 1 with the first entity
+
+### Step 1: Parse Arguments
+
+#### Manual mode (`mode = "manual"`)
+
+Parse the argument:
+
+- **EntityName**: PascalCase entity name (required). Example: `Employee`, `LeaveRequest`
+- **Fields**: Optional field definitions, `name:Type[:flag…]`. Flags carry the facts Step 4 cannot
+  otherwise know — `unique` (→ `existsBy{Field}` + `Duplicate{Field}Exception`, 409),
+  `max=N` (→ `validate{Field}` length rule + `Invalid{Field}Exception`, 400),
+  `pattern=email|phone|url` (→ the matching validator regex + `Invalid{Field}Exception`),
+  `nullable` (default not null; with `max=`/`pattern=` the validator skips a `null` value and
+  rejects only a present, bad one). `max=` and `pattern=` are String-only — the validator calls
+  `.length()`/`matcher()`, so `amount:Integer:max=20` is rejected at parse time, not by javac. Example:
+  `email:String:unique:pattern=email displayName:String:max=20 startDate:LocalDate`.
+  Without flags a field is a plain not-null column with no validator and no exception — the
+  templates' `email`/`displayName` are the worked case of the flags, not defaults every entity gets.
+
+Validate `{EntityName}` before using it anywhere: it must match `^[A-Z][A-Za-z0-9]*$` (a PascalCase Java class name — `1Employee` is a path-safe string and an illegal class) and must not be a Java keyword or `Object`/`String`/`Record`. Reject and stop otherwise. Step 4 builds every output file path and every `class` line directly from this value (via the Shared Derivation Rules). Validate each field the same way: name `^[a-z][A-Za-z0-9]*$`, not a Java keyword (`class`, `default`, `int`, …), not one of the four standard fields every entity already has (`sequence`, `id`, `createdAt`, `updatedAt` — a second `id` is a duplicate member), **unique within the entity** (`email:String email:String` is a duplicate member), and — as its `snake_case` column, like the entity's `snake_case` table — not a MySQL reserved word (`order`, `group`, `key`, `rank`, `status` is fine, … the DDL is unquoted, so `Order` becomes `CREATE TABLE order`, a syntax error) and at most 64 characters (MySQL's identifier limit; `uk_{table}_{column}` must fit too) — it becomes a Java field and a column; type one of `String`, `Integer`, `Long`, `Boolean`, `BigDecimal`, `LocalDate`, `LocalDateTime`, `LocalTime`, `UUID` (the `templates/plan-schema.md` mapping — anything else has no column type); `max=N` a positive integer; `pattern=` one of `email|phone|url`.
+
+If no fields are provided, ask the user:
+> "What fields should `{EntityName}` have? (format: `name:Type[:unique][:max=N][:pattern=email|phone|url][:nullable]`)"
+> "Example: `email:String:unique:pattern=email displayName:String:max=20 status:String`"
+> "Standard fields (`sequence`, `id`, `createdAt`, `updatedAt`) are added automatically."
+
+If `config.dataProfile == "both"` and this is a new entity (no existing module to match), use
+`--profile` when given (an unattended caller such as `be-jira-auto` passes it); otherwise ask:
+> "Data profile for `{EntityName}`? `r2dbc` (default, simplest reactive path) or `mybatis` (match an existing MyBatis-based module's conventions / complex queries)."
+> Default to `r2dbc` if the user does not answer.
+
+#### Spec-driven mode (`mode = "spec"` or `mode = "spec-all"`)
+
+Extract from `plan.json.entities[]` where `name` matches the current entity:
+
+- **EntityName**: from `entities[].name` — validate with the same rule as manual mode (PascalCase Java class name, not a keyword) before using it, and validate every `entities[].fields[]` name and every `domain` with the manual-mode rules too — `plan.json` is a generated artifact, not a trusted one. A spec field's `javaType` is validated against `templates/plan-schema.md`'s mapping table, not the manual whitelist: that table also yields primitive `boolean` and a plan-defined enum type — a field with a non-empty `enumValues[]`, whose `javaType` is `{EntityName}{FieldName}` (`templates/plan-schema.md` § Enum Handling; each value must be a legal Java constant name, `^[A-Z][A-Z0-9_]*$`) — which are valid here and unavailable in manual mode. `plan.json` is generated by another agent from a spec file this skill does not control the provenance of, so it gets no more trust than direct user input. In `mode = "spec-all"`, a failing entity is skipped (per Step 0.5 point 4's skip-and-continue rule) rather than aborting the whole run; in `mode = "spec"`, stop.
+- **Fields**: from `entities[].fields[]` — map each field's `javaType` and `constraints`
+- **Enums**: for each field with `enumValues[]`, Step 4 also writes `{sourceDir}/{basePackage}/data/{EntityName}{FieldName}.java` — a plain `enum` with those constants, column `VARCHAR(50)`; no converter or type handler: both profiles map an enum by name out of the box (`templates/plan-schema.md` § Enum Handling)
+- **Indexes**: from `entities[].indexes[]`
+- **Commands**: from `plan.json.commands[]` where `entity` matches
+- **Queries**: from `plan.json.queries[]` where `entity` matches
+- **Endpoints**: from `plan.json.endpoints[]` that reference matching commands/queries
+- **Exceptions**: from `plan.json.exceptions[]` where `entity` matches
+- **Validation Rules**: from `plan.json.validationRules[]` where `entity` matches
+- **Test Scenarios**: from `plan.json.testScenarios[]` where `entity` matches
+- **Data profile**: use `config.dataProfile` if it is `"r2dbc"` or `"mybatis"`; if `"both"`, default this entity to `r2dbc` unless the plan/work document says otherwise — do not ask the user in spec-driven mode
+
+Do not ask the user for fields — they are already defined in the plan.
+
+### Step 2: Determine Domain
+
+#### Manual mode
+
+Use `--domain` when given (an unattended caller such as `be-jira-auto` passes it); otherwise ask
+the user which domain this entity belongs to:
+> "Which domain does `{EntityName}` belong to? (e.g., `hr`, `leave`, `attendance`)"
+
+#### Spec-driven mode
+
+Read domain from `plan.json.entities[].domain`.
+- If domain is present and non-null: use it directly, do not ask the user.
+- If domain is null or missing: fall back to manual mode for this step — ask the user which domain this entity belongs to.
+
+Validate `{domain}` (from either mode) before using it: it must match `^[a-z][a-z0-9]*$` and not be a Java keyword (`int`, `new`, `package`, … — `package com.example.int.api;` does not compile) — one Java package segment, so no hyphen (`employee-admin` becomes `package com.example.employee-admin.api;`) and no leading digit. Reject and stop (or, in `mode = "spec-all"`, skip this entity) otherwise. It is used directly to build the `{domain}/api/` package path and the API URL prefix below.
+
+This determines:
+- Router/Handler package (functional, default): `{basePackage}.{domain}.api`
+- Controller package (annotated, only when `config.webLayer == "annotated"`): `{basePackage}.{domain}.api`
+- Exception package: `{basePackage}.{domain}`
+- API URL prefix: `/{domain}/{entities}` (pluralized, kebab-case)
+
+### Step 2.5: Demotion Check
+
+`--yes` answers this step's confirmation with yes — for an unattended caller (`be-jira-auto`) whose user asked to start the entity over; without it the prompt is asked.
+
+If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
+
+1. Read `pipeline.status`
+2. If status is `"implementing"`, `"implemented"`, `"verified"`, `"verify-failed"`, `"reviewed"`, `"review-failed"`, `"fixing"`, `"done"`, `"resolved"`, or `"escalated"`:
+   > "Entity '{EntityName}' already has pipeline progress (status: '{status}'). Re-running scaffold will reset the status to 'scaffolded', discarding all pipeline history."
+   > "Continue?"
+   If the user declines, stop here.
+
+**Spec-all mode**: This check is performed per entity before generating files for that entity. If the user declines, skip this entity and proceed to the next — do not stop the entire operation. The lock (Step 2.6) remains held.
+
+### Step 2.6: Acquire Lock
+
+1. Run `mkdir -p {workDocDir}/.progress` (Bash) — idempotent, safe to run even if the directory already exists. This is the directory both the lock file and the progress files (Step 6) live in.
+2. Check if `{workDocDir}/.progress/.lock` exists
+3. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
+4. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
+5. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-crud", "feature": "{kebab-case-entity}", "runId": "{a fresh random id, kept in memory for the release}" }`
+
+**Spec-all mode**: The lock is acquired once before the first entity and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.
+
+### Step 3: Read Templates
+
+**Precondition — the project exists.** This skill writes sources and a migration *into* a Spring
+Boot WebFlux project; it generates no build file, wrapper or application class. Before reading
+templates, confirm `build.gradle.kts`/`build.gradle` declares what the entity's profile compiles
+against — `spring-boot-starter-webflux`, `com.github.f4b6a3:uuid-creator`, the Boot 4 test starters the generated tests need — `spring-boot-starter-test`, `spring-boot-starter-webflux-test` (`WebTestClient`), `io.projectreactor:reactor-test` and, for `r2dbc`, `spring-boot-starter-data-r2dbc-test` (`@DataR2dbcTest`), for `mybatis`, `mybatis-spring-boot-starter-test` — and for `r2dbc`:
+`spring-boot-starter-data-r2dbc` + `io.asyncer:r2dbc-mysql` **≥ 1.4.2** (the first release whose compatibility table lists Boot 4; 1.4.0/1.4.1 are not it — pin 1.4.3); for `mybatis`:
+`org.mybatis.spring.boot:mybatis-spring-boot-starter:4.x` (the 3.0.x line targets Boot 3 and fails
+auto-configuration under Boot 4 — check the version, not just the artifact) + `mysql-connector-j`.
+Anything missing or on the wrong line → **release the lock from Step 2.6, then stop** and print the
+dependency lines to add, rather than generating sources that cannot compile (Step 7 will not run).
+
+Read these templates for code patterns:
+- `templates/cqrs-module.md` — package layout, and pointers to the profile/web-layer files below
+- `templates/entity-conventions.md` — shared DTO/exception/validator conventions
+- `templates/entity-conventions-r2dbc.md` or `templates/entity-conventions-mybatis.md` — matching this entity's resolved `dataProfile` (never read both for one entity)
+- `templates/web-layer-functional.md` or `templates/web-layer-annotated.md` — matching `config.webLayer`
+- `templates/checkstyle-config.md` — checkstyle rules (only when `config.checkstyle == true`)
+- `templates/coverage-gate.md` — JaCoco Gradle block (only when generating a new project's `build.gradle`, not per-entity)
+
+### Step 3.5: Check Shared Classes
+
+Check if the following shared classes exist and generate them if missing:
+
+1. `{sourceDir}/{basePackage}/view/PageCarrier.java`
+   - If it does not exist: generate from the Generic Pagination Wrapper template in `templates/entity-conventions.md`
+2. `{sourceDir}/{basePackage}/data/R2dbcConfig.java` (r2dbc entities only)
+   - If it does not exist: generate from the UUID Conversions template in `templates/entity-conventions-r2dbc.md` — the MySQL R2DBC driver cannot bind `java.util.UUID` on its own
+3. `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (mybatis entities only)
+   - If it does not exist: generate from `templates/entity-conventions-mybatis.md`
+4. `{sourceDir}/{basePackage}/data/JdbcConfig.java` (mybatis entities in a project whose build file also has `spring-boot-starter-data-r2dbc` — `config.dataProfile` `both`)
+   - If it does not exist: generate from the JDBC DataSource template in `templates/entity-conventions-mybatis.md` — Boot's `DataSource` auto-configuration backs off beside an R2DBC `ConnectionFactory`, and the mappers would have no `DataSource`
+
+There is no `BaseEntity` shared class in this plugin (no auditing-listener equivalent — see `templates/entity-conventions.md`). Do not generate one.
+
+### Step 4: Generate Files
+
+Before writing anything, Glob every entity-specific target below (migration, entity/POJO, mapper interface + XML, repository, commands, executors, queries, processors, views, validator, router/handler or controller, work document — not the domain-shared exception files, see #8). Any that already exists is about to be overwritten — a `scaffolded` entity has no demotion prompt (Step 2.5), and a hand-edited scaffold is user work:
+> "{n} of this entity's files already exist: {list}. Overwrite them?"
+`--yes` answers yes; a decline stops here (nothing written; in spec-all mode the entity is skipped and the lock stays held, as in Step 2.5). The run's start time for Step 5 is the lock's `lockedAt` (Step 2.6) — it precedes every write, Step 3.5's shared classes included.
+
+Generate the following files in order. Use the entity's resolved `dataProfile` (`r2dbc` or `mybatis`, never `"both"` for a single entity) and `config.webLayer` to select which template variant applies. The templates are snippets without `import` lines; resolve them from the types used (`org.springframework.data.domain.Sort`, `org.springframework.http.ResponseEntity`, `org.springframework.web.server.ServerWebInputException`, `org.apache.ibatis.type.*` for the type handler, …) — a missing import is a compile failure `be-build` catches, not a design choice.
+
+#### 1. Manual SQL Migration
+
+File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sql`
+
+- Determine `{next}` and `{snake_case_entity}` using the Shared Derivation Rules above
+- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax; every unique field gets a **named** constraint `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` — the executor maps a `DataIntegrityViolationException` to `Duplicate{Field}Exception` only when the message names that constraint: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL` with `CONSTRAINT uk_{table}_id UNIQUE (id)`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+- No separate index on a unique column — the named UNIQUE constraint already is one; add `INDEX idx_{table}_{column}` only for the filter/sort columns a plan names
+- This file is generated only — never executed by this skill (see `docs/decisions.md` Decision 3)
+
+#### 2. Entity / POJO
+
+**R2DBC**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — `@Table`/`@Column`-annotated class per `templates/entity-conventions-r2dbc.md` Entity Template.
+
+**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler — **every** `UUID`-typed field gets the same `typeHandler=` on its `<result>` and on each `#{}` that binds it, not only `id`) and the `mybatis.mapper-locations: classpath:mapper/**/*.xml` entry in `application.yml` (without it the XML is never loaded — see the template).
+
+Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`; otherwise emit a plain getter and setter per field — the executors and processors call `getId()`/`setEmail()`/…, so private fields alone do not compile.
+
+#### 3. Repository (R2DBC only)
+
+File: `{sourceDir}/{basePackage}/data/{EntityName}Repository.java`
+
+- Extends `ReactiveCrudRepository<{EntityName}, Long>`
+- `findByExternalId(UUID id)` returning `Mono<{EntityName}>`, with the explicit `@Query` from
+  `templates/entity-conventions-r2dbc.md` — `findById(Long)` is already the sequence-PK lookup
+  `ReactiveCrudRepository` provides, and derivation cannot bind a differently named method to the
+  `id` field
+- `existsBy{UniqueField}` returning `Mono<Boolean>` for unique fields
+- `findAllBy(Pageable)` returning `Flux<{EntityName}>` for the page query
+
+MyBatis entities skip this file (the mapper interface + XML generated in Step 2 covers persistence).
+
+#### 4. Command + CommandExecutor
+
+File: `{sourceDir}/{basePackage}/command/Create{EntityName}.java`
+File: `{sourceDir}/{basePackage}/commandmodel/Create{EntityName}CommandExecutor.java`
+
+- Command: record with fields from user input
+- Executor: `@Component` record returning `Mono<Void>` — R2DBC uses `flatMap`-chained repository calls (see `templates/entity-conventions-r2dbc.md` § Command Executor); MyBatis wraps mapper calls in `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())` (see `templates/entity-conventions-mybatis.md` § Command Executor). Includes validation, duplicate check, UUID v7 generation, explicit `createdAt`/`updatedAt` assignment, save/insert.
+
+**Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
+- Generate all commands from `plan.json.commands[]` for this entity (not just Create — may include Update, Delete, or domain-specific actions)
+- Include validation logic from `plan.json.commands[].validations[]` in each executor
+- Include side effects as TODO comments from `plan.json.commands[].sideEffects[]`
+
+#### 5. Query + QueryProcessor
+
+File: `{sourceDir}/{basePackage}/query/Get{EntityName}Page.java`
+File: `{sourceDir}/{basePackage}/query/Find{EntityName}.java`
+File: `{sourceDir}/{basePackage}/querymodel/Get{EntityName}PageQueryProcessor.java`
+File: `{sourceDir}/{basePackage}/querymodel/Find{EntityName}QueryProcessor.java`
+
+- Get{EntityName}Page: pagination query (page, size with max 20)
+- FindEntity: single lookup by UUID
+- PageQueryProcessor: returns `Mono<PageCarrier<{EntityName}View>>`
+- FindQueryProcessor: returns `Mono<{EntityName}View>`, empty `Mono` (mapped to 404 at the web layer) if not found
+
+**Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
+- Generate all queries from `plan.json.queries[]` for this entity (may include search/filter queries)
+- Use `plan.json.queries[].maxPageSize` if specified (override default 20)
+- Include filter fields from `plan.json.queries[].filters[]`
+
+#### 6. View
+
+File: `{sourceDir}/{basePackage}/view/{EntityName}View.java`
+
+- Record with `id` (UUID) + displayable fields
+
+#### 7. Web Layer
+
+**Functional (default, `config.webLayer == "functional"`)**:
+File: `{sourceDir}/{basePackage}/{domain}/api/{EntityName}Router.java` — `@Configuration` class with a `RouterFunction<ServerResponse>` `@Bean`.
+File: `{sourceDir}/{basePackage}/{domain}/api/{EntityName}Handler.java` — `@Component` record with DI (executors + processors), one method per route, `onErrorResume` chain mapping domain exceptions to HTTP status.
+
+**Annotated (only when `config.webLayer == "annotated"`)**:
+File: `{sourceDir}/{basePackage}/{domain}/api/{EntityName}Controller.java` — record class with DI, `@RestController`, methods returning `Mono`/`Flux`, `@ExceptionHandler` methods for domain exceptions.
+
+Both styles: POST (201), GET list (200), GET single (200/404).
+
+**Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
+- Generate all endpoints from `plan.json.endpoints[]` that reference this entity's commands/queries
+- Include PUT, PATCH, DELETE routes/endpoints if defined in the plan
+- Map all exceptions from `plan.json.exceptions[]` for this entity to the handler's `onErrorResume` chain or `@ExceptionHandler` methods
+
+#### 8. Validator and Exceptions
+
+File: `{sourceDir}/{basePackage}/{domain}/{EntityName}PropertyValidator.java` — `@Component`, one
+`validate{Field}` method per validated field, per `templates/entity-conventions.md` § Validation
+Utility Template. The command executor (Step 4 #4) injects it; a scaffold without it does not compile.
+File: `{sourceDir}/{basePackage}/{domain}/Invalid{Field}Exception.java` — one per validated field
+(the validator throws them; the handler/controller maps them to 400)
+File: `{sourceDir}/{basePackage}/{domain}/Duplicate{UniqueField}Exception.java` (for each unique field)
+These are domain-shared, not entity-specific: a second entity in the same domain with the same
+flagged field reuses them — generate only when missing, never prompt to overwrite (Step 4's
+preamble excludes them).
+
+No `{EntityName}NotFoundException`: not-found is the empty `Mono` the `Find` processor returns and the
+web layer maps to 404 (`switchIfEmpty` / `defaultIfEmpty`) — a class nothing throws is dead code the
+reviewer would flag as unmapped.
+
+**Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
+- Generate all exceptions from `plan.json.exceptions[]` for this entity
+- Use the exact class names and HTTP status codes from the plan
+
+#### 9. Work Document
+
+File: `{workDocDir}/{kebab-case-entity}.md`
+
+- Generate from `templates/work-document-template.md`
+- Pre-fill entity fields, commands, queries, API endpoints
+- Record the resolved `dataProfile` for this entity at the top of the document
+- Generate test scenarios as `- [ ]` items
+
+**Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
+- Include all test scenarios from `plan.json.testScenarios[]` for this entity
+- Add spec source references as comments (e.g., `<!-- FR-001, TS-001 -->`)
+- Include validation rules section from `plan.json.validationRules[]`
+- Include exception table from `plan.json.exceptions[]`
+
+### Step 5: Verify and Report
+
+Never state a file was created without having just confirmed it — the report in 5.2 is built entirely from the verification result in 5.1, not from the list of files Step 4 *attempted* to write.
+
+#### 5.1 Verify Each File
+
+For every file Step 3.5 or Step 4 was supposed to generate for this entity:
+
+1. Glob its exact path and read its modification time (`date -u -r {path} +%Y-%m-%dT%H:%M:%S`, as be-verify Step 0.6 does).
+2. If the file exists and its mtime (`YYYY-MM-DDTHH:MM:SS` UTC) is not before the lock's `lockedAt` (first 19 characters of its `Z` form): add it to a `verified` list — a Step 3.5 or #8 file that already existed and was left alone counts as verified too (it was not supposed to be written).
+3. Otherwise — absent, or older than this run (a write that failed left a pre-existing file in place): add it, plus the step/sub-step that was supposed to generate it, to a `failed` list. Do not guess or assume it was written — existence alone is not evidence of this run's work.
+
+#### 5.2 Report
+
+Display the result in the working language, built only from the `verified`/`failed` lists from 5.1 — never from the pre-verification generation list:
+
+```
+CRUD Scaffold Generated: {EntityName} (dataProfile: {r2dbc|mybatis}, webLayer: {functional|annotated})
+======================================
+
+Files created (verified):
+  {verified list from 5.1}
+
+Failed (not created — investigate before proceeding):
+  {failed list from 5.1, or "(none)"}
+
+API Endpoints:
+  POST   /{domain}/{entities}           -> 201 Created
+  GET    /{domain}/{entities}?page&size  -> 200 OK
+  GET    /{domain}/{entities}/{id}       -> 200 OK / 404
+  {additional endpoints if spec-driven}
+
+Next steps:
+  1. Review generated code
+  2. Run /backend-webflux-plugin:be-build to verify
+  3. Run /backend-webflux-plugin:be-code {workDocDir}/{kebab-case-entity}.md for TDD implementation
+```
+
+If `failed` is non-empty, do not claim the scaffold is complete — state plainly that generation partially failed for this entity. Step 6's progress record must not be written for it: an incomplete file set should not receive a `"scaffolded"` status.
+
+For `mode = "spec-all"`, display a combined report after all entities are attempted, applying 5.1's verification per entity before assembling it:
+
+```
+CRUD Scaffold Generated: {feature} ({entityCount} entities in plan)
+============================================================
+
+Entities scaffolded (in dependency order):
+  1. {Entity1} ({dataProfile}) — {endpoint count} endpoints, {scenario count} scenarios, all files verified
+  2. {Entity2} ({dataProfile}) — {endpoint count} endpoints, {scenario count} scenarios, all files verified
+
+Entities with failed files (see per-entity detail above):
+  {Entity} — {count} file(s) failed, or "(none)"
+
+Entities skipped (demotion declined):
+  {Entity} — existing status was '{status}', or "(none)"
+
+Total files created: {count}
+
+Next steps:
+  1. Review generated code
+  2. Run /backend-webflux-plugin:be-build to verify
+  3. Run /backend-webflux-plugin:be-code {workDocDir}/{kebab-case-entity}.md for each entity
+```
+
+### Step 6: Initialize Pipeline State
+
+Skip this step entirely for an entity whose Step 5.1 `failed` list is non-empty — do not write a `"scaffolded"` progress record for a file set that is not actually complete. In spec-all mode, proceed to the next entity instead.
+
+Otherwise, create `{workDocDir}/.progress/{kebab-case-entity}.json` (the directory already exists from Step 2.6's `mkdir -p`):
+
+1. Write progress file:
+   ```json
+   {
+     "feature": "{kebab-case-entity}",
+     "workDocument": "{workDocDir}/{kebab-case-entity}.md",
+     "createdAt": "{ISO 8601}",
+     "updatedAt": "{ISO 8601}",
+     "dataProfile": "{r2dbc|mybatis}",
+     "pipeline": {
+       "status": "scaffolded",
+       "scenarios": { "total": {count from work doc}, "completed": 0 }
+     }
+   }
+   ```
+
+2. **Spec-driven mode only**: Add `specSource` field to the progress file:
+   ```json
+   {
+     "specSource": {
+       "planFile": "docs/specs/{feature}/.implementation/backend/plan.json",
+       "entity": "{EntityName}",
+       "feature": "{feature}"
+     }
+   }
+   ```
+
+### Step 7: Release Lock
+
+Delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (only a lock whose `operation` is `be-crud`; a run that waited at a prompt past 30 minutes may find another skill's lock in its place).
+
+- **Single-entity mode**: release immediately after Step 6, or immediately after Step 5.2's report if Step 6 was skipped because `failed` was non-empty. A failed generation still must not leave the lock held.
+- **Spec-all mode**: release only after the last entity's Step 6 (or skipped-Step-6) is reached. Do not release between entities.

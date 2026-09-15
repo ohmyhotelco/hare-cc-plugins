@@ -1,0 +1,87 @@
+# Web Layer — RouterFunction + HandlerFunction (default)
+
+Applies when `config.webLayer == "functional"` (the default — see
+`docs/decisions.md` Decision 2). DTO types referenced below are defined in
+`templates/entity-conventions.md` § DTO Templates.
+
+```java
+@Configuration
+public class EmployeeRouter {
+
+    @Bean
+    public RouterFunction<ServerResponse> employeeRoutes(EmployeeHandler handler) {
+        return RouterFunctions.route()
+            // No media-type predicate: accept() tests the client's Accept header and 404s a JSON
+            // command sent with Accept: text/plain; contentType() 404s a body sent without a
+            // Content-Type. bodyToMono() already answers 415 for a body it cannot decode, which
+            // is the honest status -- the route exists, the media type is wrong.
+            .POST("/hr/employees", handler::create)
+            .GET("/hr/employees", handler::list)
+            .GET("/hr/employees/{id}", handler::find)
+            .build();
+    }
+}
+
+@Component
+public record EmployeeHandler(
+    CreateEmployeeCommandExecutor createExecutor,
+    GetEmployeePageQueryProcessor pageProcessor,
+    FindEmployeeQueryProcessor findProcessor
+) {
+    public Mono<ServerResponse> create(ServerRequest request) {
+        return request.bodyToMono(CreateEmployee.class)
+            // An empty body completes without a value; without this, flatMap is skipped and
+            // `.then(201)` still answers Created for a command that never ran.
+            .switchIfEmpty(Mono.error(new ServerWebInputException("request body is required")))
+            .flatMap(createExecutor::execute)
+            .then(ServerResponse.status(HttpStatus.CREATED).build())
+            .onErrorResume(ServerWebInputException.class,
+                e -> ServerResponse.badRequest().build())
+            .onErrorResume(DuplicateEmailException.class,
+                e -> ServerResponse.status(HttpStatus.CONFLICT).build())
+            .onErrorResume(InvalidEmailFormatException.class,
+                e -> ServerResponse.badRequest().build())
+            .onErrorResume(InvalidDisplayNameException.class,
+                e -> ServerResponse.badRequest().build());
+    }
+
+    public Mono<ServerResponse> list(ServerRequest request) {
+        // Mono.fromCallable defers the parse so a malformed page/size becomes a reactive
+        // error signal at subscription time, not a synchronous throw at call time -- the
+        // functional runtime does not auto-translate a thrown exception into 400 the way
+        // an annotated @RequestParam binding does, so the mapping has to be explicit here.
+        return Mono.fromCallable(() -> {
+                // ServerRequest exposes queryParam(); param() is the WebMvc.fn API and
+                // does not compile against WebFlux.
+                var page = Integer.parseInt(request.queryParam("page").orElse("0"));
+                var size = Integer.parseInt(request.queryParam("size").orElse("10"));
+                return new GetEmployeePage(page, size);
+            })
+            // 400 belongs to the parse alone -- a NumberFormatException from the data path is a
+            // server fault, the same rule as find() below
+            .onErrorMap(NumberFormatException.class, e -> new ServerWebInputException("page and size must be integers"))
+            .flatMap(pageProcessor::process)
+            .flatMap(result -> ServerResponse.ok().bodyValue(result))
+            .onErrorResume(ServerWebInputException.class, e -> ServerResponse.badRequest().build());
+    }
+
+    public Mono<ServerResponse> find(ServerRequest request) {
+        var id = request.pathVariable("id");
+        // The 400 mapping is attached to the parse alone: an IllegalArgumentException raised
+        // further down (a corrupt CHAR(36) row failing UUID.fromString in the converter) is a
+        // server fault and must stay a 500, not be reported as the caller's mistake.
+        return Mono.fromCallable(() -> UUID.fromString(id))
+            .onErrorMap(IllegalArgumentException.class, e -> new ServerWebInputException("id must be a UUID"))
+            .flatMap(uuid -> findProcessor.process(new FindEmployee(uuid)))
+            .flatMap(result -> ServerResponse.ok().bodyValue(result))
+            .switchIfEmpty(ServerResponse.notFound().build())
+            .onErrorResume(ServerWebInputException.class, e -> ServerResponse.badRequest().build());
+    }
+}
+```
+
+The manual-parse wrapping in `list`/`find` above only applies to this style, which
+owns its own request parsing — the `@RestController` variant in
+`templates/web-layer-annotated.md` does not need it, since Spring's own
+`@RequestParam`/`@PathVariable` binding already rejects a malformed `int`/`UUID`
+with 400 before the method body runs.

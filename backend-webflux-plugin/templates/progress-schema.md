@@ -1,0 +1,161 @@
+# Pipeline Progress State
+
+Lightweight state tracking for the feature implementation pipeline.
+
+## File Location
+
+`{workDocDir}/.progress/{feature}.json`
+
+Created by `be-crud` (per entity). Updated by pipeline skills (be-crud, be-code, be-verify, be-review, be-fix, be-debug).
+
+## Schema
+
+Every timestamp (`createdAt`, `updatedAt`, `*.timestamp`) is UTC, whole seconds, `Z`-suffixed —
+`date -u +%Y-%m-%dT%H:%M:%SZ` — because `be-verify`/`be-progress` compare `updatedAt` textually
+against a file mtime in the same shape; a local offset would compare as a different instant.
+
+```json
+{
+  "feature": "create-employee",
+  "workDocument": "work/features/create-employee.md",
+  "dataProfile": "r2dbc",                 // be-crud: the profile this entity was scaffolded with
+  "createdAt": "2026-03-30T10:00:00Z",
+  "updatedAt": "2026-03-30T15:30:00Z",   // every timestamp in this file: UTC with a `Z` suffix, whole seconds
+  "specSource": {
+    "planFile": "docs/specs/employee-management/.implementation/backend/plan.json",
+    "entity": "Employee",
+    "feature": "employee-management"
+  },
+  "pipeline": {
+    "status": "implementing",
+    "scenarios": {
+      "total": 5,
+      "completed": 3
+    },
+    "verification": {
+      "status": "pass",
+      "timestamp": "2026-03-30T14:00:00Z",
+      "compilation": { "status": "pass", "errors": 0 },
+      "checkstyle": { "status": "pass", "violations": 0 },
+      "tests": { "status": "pass", "passed": 25, "total": 25 },
+      "build": { "status": "pass" },
+      "coverage": { "status": "pass", "linePercent": 82.4, "thresholdEnforced": false },
+      "tree": "242239b9581f30c19dd8abf0f67d245102d75dbd",
+      "committed": true
+    },
+    "review": {
+      "status": "fail",
+      "timestamp": "2026-03-30T14:30:00Z",
+      "overallScore": 7.5,
+      "criticalIssues": 1,
+      "totalIssues": 5,
+      "reportFile": "work/features/.progress/review-report-create-employee.json"
+    },
+    "fix": {
+      "status": "completed",
+      "round": 1,
+      "timestamp": "2026-03-30T15:00:00Z",
+      "fixed": 4,
+      "escalated": 1,
+      "tddCount": 2,
+      "directCount": 2,
+      "reportFile": "work/features/.progress/fix-report-create-employee.json"
+    },
+    "build": {
+      "timestamp": "2026-03-30T15:20:00Z",
+      "previousStatus": "done",
+      "filesModified": ["src/main/java/.../EmployeeHandler.java"]
+    },
+    "debug": {
+      "status": "resolved",
+      "previousStatus": "implementing",
+      "timestamp": "2026-03-30T15:30:00Z",
+      "classification": "test-failure",
+      "rootCause": "Write chain not wrapped in TransactionalOperator",
+      "filesModified": ["src/main/java/.../CreateEmployeeCommandExecutor.java"]
+    }
+  }
+}
+```
+
+## Status Values
+
+| Status | Meaning | Set By |
+|--------|---------|--------|
+| `planned` | Backend plan generated from spec, no scaffold yet | (tracked in spec progress file, not in backend pipeline) |
+| `scaffolded` | CRUD scaffold generated, no tests yet | be-crud |
+| `implementing` | TDD in progress (some `- [ ]` remain) | be-code |
+| `implemented` | All scenarios complete (`- [x]`) | be-code |
+| `verified` | Compilation + checkstyle + tests + build pass and the Coverage row is PASS or SKIP (`Overall: PASS`); `verification.tree` is the `scripts/source-tree-hash.sh` value of the tree it ran on — be-review, be-commit and be-jira-auto recompute it and refuse the status on a changed tree until `verification.committed` (set by be-commit when it commits that tree) says the record has been consumed | be-verify |
+| `verify-failed` | One or more verification steps failed | be-verify |
+| `reviewed` | Code review passed (with warnings) | be-review |
+| `review-failed` | Code review has critical issues | be-review |
+| `fixing` | Review fixes being applied | be-fix |
+| `done` | Review passed clean, ready to commit | be-review |
+| `resolved` | A fix outside the review loop changed the code (be-debug resolved an issue; be-build kept an edit on a `verified`/`reviewed`/`done` feature) — re-verify | be-debug, be-build |
+| `escalated` | Manual intervention required | be-fix, be-debug |
+
+## State Transitions
+
+Note: `planned` status is tracked in the spec progress file (by `be-plan`), not in the backend pipeline. The backend pipeline starts at `scaffolded` when `be-crud` is used, or at `implementing` when `be-code` is run directly without `be-crud`.
+
+```
+scaffolded → implementing → implemented → verified ─→ reviewed ─→ be-commit
+                                                   └→ done ────→ be-commit
+                                    ↓            ↓          ↓
+                              verify-failed  review-failed  fixing
+                                    ↓            ↓          ↓
+                                be-build     be-fix    be-verify (the fix changed code)
+                                    ↓            ↓          ↓
+                                be-verify    fixing    verified → be-review → reviewed/done
+                                    ↓
+                                verified
+
+At any point:
+  be-debug → resolved | escalated
+  resolved → (re-enter pipeline at appropriate stage)
+  escalated → (manual intervention, then re-enter)
+```
+
+## Read-Modify-Write Rule
+
+When updating the progress file:
+1. Read the latest file content immediately before writing
+2. Merge only the fields being changed — preserve all existing fields
+3. Write the complete merged object
+
+This prevents race conditions and data loss when multiple skills update the file.
+
+## Optional Fields
+
+### `specSource` (spec-driven mode only)
+
+Present when the feature was scaffolded from a planning-plugin spec via `be-plan` + `be-crud`.
+
+```json
+{
+  "specSource": {
+    "planFile": "docs/specs/{feature}/.implementation/backend/plan.json",
+    "entity": "Employee",
+    "feature": "employee-management"
+  }
+}
+```
+
+- `planFile`: path to the backend plan.json that drove scaffold generation
+- `entity`: the specific entity name from the plan that this work document covers
+- `feature`: the planning-plugin feature name (may differ from the work document feature name)
+
+Set by: `be-crud` (spec-driven mode only)
+
+## Directory Structure
+
+```
+{workDocDir}/
+├── create-employee.md          <- Work document with scenarios
+├── query-employee.md
+├── .progress/                  <- Pipeline state (gitignored optional)
+│   ├── create-employee.json    <- Progress for create-employee
+│   ├── review-report-create-employee.json  <- Review report (per feature)
+│   └── fix-report-create-employee.json     <- Fix report (per feature)
+```
