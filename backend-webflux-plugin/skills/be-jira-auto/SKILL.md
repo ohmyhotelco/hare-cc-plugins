@@ -433,7 +433,15 @@ no override, skip it -- note "Step 7: be-security skipped -- easy tier, no
 new entity/endpoint surface" and treat this step as `be-review`-only.
 
 **`be-review` branch:**
-- Read `review-report-{feature}.json` (path returned by
+- **First, confirm `be-review` wrote a verdict in this call**: read
+  `{workDocDir}/.progress/{feature}.json` — `pipeline.status` must now be
+  `reviewed`, `done` or `review-failed` (be-review sets one of them only
+  after saving the report). Still `verified`: be-review stopped without
+  writing (its Step 3.5 validation failed), and the
+  `review-report-{feature}.json` on disk is a previous round's or ticket's
+  — nothing removes old reports. Stop with `NEEDS-INPUT` quoting be-review's
+  own stop message; never read the report in that case.
+- Then read `review-report-{feature}.json` (path returned by
   `skills/be-review/SKILL.md` Step 4): verdict, critical/warning/
   suggestion counts.
 - Verdict PASS -- with or without warnings/suggestions -- and no security
@@ -479,6 +487,9 @@ Skill(skill: "backend-webflux-plugin:be-verify", args: "{feature} --yes")
 Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 ```
 
+(the same freshness check as Step 7: `pipeline.status` must have left
+`verified`, or the report on disk is stale — `NEEDS-INPUT`.)
+
 - **Read `pipeline.fix.round` before every `be-fix` call**, not only the
   first. The counter persists across runs (be-review zeroes it only on a
   clean PASS, be-commit only before a commit); if it is already >= 2, one
@@ -515,7 +526,8 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    on. For each feature (in `features` order) whose
    `pipeline.verification.tree` differs from the current
    `{pluginRoot}/scripts/source-tree-hash.sh`, run
-   `be-verify {feature} --yes` then `be-review {feature} --yes`; a FAIL goes
+   `be-verify {feature} --yes` then `be-review {feature} --yes` (Step 7's
+   freshness check applies); a FAIL goes
    through Step 8 for that feature (its bounds apply). A pass that changed
    nothing settles the tree; a pass in which a fix changed it is followed by
    at most **one** more pass -- two features whose fixes keep invalidating
@@ -531,9 +543,10 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    `git add -A` or `git add .`.
 2a. `be-commit` Step 1.5 asks "Continue with commit?" whenever ANY other
    feature under `{workDocDir}/.progress/` is not `reviewed`/`done` -- a
-   prompt this run cannot answer. Read every progress file first; if one
-   belongs to another feature and is in any other status, stop with
-   `NEEDS-INPUT` naming it instead of calling `be-commit`. Its Step 1.5
+   prompt this run cannot answer. Read every progress file first — this
+   feature's included: it must be `reviewed` or `done`, and any file in
+   any other status stops the run with `NEEDS-INPUT` naming it instead of
+   calling `be-commit`. Its Step 1.5
    also prompts when a `reviewed`/`done` feature not yet
    `pipeline.verification.committed` has a `pipeline.verification.tree`
    that differs from `{pluginRoot}/scripts/source-tree-hash.sh
