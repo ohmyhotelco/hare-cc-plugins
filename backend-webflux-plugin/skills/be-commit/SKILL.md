@@ -16,7 +16,7 @@ Create a git commit from already-staged changes with a validated commit message 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing → stop: start a new session so the hook writes it.
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration); missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Check Staged Changes
 
@@ -172,9 +172,10 @@ Check the command's exit code:
 
 - **Non-zero exit** (for example a pre-commit hook rejected the commit): the commit did
   **not** happen. Undo Step 6.5 entirely — under `{workDocDir}/.progress/.lock` again, re-reading each file
-  first and restoring only the two fields it wrote (`pipeline.fix.round` to the value kept in
-  memory, `pipeline.verification.committed` removed; the verification was not consumed and the
-  fix cycle did not end), re-staging the same files Step 6.5 re-staged. Show the command's output to the user verbatim, explain that no commit
+  first and restoring only the two fields it wrote, each to the value kept in memory from before
+  Step 6.5 (`pipeline.fix.round`; `pipeline.verification.committed` — removed only where Step 6.5
+  added it, a mark an earlier commit set stays; the verification was not consumed and the fix
+  cycle did not end), re-staging the same files Step 6.5 re-staged. Show the command's output to the user verbatim, explain that no commit
   was created, and **stop** — do not proceed to Step 8.
 - **Zero exit**: proceed to Step 8.
 

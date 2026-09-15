@@ -330,8 +330,9 @@ Standalone audit skills (usable independently):
 Automated entry point: the `be-jira-auto` skill runs this same be-crud → be-code → be-verify →
 (be-review + be-security) → be-fix → be-commit chain end to end from a Jira ticket, stopping
 at be-commit — it never pushes, opens a pull request, or touches the Jira issue itself.
-be-security only runs for tickets that add a new entity/endpoint (or mention anything
-security-sensitive); be-verify and be-review always run regardless of ticket size.
+be-security runs at the `normal`/`extreme` tiers (a ticket that adds an entity/endpoint or touches
+several modules) or whenever the ticket mentions anything security-sensitive; be-verify and
+be-review always run regardless of ticket size.
 ```
 
 ### Pipeline State Machine
@@ -369,7 +370,7 @@ Running a skill from an earlier pipeline stage demotes the status. Skills must w
 
 ### State File Safety
 
-**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and build-doctor agents rewrite it after each scenario / issue / attempt (the skill that took it is blocked on the agent), and staleness counts from the last refresh.
+**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and debugger agents rewrite it after every Gradle run (the skill that took it is blocked on the agent), and staleness counts from the last refresh. Acquisition is check-then-write, not atomic: the lock guards against a forgotten or crashed run, not against two sessions racing on one project.
 
 Lock file format:
 ```json
@@ -488,7 +489,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `dataProfile`: `"r2dbc"` | `"mybatis"` | `"both"` (default `"both"`) — see `docs/decisions.md` Decision 1
 - `webLayer`: `"functional"` (default, RouterFunction/HandlerFunction) | `"annotated"` (@RestController exception) — see `docs/decisions.md` Decision 2
 - `database`: `"mysql"` (default; what `be-crud` generates for) | `"h2"` (sample-only stand-in, MySQL mode) — `be-init` stops on any other value
-- `migration`: `"manual-sql"` (default, no runner) | `"flyway"` | `"liquibase"` (only if a project explicitly opts back in)
+- `migration`: `"manual-sql"` (default, no runner) | `"flyway"` | `"liquibase"` (only if a project explicitly opts back in) — informational: generation always writes plain SQL to `src/main/resources/migration/` and registers nothing; a runner-based project points its runner there or includes the file itself
 - `checkstyle`: Whether checkstyle is enabled (default: true)
 - `coverage`: Whether the JaCoco coverage row runs in `be-verify` (`true` only when the `jacoco` plugin is applied — `be-init` detects it; the percentage is report-only, no threshold — see `docs/decisions.md` Decision 6)
 - `lombokEnabled`: Whether Lombok is used (default: true)

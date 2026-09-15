@@ -65,8 +65,10 @@ Process issues in order: critical → warning → suggestion.
 5. Run test class again — verify all tests pass
 6. Maximum 3 attempts per fix; if still failing, revert everything written for this issue in
    steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state — from the
-   snapshot of each file taken before this issue's first edit, never `git checkout -- file`, which
-   restores the last COMMIT and erases earlier fixes in the same file — then
+   snapshot taken before this issue's first edit: each file copied into a `mktemp -d` directory
+   outside the repository (a new file recorded as absent), restored byte-for-byte, absent files
+   deleted, the directory removed at the end; never `git checkout -- file`, which restores the last
+   COMMIT and erases earlier fixes in the same file — then
    classify as `escalated`. Never move to the next issue with a failed fix's partial changes
    still in the tree — the fix-report's `escalated[].reason` is the only trace of the attempt
    that should remain
@@ -98,7 +100,7 @@ Record results: compilation, checkstyle, tests, build.
 
 ### Phase 4: Produce Fix Report
 
-Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context) in the same directory as the review report:
+Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context) in the same directory as the review report. `issueId` is `{dimension key}-{index}`: the report's `dimensions{}` key as written (`data_layer`, not `Data Layer`) and the issue's 0-based position in that dimension's `issues[]` — `data_layer-0` is the first data-layer issue; be-fix Step 5 rejects a report whose ids are not exactly these:
 
 ```json
 {
@@ -166,7 +168,7 @@ Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context
 - For TDD fixes: follow strict RED-GREEN methodology (no code without failing test)
 - For direct fixes: verify compilation after each edit
 - Maximum 3 attempts per TDD fix before escalating
-- After each issue, rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
+- After every Gradle run (each attempt of each issue), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
 - Never leave an escalated issue's changes (test and/or edit) in the tree — revert before
   moving to the next issue (see Phase 2)
 - Preserve existing code intent — apply minimum necessary change

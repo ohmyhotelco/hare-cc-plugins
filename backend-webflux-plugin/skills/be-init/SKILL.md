@@ -42,7 +42,7 @@ Scan the project to detect settings automatically:
    - One style clearly dominates → that style wins, no warning needed.
    - Both styles are present in meaningful numbers (mixed evenly) → do not silently default. Flag it in Step 3 as a warning: the existing source shows both `RouterFunction` and `@RestController` usage, and per this plugin's architecture rule a domain must never mix both styles (see `CLAUDE.md` § Web Layer) — ask the user which style to standardize on for new code rather than picking `"functional"` for them.
 7. **Database**: Check dependencies for `mysql-connector-j` / `io.asyncer:r2dbc-mysql` (mysql, default) or `h2` (the sample's stand-in). An `io.asyncer:r2dbc-mysql` below `1.4.2` is a Boot-3 line — warn in Step 3 (the same way item 5 warns on a 3.0.x MyBatis starter); `be-crud` Step 3 stops on it. Any other vendor's driver (PostgreSQL, MariaDB, …) → **stop, write no config**: `be-crud` emits MySQL DDL and requires the MySQL drivers, so the project would be configured and then given SQL its database rejects
-8. **Migration**: Check for a `src/main/resources/migration/` directory (manual-sql, default) or a migration-runner dependency (only if the project has explicitly opted into one)
+8. **Migration**: Check for a `src/main/resources/migration/` directory (manual-sql, default) or a migration-runner dependency (only if the project has explicitly opted into one). A runner changes nothing about generation — `be-crud` always writes plain SQL under `src/main/resources/migration/` and never registers it — so warn in Step 3: a Flyway project points its runner there (`spring.flyway.locations=classpath:migration`), a Liquibase project includes each file in its changelog itself
 9. **Checkstyle**: `true` when the `checkstyle` plugin is applied in the build file. If it is applied but `config/checkstyle/checkstyle.xml` is missing, offer to write the file from `templates/checkstyle-config.md` (that is the only place it is scaffolded; without it `checkstyleMain` fails on a missing config). A project that has its own file keeps it — the reviewer judges by the project's file
 10. **Coverage**: `true` only when the `jacoco` plugin is applied in the build file. Nothing in this plugin adds it, and with `coverage: true` on a project without it `be-verify`'s Coverage row fails (`jacocoTestReport` not found) and so does `Overall` — on every run. Absent → `false`, and tell the user in Step 3 how to enable it: the Gradle block in `templates/coverage-gate.md`, then re-run `be-init`
 11. **Lombok**: Check if `lombok` is in dependencies
@@ -64,7 +64,7 @@ Present detected values and ask the user to confirm or override:
 > Web Layer:         {detected or "functional"}   (functional | annotated)
 > Database:          {detected or "mysql"}
 > Migration:         {detected or "manual-sql"}
-> Checkstyle:        {detected or true}
+> Checkstyle:        {detected or false}
 > Coverage:          {detected or false}   (report-only JaCoco gate — see docs/decisions.md Decision 6)
 > Lombok:            {detected or true}
 > Architecture:      cqrs (default)

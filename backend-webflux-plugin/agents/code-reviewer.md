@@ -227,7 +227,7 @@ Severity levels:
 
 Calculate dimension scores and overall verdict:
 
-- Each dimension: 1-10 (10 = no issues, 1 = critical issues)
+- Each dimension: 1-10 (10 = no issues, 1 = critical issues); a score below 7 must be backed by at least one entry in that dimension's `issues[]` — be-review rejects a low score with nothing to fix
 - **overallScore**: arithmetic mean of all evaluated dimensions (6 when no spec, 7 when spec context exists), rounded to 1 decimal place
 - **PASS**: All dimensions >= 7, no critical issues
 - **FAIL**: Any dimension < 7 OR any critical issue exists

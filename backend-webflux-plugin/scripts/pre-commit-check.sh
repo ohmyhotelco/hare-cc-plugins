@@ -30,7 +30,10 @@ check_git_repo() {
 #                      value -- in Java source the same shape is an assignment or a comparison.
 # ([[:space:]] inside brackets and between tokens: `\s` is a GNU extension, and inside a bracket it
 # is the two characters "\" and "s".)
-KEY='(password|passwd|pwd|secret[_-]?key|secret|api[_-]?key|access[_-]?key|jwt[._-]?secret|signing[._-]?key|private[_-]?key|token)'
+# Line-oriented by design: a value on the line after its key (YAML `password: |`, JSON split across
+# lines, TOML `'''…'''`) and a short flag glued to its value (`mysql -phunter2`, indistinguishable
+# from `tar -pxvf`) are not seen -- be-security's Secrets & Configuration audit covers the file.
+KEY='(password|passwd|pwd|secret[._-]?key|secret|api[._-]?key|access[._-]?key|jwt[._-]?secret|signing[._-]?key|private[._-]?key|token)'
 # A separator between a key and its value: `key: v`, `key:v` (minified JSON, properties), `key = v`,
 # `key ?= v` (Makefile).
 SEP='[[:space:]]*[:?]?=[[:space:]]*|[[:space:]]*:[[:space:]]*'
@@ -87,12 +90,13 @@ CONFIG_PATTERNS=(
     "name[[:space:]]*=[[:space:]]*[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"'][^>]*value[[:space:]]*=[[:space:]]*${QUOTED_VALUE}"
     "value[[:space:]]*=[[:space:]]*${QUOTED_VALUE}[^>]*name[[:space:]]*=[[:space:]]*[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"']"
     "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<\$[:space:]][^<]*</"
-    # command lines in scripts and Dockerfiles: `--password hunter2` / `--password=hunter2`,
-    # `-Dspring.r2dbc.password=x` anywhere on the line, `curl -u user:pass`, `Authorization: Basic …`
-    "(^|[[:space:]])--([A-Za-z0-9-]*-)?${KEY}[= ]${BARE_VALUE}"
-    "(^|[[:space:]])-D[A-Za-z0-9_.-]*${KEY}=${BARE_VALUE}"
-    "(^|[[:space:]])(-u|--user)[= ][^:[:space:]\$]+:[^[:space:]\$@]+"
-    "[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]]|$)"
+    # command lines in scripts and Dockerfiles: `--password hunter2` / `--password=hunter2` /
+    # `--password 'hunter2'`, `-Dspring.r2dbc.password=x` anywhere on the line, `curl -u user:pass`,
+    # `Authorization: Basic …` -- not on a comment line (`^\+[^#]*`: nothing after a `#`)
+    "^\+[^#]*[[:space:]]--([A-Za-z0-9-]*-)?${KEY}[= ](${BARE_VALUE}|${QUOTED_VALUE})"
+    "^\+[^#]*[[:space:]]-D[A-Za-z0-9_.-]*${KEY}=(${BARE_VALUE}|${QUOTED_VALUE})"
+    "^\+[^#]*[[:space:]](-u|--user)[= ][\"']?[^:[:space:]\$\"']+:[^[:space:]\$@\"']+"
+    "^\+[^#]*[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]\"']|$)"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
 PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"
@@ -129,7 +133,7 @@ values_of() {   # $1 = line
         printf '%s\n' "$1" | grep -oiE "${KEY}[\"']?\\]?(${SEP})[\"']?[^\"'[:space:]]*" \
             | sed -E "s/^[^:=?[:space:]]*[\"']?\\]?(${SEP})//I"
         # `key v` (.properties, `ENV KEY v`, `--key v`)
-        printf '%s\n' "$1" | grep -oiE "(^|[[:space:]._-])${KEY}[[:space:]]+[^\"'[:space:]=:]+" | grep -viE "[:=]" \
+        printf '%s\n' "$1" | grep -oiE "(^|[[:space:]._-])${KEY}[[:space:]]+[\"']?[^\"'[:space:]=:]+" | grep -viE "[:=]" \
             | sed -E "s/^.*${KEY}[[:space:]]+//I"
         # XML `<key>v</key>` and `name=\"key\" … value=\"v\"` (either order)
         printf '%s\n' "$1" | grep -oiE "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<]*" | sed -E 's/^[^>]*>//'
@@ -190,13 +194,14 @@ run_security_check() {
     # must come back byte-exact to be used as a pathspec.
     # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
     # Exemptions are decided on the matched VALUES alone (values_of), never on the whole line.
-    local f line lines exempt_quoted pattern is_template
+    local f line lines exempt_quoted exempt_bare pattern is_template
     local raw
     raw=$(git -C "$root" diff --cached --no-renames --name-only --diff-filter=AMT -z 2>/dev/null \
         | while IFS= read -r -d '' f; do
             # a template's (`.env.example`) key values are placeholders -- only a vendor shape counts there
             if printf '%s' "$f" | grep -qiE "$DANGEROUS_FILE_EXEMPT"; then is_template=1; else is_template=0; fi
-            if printf '%s' "$f" | grep -qiE "$SHELL_FILES"; then exempt_quoted="$NOT_A_QUOTED_VALUE|$SHELL_REFERENCE"; else exempt_quoted="$NOT_A_QUOTED_VALUE"; fi
+            if printf '%s' "$f" | grep -qiE "$SHELL_FILES"; then exempt_quoted="$NOT_A_QUOTED_VALUE|$SHELL_REFERENCE"; exempt_bare="$NOT_A_BARE_VALUE|$SHELL_REFERENCE"
+            else exempt_quoted="$NOT_A_QUOTED_VALUE"; exempt_bare="$NOT_A_BARE_VALUE"; fi
             lines=$(added_lines "$root" "$f")
             printf '%s\n' "$lines" | grep -iE "$literal_pattern|^__GIT_DIFF_FAILED__" | while IFS= read -r line; do
                 if [ "$is_template" = 1 ] && ! printf '%s' "$line" | grep -qE "$vendor_pattern|^__GIT_DIFF_FAILED__"; then continue; fi
@@ -207,7 +212,7 @@ run_security_check() {
                 # (no `case` here: bash 3.2 cannot parse a `)` pattern inside $( … ))
                 if printf '%s' "$f" | grep -qiE '\.properties$'; then pattern="$config_pattern|$PROPERTIES_PATTERN"; else pattern="$config_pattern"; fi
                 printf '%s\n' "$lines" | grep -iE "$pattern" | while IFS= read -r line; do
-                    if exempt_line "$line" "$NOT_A_BARE_VALUE"; then continue; fi
+                    if exempt_line "$line" "$exempt_bare"; then continue; fi
                     printf '%s\n' "$line"
                 done
             fi

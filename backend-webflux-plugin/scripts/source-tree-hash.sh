@@ -40,21 +40,32 @@ IN_GIT=0; git rev-parse --is-inside-work-tree >/dev/null 2>&1 && IN_GIT=1
 module_paths() {   # $1 = module dir ("" = root): the gate inputs under it
     local m=${1:+$1/}
     printf '%s\n' "${m}src" "${m}buildSrc/src" "${m}buildSrc/build.gradle" "${m}buildSrc/build.gradle.kts" \
+        "${m}buildSrc/settings.gradle" "${m}buildSrc/settings.gradle.kts" "${m}buildSrc/gradle.properties" \
         "${m}build.gradle" "${m}build.gradle.kts" "${m}settings.gradle" "${m}settings.gradle.kts" \
         "${m}gradle.properties" "${m}gradlew" "${m}gradlew.bat" "${m}config" "${m}gradle"
 }
-# subproject directories: settings include(...) entries, plus directories carrying a build file
-# (working tree, and the index when in git), build/ and buildSrc/ pruned
+# subproject directories: settings `include(...)` entries (`:a:b` -> a/b; `includeBuild` is a
+# separate build, not a module; comments stripped first) and every `projectDir = file("x")`
+# relocation, plus directories carrying a build file (working tree, and the index when in git).
+# build/, .gradle/, buildSrc/, node_modules/ are pruned at every depth; a path that leaves the
+# repository (`../x`) or is absolute is dropped -- git would reject it as a pathspec.
 subprojects() {
-    { for s in settings.gradle settings.gradle.kts; do
-          [ -f "$s" ] && grep -oE 'include[[:space:]]*\(?[^)]*' "$s" | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" \
-              | sed -E 's/^://; s#:#/#g'
+    # every pipeline here ends in `|| true`: the function runs in a subshell under set -e/pipefail,
+    # and a grep with no match (a settings file with no quoted include) would otherwise end it
+    # before the build-file discovery below ran
+    { local s stripped
+      for s in settings.gradle settings.gradle.kts; do
+          [ -f "$s" ] || continue
+          stripped=$(sed -E 's#//.*$##; s/^[[:space:]]*#.*$//' "$s") || true
+          printf '%s\n' "$stripped" | grep -oE '(^|[^A-Za-z0-9_])include[[:space:]]*\(?[^)]*' | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" \
+              | sed -E 's/^://; s#:#/#g' || true
+          printf '%s\n' "$stripped" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new )?[Ff]ile[[:space:]]*\\([[:space:]]*[\"'][^\"']+[\"']" | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" || true
       done
-      find . -mindepth 2 -maxdepth 4 \( -name .git -o -name .gradle -o -name build -o -name buildSrc -o -name node_modules \) -prune \
-          -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##; s#/[^/]*$##'
-      [ $IN_GIT = 1 ] && git ls-files --cached -- '*/build.gradle' '*/build.gradle.kts' 2>/dev/null \
-          | grep -vE '(^|/)(build|buildSrc)/' | sed 's#/[^/]*$##'
-    } | grep -v '^$' | LC_ALL=C sort -u
+      find . -maxdepth 4 \( -name .git -o -name .gradle -o -name build -o -name buildSrc -o -name node_modules \) -prune \
+          -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##' | grep '/' | sed 's#/[^/]*$##' || true
+      if [ $IN_GIT = 1 ]; then git ls-files --cached -- '*/build.gradle' '*/build.gradle.kts' 2>/dev/null \
+          | grep -vE '(^|/)(build|buildSrc|\.gradle|node_modules)/' | sed 's#/[^/]*$##' || true; fi
+    } | grep -v '^$' | grep -vE '^(/|\.\.(/|$))' | LC_ALL=C sort -u || true
 }
 PATHS=(); while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "")
 while IFS= read -r d; do while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "$d"); done < <(subprojects)
@@ -76,6 +87,10 @@ fi
 
 index="$(cd "$(git rev-parse --git-dir)" && pwd -P)/index"     # absolute: git resolves a relative GIT_INDEX_FILE against the top-level, not the cwd
 top=$(git rev-parse --show-toplevel)
+# objects written while hashing (every unstaged blob, the tree) go to a temp object directory the
+# trap removes, with the real one as an alternate for reading -- not into .git/objects as loose
+# objects that pile up until a gc
+TR=$(mktemp -d); export GIT_OBJECT_DIRECTORY="$TR" GIT_ALTERNATE_OBJECT_DIRECTORIES="$(cd "$(git rev-parse --git-path objects)" && pwd -P)"
 if [ "$MODE" = working ]; then
     # seed from the real index's ENTRIES (not a copy of the file: a copy carries its stat cache,
     # and a same-second, same-size edit after the last index write would then be believed
@@ -98,11 +113,11 @@ else
     # entry is skipped by write-tree, as `git commit` skips it); everything outside the paths removed
     [ -f "$index" ] && cp "$index" "$T2"
     if [ -f "$T2" ]; then
-        # (ls-files without a pathspec lists the cwd's subtree only: run it from the top for "all")
-        GIT_INDEX_FILE="$T2" git -C "$top" ls-files -z | tr '\0' '\n' | LC_ALL=C sort > "$T2.all"
-        GIT_INDEX_FILE="$T2" git ls-files -z --full-name -- "${PATHS[@]}" | tr '\0' '\n' | LC_ALL=C sort > "$T2.keep"
-        LC_ALL=C comm -23 "$T2.all" "$T2.keep" | tr '\n' '\0' | GIT_INDEX_FILE="$T2" git -C "$top" update-index -z --force-remove --stdin
-        rm -f "$T2.all" "$T2.keep"
+        # everything not under the paths, straight from git (NUL-separated, so a path with a
+        # newline survives): the whole tree minus one `:(exclude)` pathspec per gate path
+        excl=(); for p in "${PATHS[@]}"; do excl+=(":(exclude)$p"); done
+        GIT_INDEX_FILE="$T2" git ls-files -z --full-name -- "$top" "${excl[@]}" \
+            | GIT_INDEX_FILE="$T2" git -C "$top" update-index -z --force-remove --stdin
     fi
 fi
 [ -f "$T2" ] || { echo "$EMPTY_TREE"; exit 0; }

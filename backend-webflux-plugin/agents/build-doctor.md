@@ -69,7 +69,7 @@ Execute the build command again.
   with no distinct root cause**: this attempt did not help. Revert it before returning to
   Step 2 — do not stack a second guess on top of a first one that made no progress; each
   new attempt should start from the clean baseline the previous successful (or reverted)
-  step left behind. Revert means restoring the snapshot you took of each file before editing it — read the file and keep its full content in memory (or copy it aside) before the first edit; `git checkout -- file` and `git stash` restore the last COMMIT, and on a tree full of uncommitted work they would erase everything written before this attempt. After each attempt, rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now when the file exists — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill.
+  step left behind. Revert means restoring the snapshot taken before the attempt's first edit: copy each file you are about to touch into a `mktemp -d` directory outside the repository (a file that does not exist yet is recorded as absent), restore byte-for-byte from there, delete the files recorded absent, and remove the directory when the run ends — never `git checkout -- file` or `git stash`, which restore the last COMMIT and on a tree full of uncommitted work erase everything written before this attempt; never a copy inside the repository, which the tree hash or a `git add -A` would pick up.
 
 ### Step 6: Retry Limit
 

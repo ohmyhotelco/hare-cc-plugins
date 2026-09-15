@@ -83,7 +83,7 @@ ticket.
 3. Record `buildCommand`, `testCommand`, `basePackage`, `sourceDir`,
    `testDir`, `workDocDir`, `dataProfile`, `webLayer`, `workingLanguage`
    for use in every later step.
-4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
+4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration); missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
@@ -230,7 +230,9 @@ When Step 1 had to draft its own Proposed Solution:
    `be-build` may edit the build), the tree is this
    pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
-   continue from the step the last report named, **capped at Step 6 when
+   continue from the step `{workDocDir}/.progress/jira-{jiraKey}.json`
+   names (written at every early stop -- see Gates; absent → `NEEDS-INPUT`
+   asking which step), **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
    re-enters at Step 6 instead whenever `{pluginRoot}/scripts/
    source-tree-hash.sh` (exit 0 and a 40-hex id, else `NEEDS-INPUT`: the
@@ -543,8 +545,13 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
 | After Step 8 | `be-review` verdict PASS (at most 2 `be-fix` rounds) | `ABORTED` -- list remaining critical/warning issues |
 | Step 9 | `be-commit` exits 0 with a confirmed short hash | Report the commit failure verbatim, stop -- no retry |
 
-Every early stop (`NEEDS-INPUT`/`ABORTED`) must report which pipeline step
-it stopped at and the current `pipeline.status` for each affected feature
+Every early stop (`NEEDS-INPUT`/`ABORTED`) writes
+`{workDocDir}/.progress/jira-{jiraKey}.json` — `{ "step": "{N}", "status":
+"NEEDS-INPUT|ABORTED|DONE", "features": [...], "timestamp": "{ISO 8601 Z}" }`
+(the report text is not persisted anywhere else, and Step 2's resume reads
+this file for "the step the last report named"; a resume with no file stops
+with `NEEDS-INPUT` asking which step to resume at) — and must report which
+pipeline step it stopped at and the current `pipeline.status` for each affected feature
 (read from `{workDocDir}/.progress/{feature}.json` when it exists), so the
 user knows exactly which `be-*` skill to resume with by hand. Never stop
 silently.
@@ -591,7 +598,9 @@ silently.
 
 ## Output
 
-Report, in `workingLanguage`, starting with a status line:
+Write `{workDocDir}/.progress/jira-{jiraKey}.json` with the final status (`DONE` closes the
+resume path: a later run on the same branch starts over at Step 3 only with the user's say-so),
+then report, in `workingLanguage`, starting with a status line:
 
 ```
 Status: DONE | NEEDS-INPUT | ABORTED (stopped at Step N)

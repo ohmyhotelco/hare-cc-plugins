@@ -618,7 +618,9 @@ scaffolded → implementing → implemented → verified ─→ reviewed ─→ 
                                     ↓            ↓          ↓
                                 be-build     be-fix    be-verify → be-review
                                     ↓            ↓
-                                verified     fixing → reviewed/done
+                                be-verify    fixing → be-verify → be-review
+                                    ↓                          ↓
+                                verified                 reviewed/done
 
 At any point:
   be-debug → resolved | escalated

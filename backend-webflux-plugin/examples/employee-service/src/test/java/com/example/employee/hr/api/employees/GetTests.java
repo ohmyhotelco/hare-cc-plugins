@@ -35,7 +35,13 @@ class GetTests {
         webTestClient.get().uri("/hr/employees?page=0&size=10")
             .exchange()
             .expectStatus().isOk()
-            .expectBody(new ParameterizedTypeReference<PageCarrier<EmployeeView>>() { });
+            .expectBody(new ParameterizedTypeReference<PageCarrier<EmployeeView>>() { })
+            .value(page -> {
+                org.assertj.core.api.Assertions.assertThat(page.page()).isEqualTo(0);
+                org.assertj.core.api.Assertions.assertThat(page.size()).isEqualTo(10);
+                org.assertj.core.api.Assertions.assertThat(page.total()).isGreaterThanOrEqualTo(1);
+                org.assertj.core.api.Assertions.assertThat(page.items()).isNotEmpty().hasSizeLessThanOrEqualTo(10);
+            });
     }
 
     @Test
