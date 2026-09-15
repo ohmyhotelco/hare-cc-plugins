@@ -23,6 +23,9 @@ verification for reactive chains; `StepVerifier` or an actual `WebTestClient` ca
 ```bash
 # Run specific test class (always 10-minute timeout)
 ./gradlew test --tests {fullTestClassName}
+# multi-module build: the owning subproject's task -- `--tests` on the root task fails in every
+# subproject that lacks the class ("No tests found for given includes")
+./gradlew :{module}:test --tests {fullTestClassName}
 
 # Run full build
 ./gradlew build

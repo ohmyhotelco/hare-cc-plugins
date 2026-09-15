@@ -9,6 +9,29 @@ There is no auto-populating base-entity + auditing-listener equivalent for MyBat
 either (no audit-listener mechanism as simple as JPA's) — timestamps are set
 explicitly by the CommandExecutor instead, same as the R2DBC profile.
 
+## JDBC DataSource next to R2DBC (`dataProfile: both`)
+
+Spring Boot's `DataSourceAutoConfiguration` backs off as soon as an R2DBC `ConnectionFactory` bean
+exists, so in a project that also uses R2DBC the MyBatis mappers find no `javax.sql.DataSource` and
+the context fails to start. Generated once per such project, `{basePackage}/data/JdbcConfig.java`
+(the properties are the usual `spring.datasource.*`):
+
+```java
+@Configuration
+public class JdbcConfig {
+    @Bean
+    @ConfigurationProperties("spring.datasource")
+    public DataSourceProperties dataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Bean
+    public DataSource dataSource(DataSourceProperties properties) {
+        return properties.initializeDataSourceBuilder().build();
+    }
+}
+```
+
 ## Entity (POJO) Template
 
 MyBatis has no entity annotations — it maps a plain POJO to SQL results via XML.

@@ -39,10 +39,12 @@ IN_GIT=0; git rev-parse --is-inside-work-tree >/dev/null 2>&1 && IN_GIT=1
 
 module_paths() {   # $1 = module dir ("" = root): the gate inputs under it
     local m=${1:+$1/}
-    printf '%s\n' "${m}src" "${m}buildSrc/src" "${m}buildSrc/build.gradle" "${m}buildSrc/build.gradle.kts" \
-        "${m}buildSrc/settings.gradle" "${m}buildSrc/settings.gradle.kts" "${m}buildSrc/gradle.properties" \
-        "${m}build.gradle" "${m}build.gradle.kts" "${m}settings.gradle" "${m}settings.gradle.kts" \
-        "${m}gradle.properties" "${m}gradlew" "${m}gradlew.bat" "${m}config" "${m}gradle"
+    printf '%s\n' "${m}src" "${m}build.gradle" "${m}build.gradle.kts" "${m}gradle.properties" "${m}config"
+    # the build's settings, wrapper and buildSrc belong to the Gradle root only -- a subproject's
+    # own settings file (a nested standalone build) is not an input of the outer build
+    [ -z "$1" ] && printf '%s\n' "settings.gradle" "settings.gradle.kts" "gradlew" "gradlew.bat" "gradle" \
+        "buildSrc/src" "buildSrc/build.gradle" "buildSrc/build.gradle.kts" "buildSrc/settings.gradle" "buildSrc/settings.gradle.kts" "buildSrc/gradle.properties"
+    return 0
 }
 # subproject directories: settings `include(...)` entries (`:a:b` -> a/b; `includeBuild`/`includeFlat`
 # are other builds, not modules; comments stripped, lines joined so a multi-line include parses)
@@ -80,11 +82,19 @@ subprojects() {
       if [ $IN_GIT = 1 ]; then git ls-files --cached -- '*/build.gradle' '*/build.gradle.kts' 2>/dev/null \
           | grep -vE '(^|/)(build|buildSrc|\.gradle|node_modules)/' | sed 's#/[^/]*$##' || true; fi
     } | grep -v '^$' | LC_ALL=C sort -u | { while IFS= read -r d; do
-            case "$d" in /*|../*|..) echo "source-tree-hash: project dir outside the repository not hashed: $d" >&2 ;; *) printf '%s\n' "$d" ;; esac
+            case "$d" in /*|../*|..)
+                # an external project dir is a build input this repository cannot hash: refuse, so a
+                # "verified" tree is never one whose inputs changed unseen (BEWF_IGNORE_EXTERNAL=1 accepts the omission)
+                if [ "${BEWF_IGNORE_EXTERNAL:-}" = 1 ]; then echo "source-tree-hash: project dir outside the repository not hashed: $d" >&2
+                else echo "source-tree-hash: project dir outside the repository cannot be hashed: $d (set BEWF_IGNORE_EXTERNAL=1 to accept)" >&2; echo "__EXTERNAL__"; fi ;;
+                *) printf '%s\n' "$d" ;; esac
         done; true; } || true
 }
 PATHS=(); while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "")
-while IFS= read -r d; do while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "$d"); done < <(subprojects)
+while IFS= read -r d; do
+    [ "$d" = "__EXTERNAL__" ] && exit 1
+    while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "$d")
+done < <(subprojects)
 # git pathspecs are globs (`lib[1]`, `lib*`) and `!`/`:` are magic: every path is passed literally
 LIT=(); for p in "${PATHS[@]}"; do LIT+=(":(literal)$p"); done
 

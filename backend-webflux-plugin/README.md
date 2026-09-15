@@ -605,13 +605,12 @@ State is tracked in `{workDocDir}/.progress/{feature}.json`.
 | `review-report-{feature}.json` | Review results with scored dimensions and enriched issues |
 | `fix-report-{feature}.json` | Fix results with strategy breakdown (TDD/direct/escalated) |
 | `jira/{jiraKey}.json` | be-jira-auto's run state (step, feature, commit) — its resume point |
-| `.lock` | Cross-skill lock (`operation`, `lockedAt`, an agent's `snapshotDir`) |
+| `.lock` | Cross-skill lock (`operation`, `lockedAt`, an agent's `snapshotDir`); stale after 30 minutes without a refresh |
 
 `pipeline.verification.tree` is `scripts/source-tree-hash.sh` over src/, buildSrc/, the build files,
 config/ and gradle/ at the moment be-verify ran; be-review refuses a `verified` feature whose tree
 changed since, be-commit compares the **staged** tree and marks the record `committed` once a commit
 consumed it, and be-jira-auto re-verifies before it commits. "Tree changed" means: run be-verify again.
-| `.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
 ### State Machine
 

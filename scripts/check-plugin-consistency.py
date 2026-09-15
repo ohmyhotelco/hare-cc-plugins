@@ -178,7 +178,7 @@ def check_passed_but_unbound(skills: dict[str, tuple[Path, str]]) -> list[Findin
     """
     out = []
     for name, (path, text) in skills.items():
-        for m in re.finditer(r"^\s*-\s+`?(\w+)`?:\s*\{(\w+)\}\s*$", text, re.M):   # `- param:` or `- `param`:`
+        for m in re.finditer(r"^\s*-\s+`?(\w+)`?\s*:\s*\{(\w+)\}\s*$", text, re.M):   # `- param:` or `- `param`:`, space before the colon allowed
             param, var = m.group(1), m.group(2)
             if var not in WIRING:
                 continue
@@ -499,9 +499,15 @@ def plugin_name(plugin: Path) -> str:
     """The name a launch qualifies an agent with is plugin.json's, not the checkout directory's."""
     pj = plugin / ".claude-plugin" / "plugin.json"
     try:
-        return json.loads(pj.read_text()).get("name") or plugin.name
+        name = json.loads(pj.read_text()).get("name")
     except Exception:
+        name = None
+    if not name:
+        # said out loud rather than silently using the directory: the qualifier check is only as
+        # good as the name it compares against
+        print(f"  warning: {pj} has no `name`; qualified launches are checked against `{plugin.name}`", file=sys.stderr)
         return plugin.name
+    return name
 
 
 def run(plugin: Path) -> list[Finding]:

@@ -63,7 +63,7 @@ The caller (a slash-command invocation, or the top-level session) provides
 these in the prompt:
 
 - `jiraKey` -- Jira issue key, e.g. `OMH-1234`, `ELS-3225` (required): the first token of the argument
-- `projectRoot` -- project root path: the current working directory unless the caller names another
+- `projectRoot` -- the current working directory: every delegated skill, git command and script runs there, so another directory cannot be named
 - `notes` -- (optional) everything after `notes:` in the argument (`/backend-webflux-plugin:be-jira-auto OMH-1234 notes: jira-mcp: mcp__atlassian__…; start over`): extra constraints or a preferred approach from the
   user, carried verbatim into Step 0.5, Step 1, and Step 2 -- this is also
   where a Jira MCP preference from a prior `NEEDS-INPUT` round comes back
@@ -260,7 +260,9 @@ When Step 1 had to draft its own Proposed Solution:
    tree is clean: a `committed`/`DONE` ticket is not implemented twice.
 3. Otherwise: resolve the default branch
    (`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`
-   then `master`), `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git fetch` (an expired credential, a passphrase or an unknown host key must fail, not prompt an unattended run — `GIT_TERMINAL_PROMPT` covers git's own credential prompt only, `BatchMode` covers SSH's), then
+   then `master`); with no `origin` remote (`git remote get-url origin`
+   fails — a local-only checkout) skip the fetch and branch from the local
+   default branch, saying so in the report; otherwise `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git fetch` (an expired credential, a passphrase or an unknown host key must fail, not prompt an unattended run — `GIT_TERMINAL_PROMPT` covers git's own credential prompt only, `BatchMode` covers SSH's), then
    `git checkout -b {jiraKey}-{slug} origin/{default}` -- with the start
    point spelled out; without it the branch forks from whatever HEAD is. `{slug}` is a short kebab-case form of the Jira summary (up to
    ~5 meaningful words).
@@ -275,9 +277,10 @@ Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
-- Before the call, look for `{workDocDir}/.progress/{kebab-case-entity}.json`: present in any
-  status → `be-crud`'s Step 2.5 would ask "Continue?" — stop with `NEEDS-INPUT` naming the
-  entity, unless `notes` says to start it over, in which case add `--yes`.
+- Before the first call, look for `{workDocDir}/.progress/{kebab-case-entity}.json` for **every**
+  entity to scaffold: one at `implementing` or later (`scaffolded` does not prompt) → `be-crud`'s
+  Step 2.5 would ask "Continue?" — stop with `NEEDS-INPUT` naming the entity before anything is
+  written, unless `notes` says to start it over, in which case add `--yes`.
 - `--domain` and `--profile` are the answers `be-crud` would otherwise ask
   for; passing them is what keeps this run unattended -- both were already
   decided in Step 1. The field flags carry what Step 1 read off the ticket:
@@ -564,9 +567,10 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 | Step 9 | `be-commit` exits 0 with a confirmed short hash | Report the commit failure verbatim, stop -- no retry |
 
 Every early stop (`NEEDS-INPUT`/`ABORTED`) writes the run state to
-`{workDocDir}/.progress/jira/{jiraKey}.json` (`mkdir -p` first; a stop
-before Step 0 resolved `workDocDir` or `jiraKey` writes nothing — there is
-nothing to resume; a field not known yet is `null`, `features` `[]`) — a
+`{workDocDir}/.progress/jira/{jiraKey}.json` (`mkdir -p` first; no lock — the file is this run's alone, not a feature's
+progress file; a stop before Step 0 resolved `workDocDir` or `jiraKey`
+writes nothing — there is nothing to resume; a field not known yet is
+`null`, `features` `[]`) — a
 subdirectory, so the
 `.progress/*.json` scans of be-commit and the other skills never read it
 as a progress file — `{ "step": "{N}", "status": "NEEDS-INPUT|ABORTED|

@@ -75,7 +75,7 @@ If a feature argument was provided:
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
-4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}" }` — and rewrite `lockedAt` to now before each of rows 1.1–1.5 (five ten-minute Gradle runs can outlast the 30-minute stale rule)
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-verify", "feature": "{feature}", "runId": "{a fresh random id, kept in memory for the release}" }` — and rewrite `lockedAt` to now before each of rows 1.1–1.5 (five ten-minute Gradle runs can outlast the 30-minute stale rule)
 
 If no feature argument: skip lock acquisition.
 

@@ -99,7 +99,7 @@ If the minimum method signature required for this scenario does not exist:
 Run the test class:
 
 ```bash
-{testCommand} --tests {fullTestClassName}
+{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see templates/tdd-rules.md
 ```
 
 - **Expected**: test FAILS on assertion (not compilation)
@@ -124,7 +124,7 @@ Run the test class:
 Run the entire test class:
 
 ```bash
-{testCommand} --tests {fullTestClassName}
+{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see templates/tdd-rules.md
 ```
 
 - **Expected**: ALL tests in the class pass
@@ -133,7 +133,7 @@ Run the entire test class:
   scenario since Step 1 (method stub, the test written in Step 2, and any implementation from
   Step 4) back to the state before this scenario started — from the snapshot taken before this
   scenario's first edit: each file copied with `cp -p` via Bash into `{snapshotDir}/{scenario}/{repository-relative path}`
-  (one `mktemp -d "${TMPDIR:-/tmp}/bewf-snapshot.XXXXXX"` per run with a `.bewf-snapshot` marker,
+  (one `mktemp -d "${TMPDIR:-/tmp}/bewf-snapshot.XXXXXX"` per run with a `.bewf-snapshot` marker (its content: the lock's `runId`),
   recorded once as `snapshotDir` in `{workDocDir}/.progress/.lock` by read-modify-write so the skill
   can remove it after a crash; a new file recorded as absent), restored with `cp -p`, absent files
   deleted, the scenario's subdirectory removed once it is settled (`git checkout -- file` restores the last COMMIT and would erase every earlier

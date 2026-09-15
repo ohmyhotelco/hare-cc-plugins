@@ -127,7 +127,7 @@ These mechanical transforms recur across the steps below — apply them exactly 
 
 - **PascalCase → snake_case** (table/column names, Step 4 #1): insert `_` before each uppercase letter that follows a lowercase letter or digit, then lowercase the result. `LeaveRequest` → `leave_request`.
 - **PascalCase → kebab-case** (progress file names, work document names — Steps 0.5, 2.5, 2.6, 6): same rule as snake_case, using `-` instead of `_`. `LeaveRequest` → `leave-request`.
-- **Pluralization for URL paths** (Step 2, `/{domain}/{entities}`): append `s` to the kebab-case form's last word, or `es` if that word ends in `s`/`x`/`ch`/`sh`. `leave-request` → `leave-requests`; `expense` → `expenses`.
+- **Pluralization for URL paths** (Step 2, `/{domain}/{entities}`): append `s` to the kebab-case form's last word, `es` if that word ends in `s`/`x`/`ch`/`sh`, or replace a consonant+`y` ending with `ies` (`category` → `categories`, `policy` → `policies`; `key` → `keys`). `leave-request` → `leave-requests`; `expense` → `expenses`.
 - **Next migration version number** (Step 4 #1): Glob `src/main/resources/migration/V*__*.sql`, extract the integer between `V` and the first `__` from each matched filename, take the max (0 if no files exist), and use `max + 1`. Plain integers, no zero-padding: `V1`, `V2`, … `V10`.
 
 ### Step 0: Validate Configuration
@@ -261,7 +261,7 @@ If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 2. Check if `{workDocDir}/.progress/.lock` exists
 3. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 4. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
-5. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-crud", "feature": "{kebab-case-entity}" }`
+5. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-crud", "feature": "{kebab-case-entity}", "runId": "{a fresh random id, kept in memory for the release}" }`
 
 **Spec-all mode**: The lock is acquired once before the first entity and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.
 
@@ -295,6 +295,8 @@ Check if the following shared classes exist and generate them if missing:
    - If it does not exist: generate from the UUID Conversions template in `templates/entity-conventions-r2dbc.md` — the MySQL R2DBC driver cannot bind `java.util.UUID` on its own
 3. `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (mybatis entities only)
    - If it does not exist: generate from `templates/entity-conventions-mybatis.md`
+4. `{sourceDir}/{basePackage}/data/JdbcConfig.java` (mybatis entities in a project whose build file also has `spring-boot-starter-data-r2dbc` — `config.dataProfile` `both`)
+   - If it does not exist: generate from the JDBC DataSource template in `templates/entity-conventions-mybatis.md` — Boot's `DataSource` auto-configuration backs off beside an R2DBC `ConnectionFactory`, and the mappers would have no `DataSource`
 
 There is no `BaseEntity` shared class in this plugin (no auditing-listener equivalent — see `templates/entity-conventions.md`). Do not generate one.
 
@@ -308,7 +310,7 @@ File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sq
 
 - Determine `{next}` and `{snake_case_entity}` using the Shared Derivation Rules above
 - Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax; every unique field gets a **named** constraint `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` — the executor maps a `DataIntegrityViolationException` to `Duplicate{Field}Exception` only when the message names that constraint: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL` with `CONSTRAINT uk_{table}_id UNIQUE (id)`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
-- Add indexes for unique fields
+- No separate index on a unique column — the named UNIQUE constraint already is one; add `INDEX idx_{table}_{column}` only for the filter/sort columns a plan names
 - This file is generated only — never executed by this skill (see `docs/decisions.md` Decision 3)
 
 #### 2. Entity / POJO

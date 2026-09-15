@@ -61,7 +61,7 @@ Process issues in order: critical → warning → suggestion.
 #### For TDD-Required Fixes
 
 1. Write a test that exposes the issue (RED)
-2. Run test class: `{testCommand} --tests {testClass}` (10-minute timeout)
+2. Run test class: `{testCommand} --tests {testClass}` (10-minute timeout; multi-module: `{gradleCommand} :{module}:test --tests {testClass}`, the subproject owning the file)
 3. Verify test fails for the expected reason
 4. Apply minimum fix to pass the test (GREEN)
 5. Run test class again — verify all tests pass
@@ -69,7 +69,7 @@ Process issues in order: critical → warning → suggestion.
    steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state — from the
    snapshot taken before this issue's first edit: each file copied with `cp -p` via Bash into
    `{snapshotDir}/{issue}/{repository-relative path}` (one `mktemp -d "${TMPDIR:-/tmp}/bewf-snapshot.XXXXXX"`
-   per run with a `.bewf-snapshot` marker, recorded once as `snapshotDir` in
+   per run with a `.bewf-snapshot` marker (its content: the lock's `runId`), recorded once as `snapshotDir` in
    `{workDocDir}/.progress/.lock` by read-modify-write; a new file recorded as absent), restored
    with `cp -p`, absent files deleted, the issue's subdirectory removed once it is settled; never `git checkout -- file`, which restores the last
    COMMIT and erases earlier fixes in the same file — then
@@ -81,7 +81,7 @@ Process issues in order: critical → warning → suggestion.
 
 1. Read the file at the specified line
 2. Apply the targeted edit
-3. Run compilation check: `{gradleCommand} classes` (verify no new errors)
+3. Run compilation check: `{gradleCommand} classes testClasses` (verify no new errors — test-quality fixes edit test sources, which `classes` alone never compiles)
 4. If the compilation check fails, revert this specific edit (restore the pre-edit content you read in item 1) and reclassify the issue as
    `escalated`, with the compilation error as the reason — do not leave a broken edit in the
    tree while continuing to the next issue

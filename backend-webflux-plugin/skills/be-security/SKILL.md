@@ -34,9 +34,9 @@ the doubt, rather than silently dropping it.
 - If argument provided: audit the specified file or directory
   - If the path does not exist, report `Path not found: {path}` and stop — do not
     fall back to scanning the default scope
-- If no argument: audit all files in `{sourceDir}/{basePackage}/` **and** `src/main/resources/` (the Secrets & Configuration rules are about `application*.yml`/`.properties`, JSON/TOML and compose files, which live there, not in the package)
-  - If that directory does not exist or contains zero `.java`/`.xml` files, report
-    `No source files found in {sourceDir}/{basePackage}/ — nothing to audit` and stop
+- If no argument: audit all files in `{sourceDir}/{basePackage}/` (`basePackage` with `.` → `/`, CLAUDE.md § Configuration) **and** `src/main/resources/` (the Secrets & Configuration rules are about `application*.yml`/`.properties`, JSON/TOML and compose files, which live there, not in the package)
+  - If neither location holds a file to audit, report
+    `No source files found in {sourceDir}/{basePackage}/ or src/main/resources/ — nothing to audit` and stop (a resources-only tree is still audited for secrets)
 - Include MyBatis XML mappers under `src/main/resources/mapper/` in scope whenever
   `dataProfile` is `"mybatis"` or `"both"` — the Injection checks in Step 2 require
   them; a scope that only walks `.java` files misses every mapper-level

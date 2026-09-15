@@ -137,7 +137,7 @@ Before the commit, for every feature progress file whose status is `reviewed` or
 `pipeline.fix.round` to `0` — and, when its `pipeline.verification.tree` equals the staged hash Step 1.5
 computed, `pipeline.verification.committed` to `true` (this commit consumes that verification; Step 1.5
 stops comparing it to later trees) — (read-modify-write, preserving everything else) under
-`{workDocDir}/.progress/.lock`, taken and released (per CLAUDE.md § State File Safety) around the writes exactly as every other
+`{workDocDir}/.progress/.lock` (`operation: be-commit`, a fresh `runId`), taken and released (per CLAUDE.md § State File Safety) around the writes exactly as every other
 progress-file writer does (CLAUDE.md § State File Safety); if the lock is held by a live operation,
 skip the reset and say so rather than wait. The counter bounds fix attempts within one review cycle;
 a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes the

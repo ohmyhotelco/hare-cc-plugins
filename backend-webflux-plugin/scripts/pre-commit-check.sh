@@ -15,8 +15,8 @@ export LC_ALL=C
 # Git repository check
 check_git_repo() {
     if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-        echo "NOT_GIT_REPO"
-        exit 0
+        echo "NOT_GIT_REPO: nothing was scanned"
+        exit 2   # a caller that reads the status must not take an unperformed scan for a clean one
     fi
 }
 

@@ -22,7 +22,7 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 Strip a trailing `--yes` flag first: it answers the Step 2 re-review confirmation and the Step 2.5 staleness prompt with yes — for an unattended caller (`be-jira-auto`) that has already decided; without it the prompts are asked. The argument can be:
 
-- **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
+- **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` (`.` → `/`) plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
 - **Directory path**: use directly as the review target
 - **No argument**: review all source code in `{sourceDir}/{basePackage}/`. Before launching the agent, count the `.java` files under that path. If the count exceeds ~40 files, a full-repo pass risks a shallow or truncated review — tell the user the file count, list the top-level domain packages under `{basePackage}`, and ask them to either pick one package as the scoped target or confirm they want the full, unscoped review anyway.
 
@@ -74,7 +74,7 @@ If a feature name was provided:
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
-4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-review", "feature": "{feature}" }`
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-review", "feature": "{feature}", "runId": "{a fresh random id, kept in memory for the release}" }`
 
 If no feature name: skip lock acquisition.
 

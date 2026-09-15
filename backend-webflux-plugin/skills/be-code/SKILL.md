@@ -149,7 +149,7 @@ Follow the original manual flow:
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock (first the directory its `snapshotDir` names, if any)
-4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature-name}" }`
+4. Write lock file: `{ "lockedAt": "{ISO 8601}", "operation": "be-code", "feature": "{feature-name}", "runId": "{a fresh random id, kept in memory for the release}" }`
 
 **Multi-entity mode**: The lock is acquired once here and held for the entire multi-entity operation. It is released once in Step 7 after all entities are processed.
 
@@ -173,7 +173,7 @@ releases the lock.
 
 ### Step 3.7: Initialize Pipeline State
 
-For each entity being processed, create or update `{workDocDir}/.progress/{kebab-case-entity}.json` (`{feature-name}.json` in work-document mode — the name Step 3.5 checked):
+For each entity in `confirmedEntities` (plan-driven mode — a declined entity is not touched) or the one work-document feature, create or update `{workDocDir}/.progress/{kebab-case-entity}.json` (`{feature-name}.json` in work-document mode — the name Step 3.5 checked):
 
 1. Create `{workDocDir}/.progress/` directory if it does not exist
 2. If progress file does not exist, create it:
