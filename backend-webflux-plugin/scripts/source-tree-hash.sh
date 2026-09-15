@@ -74,8 +74,10 @@ subprojects() {
           # first unquoted token (`rootProject.name = …` after a Groovy `include ':app'`) ends it
           printf '%s\n' "$joined" | grep -oE "(^|[^A-Za-z0-9_])include([[:space:]]*\\([[:space:]]*(listOf[[:space:]]*\\([[:space:]]*)?|[[:space:]]+)([\"'][^\"']*[\"'][[:space:]]*,?[[:space:]]*)+" \
               | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" | sed -E 's/^://; s#:#/#g' || true
-          printf '%s\n' "$joined" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new[[:space:]]+File|file)[[:space:]]*\\([^\"']*([\"'][^\"']*[\"'][^\"']*)*" \
-              | sed -E "s/.*[\"']([^\"']+)[\"'][^\"']*$/\\1/" || true
+          # one match per statement: the parenthesised argument list, where a quoted string may
+          # itself contain `)` -- then that statement's last quoted string is the directory
+          printf '%s\n' "$joined" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new[[:space:]]+File|file)[[:space:]]*\\(([\"'][^\"']*[\"']|[^\"'()])*\\)" \
+              | sed -E "s/.*[\"']([^\"']+)[\"'][^\"']*\\)$/\\1/" || true
       done
       find . -maxdepth 4 \( -name .git -o -name .gradle -o -name build -o -name buildSrc -o -name node_modules \) -prune \
           -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##' | grep '/' | sed 's#/[^/]*$##' || true

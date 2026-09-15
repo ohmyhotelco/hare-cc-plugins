@@ -180,8 +180,8 @@ Call the issue-lookup tool resolved in Step 0.5 with `{jiraKey}`.
    - **Tier** -- classify the ticket to scale the Step 7 gate:
      - `easy`: no new entity, no new public endpoint -- a logic/bug fix on
        code that already exists.
-     - `normal`: exactly one new entity scaffolded (one `be-crud` call),
-       one domain.
+     - `normal`: one new entity scaffolded (one `be-crud` call), or one or
+       more new public endpoints on existing entities, within one domain.
      - `extreme`: more than one new entity, or the change spans more than
        one domain/module.
      Tier never changes whether `be-verify`/`be-review` run (see Golden
@@ -229,8 +229,11 @@ When Step 1 had to draft its own Proposed Solution:
    `{testDir}`, `src/main/resources/`, `config/`, `gradle/`, `buildSrc/`,
    `{workDocDir}`, or is a `build.gradle(.kts)` / `settings.gradle(.kts)` /
    `gradle.properties` / `gradlew` file (be-crud edits `application.yml`,
-   `be-build` may edit the build), the tree is this
-   pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
+   `be-build` may edit the build) **and is in the run state's `dirty`
+   list** (a path that is not was edited during the pause: stop with
+   `NEEDS-INPUT` naming it — the security fix the Step 7 stop asked for is
+   the exception, when its paths lie under `{sourceDir}`/`{testDir}`), the
+   tree is this pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
    continue from the step and feature `{workDocDir}/.progress/jira/{jiraKey}.json`
    names (written at every early stop and after the commit -- see Gates;
@@ -274,7 +277,7 @@ When Step 1 had to draft its own Proposed Solution:
 Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 
 ```
-Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
+Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[:unique][:nullable][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
 - Before the first call, look for `{workDocDir}/.progress/{kebab-case-entity}.json` for **every**
@@ -287,7 +290,7 @@ Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[
   a field the ticket calls unique gets `:unique` (that is the only thing that
   makes `be-crud` emit the `existsBy` pre-check, the named constraint mapping
   and `Duplicate{Field}Exception`), a bounded one `:max=N`, an email/phone/
-  url one `:pattern=…`. A flag left off is a validator that does not exist. If `config.dataProfile == "both"` and the skill still
+  url one `:pattern=…`. A field the ticket calls optional gets `:nullable` — without it the column is `NOT NULL` and a "request without {field}" scenario fails at the database. A flag left off is a validator (or a nullability) that does not exist. If `config.dataProfile == "both"` and the skill still
   prompts, answer with the value decided in Step 1 (default `r2dbc` unless
   Step 1 found a reason to match an existing `mybatis` module).
 - Entity already exists (extend, not create): do **not** call `be-crud` --
@@ -391,7 +394,7 @@ processed, and a FAIL on any entry stops the run at that entry (later entries de
 Skill(skill: "backend-webflux-plugin:be-verify", args: "{feature} --yes")
 ```
 
-- `--yes` answers `be-verify`'s demotion/staleness confirmations (a resume re-entering here from `reviewed`/`done`/`escalated`) — this run decided the re-entry; the report is still read in full.
+- `--yes` answers `be-verify`'s demotion/staleness confirmations (a resume re-entering here from `reviewed`/`done`/`escalated`) — this run decided the re-entry; the report is still read in full. A `be-verify`/`be-review` stop on unfinished `- [ ]` scenarios (a work document edited during a pause) is `NEEDS-INPUT` naming them: the scenario has to go through Step 5 first.
 - Read the 5-row report (Compilation/Checkstyle/Tests/Build/Coverage).
 - The coverage percentage is report-only (`docs/decisions.md` Decision 6)
   -- carry it into the final report, never treat the number as a failure
@@ -536,9 +539,13 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    or renamed record is otherwise misread) against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
    files this feature touched. On a resume, the baseline already held this
-   pipeline's own dirty files (Step 2's exception) -- add every dirty path
-   under the Step 2 locations too, or the migration and entity from the
-   first run are never staged and the commit is a partial feature.
+   pipeline's own dirty files (Step 2's exception) -- add the paths the
+   run state's `dirty` list names (the pipeline's own files at the last
+   stop) as well, or the migration and entity from the first run are
+   never staged and the commit is a partial feature. A dirty path under
+   the Step 2 locations that is in neither set was edited by someone
+   during the pause: stop with `NEEDS-INPUT` naming it rather than commit
+   it as this ticket's work.
 2. `git add <file1> <file2> ...` -- name every file explicitly. Never
    `git add -A` or `git add .`.
 2a. `be-commit` Step 1.5 asks "Continue with commit?" whenever ANY other
@@ -588,8 +595,9 @@ subdirectory, so the
 `.progress/*.json` scans of be-commit and the other skills never read it
 as a progress file — `{ "step": "{N}", "status": "NEEDS-INPUT|ABORTED|
 committed|DONE", "feature": "{the entry being processed}", "features":
-[...], "commit": "{short hash, once be-commit returned it}", "timestamp":
-"{ISO 8601 Z}" }`. Step 9 item 4 writes `committed` with the hash the
+[...], "dirty": ["{every path `git status --porcelain -z` lists under the
+Step 2 locations at this stop -- the pipeline's own files}"], "commit":
+"{short hash, once be-commit returned it}", "timestamp": "{ISO 8601 Z}" }`. Step 9 item 4 writes `committed` with the hash the
 moment be-commit reports it (a crash before `DONE` must not replay the
 commit); the Output section writes `DONE`. Step 2 reads it whenever the
 branch carries `{jiraKey}` (a resume with no file stops with `NEEDS-INPUT`

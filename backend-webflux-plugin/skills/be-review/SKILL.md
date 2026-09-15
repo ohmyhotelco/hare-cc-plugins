@@ -63,7 +63,9 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    > "New or modified scenarios may not be reflected in the current code."
    > "Consider re-running `/backend-webflux-plugin:be-code {workDoc}` to implement new scenarios."
    > "Continue with review anyway?"
-   If the user declines, stop here.
+   If the user declines, stop here. Under `--yes`: proceed only when the work document has no
+   `- [ ]` left; otherwise stop and report the unfinished scenarios — `be-jira-auto` turns that
+   into `NEEDS-INPUT`.
 
 ### Step 2.6: Acquire Lock
 

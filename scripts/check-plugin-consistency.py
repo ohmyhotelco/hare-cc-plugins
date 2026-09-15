@@ -185,7 +185,7 @@ def check_passed_but_unbound(skills: dict[str, tuple[Path, str]]) -> list[Findin
             # "Bound before use" — anywhere earlier in the skill, not only Step 0. A value may
             # legitimately be read from plan.json in Step 1 (localesDir) rather than from config.
             # Other launches' parameter lines do not count as a binding.
-            before = re.sub(r"^\s*-\s+\w+:\s*\{\w+\}\s*$", "", text[: m.start()], flags=re.M)
+            before = re.sub(r"^\s*-\s+`?\w+`?\s*:\s*\{\w+\}\s*$", "", text[: m.start()], flags=re.M)   # both bullet spellings
             if re.search(rf"`{var}`", before):
                 continue
             if re.search(rf"Derive `{var}`", before):

@@ -1,7 +1,7 @@
 ---
 name: be-crud
 description: "Generate CRUD scaffold for an entity using CQRS layered architecture (R2DBC or MyBatis, functional or annotated web layer)."
-argument-hint: "<EntityName> [field:Type[:unique][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] [--yes] | --all <feature-name> [--yes]"
+argument-hint: "<EntityName> [field:Type[:unique][:nullable][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] [--yes] | --all <feature-name> [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Bash
 ---
@@ -302,6 +302,10 @@ There is no `BaseEntity` shared class in this plugin (no auditing-listener equiv
 
 ### Step 4: Generate Files
 
+Before writing anything, Glob every entity-specific target below (migration, entity/POJO, mapper interface + XML, repository, commands, executors, queries, processors, views, validator, exceptions, router/handler or controller, tests, work document). Any that already exists is about to be overwritten — a `scaffolded` entity has no demotion prompt (Step 2.5), and a hand-edited scaffold is user work:
+> "{n} of this entity's files already exist: {list}. Overwrite them?"
+`--yes` answers yes; a decline stops here (nothing written, lock released). Record the run's start time for Step 5.
+
 Generate the following files in order. Use the entity's resolved `dataProfile` (`r2dbc` or `mybatis`, never `"both"` for a single entity) and `config.webLayer` to select which template variant applies. The templates are snippets without `import` lines; resolve them from the types used (`org.springframework.data.domain.Sort`, `org.springframework.http.ResponseEntity`, `org.springframework.web.server.ServerWebInputException`, `org.apache.ibatis.type.*` for the type handler, …) — a missing import is a compile failure `be-build` catches, not a design choice.
 
 #### 1. Manual SQL Migration
@@ -427,9 +431,9 @@ Never state a file was created without having just confirmed it — the report i
 
 For every file Step 3.5 or Step 4 was supposed to generate for this entity:
 
-1. Glob its exact path.
-2. If the glob matches: add it to a `verified` list.
-3. If the glob does not match: add it, plus the step/sub-step that was supposed to generate it, to a `failed` list. Do not guess or assume it exists — an un-globbed file is a failed file, not an omission.
+1. Glob its exact path and read its modification time (`date -u -r {path} +%Y-%m-%dT%H:%M:%S`, as be-verify Step 0.6 does).
+2. If the file exists and its mtime is not before the run's start time (Step 4): add it to a `verified` list.
+3. Otherwise — absent, or older than this run (a write that failed left a pre-existing file in place): add it, plus the step/sub-step that was supposed to generate it, to a `failed` list. Do not guess or assume it was written — existence alone is not evidence of this run's work.
 
 #### 5.2 Report
 

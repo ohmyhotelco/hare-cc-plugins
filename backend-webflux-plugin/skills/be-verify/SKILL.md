@@ -64,7 +64,10 @@ If a feature argument was provided **and its progress file exists** (Step 0 cont
    > "New or modified scenarios may not be reflected in the current code."
    > "Consider re-running `/backend-webflux-plugin:be-code {workDoc}` to implement new scenarios."
    > "Continue with verification anyway?"
-   If the user declines, stop here.
+   If the user declines, stop here. Under `--yes`: proceed only when the work document has no
+   `- [ ]` left (an edit that added a scenario nobody implemented must not be verified past);
+   otherwise stop and report the unfinished scenarios — `be-jira-auto` turns that into
+   `NEEDS-INPUT`.
 
 ### Step 0.7: Acquire Lock
 
