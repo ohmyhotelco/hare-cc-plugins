@@ -98,8 +98,8 @@ Standalone audits (usable independently):
 |----------|-----------|
 | Language | Java 21+ |
 | Framework | Spring Boot 4.x + Spring WebFlux (reactive REST) + Spring Validation |
-| Build | Gradle (Kotlin DSL or Groovy) or Maven |
-| Database | MySQL 8.0.33 (default), PostgreSQL, MariaDB, H2 |
+| Build | Gradle (Kotlin DSL or Groovy) — Maven is not supported: every gate row is a Gradle task |
+| Database | MySQL 8.0.33 (`be-crud` generates MySQL DDL and requires the MySQL drivers); H2 in MySQL mode as the sample's stand-in |
 | Data Layer | R2DBC (`ReactiveCrudRepository`) and/or MyBatis (blocking, offloaded to `boundedElastic`) — see `docs/decisions.md` |
 | Web Layer | RouterFunction/HandlerFunction (default) or `@RestController` (named exception) |
 | Migration | Manual SQL (default, no runner tool) |
@@ -182,7 +182,7 @@ Verify the installation:
 **When to use**: First-time setup in a project, or reconfiguring settings.
 
 **What happens**:
-1. Auto-detects build tool (Gradle Kotlin/Groovy, Maven), Java version, Spring Boot version
+1. Auto-detects build tool (Gradle Kotlin/Groovy — stops on Maven), Java version, Spring Boot version
 2. Auto-detects base package, data profile (R2DBC/MyBatis/both), web layer style, database, migration convention
 3. Checks for Checkstyle, JaCoco, and Lombok configuration
 4. Writes `.claude/backend-webflux-plugin.json`
@@ -514,6 +514,7 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
   "javaVersion": "21",
   "springBootVersion": "4.0.2",
   "buildTool": "gradle-kotlin",
+  "gradleCommand": "./gradlew",
   "buildCommand": "./gradlew build",
   "testCommand": "./gradlew test",
   "basePackage": "com.example",
@@ -536,7 +537,8 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
 |-------|-------------|---------|
 | `javaVersion` | Java toolchain version | `"21"` |
 | `springBootVersion` | Spring Boot version | `"4.0.2"` |
-| `buildTool` | `"gradle-kotlin"` / `"gradle-groovy"` / `"maven"` | `"gradle-kotlin"` |
+| `buildTool` | `"gradle-kotlin"` / `"gradle-groovy"` (Gradle only) | `"gradle-kotlin"` |
+| `gradleCommand` | Wrapper the task-level gate rows run (`gradle` when no wrapper; absent → `./gradlew`) | `"./gradlew"` |
 | `buildCommand` | Full build command | `"./gradlew build"` |
 | `testCommand` | Test-only command | `"./gradlew test"` |
 | `basePackage` | Root Java package | `"com.example"` |
@@ -545,7 +547,7 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
 | `architecture` | Architecture pattern — determines package structure and templates | `"cqrs"` |
 | `dataProfile` | `"r2dbc"` / `"mybatis"` / `"both"` — see `docs/decisions.md` Decision 1 | `"both"` |
 | `webLayer` | `"functional"` (RouterFunction) / `"annotated"` (@RestController) — see `docs/decisions.md` Decision 2 | `"functional"` |
-| `database` | `"mysql"` / `"postgresql"` / `"h2"` / `"mariadb"` | `"mysql"` |
+| `database` | `"mysql"` (what `be-crud` generates for) / `"h2"` (sample stand-in) | `"mysql"` |
 | `migration` | `"manual-sql"` / `"flyway"` / `"liquibase"` (only if explicitly opted in) | `"manual-sql"` |
 | `checkstyle` | Whether Checkstyle is enabled | `true` |
 | `coverage` | Whether the JaCoco coverage row runs (report-only, no threshold) | `true` |

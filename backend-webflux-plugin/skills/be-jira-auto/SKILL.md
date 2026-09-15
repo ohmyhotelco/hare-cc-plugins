@@ -300,13 +300,19 @@ Step 3), so the work document must already exist and be final before Step
    this file, since nobody is present to confirm or drop it.
 3. `feature` = kebab-case of the primary entity name, or kebab-case of
    `{jiraKey}` when the ticket is not centered on one entity.
+4. **Every entity Step 3 scaffolded is a feature of its own**: `be-crud`
+   wrote `{workDocDir}/{kebab-case-entity}.md` for each, so do items 1-2
+   for each of them, not only for the primary -- a secondary entity whose
+   document is left at the scaffold's defaults never reaches `be-code`,
+   `be-verify` or `be-review`. Keep the list (`features`, in Step 1's
+   dependency order); Steps 5-8 iterate it.
 
 ### Step 5: Implement (TDD) -- `be-code`
 
-Per entity/feature, in dependency order:
+For each entry of `features` (Step 4 item 4), in dependency order:
 
 ```
-Skill(skill: "be-code", args: "{workDocDir}/{feature}.md")
+Skill(skill: "be-code", args: "{workDocDir}/{one feature}.md")
 ```
 
 - Because the work document already exists, `be-code` enters file-path
@@ -318,6 +324,9 @@ Skill(skill: "be-code", args: "{workDocDir}/{feature}.md")
   (some scenario did not finish, e.g. 3 consecutive failures) -- stop with
   `NEEDS-INPUT`, naming exactly which scenario is unfinished and the
   reason the skill reported.
+
+Steps 6–8 run **per entry of `features`** (Step 4 item 4): `{feature}` below is the one being
+processed, and a FAIL on any entry stops the run at that entry (later entries depend on it).
 
 ### Step 6: Verify -- `be-verify`
 
@@ -367,9 +376,12 @@ new entity/endpoint surface" and treat this step as `be-review`-only.
 - Read `review-report-{feature}.json` (path returned by
   `skills/be-review/SKILL.md` Step 4): verdict, critical/warning/
   suggestion counts.
-- Verdict PASS with 0 issues and no security block (below) -- skip Step 8,
-  go straight to Step 9.
-- Verdict PASS with warnings/suggestions, or verdict FAIL -- go to Step 8.
+- Verdict PASS -- with or without warnings/suggestions -- and no security
+  block (below): skip Step 8, go straight to Step 9. A PASS with warnings
+  leaves the feature `reviewed`, and `be-fix` on a `reviewed` feature asks
+  "Continue?" (its Step 2.5 demotion check) -- a prompt this run cannot
+  answer. Carry the warnings into the Step 10 summary instead.
+- Verdict FAIL -- go to Step 8.
 
 **`be-security` branch (when run):**
 - `be-security` has no persisted report file and no `be-fix` integration
@@ -419,6 +431,11 @@ Skill(skill: "be-review", args: "{feature}")
    files this feature touched.
 2. `git add <file1> <file2> ...` -- name every file explicitly. Never
    `git add -A` or `git add .`.
+2a. `be-commit` Step 1.5 asks "Continue with commit?" whenever ANY other
+   feature under `{workDocDir}/.progress/` is not `reviewed`/`done` -- a
+   prompt this run cannot answer. Read every progress file first; if one
+   belongs to another feature and is in any other status, stop with
+   `NEEDS-INPUT` naming it instead of calling `be-commit`.
 3. ```
    Skill(skill: "be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```

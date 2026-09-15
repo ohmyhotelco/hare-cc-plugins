@@ -80,7 +80,7 @@ If the argument is a feature name (not a file path):
 
 Auto-generate an enriched work document from plan.json for each entity that lacks one:
 
-1. Read `templates/work-document-template.md` for the document format
+1. Read `templates/work-document-template.md` for the document format — including the `Data profile:` line at the top: resolve it as `be-crud` Step 1 does (`config.dataProfile`, or `r2dbc` when that is `both` and nothing says otherwise) and record it; the implement agent reads it to choose the entity-conventions file
 2. For each entity in plan.json that has no existing work document, generate `{workDocDir}/{kebab-case-entity}.md` with:
    - **Entity section**: fields table from `plan.json.entities[].fields[]` with types, constraints, and source references
    - **Commands section**: from `plan.json.commands[]` for this entity, including validation steps from BR-nnn
@@ -132,7 +132,7 @@ Follow the original manual flow:
 **Single-entity mode** (file path or single entity): If `{workDocDir}/.progress/{feature-name}.json` exists:
 
 1. Read `pipeline.status`
-2. If status is `"verified"`, `"reviewed"`, or `"done"`:
+2. If status is anything past `"implementing"` — `"implemented"`, `"verified"`, `"verify-failed"`, `"reviewed"`, `"review-failed"`, `"fixing"`, `"resolved"`, `"escalated"`, `"done"` — (CLAUDE.md § Demotion Warning: any earlier-stage skill resetting a later status asks first):
    > "This feature is currently '{status}'. Re-running TDD implementation will reset the pipeline status to 'implementing', discarding verification/review progress."
    > "Continue?"
    If the user declines, stop here.
@@ -162,7 +162,7 @@ Multi-entity mode only (single-entity runs did this in Step 3.5). Before Step 3.
 progress file, loop over every entity in
 `entityDependencyOrder` and check `{workDocDir}/.progress/{kebab-case-entity}.json`:
 1. If it exists, read `pipeline.status`
-2. If status is `"verified"`, `"reviewed"`, `"done"`, `"fixing"`, or `"escalated"`: warn the user (same messages as Step 3.5) and ask for confirmation for this entity
+2. If status is anything past `"implementing"` (the Step 3.5 list): warn the user (same messages as Step 3.5) and ask for confirmation for this entity
 3. If the user declines for a specific entity: leave it out of the batch and proceed to the next entity's check
 
 Build `confirmedEntities` from every entity that was not declined, in dependency
@@ -362,13 +362,13 @@ Invocation: `/backend-webflux-plugin:be-code employee`
       [x] empty display name returns 400 Bad Request
 
     Files created:
-      src/main/java/com/example/hr/command/CreateEmployee.java
-      src/main/java/com/example/hr/commandmodel/CreateEmployeeCommandExecutor.java
-      src/main/java/com/example/hr/hr/DuplicateEmailException.java
-      src/test/java/com/example/hr/PostTests.java
+      src/main/java/com/example/command/CreateEmployee.java
+      src/main/java/com/example/commandmodel/CreateEmployeeCommandExecutor.java
+      src/main/java/com/example/hr/DuplicateEmailException.java
+      src/test/java/com/example/hr/api/employees/PostTests.java
 
     Files modified:
-      src/main/java/com/example/hr/config/EmployeeRouterConfig.java
+      src/main/java/com/example/hr/api/EmployeeRouter.java
 
     Build: PASS
     ```

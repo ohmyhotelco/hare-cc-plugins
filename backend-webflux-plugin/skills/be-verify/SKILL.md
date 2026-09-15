@@ -48,10 +48,11 @@ If a feature argument was provided:
    - The work document's mtime: `date -u -r {workDocPath} +%Y-%m-%dT%H:%M:%S` — `-r FILE` is
      the one mtime form BSD (macOS) and GNU `date` share; `stat -c %Y` and `date -d` are
      GNU-only and fail with `illegal option` on macOS
-   - The progress file's `updatedAt`, first 19 characters (it is UTC per
-     `templates/progress-schema.md`; this drops a `Z`/`+00:00` suffix or fractional seconds, which
-     is why raw strings are never compared — `2026-…Z` and `2026-…+00:00` are the same instant and
-     different text)
+   - The progress file's `updatedAt`: it must end in `Z` (`templates/progress-schema.md` — every
+     writer records UTC with a `Z`, whole seconds); take its first 19 characters. A value with any
+     other offset is a writer bug, not a UTC instant in disguise — `…T18:00:00+09:00` truncates to
+     `18:00:00` but is `09:00:00Z` — so on a non-`Z` suffix skip the check and report the malformed
+     value rather than compare it
    - Compare the two 19-character strings: same format, same zone, so text order is time order;
      equal means not stale. A missing or unreadable mtime means the check is skipped, never assumed
 3. If the work document is newer:
@@ -169,8 +170,9 @@ Overall: {PASS | FAIL}
 Note: the Coverage row's PASS/FAIL reflects whether the report was generated
 successfully, never the percentage value — a Coverage row showing `PASS  12.3%
 lines covered` is expected and correct while no real test suite exists yet.
-`Overall` is computed from Compilation/Checkstyle/Tests/Build only, exactly as
-before — the Coverage row does not affect `Overall` in this sub-task.
+`Overall` is computed from Compilation/Checkstyle/Tests/Build **and the Coverage row's
+PASS/FAIL** — a JaCoCo task that fails or produces no parseable report is a broken gate, not a low
+number. Only the percentage is report-only (Decision 6); `SKIP` never fails `Overall`.
 
 If any step fails, show the first few errors:
 

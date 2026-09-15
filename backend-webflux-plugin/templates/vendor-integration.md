@@ -95,17 +95,24 @@ all three of these together, never retry alone:
   contract documents as transient.
 
 ```java
+// timeout() BEFORE retryWhen(): it then bounds each attempt and its TimeoutException is what the
+// filter retries. Placed after, it would bound the whole retry sequence (the backoff alone can take
+// ~5 s with jitter) and no per-attempt timeout would ever reach isRetryable.
 vendorClient.retrieve(bookingRef)
+    .timeout(Duration.ofSeconds(5))
     .retryWhen(Retry.backoff(3, Duration.ofMillis(500))
         .jitter(0.5)
-        .filter(VendorIntegrationTemplate::isRetryable))
-    .timeout(Duration.ofSeconds(5));
+        .filter(VendorIntegrationTemplate::isRetryable));
 
 private static boolean isRetryable(Throwable e) {
     if (e instanceof VendorClientException vce) {
         return vce.statusCode() == null || vce.statusCode().is5xxServerError();
     }
-    return e instanceof TimeoutException || e instanceof ConnectException;
+    // java.util.concurrent.TimeoutException from .timeout(); a Reactor Netty read timeout surfaces
+    // as io.netty.handler.timeout.ReadTimeoutException, which is not a subclass of it.
+    return e instanceof TimeoutException
+        || e instanceof io.netty.handler.timeout.ReadTimeoutException
+        || e instanceof ConnectException;
 }
 ```
 

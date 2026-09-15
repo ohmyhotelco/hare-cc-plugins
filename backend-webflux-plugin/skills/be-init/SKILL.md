@@ -36,12 +36,12 @@ Scan the project to detect settings automatically:
    - `build.gradle.kts` / `build.gradle`: the `org.springframework.boot` entry in the plugins block
    - If the field can't be parsed from the detected build file, leave it undetected — do not guess a version from an unrelated file.
 4. **Base package**: Find the first directory level under `src/main/java/` that contains `.java` files
-5. **Data profile**: Check dependencies for `spring-boot-starter-data-r2dbc` (→ `r2dbc` present) and `mybatis-spring-boot-starter` (→ `mybatis` present). Both present → `"both"`. Only one present → that profile. Neither present → default `"both"` (plugin default, see `docs/decisions.md` Decision 1)
+5. **Data profile**: Check dependencies for `spring-boot-starter-data-r2dbc` (→ `r2dbc` present) and `mybatis-spring-boot-starter` (→ `mybatis` present; on Boot 4 it must be the `4.x` line — a `3.0.x` starter is a Boot 3 artifact, so warn in Step 3 when the versions disagree). Both present → `"both"`. Only one present → that profile. Neither present → default `"both"` (plugin default, see `docs/decisions.md` Decision 1)
 6. **Web layer**: Check for `RouterFunction` bean definitions vs `@RestController` usage in existing source.
    - Project is empty (no source found yet) → default `"functional"`, no warning needed.
    - One style clearly dominates → that style wins, no warning needed.
    - Both styles are present in meaningful numbers (mixed evenly) → do not silently default. Flag it in Step 3 as a warning: the existing source shows both `RouterFunction` and `@RestController` usage, and per this plugin's architecture rule a domain must never mix both styles (see `CLAUDE.md` § Web Layer) — ask the user which style to standardize on for new code rather than picking `"functional"` for them.
-7. **Database**: Check dependencies for `mysql-connector-j` / `io.asyncer:r2dbc-mysql` (mysql, default), the R2DBC/JDBC driver for another vendor, `h2`, `mariadb`
+7. **Database**: Check dependencies for `mysql-connector-j` / `io.asyncer:r2dbc-mysql` (mysql, default) or `h2` (the sample's stand-in). Any other vendor's driver (PostgreSQL, MariaDB, …) → **stop, write no config**: `be-crud` emits MySQL DDL and requires the MySQL drivers, so the project would be configured and then given SQL its database rejects
 8. **Migration**: Check for a `src/main/resources/migration/` directory (manual-sql, default) or a migration-runner dependency (only if the project has explicitly opted into one)
 9. **Checkstyle**: Check if `checkstyle` plugin is applied in build file
 10. **Coverage**: Check if `jacoco` plugin is applied (default: enabled regardless, since this plugin's gate always reports it — see `templates/coverage-gate.md`)

@@ -57,7 +57,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
 If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exists:
 
 1. Read the work document path from progress file (`workDocument` field)
-2. Compare work document modification time against `updatedAt` in the progress file
+2. Compare work document modification time against `updatedAt` in the progress file — the same way `be-verify` Step 0.6 does (`date -u -r … +%Y-%m-%dT%H:%M:%S` vs the first 19 characters of a `Z`-suffixed `updatedAt`)
 3. If the work document is newer:
    > "Warning: Work document has been modified since last pipeline update ({updatedAt})."
    > "New or modified scenarios may not be reflected in the current code."
@@ -121,7 +121,7 @@ Do not trust the agent's response as complete just because it returned. Before p
 4. **Agent failure or timeout** — the agent call errored, returned empty output, or was visibly truncated (e.g., an unterminated JSON object). Any of these fails validation.
 5. **Issue completeness** — every entry in every `issues[]` array has a non-empty `file`, `line`, and `suggestion` (the agent's Constraints require "file path, line number, and concrete fix suggestion" for every finding — see `agents/code-reviewer.md` Constraints). A blank field is evidence of truncation and fails validation.
 
-If any check fails: do not write `review-report-{feature}.json`, release the lock from Step 2.6 if one was acquired, and report to the user exactly which check failed (name the check and the offending field/dimension) instead of persisting a partial report as if it were complete. Stop here — do not proceed to Step 4.
+If any check fails — and likewise if writing the report (Step 4) or the progress file (Step 6) fails: do not leave a partial report, release the lock from Step 2.6 if one was acquired, and report to the user exactly which check failed (name the check and the offending field/dimension) instead of persisting a partial report as if it were complete. Stop here — do not proceed to Step 4.
 
 If all checks pass, proceed to Step 4.
 
@@ -151,18 +151,18 @@ Save the agent's output as `{workDocDir}/.progress/review-report-{feature}.json`
     },
     "data_layer": { "score": 7, "issues": [] },
     "clean_code": { "score": 8, "issues": [] },
-    "logging": { "score": 6, "issues": [] },
+    "logging": { "score": 7, "issues": [] },
     "test_quality": { "score": 9, "issues": [] },
     "architecture": { "score": 10, "issues": [] },
     "spec_compliance": { "score": 9, "issues": [] }
   },
   "summary": {
-    "overallScore": 8.2,
+    "overallScore": 8.4,
     "verdict": "PASS",
     "critical": 0,
-    "warning": 3,
-    "suggestion": 2,
-    "totalIssues": 5
+    "warning": 1,
+    "suggestion": 0,
+    "totalIssues": 1
   }
 }
 ```
@@ -214,9 +214,9 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    {
      "status": "pass" | "fail",
      "timestamp": "{ISO 8601}",
-     "overallScore": 8.2,
+     "overallScore": 8.4,
      "criticalIssues": 0,
-     "totalIssues": 5,
+     "totalIssues": 1,
      "reportFile": "{path to review-report-{feature}.json}"
    }
    ```

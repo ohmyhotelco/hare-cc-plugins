@@ -82,8 +82,9 @@ say which one happened.
     contains none of `StepVerifier`, `assertThat`, `Assertions.`, or a
     `.verify*()` call
   - Test scenario format issues: a scenario list in a work document that
-    doesn't follow the Given/When/Then shape in
-    `templates/test-scenario-template.md`
+    doesn't follow `templates/test-scenario-template.md` — one lowercase,
+    present-tense sentence per scenario, usable as a snake_case test name
+    (there is no Given/When/Then shape in this plugin)
 
 #### `build` violations:
 - Scope: `build/` directory presence/freshness and `build.gradle(.kts)`

@@ -244,20 +244,20 @@ table itself.
   "target": "{targetPath}",
   "filesReviewed": 15,
   "dimensions": {
-    "api_contract": { "score": 9, "issues": [
+    "api_contract": { "score": 8, "issues": [
       { "severity": "warning", "file": "src/main/java/.../EmployeeHandler.java", "line": 42,
         "rule": "Missing 404 mapping", "message": "find() returns 200 with an empty body",
         "suggestion": "switchIfEmpty(ServerResponse.notFound().build())",
         "refs": ["GET /hr/employees/{id}"] }
     ] },
-    "data_layer":      { "score": 7,  "issues": [] },
+    "data_layer":      { "score": 9,  "issues": [] },
     "clean_code":      { "score": 8,  "issues": [] },
-    "logging":         { "score": 6,  "issues": [] },
+    "logging":         { "score": 7,  "issues": [] },
     "test_quality":    { "score": 9,  "issues": [] },
     "architecture":    { "score": 10, "issues": [] },
     "spec_compliance": { "score": 9,  "issues": [] }
   },
-  "summary": { "overallScore": 8.2, "verdict": "PASS", "critical": 0, "warning": 3, "suggestion": 2, "totalIssues": 5 }
+  "summary": { "overallScore": 8.6, "verdict": "PASS", "critical": 0, "warning": 1, "suggestion": 0, "totalIssues": 1 }
 }
 ```
 
@@ -265,7 +265,8 @@ table itself.
   provided (omit the key otherwise — a placeholder score fails validation).
 - Every issue has non-empty `file`, `line`, `suggestion`; `severity` is `critical` | `warning` |
   `suggestion`. `summary` counts are computed from the `issues[]` arrays, and `verdict` follows the
-  Phase 3 rules — the skill recomputes both and rejects a mismatch.
+  Phase 3 rules — the skill recomputes both and rejects a mismatch. (The example above is
+  consistent on purpose: one warning, every score ≥ 7, mean 60/7 = 8.6.)
 
 ## Constraints
 

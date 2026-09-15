@@ -117,7 +117,7 @@ The agent's classification reasoning per issue is preserved in `fix-report.json`
 
 ### Step 5: Display Fix Report
 
-**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check that `summary.total` equals the issue count computed in Step 2. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
+**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check it against Step 2's issue set: the `issueId`s across `tddFixes[]`, `directFixes[]`, `alreadyResolved[]` and `escalated[]` are exactly the review's ids — each once, none missing, none invented — and `summary.total` equals their count (`fixed + alreadyResolved + escalated`); a total alone is satisfied by a report that lists one issue twice and drops another. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
 
 Show results in the working language:
 
@@ -225,7 +225,7 @@ Given this excerpt from `review-report-employee-create.json` (Step 1):
 }
 ```
 
-Step 2 computes: Critical 1, Warning 1, Suggestion 0, total 2. `review-report.json` itself carries no explicit issue id, so the `review-fixer` agent derives one per issue as `{dimension}-{index}` from each dimension's array position — here `jpa_patterns-0` and `logging-0` — and uses that id to key its own fix-report entries (this is the traceability link between the two files). It classifies `jpa_patterns-0` as **tdd-required** (behavioral — a missing validation rule) and `logging-0` as **direct-fix** (mechanical — logging style). It writes a failing test for the duplicate-email case, implements the check, reruns the test, then applies the logging edit directly, producing `fix-report-employee-create.json`:
+Step 2 computes: Critical 1, Warning 1, Suggestion 0, total 2. `review-report.json` itself carries no explicit issue id, so the `review-fixer` agent derives one per issue as `{dimension}-{index}` from each dimension's array position — here `data_layer-0` and `logging-0` — and uses that id to key its own fix-report entries (this is the traceability link between the two files). It classifies `data_layer-0` as **tdd-required** (behavioral — a missing validation rule) and `logging-0` as **direct-fix** (mechanical — logging style). It writes a failing test for the duplicate-email case, implements the check, reruns the test, then applies the logging edit directly, producing `fix-report-employee-create.json`:
 
 ```json
 {

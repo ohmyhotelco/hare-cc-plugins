@@ -3,7 +3,7 @@ name: be-plan
 description: "Analyze a finalized/reviewing planning-plugin functional spec for {feature} and produce a structured backend implementation plan (plan.json) that be-crud scaffolds from. Use when a planning-plugin spec exists and you need entity/command/query/endpoint mapping before scaffolding. If no spec exists for the feature, this skill stops and points to manual mode (`be-crud {EntityName} field:Type ...`) instead of guessing a plan."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Agent
+allowed-tools: Read, Write, Glob, Grep, Agent, Bash
 ---
 
 # Backend Implementation Plan
@@ -210,6 +210,6 @@ Not a summary with zeroed-out or guessed counts, no "Next steps" block (there is
 Ensure the backend pipeline progress directory exists so that `be-crud` can write entity-level progress files:
 
 1. Read `workDocDir` from plugin config
-2. Create `{workDocDir}/.progress/` directory if it does not exist
+2. Create `{workDocDir}/.progress/` directory if it does not exist (`mkdir -p` via Bash — the Write tool cannot create an empty directory)
 
 Note: Individual entity progress files are created by `be-crud` (one per entity). `be-plan` does not create feature-level progress files to avoid orphan entries that no subsequent skill updates.

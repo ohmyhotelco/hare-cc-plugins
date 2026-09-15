@@ -45,8 +45,9 @@ R2DBC in the same system.
   reactive); use MyBatis when extending an existing MyBatis-based module's
   conventions, or when a query needs joins/complexity R2DBC's dialect doesn't
   support well
-- Database: configurable (default **MySQL 8.0.33** — not PostgreSQL; see
-  `docs/decisions.md` Decision 4)
+- Database: **MySQL 8.0.33** (`docs/decisions.md` Decision 4). `be-crud` emits MySQL DDL
+  (`AUTO_INCREMENT`, `DATETIME(6)`, `ENGINE=InnoDB`) and requires the MySQL drivers; the only other
+  value `database` accepts is `h2` as a sample-time stand-in run in MySQL mode
 - R2DBC MySQL driver: pin `io.asyncer:r2dbc-mysql:1.4.3` (the 1.4 line is the one that supports Spring Boot 4 / Spring Data R2DBC 4; 1.1.x predates it) — never `dev.miku:*`
   (archived; see `docs/decisions.md` Decision 5)
 - Migration: manual SQL files under `{resourcesDir}/migration/V{n}__{description}.sql`
@@ -448,6 +449,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
   "javaVersion": "21",
   "springBootVersion": "4.0.2",
   "buildTool": "gradle-kotlin",
+  "gradleCommand": "./gradlew",
   "buildCommand": "./gradlew build",
   "testCommand": "./gradlew test",
   "basePackage": "com.example",
@@ -468,8 +470,9 @@ Subagents never inherit session history. Coordinator skills construct only the p
 
 - `javaVersion`: Java toolchain version (e.g., "21")
 - `springBootVersion`: Spring Boot version (e.g., "4.0.2")
-- `buildTool`: `"gradle-kotlin"` | `"gradle-groovy"` | `"maven"`
-- `buildCommand`: Full build command (default: `./gradlew build`)
+- `buildTool`: `"gradle-kotlin"` | `"gradle-groovy"` — Gradle only; every gate row is a Gradle task, so `be-init` stops on a `pom.xml`
+- `gradleCommand`: the wrapper the task-level gate rows run (`./gradlew`; `gradle` when no wrapper). Absent in a config written before the key existed → `./gradlew`
+- `buildCommand`: Full build command (default: `{gradleCommand} build`)
 - `testCommand`: Test-only command (default: `./gradlew test`)
 - `basePackage`: Root Java package (e.g., "com.example")
 - `sourceDir`: Main source directory (default: `src/main/java`)
@@ -477,7 +480,7 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `architecture`: `"cqrs"` (default) -- determines package structure and templates
 - `dataProfile`: `"r2dbc"` | `"mybatis"` | `"both"` (default `"both"`) — see `docs/decisions.md` Decision 1
 - `webLayer`: `"functional"` (default, RouterFunction/HandlerFunction) | `"annotated"` (@RestController exception) — see `docs/decisions.md` Decision 2
-- `database`: `"mysql"` (default) | `"postgresql"` | `"h2"` | `"mariadb"`
+- `database`: `"mysql"` (default; what `be-crud` generates for) | `"h2"` (sample-only stand-in, MySQL mode) — `be-init` stops on any other value
 - `migration`: `"manual-sql"` (default, no runner) | `"flyway"` | `"liquibase"` (only if a project explicitly opts back in)
 - `checkstyle`: Whether checkstyle is enabled (default: true)
 - `coverage`: Whether the JaCoco coverage row runs in `be-verify` (default: true; report-only, no threshold — see `docs/decisions.md` Decision 6)

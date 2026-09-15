@@ -2,6 +2,8 @@
 
 <!-- Template used by: be-crud (full work document with entity, commands, queries, API, and test scenarios) -->
 
+Data profile: `{r2dbc | mybatis}`   <!-- read by the implement agent to pick the entity-conventions file; be-crud records it, be-code's manual path must too -->
+
 ## Related Documents
 
 - CLAUDE.md (development rules)
@@ -83,7 +85,7 @@ public record Find{Entity}(UUID id) {}
 |-----------|-------------|-----------|
 | Invalid{Field}Exception | 400 | {field} format validation fails |
 | Duplicate{Field}Exception | 409 | {field} already exists |
-| {Entity}NotFoundException | 404 | Entity not found by id |
+| (none — empty `Mono` from the Find processor) | 404 | Entity not found by id; mapped by the web layer, no exception class |
 
 ## Test Scenarios
 

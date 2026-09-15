@@ -88,7 +88,7 @@ Pipeline legend: scaffolded → implementing → implemented → verified → re
 **Staleness Check**: Compare the work document's filesystem modification time against the progress file's `updatedAt` field.
 
 1. Get the work document's mtime via Bash as `YYYY-MM-DDTHH:MM:SS` UTC: `date -u -r {workDocDir}/{feature}.md +%Y-%m-%dT%H:%M:%S` (the one form BSD and GNU `date` share; `stat -c` is GNU-only). Do not infer staleness without checking this — a missing or unreadable mtime means the check is skipped, not assumed stale or fresh.
-2. Compare it as text against the first 19 characters of the top-level `updatedAt` field in `{feature}.json` (a sibling of `pipeline`, not nested inside it — see schema in `templates/progress-schema.md`; UTC on both sides, suffix and fractions dropped, so text order is time order).
+2. Compare it as text against the first 19 characters of the top-level `updatedAt` field in `{feature}.json` (a sibling of `pipeline`, not nested inside it — see schema in `templates/progress-schema.md`). `updatedAt` must end in `Z`; any other offset is a writer bug — skip the check and report it rather than compare (`…+09:00` truncated is not UTC).
 3. If the work document's mtime is newer than `updatedAt`, display:
    > "Warning: Work document modified after last pipeline update. Run `/backend-webflux-plugin:be-code {workDoc}` to pick up new scenarios."
 4. If the mtime check could not be performed (file stat failed, or `updatedAt` missing/unparseable), omit the warning and note `Staleness check: not verified` instead of silently skipping it.

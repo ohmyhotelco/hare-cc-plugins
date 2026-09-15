@@ -10,12 +10,17 @@ Created by `be-crud` (per entity). Updated by pipeline skills (be-crud, be-code,
 
 ## Schema
 
+Every timestamp (`createdAt`, `updatedAt`, `*.timestamp`) is UTC, whole seconds, `Z`-suffixed —
+`date -u +%Y-%m-%dT%H:%M:%SZ` — because `be-verify`/`be-progress` compare `updatedAt` textually
+against a file mtime in the same shape; a local offset would compare as a different instant.
+
 ```json
 {
   "feature": "create-employee",
   "workDocument": "work/features/create-employee.md",
+  "dataProfile": "r2dbc",                 // be-crud: the profile this entity was scaffolded with
   "createdAt": "2026-03-30T10:00:00Z",
-  "updatedAt": "2026-03-30T15:30:00Z",
+  "updatedAt": "2026-03-30T15:30:00Z",   // every timestamp in this file: UTC with a `Z` suffix, whole seconds
   "specSource": {
     "planFile": "docs/specs/employee-management/.implementation/backend/plan.json",
     "entity": "Employee",
@@ -33,7 +38,8 @@ Created by `be-crud` (per entity). Updated by pipeline skills (be-crud, be-code,
       "compilation": { "status": "pass", "errors": 0 },
       "checkstyle": { "status": "pass", "violations": 0 },
       "tests": { "status": "pass", "passed": 25, "total": 25 },
-      "build": { "status": "pass" }
+      "build": { "status": "pass" },
+      "coverage": { "status": "pass", "linePercent": 82.4, "thresholdEnforced": false }
     },
     "review": {
       "status": "fail",

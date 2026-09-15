@@ -77,6 +77,17 @@ class PostTests {
     }
 
     @Test
+    void valid_request_with_a_non_json_accept_header_returns_201_Created() {
+        // The route must match on the body's Content-Type, not on what the client says it
+        // can Accept -- a client that accepts text/plain still sends a JSON command.
+        webTestClient.post().uri("/hr/employees")
+            .header("Accept", "text/plain")
+            .bodyValue(new CreateEmployee(nextEmail(), "Kim"))
+            .exchange()
+            .expectStatus().isEqualTo(HttpStatus.CREATED);
+    }
+
+    @Test
     void empty_body_returns_400_Bad_Request() {
         // An empty bodyToMono completes without emitting, which skips flatMap and lets
         // `.then(201)` answer as if the command had run -- nothing is persisted.

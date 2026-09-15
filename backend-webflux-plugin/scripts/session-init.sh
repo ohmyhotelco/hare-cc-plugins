@@ -16,6 +16,13 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
+# An unreadable config must not crash the hook under `set -e` on every session start.
+if ! jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
+  echo "[Backend WebFlux Plugin] Configuration file is not valid JSON: .claude/backend-webflux-plugin.json"
+  echo "Run /backend-webflux-plugin:be-init to rewrite it."
+  exit 0
+fi
+
 JAVA_VERSION=$(jq -r '.javaVersion // "unknown"' "$CONFIG_FILE")
 SPRING_VERSION=$(jq -r '.springBootVersion // "unknown"' "$CONFIG_FILE")
 ARCHITECTURE=$(jq -r '.architecture // "cqrs"' "$CONFIG_FILE")

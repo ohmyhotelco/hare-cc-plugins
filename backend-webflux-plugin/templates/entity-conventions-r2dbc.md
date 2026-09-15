@@ -9,6 +9,42 @@ There is no auto-populating base-entity + auditing-listener equivalent for R2DBC
 audit-listener mechanism as simple as JPA's). Timestamps are set explicitly by the
 CommandExecutor instead — see the pattern below.
 
+## UUID Conversions (once per project)
+
+`src/main/java/{basePackage}/data/R2dbcConfig.java`. The UUID columns are `CHAR(36)`; Spring Data
+R2DBC passes `java.util.UUID` through to the driver untouched, and `io.asyncer:r2dbc-mysql` ships
+no UUID codec — without these converters the first `save()` or `findByExternalId(UUID)` against
+MySQL fails with `Cannot encode`. (H2 binds UUID natively, so an H2-only sample never shows it.)
+
+```java
+@Configuration
+public class R2dbcConfig {
+
+    @Bean
+    public R2dbcCustomConversions r2dbcCustomConversions(ConnectionFactory connectionFactory) {
+        return R2dbcCustomConversions.of(
+            DialectResolver.getDialect(connectionFactory),
+            List.of(new UuidToStringConverter(), new StringToUuidConverter()));
+    }
+
+    @WritingConverter
+    static final class UuidToStringConverter implements Converter<UUID, String> {
+        @Override
+        public String convert(UUID source) {
+            return source.toString();
+        }
+    }
+
+    @ReadingConverter
+    static final class StringToUuidConverter implements Converter<String, UUID> {
+        @Override
+        public UUID convert(String source) {
+            return UUID.fromString(source);
+        }
+    }
+}
+```
+
 ## Entity Template
 
 ```java

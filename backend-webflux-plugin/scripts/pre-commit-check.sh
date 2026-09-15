@@ -24,15 +24,19 @@ SENSITIVE_PATTERNS=(
     "ghp_[a-zA-Z0-9]{36}"
     "xoxb-[0-9]{10,}"
     "AIza[0-9A-Za-z_-]{35}"
-    "password\s*[:=]\s*[\"'][^\"']+[\"']"
-    "api_key\s*[:=]\s*[\"'][^\"']+[\"']"
-    "secret\s*[:=]\s*[\"'][^\"']+[\"']"
+    # a value is a secret whether quoted or bare; a ${PLACEHOLDER} reference is not one.
+    # ([[:space:]], never \s, inside a bracket: there \s is the two characters "\" and "s".)
+    "password\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
+    "api_key\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
+    "secret\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
     "-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----"
-    "jdbc:postgresql://[^\"' ]*"
-    "jdbc:mysql://[^\"' ]*"
-    "r2dbc:[a-z]+://[^\"' ]*@[^\"' ]*"
-    "jwt[._-]secret\s*[:=]\s*[\"'][^\"']+[\"']"
-    "signing[._-]key\s*[:=]\s*[\"'][^\"']+[\"']"
+    # a database URL is a secret only when it carries credentials (user:pass@host); a bare
+    # jdbc:mysql://host/db is every MyBatis application.yml and must stay committable.
+    # r2dbc URLs may be pooled: r2dbc:pool:mysql://…
+    "jdbc:[a-z]+://[^\"'/@[:space:]]+:[^\"'/@[:space:]]+@[^\"'[:space:]]*"
+    "r2dbc:(pool:)?[a-z]+://[^\"'/@[:space:]]+:[^\"'/@[:space:]]+@[^\"'[:space:]]*"
+    "jwt[._-]secret\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
+    "signing[._-]key\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
 )
 
 # Dangerous file patterns

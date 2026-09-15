@@ -1,7 +1,7 @@
 ---
 name: be-crud
 description: "Generate CRUD scaffold for an entity using CQRS layered architecture (R2DBC or MyBatis, functional or annotated web layer)."
-argument-hint: "<EntityName> [field:Type ...] [--domain <domain>] [--profile r2dbc|mybatis] | --all <feature-name>"
+argument-hint: "<EntityName> [field:Type[:unique][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] | --all <feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Bash
 ---
@@ -85,7 +85,6 @@ Input: `be-crud Employee email:String displayName:String`
      src/main/java/com/example/hr/InvalidEmailFormatException.java
      src/main/java/com/example/hr/InvalidDisplayNameException.java
      src/main/java/com/example/hr/DuplicateEmailException.java
-     src/main/java/com/example/hr/EmployeeNotFoundException.java
      work/features/employee.md
 
    Failed (not created — investigate before proceeding):
@@ -178,13 +177,20 @@ Determine whether to use spec-driven or manual mode:
 Parse the argument:
 
 - **EntityName**: PascalCase entity name (required). Example: `Employee`, `LeaveRequest`
-- **Fields**: Optional field definitions in `name:Type` format. Example: `email:String displayName:String startDate:LocalDate`
+- **Fields**: Optional field definitions, `name:Type[:flag…]`. Flags carry the facts Step 4 cannot
+  otherwise know — `unique` (→ `existsBy{Field}` + `Duplicate{Field}Exception`, 409),
+  `max=N` (→ `validate{Field}` length rule + `Invalid{Field}Exception`, 400),
+  `pattern=email|phone|url` (→ the matching validator regex + `Invalid{Field}Exception`),
+  `nullable` (default not null). Example:
+  `email:String:unique:pattern=email displayName:String:max=20 startDate:LocalDate`.
+  Without flags a field is a plain not-null column with no validator and no exception — the
+  templates' `email`/`displayName` are the worked case of the flags, not defaults every entity gets.
 
 Validate `{EntityName}` before using it anywhere: reject and stop with an error if it contains `/`, `\`, `..`, or any character outside `[A-Za-z0-9]`. Step 4 builds every output file path directly from this value (via the Shared Derivation Rules) — an unvalidated name could escape the intended source/output directories.
 
 If no fields are provided, ask the user:
-> "What fields should `{EntityName}` have? (format: `name:Type`)"
-> "Example: `email:String displayName:String status:String`"
+> "What fields should `{EntityName}` have? (format: `name:Type[:unique][:max=N][:pattern=email|phone|url][:nullable]`)"
+> "Example: `email:String:unique:pattern=email displayName:String:max=20 status:String`"
 > "Standard fields (`sequence`, `id`, `createdAt`, `updatedAt`) are added automatically."
 
 If `config.dataProfile == "both"` and this is a new entity (no existing module to match), use
@@ -259,9 +265,11 @@ If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 Boot WebFlux project; it generates no build file, wrapper or application class. Before reading
 templates, confirm `build.gradle.kts`/`build.gradle` declares what the entity's profile compiles
 against — `spring-boot-starter-webflux`, `com.github.f4b6a3:uuid-creator`, and for `r2dbc`:
-`spring-boot-starter-data-r2dbc` + `io.asyncer:r2dbc-mysql`; for `mybatis`:
-`mybatis-spring-boot-starter` + `mysql-connector-j`. Anything missing → **stop** and print the
-dependency lines to add, rather than generating sources that cannot compile.
+`spring-boot-starter-data-r2dbc` + `io.asyncer:r2dbc-mysql:1.4.x`; for `mybatis`:
+`org.mybatis.spring.boot:mybatis-spring-boot-starter:4.x` (the 3.0.x line targets Boot 3 and fails
+auto-configuration under Boot 4 — check the version, not just the artifact) + `mysql-connector-j`.
+Anything missing or on the wrong line → **release the lock from Step 2.6, then stop** and print the
+dependency lines to add, rather than generating sources that cannot compile (Step 7 will not run).
 
 Read these templates for code patterns:
 - `templates/cqrs-module.md` — package layout, and pointers to the profile/web-layer files below
@@ -277,12 +285,16 @@ Check if the following shared classes exist and generate them if missing:
 
 1. `{sourceDir}/{basePackage}/view/PageCarrier.java`
    - If it does not exist: generate from the Generic Pagination Wrapper template in `templates/entity-conventions.md`
+2. `{sourceDir}/{basePackage}/data/R2dbcConfig.java` (r2dbc entities only)
+   - If it does not exist: generate from the UUID Conversions template in `templates/entity-conventions-r2dbc.md` — the MySQL R2DBC driver cannot bind `java.util.UUID` on its own
+3. `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (mybatis entities only)
+   - If it does not exist: generate from `templates/entity-conventions-mybatis.md`
 
 There is no `BaseEntity` shared class in this plugin (no auditing-listener equivalent — see `templates/entity-conventions.md`). Do not generate one.
 
 ### Step 4: Generate Files
 
-Generate the following files in order. Use the entity's resolved `dataProfile` (`r2dbc` or `mybatis`, never `"both"` for a single entity) and `config.webLayer` to select which template variant applies.
+Generate the following files in order. Use the entity's resolved `dataProfile` (`r2dbc` or `mybatis`, never `"both"` for a single entity) and `config.webLayer` to select which template variant applies. The templates are snippets without `import` lines; resolve them from the types used (`org.springframework.data.domain.Sort`, `org.springframework.http.ResponseEntity`, `org.springframework.web.server.ServerWebInputException`, `org.apache.ibatis.type.*` for the type handler, …) — a missing import is a compile failure `be-build` catches, not a design choice.
 
 #### 1. Manual SQL Migration
 
@@ -375,7 +387,10 @@ Utility Template. The command executor (Step 4 #4) injects it; a scaffold withou
 File: `{sourceDir}/{basePackage}/{domain}/Invalid{Field}Exception.java` — one per validated field
 (the validator throws them; the handler/controller maps them to 400)
 File: `{sourceDir}/{basePackage}/{domain}/Duplicate{UniqueField}Exception.java` (for each unique field)
-File: `{sourceDir}/{basePackage}/{domain}/{EntityName}NotFoundException.java`
+
+No `{EntityName}NotFoundException`: not-found is the empty `Mono` the `Find` processor returns and the
+web layer maps to 404 (`switchIfEmpty` / `defaultIfEmpty`) — a class nothing throws is dead code the
+reviewer would flag as unmapped.
 
 **Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
 - Generate all exceptions from `plan.json.exceptions[]` for this entity
