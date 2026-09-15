@@ -50,7 +50,14 @@ Check each in-scope file against these rules. Every match found here is a
 #### Critical Issues
 
 1. **Authentication**
-   - Endpoint reachable without authentication check
+   - Endpoint reachable without authentication check — **when the project has an
+     authentication layer** (`spring-boot-starter-security` on the classpath, or a
+     `SecurityWebFilterChain` / router-level auth filter) that the route bypasses. A
+     project with no authentication layer at all gets ONE **warning** ("no
+     authentication layer present; every route is public by design or by omission"),
+     never a Critical per endpoint: the scaffold's own templates add no auth, so a
+     per-endpoint Critical would fail every unattended `be-jira-auto` run on every
+     internal service forever, which is a gate nobody can satisfy, not a finding
    - Login/verification tokens not validated on every request
    - Verification code without brute-force protection (max attempts, expiry)
    - Login response leaks whether an account exists (enumeration attack)

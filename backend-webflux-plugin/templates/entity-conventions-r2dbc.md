@@ -167,10 +167,13 @@ public record CreateEmployeeCommandExecutor(
                 employee.setUpdatedAt(now);
                 // existsByEmail above is a fast-path only, not the correctness guarantee --
                 // two concurrent creates can both pass that check, so the UNIQUE constraint
-                // on the email column is what actually prevents the duplicate, and this map
-                // turns its rejection into the same domain exception the pre-check throws.
+                // on the email column is what actually prevents the duplicate. Map ONLY that
+                // constraint's rejection (its name is in the driver message: the migration
+                // names it uk_employee_email); any other integrity violation -- a NOT NULL, a
+                // different unique column -- is not a duplicate email and must not become 409.
                 return employeeRepository.save(employee)
-                    .onErrorMap(DataIntegrityViolationException.class,
+                    .onErrorMap(e -> e instanceof DataIntegrityViolationException
+                            && String.valueOf(e.getMessage()).toLowerCase().contains("uk_employee_email"),
                         e -> new DuplicateEmailException(command.email()));
             })
             .then();

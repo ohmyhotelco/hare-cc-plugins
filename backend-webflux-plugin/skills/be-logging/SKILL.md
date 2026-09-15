@@ -77,12 +77,19 @@ Audit Java source code for logging best practices: SLF4J usage, structured loggi
      so a naive request-ID MDC filter produces log lines that lose correlation IDs
      partway through a request
    - Flag any `MDC.put`/`MDC.get` usage, or a request-tracing filter that only sets
-     MDC without also wiring Reactor Context propagation, as a **warning**: the
-     fix is `Hooks.enableAutomaticContextPropagation()` (Reactor 3.5+) together with
-     `io.micrometer:context-propagation` so `ThreadLocal`-backed MDC entries are
-     captured into and restored from the Reactor `Context` across scheduler
-     boundaries — a plain `OncePerRequestFilter` calling `MDC.put` is not sufficient
-     on this stack the way it is on the blocking-MVC plugin
+     MDC without also wiring Reactor Context propagation, as a **warning**. The
+     complete fix has three parts, and the hook alone does nothing for MDC: (1)
+     `io.micrometer:context-propagation` on the classpath and
+     `Hooks.enableAutomaticContextPropagation()` at startup; (2) a
+     `ThreadLocalAccessor` for the MDC key registered with
+     `ContextRegistry.getInstance().registerThreadLocalAccessor(...)` — none is
+     registered by default, so without it there is nothing for the hook to
+     capture; (3) the value put INTO the Reactor `Context` by the request filter
+     (`chain.filter(exchange).contextWrite(ctx -> ctx.put("requestId", id))`)
+     rather than only into the thread-local MDC — the accessor restores MDC from
+     the Context on every hop. A plain WebFilter calling `MDC.put` is not
+     sufficient on this stack the way a servlet filter is on the blocking-MVC
+     plugin
    - Same finding `agents/code-reviewer.md` already flags for the review agent —
      this audit skill must apply it too, not just suggest a plain MDC filter
 

@@ -261,9 +261,9 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
      "coverage": { "status": "pass|fail|skip", "linePercent": 12.3, "thresholdEnforced": false }
    }
    ```
-3. Update `pipeline.status`:
-   - Compilation, checkstyle, tests, build all pass → `"verified"` (regardless of the Coverage row's percentage — see Step 2 note)
-   - Any of compilation/checkstyle/tests/build fail → `"verify-failed"`
+3. Update `pipeline.status` from the same rows `Overall` is computed from (Step 2):
+   - `Overall: PASS` — compilation, checkstyle, tests, build pass and the Coverage row is PASS or SKIP → `"verified"` (the coverage *percentage* never matters)
+   - `Overall: FAIL` — any of those rows FAIL, a Coverage row FAIL (report not produced/unparseable) included → `"verify-failed"`; `pipeline.verification.status` is `"fail"` in the same write
 4. Write back the progress file (read-modify-write: preserve all other fields)
 
 If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock`.

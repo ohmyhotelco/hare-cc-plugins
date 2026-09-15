@@ -88,6 +88,9 @@ Interrupt skills (usable at any stage):
   be-build    — build + auto-fix (independent)
   be-recall   — rules reference and violation check
 
+Automated entry point:
+  be-jira-auto <JIRA-KEY> — runs the whole chain from a ticket (a skill, not a subagent)
+
 Standalone audits (usable independently):
   be-data, be-api-review, be-clean-code, be-logging, be-test-review, be-security, be-integrate-review
 ```
@@ -149,7 +152,7 @@ Verify the installation:
 
 ```
 1. /backend-webflux-plugin:be-init                          # configure plugin (auto-detects project)
-2. /backend-webflux-plugin:be-crud Employee email:String displayName:String   # scaffold CQRS CRUD
+2. /backend-webflux-plugin:be-crud Employee email:String:unique:pattern=email displayName:String:max=20   # scaffold CQRS CRUD
 3. /backend-webflux-plugin:be-code work/features/employee.md                  # TDD implementation
 4. /backend-webflux-plugin:be-verify employee                                 # verification gate + coverage
 5. /backend-webflux-plugin:be-review employee                                 # code review
@@ -213,7 +216,7 @@ Verify the installation:
 **When to use**: Creating a new domain entity with full CQRS structure.
 
 **Modes**:
-- **Manual**: `be-crud Employee email:String displayName:String` — specify fields directly
+- **Manual**: `be-crud Employee email:String:unique:pattern=email displayName:String:max=20` — specify fields directly
 - **Spec-driven**: `be-crud Employee` — auto-reads from plan.json when available
 - **Batch**: `be-crud --all employee-management` — scaffolds all entities from plan in dependency order
 
@@ -259,7 +262,7 @@ Verify the installation:
 3. Acquires lock
 4. Runs 5 checks sequentially: compilation, checkstyle, tests, full build, JaCoco coverage (report-only)
 5. Produces structured verification report
-6. Updates pipeline status (`verified` or `verify-failed` — the Coverage row never affects this verdict)
+6. Updates pipeline status (`verified` or `verify-failed`, following `Overall` — the coverage *percentage* never affects it; a Coverage row that fails to produce a report does)
 7. Releases lock
 
 ---
@@ -420,7 +423,7 @@ Auto-detects your project settings (build tool, Java version, Spring Boot versio
 ### Step 2: Scaffold CRUD
 
 ```
-/backend-webflux-plugin:be-crud Employee email:String displayName:String
+/backend-webflux-plugin:be-crud Employee email:String:unique:pattern=email displayName:String:max=20
 ```
 
 Generates the complete CQRS structure: manual SQL migration, entity/mapper, repository/mapper, command/executor, query/processor, view, router+handler (or controller), exceptions, and a work document with initial test scenarios.
@@ -677,7 +680,7 @@ agents/          Agent definitions (backend-planner, implement, build-doctor,
 skills/          Skill entry points (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-data, be-api-review, be-clean-code, be-logging,
-                 be-test-review, be-security, be-integrate-review)
+                 be-test-review, be-security, be-integrate-review, be-jira-auto)
 templates/       Template files (plan-schema, tdd-rules, cqrs-module,
                  entity-conventions, vendor-integration, coverage-gate,
                  test-scenario-template, work-document-template,

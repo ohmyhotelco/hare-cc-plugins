@@ -62,11 +62,14 @@ branch it actually needs:
 ```sql
 CREATE TABLE IF NOT EXISTS employee (
     sequence     BIGINT       NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id           CHAR(36)     NOT NULL UNIQUE,
-    email        VARCHAR(255) NOT NULL UNIQUE,
+    id           CHAR(36)     NOT NULL,
+    email        VARCHAR(255) NOT NULL,
     display_name VARCHAR(20)  NOT NULL,
     created_at   DATETIME(6)  NOT NULL,
-    updated_at   DATETIME(6)  NOT NULL
+    updated_at   DATETIME(6)  NOT NULL,
+    -- named, so an executor can map exactly this constraint's rejection to Duplicate{Field}Exception
+    CONSTRAINT uk_employee_id UNIQUE (id),
+    CONSTRAINT uk_employee_email UNIQUE (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 ```
 

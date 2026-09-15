@@ -188,11 +188,16 @@ public record CreateEmployeeCommandExecutor(
                 // two concurrent creates can both pass that check on separate threads, so
                 // the UNIQUE constraint on the email column is what actually prevents the
                 // duplicate; MyBatis's exception translator surfaces its rejection as
-                // DataIntegrityViolationException, caught and remapped here.
+                // DataIntegrityViolationException. Remap ONLY the email constraint's rejection
+                // (named uk_employee_email in the migration) -- a NOT NULL or another unique
+                // column is not a duplicate email and must not become 409.
                 try {
                     employeeMapper.insert(employee);
                 } catch (DataIntegrityViolationException e) {
-                    throw new DuplicateEmailException(command.email());
+                    if (String.valueOf(e.getMessage()).toLowerCase().contains("uk_employee_email")) {
+                        throw new DuplicateEmailException(command.email());
+                    }
+                    throw e;
                 }
                 return (Void) null;
             })
@@ -240,12 +245,12 @@ public record FindEmployeeQueryProcessor(
     EmployeeMapper employeeMapper
 ) {
     // The mapper's findById takes the external UUID (there is no Spring Data name clash in
-    // MyBatis). Mono.justOrEmpty turns a null row into the empty Mono the web layer maps to 404;
-    // the blocking call is offloaded like every other mapper call.
+    // MyBatis). Mono.fromCallable completes EMPTY when the callable returns null, which is the
+    // not-found signal the web layer maps to 404; the blocking call is offloaded like every other
+    // mapper call.
     public Mono<EmployeeView> process(FindEmployee query) {
         return Mono.fromCallable(() -> employeeMapper.findById(query.id()))
             .subscribeOn(Schedulers.boundedElastic())
-            .flatMap(e -> Mono.justOrEmpty(e))
             .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()));
     }
 }

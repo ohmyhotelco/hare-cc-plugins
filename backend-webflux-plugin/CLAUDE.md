@@ -141,9 +141,12 @@ pattern to a user as "full CQRS" or promising independent read/write scaling.
 │   ├── {Entity}.java
 │   ├── {Entity}Repository.java        <- R2DBC profile
 │   ├── {Entity}Mapper.java            <- MyBatis profile (interface, @Mapper)
-│   └── BaseEntity.java
-├── config/                     <- Spring configuration beans (router config lives here
-│                                   for the functional web-layer default)
+│   ├── R2dbcConfig.java               <- R2DBC profile, once per project (UUID converters)
+│   └── UuidTypeHandler.java           <- MyBatis profile, once per project
+│                                   (no BaseEntity: there is no auditing listener -- executors set
+│                                    createdAt/updatedAt themselves)
+├── config/                     <- Other Spring configuration beans; the RouterFunction bean
+│                                   is {domain}/api/{Entity}Router.java, not here
 ├── {domain}/                   <- Domain-specific business logic
 │   ├── api/                    <- RouterFunction + HandlerFunction (default) or
 │   │                               @RestController (named exception, see Decision 2)

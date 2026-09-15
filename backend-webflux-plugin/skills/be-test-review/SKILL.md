@@ -77,10 +77,11 @@ afterward, not an autonomous verdict with irreversible consequences.
 
 **Matching convention** — match an entity/class to its test class by name, per the
 naming table in CLAUDE.md:
-  - `{Entity}` (R2DBC repository) → `{Entity}RepositoryTest`
-  - `{Entity}` (MyBatis mapper) → `{Entity}MapperTest`
-  - `{Command}CommandExecutor` → `{Command}CommandExecutorTest`
-  - `{Query}QueryProcessor` → `{Query}QueryProcessorTest`
+  - `{Entity}` (R2DBC repository) → `{Entity}RepositoryTests`
+  - `{Entity}` (MyBatis mapper) → `{Entity}MapperTests`
+  - `{Command}CommandExecutor` → `{Command}CommandExecutorTests`
+  - `{Query}QueryProcessor` → `{Query}QueryProcessorTests`
+  (plural `Tests`, as `templates/tdd-rules.md` and the sample write them)
   - Router/handler endpoints → `{HttpMethod}Tests` referencing the entity's routes
     (e.g. `PostTests`, `GetTests` under the domain's test package)
 

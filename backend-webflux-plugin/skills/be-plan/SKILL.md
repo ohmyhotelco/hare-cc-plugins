@@ -20,6 +20,8 @@ Analyze a functional specification (planning-plugin output) and produce a struct
 
 ### Step 0.5: Detect Mode
 
+Validate `{feature}` first: it must match `^[a-z0-9][a-z0-9-]*$` — it is spliced into `docs/specs/{feature}/…`, `{workDocDir}/…` and `plan.json` paths, and `../../other-area` would read and write outside them. Reject and stop otherwise.
+
 **Auto-detection** — check if `docs/specs/{feature}/.progress/{feature}.json` exists:
 
 - If not found:

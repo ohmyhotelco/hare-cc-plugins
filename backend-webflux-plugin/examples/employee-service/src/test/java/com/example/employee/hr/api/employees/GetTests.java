@@ -40,16 +40,23 @@ class GetTests {
 
     @Test
     void page_size_capped_at_20() {
-        webTestClient.post().uri("/hr/employees")
-            .bodyValue(new CreateEmployee(nextEmail(), "Capped"))
-            .exchange()
-            .expectStatus().isCreated();
+        // More than 20 rows must exist, or "at most 20" cannot fail when the clamp is removed.
+        for (int i = 0; i < 21; i++) {
+            webTestClient.post().uri("/hr/employees")
+                .bodyValue(new CreateEmployee(nextEmail(), "Capped"))
+                .exchange()
+                .expectStatus().isCreated();
+        }
 
         webTestClient.get().uri("/hr/employees?page=0&size=999")
             .exchange()
             .expectStatus().isOk()
             .expectBody(new ParameterizedTypeReference<PageCarrier<EmployeeView>>() { })
-            .value(page -> org.assertj.core.api.Assertions.assertThat(page.items()).hasSizeLessThanOrEqualTo(20));
+            .value(page -> {
+                org.assertj.core.api.Assertions.assertThat(page.items()).hasSize(20);
+                org.assertj.core.api.Assertions.assertThat(page.size()).isEqualTo(20);
+                org.assertj.core.api.Assertions.assertThat(page.total()).isGreaterThanOrEqualTo(21);
+            });
     }
 
     @Test

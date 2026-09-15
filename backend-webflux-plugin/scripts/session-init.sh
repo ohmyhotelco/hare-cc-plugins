@@ -17,8 +17,8 @@ if ! command -v jq &>/dev/null; then
 fi
 
 # An unreadable config must not crash the hook under `set -e` on every session start.
-if ! jq -e . "$CONFIG_FILE" >/dev/null 2>&1; then
-  echo "[Backend WebFlux Plugin] Configuration file is not valid JSON: .claude/backend-webflux-plugin.json"
+if ! jq -e 'type == "object"' "$CONFIG_FILE" >/dev/null 2>&1; then
+  echo "[Backend WebFlux Plugin] Configuration file is not a JSON object: .claude/backend-webflux-plugin.json"
   echo "Run /backend-webflux-plugin:be-init to rewrite it."
   exit 0
 fi

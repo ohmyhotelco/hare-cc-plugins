@@ -70,7 +70,10 @@ annotation used by the MVC plugin** — there is no JPA in this plugin. Requires
 package than the pre-Spring-Boot-4 location.
 
 ```java
+// The slice does not scan @Configuration classes: without the import the UUID converters are
+// absent and every save() fails on MySQL ("Cannot encode"); H2 would mask it.
 @DataR2dbcTest
+@Import(R2dbcConfig.class)
 class EmployeeRepositoryTests {
 
     @Autowired

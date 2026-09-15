@@ -91,7 +91,7 @@ Apply the sub-checks matching `config.dataProfile` for each file (both sets when
 
 #### Dimension 3: Clean Code
 
-- Checkstyle compliance: when `config.checkstyle == true`, check line length, import ordering, and naming conventions per checkstyle rules. Reference `templates/checkstyle-config.md` for active rules.
+- Checkstyle compliance: when `config.checkstyle == true`, judge by the **project's** `config/checkstyle/checkstyle.xml` (read it — its modules are the active rules); `templates/checkstyle-config.md` is only the default `be-init` scaffolds when the project has none. Never flag a rule the project's file does not carry as a checkstyle violation.
 - DRY violations: duplicate code blocks across classes
 - Long methods (>30 lines)
 - Deep nesting (>3 levels of indentation) — note that reactive chains often nest via

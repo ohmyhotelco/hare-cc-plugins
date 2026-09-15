@@ -1,7 +1,7 @@
 ---
 name: be-code
 description: "TDD-implement a CQRS/WebFlux feature: RED-GREEN cycle through command executors, query processors, and router/handler code. Consumes a be-crud scaffold, plan.json, or an existing work document with test scenarios; drafts scenarios manually if none exist. Use be-crud first when no scaffold exists yet."
-argument-hint: "<feature-name or work-doc-path>"
+argument-hint: "<feature-name or work-doc-path> [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -129,6 +129,8 @@ Follow the original manual flow:
 
 ### Step 3.5: Demotion Check
 
+`--yes` answers this step's and Step 3.6a's confirmation with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts below are asked.
+
 **Single-entity mode** (file path or single entity): If `{workDocDir}/.progress/{feature-name}.json` exists:
 
 1. Read `pipeline.status`
@@ -149,6 +151,7 @@ Follow the original manual flow:
 
 ### Step 3.6: Acquire Lock
 
+0. `mkdir -p {workDocDir}/.progress` — on the "start TDD without `be-crud`" path nothing has created it yet, and a lock cannot be written into a directory that does not exist
 1. Check if `{workDocDir}/.progress/.lock` exists
 2. If it exists and `lockedAt` is less than 30 minutes ago: warn the user that another operation (`{operation}`) is in progress and stop
 3. If it exists and `lockedAt` is older than 30 minutes: remove the stale lock

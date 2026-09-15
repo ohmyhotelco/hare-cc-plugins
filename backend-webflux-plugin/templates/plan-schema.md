@@ -25,7 +25,7 @@ Mapping from spec/UI DSL types to Java and database column types:
 | `url` | `String` | `VARCHAR(2048)` | Add URL-format validation rule |
 | `uuid` | `UUID` | `CHAR(36)` | Import `java.util.UUID`; MySQL has no UUID column type (the external `id` column uses the same mapping — see `entity-conventions*.md`) |
 | `enum` | `String` | `VARCHAR(50)` | Java enum type when values are defined in spec |
-| Entity reference | Entity class | FK (`BIGINT`, manual SQL `REFERENCES`) | R2DBC: resolve via a repository call in the executor (no relationship-mapping annotations); MyBatis: resolve via a mapper join or a second mapper call |
+| Entity reference | `Long` (the referenced row's `sequence`) — a scalar, never the entity class: neither Spring Data R2DBC nor MyBatis maps a nested object to a FK column by convention | FK (`BIGINT`, manual SQL `REFERENCES`) | The field is `{referenced}Sequence`; R2DBC: resolve the object via a repository call in the executor/processor (no relationship-mapping annotations); MyBatis: resolve via a mapper join or a second mapper call |
 
 ### Enum Handling
 

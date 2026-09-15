@@ -9,9 +9,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.r2dbc.test.autoconfigure.DataR2dbcTest;
+import org.springframework.context.annotation.Import;
 import reactor.test.StepVerifier;
 
+// The @DataR2dbcTest slice does not scan @Configuration classes, so without this import the
+// UUID converters are absent here and every save() fails on MySQL (H2 would mask it).
 @DataR2dbcTest
+@Import(R2dbcConfig.class)
 class EmployeeRepositoryTests {
 
     private static final AtomicInteger COUNTER = new AtomicInteger(0);
@@ -53,5 +57,16 @@ class EmployeeRepositoryTests {
             )
             .assertNext(found -> assertThat(found.getEmail()).isEqualTo(employee.getEmail()))
             .verifyComplete();
+    }
+
+    @Test
+    void duplicate_email_rejected_by_the_named_constraint() {
+        // The executor maps a DataIntegrityViolationException to DuplicateEmailException only when
+        // the message names uk_employee_email -- so the constraint name must reach the message.
+        var email = "dup" + COUNTER.incrementAndGet() + "@test.com";
+        StepVerifier.create(repository.save(newEmployee(email)).then(repository.save(newEmployee(email))))
+            .expectErrorMatches(e -> e instanceof org.springframework.dao.DataIntegrityViolationException
+                && String.valueOf(e.getMessage()).toLowerCase().contains("uk_employee_email"))
+            .verify();
     }
 }

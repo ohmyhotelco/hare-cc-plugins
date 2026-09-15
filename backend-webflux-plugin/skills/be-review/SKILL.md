@@ -44,7 +44,8 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
      > "Verification (`be-verify`) has not been run for this feature. Build, checkstyle, or test issues may exist."
      > "Consider running `/backend-webflux-plugin:be-verify {feature}` first. Continue with review anyway?"
      If the user declines, stop here.
-   - If `"verified"` or `"verify-failed"`: proceed (normal flow)
+   - If `"verified"`: proceed (normal flow)
+   - If `"verify-failed"`: **stop** — the build, tests or checkstyle failed, and a review PASS on code that does not build would set `done` and let `be-commit` commit it. Run `/backend-webflux-plugin:be-build {feature}` (or `be-fix`/`be-debug`) and re-verify first.
    - If `"fixing"` or `"resolved"`: proceed (normal flow — review after fix/debug is the expected path)
    - If `"escalated"`:
      > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running review."
@@ -117,7 +118,7 @@ Do not trust the agent's response as complete just because it returned. Before p
 
 1. **Dimension completeness** — `dimensions{}` contains all 6 required keys (`api_contract`, `data_layer`, `clean_code`, `logging`, `test_quality`, `architecture`), plus `spec_compliance` when `specAvailable = true`. Any missing key fails validation.
 2. **Numeric consistency** — `summary.totalIssues` equals the total number of entries across every dimension's `issues[]`, and `summary.critical` / `summary.warning` / `summary.suggestion` match the actual `severity` counts in those `issues[]`. A mismatch fails validation.
-3. **Verdict consistency** — recompute the verdict using the rules below (all dimensions >= 7 and zero critical issues → PASS, otherwise FAIL) and confirm it matches `summary.verdict`. A mismatch fails validation.
+3. **Score and verdict consistency** — recompute `summary.overallScore` as the mean of the dimension scores present (6 or 7), rounded to 1 decimal; a mismatch fails validation. Then recompute the verdict using the rules below (all dimensions >= 7 and zero critical issues → PASS, otherwise FAIL) and confirm it matches `summary.verdict`. A mismatch fails validation.
 4. **Agent failure or timeout** — the agent call errored, returned empty output, or was visibly truncated (e.g., an unterminated JSON object). Any of these fails validation.
 5. **Issue completeness** — every entry in every `issues[]` array has a non-empty `file`, `line`, and `suggestion` (the agent's Constraints require "file path, line number, and concrete fix suggestion" for every finding — see `agents/code-reviewer.md` Constraints). A blank field is evidence of truncation and fails validation.
 
@@ -224,7 +225,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
    - Verdict PASS with 0 issues → `"done"`
    - Verdict PASS with warnings/suggestions → `"reviewed"`
    - Verdict FAIL → `"review-failed"`
-4. Fix round counter: reset `pipeline.fix.round` to `0` **only when the verdict is PASS** — a FAIL keeps it, or `be-fix`'s round-3 guard (Step 3) can never trigger inside the review ↔ fix loop, since every review would zero what every fix incremented
+4. Fix round counter: reset `pipeline.fix.round` to `0` **only on a PASS with zero issues** (`done`); a FAIL *and* a PASS-with-warnings (`reviewed`) keep it — otherwise `be-fix`'s round-3 guard (Step 3) can never trigger inside a review ↔ fix loop, since every review would zero what every fix incremented
 5. Write back (read-modify-write)
 
 If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock`.

@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Glob, Bash
 
 Generate a complete CRUD scaffold for a new entity following the project's CQRS architecture on the WebFlux stack. Supports two modes:
 
-- **Manual mode** (default): `be-crud Employee email:String displayName:String`
+- **Manual mode** (default): `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
 - **Spec-driven mode**: `be-crud Employee` (when plan.json exists) or `be-crud --all employee-management`
 
 This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see plugin `CLAUDE.md` § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
@@ -19,7 +19,7 @@ This skill has two layers: **file generation** (Steps 0–5 — deterministic te
 
 ### Example 1 — easy case: manual mode, R2DBC
 
-Input: `be-crud Employee email:String displayName:String`
+Input: `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
 
 1. Step 0 reads config: `dataProfile: "both"`, `webLayer: "functional"` → Step 1 asks for the data profile; user accepts the default, `r2dbc`.
 2. Step 2 asks for the domain; user answers `hr`.
@@ -186,7 +186,7 @@ Parse the argument:
   Without flags a field is a plain not-null column with no validator and no exception — the
   templates' `email`/`displayName` are the worked case of the flags, not defaults every entity gets.
 
-Validate `{EntityName}` before using it anywhere: reject and stop with an error if it contains `/`, `\`, `..`, or any character outside `[A-Za-z0-9]`. Step 4 builds every output file path directly from this value (via the Shared Derivation Rules) — an unvalidated name could escape the intended source/output directories.
+Validate `{EntityName}` before using it anywhere: it must match `^[A-Z][A-Za-z0-9]*$` (a PascalCase Java class name — `1Employee` is a path-safe string and an illegal class) and must not be a Java keyword or `Object`/`String`/`Record`. Reject and stop otherwise. Step 4 builds every output file path and every `class` line directly from this value (via the Shared Derivation Rules). Validate each field the same way: name `^[a-z][A-Za-z0-9]*$` and not a Java keyword (`class`, `default`, `int`, …) — it becomes a Java field and a column; type one of `String`, `Integer`, `Long`, `Boolean`, `BigDecimal`, `LocalDate`, `LocalDateTime`, `LocalTime`, `UUID` (the `templates/plan-schema.md` mapping — anything else has no column type); `max=N` a positive integer; `pattern=` one of `email|phone|url`.
 
 If no fields are provided, ask the user:
 > "What fields should `{EntityName}` have? (format: `name:Type[:unique][:max=N][:pattern=email|phone|url][:nullable]`)"
@@ -229,7 +229,7 @@ Read domain from `plan.json.entities[].domain`.
 - If domain is present and non-null: use it directly, do not ask the user.
 - If domain is null or missing: fall back to manual mode for this step — ask the user which domain this entity belongs to.
 
-Validate `{domain}` (from either mode) before using it: reject and stop (or, in `mode = "spec-all"`, skip this entity) if it contains `/`, `\`, `..`, or any character outside `[a-z0-9-]`. It is used directly to build the `{domain}/api/` package path and the API URL prefix below.
+Validate `{domain}` (from either mode) before using it: it must match `^[a-z][a-z0-9]*$` — one Java package segment, so no hyphen (`employee-admin` becomes `package com.example.employee-admin.api;`, which does not compile) and no leading digit. Reject and stop (or, in `mode = "spec-all"`, skip this entity) otherwise. It is used directly to build the `{domain}/api/` package path and the API URL prefix below.
 
 This determines:
 - Router/Handler package (functional, default): `{basePackage}.{domain}.api`
@@ -301,7 +301,7 @@ Generate the following files in order. Use the entity's resolved `dataProfile` (
 File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sql`
 
 - Determine `{next}` and `{snake_case_entity}` using the Shared Derivation Rules above
-- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL UNIQUE`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax; every unique field gets a **named** constraint `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` — the executor maps a `DataIntegrityViolationException` to `Duplicate{Field}Exception` only when the message names that constraint: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL UNIQUE`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 - Add indexes for unique fields
 - This file is generated only — never executed by this skill (see `docs/decisions.md` Decision 3)
 

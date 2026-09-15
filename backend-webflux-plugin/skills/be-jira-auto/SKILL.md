@@ -164,7 +164,8 @@ Call the issue-lookup tool resolved in Step 0.5 with `{jiraKey}`.
    - Whether this ticket needs a brand-new entity (`be-crud` applies) or
      only extends an existing one (`be-crud` does not apply -- see Step
      3.5).
-   - The domain (kebab-case, used for the `{domain}/api` package and the
+   - The domain (one lowercase package segment, `[a-z][a-z0-9]*` — no hyphen, it
+     is spliced into `package …{domain}.api;`; used for the `{domain}/api` package and the
      URL prefix).
    - The entity list, in FK-dependency order if more than one (referenced
      entity first) -- same rule as `agents/backend-planner.md` § 2.8.
@@ -239,12 +240,16 @@ When Step 1 had to draft its own Proposed Solution:
 Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 
 ```
-Skill(skill: "be-crud", args: "{EntityName} field1:Type1 field2:Type2 ... --domain {domain} --profile {r2dbc|mybatis}")
+Skill(skill: "be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
 - `--domain` and `--profile` are the answers `be-crud` would otherwise ask
   for; passing them is what keeps this run unattended -- both were already
-  decided in Step 1. If `config.dataProfile == "both"` and the skill still
+  decided in Step 1. The field flags carry what Step 1 read off the ticket:
+  a field the ticket calls unique gets `:unique` (that is the only thing that
+  makes `be-crud` emit the `existsBy` pre-check, the named constraint mapping
+  and `Duplicate{Field}Exception`), a bounded one `:max=N`, an email/phone/
+  url one `:pattern=…`. A flag left off is a validator that does not exist. If `config.dataProfile == "both"` and the skill still
   prompts, answer with the value decided in Step 1 (default `r2dbc` unless
   Step 1 found a reason to match an existing `mybatis` module).
 - Entity already exists (extend, not create): do **not** call `be-crud` --
@@ -312,12 +317,15 @@ Step 3), so the work document must already exist and be final before Step
 For each entry of `features` (Step 4 item 4), in dependency order:
 
 ```
-Skill(skill: "be-code", args: "{workDocDir}/{one feature}.md")
+Skill(skill: "be-code", args: "{workDocDir}/{one feature}.md --yes")
 ```
 
 - Because the work document already exists, `be-code` enters file-path
   mode directly (its Step 1 -> Step 3.5) and skips the interactive
-  approval flow entirely.
+  approval flow entirely. `--yes` answers its demotion prompt: a second
+  ticket on an existing entity finds `.progress/{feature}.json` at `done`
+  from the first, and re-implementing it is exactly what this ticket asks
+  for — the prompt is the operator's, and here the operator is Step 1.
 - The skill runs RED -> GREEN per scenario and writes its own tests --
   there is no separate "write unit tests" step in this plugin's pipeline.
 - If `be-code`'s own report leaves `pipeline.status` at `"implementing"`
@@ -335,9 +343,10 @@ Skill(skill: "be-verify", args: "{feature}")
 ```
 
 - Read the 5-row report (Compilation/Checkstyle/Tests/Build/Coverage).
-- Coverage is always report-only (`docs/decisions.md` Decision 6) -- carry
-  the percentage into the final report, never treat it as a failure
-  condition.
+- The coverage percentage is report-only (`docs/decisions.md` Decision 6)
+  -- carry it into the final report, never treat the number as a failure
+  condition. A Coverage row that FAILS (no report produced) is part of
+  `Overall`, like any other row.
 - Overall PASS -- go to Step 7.
 - Overall FAIL -- go to Step 6.1.
 
@@ -411,6 +420,11 @@ then
 Skill(skill: "be-review", args: "{feature}")
 ```
 
+- **Read `be-fix`'s result before calling `be-review`.** If it left the
+  feature `escalated` (every issue escalated, or the post-fix build
+  failed), stop with `NEEDS-INPUT` and list the escalated issues:
+  `be-review` on an `escalated` feature asks "Continue?" (its Step 1
+  guard), a prompt this run cannot answer.
 - **Hard bound: call `be-fix` at most 2 times** for a given feature.
   Reason: `skills/be-fix/SKILL.md` Step 3 blocks on a "Continue anyway?
   (y/n)" prompt once `pipeline.fix.round >= 3` -- a third call would hang

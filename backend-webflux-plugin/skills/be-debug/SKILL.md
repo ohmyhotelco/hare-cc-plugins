@@ -123,20 +123,22 @@ Debug Report
 Classification: runtime-error
 
 Root Cause:
-  src/main/java/com/example/hr/api/EmployeeHandler.java:42 — request.bodyToMono(CreateEmployee.class)
-  was flatMapped without a null-check; a request body missing the required `email` field produced an
-  empty Mono that the chain didn't guard against, so the downstream call to command.email() threw NPE.
+  src/main/java/com/example/hr/EmployeePropertyValidator.java:18 — validateEmail() matched the regex
+  against `email` without a null check; a request body that omits `email` deserialises to a
+  CreateEmployee whose email is null (the body is not empty, so no switchIfEmpty guard can see it),
+  and `EMAIL_PATTERN.matcher(null)` threw NPE inside the executor's Mono.defer.
 
 Hypotheses Tested:
-  1. Malformed request body reaches the handler without validation — SUCCESS — Evidence: a WebTestClient
-     case posting a body without `email` reproduced the NPE at EmployeeHandler.java:42; after adding a
-     switchIfEmpty guard, the same case returned 400 instead — src/main/java/com/example/hr/api/EmployeeHandler.java:42
+  1. A body without `email` reaches the validator as a null field — SUCCESS — Evidence: a WebTestClient
+     case posting `{ "displayName": "X" }` reproduced the NPE at EmployeePropertyValidator.java:18; after
+     the null check threw InvalidEmailFormatException, the same case returned 400 — src/main/java/com/example/hr/EmployeePropertyValidator.java:18
   2. (not tested — hypothesis 1 succeeded, no revert needed)
   3. (not tested — hypothesis 1 succeeded, no revert needed)
 
 Fix Applied:
-  Added a switchIfEmpty guard on the bodyToMono chain to reject requests missing required fields with a
-  400 before the command executor is invoked.
+  validateEmail() now treats null as an invalid format (InvalidEmailFormatException → 400), the shape
+  `templates/entity-conventions.md`'s validator prescribes; a missing field is a validation failure, not
+  an empty body.
 
 Files Modified:
   src/main/java/com/example/hr/api/EmployeeHandler.java:40-44 — added switchIfEmpty validation guard

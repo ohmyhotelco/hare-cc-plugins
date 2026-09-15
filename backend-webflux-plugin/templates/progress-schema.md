@@ -79,7 +79,7 @@ against a file mtime in the same shape; a local offset would compare as a differ
 | `scaffolded` | CRUD scaffold generated, no tests yet | be-crud |
 | `implementing` | TDD in progress (some `- [ ]` remain) | be-code |
 | `implemented` | All scenarios complete (`- [x]`) | be-code |
-| `verified` | Build + checkstyle + tests all pass | be-verify |
+| `verified` | Compilation + checkstyle + tests + build pass and the coverage report was produced (`Overall: PASS`) | be-verify |
 | `verify-failed` | One or more verification steps failed | be-verify |
 | `reviewed` | Code review passed (with warnings) | be-review |
 | `review-failed` | Code review has critical issues | be-review |

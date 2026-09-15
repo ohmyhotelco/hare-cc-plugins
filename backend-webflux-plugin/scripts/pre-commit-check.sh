@@ -17,30 +17,40 @@ check_git_repo() {
     fi
 }
 
-# Sensitive information patterns
-SENSITIVE_PATTERNS=(
+# Sensitive information patterns.
+# Two tiers, because a regex cannot tell `this.password = password;` from a leaked secret:
+#   LITERAL_PATTERNS   run over every staged line -- shapes that are secrets wherever they appear
+#                      (vendor tokens, private keys, QUOTED values, URLs carrying user:pass@).
+#   CONFIG_PATTERNS    run over staged lines of configuration files only (yml/yaml/properties/env/
+#                      conf/toml/ini), where a bare `password: hunter2` IS the value -- in Java
+#                      source the same shape is an assignment or a comparison.
+# ([[:space:]] inside brackets and between tokens: `\s` is a GNU extension, and inside a bracket it
+# is the two characters "\" and "s".)
+KEY='(password|passwd|pwd|secret|api[_-]?key|access[_-]?key|jwt[._-]?secret|signing[._-]?key|private[_-]?key|token)'
+LITERAL_PATTERNS=(
     "sk-[a-zA-Z0-9]{20,}"
     "AKIA[A-Z0-9]{16}"
     "ghp_[a-zA-Z0-9]{36}"
     "xoxb-[0-9]{10,}"
     "AIza[0-9A-Za-z_-]{35}"
-    # a value is a secret whether quoted or bare; a ${PLACEHOLDER} reference is not one.
-    # ([[:space:]], never \s, inside a bracket: there \s is the two characters "\" and "s".)
-    "password\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
-    "api_key\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
-    "secret\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
     "-----BEGIN (RSA|OPENSSH|EC) PRIVATE KEY-----"
+    # a quoted literal value on a secret-named key -- JSON "password": "x", YAML password: 'x',
+    # Java password = "x". A ${PLACEHOLDER} inside the quotes is not a value.
+    "[\"']?${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"'][^\"'\$][^\"']*[\"']"
     # a database URL is a secret only when it carries credentials (user:pass@host); a bare
-    # jdbc:mysql://host/db is every MyBatis application.yml and must stay committable.
-    # r2dbc URLs may be pooled: r2dbc:pool:mysql://…
-    "jdbc:[a-z]+://[^\"'/@[:space:]]+:[^\"'/@[:space:]]+@[^\"'[:space:]]*"
-    "r2dbc:(pool:)?[a-z]+://[^\"'/@[:space:]]+:[^\"'/@[:space:]]+@[^\"'[:space:]]*"
-    "jwt[._-]secret\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
-    "signing[._-]key\s*[:=]\s*[\"']?[^\"'\$\{[:space:]][^\"'[:space:]]*"
+    # jdbc:mysql://host/db is every MyBatis application.yml. r2dbc URLs may be pooled.
+    "jdbc:[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
+    "r2dbc:(pool:)?[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
 )
+CONFIG_PATTERNS=(
+    # a bare value on a secret-named key: not empty, not a ${placeholder}, not a comment, and
+    # not one of YAML's null spellings (null, ~) -- see the post-filter below
+    "^\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]*[:=][[:space:]]*[^\"'\$\{#[:space:]][^[:space:]#]*"
+)
+CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini)$|(^|/)\.env(\.|$)'
 
-# Dangerous file patterns
-DANGEROUS_FILE_PATTERNS="\.env$|\.env\.|credentials|secret|\.pem$|\.key$|\.p12$|\.pfx$|\.jks$|\.keystore$|application-prod\."
+# Dangerous file NAMES (not paths that merely contain the word: ClientSecretProperties.java is code)
+DANGEROUS_FILE_PATTERNS='(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)(credentials|secrets?)(\.[a-z]+)?$|(^|/)application-prod\.'
 
 # Security check
 run_security_check() {
@@ -63,10 +73,19 @@ run_security_check() {
 
     # 2. Sensitive patterns in code
     local sensitive_matches=""
-    local combined_pattern=$(IFS='|'; echo "${SENSITIVE_PATTERNS[*]}")
-
-    # -i: `PASSWORD="…"`, `Password: '…'` and `JWT_SECRET=` are the same secret as their lowercase forms
-    sensitive_matches=$(git diff --cached 2>/dev/null | grep -E "^\+" | grep -iE "$combined_pattern" | head -5 || true)
+    local literal_pattern config_pattern staged_diff config_diff
+    literal_pattern=$(IFS='|'; echo "${LITERAL_PATTERNS[*]}")
+    config_pattern=$(IFS='|'; echo "${CONFIG_PATTERNS[*]}")
+    staged_diff=$(git diff --cached 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ " || true)
+    # config lines only: split the diff per file and keep the files whose NAME is configuration
+    config_diff=$(git diff --cached --name-only 2>/dev/null | grep -iE "$CONFIG_FILES" \
+        | while IFS= read -r f; do git diff --cached -- "$f" 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ "; done || true)
+    # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
+    # The post-filter drops YAML nulls; the value class already excludes placeholders and comments.
+    sensitive_matches=$( { printf '%s\n' "$staged_diff" | grep -iE "$literal_pattern";
+                           printf '%s\n' "$config_diff" | grep -iE "$config_pattern" \
+                             | grep -viE "[:=][[:space:]]*(null|~)([[:space:]]|$)"; } 2>/dev/null \
+                         | grep -v '^$' | sort -u | head -5 || true)
 
     if [ -n "$sensitive_matches" ]; then
         result+="#### Sensitive Patterns Detected\n\n"

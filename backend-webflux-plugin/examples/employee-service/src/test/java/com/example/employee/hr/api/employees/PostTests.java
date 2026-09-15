@@ -1,7 +1,5 @@
 package com.example.employee.hr.api.employees;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 import com.example.employee.command.CreateEmployee;
 import com.example.employee.data.EmployeeRepository;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -11,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webtestclient.autoconfigure.AutoConfigureWebTestClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.test.StepVerifier;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
@@ -48,8 +47,10 @@ class PostTests {
             .exchange()
             .expectStatus().isCreated();
 
-        var exists = employeeRepository.existsByEmail(email).block();
-        assertThat(exists).isTrue();
+        // StepVerifier, not .block(): the test asserts a reactive result reactively.
+        StepVerifier.create(employeeRepository.existsByEmail(email))
+            .expectNext(true)
+            .verifyComplete();
     }
 
     @Test

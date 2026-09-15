@@ -19,9 +19,9 @@ checkstyle {
 
 ## `config/checkstyle/checkstyle.xml`
 
-This is the file `be-init`/`be-crud` scaffold and `be-verify` runs — the same one the sample project
-ships. What it enforces is exactly the module list below; `code-reviewer` Dimension 3 judges
-"checkstyle rules" against **this**, not against conventions the file does not carry.
+This is the file `be-init` offers to write when the `checkstyle` plugin is applied and no config exists
+— the same one the sample project ships. What it enforces is exactly the module list below. A project
+that has its own `checkstyle.xml` keeps it, and `code-reviewer` Dimension 3 judges by **that** file.
 
 ```xml
 <?xml version="1.0"?>

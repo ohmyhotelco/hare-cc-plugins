@@ -126,19 +126,21 @@ command executors don't silently get transaction boundaries wrong:
 ```java
 @Component
 public record TransferBalanceCommandExecutor(
-    R2dbcEntityTemplate template,
-    AccountRepository accountRepository
+    TransactionalOperator transactionalOperator,   // Boot's auto-configured bean, backed by
+    AccountRepository accountRepository            // the project's ReactiveTransactionManager
 ) {
     public Mono<Void> execute(TransferBalance command) {
-        var operator = TransactionalOperator.create(
-            new R2dbcTransactionManager(template.getDatabaseClient().getConnectionFactory())
-        );
         Mono<Void> steps = accountRepository.debit(command.fromId(), command.amount())
             .then(accountRepository.credit(command.toId(), command.amount()));
-        return operator.transactional(steps);
+        return transactionalOperator.transactional(steps);
     }
 }
 ```
+
+Inject the `TransactionalOperator` Spring Boot auto-configures from the project's
+`ReactiveTransactionManager`; never `TransactionalOperator.create(new R2dbcTransactionManager(…))`
+inside `execute()` — that allocates a manager per request and bypasses whatever transaction-manager
+configuration the project has.
 
 **Open edge case (unresolved, flagged not solved):** nesting a second
 `operator.transactional(...)` inside a `Mono` that is itself already wrapped by an
@@ -170,14 +172,11 @@ public record AccountWriteSteps(AccountRepository accountRepository) {
 
 @Component
 public record TransferBalanceCommandExecutor(
-    R2dbcEntityTemplate template,
+    TransactionalOperator transactionalOperator,
     AccountWriteSteps steps
 ) {
     public Mono<Void> execute(TransferBalance command) {
-        var operator = TransactionalOperator.create(
-            new R2dbcTransactionManager(template.getDatabaseClient().getConnectionFactory())
-        );
-        return operator.transactional(
+        return transactionalOperator.transactional(
             steps.debitThenCredit(command.fromId(), command.toId(), command.amount()));
     }
 }

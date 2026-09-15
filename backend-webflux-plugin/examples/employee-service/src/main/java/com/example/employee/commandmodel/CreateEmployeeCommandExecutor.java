@@ -45,7 +45,10 @@ public record CreateEmployeeCommandExecutor(
                 // on the email column is what actually prevents the duplicate, and this map
                 // turns its rejection into the same domain exception the pre-check throws.
                 return employeeRepository.save(employee)
-                    .onErrorMap(DataIntegrityViolationException.class,
+                    // only the email constraint's rejection is a duplicate email (uk_employee_email
+                    // in the migration); any other integrity violation propagates as itself.
+                    .onErrorMap(e -> e instanceof DataIntegrityViolationException
+                            && String.valueOf(e.getMessage()).toLowerCase().contains("uk_employee_email"),
                         e -> new DuplicateEmailException(command.email()));
             })
             .then();
