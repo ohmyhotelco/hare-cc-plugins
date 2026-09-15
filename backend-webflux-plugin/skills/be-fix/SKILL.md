@@ -100,7 +100,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `review-fixer` agent with:
+Launch the `review-fixer` agent (`subagent_type: "backend-webflux-plugin:review-fixer"` — qualified: `backend-springboot-plugin` ships an agent of the same name, and a bare name may resolve to it when both are installed) with:
 
 - `reportFile`: path to `review-report.json`
 - `config`: parsed plugin config

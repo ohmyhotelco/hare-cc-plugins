@@ -16,7 +16,8 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing → stop: start a new session so the hook writes it.
+4. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
    - If `{workDocDir}/.progress/{feature}.json` exists: read it for pipeline context
    - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found (multi-entity feature), list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
    - If no matches: warn that no progress file exists for this feature and proceed without pipeline context (same as no-feature mode)
@@ -93,7 +94,7 @@ command timed out after 600000ms"` or `"verification tooling error: ./gradlew:
 command not found"`), and continue to the remaining steps per the "always run all
 steps" rule in Constraints.
 
-Before 1.1, record the tree the gate is about to run against: `tree=$({config.pluginRoot}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). The script's contract: exit 0 and exactly one 40-hex id, or it failed — a non-zero exit, an empty or non-hex value, or a missing `config.pluginRoot` (restart the session; the SessionStart hook records it) is a tooling error: mark `Overall: FAIL` with reason `verification tooling error: source-tree-hash.sh …` and record no tree (an empty value compared to another empty value would read as "unchanged"). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
+Before 1.1, record the tree the gate is about to run against: `tree=$({pluginRoot}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). The script's contract: exit 0 and exactly one 40-hex id, or it failed — a non-zero exit, an empty or non-hex value, or a missing `{pluginRoot}` file is a tooling error: mark `Overall: FAIL` with reason `verification tooling error: source-tree-hash.sh …` and record no tree (an empty value compared to another empty value would read as "unchanged"). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
 
 `{config.gradleCommand}` below is the wrapper (`./gradlew`); a config written before the key existed
 has none — use `./gradlew`. Never append a task to `buildCommand`: it already runs `build`, so every

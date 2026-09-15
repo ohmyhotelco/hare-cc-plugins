@@ -83,6 +83,7 @@ ticket.
 3. Record `buildCommand`, `testCommand`, `basePackage`, `sourceDir`,
    `testDir`, `workDocDir`, `dataProfile`, `webLayer`, `workingLanguage`
    for use in every later step.
+4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
@@ -231,9 +232,9 @@ When Step 1 had to draft its own Proposed Solution:
    three-failure pause, a security finding, an escalation); keep it and
    continue from the step the last report named, **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
-   re-enters at Step 6 instead whenever `{config.pluginRoot}/scripts/
+   re-enters at Step 6 instead whenever `{pluginRoot}/scripts/
    source-tree-hash.sh` (exit 0 and a 40-hex id, else `NEEDS-INPUT`: the
-   tooling is broken, or `config.pluginRoot` is unset -- restart the session)
+   tooling is broken, or the `{pluginRoot}` file is missing -- start a new session)
    differs from the feature's
    `pipeline.verification.tree` (a manual security fix, an escalation
    resolved by hand: the review that may already have written `done`
@@ -492,7 +493,7 @@ Skill(skill: "be-review", args: "{feature}")
    `be-fix`/`be-build` changed the tree every earlier feature was verified
    on. For each feature (in `features` order) whose
    `pipeline.verification.tree` differs from the current
-   `{config.pluginRoot}/scripts/source-tree-hash.sh`, run
+   `{pluginRoot}/scripts/source-tree-hash.sh`, run
    `be-verify {feature} --yes` then `be-review {feature}`; a FAIL goes
    through Step 8 for that feature (its bounds apply). Repeat until every
    feature's tree matches -- the last pass changes nothing, so it converges
@@ -513,7 +514,7 @@ Skill(skill: "be-review", args: "{feature}")
    `NEEDS-INPUT` naming it instead of calling `be-commit`. Its Step 1.5
    also prompts when a `reviewed`/`done` feature not yet
    `pipeline.verification.committed` has a `pipeline.verification.tree`
-   that differs from `{config.pluginRoot}/scripts/source-tree-hash.sh
+   that differs from `{pluginRoot}/scripts/source-tree-hash.sh
    --staged` -- compute that once after item 2 and compare; after item 0 a
    mismatch here means item 2 missed a file: stage it (a file outside the
    Step 2 locations is not this feature's -- stop with `NEEDS-INPUT`).

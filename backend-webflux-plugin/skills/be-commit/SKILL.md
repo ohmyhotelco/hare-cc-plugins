@@ -16,6 +16,7 @@ Create a git commit from already-staged changes with a validated commit message 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Check Staged Changes
 
@@ -35,7 +36,7 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
    > "Warning: Feature '{feature}' is in '{status}' status — review/verification may not be complete."
    > "Continue with commit?"
    If the user declines, stop here.
-4. Compute `{config.pluginRoot}/scripts/source-tree-hash.sh --staged` once — the index is what this commit will contain (exit 0 and a 40-hex id, else a tooling error: report it and stop — an empty value must not be compared; a missing `config.pluginRoot` means the session has not been restarted since `be-init`). For each `reviewed`/`done` feature that has not been committed since it was verified (`pipeline.verification.committed` is not `true`; Step 6.5 sets it), it must equal `pipeline.verification.tree`; different (or the field missing) — an unstaged edit, an untracked new file, or a change made after `be-verify` ran:
+4. Compute `{pluginRoot}/scripts/source-tree-hash.sh --staged` once — the index is what this commit will contain (exit 0 and a 40-hex id, else a tooling error: report it and stop — an empty value must not be compared). For each `reviewed`/`done` feature that has not been committed since it was verified (`pipeline.verification.committed` is not `true`; Step 6.5 sets it), it must equal `pipeline.verification.tree`; different (or the field missing) — an unstaged edit, an untracked new file, or a change made after `be-verify` ran:
    > "Warning: the staged tree is not the tree feature '{feature}' was verified on — the review describes different code. Stage everything under src/ and the build files, or re-run be-verify and be-review."
    > "Continue with commit?"
    If the user declines, stop here. A feature already committed on the tree it was verified on is not re-checked: later tickets change the tree without invalidating its record.
@@ -48,7 +49,7 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
 
 ### Step 3: Security Scan
 
-Run `{config.pluginRoot}/scripts/pre-commit-check.sh security` to scan staged changes for secrets and dangerous files (`config.pluginRoot` absent → stop: restart the session so the SessionStart hook records it; the scan is not optional).
+Run `{pluginRoot}/scripts/pre-commit-check.sh security` to scan staged changes for secrets and dangerous files (the scan is not optional).
 
 - If the script reports issues, show the findings and **abort the commit**
 - Do not proceed to message drafting until the security scan passes
@@ -170,9 +171,10 @@ omit the blank line and body.
 Check the command's exit code:
 
 - **Non-zero exit** (for example a pre-commit hook rejected the commit): the commit did
-  **not** happen. Undo Step 6.5's `pipeline.verification.committed` marks (the verification was
-  not consumed; a retry with a different staged set must be compared again), re-staging the same
-  files Step 6.5 re-staged. Show the command's output to the user verbatim, explain that no commit
+  **not** happen. Undo Step 6.5 entirely — restore the `pipeline.fix.round` values and remove the
+  `pipeline.verification.committed` marks it wrote (keep the originals in memory for this; the
+  verification was not consumed and the fix cycle did not end), re-staging the same files Step 6.5
+  re-staged. Show the command's output to the user verbatim, explain that no commit
   was created, and **stop** — do not proceed to Step 8.
 - **Zero exit**: proceed to Step 8.
 

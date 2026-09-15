@@ -25,6 +25,12 @@ MODE=working; DIR=.
 for a in "$@"; do case "$a" in --staged) MODE=staged ;; *) DIR=$a ;; esac; done
 cd "$DIR" 2>/dev/null || { echo "source-tree-hash: no such directory: $DIR" >&2; exit 1; }
 PATHS=(src buildSrc build.gradle build.gradle.kts settings.gradle settings.gradle.kts gradle.properties gradlew gradlew.bat config gradle)
+# a multi-module root: every subproject (a directory up to three levels down with its own build
+# file, buildSrc and build/ output aside) contributes its src/, config/ and build file too
+while IFS= read -r d; do
+    d=${d#./}; case "$d" in buildSrc|buildSrc/*|build|build/*|*/build|*/build/*) continue ;; esac
+    PATHS+=("$d/src" "$d/config" "$d/build.gradle" "$d/build.gradle.kts")
+done < <(find . -mindepth 2 -maxdepth 4 \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#/[^/]*$##' | sort -u)
 EMPTY_TREE=4b825dc642cb6eb9a060e54bf8d69288fbee4904
 # Every temp name is set here, never inherited: the trap removes exactly what this run created.
 T1=""; T2=""; TR=""
@@ -35,8 +41,7 @@ unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 
 emit() {   # the contract above: a tree id or nothing
     local id; id=$(GIT_INDEX_FILE="$1" git write-tree) || exit 1
-    case "$id" in [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]) echo "$id" ;;
-        *) echo "source-tree-hash: git write-tree produced no tree id" >&2; exit 1 ;; esac
+    if [[ $id =~ ^[0-9a-f]{40}$ ]]; then echo "$id"; else echo "source-tree-hash: git write-tree produced no tree id" >&2; exit 1; fi
 }
 
 if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
@@ -64,10 +69,6 @@ if [ "$MODE" = working ]; then
     done
     # (stderr dropped: git's CRLF advice is not this script's output; a failure still exits 1)
     [ ${#add[@]} -gt 0 ] && { GIT_INDEX_FILE="$T1" git add -A -- "${add[@]}" 2>/dev/null || { echo "source-tree-hash: git add failed" >&2; exit 1; }; }
-    # skip-worktree entries (sparse checkout) survive `git add -A` although absent from disk: drop them
-    GIT_INDEX_FILE="$T1" git ls-files -t -z -- "${PATHS[@]}" 2>/dev/null \
-        | { while IFS= read -r -d '' e; do if [ "${e:0:2}" = "S " ]; then printf '%s\0' "${e:2}"; fi; done; true; } \
-        | GIT_INDEX_FILE="$T1" git update-index -z --force-remove --stdin
     source_index=$T1
 else
     source_index=$index
@@ -76,4 +77,12 @@ fi
 [ -f "$source_index" ] && GIT_INDEX_FILE="$source_index" git ls-files -s -z --full-name -- "${PATHS[@]}" \
     | GIT_INDEX_FILE="$T2" git update-index -z --index-info
 [ -f "$T2" ] || { echo "$EMPTY_TREE"; exit 0; }
+# a sparse checkout's skip-worktree entries (the flag lives in the real index only) are not on disk
+# and were not built: drop them from BOTH forms, or the staged tree never equals the working one
+if [ -f "$index" ]; then
+    # (cwd-relative paths on both sides: --stdin resolves against the cwd, unlike --index-info)
+    git ls-files -t -z -- "${PATHS[@]}" 2>/dev/null \
+        | { while IFS= read -r -d '' e; do if [ "${e:0:2}" = "S " ]; then printf '%s\0' "${e:2}"; fi; done; true; } \
+        | GIT_INDEX_FILE="$T2" git update-index -z --force-remove --stdin
+fi
 emit "$T2"

@@ -19,7 +19,7 @@ Run the project build. If it fails, automatically diagnose and fix issues with u
 
 ### Step 1: Launch Build Doctor
 
-Launch the `build-doctor` agent with:
+Launch the `build-doctor` agent (`subagent_type: "backend-webflux-plugin:build-doctor"` — qualified: `backend-springboot-plugin` ships an agent of the same name, and a bare name may resolve to it when both are installed) with:
 
 - `config`: the parsed plugin config
 - `projectRoot`: current project root
@@ -46,8 +46,8 @@ was not observed in a real build run.
 If any feature progress files exist in `{workDocDir}/.progress/` with `pipeline.status == "verify-failed"`:
 > "Feature '{feature}' is in 'verify-failed' status. Re-run `/backend-webflux-plugin:be-verify {feature}` to update."
 
-If changes were kept, every feature at `verified`, `reviewed` or `done` now carries a status its code
-no longer earned: set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
+If changes were kept, every feature at `verified`, `reviewed` or `done` **whose `pipeline.verification.committed` is not `true`** now carries a status its code
+no longer earned (a committed feature's record is history — the current ticket's own verification covers the whole tree, and demoting it would stop every later ticket at be-commit): set its `pipeline.status` to `"resolved"` (the state be-debug uses for the same
 situation — be-verify re-admits it without a prompt, be-review refuses it until then) with
 `pipeline.build: { "timestamp", "previousStatus", "filesModified": [...] }`, read-modify-write under
 `{workDocDir}/.progress/.lock` taken and released around the writes (CLAUDE.md § State File Safety;

@@ -5,10 +5,10 @@ CONFIG_FILE="${PWD}/.claude/backend-webflux-plugin.json"
 
 # `pluginRoot`: where scripts/source-tree-hash.sh and pre-commit-check.sh live. A skill's Bash never
 # sees ${CLAUDE_PLUGIN_ROOT} (Claude Code expands it for hooks/hooks.json only), so this hook -- which
-# IS in the install -- records its own location: in the config when one exists (refreshed every
-# session, because the marketplace cache path is version-pinned and moves on upgrade), and always
-# in a user-level file be-init reads to seed a new config. Silent on success; a failure is said out
-# loud, since be-verify/be-review/be-commit stop without the value.
+# IS in the install -- records its own location in a user-level file the skills read. Rewritten at
+# every session start, resume and clear (hooks.json), because the marketplace cache path is
+# version-pinned and moves on upgrade; never cached in a project config, which would go stale.
+# Silent on success; a failure is said out loud, since be-verify/be-review/be-commit stop without it.
 PLUGIN_ROOT=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd -P) || PLUGIN_ROOT=""
 DATA_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin"
 if [ -n "$PLUGIN_ROOT" ] && [ -x "$PLUGIN_ROOT/scripts/source-tree-hash.sh" ]; then
@@ -36,20 +36,6 @@ if ! jq -e 'type == "object"' "$CONFIG_FILE" >/dev/null 2>&1; then
   echo "[Backend WebFlux Plugin] Configuration file is not a JSON object: .claude/backend-webflux-plugin.json"
   echo "Run /backend-webflux-plugin:be-init to rewrite it."
   exit 0
-fi
-
-# Refresh config.pluginRoot (same-directory temp + mv: atomic; a symlinked config is resolved so the
-# link is not replaced by a detached copy; every failure is reported, none aborts the hook).
-if [ -n "$PLUGIN_ROOT" ] && [ "$(jq -r '.pluginRoot // ""' "$CONFIG_FILE")" != "$PLUGIN_ROOT" ]; then
-  target="$CONFIG_FILE"
-  while [ -L "$target" ]; do
-    link=$(readlink -- "$target" 2>/dev/null) || break
-    case $link in /*) target="$link" ;; *) target="$(dirname "$target")/$link" ;; esac
-  done
-  tmp="$target.be-tmp.$$"
-  if jq --arg p "$PLUGIN_ROOT" '.pluginRoot = $p' "$target" > "$tmp" 2>/dev/null && mv "$tmp" "$target" 2>/dev/null; then :; else
-    rm -f "$tmp"; echo "[Backend WebFlux Plugin] Warning: could not record pluginRoot in .claude/backend-webflux-plugin.json"
-  fi
 fi
 
 JAVA_VERSION=$(jq -r '.javaVersion // "unknown"' "$CONFIG_FILE")
@@ -80,8 +66,8 @@ if [ -d "${WORK_DOC_DIR}" ]; then
     # `grep -c` prints its count (0 included) AND exits 1 on zero matches, so `|| echo 0` would
     # append a second line ("0\n0") and break the arithmetic below. `|| true` keeps the count;
     # the default covers an unreadable file, where grep prints nothing.
-    DOC_TOTAL=$(grep -c '^\- \[[ x]\]' "$doc" 2>/dev/null || true); DOC_TOTAL=${DOC_TOTAL:-0}
-    DOC_DONE=$(grep -c '^\- \[x\]' "$doc" 2>/dev/null || true);     DOC_DONE=${DOC_DONE:-0}
+    DOC_TOTAL=$(grep -ci '^\- \[[ x]\]' "$doc" 2>/dev/null || true); DOC_TOTAL=${DOC_TOTAL:-0}   # -i: a hand-edited `- [X]` is done too
+    DOC_DONE=$(grep -ci '^\- \[x\]' "$doc" 2>/dev/null || true);     DOC_DONE=${DOC_DONE:-0}
     DOC_PENDING=$((DOC_TOTAL - DOC_DONE))
 
     if [ "$DOC_TOTAL" -gt 0 ]; then

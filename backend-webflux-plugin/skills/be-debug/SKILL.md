@@ -47,7 +47,7 @@ Why: a debugging session reverts and reapplies code changes across up to 3 hypot
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `debugger` agent with:
+Launch the `debugger` agent (`subagent_type: "backend-webflux-plugin:debugger"` — qualified: `backend-springboot-plugin` ships an agent of the same name, and a bare name may resolve to it when both are installed) with:
 
 - `problem`: the error description or context gathered
 - `config`: parsed plugin config (if available)

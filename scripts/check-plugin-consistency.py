@@ -134,7 +134,9 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
     """A launcher must pass every parameter the launched agent declares and actually uses."""
     out = []
     for sname, (spath, stext) in skills.items():
-        for m in re.finditer(r'(?:Agent|Task)\(subagent_type:\s*"([a-z0-9-]+)"', stext):
+        # a launch may qualify the agent with its plugin (`backend-webflux-plugin:code-reviewer`):
+        # two installed plugins can ship an agent of the same name
+        for m in re.finditer(r'(?:Agent|Task)\(subagent_type:\s*"(?:[a-z0-9-]+:)?([a-z0-9-]+)"', stext):
             agent = m.group(1)
             if agent not in agents:
                 out.append(Finding(str(spath), lineno(stext, m.start()), "missing-agent",

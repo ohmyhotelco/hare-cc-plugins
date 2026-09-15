@@ -88,10 +88,10 @@ docs/specs/{feature}/.implementation/backend/
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `backend-planner` agent with:
+Launch the `backend-planner` agent (`subagent_type: "backend-webflux-plugin:backend-planner"` — qualified: `backend-springboot-plugin` ships an agent of the same name, and a bare name may resolve to it when both are installed) with:
 
 ```
-Agent(subagent_type: "backend-planner", prompt: "
+Agent(subagent_type: "backend-webflux-plugin:backend-planner", prompt: "
   Analyze the functional specification for '{feature}' and produce a backend implementation plan.
 
   Parameters:

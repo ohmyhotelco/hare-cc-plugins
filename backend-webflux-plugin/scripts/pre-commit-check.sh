@@ -81,10 +81,14 @@ CONFIG_PATTERNS=(
     # test fixture's expired token is a fixture
     "[Bb]earer[[:space:]]+[A-Za-z0-9_.=-]{20,}"
     "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}"
+    # XML: the attribute form (`<property name=\"password\" value=\"x\"/>`, MyBatis/Spring/logback) and
+    # the element form (`<password>x</password>`); a \${placeholder} value is neither
+    "name=[\"']([A-Za-z0-9_.-]*[._])?${KEY}[\"'][[:space:]]+value=${QUOTED_VALUE}"
+    "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<\$[:space:]][^<]*</"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
 PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"
-CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini|sh|bash|zsh)$|(^|/)\.env(\.|$)|(^|/)(Dockerfile|Makefile)(\.|$)'
+CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini|xml|sh|bash|zsh)$|(^|/)\.env(\.|$)|(^|/)(Dockerfile|Makefile)(\.|$)'
 # What a matched VALUE may be and still not be a secret -- judged on every value the line assigns to
 # a secret-named key, never on the rest of the line (a `timeout=30` or a trailing `token: none`
 # must not excuse a `password="hunter2"` before it).
@@ -171,7 +175,8 @@ run_security_check() {
     # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
     # Exemptions are decided on the matched VALUES alone (values_of), never on the whole line.
     local f line lines exempt_quoted pattern is_template
-    sensitive_matches=$(git -C "$root" diff --cached --no-renames --name-only --diff-filter=AMT -z 2>/dev/null \
+    local raw
+    raw=$(git -C "$root" diff --cached --no-renames --name-only --diff-filter=AMT -z 2>/dev/null \
         | while IFS= read -r -d '' f; do
             # a template's (`.env.example`) key values are placeholders -- only a vendor shape counts there
             if printf '%s' "$f" | grep -qiE "$DANGEROUS_FILE_EXEMPT"; then is_template=1; else is_template=0; fi
@@ -190,11 +195,12 @@ run_security_check() {
                     printf '%s\n' "$line"
                 done
             fi
-        done 2>/dev/null | grep -v '^$' | sort -u | head -5 | sed 's/\\/\\\\/g' || true)   # the report is echo -e'd: keep a staged \n literal
-
-    if printf '%s' "$sensitive_matches" | grep -q '__GIT_DIFF_FAILED__'; then
+        done 2>/dev/null || true)
+    # the sentinel is checked on the whole stream, before the report is trimmed to five lines
+    if printf '%s' "$raw" | grep -q '__GIT_DIFF_FAILED__'; then
         echo "GIT_DIFF_FAILED: a staged file could not be read -- the scan is incomplete"; exit 2
     fi
+    sensitive_matches=$(printf '%s\n' "$raw" | grep -v '^$' | sort -u | head -5 | sed 's/\\/\\\\/g' || true)   # the report is echo -e'd: keep a staged \n literal
 
     if [ -n "$sensitive_matches" ]; then
         result+="#### Sensitive Patterns Detected\n\n"

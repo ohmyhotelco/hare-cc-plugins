@@ -16,6 +16,7 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
+3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` — the plugin's install directory, rewritten by the SessionStart hook at every session start/resume (a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`, and a copy in the project config would go stale on upgrade). Missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Determine Target
 
@@ -49,7 +50,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
    - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
-3. On every proceed path, compare the tree: `{config.pluginRoot}/scripts/source-tree-hash.sh` (exit 0 and a 40-hex id, else a tooling error — stop; a missing `config.pluginRoot` means the session has not been restarted since `be-init`) must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
+3. On every proceed path, compare the tree: `{pluginRoot}/scripts/source-tree-hash.sh` (exit 0 and a 40-hex id, else a tooling error — stop) must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
 
 ### Step 2.5: Work Document Staleness Check
 
@@ -95,7 +96,7 @@ If a feature name was provided:
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `code-reviewer` agent with:
+Launch the `code-reviewer` agent (`subagent_type: "backend-webflux-plugin:code-reviewer"` — qualified: `backend-springboot-plugin` ships an agent of the same name, and a bare name may resolve to it when both are installed) with:
 
 - `targetPath`: the resolved target path
 - `config`: parsed plugin config
@@ -250,8 +251,8 @@ Next step: /backend-webflux-plugin:be-fix {feature}
 Input: `/backend-webflux-plugin:be-review employee-profile`
 
 1. Step 1.5 resolves `employee-profile` against `work/features/.progress/employee-profile.json`; `pipeline.status` is `"verified"`, so Step 2 proceeds without asking for confirmation.
-2. Step 2.7 finds `docs/specs/employee-profile/.implementation/backend/plan.json` → `specAvailable = true`.
-3. Step 2.6 acquires the lock, then Step 3 launches `code-reviewer` with `targetPath: src/main/java/com/example/` (a feature name targets the whole base package — Step 1), plus `planFile` and `specDir` — 7 dimensions are evaluated.
+2. Step 2.6 acquires the lock; Step 2.7 finds `docs/specs/employee-profile/.implementation/backend/plan.json` → `specAvailable = true`.
+3. Step 3 launches `code-reviewer` with `targetPath: src/main/java/com/example/` (a feature name targets the whole base package — Step 1), plus `planFile` and `specDir` — 7 dimensions are evaluated.
 4. Step 3.5 validates the response: all 7 dimension keys present, `summary.totalIssues` (5) matches the sum of `issues[]` across dimensions, recomputed verdict matches `summary.verdict`, `filesReviewed` (15) equals the 11 production + 3 test `.java` files plus the one migration — validation passes.
 5. Step 4 saves `work/features/.progress/review-report-employee-profile.json` with `overallScore: 8.2`, verdict `PASS`.
 6. Step 5 displays the report (3 warnings, 2 suggestions, 0 critical).

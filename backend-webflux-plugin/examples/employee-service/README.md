@@ -44,7 +44,7 @@ Requires JDK 21+.
 All five pass as of this writing. `./gradlew build` runs compilation, checkstyle, and
 tests together; `jacocoTestReport` is `finalizedBy` from `test`, so a plain
 `./gradlew test` also produces `build/reports/jacoco/test/jacocoTestReport.xml`.
-Last verified line coverage: **99/103 lines (96.1%)** — reported for informational
+Last verified line coverage: **103/107 lines (96.3%)** — reported for informational
 purposes per the report-only gate, not enforced as a threshold.
 
 ## What's demonstrated
