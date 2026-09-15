@@ -106,10 +106,12 @@ Step 3 report.
 If the user wants timing analysis, run:
 
 ```bash
-{config.testCommand} --info
+{config.testCommand}
 ```
 
-Parse test timing from output and flag:
+then read per-test durations from the JUnit XML Gradle writes — `build/test-results/test/TEST-*.xml`,
+the `time` attribute of each `<testcase>` (Gradle's console prints no durations at any log level,
+`--info` included; a number not read from the XML is invented) — and flag:
 - Integration tests (`@SpringBootTest` + `WebTestClient`) taking > 500ms each
 - Repository tests (`@DataR2dbcTest`) taking > 100ms each
 - Mapper tests taking > 100ms each

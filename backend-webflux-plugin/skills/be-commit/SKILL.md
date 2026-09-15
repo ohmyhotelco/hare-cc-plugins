@@ -3,7 +3,7 @@ name: be-commit
 description: "Create a commit from staged changes with validated message."
 argument-hint: "[topic: <hint>] [short]"
 user-invocable: true
-allowed-tools: Read, Glob, Bash
+allowed-tools: Read, Edit, Write, Glob, Bash
 ---
 
 # Smart Commit
@@ -153,7 +153,9 @@ Check the command's exit code:
 ### Step 7.5: Close the Fix Cycle
 
 For every feature progress file whose status is `reviewed` or `done`, set `pipeline.fix.round` to `0`
-(read-modify-write, preserving everything else). The counter bounds fix attempts within one review
+(read-modify-write, preserving everything else) — under `{workDocDir}/.progress/.lock`, taken and
+released around the writes exactly as every other progress-file writer does (CLAUDE.md § State File
+Safety); if the lock is held by a live operation, skip the reset and say so rather than wait. The counter bounds fix attempts within one review
 cycle; a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes
 the next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt an unattended
 `be-jira-auto` run cannot answer.

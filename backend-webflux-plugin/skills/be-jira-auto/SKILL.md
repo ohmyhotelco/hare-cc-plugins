@@ -220,7 +220,15 @@ When Step 1 had to draft its own Proposed Solution:
 
 1. `git status --porcelain`. Not clean -- stop with `NEEDS-INPUT`: ask the
    user to commit or stash their own in-progress work first. Never run
-   `git stash` or `git checkout .` to clear it yourself.
+   `git stash` or `git checkout .` to clear it yourself. **Exception -- a
+   resume of this ticket:** when the current branch already carries
+   `{jiraKey}` (item 2) and every dirty path lies under `{sourceDir}`,
+   `{testDir}`, `src/main/resources/migration/`, `src/main/resources/mapper/`
+   or `{workDocDir}`, the tree is this pipeline's own in-progress work left
+   by a `NEEDS-INPUT` exit (a three-failure pause, a security finding, an
+   escalation); keep it and continue from the step the last report named.
+   Any dirty path outside those directories is still someone else's work:
+   stop.
 2. If the current branch name already starts with `{jiraKey}` followed by
    a `-` or `_` (case-insensitive) -- not merely *contains* it, since
    `jiraKey = "OMH-10"` is a substring of an unrelated branch named
@@ -228,7 +236,7 @@ When Step 1 had to draft its own Proposed Solution:
    this in the final report.
 3. Otherwise: resolve the default branch
    (`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`
-   then `master`), `git fetch`, then
+   then `master`), `GIT_TERMINAL_PROMPT=0 git fetch` (an expired credential or an unknown host key must fail, not prompt an unattended run), then
    `git checkout -b {jiraKey}-{slug}` from the freshly fetched default
    branch. `{slug}` is a short kebab-case form of the Jira summary (up to
    ~5 meaningful words).
@@ -432,11 +440,19 @@ Skill(skill: "be-verify", args: "{feature}")
 Skill(skill: "be-review", args: "{feature}")
 ```
 
-- **Read `be-fix`'s result before calling `be-review`.** If it left the
-  feature `escalated` (every issue escalated, or the post-fix build
-  failed), stop with `NEEDS-INPUT` and list the escalated issues:
-  `be-review` on an `escalated` feature asks "Continue?" (its Step 1
-  guard), a prompt this run cannot answer.
+- **Read `pipeline.fix.round` before the first `be-fix` call.** The
+  counter persists across runs (be-review zeroes it only on a clean PASS,
+  be-commit only after a commit); if it is already >= 2, one more call
+  reaches round 3 and `be-fix` Step 3's "Continue anyway?" prompt -- stop
+  with `NEEDS-INPUT` instead of calling.
+- **Read `fix-report.json` before calling `be-verify`/`be-review`.** If
+  `escalated[]` is non-empty -- whether the feature ended `escalated`
+  (every issue, or the post-fix build failed) or `fixing` (some fixed,
+  some escalated) -- stop with `NEEDS-INPUT` and list the escalated
+  issues verbatim. A partially escalated fix is a known unresolved issue;
+  re-verifying and re-reviewing around it can PASS-with-warnings and reach
+  the commit with that issue still open. (`be-review` refuses `escalated`
+  outright, and `be-verify` would re-admit the partial fix silently.)
 - **Hard bound: call `be-fix` at most 2 times** for a given feature.
   Reason: `skills/be-fix/SKILL.md` Step 3 blocks on a "Continue anyway?
   (y/n)" prompt once `pipeline.fix.round >= 3` -- a third call would hang

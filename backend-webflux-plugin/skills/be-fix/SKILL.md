@@ -53,6 +53,7 @@ If not found:
 2. Count issues by severity: critical, warning, suggestion
 3. If no issues exist (all dimensions scored 10):
    > "No issues to fix. The review passed with a perfect score."
+   **Stop here** — do not take the lock, launch the fixer with an empty issue set, or demote a `done` feature to `fixing` for nothing.
 4. Display summary before proceeding:
    > "Review report found ({timestamp}):"
    > "  Critical: {count}, Warning: {count}, Suggestion: {count}"
@@ -177,13 +178,13 @@ Release lock: delete `{workDocDir}/.progress/.lock` (always release — lock was
 ### Step 7: Suggest Next Action
 
 - **All fixed, build passes**:
-  > "Fixes applied. Re-run review to verify:"
-  > `/backend-webflux-plugin:be-review {feature}`
+  > "Fixes applied. Re-verify, then re-review — the fix changed code, and be-review admits only `verified`:"
+  > `/backend-webflux-plugin:be-verify {feature}` → `/backend-webflux-plugin:be-review {feature}`
 
 - **Some escalated**:
   > "Fixes applied ({fixed} fixed, {escalated} escalated)."
-  > "Address escalated issues manually, then re-run review:"
-  > `/backend-webflux-plugin:be-review {feature}`
+  > "Address escalated issues manually, then re-verify and re-review:"
+  > `/backend-webflux-plugin:be-verify {feature}` → `/backend-webflux-plugin:be-review {feature}`
 
 - **Build fails after fixes**:
   > "Build failed after applying fixes. Run auto-fix:"
@@ -274,9 +275,12 @@ Step 6 would then set `pipeline.status` to `"fixing"` (some fixed, some escalate
 The intended loop:
 
 ```
-be-review → FAIL → be-fix → be-review → PASS → be-commit
-              ↑                 │
-              └─────────────────┘ (if still failing)
+be-review → FAIL → be-fix → be-verify → be-review → PASS → be-commit
+              ↑                              │
+              └──────────────────────────────┘ (if still failing)
 ```
+
+`be-verify` sits between fix and re-review because the fix changed code: `be-review` admits only
+a `verified` feature, and `be-verify` admits `fixing` without a prompt.
 
 Each iteration produces a new review-report.json and fix-report.json. The fix round counter tracks iterations to prevent infinite loops.

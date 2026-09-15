@@ -132,9 +132,9 @@ Based on the pipeline status, suggest the next step:
 | `verify-failed` | `/backend-webflux-plugin:be-build` then `/backend-webflux-plugin:be-verify {feature}` |
 | `reviewed` | `/backend-webflux-plugin:be-fix {feature}` (optional) or `/backend-webflux-plugin:be-commit` |
 | `review-failed` | `/backend-webflux-plugin:be-fix {feature}` |
-| `fixing` | `/backend-webflux-plugin:be-review {feature}` (re-review) |
+| `fixing` | `/backend-webflux-plugin:be-verify {feature}` (the fix changed code) then `be-review` |
 | `done` | `/backend-webflux-plugin:be-commit` |
-| `resolved` | Read `pipeline.debug.previousStatus` and suggest the re-entry skill for that stage |
+| `resolved` | `/backend-webflux-plugin:be-verify {feature}` — a debug changed code; `be-review` refuses `resolved` until re-verified (`pipeline.debug.previousStatus` says how far the feature had got) |
 | `escalated` | Manual intervention, then `/backend-webflux-plugin:be-debug {feature}` |
 | (no progress file) | `/backend-webflux-plugin:be-code {workDocDir}/{feature}.md` |
 | `parse-error` | Show the offending file path (`{workDocDir}/.progress/{feature}.json`) and suggest the user inspect/repair it manually — do not suggest a pipeline command until it parses. |

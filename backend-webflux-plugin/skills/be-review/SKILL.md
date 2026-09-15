@@ -46,10 +46,8 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"verified"`: proceed (normal flow)
    - If `"verify-failed"`: **stop** — the build, tests or checkstyle failed, and a review PASS on code that does not build would set `done` and let `be-commit` commit it. Run `/backend-webflux-plugin:be-build {feature}` (or `be-fix`/`be-debug`) and re-verify first.
    - If `"fixing"` or `"resolved"`: **stop** — the fix/debug changed code, so the last verification no longer describes it; run `/backend-webflux-plugin:be-verify {feature}` first (it re-admits the feature as `verified`)
-   - If `"escalated"`:
-     > "This feature was escalated (manual intervention required). Verify that the underlying issue has been resolved before running review."
-     > "Continue?"
-     If the user declines, stop here.
+   - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
+   - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
 
 ### Step 2.5: Work Document Staleness Check
@@ -121,7 +119,8 @@ Do not trust the agent's response as complete just because it returned. Before p
 2. **Numeric consistency** — `summary.totalIssues` equals the total number of entries across every dimension's `issues[]`, and `summary.critical` / `summary.warning` / `summary.suggestion` match the actual `severity` counts in those `issues[]`. A mismatch fails validation.
 3. **Score and verdict consistency** — recompute `summary.overallScore` as the mean of the dimension scores present (6 or 7), rounded to 1 decimal; a mismatch fails validation. Then recompute the verdict using the rules below (all dimensions >= 7 and zero critical issues → PASS, otherwise FAIL) and confirm it matches `summary.verdict`. A mismatch fails validation.
 4. **Agent failure or timeout** — the agent call errored, returned empty output, or was visibly truncated (e.g., an unterminated JSON object). Any of these fails validation.
-5. **Issue completeness** — every entry in every `issues[]` array has a non-empty `file`, `line`, and `suggestion` (the agent's Constraints require "file path, line number, and concrete fix suggestion" for every finding — see `agents/code-reviewer.md` Constraints). A blank field is evidence of truncation and fails validation.
+5. **Coverage** — `filesReviewed` is greater than 0 and equals the number of `.java` files under the target (plus the resources the agent was told to read), and `target` is the path Step 1 resolved; a report of zero files with six perfect scores is an agent that did not look, not a clean codebase.
+6. **Issue completeness** — every entry in every `issues[]` array has a non-empty `file`, `line`, and `suggestion` (the agent's Constraints require "file path, line number, and concrete fix suggestion" for every finding — see `agents/code-reviewer.md` Constraints). A blank field is evidence of truncation and fails validation.
 
 If any check fails — and likewise if writing the report (Step 4) or the progress file (Step 6) fails: do not leave a partial report, release the lock from Step 2.6 if one was acquired, and report to the user exactly which check failed (name the check and the offending field/dimension) instead of persisting a partial report as if it were complete. Stop here — do not proceed to Step 4.
 

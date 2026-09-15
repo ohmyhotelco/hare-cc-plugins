@@ -42,7 +42,7 @@ If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` e
 
 ### Step 0.6: Work Document Staleness Check
 
-If a feature argument was provided:
+If a feature argument was provided **and its progress file exists** (Step 0 continues without one, and there is no `updatedAt` to compare then — skip this step and say so):
 
 1. Read the work document path from progress file (`workDocument` field)
 2. Compare modification times using the Bash tool, both reduced to `YYYY-MM-DDTHH:MM:SS` UTC:

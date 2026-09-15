@@ -29,7 +29,7 @@ case "$FILE_PATH" in
     nudge "[Backend Plugin] Build config changed. Run /backend-webflux-plugin:be-build to validate."
     ;;
   *resources/migration*)
-    nudge "[Backend Plugin] Migration file changed. Run /backend-webflux-plugin:be-build to validate schema."
+    nudge "[Backend Plugin] Migration file changed. This plugin never applies migrations (Decision 3); re-run /backend-webflux-plugin:be-verify so the entity, mapper XML and tests that depend on the new column compile and pass."
     ;;
   *)
     # Non-Java file, skip

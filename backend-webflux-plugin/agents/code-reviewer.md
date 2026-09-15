@@ -26,7 +26,7 @@ The skill will provide these parameters in the prompt:
 1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
    execution-facing subset of the plugin CLAUDE.md)
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `dataProfile`, `webLayer`, `database`, `checkstyle`, `lombokEnabled`
-3. Scan `targetPath` to identify all Java files for review, and — when the path is the base package — `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` as well: the Data Layer dimension's migration and MyBatis checks are about those files, and a `targetPath` limited to `{domain}/` cannot see them
+3. Scan `targetPath` to identify all Java files for review, **and the matching test tree under `config.testDir`** (Dimension 5 judges test naming, assertions and coverage — it cannot from production code alone), and — when the path is the base package — `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` as well: the Data Layer dimension's migration and MyBatis checks are about those files, and a `targetPath` limited to `{domain}/` cannot see them
 4. Categorize files: entities, repositories/mappers, commands, executors, queries, processors, views, routers/handlers/controllers, tests, exceptions, validators, configs
 5. If `planFile` is provided:
    - Read `plan.json` and parse entities, commands, queries, endpoints, exceptions, validationRules, testScenarios

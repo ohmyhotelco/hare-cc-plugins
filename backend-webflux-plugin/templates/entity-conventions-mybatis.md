@@ -35,7 +35,7 @@ public interface EmployeeMapper {
 
     Employee findById(@Param("id") UUID id);
 
-    List<Employee> findAllPage(@Param("offset") int offset, @Param("limit") int limit);
+    List<Employee> findAllPage(@Param("offset") long offset, @Param("limit") int limit);   // long: page * size overflows int
 
     long count();
 
@@ -228,7 +228,7 @@ public record GetEmployeePageQueryProcessor(
 ) {
     public Mono<PageCarrier<EmployeeView>> process(GetEmployeePage query) {
         return Mono.fromCallable(() -> {
-                var offset = query.page() * query.size();
+                var offset = (long) query.page() * query.size();   // int arithmetic wraps negative past page 107374182
                 var rows = employeeMapper.findAllPage(offset, query.size());
                 var views = rows.stream()
                     .map(e -> new EmployeeView(e.getId(), e.getEmail(), e.getDisplayName()))

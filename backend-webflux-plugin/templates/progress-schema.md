@@ -98,9 +98,9 @@ scaffolded → implementing → implemented → verified ─→ reviewed ─→ 
                                     ↓            ↓          ↓
                               verify-failed  review-failed  fixing
                                     ↓            ↓          ↓
-                                be-build     be-fix    be-review
-                                    ↓            ↓     (re-review)
-                                be-verify    fixing → reviewed/done
+                                be-build     be-fix    be-verify (the fix changed code)
+                                    ↓            ↓          ↓
+                                be-verify    fixing    verified → be-review → reviewed/done
                                     ↓
                                 verified
 

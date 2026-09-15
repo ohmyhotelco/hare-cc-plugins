@@ -142,7 +142,12 @@ public Mono<Void> execute(CreateBooking command) {
 }
 
 private boolean isAmbiguous(Throwable e) {
-    return e instanceof TimeoutException || e instanceof ConnectException;
+    // Ambiguous = the request may have reached the vendor: a chain timeout, Reactor Netty's
+    // read timeout, or a connection closed mid-response. A ConnectException is NOT ambiguous --
+    // the request was never sent, so nothing can have been created on the other side.
+    return e instanceof TimeoutException
+        || e instanceof io.netty.handler.timeout.ReadTimeoutException
+        || e instanceof reactor.netty.http.client.PrematureCloseException;
 }
 ```
 

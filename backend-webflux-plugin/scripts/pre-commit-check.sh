@@ -39,7 +39,8 @@ LITERAL_PATTERNS=(
     "[\"']?${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"'][^\"'\$][^\"']*[\"']"
     # a ${PLACEHOLDER:default} whose default is a literal -- `password: \${DB_PASSWORD:hunter2}` ships
     # hunter2 wherever the variable is unset. An empty default (`\${X:}`) is fine.
-    "${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"']?\\$\\{[A-Za-z_][A-Za-z0-9_.]*:[^}\"'[:space:]]+\\}"
+    "${KEY}[\"']?[[:space:]]*[:=][[:space:]]*\\$\\{[A-Za-z_][A-Za-z0-9_.-]*:[^}\"'[:space:]]+\\}"
+    "${KEY}[\"']?[[:space:]]*[:=][[:space:]]*[\"']\\$\\{[A-Za-z_][A-Za-z0-9_.-]*:[^}\"']+\\}[\"']"
     # a database URL is a secret only when it carries credentials (user:pass@host); a bare
     # jdbc:mysql://host/db is every MyBatis application.yml. r2dbc URLs may be pooled.
     "jdbc:[a-z]+://[^\"'/@[:space:]\$]+:[^\"'/@[:space:]\$]+@[^\"'[:space:]]*"
@@ -48,12 +49,14 @@ LITERAL_PATTERNS=(
 CONFIG_PATTERNS=(
     # a bare value on a secret-named key: not empty, not a ${placeholder}, not a comment, and
     # not one of YAML's null spellings (null, ~) -- see the post-filter below
-    "^\+[[:space:]]*(export[[:space:]]+)?[A-Za-z0-9_.-]*${KEY}[[:space:]]*[:=][[:space:]]*[^\"'\$\{#[:space:]][^[:space:]#]*"
+    "^\+[[:space:]]*(export[[:space:]]+)?([A-Za-z0-9_.-]*[._-])?${KEY}[[:space:]]*[:=][[:space:]]*[^\"'\$\{#[:space:]][^[:space:]#]*"
 )
-CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini)$|(^|/)\.env(\.|$)'
+CONFIG_FILES='\.(ya?ml|properties|env|conf|toml|ini|sh|bash|zsh)$|(^|/)\.env(\.|$)|(^|/)(Dockerfile|Makefile)(\.|$)'
 
 # Dangerous file NAMES (not paths that merely contain the word: ClientSecretProperties.java is code)
-DANGEROUS_FILE_PATTERNS='(^|/)\.env(\..*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)(credentials|secrets?)(\.(json|ya?ml|properties|env|txt|xml|toml|ini))?$|(^|/)application-prod\.'
+# .env.example/.sample/.template are the committed templates; application-prod.* is scanned by content
+DANGEROUS_FILE_PATTERNS='(^|/)\.env(\.[^/]*)?$|\.(pem|key|p12|pfx|jks|keystore)$|(^|/)(credentials|secrets?)(\.(json|ya?ml|properties|env|txt|xml|toml|ini))?$'
+DANGEROUS_FILE_EXEMPT='(^|/)\.env\.(example|sample|template)$'
 
 # Security check
 run_security_check() {
@@ -64,7 +67,7 @@ run_security_check() {
 
     # 1. Dangerous file patterns
     # --diff-filter=AM: a DELETED .env/.pem is the corrective commit, not a new leak
-    local dangerous_files=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null | grep -iE "$DANGEROUS_FILE_PATTERNS" || true)
+    local dangerous_files=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null | grep -iE "$DANGEROUS_FILE_PATTERNS" | grep -viE "$DANGEROUS_FILE_EXEMPT" || true)
 
     if [ -n "$dangerous_files" ]; then
         result+="#### Dangerous Files Detected\n\n"
@@ -89,10 +92,13 @@ run_security_check() {
         | while IFS= read -r f; do git -C "$root" diff --cached -- "$f" 2>/dev/null | grep -E "^\+" | grep -vE "^\+\+\+ "; done || true)
     # -i: `PASSWORD="…"` and `Password: '…'` are the same secret as their lowercase forms.
     # The post-filter drops YAML nulls; the value class already excludes placeholders and comments.
+    # value exemptions, both tiers: YAML nulls, booleans, numbers, paths, and the schema-example
+    # word "string" (an OpenAPI `"password": "string"`) are not secrets
+    local not_a_value='[:=][[:space:]]*[\"'"'"']?(null|~|true|false|yes|no|[0-9]+[a-z]*|/[^[:space:]\"'"'"']*|\./[^[:space:]\"'"'"']*|string)[\"'"'"']?([[:space:]]|$)'
     sensitive_matches=$( { printf '%s\n' "$staged_diff" | grep -iE "$literal_pattern";
-                           printf '%s\n' "$config_diff" | grep -iE "$config_pattern" \
-                             | grep -viE "[:=][[:space:]]*(null|~)([[:space:]]|$)"; } 2>/dev/null \
-                         | grep -v '^$' | sort -u | head -5 || true)
+                           printf '%s\n' "$config_diff" | grep -iE "$config_pattern"; } 2>/dev/null \
+                         | grep -viE "$not_a_value" \
+                         | grep -v '^$' | sort -u | head -5 | sed 's/\\/\\\\/g' || true)   # the report is echo -e'd: keep a staged \n literal
 
     if [ -n "$sensitive_matches" ]; then
         result+="#### Sensitive Patterns Detected\n\n"

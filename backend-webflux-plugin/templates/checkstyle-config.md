@@ -32,6 +32,12 @@ that has its own `checkstyle.xml` keeps it, and `code-reviewer` Dimension 3 judg
     <property name="charset" value="UTF-8"/>
     <property name="severity" value="error"/>
 
+    <!-- optional: config/checkstyle/checkstyle-suppressions.xml, for generated sources -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${config_loc}/checkstyle-suppressions.xml"/>
+        <property name="optional" value="true"/>
+    </module>
+
     <module name="NewlineAtEndOfFile"/>
     <module name="FileTabCharacter"/>
     <module name="LineLength">

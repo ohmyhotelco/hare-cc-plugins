@@ -77,6 +77,9 @@ Loop — Review & Fix:
             └── Direct fixes (mechanical changes — targeted edit)
         │
         ▼
+/backend-webflux-plugin:be-verify <feature> (the fix changed code)
+        │
+        ▼
 /backend-webflux-plugin:be-review <feature> (re-review until pass)
         │
         ▼
@@ -316,8 +319,8 @@ Verify the installation:
 
 **Review-fix loop**:
 ```
-be-review → FAIL → be-fix → be-review → PASS → be-commit
-              ^                 |
+be-review → FAIL → be-fix → be-verify → be-review → PASS → be-commit
+              ^                              |
               └─────────────────┘ (if still failing)
 ```
 
@@ -612,7 +615,7 @@ scaffolded → implementing → implemented → verified ─→ reviewed ─→ 
                                     ↓            ↓          ↓
                               verify-failed  review-failed  fixing
                                     ↓            ↓          ↓
-                                be-build     be-fix    be-review (re-review)
+                                be-build     be-fix    be-verify → be-review
                                     ↓            ↓
                                 verified     fixing → reviewed/done
 
@@ -644,7 +647,7 @@ Language mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 - **Use be-verify as a quick gate** — It's read-only and fast. Run it after implementation to catch compilation, test, or coverage-report issues before investing time in a full review.
 
-- **Don't skip re-review after fixes** — Always run `be-review` after `be-fix`. The review-fix cycle ensures no regressions.
+- **Don't skip re-verification and re-review after fixes** — Always run `be-verify` then `be-review` after `be-fix` (the fix changed code; `be-review` admits only a `verified` feature). The loop ensures no regressions.
 
 - **Use be-debug for complex issues** — If tests fail in non-obvious ways, `be-debug` provides systematic hypothesis testing rather than ad-hoc debugging.
 

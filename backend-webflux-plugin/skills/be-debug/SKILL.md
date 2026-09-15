@@ -207,8 +207,8 @@ Read `pipeline.debug.previousStatus` from the progress file to determine where t
 | `implementing` | Resume: `/backend-webflux-plugin:be-code {feature}` |
 | `implemented` | Verify: `/backend-webflux-plugin:be-verify {feature}` |
 | `verify-failed` | Re-verify: `/backend-webflux-plugin:be-verify {feature}` |
-| `verified` | Review: `/backend-webflux-plugin:be-review {feature}` |
-| `review-failed` | Re-review: `/backend-webflux-plugin:be-review {feature}` |
-| `fixing` | Re-review: `/backend-webflux-plugin:be-review {feature}` |
+| `verified` | Re-verify (the debug fix changed code, and the current status is `resolved`, which `be-review` refuses): `/backend-webflux-plugin:be-verify {feature}` then `be-review` |
+| `review-failed` | Re-verify, then re-review: `/backend-webflux-plugin:be-verify {feature}` |
+| `fixing` | Re-verify, then re-review: `/backend-webflux-plugin:be-verify {feature}` |
 | `escalated` | If review-report exists: `/backend-webflux-plugin:be-fix {feature}`. Otherwise: `/backend-webflux-plugin:be-verify {feature}` |
 | (unknown or missing) | Run build: `/backend-webflux-plugin:be-build` |
