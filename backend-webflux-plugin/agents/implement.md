@@ -31,6 +31,7 @@ The skill will provide these parameters in the prompt:
 This phase runs once per agent invocation, even when `workDocuments` contains
 multiple documents — it is not repeated per document.
 
+0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions and
    architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md —
    see that file's own header for what it omits)
@@ -130,9 +131,10 @@ Run the entire test class:
 - **Maximum 3 attempts**: if still failing after 3 tries, revert every change made for this
   scenario since Step 1 (method stub, the test written in Step 2, and any implementation from
   Step 4) back to the state before this scenario started — from the snapshot taken before this
-  scenario's first edit: each file copied into a `mktemp -d` directory outside the repository (a
-  new file recorded as absent), restored byte-for-byte, absent files deleted, the directory removed
-  at the end (`git checkout -- file` restores the last COMMIT and would erase every earlier
+  scenario's first edit: each file copied with `cp -p` via Bash into a `mktemp -d` directory outside the repository (a
+  new file recorded as absent; the directory's path recorded as `snapshotDir` in
+  `{workDocDir}/.progress/.lock` so the skill can remove it after a crash), restored with `cp -p`,
+  absent files deleted, the directory removed at the end (`git checkout -- file` restores the last COMMIT and would erase every earlier
   scenario's uncommitted work in the same file; a copy inside the repository is picked up by the
   tree hash). Do not leave a known-failing test in
   the class -- Step 5 for the *next* scenario re-runs the entire test class, so a stale failing
@@ -160,7 +162,7 @@ Update the work document: change `- [ ]` to `- [x]` for the completed scenario.
 - Never modify a failed test to make it pass -- fix the production code
 - Never write code not driven by a failing test
 - Never skip the RED verification step
-- After every test run (each attempt, GREEN or not), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
+- After every test run (each attempt, GREEN or not), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now **when the file exists and its `operation` is `be-code`** (the skill that launched this agent; never create one, never touch another skill's) — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
 - Never run individual test methods -- always run the entire test class
 - Request user review after 3 consecutive test failures
 - Never leave a scenario's test or implementation changes in the tree after escalating on

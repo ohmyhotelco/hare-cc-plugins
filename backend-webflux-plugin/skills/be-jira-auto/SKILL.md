@@ -219,7 +219,7 @@ When Step 1 had to draft its own Proposed Solution:
 
 ### Step 2: Prepare the Branch
 
-1. `git status --porcelain -z` (NUL-separated, the form Step 9 diffs against). Not clean -- stop with `NEEDS-INPUT`: ask the
+1. `git status --porcelain -z` (NUL-separated, the form Step 9 diffs against). Paths under `{workDocDir}/.progress/` and `.claude/backend-webflux-plugin.json` are this plugin's own bookkeeping and never count as dirty (the run state above is written before any branch exists). Not clean otherwise -- stop with `NEEDS-INPUT`: ask the
    user to commit or stash their own in-progress work first. Never run
    `git stash` or `git checkout .` to clear it yourself. **Exception -- a
    resume of this ticket:** when the current branch already carries
@@ -230,9 +230,12 @@ When Step 1 had to draft its own Proposed Solution:
    `be-build` may edit the build), the tree is this
    pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
-   continue from the step `{workDocDir}/.progress/jira-{jiraKey}.json`
-   names (written at every early stop -- see Gates; absent → `NEEDS-INPUT`
-   asking which step), **capped at Step 6 when
+   continue from the step and feature `{workDocDir}/.progress/jira/{jiraKey}.json`
+   names (written at every early stop and after the commit -- see Gates;
+   absent → `NEEDS-INPUT` asking which step; `committed`/`DONE` → the
+   ticket is finished: stop and say so, a fresh run on the same branch
+   starts over at Step 3 only when the user asks for it in `notes`),
+   **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
    re-enters at Step 6 instead whenever `{pluginRoot}/scripts/
    source-tree-hash.sh` (exit 0 and a 40-hex id, else `NEEDS-INPUT`: the
@@ -248,7 +251,8 @@ When Step 1 had to draft its own Proposed Solution:
    a `-` or `_` (case-insensitive) -- not merely *contains* it, since
    `jiraKey = "OMH-10"` is a substring of an unrelated branch named
    `OMH-100-refactor-pricing` -- stay on it -- skip branch creation, note
-   this in the final report.
+   this in the final report, and read the run state (item 1) even when the
+   tree is clean: a `committed`/`DONE` ticket is not implemented twice.
 3. Otherwise: resolve the default branch
    (`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main`
    then `master`), `GIT_TERMINAL_PROMPT=0 GIT_SSH_COMMAND="ssh -o BatchMode=yes" git fetch` (an expired credential, a passphrase or an unknown host key must fail, not prompt an unattended run — `GIT_TERMINAL_PROMPT` covers git's own credential prompt only, `BatchMode` covers SSH's), then
@@ -284,7 +288,10 @@ Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[
 
 For every entity Step 1/1.5 marked "extend, not create", performed by
 this skill directly (`Write`/`Edit`/`Bash`), **before** Step 4 authors the
-work document -- there is no "alter" skill in this plugin, so this is not
+work document -- schema, entity field and mapping are scaffold, the same
+kind of untested output `be-crud` produces for a new entity (behavior is
+still written RED → GREEN by `be-code` in Step 5); there is no "alter"
+skill in this plugin, so this is not
 `be-crud`'s job and not `implement`'s job either; `implement` only ever
 sees a scenario list, never "this entity needs a new column" as a task in
 its own right:
@@ -358,9 +365,11 @@ Skill(skill: "backend-webflux-plugin:be-code", args: "{workDocDir}/{one feature}
 - The skill runs RED -> GREEN per scenario and writes its own tests --
   there is no separate "write unit tests" step in this plugin's pipeline.
 - If `be-code`'s own report leaves `pipeline.status` at `"implementing"`
-  (some scenario did not finish, e.g. 3 consecutive failures) -- stop with
+  with a scenario unfinished (3 consecutive failures) -- stop with
   `NEEDS-INPUT`, naming exactly which scenario is unfinished and the
-  reason the skill reported.
+  reason the skill reported. If every scenario is `- [x]` and only its
+  final full build failed (checkstyle first runs there, never in the
+  per-class cycles) -- go to Step 6.1: that is what `be-build` is for.
 
 Steps 6–8 run **per entry of `features`** (Step 4 item 4): `{feature}` below is the one being
 processed, and a FAIL on any entry stops the run at that entry (later entries depend on it).
@@ -524,7 +533,8 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
    Skill(skill: "backend-webflux-plugin:be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```
 4. Read `be-commit`'s own report; take the short hash from the
-   `git rev-parse --short HEAD` output it printed -- never fabricate one.
+   `git rev-parse --short HEAD` output it printed -- never fabricate one --
+   and write it to the run state at once (`status: committed`, `commit`).
 5. **Do not push, do not open a pull request, do not transition or
    comment on the Jira issue.** This is the pipeline's final step, exactly
    as `CLAUDE.md` § Pipeline defines it (`be-plan -> be-crud -> be-code ->
@@ -545,12 +555,17 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature}")
 | After Step 8 | `be-review` verdict PASS (at most 2 `be-fix` rounds) | `ABORTED` -- list remaining critical/warning issues |
 | Step 9 | `be-commit` exits 0 with a confirmed short hash | Report the commit failure verbatim, stop -- no retry |
 
-Every early stop (`NEEDS-INPUT`/`ABORTED`) writes
-`{workDocDir}/.progress/jira-{jiraKey}.json` — `{ "step": "{N}", "status":
-"NEEDS-INPUT|ABORTED|DONE", "features": [...], "timestamp": "{ISO 8601 Z}" }`
-(the report text is not persisted anywhere else, and Step 2's resume reads
-this file for "the step the last report named"; a resume with no file stops
-with `NEEDS-INPUT` asking which step to resume at) — and must report which
+Every early stop (`NEEDS-INPUT`/`ABORTED`) writes the run state to
+`{workDocDir}/.progress/jira/{jiraKey}.json` — a subdirectory, so the
+`.progress/*.json` scans of be-commit and the other skills never read it
+as a progress file — `{ "step": "{N}", "status": "NEEDS-INPUT|ABORTED|
+committed|DONE", "feature": "{the entry being processed}", "features":
+[...], "commit": "{short hash, once be-commit returned it}", "timestamp":
+"{ISO 8601 Z}" }`. Step 9 item 4 writes `committed` with the hash the
+moment be-commit reports it (a crash before `DONE` must not replay the
+commit); the Output section writes `DONE`. Step 2 reads it whenever the
+branch carries `{jiraKey}` (a resume with no file stops with `NEEDS-INPUT`
+asking which step to resume at) — and every stop must report which
 pipeline step it stopped at and the current `pipeline.status` for each affected feature
 (read from `{workDocDir}/.progress/{feature}.json` when it exists), so the
 user knows exactly which `be-*` skill to resume with by hand. Never stop
@@ -598,7 +613,7 @@ silently.
 
 ## Output
 
-Write `{workDocDir}/.progress/jira-{jiraKey}.json` with the final status (`DONE` closes the
+Write `{workDocDir}/.progress/jira/{jiraKey}.json` with the final status (`DONE` closes the
 resume path: a later run on the same branch starts over at Step 3 only with the user's say-so),
 then report, in `workingLanguage`, starting with a status line:
 

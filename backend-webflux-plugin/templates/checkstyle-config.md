@@ -90,7 +90,8 @@ Create `config/checkstyle/checkstyle-suppressions.xml` for legitimate exceptions
     "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
     "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 <suppressions>
-    <suppress checks=".*" files="(^build/|^bin/|^target/|generated-sources)" />
+    <!-- matched against the absolute path: anchor on a separator, never on ^ -->
+    <suppress checks=".*" files="[\\/](build|bin|target|generated-sources)[\\/]" />
 </suppressions>
 ```
 

@@ -22,6 +22,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
+0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
    execution-facing subset of the plugin CLAUDE.md)
 2. Read `templates/tdd-rules.md` for TDD methodology
@@ -65,9 +66,10 @@ Process issues in order: critical → warning → suggestion.
 5. Run test class again — verify all tests pass
 6. Maximum 3 attempts per fix; if still failing, revert everything written for this issue in
    steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state — from the
-   snapshot taken before this issue's first edit: each file copied into a `mktemp -d` directory
-   outside the repository (a new file recorded as absent), restored byte-for-byte, absent files
-   deleted, the directory removed at the end; never `git checkout -- file`, which restores the last
+   snapshot taken before this issue's first edit: each file copied with `cp -p` via Bash into a `mktemp -d`
+   directory outside the repository (a new file recorded as absent; the path recorded as
+   `snapshotDir` in `{workDocDir}/.progress/.lock` so the skill can remove it after a crash),
+   restored with `cp -p`, absent files deleted, the directory removed at the end; never `git checkout -- file`, which restores the last
    COMMIT and erases earlier fixes in the same file — then
    classify as `escalated`. Never move to the next issue with a failed fix's partial changes
    still in the tree — the fix-report's `escalated[].reason` is the only trace of the attempt
@@ -168,7 +170,7 @@ Generate `fix-report-{feature}.json` (or `fix-report.json` if no feature context
 - For TDD fixes: follow strict RED-GREEN methodology (no code without failing test)
 - For direct fixes: verify compilation after each edit
 - Maximum 3 attempts per TDD fix before escalating
-- After every Gradle run (each attempt of each issue), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
+- After every Gradle run (each attempt of each issue), rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now **when the file exists and its `operation` is `be-fix`** (the skill that launched this agent; never create one, never touch another skill's) — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
 - Never leave an escalated issue's changes (test and/or edit) in the tree — revert before
   moving to the next issue (see Phase 2)
 - Preserve existing code intent — apply minimum necessary change

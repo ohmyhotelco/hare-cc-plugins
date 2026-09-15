@@ -76,8 +76,8 @@ For each hypothesis (starting with most likely):
 
 Important:
 - Set Bash tool timeout to 600000ms for all Gradle commands
-- After every verification run, rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
-- After each failed hypothesis, cleanly revert ALL changes before trying the next — from the snapshot taken before the hypothesis's first edit: each file copied into a `mktemp -d` directory outside the repository (a new file recorded as absent), restored byte-for-byte, absent files deleted, the directory removed at the end; `git checkout -- file` restores the last COMMIT and would erase uncommitted work that predates this debug run
+- After every verification run, rewrite `lockedAt` in `{workDocDir}/.progress/.lock` to now **when the file exists and its `operation` is `be-debug`** (the skill that launched this agent; never create one, never touch another skill's) — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
+- After each failed hypothesis, cleanly revert ALL changes before trying the next — from the snapshot taken before the hypothesis's first edit: each file copied with `cp -p` via Bash into a `mktemp -d` directory outside the repository (a new file recorded as absent; the path recorded as `snapshotDir` in `{workDocDir}/.progress/.lock` when that lock exists, so the skill can remove it after a crash), restored with `cp -p`, absent files deleted, the directory removed at the end; `git checkout -- file` restores the last COMMIT and would erase uncommitted work that predates this debug run
 - Do not modify tests to make them pass — fix the production code
 
 ### Phase 4: Confirm

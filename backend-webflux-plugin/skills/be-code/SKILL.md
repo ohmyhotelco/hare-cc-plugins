@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 Implement a feature using strict Test-Driven Development. This skill orchestrates the full TDD workflow: context gathering, scenario writing, and RED-GREEN cycle execution.
 
-This skill holds an exclusive cross-skill lock (`{workDocDir}/.progress/.lock`) for the duration of the run and can demote a feature's pipeline status, discarding verification/review progress (see Step 3.5). Ground every claim in the Step 6 report in evidence — build output, `git status`/`git diff` — never narrate completion from memory, and never leave the lock file behind on failure or cancellation (see Error Handling).
+This skill holds an exclusive cross-skill lock (`{workDocDir}/.progress/.lock`) for the duration of the run and can demote a feature's pipeline status, discarding verification/review progress (see Step 3.5). Ground every claim in the Step 6 report in evidence — build output, `git status`/`git diff` — never narrate completion from memory, and never leave the lock file behind on failure or cancellation (see Error Handling) — and whenever the lock is released, on any path, remove the directory its `snapshotDir` names if the implement agent recorded one (its revert snapshot, outside the repository).
 
 ## Instructions
 

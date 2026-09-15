@@ -104,11 +104,11 @@ Check each in-scope file against these rules. Every match found here is a
 #### Warning Issues
 
 4. **Input Validation**
-   - `@RequestBody` without `@Valid` annotation
+   - A command executor that persists a field no `{Entity}PropertyValidator` method checked
+     (this plugin validates inside the executor, not with `@Valid` on the DTO — a handler that
+     validates is the layer violation be-review flags)
    - Path variables or query parameters without bounds validation
    - String inputs without length limits (oversized payload risk)
-   - Validation not applied in the controller/handler layer before reaching
-     executors
 
 5. **PII & Data Exposure**
    - Sensitive fields (email, phone, address, SSN) logged without masking

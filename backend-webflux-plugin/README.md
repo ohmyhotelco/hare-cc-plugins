@@ -556,9 +556,9 @@ Reproduce → Hypothesize (exactly 3) → Test → Confirm. Classifies errors as
 | `webLayer` | `"functional"` (RouterFunction) / `"annotated"` (@RestController) — see `docs/decisions.md` Decision 2 | `"functional"` |
 | `database` | `"mysql"` (what `be-crud` generates for) / `"h2"` (sample stand-in) | `"mysql"` |
 | `migration` | `"manual-sql"` / `"flyway"` / `"liquibase"` (only if explicitly opted in) | `"manual-sql"` |
-| `checkstyle` | Whether Checkstyle is enabled | `true` |
+| `checkstyle` | Whether Checkstyle is enabled — `be-init` detects the Gradle plugin; `false` when absent | detected |
 | `coverage` | Whether the JaCoco coverage row runs (report-only percentage) | detected: `true` only when the `jacoco` plugin is applied |
-| `lombokEnabled` | Whether Lombok is used | `true` |
+| `lombokEnabled` | Whether Lombok is used — `be-init` detects the dependency; `false` when absent | detected |
 | `workDocDir` | Directory for work documents | `"work/features"` |
 | `workingLanguage` | Language for user-facing output (`"en"` / `"ko"` / `"vi"`) | `"en"` |
 

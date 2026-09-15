@@ -140,7 +140,7 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
         # be THIS plugin's, or the launch reaches the other plugin's agent
         # both the call form `Agent(subagent_type: "x")` and the prose form "Launch the `x` agent
         # (`subagent_type: \"plugin:x\"`) with: - param: …" -- the parameter bullets follow either
-        for m in re.finditer(r'(?:(?:Agent|Task)\(subagent_type|subagent_type):\s*"(?:([a-z0-9-]+):)?([a-z0-9-]+)"', stext):
+        for m in re.finditer(r'subagent_type:\s*"(?:([a-z0-9-]+):)?([a-z0-9-]+)"', stext):
             qualifier, agent = m.group(1), m.group(2)
             if qualifier and plugin_name and qualifier != plugin_name:
                 out.append(Finding(str(spath), lineno(stext, m.start()), "foreign-agent",

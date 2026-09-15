@@ -194,7 +194,7 @@ If config is available and feature context exists (`{workDocDir}/.progress/{feat
    - Resolved → `"resolved"`
    - Escalated → `"escalated"`
 5. Write back (read-modify-write)
-6. Release lock: delete `{workDocDir}/.progress/.lock` — and do the same on every other exit after Step 1.5: the agent erroring or timing out, a `could not reproduce` outcome, a refusal. A lock that outlives the run blocks every other skill for 30 minutes.
+6. Release lock: delete `{workDocDir}/.progress/.lock` (first removing the directory its `snapshotDir` names, if the debugger recorded one — its revert snapshot outside the repository) — and do the same on every other exit after Step 1.5: the agent erroring or timing out, a `could not reproduce` outcome, a refusal. A lock that outlives the run blocks every other skill for 30 minutes.
 
 Why preserve `previousStatus`: Step 5 has no other record of where the feature was in the pipeline before debugging started. Losing it strands the user — there would be no way to tell whether to resume implementation, re-verify, or re-review, so `/backend-webflux-plugin:be-progress` would be needed just to recover state this step already had in hand.
 
@@ -211,4 +211,5 @@ Read `pipeline.debug.previousStatus` from the progress file to determine where t
 | `review-failed` | Re-verify, then re-review: `/backend-webflux-plugin:be-verify {feature}` |
 | `fixing` | Re-verify, then re-review: `/backend-webflux-plugin:be-verify {feature}` |
 | `escalated` | If review-report exists: `/backend-webflux-plugin:be-fix {feature}`. Otherwise: `/backend-webflux-plugin:be-verify {feature}` |
+| `reviewed`, `done`, `resolved` | Re-verify, then re-review — the fix changed code a review already described: `/backend-webflux-plugin:be-verify {feature}` then `be-review` |
 | (unknown or missing) | Run build: `/backend-webflux-plugin:be-build` |

@@ -23,6 +23,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
+0. `templates/…` below is the plugin's own directory, not the project's: read `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (one line, written by the SessionStart hook) and resolve every template as `{that path}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
    execution-facing subset of the plugin CLAUDE.md)
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `dataProfile`, `webLayer`, `database`, `checkstyle`, `lombokEnabled`

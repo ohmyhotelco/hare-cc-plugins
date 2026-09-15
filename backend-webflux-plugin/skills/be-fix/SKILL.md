@@ -17,6 +17,7 @@ Read the review report produced by `be-review` and apply targeted fixes using TD
 ## Constraints
 
 - Never display Fixed/Escalated counts (Step 5) without first confirming `fix-report.json` exists, is well-formed, and its `summary.total` matches the issue count computed in Step 2 — if it does not, report "fix report incomplete/unverifiable," never a number.
+- Whenever the lock is released, on any path, remove the directory its `snapshotDir` names if the review-fixer agent recorded one (its revert snapshot, outside the repository).
 - Never leave `.progress/.lock` held past a failed or non-returning Step 4 agent call — release it immediately on failure, before reporting anything else to the user.
 - Never advance `pipeline.status` to `"reviewed"` or `"done"` from this skill — only `be-review` sets those; this skill only ever leaves status at `"fixing"` or `"escalated"`.
 - Never re-run fixes past round 3 without explicit user confirmation (Step 3).

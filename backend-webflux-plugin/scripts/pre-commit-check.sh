@@ -79,7 +79,7 @@ LITERAL_PATTERNS=(
 # Dockerfile spelling.
 CONFIG_PREFIX="^\\+[[:space:]]*(-[[:space:]]+)?([A-Za-z0-9_.-]+:[[:space:]]*)?\\{?[[:space:]]*((RUN[[:space:]]+)?(export|readonly|local|declare( -[a-zA-Z]+)*|ENV|ARG)[[:space:]]+)?([A-Za-z0-9_]+=[^[:space:]]*[[:space:]]+)*[\"']?[A-Za-z0-9_.-]*"
 CONFIG_PATTERNS=(
-    "${CONFIG_PREFIX}${KEY}[\"']?(${SEP})${BARE_VALUE}"
+    "${CONFIG_PREFIX}${KEY}[\"']?(${SEP})(${BARE_VALUE}|\\$'[^']+')"
     "^\\+[[:space:]]*(RUN[[:space:]]+)?(ENV|ARG)[[:space:]]+([A-Za-z0-9_.-]*[._-])?${KEY}[[:space:]]+${BARE_VALUE}"
     # a bearer token / JWT in a config file (three base64url segments) -- not in source, where a
     # test fixture's expired token is a fixture
@@ -92,11 +92,13 @@ CONFIG_PATTERNS=(
     "<([A-Za-z0-9_.-]*[._-])?${KEY}>[^<\$[:space:]][^<]*</"
     # command lines in scripts and Dockerfiles: `--password hunter2` / `--password=hunter2` /
     # `--password 'hunter2'`, `-Dspring.r2dbc.password=x` anywhere on the line, `curl -u user:pass`,
-    # `Authorization: Basic …` -- not on a comment line (`^\+[^#]*`: nothing after a `#`)
-    "^\+[^#]*[[:space:]]--([A-Za-z0-9-]*-)?${KEY}[= ](${BARE_VALUE}|${QUOTED_VALUE})"
-    "^\+[^#]*[[:space:]]-D[A-Za-z0-9_.-]*${KEY}=(${BARE_VALUE}|${QUOTED_VALUE})"
-    "^\+[^#]*[[:space:]](-u|--user)[= ][\"']?[^:[:space:]\$\"']+:[^[:space:]\$@\"']+"
-    "^\+[^#]*[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]\"']|$)"
+    # `Authorization: Basic …` -- not on a comment LINE (one whose first character is `#`; a `#`
+    # inside a URL fragment or a quoted value does not start a comment). `\$'x'` is bash's ANSI-C
+    # quoting of a literal.
+    "^\+[[:space:]]*[^#[:space:]].*[[:space:]]--([A-Za-z0-9-]*-)?${KEY}[= ](${BARE_VALUE}|\\\$?${QUOTED_VALUE})"
+    "^\+[[:space:]]*[^#[:space:]].*[[:space:]]-D[A-Za-z0-9_.-]*${KEY}=(${BARE_VALUE}|\\\$?${QUOTED_VALUE})"
+    "^\+[[:space:]]*[^#[:space:]].*[[:space:]](-u|--user)[= ][\"']?[^:[:space:]\$\"']+:[^[:space:]\$@\"']+"
+    "^\+[[:space:]]*[^#[:space:]].*[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]\"']|$)"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
 PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"
@@ -159,7 +161,14 @@ run_security_check() {
 
     result+="### Security Check\n\n"
 
-    # 0. The index must be readable: a scan that sees nothing because git failed must not pass
+    # 0. Every regex must compile: a pattern error makes grep exit 2, which the no-match guards
+    # below would read as "nothing found" -- fail closed instead
+    local pat rc
+    for pat in "${LITERAL_PATTERNS[@]}" "${CONFIG_PATTERNS[@]}" "$PROPERTIES_PATTERN" "$NOT_A_BARE_VALUE" "$NOT_A_QUOTED_VALUE" "$SHELL_REFERENCE"; do
+        rc=0; printf '\n' | grep -qiE -e "$pat" 2>/dev/null || rc=$?   # -e: a pattern starting with `-` is not an option
+        [ "$rc" -le 1 ] || { echo "PATTERN_ERROR: a scanner regex does not compile -- nothing was scanned"; exit 2; }
+    done
+    # The index must be readable: a scan that sees nothing because git failed must not pass
     if ! git diff --cached --no-renames --name-only >/dev/null 2>&1; then
         echo "GIT_DIFF_FAILED: the staged changes could not be read -- nothing was scanned"
         exit 2
@@ -204,7 +213,8 @@ run_security_check() {
             else exempt_quoted="$NOT_A_QUOTED_VALUE"; exempt_bare="$NOT_A_BARE_VALUE"; fi
             lines=$(added_lines "$root" "$f")
             printf '%s\n' "$lines" | grep -iE "$literal_pattern|^__GIT_DIFF_FAILED__" | while IFS= read -r line; do
-                if [ "$is_template" = 1 ] && ! printf '%s' "$line" | grep -qE "$vendor_pattern|^__GIT_DIFF_FAILED__"; then continue; fi
+                if printf '%s' "$line" | grep -qE "$vendor_pattern|^__GIT_DIFF_FAILED__"; then printf '%s\n' "$line"; continue; fi   # a vendor shape is reported whatever else the line assigns
+                if [ "$is_template" = 1 ]; then continue; fi
                 if exempt_line "$line" "$exempt_quoted"; then continue; fi
                 printf '%s\n' "$line"
             done

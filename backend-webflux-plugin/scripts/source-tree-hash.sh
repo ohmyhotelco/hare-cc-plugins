@@ -34,7 +34,7 @@ T1=""; T2=""; TR=""
 cleanup() { rm -rf "$T1" "$T2" "$TR"; }; trap cleanup EXIT
 T1=$(mktemp); T2=$(mktemp); rm -f "$T1" "$T2"     # an absent index file is an empty index
 # The caller's own git environment must not redirect these commands to another repository.
-unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR
 IN_GIT=0; git rev-parse --is-inside-work-tree >/dev/null 2>&1 && IN_GIT=1
 
 module_paths() {   # $1 = module dir ("" = root): the gate inputs under it
@@ -44,22 +44,29 @@ module_paths() {   # $1 = module dir ("" = root): the gate inputs under it
         "${m}build.gradle" "${m}build.gradle.kts" "${m}settings.gradle" "${m}settings.gradle.kts" \
         "${m}gradle.properties" "${m}gradlew" "${m}gradlew.bat" "${m}config" "${m}gradle"
 }
-# subproject directories: settings `include(...)` entries (`:a:b` -> a/b; `includeBuild` is a
-# separate build, not a module; comments stripped first) and every `projectDir = file("x")`
-# relocation, plus directories carrying a build file (working tree, and the index when in git).
-# build/, .gradle/, buildSrc/, node_modules/ are pruned at every depth; a path that leaves the
-# repository (`../x`) or is absolute is dropped -- git would reject it as a pathspec.
+# subproject directories: settings `include(...)` entries (`:a:b` -> a/b; `includeBuild`/`includeFlat`
+# are other builds, not modules; comments stripped, lines joined so a multi-line include parses)
+# and every `projectDir = file("x")` / `new File(settingsDir, "x")` relocation, plus directories
+# carrying a build file (working tree, and the index when in git). In --staged mode the settings
+# file is read from the index: the commit activates what the staged settings say. build/, .gradle/,
+# buildSrc/, node_modules/ are pruned at every depth; a path that leaves the repository (`../x`)
+# or is absolute is dropped -- git would reject it as a pathspec.
+settings_text() {   # $1 = settings file: comments stripped, newlines joined
+    local src
+    if [ "$MODE" = staged ] && [ $IN_GIT = 1 ] && git cat-file -e ":$1" 2>/dev/null; then src=$(git show ":$1"); else [ -f "$1" ] && src=$(cat "$1") || return 0; fi
+    printf '%s\n' "$src" | sed -E 's#//.*$##; s/^[[:space:]]*#.*$//' | tr '\n' ' '
+}
 subprojects() {
     # every pipeline here ends in `|| true`: the function runs in a subshell under set -e/pipefail,
     # and a grep with no match (a settings file with no quoted include) would otherwise end it
     # before the build-file discovery below ran
-    { local s stripped
+    { local s joined
       for s in settings.gradle settings.gradle.kts; do
-          [ -f "$s" ] || continue
-          stripped=$(sed -E 's#//.*$##; s/^[[:space:]]*#.*$//' "$s") || true
-          printf '%s\n' "$stripped" | grep -oE '(^|[^A-Za-z0-9_])include[[:space:]]*\(?[^)]*' | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" \
+          joined=$(settings_text "$s") || true; [ -n "$joined" ] || continue
+          printf '%s\n' "$joined" | grep -oE "(^|[^A-Za-z0-9_])include([[:space:]]*\\(|[[:space:]]+)[^)]*" | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" \
               | sed -E 's/^://; s#:#/#g' || true
-          printf '%s\n' "$stripped" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new )?[Ff]ile[[:space:]]*\\([[:space:]]*[\"'][^\"']+[\"']" | grep -oE "[\"'][^\"']+[\"']" | tr -d "\"'" || true
+          printf '%s\n' "$joined" | grep -oE "projectDir[[:space:]]*=[[:space:]]*(new[[:space:]]+File|file)[[:space:]]*\\([^)]*\\)" \
+              | sed -E "s/.*[\"']([^\"']+)[\"'][^\"']*\\)$/\\1/" || true
       done
       find . -maxdepth 4 \( -name .git -o -name .gradle -o -name build -o -name buildSrc -o -name node_modules \) -prune \
           -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##' | grep '/' | sed 's#/[^/]*$##' || true
@@ -69,6 +76,8 @@ subprojects() {
 }
 PATHS=(); while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "")
 while IFS= read -r d; do while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "$d"); done < <(subprojects)
+# git pathspecs are globs (`lib[1]`, `lib*`) and `!`/`:` are magic: every path is passed literally
+LIT=(); for p in "${PATHS[@]}"; do LIT+=(":(literal)$p"); done
 
 emit() {   # the contract above: a tree id or nothing
     local id; id=$(GIT_INDEX_FILE="$1" git write-tree) || exit 1
@@ -79,7 +88,7 @@ if [ $IN_GIT = 0 ]; then
     [ "$MODE" = staged ] && { echo "source-tree-hash: --staged needs a git repository" >&2; exit 1; }
     TR=$(mktemp -d); git init -q "$TR"
     export GIT_DIR="$TR/.git" GIT_WORK_TREE="$PWD"
-    add=(); for p in "${PATHS[@]}"; do [ -e "$p" ] && ! git check-ignore -q -- "$p" && add+=("$p"); done
+    add=(); for p in "${PATHS[@]}"; do [ -e "$p" ] && ! git check-ignore -q -- "$p" && add+=(":(literal)$p"); done
     [ ${#add[@]} -eq 0 ] && { echo "$EMPTY_TREE"; exit 0; }
     git add -A -- "${add[@]}" 2>/dev/null || { echo "source-tree-hash: git add failed" >&2; exit 1; }
     emit "$GIT_DIR/index"; exit 0
@@ -100,13 +109,13 @@ if [ "$MODE" = working ]; then
     # input git would ever commit, and naming it makes `git add` fail -- skip it.
     [ -f "$index" ] && git ls-files -s -z --full-name | GIT_INDEX_FILE="$T1" git update-index -z --index-info
     add=(); for p in "${PATHS[@]}"; do
-        if [ -n "$(git ls-files --cached -- "$p" | head -c1)" ]; then add+=("$p")
-        elif [ -e "$p" ] && ! git check-ignore -q -- "$p"; then add+=("$p"); fi
+        if [ -n "$(git ls-files --cached -- ":(literal)$p" | head -c1)" ]; then add+=(":(literal)$p")
+        elif [ -e "$p" ] && ! git check-ignore -q -- "$p"; then add+=(":(literal)$p"); fi
     done
     # (stderr dropped: git's CRLF advice is not this script's output; a failure still exits 1)
     [ ${#add[@]} -gt 0 ] && { GIT_INDEX_FILE="$T1" git add -A -- "${add[@]}" 2>/dev/null || { echo "source-tree-hash: git add failed" >&2; exit 1; }; }
     # only the entries under the paths, into a fresh index
-    [ -f "$T1" ] && GIT_INDEX_FILE="$T1" git ls-files -s -z --full-name -- "${PATHS[@]}" \
+    [ -f "$T1" ] && GIT_INDEX_FILE="$T1" git ls-files -s -z --full-name -- "${LIT[@]}" \
         | GIT_INDEX_FILE="$T2" git update-index -z --index-info
 else
     # a COPY of the real index, so git keeps its own view of what a commit contains (an intent-to-add
@@ -115,7 +124,7 @@ else
     if [ -f "$T2" ]; then
         # everything not under the paths, straight from git (NUL-separated, so a path with a
         # newline survives): the whole tree minus one `:(exclude)` pathspec per gate path
-        excl=(); for p in "${PATHS[@]}"; do excl+=(":(exclude)$p"); done
+        excl=(); for p in "${PATHS[@]}"; do excl+=(":(exclude,literal)$p"); done
         GIT_INDEX_FILE="$T2" git ls-files -z --full-name -- "$top" "${excl[@]}" \
             | GIT_INDEX_FILE="$T2" git -C "$top" update-index -z --force-remove --stdin
     fi
@@ -124,7 +133,7 @@ fi
 # a sparse checkout's skip-worktree entries (the flag lives in the real index only) are not on disk
 # and were not built: drop them from BOTH forms, or the staged tree never equals the working one
 # (cwd-relative paths on both sides: --stdin resolves against the cwd, unlike --index-info)
-git ls-files -t -z -- "${PATHS[@]}" 2>/dev/null \
+git ls-files -t -z -- "${LIT[@]}" 2>/dev/null \
     | { while IFS= read -r -d '' e; do if [ "${e:0:2}" = "S " ]; then printf '%s\0' "${e:2}"; fi; done; true; } \
     | GIT_INDEX_FILE="$T2" git update-index -z --force-remove --stdin
 emit "$T2"

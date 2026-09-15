@@ -85,7 +85,7 @@ normalization). Most CRUD-only domains never need this.
   backoff + jitter + a hard attempt cap, and never retry a 4xx
 
 ### Utilities
-- Lombok (configurable, default enabled)
+- Lombok (configurable — `be-init` detects the dependency; `false` when absent)
 - UUID Creator for UUID v7 generation
 
 ### Testing
@@ -106,7 +106,7 @@ normalization). Most CRUD-only domains never need this.
 - `@ParameterizedTest` + `@ValueSource` / `@MethodSource` for multi-value scenarios
 
 ### Code Quality
-- Checkstyle (configurable, default enabled) with zero tolerance (maxErrors=0, maxWarnings=0)
+- Checkstyle (configurable — `be-init` detects the Gradle plugin; `false` when absent) with zero tolerance (maxErrors=0, maxWarnings=0)
 - **Coverage**: JaCoco line coverage, report-only in this plugin's initial gate — no
   threshold enforced yet (see `docs/decisions.md` Decision 6 and `be-verify`)
 
@@ -370,7 +370,7 @@ Running a skill from an earlier pipeline stage demotes the status. Skills must w
 
 ### State File Safety
 
-**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and debugger agents rewrite it after every Gradle run (the skill that took it is blocked on the agent), and staleness counts from the last refresh. Acquisition is check-then-write, not atomic: the lock guards against a forgotten or crashed run, not against two sessions racing on one project.
+**Lock file**: Skills that modify progress files must acquire `{workDocDir}/.progress/.lock` before writing. Release on completion or failure. Stale locks (older than 30 minutes) are automatically removed — so a holder that runs longer refreshes `lockedAt`: the implement, review-fixer and debugger agents rewrite it after every Gradle run (the skill that took it is blocked on the agent), and staleness counts from the last refresh. Acquisition is check-then-write, not atomic: the lock guards against a forgotten or crashed run, not against two sessions racing on one project. An agent that keeps a revert snapshot records its directory as `snapshotDir` in the lock; whoever releases the lock — normally or after a crash — removes that directory.
 
 Lock file format:
 ```json
@@ -490,9 +490,9 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `webLayer`: `"functional"` (default, RouterFunction/HandlerFunction) | `"annotated"` (@RestController exception) — see `docs/decisions.md` Decision 2
 - `database`: `"mysql"` (default; what `be-crud` generates for) | `"h2"` (sample-only stand-in, MySQL mode) — `be-init` stops on any other value
 - `migration`: `"manual-sql"` (default, no runner) | `"flyway"` | `"liquibase"` (only if a project explicitly opts back in) — informational: generation always writes plain SQL to `src/main/resources/migration/` and registers nothing; a runner-based project points its runner there or includes the file itself
-- `checkstyle`: Whether checkstyle is enabled (default: true)
+- `checkstyle`: Whether checkstyle is enabled (detected by `be-init`; `false` when the Gradle plugin is absent — a `true` on a project without it fails every be-verify run)
 - `coverage`: Whether the JaCoco coverage row runs in `be-verify` (`true` only when the `jacoco` plugin is applied — `be-init` detects it; the percentage is report-only, no threshold — see `docs/decisions.md` Decision 6)
-- `lombokEnabled`: Whether Lombok is used (default: true)
+- `lombokEnabled`: Whether Lombok is used (detected by `be-init`; `false` when the dependency is absent)
 - `workDocDir`: Directory for work documents (default: `work/features`)
 - `workingLanguage`: Language for user-facing output (`"en"` | `"ko"` | `"vi"`)
 

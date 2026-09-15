@@ -127,7 +127,7 @@ row would run the whole build and one failure would surface in all of them.
 
 - **Pass**: exit code 0, all tests pass
 - **Fail**: collect failed test names and assertion error messages
-- Counts: Gradle prints no per-test numbers on a passing run, so read them from the JUnit XML it always writes — `build/test-results/test/TEST-*.xml`, summing the `tests`, `failures`, `errors`, `skipped` attributes of each `<testsuite>` (`passed = tests − failures − errors − skipped`). Never infer a count from console output that does not carry one
+- Counts: Gradle prints no per-test numbers on a passing run, so read them from the JUnit XML it always writes — every `build/test-results/test/TEST-*.xml` under the project (a multi-module build writes one set per subproject; `buildSrc/` excluded), summing the `tests`, `failures`, `errors`, `skipped` attributes of each `<testsuite>` (`passed = tests − failures − errors − skipped`). Never infer a count from console output that does not carry one
 
 #### 1.4: Full Build Check
 
@@ -147,8 +147,8 @@ Note: Gradle caching ensures previously-passed tasks complete instantly. This st
 {config.gradleCommand} jacocoTestReport 2>&1
 ```
 
-- **Pass**: task completes successfully and `build/reports/jacoco/test/jacocoTestReport.xml` exists and is parseable
-- **Fail**: task fails, or the XML report is missing/unparseable
+- **Pass**: task completes successfully and at least one `build/reports/jacoco/test/jacocoTestReport.xml` exists and is parseable — at the root, or one per subproject in a multi-module build (`buildSrc/` excluded); the percentage below sums the `LINE` counters across them
+- **Fail**: task fails, or no XML report exists / one is unparseable
 - **Skip**: if `config.coverage == false`
 - **1.3 FAILed**: run `{config.gradleCommand} jacocoTestReport -x test` instead — the report task reads the execution data 1.3 wrote; without `-x test` it re-runs the red suite first
 - Parse the line-coverage percentage from the XML report's top-level `<counter type="LINE">` element:
