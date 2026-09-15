@@ -16,7 +16,7 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Determine Target
 
@@ -231,7 +231,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
 4. Fix round counter: reset `pipeline.fix.round` to `0` **only on a PASS with zero issues** (`done`); a FAIL *and* a PASS-with-warnings (`reviewed`) keep it — otherwise `be-fix`'s round-3 guard (Step 3) can never trigger inside a review ↔ fix loop, since every review would zero what every fix incremented
 5. Write back (read-modify-write)
 
-If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock`.
+If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety.
 
 ### Step 7: Suggest Next Action
 

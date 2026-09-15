@@ -61,6 +61,11 @@ against a file mtime in the same shape; a local offset would compare as a differ
       "directCount": 2,
       "reportFile": "work/features/.progress/fix-report-create-employee.json"
     },
+    "build": {
+      "timestamp": "2026-03-30T15:20:00Z",
+      "previousStatus": "done",
+      "filesModified": ["src/main/java/.../EmployeeHandler.java"]
+    },
     "debug": {
       "status": "resolved",
       "previousStatus": "implementing",

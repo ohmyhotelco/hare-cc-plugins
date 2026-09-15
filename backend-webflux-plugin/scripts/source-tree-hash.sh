@@ -16,7 +16,7 @@
 # every directory with its own build file up to four levels down, in the working tree or the index
 # (a module staged but deleted from disk is still what the commit contains).
 #
-# Usage: source-tree-hash.sh [appDir] [--staged]
+# Usage: source-tree-hash.sh [appDir] [--staged]   -- appDir is the Gradle root (where settings.gradle lives)
 #   default   the working tree -- what be-verify built and tested
 #   --staged  the index -- what be-commit is about to commit, as git will write it (an intent-to-add
 #             entry is not part of a commit); equal to the working-tree hash only when every change
@@ -79,7 +79,9 @@ subprojects() {
           -o \( -name build.gradle -o -name build.gradle.kts \) -print 2>/dev/null | sed 's#^\./##' | grep '/' | sed 's#/[^/]*$##' || true
       if [ $IN_GIT = 1 ]; then git ls-files --cached -- '*/build.gradle' '*/build.gradle.kts' 2>/dev/null \
           | grep -vE '(^|/)(build|buildSrc|\.gradle|node_modules)/' | sed 's#/[^/]*$##' || true; fi
-    } | grep -v '^$' | grep -vE '^(/|\.\.(/|$))' | LC_ALL=C sort -u || true
+    } | grep -v '^$' | LC_ALL=C sort -u | { while IFS= read -r d; do
+            case "$d" in /*|../*|..) echo "source-tree-hash: project dir outside the repository not hashed: $d" >&2 ;; *) printf '%s\n' "$d" ;; esac
+        done; true; } || true
 }
 PATHS=(); while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "")
 while IFS= read -r d; do while IFS= read -r p; do PATHS+=("$p"); done < <(module_paths "$d"); done < <(subprojects)

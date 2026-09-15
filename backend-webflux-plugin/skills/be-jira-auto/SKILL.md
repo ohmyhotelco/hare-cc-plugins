@@ -27,7 +27,9 @@ main session, where `Skill` and `Agent` both exist.
 - One skill owns each step (`be-crud`, `be-code`, `be-verify`, `be-build`,
   `be-review`, `be-fix`, `be-commit`). Call it through `Skill`, read its
   output, then move on -- never skip a step, never reorder, never
-  reimplement a skill's job inline.
+  reimplement a skill's job inline (the one exception is Step 3.5's
+  scaffold-level extension of an existing entity, for which no skill exists;
+  it follows `be-crud`'s templates).
 - This skill runs unattended: it cannot answer a skill's interactive
   confirmation prompts mid-run. Resolve every input a skill would
   otherwise ask for (data profile, domain, fields, scenarios) *before*
@@ -83,7 +85,7 @@ ticket.
 3. Record `buildCommand`, `testCommand`, `basePackage`, `sourceDir`,
    `testDir`, `workDocDir`, `dataProfile`, `webLayer`, `workingLanguage`
    for use in every later step.
-4. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
+4. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
@@ -273,6 +275,9 @@ Only for entities Step 1/1.5 marked as brand-new, in dependency order:
 Skill(skill: "backend-webflux-plugin:be-crud", args: "{EntityName} field1:Type1[:unique][:max=N][:pattern=email|phone|url] ... --domain {domain} --profile {r2dbc|mybatis}")
 ```
 
+- Before the call, look for `{workDocDir}/.progress/{kebab-case-entity}.json`: present in any
+  status → `be-crud`'s Step 2.5 would ask "Continue?" — stop with `NEEDS-INPUT` naming the
+  entity, unless `notes` says to start it over, in which case add `--yes`.
 - `--domain` and `--profile` are the answers `be-crud` would otherwise ask
   for; passing them is what keeps this run unattended -- both were already
   decided in Step 1. The field flags carry what Step 1 read off the ticket:
@@ -415,7 +420,7 @@ interleave their stops and lock handling. Run them one after the other,
 are read from its own output before `be-review`'s steps begin):
 
 ```
-Skill(skill: "backend-webflux-plugin:be-security", args: "{sourceDir}/{basePackage}/")   # the whole package: executors, repositories and queries live outside {domain}/
+Skill(skill: "backend-webflux-plugin:be-security", args: "")   # no argument = its default scope: the whole base package plus src/main/resources (a dotted basePackage is not a path)
 Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 ```
 

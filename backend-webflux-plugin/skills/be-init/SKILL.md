@@ -14,7 +14,7 @@ Set up the Backend WebFlux Plugin configuration for this project.
 
 ### Step 1: Check Existing Configuration
 
-0. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
+0. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`. Missing → do **not** stop: initialization needs no template (only Step 2 item 9's optional checkstyle offer does — skip that offer); record that it is missing for Step 7.
 1. Check if `.claude/backend-webflux-plugin.json` already exists in the current project directory
 2. If it exists, read the current configuration and show it to the user:
    > "Backend WebFlux Plugin is already configured:"

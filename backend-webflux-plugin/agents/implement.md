@@ -32,7 +32,7 @@ The skill will provide these parameters in the prompt:
 This phase runs once per agent invocation, even when `workDocuments` contains
 multiple documents — it is not repeated per document.
 
-0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
+0. `templates/…` and `skills/…` below are the plugin's own directories, not the project's: every such file is `{pluginRoot}/templates/<file>` / `{pluginRoot}/skills/<…>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions and
    architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md —
    see that file's own header for what it omits)
@@ -132,10 +132,11 @@ Run the entire test class:
 - **Maximum 3 attempts**: if still failing after 3 tries, revert every change made for this
   scenario since Step 1 (method stub, the test written in Step 2, and any implementation from
   Step 4) back to the state before this scenario started — from the snapshot taken before this
-  scenario's first edit: each file copied with `cp -p` via Bash into a `mktemp -d` directory outside the repository (a
-  new file recorded as absent; the directory's path recorded as `snapshotDir` in
-  `{workDocDir}/.progress/.lock` so the skill can remove it after a crash), restored with `cp -p`,
-  absent files deleted, the directory removed at the end (`git checkout -- file` restores the last COMMIT and would erase every earlier
+  scenario's first edit: each file copied with `cp -p` via Bash into `{snapshotDir}/{scenario}/{repository-relative path}`
+  (one `mktemp -d "${TMPDIR:-/tmp}/bewf-snapshot.XXXXXX"` per run with a `.bewf-snapshot` marker,
+  recorded once as `snapshotDir` in `{workDocDir}/.progress/.lock` by read-modify-write so the skill
+  can remove it after a crash; a new file recorded as absent), restored with `cp -p`, absent files
+  deleted, the scenario's subdirectory removed once it is settled (`git checkout -- file` restores the last COMMIT and would erase every earlier
   scenario's uncommitted work in the same file; a copy inside the repository is picked up by the
   tree hash). Do not leave a known-failing test in
   the class -- Step 5 for the *next* scenario re-runs the entire test class, so a stale failing

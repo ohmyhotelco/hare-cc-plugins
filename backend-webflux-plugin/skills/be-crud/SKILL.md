@@ -1,7 +1,7 @@
 ---
 name: be-crud
 description: "Generate CRUD scaffold for an entity using CQRS layered architecture (R2DBC or MyBatis, functional or annotated web layer)."
-argument-hint: "<EntityName> [field:Type[:unique][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] | --all <feature-name>"
+argument-hint: "<EntityName> [field:Type[:unique][:max=N][:pattern=email|phone|url] ...] [--domain <domain>] [--profile r2dbc|mybatis] [--yes] | --all <feature-name> [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Bash
 ---
@@ -243,6 +243,8 @@ This determines:
 
 ### Step 2.5: Demotion Check
 
+`--yes` answers this step's confirmation with yes — for an unattended caller (`be-jira-auto`) whose user asked to start the entity over; without it the prompt is asked.
+
 If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 
 1. Read `pipeline.status`
@@ -305,7 +307,7 @@ Generate the following files in order. Use the entity's resolved `dataProfile` (
 File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sql`
 
 - Determine `{next}` and `{snake_case_entity}` using the Shared Derivation Rules above
-- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax; every unique field gets a **named** constraint `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` — the executor maps a `DataIntegrityViolationException` to `Duplicate{Field}Exception` only when the message names that constraint: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL UNIQUE`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
+- Generate `CREATE TABLE IF NOT EXISTS` (rerunnable) with MySQL syntax; every unique field gets a **named** constraint `CONSTRAINT uk_{table}_{column} UNIQUE ({column})` — the executor maps a `DataIntegrityViolationException` to `Duplicate{Field}Exception` only when the message names that constraint: `sequence BIGINT NOT NULL AUTO_INCREMENT PRIMARY KEY`, `id CHAR(36) NOT NULL` with `CONSTRAINT uk_{table}_id UNIQUE (id)`, custom fields, `created_at DATETIME(6) NOT NULL`, `updated_at DATETIME(6) NOT NULL`, `ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`
 - Add indexes for unique fields
 - This file is generated only — never executed by this skill (see `docs/decisions.md` Decision 3)
 
@@ -513,7 +515,7 @@ Otherwise, create `{workDocDir}/.progress/{kebab-case-entity}.json` (the directo
 
 ### Step 7: Release Lock
 
-Delete `{workDocDir}/.progress/.lock`.
+Delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (only a lock whose `operation` is `be-crud`; a run that waited at a prompt past 30 minutes may find another skill's lock in its place).
 
 - **Single-entity mode**: release immediately after Step 6, or immediately after Step 5.2's report if Step 6 was skipped because `failed` was non-empty. A failed generation still must not leave the lock held.
 - **Spec-all mode**: release only after the last entity's Step 6 (or skipped-Step-6) is reached. Do not release between entities.

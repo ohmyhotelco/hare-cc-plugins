@@ -34,7 +34,7 @@ the doubt, rather than silently dropping it.
 - If argument provided: audit the specified file or directory
   - If the path does not exist, report `Path not found: {path}` and stop — do not
     fall back to scanning the default scope
-- If no argument: audit all files in `{sourceDir}/{basePackage}/`
+- If no argument: audit all files in `{sourceDir}/{basePackage}/` **and** `src/main/resources/` (the Secrets & Configuration rules are about `application*.yml`/`.properties`, JSON/TOML and compose files, which live there, not in the package)
   - If that directory does not exist or contains zero `.java`/`.xml` files, report
     `No source files found in {sourceDir}/{basePackage}/ — nothing to audit` and stop
 - Include MyBatis XML mappers under `src/main/resources/mapper/` in scope whenever

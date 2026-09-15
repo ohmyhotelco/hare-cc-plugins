@@ -67,10 +67,11 @@ Process issues in order: critical → warning → suggestion.
 5. Run test class again — verify all tests pass
 6. Maximum 3 attempts per fix; if still failing, revert everything written for this issue in
    steps 1 and 4 (the test and the implementation attempt) back to the pre-fix state — from the
-   snapshot taken before this issue's first edit: each file copied with `cp -p` via Bash into a `mktemp -d`
-   directory outside the repository (a new file recorded as absent; the path recorded as
-   `snapshotDir` in `{workDocDir}/.progress/.lock` so the skill can remove it after a crash),
-   restored with `cp -p`, absent files deleted, the directory removed at the end; never `git checkout -- file`, which restores the last
+   snapshot taken before this issue's first edit: each file copied with `cp -p` via Bash into
+   `{snapshotDir}/{issue}/{repository-relative path}` (one `mktemp -d "${TMPDIR:-/tmp}/bewf-snapshot.XXXXXX"`
+   per run with a `.bewf-snapshot` marker, recorded once as `snapshotDir` in
+   `{workDocDir}/.progress/.lock` by read-modify-write; a new file recorded as absent), restored
+   with `cp -p`, absent files deleted, the issue's subdirectory removed once it is settled; never `git checkout -- file`, which restores the last
    COMMIT and erases earlier fixes in the same file — then
    classify as `escalated`. Never move to the next issue with a failed fix's partial changes
    still in the tree — the fix-report's `escalated[].reason` is the only trace of the attempt

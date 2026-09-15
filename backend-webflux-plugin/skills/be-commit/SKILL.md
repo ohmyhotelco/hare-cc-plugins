@@ -16,7 +16,7 @@ Create a git commit from already-staged changes with a validated commit message 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `{pluginRoot}`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
+3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Check Staged Changes
 
@@ -137,7 +137,7 @@ Before the commit, for every feature progress file whose status is `reviewed` or
 `pipeline.fix.round` to `0` — and, when its `pipeline.verification.tree` equals the staged hash Step 1.5
 computed, `pipeline.verification.committed` to `true` (this commit consumes that verification; Step 1.5
 stops comparing it to later trees) — (read-modify-write, preserving everything else) under
-`{workDocDir}/.progress/.lock`, taken and released around the writes exactly as every other
+`{workDocDir}/.progress/.lock`, taken and released (per CLAUDE.md § State File Safety) around the writes exactly as every other
 progress-file writer does (CLAUDE.md § State File Safety); if the lock is held by a live operation,
 skip the reset and say so rather than wait. The counter bounds fix attempts within one review cycle;
 a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes the

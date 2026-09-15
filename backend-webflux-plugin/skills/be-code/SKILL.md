@@ -309,7 +309,7 @@ update `{workDocDir}/.progress/{kebab-case-entity}.json`:
 5. Write back (read-modify-write — preserve all existing fields including `specSource`)
 
 After every entity's (or the single entity's) progress file is updated, release the
-lock: delete `{workDocDir}/.progress/.lock`.
+lock: delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety.
 
 Suggest next step:
 - **All entities implemented + build passes**: `/backend-webflux-plugin:be-verify {entity}` for each entity

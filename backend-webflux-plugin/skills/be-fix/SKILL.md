@@ -119,11 +119,11 @@ The agent will:
 
 The agent's classification reasoning per issue is preserved in `fix-report.json`, keyed by `issueId` (`tddFixes[].implementation`, `directFixes[].change`, `escalated[].reason`) — if the user asks why a specific issue was classified or fixed a particular way, read that field and cite it rather than re-deriving a reason.
 
-**If the Agent call fails**: if the invocation errors, times out, or does not return a `fix-report.json` path, immediately release the lock (delete `{workDocDir}/.progress/.lock`), report the failure to the user together with whatever partial output the agent did produce, and stop — do not proceed to Step 5 or Step 6.
+**If the Agent call fails**: if the invocation errors, times out, or does not return a `fix-report.json` path, immediately release the lock (delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety), report the failure to the user together with whatever partial output the agent did produce, and stop — do not proceed to Step 5 or Step 6.
 
 ### Step 5: Display Fix Report
 
-**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check it against Step 2's issue set: the `issueId`s across `tddFixes[]`, `directFixes[]`, `alreadyResolved[]` and `escalated[]` are exactly the review's ids — each once, none missing, none invented — and `summary.total` equals their count (`fixed + alreadyResolved + escalated`); a total alone is satisfied by a report that lists one issue twice and drops another. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
+**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check it against Step 2's issue set: the `issueId`s across `tddFixes[]`, `directFixes[]`, `alreadyResolved[]` and `escalated[]` are exactly the review's ids — each once, none missing, none invented — and `summary.total` equals their count (`fixed + alreadyResolved + escalated`); a total alone is satisfied by a report that lists one issue twice and drops another. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
 
 Show results in the working language:
 
@@ -176,7 +176,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
    - All escalated / build fails → `"escalated"`
 4. Write back (read-modify-write)
 
-Release lock: delete `{workDocDir}/.progress/.lock` (always release — lock was acquired in Step 3.5).
+Release lock: delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (always release — lock was acquired in Step 3.5).
 
 ### Step 7: Suggest Next Action
 

@@ -23,6 +23,7 @@ EXIT
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -50,7 +51,7 @@ TOOL_EVIDENCE = {
     "Bash": [r"```(?:bash|sh)\b", r"\bnpx [a-z@]", r"^\s*git \w", r"\bmkdir -p\b",
              r"\bpnpm (?:add|install|run) ", r"\bcd \{"],
     "Task": [r"\bTask\(subagent_type"],
-    "Agent": [r"\bAgent\(subagent_type", r"subagent_type:\s*\""],   # call form and the prose form
+    "Agent": [r"\bAgent\(subagent_type", r"(?<!Task\()subagent_type:\s*\""],   # call form and the prose form (a Task launch is not Agent evidence)
 }
 
 
@@ -151,8 +152,11 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
                                    f"launches `{agent}` but agents/{agent}.md does not exist"))
                 continue
             _, atext = agents[agent]
-            block_end = stext.find('")', m.start())
-            block = stext[m.start(): block_end if block_end != -1 else m.start() + 2000]
+            # the block is this launch's own text: up to its closing `")`, the next launch, or 2000 chars
+            nxt = re.search(r'subagent_type:\s*"', stext[m.end():])
+            limit = m.end() + (nxt.start() if nxt else 2000)
+            block_end = stext.find('")', m.start(), limit)
+            block = stext[m.start(): block_end if block_end != -1 else limit]
             used = {v for v, _ in placeholders(atext)}
             for p in sorted(declared_params(atext) & used & WIRING):
                 if re.search(rf"^\s*-\s+`?{re.escape(p)}`?\s*:", block, re.M):   # `- param:` or `- `param`:`
@@ -174,7 +178,7 @@ def check_passed_but_unbound(skills: dict[str, tuple[Path, str]]) -> list[Findin
     """
     out = []
     for name, (path, text) in skills.items():
-        for m in re.finditer(r"^\s*-\s+(\w+):\s*\{(\w+)\}\s*$", text, re.M):
+        for m in re.finditer(r"^\s*-\s+`?(\w+)`?:\s*\{(\w+)\}\s*$", text, re.M):   # `- param:` or `- `param`:`
             param, var = m.group(1), m.group(2)
             if var not in WIRING:
                 continue
@@ -491,6 +495,15 @@ def load(d: Path, pattern: str) -> dict[str, tuple[Path, str]]:
     return out
 
 
+def plugin_name(plugin: Path) -> str:
+    """The name a launch qualifies an agent with is plugin.json's, not the checkout directory's."""
+    pj = plugin / ".claude-plugin" / "plugin.json"
+    try:
+        return json.loads(pj.read_text()).get("name") or plugin.name
+    except Exception:
+        return plugin.name
+
+
 def run(plugin: Path) -> list[Finding]:
     agents = load(plugin / "agents", "*.md")
     skills = load(plugin / "skills", "*/SKILL.md")
@@ -502,7 +515,7 @@ def run(plugin: Path) -> list[Finding]:
         every[f"template:{p.stem}"] = (p, p.read_text())
 
     return (check_agent_params(agents)
-            + check_call_sites(skills, agents, plugin.name)
+            + check_call_sites(skills, agents, plugin_name(plugin))
             + check_passed_but_unbound(skills)
             + check_tool_permissions(skills)
             + check_lock_reachability(skills)

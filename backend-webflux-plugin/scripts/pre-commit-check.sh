@@ -99,6 +99,8 @@ CONFIG_PATTERNS=(
     "^\+[[:space:]]*[^#[:space:]].*[[:space:]]-D[A-Za-z0-9_.-]*${KEY}=(${BARE_VALUE}|\\\$?${QUOTED_VALUE})"
     "^\+[[:space:]]*[^#[:space:]].*[[:space:]](-u|--user)[= ][\"']?[^:[:space:]\$\"']+:[^[:space:]\$@\"']+"
     "^\+[[:space:]]*[^#[:space:]].*[Bb]asic[[:space:]]+[A-Za-z0-9+/]{8,}={0,2}([[:space:]\"']|$)"
+    # an argv array (compose/k8s `command: [\"mysql\", \"--password\", \"hunter2\"]`)
+    "[\"']--([A-Za-z0-9-]*-)?${KEY}[\"'][[:space:]]*,[[:space:]]*${QUOTED_VALUE}"
 )
 # .properties also separates with whitespace: `spring.datasource.password hunter2`
 PROPERTIES_PATTERN="^\\+[[:space:]]*[A-Za-z0-9_.-]*${KEY}[[:space:]]+${BARE_VALUE}"

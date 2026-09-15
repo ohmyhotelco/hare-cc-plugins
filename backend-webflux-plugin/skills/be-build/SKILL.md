@@ -20,7 +20,7 @@ Run the project build. If it fails, automatically diagnose and fix issues with u
 
 ### Step 0.5: Acquire Lock
 
-`mkdir -p {workDocDir}/.progress`; if `{workDocDir}/.progress/.lock` exists and its `lockedAt` is less than 30 minutes old, stop (another operation is in progress); older → remove it (and the directory its `snapshotDir` names). Write `{ "lockedAt": "{ISO 8601}", "operation": "be-build" }`. The build-doctor agent records its revert snapshot in this lock; Step 2's progress writes happen under it; release it (deleting the `snapshotDir` directory) on every exit, the agent erroring or timing out included.
+`mkdir -p {workDocDir}/.progress`; if `{workDocDir}/.progress/.lock` exists and its `lockedAt` is less than 30 minutes old, stop (another operation is in progress); older → remove it (and the directory its `snapshotDir` names). Write `{ "lockedAt": "{ISO 8601}", "operation": "be-build" }`. The build-doctor agent records its revert snapshot in this lock; Step 2's progress writes happen under it; release it on every exit, the agent erroring or timing out included — release per CLAUDE.md § State File Safety.
 
 ### Step 1: Launch Build Doctor
 
