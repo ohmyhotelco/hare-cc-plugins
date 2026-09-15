@@ -302,9 +302,9 @@ There is no `BaseEntity` shared class in this plugin (no auditing-listener equiv
 
 ### Step 4: Generate Files
 
-Before writing anything, Glob every entity-specific target below (migration, entity/POJO, mapper interface + XML, repository, commands, executors, queries, processors, views, validator, exceptions, router/handler or controller, tests, work document). Any that already exists is about to be overwritten — a `scaffolded` entity has no demotion prompt (Step 2.5), and a hand-edited scaffold is user work:
+Before writing anything, Glob every entity-specific target below (migration, entity/POJO, mapper interface + XML, repository, commands, executors, queries, processors, views, validator, router/handler or controller, work document — not the domain-shared exception files, see #8). Any that already exists is about to be overwritten — a `scaffolded` entity has no demotion prompt (Step 2.5), and a hand-edited scaffold is user work:
 > "{n} of this entity's files already exist: {list}. Overwrite them?"
-`--yes` answers yes; a decline stops here (nothing written, lock released). Record the run's start time for Step 5.
+`--yes` answers yes; a decline stops here (nothing written; in spec-all mode the entity is skipped and the lock stays held, as in Step 2.5). The run's start time for Step 5 is the lock's `lockedAt` (Step 2.6) — it precedes every write, Step 3.5's shared classes included.
 
 Generate the following files in order. Use the entity's resolved `dataProfile` (`r2dbc` or `mybatis`, never `"both"` for a single entity) and `config.webLayer` to select which template variant applies. The templates are snippets without `import` lines; resolve them from the types used (`org.springframework.data.domain.Sort`, `org.springframework.http.ResponseEntity`, `org.springframework.web.server.ServerWebInputException`, `org.apache.ibatis.type.*` for the type handler, …) — a missing import is a compile failure `be-build` catches, not a design choice.
 
@@ -399,6 +399,9 @@ Utility Template. The command executor (Step 4 #4) injects it; a scaffold withou
 File: `{sourceDir}/{basePackage}/{domain}/Invalid{Field}Exception.java` — one per validated field
 (the validator throws them; the handler/controller maps them to 400)
 File: `{sourceDir}/{basePackage}/{domain}/Duplicate{UniqueField}Exception.java` (for each unique field)
+These are domain-shared, not entity-specific: a second entity in the same domain with the same
+flagged field reuses them — generate only when missing, never prompt to overwrite (Step 4's
+preamble excludes them).
 
 No `{EntityName}NotFoundException`: not-found is the empty `Mono` the `Find` processor returns and the
 web layer maps to 404 (`switchIfEmpty` / `defaultIfEmpty`) — a class nothing throws is dead code the
@@ -432,7 +435,7 @@ Never state a file was created without having just confirmed it — the report i
 For every file Step 3.5 or Step 4 was supposed to generate for this entity:
 
 1. Glob its exact path and read its modification time (`date -u -r {path} +%Y-%m-%dT%H:%M:%S`, as be-verify Step 0.6 does).
-2. If the file exists and its mtime is not before the run's start time (Step 4): add it to a `verified` list.
+2. If the file exists and its mtime (`YYYY-MM-DDTHH:MM:SS` UTC) is not before the lock's `lockedAt` (first 19 characters of its `Z` form): add it to a `verified` list — a Step 3.5 or #8 file that already existed and was left alone counts as verified too (it was not supposed to be written).
 3. Otherwise — absent, or older than this run (a write that failed left a pre-existing file in place): add it, plus the step/sub-step that was supposed to generate it, to a `failed` list. Do not guess or assume it was written — existence alone is not evidence of this run's work.
 
 #### 5.2 Report

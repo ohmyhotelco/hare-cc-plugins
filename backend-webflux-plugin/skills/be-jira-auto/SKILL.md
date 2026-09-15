@@ -231,8 +231,12 @@ When Step 1 had to draft its own Proposed Solution:
    `gradle.properties` / `gradlew` file (be-crud edits `application.yml`,
    `be-build` may edit the build) **and is in the run state's `dirty`
    list** (a path that is not was edited during the pause: stop with
-   `NEEDS-INPUT` naming it — the security fix the Step 7 stop asked for is
-   the exception, when its paths lie under `{sourceDir}`/`{testDir}`), the
+   `NEEDS-INPUT` naming it — two exceptions: the security fix a Step 7 stop
+   asked for, when its paths lie under `{sourceDir}`, `{testDir}` or
+   `src/main/resources/` (be-security's credential rules point at
+   `application*.yml`), and a resume with no run state or after a crash,
+   when `notes` says `own-dirty` — the user vouching that every dirty path
+   is this pipeline's), the
    tree is this pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
    continue from the step and feature `{workDocDir}/.progress/jira/{jiraKey}.json`
@@ -545,7 +549,8 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    never staged and the commit is a partial feature. A dirty path under
    the Step 2 locations that is in neither set was edited by someone
    during the pause: stop with `NEEDS-INPUT` naming it rather than commit
-   it as this ticket's work.
+   it as this ticket's work — unless Step 2 admitted it (a security fix,
+   or `notes: own-dirty`), in which case it is staged with the rest.
 2. `git add <file1> <file2> ...` -- name every file explicitly. Never
    `git add -A` or `git add .`.
 2a. `be-commit` Step 1.5 asks "Continue with commit?" whenever ANY other

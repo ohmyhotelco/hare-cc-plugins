@@ -20,7 +20,7 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 ### Step 1: Determine Target
 
-Strip a trailing `--yes` flag first: it answers the Step 2 re-review confirmation and the Step 2.5 staleness prompt with yes — for an unattended caller (`be-jira-auto`) that has already decided; without it the prompts are asked. The argument can be:
+Strip a trailing `--yes` flag first: it answers the Step 2 re-review confirmation with yes, and the Step 2.5 staleness prompt only while the work document has no `- [ ]` left — for an unattended caller (`be-jira-auto`) that has already decided; without it the prompts are asked. The argument can be:
 
 - **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` (`.` → `/`) plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
 - **Directory path**: use directly as the review target
