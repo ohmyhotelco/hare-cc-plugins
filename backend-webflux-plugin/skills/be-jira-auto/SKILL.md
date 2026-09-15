@@ -228,14 +228,16 @@ When Step 1 had to draft its own Proposed Solution:
    `application.yml`, `be-build` may edit the build file), the tree is this
    pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and
-   continue from the step the last report named — **but never past Step 6
-   when the code changed since it was verified**: compare
-   `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` with each feature's
-   `pipeline.verification.tree`; different (or missing) → re-enter at Step 6
-   for that feature, whatever the report named (a manual security fix, an
-   escalation resolved by hand: the review that may already have written
-   `done` describes the old tree). Any dirty path outside those locations
-   is still someone else's work: stop.
+   continue from the step the last report named, **capped at Step 6 when
+   the code changed since it was verified**: a report naming Step 7, 8 or 9
+   re-enters at Step 6 instead whenever `${CLAUDE_PLUGIN_ROOT}/scripts/
+   source-tree-hash.sh` differs from the feature's
+   `pipeline.verification.tree` (a manual security fix, an escalation
+   resolved by hand: the review that may already have written `done`
+   describes the old tree). A report naming Step 3, 4 or 5 resumes there
+   regardless -- the work is not finished, and verifying it would only
+   certify a subset. Any dirty path outside those locations is still
+   someone else's work: stop.
 2. If the current branch name already starts with `{jiraKey}` followed by
    a `-` or `_` (case-insensitive) -- not merely *contains* it, since
    `jiraKey = "OMH-10"` is a substring of an unrelated branch named
@@ -247,8 +249,8 @@ When Step 1 had to draft its own Proposed Solution:
    `git checkout -b {jiraKey}-{slug}` from the freshly fetched default
    branch. `{slug}` is a short kebab-case form of the Jira summary (up to
    ~5 meaningful words).
-4. Confirm the working tree is on the right branch and clean before Step
-   3.
+4. Confirm the working tree is on the right branch and clean -- or, on a
+   resume, dirty only under item 1's locations -- before Step 3.
 
 ### Step 3: Scaffold (conditional) -- `be-crud`
 
@@ -375,7 +377,7 @@ Skill(skill: "be-verify", args: "{feature} --yes")
 #### Step 6.1: Auto-fix the build -- `be-build` (at most one call)
 
 ```
-Skill(skill: "be-build", args: "{feature}")
+Skill(skill: "be-build", args: "")   # be-build takes no argument: it builds the project, not a feature
 ```
 
 `be-build` already retries internally up to 3 times -- call it **once**,
@@ -388,10 +390,13 @@ never wrap it in an outer retry loop of this skill's own. Then re-run
 
 ### Step 7: Gate -- `be-review` (always) + `be-security` (tiered)
 
-`be-review` and `be-security` are both read-only and independent of each
-other (neither writes files, neither depends on the other's output), so
-issue both `Skill` calls in the same turn to run them concurrently instead
-of sequencing them:
+`be-review` and `be-security` are independent of each other -- neither
+reads the other's output, `be-security` writes nothing and takes no lock,
+and `be-review`'s writes (the report, the progress file, under
+`.progress/.lock`) touch nothing `be-security` reads -- so issue both
+`Skill` calls in the same turn to run them concurrently instead of
+sequencing them (a `be-security` that one day persists a report or takes
+the lock ends this concurrency):
 
 ```
 Skill(skill: "be-review", args: "{feature}")
@@ -480,7 +485,8 @@ Skill(skill: "be-review", args: "{feature}")
 
 ### Step 9: Stage and Commit -- `be-commit`
 
-1. Diff the current `git status --porcelain` against the Step 2 baseline
+1. Diff the current `git status --porcelain -z` (NUL-separated: a quoted
+   or renamed record is otherwise misread) against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
    files this feature touched. On a resume, the baseline already held this
    pipeline's own dirty files (Step 2's exception) -- add every dirty path
@@ -493,11 +499,12 @@ Skill(skill: "be-review", args: "{feature}")
    prompt this run cannot answer. Read every progress file first; if one
    belongs to another feature and is in any other status, stop with
    `NEEDS-INPUT` naming it instead of calling `be-commit`. Its Step 1.5
-   also prompts when a `reviewed`/`done` feature's
-   `pipeline.verification.tree` no longer matches
-   `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` -- recompute it
-   first; a mismatch here means something edited the tree during this run:
-   go back to Step 6.
+   also prompts when a `reviewed`/`done` feature not yet
+   `pipeline.verification.committed` has a `pipeline.verification.tree`
+   that differs from `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh
+   --staged` -- compute that once after item 2 and compare; a mismatch
+   here means item 2 missed a file or something edited the tree during
+   this run: stage the missing file, or go back to Step 6.
 3. ```
    Skill(skill: "be-commit", args: "topic: {jiraKey} <one-line summary>")
    ```

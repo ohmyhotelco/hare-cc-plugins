@@ -97,9 +97,9 @@ public record Find{Entity}(UUID id) {}
 
 ### GET /{domain}/{resources}
 
-- [ ] returns empty list when no data exists
 - [ ] returns paginated results
 - [ ] page size capped at 20
+<!-- no "returns empty list when no data exists": the shared Spring context and unique-per-test data model (templates/tdd-rules.md) never hand a test an empty table once another class has inserted; the assertion is order-dependent -->
 
 ### GET /{domain}/{resources}/{id}
 

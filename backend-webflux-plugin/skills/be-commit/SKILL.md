@@ -35,11 +35,11 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
    > "Warning: Feature '{feature}' is in '{status}' status — review/verification may not be complete."
    > "Continue with commit?"
    If the user declines, stop here.
-4. For each `reviewed`/`done` feature, compare `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` with its `pipeline.verification.tree`; different (or the field missing):
-   > "Warning: the source tree changed after feature '{feature}' was verified — the review describes different code. Re-run be-verify and be-review first."
+4. Compute `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh --staged` once — the index is what this commit will contain. For each `reviewed`/`done` feature that has not been committed since it was verified (`pipeline.verification.committed` is not `true`; Step 6.5 sets it), it must equal `pipeline.verification.tree`; different (or the field missing) — an unstaged edit, an untracked new file, or a change made after `be-verify` ran:
+   > "Warning: the staged tree is not the tree feature '{feature}' was verified on — the review describes different code. Stage everything under src/ and the build files, or re-run be-verify and be-review."
    > "Continue with commit?"
-   If the user declines, stop here.
-5. If all features are `reviewed`, `done` with a matching tree, or no progress files exist: proceed without warning
+   If the user declines, stop here. A feature already committed on the tree it was verified on is not re-checked: later tickets change the tree without invalidating its record.
+5. If all features are `reviewed`, `done` with a matching (or already committed) tree, or no progress files exist: proceed without warning
 
 ### Step 2: Parse Arguments
 
@@ -133,7 +133,9 @@ Note: CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands
 ### Step 6.5: Close the Fix Cycle
 
 Before the commit, for every feature progress file whose status is `reviewed` or `done`, set
-`pipeline.fix.round` to `0` (read-modify-write, preserving everything else) — under
+`pipeline.fix.round` to `0` — and, when its `pipeline.verification.tree` equals the staged hash Step 1.5
+computed, `pipeline.verification.committed` to `true` (this commit consumes that verification; Step 1.5
+stops comparing it to later trees) — (read-modify-write, preserving everything else) under
 `{workDocDir}/.progress/.lock`, taken and released around the writes exactly as every other
 progress-file writer does (CLAUDE.md § State File Safety); if the lock is held by a live operation,
 skip the reset and say so rather than wait. The counter bounds fix attempts within one review cycle;
@@ -143,9 +145,10 @@ next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt 
 
 This runs before Step 7, not after: a progress file that is tracked and staged would otherwise be
 committed with the old round and dirty again the moment the commit lands. For such a file — listed by
-`git diff --cached --name-only` — refresh its staged copy with `git add -- {file}`: the one `git add`
-this skill makes, on a path the user already staged. A tracked but unstaged progress file stays
-unstaged.
+`git diff --cached --name-only` and, before this step's write, carrying no unstaged edit
+(`git diff --quiet -- {file}`) — refresh its staged copy with `git add -- {file}`: the one `git add`
+this skill makes, on a path the user already staged, adding only this step's own fields. A tracked
+but unstaged progress file, or one that had unstaged edits of the user's, stays as it was (say so).
 
 ### Step 7: Execute Commit
 

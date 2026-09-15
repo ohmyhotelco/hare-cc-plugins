@@ -10,7 +10,8 @@ CONFIG_FILE="${PWD}/.claude/backend-webflux-plugin.json"
 # never as a positional argument — `$1` was always empty and this hook never fired.
 command -v jq >/dev/null 2>&1 || exit 0
 INPUT=$(cat)
-FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""')
+# non-JSON or empty stdin: a silent no-op, not a jq parse error surfaced after every edit
+FILE_PATH=$(printf '%s' "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // ""' 2>/dev/null) || exit 0
 [ -n "$FILE_PATH" ] || exit 0
 
 # A PostToolUse hook's plain stdout goes to the transcript/debug log only — Claude never sees it.

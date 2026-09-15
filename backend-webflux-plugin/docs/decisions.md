@@ -94,7 +94,7 @@ timestamp type, so `DATETIME(6)` + application-level UTC discipline is used inst
 
 ## Decision 5: R2DBC MySQL driver — pin `io.asyncer:r2dbc-mysql`, not `dev.miku`
 
-**Decision:** Generated `build.gradle(.kts)` files pin `io.asyncer:r2dbc-mysql:1.4.3` — the 1.4 line is the one whose compatibility table lists Spring Boot 4 / Spring Data R2DBC 4; 1.1.x predates them and was never exercised by the H2-only sample.
+**Decision:** The driver line is `io.asyncer:r2dbc-mysql` 1.4.2+ (the sample pins 1.4.3). No skill writes a build file — the pin is enforced where the project's own build file is read: `be-init` Step 2 item 7 (detection), `be-crud` Step 3 (precondition, stops below 1.4.2), plugin `CLAUDE.md` § Database. The 1.4 line is the one whose compatibility table lists Spring Boot 4 / Spring Data R2DBC 4; 1.1.x predates them and was never exercised by the H2-only sample.
 `dev.miku:r2dbc-mysql` is archived upstream and must never be emitted by this plugin,
 even in a project where an existing module still carries the older driver — that
 kind of pre-existing inconsistency is out of this plugin's scope to fix (no change to

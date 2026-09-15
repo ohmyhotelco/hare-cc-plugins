@@ -29,6 +29,8 @@ ARCHITECTURE=$(jq -r '.architecture // "cqrs"' "$CONFIG_FILE")
 DATABASE=$(jq -r '.database // "unknown"' "$CONFIG_FILE")
 BASE_PACKAGE=$(jq -r '.basePackage // "unknown"' "$CONFIG_FILE")
 WORK_DOC_DIR=$(jq -r '.workDocDir // "work/features"' "$CONFIG_FILE")
+# be-init accepts an absolute workDocDir too; "${PWD}/${abs}" would be a path that never exists
+case "$WORK_DOC_DIR" in /*) ;; *) WORK_DOC_DIR="${PWD}/${WORK_DOC_DIR}" ;; esac
 
 # `tr`, not `${VAR^^}`: that is bash 4, and `/usr/bin/env bash` is bash 3.2 on macOS, where the
 # bash-4 form is a "bad substitution" that kills the hook under `set -e`.
@@ -36,13 +38,13 @@ ARCH_UPPER=$(printf '%s' "$ARCHITECTURE" | tr '[:lower:]' '[:upper:]')
 echo "[Backend WebFlux Plugin] Java ${JAVA_VERSION} | Spring Boot ${SPRING_VERSION} | ${ARCH_UPPER} | ${DATABASE}"
 
 # Check work document progress
-if [ -d "${PWD}/${WORK_DOC_DIR}" ]; then
+if [ -d "${WORK_DOC_DIR}" ]; then
   TOTAL=0
   DONE=0
   PENDING=0
   ACTIVE_FEATURES=""
 
-  for doc in "${PWD}/${WORK_DOC_DIR}"/*.md; do
+  for doc in "${WORK_DOC_DIR}"/*.md; do
     [ -f "$doc" ] || continue
     FEATURE_NAME=$(basename "$doc" .md)
 

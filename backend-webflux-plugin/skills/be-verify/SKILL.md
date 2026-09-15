@@ -23,7 +23,7 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 ### Step 0.5: Demotion Check
 
-`--yes` answers this step's and Step 0.6's confirmations with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts below are asked.
+`--yes` answers items 4–5 below and Step 0.6 with yes — for an unattended caller (`be-jira-auto`) that has already decided the re-entry; without it the prompts are asked. Item 2 is not answered by `--yes`: under it, stop and report — an unattended caller reached verification with unfinished scenarios, and a PASS would certify a subset.
 
 If a feature argument was provided and `{workDocDir}/.progress/{feature}.json` exists:
 

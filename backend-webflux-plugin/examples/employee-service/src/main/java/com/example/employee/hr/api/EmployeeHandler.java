@@ -52,9 +52,13 @@ public record EmployeeHandler(
                 var size = Integer.parseInt(request.queryParam("size").orElse("10"));
                 return new GetEmployeePage(page, size);
             })
+            // 400 belongs to the parse alone -- a NumberFormatException from the data path is a
+            // server fault, the same rule as find() below
+            .onErrorMap(NumberFormatException.class,
+                e -> new ServerWebInputException("page and size must be integers"))
             .flatMap(pageProcessor::process)
             .flatMap(result -> ServerResponse.ok().bodyValue(result))
-            .onErrorResume(NumberFormatException.class, e -> ServerResponse.badRequest().build());
+            .onErrorResume(ServerWebInputException.class, e -> ServerResponse.badRequest().build());
     }
 
     public Mono<ServerResponse> find(ServerRequest request) {

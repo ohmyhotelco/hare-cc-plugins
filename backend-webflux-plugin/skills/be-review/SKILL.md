@@ -44,7 +44,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
      would be the only gate between unbuilt code and a commit. Run
      `/backend-webflux-plugin:be-verify {feature}` first.
    - If `"verified"`: proceed (normal flow)
-   - If `"verify-failed"`: **stop** — the build, tests or checkstyle failed, and a review PASS on code that does not build would set `done` and let `be-commit` commit it. Run `/backend-webflux-plugin:be-build {feature}` (or `be-fix`/`be-debug`) and re-verify first.
+   - If `"verify-failed"`: **stop** — the build, tests or checkstyle failed, and a review PASS on code that does not build would set `done` and let `be-commit` commit it. Run `/backend-webflux-plugin:be-build` (or `be-fix`/`be-debug`) and re-verify first.
    - If `"fixing"` or `"resolved"`: **stop** — the fix/debug changed code, so the last verification no longer describes it; run `/backend-webflux-plugin:be-verify {feature}` first (it re-admits the feature as `verified`)
    - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
    - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).

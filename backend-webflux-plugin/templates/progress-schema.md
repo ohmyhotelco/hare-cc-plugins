@@ -40,7 +40,8 @@ against a file mtime in the same shape; a local offset would compare as a differ
       "tests": { "status": "pass", "passed": 25, "total": 25 },
       "build": { "status": "pass" },
       "coverage": { "status": "pass", "linePercent": 82.4, "thresholdEnforced": false },
-      "tree": "37635be21d19ad1cbca8bc2a5e84f43e4e76c77f"
+      "tree": "242239b9581f30c19dd8abf0f67d245102d75dbd",
+      "committed": true
     },
     "review": {
       "status": "fail",
@@ -80,7 +81,7 @@ against a file mtime in the same shape; a local offset would compare as a differ
 | `scaffolded` | CRUD scaffold generated, no tests yet | be-crud |
 | `implementing` | TDD in progress (some `- [ ]` remain) | be-code |
 | `implemented` | All scenarios complete (`- [x]`) | be-code |
-| `verified` | Compilation + checkstyle + tests + build pass and the coverage report was produced (`Overall: PASS`); `verification.tree` is the `scripts/source-tree-hash.sh` value of the tree it ran on — be-review, be-commit and be-jira-auto recompute it and refuse the status on a changed tree | be-verify |
+| `verified` | Compilation + checkstyle + tests + build pass and the coverage report was produced (`Overall: PASS`); `verification.tree` is the `scripts/source-tree-hash.sh` value of the tree it ran on — be-review, be-commit and be-jira-auto recompute it and refuse the status on a changed tree until `verification.committed` (set by be-commit when it commits that tree) says the record has been consumed | be-verify |
 | `verify-failed` | One or more verification steps failed | be-verify |
 | `reviewed` | Code review passed (with warnings) | be-review |
 | `review-failed` | Code review has critical issues | be-review |
