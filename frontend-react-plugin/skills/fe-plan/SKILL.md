@@ -14,11 +14,11 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
-5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Pass all of these through to the planner so it can plan rendering / queries / form schemas.
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Phase 2 knobs fall back to `componentLibrary="shadcn"`, `apiLayer="feature-local"`, `i18nBinding="react-i18next"`, `clientStore="zustand"`; pass a companion object only when present. Pass all of these through to the planner so it can plan rendering / queries / form schemas / component inventory / API reuse / i18n resources.
 6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -236,6 +236,13 @@ Task(subagent_type: "implementation-planner", prompt: "
   - appProfile: {appProfile}
   - serverState: {serverState}
   - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - renderingDefault: {renderingDefault}
   - mockFirst: {mockFirst}
   - projectRoot: {cwd}
@@ -319,6 +326,13 @@ Task(subagent_type: "implementation-planner", prompt: "
   - appProfile: {appProfile}
   - serverState: {serverState}
   - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - renderingDefault: {renderingDefault}
   - mockFirst: {mockFirst}
   - projectRoot: {cwd}
@@ -358,7 +372,7 @@ Implementation Plan for '{feature}':
     Tests:       {testFiles} test files, {testCases} test cases
     E2E:         {e2eScenarios} scenarios
 
-  shadcn/ui: {missing count} components need installation ({missing list})
+  Components: {shadcn: "{missing count} shadcn/ui components need installation ({missing list})" | external: "{used count} from {package}, {gap count} ui-kit gaps ({gap list})"}
 
   TDD Phases:
     1. Foundation     — shared-layouts + types + mocks (infra)
