@@ -117,6 +117,11 @@ export const entityApi = {
 };
 ```
 
+> **`apiLayer == workspace-package` (Phase 2, D15)**: no feature-local service is generated. Feature code
+> imports data hooks from the configured package (`import { useHotelList } from '@omh/shared-data'`); only
+> the plan's `api[].additions[]` are written, **inside the package** and in its own module pattern, and
+> exported from `apiPackage.entry`. Loaders use the app's `apiPackage.clientImport` provider when set.
+>
 > **Framework mode (D13)**: `@/lib/api` splits into a base client (`@/lib/api.server`, no browser deps —
 > loader-safe) and a browser wrapper (`@/lib/api` with JWT/localStorage interceptors, client-only). The
 > service methods above take the client (or import the browser wrapper for client code); loaders import
@@ -237,6 +242,11 @@ export const useEntityStore = create<EntityState>((set) => ({
 > }
 > ```
 > The schema uses zod messages keyed for i18n, e.g. `z.object({ name: z.string().min(1, 'entityForm.name.required') })`.
+>
+> **`componentLibrary == external`** (Phase 2, D14/D18): the same code with three import lines changed —
+> `Form*` primitives from `'{formAdapters}'` (scaffolded once, `form-adapters.md`), `Input`/`Button`
+> from `'{externalComponents.package}'`, and under `i18nBinding == custom-hook` `const t = useT()` from
+> `'{i18nHook.from}'` with flat keys (`t('tl.entity-form.name.label')`) instead of `useTranslation('{feature}')`.
 
 **Native variant** (admin default, `formStack == native`):
 
@@ -552,6 +562,11 @@ The `rendering` per page (`ssr`/`ssg`/`spa`) comes from `plan.json pages[].rende
 `clientLoader` only and read no `localStorage`/`window` on the server path (R1).
 
 ### Feature i18n Registration (`i18n.ts`)
+
+> **`i18nBinding == custom-hook`** (Phase 2, D16): this file does not exist. Keys are flat, follow the
+> resource bundle's prefix convention, and are appended to `{resourcesDir}/{resourceFile}` per language by
+> the integration phase (existing keys untouched, real values per D19 — no placeholders). Components read
+> them through `const t = {i18nHook.hook}()`.
 
 Each feature exports its i18n namespace configuration. The central i18n config imports and registers them.
 

@@ -27,6 +27,10 @@ The coordinator skill provides:
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (page phase; **framework mode also affects api-tdd loader targets**). Default `declarative` when absent.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — api-tdd/store-tdd behavior.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent) — component-tdd form behavior.
+- `componentLibrary` — `"shadcn"` (default) | `"external"` — Phase 2 (D14/D18); with `externalComponents` (optional object). component-tdd/page-tdd import rules and the rhf-zod adapter path.
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15); with `apiPackage` (optional object). api-tdd target directory, test runner and reuse rules; page-tdd loader client.
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16); with `i18nHook` (optional object). Which translation hook every component imports.
+- `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). Under `none` store-tdd never runs and no `zustand` import is allowed.
 - `mockFirst` — `true` | `false`
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `skills` — list of external skill paths to read (from plan's buildOrder)
@@ -42,7 +46,7 @@ The coordinator skill provides:
 ### Step 0: Load Context
 
 1. **Plan** — read `planFile` → extract entries relevant to this phase:
-   - `api-tdd`: `api[]`, `tests[type:"api"]` — **also `api[].queries` when `serverState == tanstack-query`** (query-key factory + hooks to build in `api/queries.ts`).
+   - `api-tdd`: `api[]`, `tests[type:"api"]` — **also `api[].queries` when `serverState == tanstack-query`** (query-key factory + hooks to build in `api/queries.ts`). **`apiLayer == workspace-package`**: `api[].reuse[]` is read-only context (import those hooks, generate nothing for them); only `api[].additions[]` are built, and their files live under `{apiPackage.dir}` — the phase is skipped (`status: "skipped"`) when `additions` is empty.
    - `store-tdd`: `stores[]`, `tests[type:"store"]` — under `tanstack-query` the planner excludes server data from stores; **if there is no store for this feature, skip the phase** (report `status: "skipped"`).
    - `component-tdd`: `components[]`, `tests[type:"component"]` — **also `components[].formSchema` / the generated `schemas/{entity}Schema.ts` when `formStack == rhf-zod`**.
    - `page-tdd`: `pages[]`, `tests[type:"page"]` — **also `pages[].rendering`/`loader`/`meta` when `routerMode == framework`** (the TDD target is the extracted page-body component, not the route module — D10).
@@ -173,7 +177,7 @@ Replace stubs with real implementation. Write the simplest code to make all test
 
 1. **Already in this codebase?** An existing helper, hook, type, or pattern (in the feature or the project) → reuse it. Look before you write — re-implementing what lives a few files over is the most common waste.
 2. **Standard library / platform built-in covers it?** `Intl.DateTimeFormat`, `URLSearchParams`, `structuredClone`, `Array.prototype` methods, CSS over JS → use it.
-3. **shadcn/ui or a native platform feature provides it?** `<input type="date">` over a picker lib, Dialog over a custom modal → use it.
+3. **The configured component library or a native platform feature provides it?** (`shadcn/ui`, or under `componentLibrary == external` the package's exports + existing `ui-kit`) `<input type="date">` over a picker lib, the library's Dialog over a custom modal → use it.
 4. **An already-installed dependency solves it?** → use it. Never add a new dependency for what an installed one or a few lines can do.
 5. **Only then** write new code — the minimum that passes the tests.
 
@@ -192,6 +196,14 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
   re-add an omitted root field that TypeScript's excess-property check never sees, and
   `toMatchObject` or per-field assertions pass right through it. See `templates/tdd-rules.md`
   § Request bodies.
+
+*When `apiLayer == workspace-package`* (Phase 2, D15) — the phase runs **inside the package**: tests and
+implementations for `api[].additions[]` are written under `{apiPackage.dir}` following the module pattern the
+planner recorded (file layout, hook naming, client injection), exported from `{apiPackage.entry}` (the entry
+is app-wide — edit it under `docs/specs/.app.lock`), and verified with the **package's own** Vitest
+(`cd {projectRoot}/{apiPackage.dir} && npx vitest run …`, reading its `vitest.config.*` — never the app's,
+R10). Nothing is generated for `api[].reuse[]`; feature code imports those hooks from `{apiPackage.package}`.
+The app never imports `axios` directly under this layer. The MSW handlers stay in the app feature.
 
 *When `serverState == tanstack-query`* — the phase covers the axios service (above, **unchanged**) **plus**
 `api/queries.ts` per the plan's `api[].queries` block:
@@ -217,7 +229,8 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
   phase and report `status: "skipped"` — fe-gen already skips phases with no files.
 
 **`component-tdd`** — Shared Components:
-- shadcn/ui components only, `cn()` for conditional classes
+- shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the plan's `origin: "ui-kit"` gap components **first** (feature components import them); no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
+- Translation hook: `useTranslation('{feature}')` — **`i18nBinding == custom-hook`** (D16): `import { {hook} } from '{from}'` and `const t = {hook}()`, flat keys per `i18n.keyPrefix`, no namespace argument
 - No boolean props → compound component or discriminated union
 - All labels/placeholders → `t()` function
 - Validation rules from plan's `components[].validation`
@@ -225,7 +238,9 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 - aria-label on icon-only buttons, aria-hidden on decorative icons
 - **`formStack == rhf-zod`**: forms use `useForm` + `zodResolver(schema)` (schema imported from
   `../schemas/{entity}Schema` generated by foundation-generator) + shadcn Form primitives (`Form`,
-  `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`); error messages render via `t()`.
+  `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`) — **`componentLibrary == external`**: the same
+  primitives imported from `{componentDependencies.formAdapters}` (scaffolded by foundation-generator Step 5f, D18)
+  instead of `@/components/ui/form`; error messages render via `t()`.
   **Tests drive validation through `userEvent`** (type invalid/empty values, submit) and assert the
   **rendered** error messages — **never call the resolver/schema directly** in a test. See
   `templates/feature-module.md` (§ Form Component, rhf-zod variant). Under `formStack == native` keep the
@@ -241,7 +256,7 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 *When `routerMode == framework`* (D10) — the page splits into two files:
 - A **thin route module** written at the plan's `pages[].routeModuleFile` (physical path
   `{baseDir}/features/{feature}/routes/{name}.tsx`): `loader`/`clientLoader` (SSR/SSG fetch via the D13
-  **base** client — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description
+  **base** client — or, when `apiPackage.clientImport` is set, the app's provider from that module — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description
   keys translated server-side), `ErrorBoundary`, `HydrateFallback`, and a default export that renders the
   page-body with `loaderData`. **Not unit-tested here** — verified by typegen + tsc + build + E2E smoke.
 - An extracted **page-body component** (`pages/{Entity}...Page.tsx`) that receives loader data as props —
@@ -404,6 +419,7 @@ note instead of silently trimming it.
 - [ ] MSW server setup/teardown (`beforeAll/afterEach/afterAll`)
 - [ ] test real Axios calls through MSW, not mocked Axios
 - [ ] `serverState=tanstack-query`: `api/queries.ts` covered via `renderHook` + `QueryClientProvider` (fresh client, `retry: false`); one query-key factory + fetcher shared with loaders (fetch-client-agnostic); no `useEffect` fetching
+- [ ] `apiLayer=workspace-package`: additions live in `{apiPackage.dir}`, exported from `{apiPackage.entry}`, tested with the package's Vitest; nothing generated for `reuse[]`; no `axios` import in app code
 
 ### Store Tests
 - [ ] reset store state in `beforeEach`
@@ -415,7 +431,10 @@ note instead of silently trimming it.
 - [ ] `@testing-library/react` + `userEvent`
 - [ ] test rendered output, not implementation details
 - [ ] i18n test wrapper or namespace mock
-- [ ] `formStack=rhf-zod`: `useForm` + `zodResolver(schema)` + shadcn Form primitives; validation driven via `userEvent`, asserted on rendered `t()` messages (never call the resolver directly)
+- [ ] `formStack=rhf-zod`: `useForm` + `zodResolver(schema)` + shadcn Form primitives (or the `formAdapters` primitives under `componentLibrary=external`); validation driven via `userEvent`, asserted on rendered `t()` messages (never call the resolver directly)
+- [ ] `componentLibrary=external`: imports only from the package / ui-kit; gap components built before their consumers; no shadcn, lucide, or forbidden-prefix imports
+- [ ] `i18nBinding=custom-hook`: `{hook}` imported from `{from}`; flat keys; no `react-i18next`
+- [ ] `clientStore=none`: no `zustand` import anywhere
 
 ### Page Tests
 - [ ] 4-state coverage: loading, empty, error, success

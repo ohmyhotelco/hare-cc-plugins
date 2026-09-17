@@ -28,6 +28,9 @@ The coordinator skill provides:
 - `workingLanguage` — `"en"` | `"ko"` | `"vi"`
 - `skills` — list of external skill paths to read
 - `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15); with `apiPackage` (optional object). Under `workspace-package` the barrel (Step 7) exports nothing API-related and the MSW aggregate is unchanged.
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16/D19); with `i18nHook` (optional object). Switches Steps 4–5 from namespace files + registration to a flat-resource merge.
+- `i18n` — **optional**; the config i18n block (`languages`, `lookupFns`). Under `custom-hook` its `languages` is the set of resource files to merge into; absent → fall back to `plan.i18n.languages`.
 
 > **Backward compatibility.** New keys default to their pre-OTA values when absent
 > (`routerMode=declarative`, `serverState=zustand-only`); every new branch below is gated on a new value —
@@ -37,7 +40,7 @@ The coordinator skill provides:
 
 Every step below that edits an **app-wide** file — the central route file (Step 3),
 `{appDir}/react-router.config.ts` `prerender` (Step 3, framework mode), the central i18n config
-(Step 5), and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
+(Step 5) or — under `i18nBinding == custom-hook` — every flat resource file Step 4 merges into, and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
 `docs/specs/.app.lock` per CLAUDE.md § Lock file: acquire, **re-read the target file**, edit,
 release. The feature lock this agent runs under does not protect these files; another feature
 integrating concurrently writes the same ones.
@@ -56,7 +59,7 @@ on every exit, including a fallback-to-manual-guidance branch and a failed verif
    - Types: verify all imports resolve
 4. **Existing project** — re-verify integration targets:
    - Central route file exists and `insertAnchor` is still valid
-   - i18n config file exists and `insertAnchor` is still valid
+   - i18n config file exists and `insertAnchor` is still valid (`react-i18next` only; under `custom-hook` verify instead that every `{resourcesDir}/{resourceFile}` for `i18n.languages` exists and parses as JSON)
 
 ### Step 2: Generate Feature Route File
 
@@ -157,7 +160,19 @@ Rules:
 
 ### Step 4: Generate i18n Files
 
-Generate locale JSON files at `{localesDir}/{lang}/{feature}.json` for each language.
+**`i18nBinding == custom-hook` (Phase 2, D16/D19) — merge, do not generate.** There is no per-feature
+file and no registration. For each language in `i18n.languages`: take the app lock, re-read
+`{i18nHook.resourcesDir}/{resourceFile}` (`{LANG}` uppercased, `{lang}` as configured), **append** the
+plan's keys that are not already present (existing keys are never modified — a key that already exists
+with a different value is reported, not overwritten), keep the file's existing formatting (indentation,
+key order = existing then new), write, release. Values follow D19: `workingLanguage` from the spec; any
+language with a spec translation in `docs/specs/{feature}/{lang}/` takes it from there; every remaining
+language is translated by you and recorded in
+`docs/specs/{feature}/.implementation/frontend/i18n-review.md` as `| key | lang | value | machine-translated |`.
+**Never write a `[LANG] …` placeholder under `custom-hook`** — the resource file is production copy.
+Then skip Step 5 (nothing to register) and continue at Step 6.
+
+Generate locale JSON files at `{localesDir}/{lang}/{feature}.json` for each language (`react-i18next`, unchanged below).
 
 Determine the primary language from `workingLanguage` (both read from plan.json):
 
@@ -198,6 +213,7 @@ gets an import of a resource file nothing generates, which fails the build.
 
 ### Step 5: i18n Auto-Integration
 
+0. **`i18nBinding == custom-hook`** → this step does not apply (Step 4 already merged the keys); go to Step 6.
 1. Read `i18n.autoIntegration` from plan.json
 2. If `autoIntegration` is `null` → display manual guidance, skip to Step 6
 3. Read the i18n config file
@@ -384,7 +400,8 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 ### i18n
 - [ ] All user-facing text has i18n keys
 - [ ] one locale file per language in `i18n.languages` (config fallback: ko, en, ja, vi) — never a hardcoded four
-- [ ] Feature i18n file: `{baseDir}/features/{feature}/i18n.ts`
+- [ ] Feature i18n file: `{baseDir}/features/{feature}/i18n.ts` (`react-i18next` only)
+- [ ] `i18nBinding=custom-hook`: keys appended to `{resourcesDir}/{resourceFile}` for every language under the app lock; existing keys untouched; no `[LANG]` placeholder; `i18n-review.md` lists every agent-translated cell; no `i18n.ts`, no config registration
 - [ ] Namespace separation
 
 ### MSW Global
