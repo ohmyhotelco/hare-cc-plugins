@@ -33,13 +33,13 @@ touching the new questions behaves exactly as before.
    > "Do you want to reconfigure? This will overwrite the existing settings."
 3. If the user declines, stop here
 4. **Structural-change guard — evaluated AFTER the new answers exist.** Step 1 only **snapshots
-   the old config**; the comparison below runs **after Step 2g (all knobs collected) and before
+   the old config**; the comparison below runs **after Step 2l (all knobs collected) and before
    Step 3 writes the file** — at Step 1 the new values do not exist yet, so "changes a structural
    knob" cannot be evaluated here, and a guard run here either never fires or warns about a change
    it cannot name. Before overwriting, glob `docs/specs/*/.progress/*.json` for any
    feature whose `implementation.status` is beyond `planned`. If any exist AND the reconfiguration
    changes a **structural** knob (`baseDir`, `appDir`, `routerMode`, `appProfile`, `serverState`,
-   `formStack`), list the affected features and warn:
+   `formStack`, `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore`), list the affected features and warn:
    > "{N} generated feature(s) were built against the current settings. Changing {knob} leaves
    > their plan.json and generated code pointing at the old {directory/router shape}, while
    > fe-gen/fe-verify will use the new one — builds split across directories or framework commands
@@ -205,6 +205,67 @@ Present:
 
 Default: by profile — `agent-browser` for admin, `playwright` for ota. Record as `e2eTool`.
 
+### Step 2i: Ask for the Component Library
+
+Ask where UI components come from.
+
+Present:
+- **shadcn** — shadcn/ui vendored into `{baseDir}/components/ui/` (current behavior).
+- **external** — a published design-system package the app depends on, plus an app-owned `ui-kit/`
+  directory for the primitives the package lacks. No shadcn is installed.
+
+Default: `shadcn` for both profiles. Record as `componentLibrary`. When `external`, also collect
+`externalComponents`: `package` (required, e.g. `@omh/components`), `cssEntry` (optional — the preset
+the app stylesheet imports), `uiKitDir` (required, repo-relative, e.g. `app/app/ui-kit`), `formAdapters`
+(optional — default `{uiKitDir}/form`; used only when `formStack == rhf-zod`), `forbiddenImports`
+(optional — import prefixes the reviewer must flag, e.g. a sibling library whose views must not be used).
+
+### Step 2j: Ask for the API Layer
+
+Ask where API services and data hooks live.
+
+Present:
+- **feature-local** — each feature generates its own Axios service (+ `api/queries.ts` under
+  `tanstack-query`) in `features/{feature}/api/` (current behavior).
+- **workspace-package** — the app consumes an existing workspace package of data hooks/services;
+  the planner reuses its exports first and adds only what is missing **to the package**.
+
+Default: `feature-local` for both profiles. Record as `apiLayer`. When `workspace-package`, also
+collect `apiPackage`: `package` (required, e.g. `@omh/shared-data`), `dir` (required, repo-relative,
+e.g. `packages/shared-data`), `entry` (required — the export surface to scan, e.g.
+`packages/shared-data/src/index.ts`), `clientImport` (optional — the app's loader-safe client provider
+module that replaces the D13 base/browser split, e.g. `~/lib/api-client`). `workspace-package` requires
+`serverState == tanstack-query`; refuse the combination with `zustand-only` (O7).
+
+### Step 2k: Ask for the i18n Binding
+
+Ask how components read translations.
+
+Present:
+- **react-i18next** — `useTranslation(namespace)`, per-feature locale JSON, central config registration
+  (current behavior).
+- **custom-hook** — a project-owned hook (e.g. `useT()`) over one flat resource file per language;
+  generators append keys to those files and register nothing.
+
+Default: `react-i18next` for both profiles. Record as `i18nBinding`. When `custom-hook`, also collect
+`i18nHook`: `hook` (required, e.g. `useT`), `from` (required, e.g. `~/lib/i18n`), `resourcesDir`
+(required, repo-relative, e.g. `packages/shared-i18n/src/locales`), `resourceFile` (required — path
+pattern under `resourcesDir`; `{LANG}` = uppercased language code, `{lang}` = as configured, e.g.
+`{LANG}/translation.json`). Step 2d-3's `i18n.lookupFns` must name the function the hook returns
+(`["t"]` for `const t = useT()`).
+
+### Step 2l: Ask for the Client Store
+
+Ask whether generated features may own a client-state store.
+
+Present:
+- **zustand** — thin Zustand stores for UI/client state (current behavior).
+- **none** — no store library: UI state stays in component state, the URL, or existing app contexts;
+  the planner emits no `stores[]` and `store-tdd` is skipped for every feature.
+
+Default: `zustand` for both profiles. Record as `clientStore`. `none` requires `serverState == tanstack-query`
+(under `zustand-only` server data flows through stores); refuse the combination with `zustand-only` (O8).
+
 ### Step 2h: Run the Reconfiguration Guards (reconfiguration only)
 
 Now that every new value exists, compare against the Step 1 snapshot and run the **structural-change
@@ -230,6 +291,13 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
   "serverState": "{zustand-only | tanstack-query}",
   "formStack": "{native | rhf-zod}",
   "e2eTool": "{agent-browser | playwright}",
+  "componentLibrary": "{shadcn | external}",
+  "externalComponents": { "package": "…", "cssEntry": "…", "uiKitDir": "…", "formAdapters": "…", "forbiddenImports": [] },
+  "apiLayer": "{feature-local | workspace-package}",
+  "apiPackage": { "package": "…", "dir": "…", "entry": "…", "clientImport": "…" },
+  "i18nBinding": "{react-i18next | custom-hook}",
+  "i18nHook": { "hook": "…", "from": "…", "resourcesDir": "…", "resourceFile": "{LANG}/translation.json" },
+  "clientStore": "{zustand | none}",
   "renderingDefault": "{ssr | ssg | spa — framework mode only}",
   "devPort": 5173,
   "mockFirst": {true or false based on Step 2b},
@@ -246,6 +314,7 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
   page whose plan does not specify one. Absent keys fall back to admin defaults on read
   (`appProfile=admin`, `routerMode` as written, `serverState=zustand-only`, `formStack=native`,
   `e2eTool=agent-browser`, `prettierTemplate=true`).
+- `componentLibrary` / `apiLayer` / `i18nBinding` / `clientStore` (Phase 2) are written only when they differ from their defaults (`shadcn` / `feature-local` / `react-i18next` / `zustand`); their companion objects (`externalComponents` / `apiPackage` / `i18nHook`) are written only alongside the non-default value that needs them. Absent → defaults on read, and every Phase 2 branch stays inactive.
 - `i18n` is written only when Step 2d-3 produced one. Absent → no key-coverage spec is generated and
   `fe-verify` reports that axis as `skipped`. It is the one key with **no default**: guessing the
   supported language set would make coverage claims about languages nobody confirmed.
@@ -291,6 +360,9 @@ an admin-default config (no new-stack packages).
 | `formStack == rhf-zod` | `pnpm add react-hook-form zod @hookform/resolvers` |
 | `e2eTool == playwright` | `pnpm add -D @playwright/test` then one-time `npx playwright install` (browser binaries — print, never run) |
 | `appProfile == ota` | `pnpm add dayjs` |
+| `componentLibrary == external` | `pnpm add {externalComponents.package}` (+ `pnpm add {externalComponents.cssEntry}` when set) — or the project's `pnpm link` equivalent while the package is unpublished |
+
+Under `clientStore == none` no `zustand` line is ever printed.
 
 ### Step 4b: App Shell Check (framework mode only)
 
@@ -358,6 +430,10 @@ Frontend React Plugin configured successfully!
   Server state: {serverState}
   Form stack: {formStack}
   E2E tool: {e2eTool}
+  Component library: {componentLibrary}{ — externalComponents.package when external}
+  API layer: {apiLayer}{ — apiPackage.package when workspace-package}
+  i18n binding: {i18nBinding}{ — i18nHook.hook from i18nHook.from when custom-hook}
+  Client store: {clientStore}
   Date convention: {dayjs (ota) | Intl (admin)}
   Rendering default: {renderingDefault — framework mode only}
   Mock-first: {enabled or disabled}

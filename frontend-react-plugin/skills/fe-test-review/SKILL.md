@@ -16,13 +16,13 @@ Audit React/Vitest test files for quality, best practices, coverage completeness
 
 1. Read `.claude/frontend-react-plugin.json`
 2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
-3. Extract `baseDir` and `appDir` from config. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root)
+3. Extract `baseDir` and `appDir` from config. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). Also extract `apiLayer` (default `feature-local`) and `apiPackage`; under `workspace-package` set `apiPackageDir = apiPackage.dir`, otherwise omit it.
 
 4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 ### Step 1: Determine Scope
 
 - If argument provided: audit the specified test file or directory
-- If no argument: audit all test files under `{baseDir}/`
+- If no argument: audit all test files under `{baseDir}/` — and, when `apiPackageDir` is set, under `{apiPackageDir}/` as well (the generated package additions and their tests live there, outside `baseDir`)
 
 **Spec anchors.** If `targetPath` resolves inside `{baseDir}/features/{feature}/` **and**
 `docs/specs/{feature}/.progress/{feature}.json` exists, read its `workingLanguage` and pass
@@ -46,6 +46,7 @@ Task(subagent_type: "test-reviewer", prompt: "
   - appDir: {appDir}
   - srcPath: {srcPath}
   - projectRoot: {cwd}
+  - apiPackageDir: {apiPackageDir or omit}
   - specDir: {specDir or omit}
 
   Follow the process defined in agents/test-reviewer.md.

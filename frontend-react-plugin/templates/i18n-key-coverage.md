@@ -30,7 +30,9 @@ it for partially-translated languages. Catch the gap at generation and verificat
 ## What the generated spec asserts
 
 Requires the `i18n` config block (`languages`, `lookupFns`); the locale resources come from the plan's
-`localesDir`. When that block is absent the spec is not generated and `fe-verify` reports the axis as
+`localesDir` — under `i18nBinding == custom-hook` (Phase 2) from one **flat** file per language at
+`{i18nHook.resourcesDir}/{resourceFile}` (`{LANG}` uppercased / `{lang}` as configured), where a key is
+looked up verbatim (no namespace segment). When that block is absent the spec is not generated and `fe-verify` reports the axis as
 `skipped` — never a silent pass.
 
 1. **Every key literal resolves in every language.** Collect string-literal keys at every

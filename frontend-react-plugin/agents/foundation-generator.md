@@ -24,6 +24,10 @@ The coordinator skill provides:
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — server-state strategy.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent) — form approach.
 - `e2eTool` — `"agent-browser"` | `"playwright"` (default `agent-browser` when absent) — E2E runner.
+- `componentLibrary` — `"shadcn"` (default) | `"external"` — Phase 2 (D14); with `externalComponents` (optional object) when `external`. Gates the shadcn install (Step 3), the layout's component imports (Step 2) and the form-adapter scaffold (Step 5f).
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15); with `apiPackage` (optional object). Read-only here (mock handlers are derived from the plan either way).
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16); with `i18nHook` (optional object). Gates the layout's translation import (Step 2) and the coverage spec's resource location (Step 5d).
+- `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). Read-only here.
 - `baseDir` — base source directory (e.g., `"app/src"`, framework mode `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
@@ -44,7 +48,7 @@ The coordinator skill provides:
 
 ### Step 1: Read Plan & Context
 
-1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`, `workingLanguage`, `localesDir`, and the top-level stack keys (`routerMode`, `serverState`, `formStack` — copied into the plan by the planner; fall back to the input params / defaults if absent). When `formStack == rhf-zod`, also load `components[].formSchema` (zod field specs + `errorMapping`) for schema generation.
+1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`, `componentDependencies` (external library: `formAdapters` path for Step 5f), `i18n.keyPrefix`/`resourcesDir`/`resourceFile` (custom-hook: Step 2 layout keys and Step 5d), `workingLanguage`, `localesDir`, and the top-level stack keys (`routerMode`, `serverState`, `formStack` — copied into the plan by the planner; fall back to the input params / defaults if absent). When `formStack == rhf-zod`, also load `components[].formSchema` (zod field specs + `errorMapping`) for schema generation.
 2. **Existing patterns** — check patterns in existing project code:
    - Import style and naming conventions of existing feature modules
    - Existing type patterns (Glob: `{baseDir}/features/*/types/*.ts`)
@@ -75,13 +79,13 @@ For each entry in `sharedLayouts[]`:
 2. Generate `{baseDir}/layouts/{Name}.tsx`:
    - Import `<Outlet />` from `react-router`
    - Import `NavLink`, `useLocation` from `react-router`
-   - Import `useTranslation` from `react-i18next`
+   - Import `useTranslation` from `react-i18next` — **`i18nBinding == custom-hook`**: import `{i18nHook.hook}` from `{i18nHook.from}` instead and call it as `const t = {hook}()`
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
-   - Use shadcn/ui components, cn(), aria-labels
-3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
-   - `workingLanguage` translation is the primary (fully translated)
-   - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
+   - Use shadcn/ui components, cn(), aria-labels — **`componentLibrary == external`**: use only `{externalComponents.package}` exports and existing `{uiKitDir}` primitives (no `@/components/ui/*`, no `lucide-react`); a class-merge helper, if needed, is `{uiKitDir}/cn.ts` (clsx + tailwind-merge) created once
+3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** — **`i18nBinding == custom-hook`**: no `layout.json`; append the layout keys (flat, `i18n.keyPrefix`) to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (spec translation where one exists, otherwise agent-translated and listed in `i18n-review.md`), never a `[LANG]` placeholder (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
+   - `react-i18next` only: `workingLanguage` translation is the primary (fully translated); other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
+   - `custom-hook`: no placeholders — D19 values as stated above
 4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
    ```bash
    # If root tsconfig.json contains "references": use tsc -b
@@ -91,13 +95,13 @@ For each entry in `sharedLayouts[]`:
 **If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
 1. Read existing layout file
 2. Edit to add new navigation items (targeted Edit, not rewrite)
-3. Update `{localesDir}/{lang}/layout.json` with new keys (follow same `workingLanguage` primary / placeholder convention)
+3. Update the layout keys — `react-i18next`: `{localesDir}/{lang}/layout.json` (same `workingLanguage` primary / placeholder convention); `custom-hook`: append the new flat keys to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (no `layout.json`, no placeholders)
 
 **If `exists: true` AND `navItemsToAdd` is empty**: Skip.
 
 ### Step 3: Install Dependencies
 
-**shadcn/ui** — Install missing components from `shadcnDependencies.missing`:
+**shadcn/ui** — Install missing components from `shadcnDependencies.missing` (**`componentLibrary == shadcn` only** — under `external` this block is skipped entirely and `shadcnInstalled` is reported as `[]`):
 ```bash
 npx shadcn@latest add {component1} {component2} ...
 ```
@@ -123,6 +127,7 @@ gracefully — same behavior as the ESLint template). Do not run these yourself:
 | `formStack == rhf-zod` | `pnpm add react-hook-form zod @hookform/resolvers` |
 | `e2eTool == playwright` | `pnpm add -D @playwright/test` + one-time `npx playwright install` (browser binaries — **print, never run**) |
 | `appProfile == ota` | `pnpm add dayjs` |
+| `componentLibrary == external` | `pnpm add {externalComponents.package}` (+ `{cssEntry}` when set) — print only when the package is neither installed nor linked |
 
 ### Step 4: Generate Types
 
@@ -183,7 +188,7 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 > edits the same files under its own feature lock. Take `docs/specs/.app.lock` around each Step 2
 > read-modify-write as well, on the same acquire → re-read → edit → release cycle.
 >
-> **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
+> **App lock.** Steps 5b through 5f below all write **app-wide, once-per-app** files. Take
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
 > `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
@@ -237,7 +242,7 @@ parallel workers must not share mutated state.
 ### Step 5d: i18n Key-Coverage Spec (once per app, first feature)
 
 Only when the config carries an `i18n` block (`languages`, `lookupFns`). The locale resources are the
-plan's `localesDir`, as everywhere else in this agent. Absent block → skip
+plan's `localesDir`, as everywhere else in this agent — **`i18nBinding == custom-hook`**: one flat file per language at `{i18nHook.resourcesDir}/{resourceFile}` (`{LANG}` uppercased / `{lang}` as configured); pass that pattern into the spec so it reads those files instead of `{localesDir}/{lang}/*.json`. Absent block → skip
 this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
 `{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `fe-verify` fails on the stale spec and names `fe-gen` as the remedy, and `fe-gen` then skips the file, so the gate can never go green again.
 
@@ -267,6 +272,18 @@ config; present → leave it. Absent and `prettierTemplate` is `true` or unset �
 `prettier.config.js` + `.prettierignore`. Absent and the flag is `false` → skip silently. Never
 auto-install `prettier`; if it is missing, print `pnpm add -D prettier eslint-config-prettier` and
 record `skipped`. Formatting is advisory and never blocks anything this agent does.
+
+### Step 5f: Form Adapters (once per app, `formStack == rhf-zod` AND `componentLibrary == external`)
+
+Phase 1's rhf-zod path renders through shadcn's Form primitives (`Form`, `FormField`, `FormItem`,
+`FormLabel`, `FormControl`, `FormMessage`, `useFormField`). Under an external library those files do not
+exist, so scaffold the same surface **once** at `{componentDependencies.formAdapters}` (default
+`{externalComponents.uiKitDir}/form`), wrapping the library's own field primitives — contract and
+example in `templates/form-adapters.md`. Glob the directory first: present → skip (never overwrite an
+adapter the project has since edited). Absent → write `index.ts` + the adapter files, run the
+TypeScript check, and report `formAdapters: "scaffolded"`; `tdd-cycle-runner` then imports the
+primitives from this path instead of `@/components/ui/form`. Under `componentLibrary == shadcn` or
+`formStack == native` this step does not run (`formAdapters: "skipped"`).
 
 ### Step 6: Verify
 
@@ -334,6 +351,7 @@ run produces (Step 6 never runs), and fabricating them would be a false claim:
     "prettier": ["prettier.config.js", ".prettierignore"]
   },
   "shadcnInstalled": ["pagination"],
+  "formAdapters": "scaffolded | present | skipped",
   "mswInstalled": true,
   "depsToInstall": ["pnpm add @tanstack/react-query"],
   "i18nCoverage": {
@@ -388,6 +406,8 @@ run produces (Step 6 never runs), and fabricating them would be a false claim:
 - [ ] `routerMode=framework`: app-shell files scaffolded from the template only when absent — never overwritten; `root.tsx` gets `QueryClientProvider` only under `serverState=tanstack-query` (browser singleton / per-request server client)
 - [ ] `e2eTool=playwright` (first feature): `playwright.config.ts` `webServer` uses the mode-aware dev command + `VITE_ENABLE_MOCKS=true`, `trace: retain-on-first-failure`, `testDir: 'e2e'`
 - [ ] new-stack deps are **printed** (`pnpm add ...`), never auto-installed
+- [ ] `componentLibrary=external`: no `npx shadcn add` ran; layouts import only the package / ui-kit; `formAdapters` scaffolded once when `rhf-zod` (Step 5f)
+- [ ] `i18nBinding=custom-hook`: no `layout.json`; keys appended to the flat resource files with real values (no `[LANG]` placeholder); coverage spec reads `{resourcesDir}/{resourceFile}`
 
 ## Key Rules
 

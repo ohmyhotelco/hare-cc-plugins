@@ -22,7 +22,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. **Plan** — Read `planFile` → extract file list, types, API, pages, components, i18n, routes
+1. **Plan** — Read `planFile` → extract file list, types, API, pages, components, i18n, routes — and the Phase 2 knobs it carries (`apiLayer`, `componentLibrary`, `i18nBinding`, `clientStore`, defaults `feature-local` / `shadcn` / `react-i18next` / `zustand`). Under `apiLayer == workspace-package`, `api[].reuse[]` entries have **no** file by design (they are hooks imported from `apiPackage.package`) and `api[].additions[].file` lives in `{apiPackage.dir}`; under `i18nBinding == custom-hook` the keys live in `{i18n.resourcesDir}/{i18n.resourceFile}` per language (flat, no feature JSON, no `i18n.ts`); under `componentLibrary == external` gap components live at `componentDependencies.gaps[].plannedAs`.
 2. **External skills** — Read `.claude/skills/web-design-guidelines/SKILL.md` → apply accessibility review criteria when evaluating the Accessibility dimension.
 3. **Spec** — Read 3 files from `specDir`:
    - `{feature}-spec.md` → functional requirements (FR/BR/AC), user stories
@@ -31,7 +31,7 @@ The skill will provide these parameters in the prompt:
    > **Standalone features have only `{feature}-spec.md`.** Read the progress file's `standalone` flag first: when it is `true`, `screens.md` and `test-scenarios.md` do not exist and never will — derive screen and scenario detail from `{feature}-spec.md` plus the plan entries instead. Reading them unconditionally fails every standalone run at this point.
 
    - `test-scenarios.md` → test scenarios (TS-nnn)
-4. **Generated files** — Check the list of all generated files within `baseDir`
+4. **Generated files** — Check the list of all generated files within `baseDir`, plus the Phase 2 paths outside it from item 1 (`api[].additions[].file`, `componentDependencies.gaps[].plannedAs`, `componentDependencies.formAdapters`)
 5. **Accepted deviations** — read `plan.json` `openApprovals[]` (absent → none). An entry with
    `status: "approved"` **and** a named `owner` (not `TBD`, not an agent) is a decision already
    taken: do **not** re-raise a matching issue. List it once under "accepted deviations" so it stays
@@ -64,7 +64,7 @@ Each issue MUST include the following fields:
 - Verify all AC-nnn can be satisfied in code
 - Missing requirements → issue (severity: critical)
 - Cross-reference plan.json to populate `refs` and `planEntries`
-- Determine `missingArtifact`: check if the expected file exists on disk → `"file"` if missing, otherwise `"method"` or `"state"` based on what is absent
+- Determine `missingArtifact`: check if the expected file exists on disk → `"file"` if missing, otherwise `"method"` or `"state"` based on what is absent. An FR covered by an `api[].reuse[]` entry is satisfied by the package hook — never `"file"` for it; verify the feature imports that hook instead.
 
 #### 1.2 UI Fidelity
 
@@ -78,7 +78,7 @@ Each issue MUST include the following fields:
 
 - Verify all user-facing text uses the `t()` function
 - Grep for hardcoded strings
-- Verify all required keys exist in i18n JSON files
+- Verify all required keys exist in i18n JSON files — under `custom-hook`: in every configured language's `{i18n.resourcesDir}/{i18n.resourceFile}` (flat keys, no feature JSON)
 - Hardcoded strings → issue (severity: warning, `missingArtifact: "element"`)
 - Missing keys → issue (severity: warning, `missingArtifact: "key"`, `refs` should list the missing key names)
 

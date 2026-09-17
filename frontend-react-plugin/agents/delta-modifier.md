@@ -24,6 +24,12 @@ The skill will provide these parameters in the prompt:
 - `projectRoot` — project root path
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
+- `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent).
+- `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
+- `componentLibrary` — `"shadcn"` (default) | `"external"`; with `externalComponents` (optional object). Same generation rules as tdd-cycle-runner § component-tdd (Phase 2, D14/D18).
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"`; with `apiPackage` (optional object). Modified API files live in the package under `workspace-package` (D15).
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"`; with `i18nHook` (optional object). Under `custom-hook` there is no feature `i18n.ts`; key changes go to the flat resource files (D16).
+- `clientStore` — `"zustand"` (default) | `"none"`. Under `none` no store file may be created or modified (D17).
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
@@ -87,6 +93,11 @@ Each file operation from `delta-plan.json` is classified:
 
 6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test file structure
 
+7. **Phase 2 path rules** (apply throughout Steps 2–4 whenever the knob is set):
+   - **`apiLayer == workspace-package`** — an affected file under `{apiPackage.dir}` is package code: its test is the package's co-located or `__tests__/` file (`plan.apiPackagePattern`), **not** `{baseDir}/__tests__/`; every `vitest`/`tsc` run for it is `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative path}` / the package's `tsc` (its own configs, R10); `{apiPackage.entry}` is an app-wide file (app lock). Feature-local `api/` files are never created under this layer.
+   - **`i18nBinding == custom-hook`** — `i18n-key-added` / `i18n-key-removed` target each configured language's `{i18nHook.resourcesDir}/{resourceFile}` (app-wide files: take the app lock), append-only with **real values** per D19 (spec translation where one exists, otherwise translate and append a row to `docs/specs/{feature}/.implementation/frontend/i18n-review.md`), never a `[LANG]` placeholder; there is no feature `i18n.ts` to edit.
+   - **`componentLibrary == external`** — gap components live under `{externalComponents.uiKitDir}`; imports follow tdd-cycle-runner § component-tdd (package + ui-kit only). **`clientStore == none`** — no `stores/` file may be created or modified.
+
 ### Step 0.5: Handle Foundation Create Operations
 
 When `phase` is `foundation`, the delta-modifier may also receive `create` operations (new type files, new factory/fixture entries). These are handled as direct writes rather than delegating to the foundation-generator (which would regenerate all foundation files).
@@ -140,7 +151,7 @@ Read the target file and locate the code block associated with the removed spec 
 #### 2.4 Regression Check
 
 After all removals in this phase:
-- Run `npx vitest run {srcPath}` → confirm no regressions
+- Run `npx vitest run {srcPath}` → confirm no regressions (plus the package suite from `{apiPackage.dir}` when a removal touched it — Step 0 item 7)
 - If regressions: identify which removal caused failure, attempt to fix the dependent code
 - If unfixable after 3 retries: mark as `escalated`
 
@@ -160,7 +171,7 @@ For each structural change:
 
 1. Read the target file. **If the target is an app-wide file** — the central route file
    (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
-   `{sourceBaseDir}/mocks/handlers.ts`, or anything under `{sourceBaseDir}/layouts/` — take
+   `{sourceBaseDir}/mocks/handlers.ts`, anything under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}` (workspace package), or a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}` — take
    `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and release it right
    after; the feature lock does not protect those. Compare against `sourceBaseDir`, never `baseDir`.
 2. Apply the minimal edit based on `changeDetail`:
@@ -174,8 +185,8 @@ For each structural change:
    - `handler-update`: Update MSW handler response/parameters
    - `route-entry-added`: Add route entry to routes.tsx
    - `route-entry-removed`: Remove route entry
-   - `i18n-key-added`: Add keys to locale JSON files
-   - `i18n-key-removed`: Remove keys from locale JSON files
+   - `i18n-key-added`: Add keys to locale JSON files (custom-hook: the flat resource files, real values + review row — Step 0 item 7)
+   - `i18n-key-removed`: Remove keys from locale JSON files (custom-hook: only keys this feature introduced — a shared bundle key used elsewhere is never removed)
 3. TypeScript check → confirm no type errors
 4. If tsc fails → revert, mark as `failed` with reason
 
@@ -187,7 +198,7 @@ For each behavioral change:
 
 1. Identify the EXISTING test file to extend:
    - Match by target: component → component test, page → page test, api → api test, store → store test
-   - Derive path: `{baseDir}/__tests__/{target}.test.{ts,tsx}`
+   - Derive path: `{baseDir}/__tests__/{target}.test.{ts,tsx}` — targets under `{apiPackage.dir}` use the package's test location (Step 0 item 7)
 2. If test file not found: mark as `escalated` with reason `"test file not found"`, skip to next
 3. Read existing test file to understand structure and imports
 4. Add new `it()` block:
@@ -228,7 +239,7 @@ For each behavioral change:
 After all operations in this phase complete:
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
-2. `npx vitest run {srcPath}` → all feature tests pass
+2. `npx vitest run {srcPath}` → all feature tests pass; additionally, when `apiLayer == workspace-package` and this phase touched `{apiPackage.dir}`: `cd {projectRoot}/{apiPackage.dir} && npx vitest run` → package suite passes
 3. If `phase` is `integration`: also run the build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.

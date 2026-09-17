@@ -38,14 +38,20 @@ existing branch changes. The full design and per-file spec is in
 
 ### UI Layer
 - Tailwind CSS
-- shadcn/ui (Radix-based, code owned by the project)
-- Icons: Lucide (`lucide-react`), consider adding Simple Icons when brand logos are needed
+- Component library: determined by `componentLibrary` (default `shadcn`)
+  - `shadcn` — shadcn/ui (Radix-based, code owned by the project) + Lucide icons (`lucide-react`; consider Simple Icons for brand logos)
+  - `external` — a published design-system package (`externalComponents.package`, optional `cssEntry` preset) plus an app-owned `{uiKitDir}/` for the primitives it lacks (planned as **gap** components). No shadcn, no lucide; `forbiddenImports[]` prefixes are convention violations. Design: `docs/design/ota-extension-phase2.md` (D14).
 
 ### State & Data
-- Client State: Zustand (keep thin — auth token, user, permissions, UI/client state)
+- Client State: determined by `clientStore` (default `zustand`)
+  - `zustand` — thin Zustand stores (auth token, user, permissions, UI/client state)
+  - `none` — no store library: component state, URL state, or existing app contexts; the planner emits no `stores[]` and `store-tdd` is always skipped (D17)
 - Server State: determined by `serverState` (default `zustand-only`)
   - `zustand-only` — server data flows through Axios services + Zustand stores (admin default, current behavior)
   - `tanstack-query` — TanStack Query owns server state (caching, refetch, infinite lists, mutation + invalidation); Zustand holds **only** UI/client state, never server data (ota default). Layering + the loader↔query contract: `templates/server-state.md`.
+- API layer: determined by `apiLayer` (default `feature-local`)
+  - `feature-local` — each feature generates its own Axios service (+ `api/queries.ts` under `tanstack-query`)
+  - `workspace-package` — the app consumes a workspace package of data hooks (`apiPackage.package`); the planner reuses its exports first (`api[].reuse[]`) and writes only the missing endpoints **into the package** (`api[].additions[]`, tested with the package's own Vitest). App code never imports `axios` directly. Requires `tanstack-query` (D15).
 - HTTP: Axios
   - request interceptor: inject JWT Authorization header
   - response interceptor: 401 → logout/re-authenticate, 403 → sync permissions
@@ -57,8 +63,11 @@ existing branch changes. The full design and per-file spec is in
 - (Future consideration) Auto-generate types/client when REST OpenAPI is available
 
 ### Internationalization (i18n)
-- i18next + react-i18next
-- Languages: ko / en / ja / vi
+- Binding: determined by `i18nBinding` (default `react-i18next`)
+  - `react-i18next` — `useTranslation(namespace)`, per-feature locale JSON, central config registration
+  - `custom-hook` — a project-owned hook (`i18nHook.hook` from `i18nHook.from`) over one flat resource file per language (`i18nHook.resourcesDir` + `resourceFile`); the integration phase **appends** new keys to those files under the app lock and registers nothing. Values are real copy, never `[LANG]` placeholders — languages without a spec translation are agent-translated and listed in `i18n-review.md` (D16/D19).
+- i18next + react-i18next (default binding)
+- Languages: ko / en / ja / vi (default; `i18n.languages` may add e.g. `zh`)
   > Note: planning-plugin supports 3 spec languages (en/ko/vi). The additional `ja` in the frontend i18n is for application UI only — Japanese specs are not supported by planning-plugin.
 - Namespace separation (common, menu, per-feature)
 - Lazy-load via Vite import.meta.glob
@@ -80,7 +89,7 @@ existing branch changes. The full design and per-file spec is in
 - Framework-mode page unit-tests target the extracted **page-body component** (Testing Library); `createRoutesStub` is used only for components using router hooks — never for route modules typed with generated `Route.*` types (RR documents that gap). The route module itself is covered by typegen + build + E2E smoke.
 
 ## Conventions
-- Use only shadcn/ui components (do not install alternative component libraries)
+- Use only the configured component library (shadcn/ui by default; the external package + `ui-kit` under `componentLibrary: external`) — never install a second one
 - 2-space indentation
 - functional component + hooks
 - Define TypeScript interface for all props/data
@@ -256,7 +265,7 @@ Key files:
 - Subsequent features: reuses existing layout, optionally adds nav items
 
 ### Route & i18n Auto-Integration
-- Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory
+- Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory — under `i18nBinding: custom-hook` there is no `i18n.ts`; the integration phase appends the feature's flat keys to the shared resource files instead (D16)
 - Integration-generator auto-integrates by adding import + spread to the central route file and i18n config (same pattern as MSW handler aggregation)
 - Supports declarative mode (`<Route>` JSX fragments) and data mode (`RouteObject[]` arrays)
 - Layout route nesting: spreads feature routes under existing layout route's children when present
@@ -301,7 +310,7 @@ Two scopes, acquired in this order — **feature lock → app lock**, never the 
 | Lock | Scope | Held by |
 | --- | --- | --- |
 | `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `fe-gen`, `fe-verify`, `fe-review`, `fe-fix`, `fe-e2e` |
-| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, and the shared layouts + their locale files under `{sourceBaseDir}/layouts/` | `foundation-generator`, `integration-generator`, `delta-modifier`, `review-fixer` |
+| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, the shared layouts + their locale files under `{sourceBaseDir}/layouts/`, and the Phase 2 targets: `{apiPackage.entry}`, each `{i18nHook.resourcesDir}/{resourceFile}`, and `{externalComponents.uiKitDir}/**` (gap components, form adapters) | `foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`, `review-fixer` |
 
 The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
 
@@ -488,7 +497,8 @@ docs/            - Documentation
 │   ├── routes.tsx     ← Feature route definitions (auto-integrated)
 │   ├── i18n.ts        ← Feature i18n registration (auto-integrated)
 │   └── ...            ← types, api, stores, components, pages, __tests__
-├── components/ui/     ← shadcn/ui components
+├── components/ui/     ← shadcn/ui components (componentLibrary: shadcn)
+├── ui-kit/            ← app-owned primitives + form adapters (componentLibrary: external)
 ├── mocks/             ← Global MSW setup
 ├── locales/           ← i18n JSON files
 └── ...
@@ -530,9 +540,27 @@ An **ota** config instead reads (with `renderingDefault` present only in framewo
 }
 ```
 
+An ota app that owns an external design system, a workspace data package and a flat shared i18n bundle (Phase 2) adds:
+```json
+{
+  "componentLibrary": "external",
+  "externalComponents": { "package": "@omh/components", "cssEntry": "@omh/tailwind-preset", "uiKitDir": "app/app/ui-kit", "forbiddenImports": ["@omh/shared-ui"] },
+  "apiLayer": "workspace-package",
+  "apiPackage": { "package": "@omh/shared-data", "dir": "packages/shared-data", "entry": "packages/shared-data/src/index.ts", "clientImport": "~/lib/api-client" },
+  "i18nBinding": "custom-hook",
+  "i18nHook": { "hook": "useT", "from": "~/lib/i18n", "resourcesDir": "packages/shared-i18n/src/locales", "resourceFile": "{LANG}/translation.json" },
+  "clientStore": "none",
+  "i18n": { "languages": ["ko", "en", "ja", "zh", "vi"], "lookupFns": ["t"] }
+}
+```
+
 - `appProfile`: `"admin"` (default when absent) | `"ota"` — sets defaults for the knobs below; each stays overridable. See "App Profiles".
 - `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix).
 - `serverState`: `"zustand-only"` (default when absent) | `"tanstack-query"` — server-state strategy.
+- `componentLibrary`: `"shadcn"` (default when absent) | `"external"` — with `externalComponents` (`package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`). Phase 2, D14/D18.
+- `apiLayer`: `"feature-local"` (default when absent) | `"workspace-package"` — with `apiPackage` (`package`, `dir`, `entry`, `clientImport`). Requires `tanstack-query`. Phase 2, D15.
+- `i18nBinding`: `"react-i18next"` (default when absent) | `"custom-hook"` — with `i18nHook` (`hook`, `from`, `resourcesDir`, `resourceFile`). Phase 2, D16/D19.
+- `clientStore`: `"zustand"` (default when absent) | `"none"`. Requires `tanstack-query`. Phase 2, D17.
 - `formStack`: `"native"` (default when absent) | `"rhf-zod"` — form approach.
 - `e2eTool`: `"agent-browser"` (default when absent) | `"playwright"` — E2E runner.
 - `renderingDefault`: framework mode only — `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering for a page whose plan does not specify one. Per-page decisions live in `plan.json` `pages[].rendering`.

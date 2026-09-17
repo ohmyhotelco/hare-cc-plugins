@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v2.2.9`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.3.0`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 

@@ -22,6 +22,10 @@ The skill will provide these parameters in the prompt:
 - `appProfile` — `"admin"` (default) | `"ota"` — copied into the plan so downstream agents need not re-read config
 - `serverState` — `"zustand-only"` (default) | `"tanstack-query"`
 - `formStack` — `"native"` (default) | `"rhf-zod"`
+- `componentLibrary` — `"shadcn"` (default) | `"external"` — Phase 2 (D14). With `externalComponents` (optional object: `package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`) when `external`.
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15). With `apiPackage` (optional object: `package`, `dir`, `entry`, `clientImport`) when `workspace-package`. Requires `serverState == tanstack-query`; refuse `zustand-only` + `workspace-package` with an explanation (O7).
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16). With `i18nHook` (optional object: `hook`, `from`, `resourcesDir`, `resourceFile`) when `custom-hook`.
+- `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). `none` requires `serverState == tanstack-query` (under `zustand-only` server data has no home without a store); refuse `zustand-only` + `none` with an explanation (O8).
 - `renderingDefault` — framework mode only: `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering when a page's rendering cannot be inferred
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)
 - `baseDir` — base source directory (e.g., `"app/src"`, or framework `"app/app"`, fallback `"src"`)
@@ -123,9 +127,12 @@ Identify existing project patterns so that generated code integrates naturally.
     - Record as `existingLayouts[]` with import path
     - Cross-reference with `sharedLayoutRefs`: if matching layout exists → mark `reuseExisting: true`
 
-5. **shadcn/ui components** — Scan `{baseDir}/components/ui/` → list of installed components
+5. **Component inventory** — branch on `componentLibrary`:
+   - `shadcn` (default): scan `{baseDir}/components/ui/` → list of installed components (unchanged).
+   - `external`: resolve the package's `package.json` in this order — `{appDir}/node_modules/{externalComponents.package}/` (pnpm keeps app dependencies under the app, not the repo root), then `{projectRoot}/node_modules/{package}/`, then a workspace `packages/*/package.json` whose `name` matches — → its `exports["."].types` / `types` declaration file (or `src/index.ts` when the package is `pnpm link`ed and ships no build) and list the **exported component names**; also scan `{externalComponents.uiKitDir}/**/*.tsx` for app-owned primitives that already exist. Record both as `componentDependencies.available`. **Unresolvable package → stop and report** the `pnpm add` / `pnpm link` instruction (R7); never plan against an empty inventory. Do not scan `components/ui/` and never plan `npx shadcn add`.
 
 6. **i18n directory & config** — Identify locales structure and registration config for auto-integration
+   - **`i18nBinding == custom-hook` (Phase 2, D16)**: skip the namespace/config discovery below. `localesDir` = `{i18nHook.resourcesDir}`; the per-language file is `{resourcesDir}/{resourceFile}` with `{LANG}` uppercased / `{lang}` as configured. Read the `workingLanguage` resource file and record the **key prefix convention** it uses (e.g. `tl.{screen}.{element}`) as `i18n.keyPrefix` — generated keys follow it (project-first). Set `i18n.featureI18nFile: null` and `i18n.autoIntegration: null`; there is nothing to register.
    - Identify locale directory: check `{baseDir}/locales/` first, then `public/locales/`
    - Record the detected path as `localesDir` in plan output (e.g., `"{baseDir}/locales"` or `"public/locales"`). If neither exists, default to `"{baseDir}/locales"` (will be created).
    - Locate i18n config file: Glob `{baseDir}/**/i18n*`, `{baseDir}/**/i18next*`
@@ -146,9 +153,11 @@ Identify existing project patterns so that generated code integrates naturally.
 
 7. **API service pattern** — Identify existing Axios instance location and error handling patterns
    - Glob: `{baseDir}/**/axios*`, `{baseDir}/**/api*`, `{baseDir}/**/http*`
+   - **`apiLayer == workspace-package` (Phase 2, D15)**: additionally read `{apiPackage.entry}` and follow its re-exports to list every exported hook/service with its endpoint (read the module bodies — name alone is not enough to match an FR). Record as `apiInventory[]` (`name`, `kind: query|infinite|mutation|service`, `endpoint`, `module`). Read **one** existing module in `{apiPackage.dir}` to capture the package's own module pattern (file layout, hook naming, client injection, test harness in `{apiPackage.dir}/vitest.config.*`) — additions must follow it, not the app's pattern. Record it in the plan as `apiPackagePattern` (`testLocation: "co-located" | "__tests__"`, `testSuffix` e.g. `.test.ts`, `vitestConfig` path) — every addition's test path is derived from it. When `apiPackage.clientImport` is set, loaders use that provider instead of the D13 base/browser split.
 
 8. **Zustand store pattern** — Identify existing store file patterns
    - Glob: `{baseDir}/**/*Store*`, `{baseDir}/**/*store*`
+   - **`clientStore == none` (Phase 2, D17)**: skip; record instead which existing app contexts/hooks hold UI state (Glob `{baseDir}/**/*Context*`, `{baseDir}/lib/**`) so pages reuse them.
 
 9. **MSW infrastructure** — Detect existing MSW infrastructure (always — needed for test server regardless of `mockFirst`):
    - Whether `msw` devDependency exists in `package.json`
@@ -202,7 +211,11 @@ CRUD operations from FR → Axios service modules:
 - Endpoint path, HTTP method, request/response type mapping
 - Error codes from spec (E001, etc.) → error handling mapping
 
+**`apiLayer == workspace-package` (Phase 2, D15) — reuse first.** For every data need an FR implies, match it against `apiInventory[]` by endpoint (then by name): a match becomes an `api[].reuse[]` entry (`name`, `from: apiPackage.package`, `covers: [FR ids]`) and **no file is planned**; only unmatched needs become `api[].additions[]`, each with `file` under `{apiPackage.dir}/src/…` following the package's module pattern, `exportFrom: apiPackage.entry`, and the same `methods`/`queries` shape as feature-local entries. The `mocks.handlers` endpoint list is derived from reuse **and** additions (handlers mock the wire, not the package). An addition that duplicates an inventory endpoint is a planning bug — stop and report it.
+
 #### 2.3 Stores
+
+**`clientStore == none` (Phase 2, D17)**: emit `stores: []` unconditionally and route UI state to component state, the URL, or the app contexts recorded in Phase 1 step 8. A plan with a store under `none` is a planning bug.
 
 State management per screen → Zustand stores:
 
@@ -249,10 +262,12 @@ User-facing text per screen → namespace + key list:
 - label, placeholder, validation message, button text
 - error message, toast message
 - one entry per language in the config `i18n.languages` (fallback ko, en, ja, vi when no `i18n` block)
+- **`i18nBinding == custom-hook` (Phase 2, D16/D19)**: keys are **flat** and follow `i18n.keyPrefix` (no namespace); the plan records `i18n.binding: "custom-hook"`, `resourcesDir`, `resourceFile`, and per key the languages whose value comes from a spec translation (`specDir` siblings: planning-plugin `ko`/`en`/`vi`) versus the languages the integration phase must translate itself (listed later in `i18n-review.md`). No `[LANG]` placeholders are ever planned under `custom-hook`.
 
-#### 2.8 shadcn/ui Dependencies
+#### 2.8 Component Dependencies
 
-Required but not yet installed components → `npx shadcn@latest add` commands
+- `shadcn` (default): required but not yet installed components → `shadcnDependencies` (`required`/`missing`) → `npx shadcn@latest add` commands (unchanged).
+- `external` (Phase 2, D14): map every planned UI need to `componentDependencies.available`; record `used[]`. A need no export covers becomes a **gap** — `componentDependencies.gaps[]` (`name`, `plannedAs: "{externalComponents.uiKitDir}/{Name}.tsx"`, `reason`) **and** a `components[]` entry with `origin: "ui-kit"` so `component-tdd` builds it. Never plan a third library or a shadcn install. Under `formStack == rhf-zod`, record `componentDependencies.formAdapters` = `externalComponents.formAdapters` (default `{uiKitDir}/form`); foundation-generator scaffolds it once (D18).
 
 #### 2.9 Mocks
 
@@ -293,7 +308,7 @@ Map TS-nnn items from `test-scenarios.md` to test files.
   - `page` — Page tests (4-state coverage: loading/empty/error/success)
   - `store` — Zustand store unit tests
 
-- Test file location: `{baseDir}/features/{feature}/__tests__/`
+- Test file location: `{baseDir}/features/{feature}/__tests__/` — **`apiLayer == workspace-package`**: `tests[type:"api"]` for `additions[]` use the package's location from `apiPackagePattern` (co-located: `{addition.file}` with `testSuffix`; `__tests__`: `{apiPackage.dir}/__tests__/{name}{testSuffix}`), never the feature `__tests__/`; `reuse[]` entries get no test entry.
 - Each test case specifies TS-nnn, FR-nnn references via the `source` field
 
 #### 2.11 E2E Tests
@@ -342,6 +357,7 @@ Non-TDD phases (`tdd: false`) specify only `verify[]`.
 **Config-conditional adjustments (OTA Phase 1):**
 - `serverState == tanstack-query`: the `api-tdd` phase covers the axios service **and** `api/queries.ts` (query-key factory + queryOptions + hooks). If a page has no client-only state, the plan emits **no** store for it and the `store-tdd` phase is **skipped** (fe-gen already skips phases with no files — make it explicit: a feature with no `stores[]` entry has no `store-tdd` phase).
 - `formStack == rhf-zod`: `foundation` additionally emits `schemas/{entity}Schema.ts`; `component-tdd` forms use `zodResolver`.
+- **Phase 2** — `apiLayer == workspace-package`: the `api-tdd` phase carries `cwd: "{apiPackage.dir}"`, its `testFiles[]`/`implFiles[]` are the package paths from §2.2/§2.10, and its `verify[]` runs the **package's** Vitest (`npx vitest run` from `cwd`); a feature whose needs are fully covered by `reuse[]` has an empty `api-tdd` (skipped like `store-tdd`). `clientStore == none`: no `store-tdd` phase ever. `componentLibrary == external`: `foundation` scaffolds `formAdapters` when `rhf-zod`; `component-tdd` includes the `origin: "ui-kit"` gap components **first** in `implFiles[]` (feature components import them). `i18nBinding == custom-hook`: the `integration` phase lists the resource files it merges into (`{resourcesDir}/{resourceFile}` per language) and no `i18n.ts`.
 - `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the CLAUDE.md Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
@@ -486,6 +502,7 @@ Assign each affected file to its TDD phase:
 - `components/`, `__tests__/*Component*`, `__tests__/*Form*`, `__tests__/*Table*` → `component-tdd`
 - `pages/`, `__tests__/*Page*`, framework-mode `routes/{name}.tsx` route modules → `page-tdd`
 - `routes.tsx`, `i18n.ts`, locale JSON files, MSW global files → `integration`
+- Phase 2 paths: `{apiPackage.dir}/**` → `api-tdd`; `{externalComponents.uiKitDir}/**` (gap components) → `component-tdd`; `{externalComponents.formAdapters}/**` → `foundation`; `{i18nHook.resourcesDir}/**` resource files → `integration`
 
 Determine phase action:
 - `skip` — no affected files in this phase
@@ -761,6 +778,11 @@ admin/library-mode default so all appear with default values):
 - `renderingDefault` and each `pages[].rendering`/`renderingReason`/`loader`/`meta`/`routeModuleFile` — **framework mode only**.
 - `api[].queries` — **`serverState == tanstack-query` only**; under tanstack-query the paired `stores[]` entry drops server data (list/selected/loading/error) and holds UI/client state only, or is omitted entirely (then `store-tdd` is skipped).
 - `components[].formSchema` — **`formStack == rhf-zod` only**.
+- `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` — always written (copied from config; defaults `shadcn`/`feature-local`/`react-i18next`/`zustand`); `externalComponents`/`apiPackage`/`i18nHook` copied when present.
+- `componentDependencies` — **`componentLibrary == external` only** (`shadcnDependencies` is the shadcn-only field).
+- `api[].reuse` / `api[].additions` (and no `api[].file`) — **`apiLayer == workspace-package` only**; `apiInventory[]` and `apiPackagePattern` recorded alongside; `tests[type:"api"].file` and `buildOrder[api-tdd].testFiles[]` are package paths.
+- `i18n.binding`/`resourcesDir`/`resourceFile`/`keyPrefix` — **`i18nBinding == custom-hook` only**; then `featureI18nFile` and `autoIntegration` are `null`.
+- `stores` — `[]` under **`clientStore == none`**.
 - `routes.mode` mirrors `routerMode` (pre-existing field: `declarative`/`data`, now also `framework`); it labels the `routes{}` block variant. Downstream agents branch on top-level `routerMode`, not on `routes.mode` — so `routes.mode == "framework"` simply signals the `_routesFrameworkExample` shape.
 
 ```json
@@ -772,6 +794,10 @@ admin/library-mode default so all appear with default values):
   "routerMode": "declarative",
   "serverState": "zustand-only",
   "formStack": "native",
+  "componentLibrary": "shadcn",
+  "apiLayer": "feature-local",
+  "i18nBinding": "react-i18next",
+  "clientStore": "zustand",
   "renderingDefault": "ssr",
   "projectStructure": "feature-based",
   "baseDir": "{baseDir}/features/{feature}",
@@ -965,6 +991,14 @@ admin/library-mode default so all appear with default values):
   "shadcnDependencies": {
     "required": ["table", "input", "select", "button", "dialog"],
     "missing": ["pagination"]
+  },
+  "componentDependencies": {
+    "//": "componentLibrary == external only — inventory from the package's type declarations + uiKitDir",
+    "package": "@omh/components",
+    "available": ["ButtonPrimary", "InputField", "CardHotelList"],
+    "used": ["ButtonPrimary", "InputField"],
+    "gaps": [{ "name": "Modal", "plannedAs": "{externalComponents.uiKitDir}/Modal.tsx", "reason": "no overlay primitive exported" }],
+    "formAdapters": "{externalComponents.uiKitDir}/form"
   },
   "mocks": {
     "globalSetupNeeded": true,
@@ -1191,7 +1225,8 @@ Implementation Plan for '{feature}':
     Tests:       {testFiles} test files, {testCases} test cases
     E2E:         {e2eScenarios} scenarios
 
-  shadcn/ui: {missing count} components need installation ({missing list})
+  Components: {shadcn: "{missing count} shadcn/ui components need installation ({missing list})" | external: "{used count} from {package}, {gap count} ui-kit gaps ({gap list})"}
+  API reuse:  {workspace-package only: "{reuse count} hooks reused from {package}, {addition count} additions"}
 
   TDD Phases:
     1. Foundation     — shared-layouts + types + mocks (infra)
@@ -1211,7 +1246,7 @@ Implementation Plan for '{feature}':
 2. **Project-first**: Always match the existing project's patterns (naming, imports, directory structure). Do not impose new patterns.
 3. **No spec-absent features**: Do not add any features, endpoints, or UI elements not present in the spec.
 4. **Path alias compliance**: Use the project's `tsconfig.json` path aliases (e.g., `@/`) in all file references.
-5. **shadcn/ui only**: Only plan for shadcn/ui components. Do not introduce alternative component libraries.
+5. **One component library**: under `componentLibrary == shadcn` plan only shadcn/ui components; under `external` plan only the configured package's exports plus `ui-kit` gap components. Never introduce a second component library in either mode.
 6. **Prototype reference only**: If a prototype exists, use it for layout hints. Never copy prototype code patterns into the plan.
 7. **4-state page pattern**: Every page MUST plan for all 4 states: loading, empty, error, success.
 8. **UI DSL priority**: If UI DSL is available, extract data from componentTree, dataShape, validation, errorHandling, visibility directly. Do not guess.

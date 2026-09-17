@@ -105,6 +105,13 @@ npx tsc --noEmit 2>&1
 - exit code != 0 → fail (collect error list)
 - Record error/warning counts
 
+**Workspace API package** (`plan.apiLayer == "workspace-package"` and `plan.api[]` has any `additions[]`): the app's
+tsconfig may not include the package sources, so also run the package's own composite-aware tsc —
+`cd {projectRoot}/{apiPackage.dir} && npx tsc --noEmit 2>&1` (or `tsc -b` when its `tsconfig.json` has `references`) — and
+record it as `packageTsc`. **A `packageTsc` fail is a `fail` for the TypeScript axis.** This and the `packageTests` run in 2.4
+are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPackage.dir` is repo-relative. No additions →
+`packageTsc: skipped` (reason `"no package additions"`).
+
 #### 2.2 ESLint Check
 
 1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*`
@@ -152,6 +159,13 @@ npx react-router build 2>&1
 - exit code != 0 → fail (collect error messages)
 
 #### 2.4 Test Check
+
+**Workspace API package (`plan.apiLayer == "workspace-package"`, Phase 2 D15).** When `plan.api[]` carries any
+`additions[]`, first run the **package's own** suite — `cd {projectRoot}/{apiPackage.dir} && npx vitest run 2>&1`
+(`apiPackage.dir` is repo-relative, so this command is exempt from the `cd {appDir} &&` prefix in 2.1;
+`apiPackage` is copied into plan.json — read `dir` from there, never from the app config) — and record it as a
+separate `packageTests` result. A failure here is a `fail` for the test axis even when the app suite below is
+green. No additions → `packageTests: skipped` (reason `"no package additions"`); the app suite is unaffected.
 
 Check `tests[]` in plan.json:
 - If `tests[]` is not empty:
@@ -220,10 +234,10 @@ Display the verification results:
 ```
 Verification Report for '{feature}':
 
-  TypeScript:  {pass/fail} ({error count} errors, {warning count} warnings)
+  TypeScript:  {pass/fail} ({error count} errors, {warning count} warnings){; package tsc: {pass/fail} — workspace-package with additions only}
   ESLint:      {pass/fail/skipped/not-run} ({error count} errors, {warning count} warnings)
   Build:       {pass/fail}
-  Tests:       {pass/fail/skipped} ({passed}/{total})
+  Tests:       {pass/fail/skipped} ({passed}/{total}){; package: {pass/fail} — workspace-package with additions only}
   i18n keys:   {pass/fail/skipped} ({uncheckable} dynamic keys uncheckable)
   Format:      {pass/warn/skipped} ({file count} files differ)   ← advisory
   E2E:         {pass/partial/fail/not-run} ({passed}/{total} scenarios)
@@ -255,10 +269,10 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `veri
     "verification": {
       "status": "pass",
       "timestamp": "{ISO timestamp}",
-      "tsc": { "status": "pass", "errors": 0, "warnings": 0 },
+      "tsc": { "status": "pass", "errors": 0, "warnings": 0, "packageTsc": { "status": "pass | fail | skipped", "reason": "…" } },
       "eslint": { "status": "pass", "errors": 0, "warnings": 0 },
       "build": { "status": "pass" },
-      "tests": { "status": "pass", "passed": 10, "total": 10 },
+      "tests": { "status": "pass", "passed": 10, "total": 10, "packageTests": { "status": "pass | fail | skipped", "reason": "…" } },
       "i18nKeys": { "status": "pass", "uncheckable": 3 },
       "format": { "status": "warn", "filesDiffering": 4 }
     }
@@ -267,7 +281,8 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `veri
 
 Note: Set `implementation.status` to `"verified"` or `"verify-failed"`. `verified` requires tsc,
 eslint, build, tests, and i18nKeys to each be `pass` or `skipped`; any `fail` or `not-run` sets
-`verify-failed`. `format` never participates — it is advisory.
+`verify-failed`. `packageTsc` / `packageTests` exist only under `apiLayer == workspace-package` (omit them otherwise);
+a `fail` there sets its axis (`tsc` / `tests`) to `fail`. `format` never participates — it is advisory.
 
 Every `skipped` and `not-run` entry carries a `reason` string. A check that did not run is recorded
 as what it was, never omitted and never rewritten as `pass`.

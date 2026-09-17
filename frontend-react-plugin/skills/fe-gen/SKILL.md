@@ -16,17 +16,17 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`, `devPort` (default `5173` when absent)
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`, `devPort` (default `5173` when absent), and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
-5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Pass `routerMode`/`serverState`/`formStack` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`, `e2eTool="agent-browser"`, `prettierTemplate=true`. **`i18n` has no default** — pass it to foundation-generator when present, omit the parameter when absent, and never synthesize a language set from the locale directory (a language present as a folder but absent from `i18n.languages` would otherwise be silently claimed as covered). Phase 2 knobs fall back to `componentLibrary="shadcn"`, `apiLayer="feature-local"`, `i18nBinding="react-i18next"`, `clientStore="zustand"`; pass a companion object only when present. Pass `routerMode`/`serverState`/`formStack`/`componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (and each page's `rendering`) through to every phase agent (foundation-generator, tdd-cycle-runner, integration-generator) so they generate the right variant. `e2eTool` is used later by fe-e2e, not here — but foundation-generator scaffolds the Playwright harness once when `e2eTool="playwright"`.
 6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
 7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
-**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)". Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
+**Empty-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache; under `clientStore="none"` it never emits one; under `apiLayer="workspace-package"` a feature fully covered by `api[].reuse[]` has no `additions[]`. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)"; likewise mark `api-tdd` `skipped` / `skipKind: "auto"` / `reason: "no package additions"` when every `api[]` entry has `reuse[]` and no `additions[]`. Any other phase skipped for having no matching entries (Phase 2-5 "Skip if") records the same `skipKind: "auto"` and a reason — a skip without `skipKind` blocks the feature (Step 8). Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
 
 ### Step 1: Validate Plan
 
@@ -119,7 +119,7 @@ Code Generation for '{feature}' (TDD mode):
     6. Integration    — Routes, i18n, MSW setup
 
   Total: {totalFiles} files, {totalTestCases} test cases
-  shadcn/ui to install: {missing list or "none"}
+  Components: {shadcn: "shadcn/ui to install: {missing list or none}" | external: "{package} reused, ui-kit gaps: {gap list or none}"}
 ```
 
 Check for existing files that would be overwritten. Warn if any exist.
@@ -287,6 +287,15 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - projectRoot: {cwd}
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
   - srcPath: {srcPath}
@@ -320,6 +329,15 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - projectRoot: {cwd}
   - specDir: docs/specs/{feature}/{workingLanguage}/
   - routerMode: {routerMode}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
   - srcPath: {srcPath}
@@ -361,6 +379,13 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - scopedFiles: {list of createFiles file paths}
   - serverState: {serverState}
   - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
   Read templates/tdd-rules.md for TDD rules.
@@ -533,6 +558,13 @@ Agent(subagent_type: "foundation-generator", prompt: "
   - routerMode: {routerMode}
   - serverState: {serverState}
   - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - e2eTool: {e2eTool}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
@@ -570,7 +602,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
 
 For each TDD phase in order (`api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`):
 
-**Skip if** plan has no matching tests or implementation entries for this phase.
+**Skip if** plan has no matching tests or implementation entries for this phase — record it as `skipped` with `skipKind: "auto"` and a reason (Step 0, Empty-phase skip); never launch the runner for an empty phase.
 
 Get the `skills` list from the corresponding `buildOrder` entry.
 
@@ -591,6 +623,13 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - routerMode: {routerMode}
   - serverState: {serverState}
   - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}
@@ -655,6 +694,11 @@ Agent(subagent_type: "integration-generator", prompt: "
   - projectRoot: {cwd}
   - routerMode: {routerMode}
   - serverState: {serverState}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - i18n: {the config's i18n block, or omit the line entirely when absent}
   - mockFirst: {mockFirst}
   - baseDir: {baseDir}
   - appDir: {appDir}

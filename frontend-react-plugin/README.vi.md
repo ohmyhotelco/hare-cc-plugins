@@ -30,6 +30,8 @@ Chọn tại `fe-init` qua `appProfile` (mặc định `admin`). Cấu hình kh�
 
 Chế độ framework build bằng `react-router build`/`typegen`, quyết định SSR/SSG/SPA theo trang trong `plan.json`, và mock SSR loader bằng hook MSW-node. Xem `docs/design/ota-extension-phase1.md`.
 
+**Tùy chọn Phase 2 (v2.3.0)** — bốn thiết lập bổ sung cho ứng dụng đã sở hữu một phần stack, mỗi thiết lập mặc định giữ hành vi hiện tại: `componentLibrary` (`shadcn` | gói design system `external` + `ui-kit/` của app cho phần còn thiếu), `apiLayer` (`feature-local` | `workspace-package` chứa data hook, ưu tiên tái sử dụng), `i18nBinding` (`react-i18next` | `custom-hook` trên một bundle tài nguyên phẳng dùng chung), `clientStore` (`zustand` | `none`). Xem `docs/design/ota-extension-phase2.md`.
+
 ## Tổng quan kiến trúc
 
 ```
@@ -97,12 +99,12 @@ Loop 2 — E2E:
 | Framework | React 19 + TypeScript (strict) | như trên |
 | Build | Vite | React Router (framework: `react-router build`) |
 | Routing | React Router v7 (declarative / data) | React Router v7 framework (SSR/SSG/SPA theo route) |
-| UI | Tailwind CSS + shadcn/ui + Lucide | như trên |
-| Server state | Zustand + Axios | TanStack Query (+ thin Zustand cho UI state) |
-| Form | native | react-hook-form + zod |
-| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (an toàn cho loader) + browser wrapper |
+| UI | Tailwind CSS + shadcn/ui + Lucide | như trên — hoặc gói design system bên ngoài + `ui-kit/` (`componentLibrary: external`) |
+| Server state | Zustand + Axios | TanStack Query (+ thin Zustand cho UI state, hoặc không có với `clientStore: none`) |
+| Form | native | react-hook-form + zod (form adapter được scaffold khi dùng thư viện ngoài) |
+| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (an toàn cho loader) + browser wrapper — hoặc gói dữ liệu workspace, ưu tiên tái sử dụng (`apiLayer: workspace-package`) |
 | Mock | MSW v2 (dev & test) | + MSW-node cho SSR loader |
-| i18n | i18next + react-i18next (ko/en/ja/vi) | + instance SSR theo request |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + instance SSR theo request — hoặc hook của dự án trên bundle phẳng dùng chung (`i18nBinding: custom-hook`) |
 | Ngày tháng | Intl | dayjs |
 | Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
@@ -182,9 +184,10 @@ Chế độ độc lập thu thập yêu cầu tương tác (mô tả, thực th
 2. Hỏi về phát triển mock-first (MSW v2, mặc định: bật)
 3. Hỏi thư mục nguồn cơ sở (mặc định: `app/src`)
 4. Hỏi về sử dụng template ESLint (tự động tạo `eslint.config.js` nếu chưa có, mặc định: bật)
-5. Ghi `.claude/frontend-react-plugin.json`
-6. Cài đặt 6 skill bên ngoài (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
-7. Hiển thị các tùy chọn bước tiếp theo (có hoặc không có planning-plugin)
+5. Hỏi các tùy chọn Phase 2 — thư viện component, tầng API, i18n binding, client store (mỗi tùy chọn mặc định giữ hành vi hiện tại)
+6. Ghi `.claude/frontend-react-plugin.json`
+7. Cài đặt 6 skill bên ngoài (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
+8. Hiển thị các tùy chọn bước tiếp theo (có hoặc không có planning-plugin)
 
 ---
 

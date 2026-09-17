@@ -23,6 +23,8 @@ The skill will provide these parameters in the prompt:
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the mode-aware build/typecheck commands.
 
+> **Workspace API package** (`apiLayer == "workspace-package"` and `apiPackage`, both read from `planFile`; absent → `feature-local`, nothing below applies): a file under `{apiPackage.dir}` is package code. Its tests live per `plan.apiPackagePattern`, and every `vitest`/`tsc` run for it is `cd {projectRoot}/{apiPackage.dir} && …` with the package's own configs — never from `{appDir}` (the app suite does not reach package sources, so a run there reports zero matching tests, which is not a pass).
+
 ## Process
 
 ### Phase 1: Root Cause Investigation
@@ -136,7 +138,7 @@ Apply minimal changes and verify upon successful hypothesis validation.
 2. **Verification** — verify after fix
    - TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors. **Framework mode** (`routerMode == "framework"`, from `planFile`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
    - Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build 2>&1` for `declarative`/`data`, `npx react-router build 2>&1` for `framework` → confirm build success
-   - If tests exist: `npx vitest run {srcPath}` → confirm tests pass
+   - If tests exist: `npx vitest run {srcPath}` → confirm tests pass; when the fix touched `{apiPackage.dir}`: also `cd {projectRoot}/{apiPackage.dir} && npx vitest run` and the package's tsc → confirm the package suite passes (the app build alone does not prove it)
 
 3. **Regression check** — check for regressions
    - Confirm the fix does not affect other files
