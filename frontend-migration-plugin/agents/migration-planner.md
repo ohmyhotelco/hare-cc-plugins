@@ -79,7 +79,13 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    forbids. If the value turns out wrong later, it is amended by the decision owner via
    `criterionAmendment` (schema template), never quietly narrowed by whoever hits it.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
-   one-line flag-ON PR). See the schema template.
+   one-line flag-ON PR). See the schema template. **A cluster has no route** — when
+   `analysis.json.target.kind` is `cluster`, omit `flagPlan` entirely: it reaches `cluster-ready`,
+   not `flipped`, and its gates run against a harness, not a routed URL (CLAUDE.md → Component
+   Clusters). Mark an `openApprovals[]` entry `blocksFlip: true` when the coverage it reduces must
+   close **before the path flips** (a cutover-batch precondition, not a plan-time-only reduction) —
+   `fm-route --flag-off` projects those into the cutover ledger, so give such an entry a real
+   `owner`/`ticket`, never `TBD` (`templates/cutover-ledger.md`).
 7. **Copy bindings.** Carry every `analysis.json.copySources` entry into `copyBindings[]`: the
    mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), the key or map
    module + codes, the `renderMode` (`text` vs `html` — a value carrying `<br/>`/`<a href>` must
@@ -96,6 +102,14 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    shows an inline message — and mark it `assertsCopy: true` so the dual-run compares the **displayed
    text**, not just navigation. Where those surfaces exist, at minimum: wrong password, OTP/
    verification-code failure, and blocked/duplicate email.
+   **Also derive a scenario per `analysis.json.failurePaths[]` entry** (`templates/migration-plan-schema.md`
+   → Failure-path reconciliation): drive the failed branch and assert the side-effect legacy gates —
+   a `side-effect-gating` entry asserts the telemetry/navigation/alert does **not** fire (or fires with
+   the correct value, not an invented full-amount default) on `succeedYn:false`; a `boundary-clamp`
+   entry asserts the clamp at the boundary; a `no-default` entry asserts the surface renders what legacy
+   renders, not an invented default. These are invisible to a happy-path flow and to a jsdom unit test
+   that never drives the failed response, so the `e2eScenarios` entry (with the legacy dual-run) is the
+   independent check — a `mustPreserve` failure path bound only in a unit test is an incomplete plan.
 9. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
    integration`, listing the files each phase creates and their test counts.
 
@@ -120,6 +134,12 @@ This is the functional-behavior twin of the `gateAcceptance.scope` full-matrix r
 dimensions the analysis actually discovered (the `behavioralVariants` dimensions), **never** to
 your own discretion — a feature that varies across 5 locales cannot ship with a PC-KO-only gate
 scope, or the gates go blind to exactly the variants you narrowed.
+
+**The same rule governs `analysis.json.failurePaths[]`.** Every `mustPreserve` failure path is
+implemented **and** covered by an `e2eScenarios` entry (item 8) **or** recorded in `openApprovals[]`
+with rationale + owner — `fm-plan` Step 4 rejects the plan otherwise, exactly like a `mustPreserve`
+`behavioralVariant`. Do not drop a failure branch because the happy path passes; it is the branch no
+happy-path test reaches.
 
 ## Output
 

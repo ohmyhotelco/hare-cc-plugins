@@ -247,6 +247,14 @@ with the same names and payload shape as legacy on the same flow. For transactio
 the dual-fire observation requirement (≥ 7 days before flag-on, OMH-459) — this gate confirms
 event parity; the time window is operational.
 
+**Failure-branch parity, not just the happy path.** For every `analysis.json.failurePaths[]` entry of
+`kind: "side-effect-gating"` that names a telemetry event, drive the **failed** response
+(`succeedYn:false` or thrown) and compare fire/no-fire against legacy on that branch — a happy-path
+comparison never reaches it. The trap is a port that fires an event legacy gates behind `if
+(succeedYn)` (a `refund`/`view_cart` on a business-failed action), or fires it with a full-amount
+default legacy never sends. A telemetry pass recorded without exercising the page's gated failure
+branches is incomplete: record `missingEvents` / an over-fire as a **fail**, not a silent pass.
+
 ## Output — `parity-report.json`
 ```jsonc
 {

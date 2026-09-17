@@ -44,7 +44,11 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
     { "topic": "social-login provider set", "coversVariant": "social-login-buttons",
       "decision": "reduce 6→4 (drop Line, Facebook)",
       "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
-      "owner": "TBD", "status": "pending" }
+      "owner": "TBD", "status": "pending",
+      "blocksFlip": false }                 // true → this reduction must close BEFORE the path flips;
+                                            // fm-route --flag-off projects such entries into the
+                                            // cutover ledger (templates/cutover-ledger.md), owner/ticket
+                                            // carried across. A plan-time-only reduction stays false.
     // coversVariant links to a behavioralVariants.feature; use coversCopySource for a
     // copySources[] surface, so a copy-side reduction is traceable to what it reduced
   ],
@@ -264,8 +268,12 @@ gate scope. A source note ("ticket names 4", "SDK commented out") is input to a 
 never authority for a silent one; the decision lives in `openApprovals` or it does not happen.
 
 `openApprovals[]` entries: `topic`, `coversVariant` (the `behavioralVariants.feature` it reduces),
-`decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`). `fm-plan` surfaces
-every `pending` entry in its report; a coverage reduction is a human decision, not a default.
+`decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`), and `blocksFlip`
+(`true` when the reduction must close before the path flips — a **cutover-batch precondition**, not a
+plan-time-only reduction). `fm-plan` surfaces every `pending` entry in its report; a coverage
+reduction is a human decision, not a default. A `blocksFlip: true` entry is projected into the cutover
+ledger by `fm-route --flag-off` and blocks that page's flip until an owner approves or resolves it
+(`templates/cutover-ledger.md`) — so it carries a real `owner`/`ticket`, never `TBD`.
 
 ## Copy-source reconciliation (required)
 
@@ -283,6 +291,34 @@ putting English on every non-English screen. Legacy instead uses a fixed localiz
 screen (it was, on three). `renderMode` is part of the binding: a value carrying markup (`<br/>`,
 `<a href>`) must render as HTML rather than JSX text, and a path inside such a value still follows
 the migration's route scheme. See `templates/i18n-copy-parity.md`.
+
+## Failure-path reconciliation (required)
+
+The same rule, applied to the axis where ported code diverges most and no happy-path test looks:
+**failure and boundary branches**. Every `analysis.json.failurePaths[]` entry marked `mustPreserve`
+must survive into the plan — implemented in `componentTree`/`mapping` **and** covered by an
+`e2eScenarios[]` entry that drives the branch and asserts its side-effect — **or** be recorded in
+`openApprovals[]` with a rationale and owner. Silently absent from both makes the plan **incomplete**
+(`fm-plan` Step 4 rejects it back to the planner, exactly like a missing `gateAcceptance` entry).
+
+Why an `e2eScenario` and not just a `mapping` line: a `side-effect-gating` failure path (a telemetry
+event that must *not* fire on `succeedYn:false`, an error alert that must show the server
+`errorMessage`) is invisible to a happy-path flow and to a jsdom unit test that never drives the
+failed response. The scenario drives the failed envelope and asserts the fire/no-fire — the same
+reason `e2eScenarios` failure branches are required for copy. In particular:
+
+- **`side-effect-gating`** → an `e2eScenario` driving the `succeedYn:false` (or thrown) branch that
+  asserts the gated telemetry/navigation/alert does **not** fire (or fires with the correct value, not
+  a full-amount default). The `telemetry` gate's dual-fire parity compares this per branch, not only on
+  the happy path (`parity-verifier` → telemetry).
+- **`boundary-clamp`** → a scenario at the boundary (last page next, empty result) asserting the clamp.
+- **`no-default`** → assert the v2 surface renders what legacy renders (raw/empty), not an invented
+  default the legacy never showed.
+
+A `mustPreserve` failure path bound only in a unit test, with no `e2eScenario`, is an incomplete plan:
+the unit test is authored from the same one reading as the implementation, so both can agree on a wrong
+branch (the self-confirmation bias — CLAUDE.md → Self-confirmation Hardening). The legacy dual-run is
+the independent check.
 
 ## 2-PR flag plan
 

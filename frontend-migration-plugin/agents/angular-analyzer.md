@@ -147,6 +147,32 @@ Emit as `copySources[]` (schema below) with `mustPreserve: true` unless the sour
 is dead. `fm-plan` reconciles the plan against this list exactly as it does `behavioralVariants` — a
 `mustPreserve` copy source the plan neither binds nor explicitly defers is a plan defect.
 
+### 10. Failure & edge paths (the branches no happy-path test covers)
+
+Behavior on a **failure or boundary** branch is where a port silently diverges, because the happy
+path passes and no test drives the branch. `behavioralVariants` catches *dimension-varying* behavior
+and `copySources` catches failure *copy*; this catches failure *side-effects and edge behavior*.
+Enumerate every one as `failurePaths[]` (schema below), `mustPreserve: true` unless the source proves
+the branch is dead — `fm-plan` reconciles the plan against this list exactly as it does
+`behavioralVariants`:
+
+- **Side-effect gating on the response envelope.** For each `POST_*` whose handler branches on
+  `succeedYn` (or a `catchError`), record which side-effects legacy fires **only inside** the success
+  branch vs unconditionally: telemetry/`dataLayer.push` events (and their value — a business-failed
+  cancel must not push a full-value `refund`), navigation, alert/modal, NgRx writes. The trap is a
+  side-effect legacy gates behind `if (succeedYn)` that the port fires before branching (OMH-booking-
+  detail: `refund` + `view_cart` on a 200 `succeedYn:false`).
+- **Boundary / clamp behavior.** Pager next/prev at the last/first page (does legacy clamp, and where),
+  empty/zero-result handling, off-by-one windows.
+- **Retry vs first-attempt arms.** A branch that exists only on retry (or only for a guest/member),
+  where the success handler differs from the first attempt.
+- **"No default" cases.** Where legacy renders raw/empty (a missing currency, a null field) and a port
+  would **invent** a default (`"KRW"`, a placeholder) that legacy never shows — record the legacy
+  behavior as the target so the invented default is caught.
+
+Record the anchor for both the branch condition **and** the gated side-effect, so a test can pin the
+fire/no-fire, not just the branch.
+
 ## Output — `analysis.json`
 
 Write to `outPath` (Read-Modify-Write if it exists). Shape:
@@ -183,6 +209,12 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                     "mechanism": "empty-string",       // reset uses a dedicated key; login sends ""
                     "note": "backend picks its default template; a raw key breaks OTP validation",
                     "anchor": "verify-code.component.ts:155", "mustPreserve": true }],
+  "failurePaths": [{ "surface": "cancel telemetry", "branch": "POST cancel 200 succeedYn:false",
+                     "kind": "side-effect-gating",   // side-effect-gating | boundary-clamp | retry-arm | no-default
+                     "legacyBehavior": "cancelChargeAmount assigned outside try, so refund/cancel_confirm never fire on a business-failed cancel",
+                     "wrongPort": "fireCancelConfirm called before the succeedYn branch → full-value refund pushed",
+                     "branchAnchor": "cancel-booking.component.ts:136", "effectAnchor": "cancel-booking.component.ts:148",
+                     "mustPreserve": true }],
   "styleSurface": {
     "elements": [{ "selector": ".btn-promotion-tab", "instanceSelector": ".btn-promotion-tab:first-of-type",
                    "classes": ["btn-promotion-tab"], "sheets": ["_contents.scss", "base.css"],

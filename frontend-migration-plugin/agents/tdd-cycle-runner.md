@@ -49,8 +49,11 @@ absent, proceed without it (the install is non-blocking).
      `style-spec`, not by eye:** reproduce each `styleTargets` element's axis values (frame,
      spacing, icons, alignment, control geometry, color/border, typography, **containment**) as
      Tailwind/arbitrary values that match the spec; keep the legacy class name for traceability but a matching class
-     name is **not** evidence the style is right — the spec values are the target. Preserve the
-     spec's `structure` wrappers (don't flatten a wrapping box into siblings). Use the
+     name is **not** evidence the style is right — the spec values are the target. For a **bespoke**
+     legacy value (a radius, a spacing) prefer an **arbitrary value** (`rounded-[8px]`) over a named
+     scale utility whose token this repo overrides — `rounded-lg` computes **16px** here, not 8px, and
+     `font-inherit`/per-side border-style emit no CSS in Tailwind v4 (`templates/visual-parity-checklist.md`
+     → Design-token traps). Preserve the spec's `structure` wrappers (don't flatten a wrapping box into siblings). Use the
      `foundation-generator`-copied assets for sprites/backgrounds. **Self-verify:** after Green,
      confirm the rendered element's computed values match the spec (a `source-derived`/`unconfirmed`
      value is a best-effort target that `fm-parity` will re-check against live legacy).

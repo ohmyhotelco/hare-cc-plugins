@@ -85,12 +85,15 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    `e2e-test-runner`'s only documented handling of an absent `languages` is the no-`i18n`-block
    case, so a plan that omits it while the block exists sends the runner down a branch whose stated
    reason is false.
-2. **Behavioral-coverage reconciliation.** For every `analysis.json.behavioralVariants` entry with
-   `mustPreserve: true`, confirm it is either represented in the plan (`componentTree` / `mapping` /
-   `e2eScenarios`) **or** recorded in the plan's `openApprovals[]` with a rationale and decision
-   owner. A `mustPreserve` variant silently absent from both makes the plan incomplete — re-run the
-   planner before recording (exactly like a missing `gateAcceptance` entry). Surface any
-   `openApprovals` in the report so the reduction reaches a human, not the next stage.
+2. **Behavioral-coverage & failure-path reconciliation.** For every `analysis.json.behavioralVariants`
+   **and every `analysis.json.failurePaths`** entry with `mustPreserve: true`, confirm it is either
+   represented in the plan (`componentTree` / `mapping` / `e2eScenarios`) **or** recorded in the plan's
+   `openApprovals[]` with a rationale and decision owner. A `mustPreserve` variant or failure path
+   silently absent from both makes the plan incomplete — re-run the planner before recording (exactly
+   like a missing `gateAcceptance` entry). A `failurePaths` entry must land in an `e2eScenario` that
+   drives its branch and asserts the fire/no-fire (a happy-path suite never reaches it — see
+   `templates/migration-plan-schema.md` → Failure-path reconciliation). Surface any `openApprovals` in
+   the report so the reduction reaches a human, not the next stage.
 3. **Copy-source reconciliation.** For every `analysis.json.copySources` entry with
    `mustPreserve: true`, confirm it is either bound in the plan's `copyBindings[]` (mechanism + key
    or map module + `renderMode`) **or** recorded in `openApprovals[]` with a rationale and decision

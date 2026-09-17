@@ -293,6 +293,42 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   once the legacy page is deleted — retiring legacy code is outside this plugin's scope.
   `fm-progress` and the SessionStart hook print no next command for either.
 
+### Component Clusters (a non-routed target kind)
+
+A **cluster** is a group of components migrated **together, ahead of the page that consumes them** —
+`hotel-map-integration`, `hotel-search-box-cluster`. `fm-analyze --kind cluster` records it like any
+target (`kind: "cluster"` in the tracker, plus `consumedBy[]` — the page keys that will mount it). It
+runs the **same gate chain** as a page — analyze → style-spec → plan → gen → verify → e2e → parity
+(e2e and parity run against the cluster's harness on the v2 side, legacy-side below) — and
+that is the point: the review record shows clusters shipping **off-pipeline**, with no tracker entry,
+no `style-spec.json`, and no parity artifact, which is how a codified style trap (`rounded-lg` = 16px,
+already in the repo's css-parity checklist) re-shipped on `hotel-map-integration` (OMH-936). A cluster
+is first-class so it cannot skip the gates.
+
+Only **two** things differ from a routed page:
+
+- **Parity is legacy-side, not v2-route.** A cluster owns no route, so there is no v2 URL to pixel-
+  diff or flip. Its `fm-parity` visual gate compares the v2 render (from the cluster's harness route —
+  e.g. a dormant `__e2e/*-harness` route the project provides) against the **legacy render of that
+  cluster within its host legacy page** (legacy `/hotel/search-result-map` renders the map pins
+  today). `fm-style-spec` captures the answer key the same way — the extractor probes the cluster's
+  elements in the live legacy host page. Everything the visual/style gate catches for a page it
+  catches here; only the *v2 side's* source is a harness, not a route.
+- **The terminal state is `cluster-ready`, and there is no flip.** A cluster advances
+  analyzed → … → parity-passed and then to **`cluster-ready`**. `fm-route` **refuses a cluster** —
+  there is nothing to flip — so a cluster never reaches `flipped`/`done`, and `fm-progress` / the
+  SessionStart hook print no `fm-route` next step for it. Instead, **a cluster's readiness is a
+  flip-precondition for every page that consumes it**: while a consumed cluster is not yet
+  `cluster-ready`, `fm-route --flag-off` of the consuming page projects a `blocksCutover: true` entry
+  into the cutover ledger (`kind: "flip-precondition"`, `item: "cluster <name> not yet cluster-ready"`
+  — see "Cutover Ledger & PR Body"), so a page cannot flip on a cluster that has not passed its own
+  gates. This is what stops the OMH-936 shape — a cluster's defects going live the moment the
+  consuming page mounts it — from reaching production silently.
+
+Everything else — locks, the `*-failed → fixing` recovery, `fm-fix`, `fm-delta` on legacy drift, the
+Codex audit, and the answer-key/gate freshness of "Gate Result Accounting" — applies to a cluster
+unchanged. A cluster lives in the same `apps[app].pages` map, discriminated by `kind: "cluster"`.
+
 ## State Files & Lock Convention
 
 State files keep the multi-skill pipeline resumable. Layout:
@@ -300,6 +336,10 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
+├── cutover-ledger.json                ← app-wide: batch-scoped flip-preconditions/deferrals projected
+│                                        from per-page openApprovals (fm-route --flag-off writes,
+│                                        --flag-on blocks on open rows, fm-progress renders). See
+│                                        templates/cutover-ledger.md. Under .app.lock → .tracker.lock.
 ├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — locks,
 │                                        pre-run manifests and proposed baselines never reach a commit
 ├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
@@ -355,7 +395,7 @@ fields:
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 11 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
-| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, the `infraDir`/`cloudfrontDir` routing artifact, and `cutover-ledger.json` | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`, `fm-route`** |
 
 The page lock does **not** protect `tracker.json`: no lock is common to a page skill and
 `fm-extract`, and two page locks do not exclude each other. Two pages in flight is a supported
@@ -860,7 +900,74 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must
   report which axes it checked.
 
+- **G (answer-key freshness — the legacy side of the watch set).** F hashes the **v2** side (the
+  generated files, shared deps, and plan). It deliberately leaves out the thing the gates compare
+  *against*: the **legacy answer key** — the specific legacy source the `// legacy: file:line` anchors
+  and `analysis.json.styleSurface` cite, plus `style-spec.json` and `analysis.json`. A later master
+  merge that changes legacy source rots the answer key silently: the v2 hash still matches, every
+  F-based freshness check stays green, and the gate now compares v2 against a legacy truth that moved.
+  This is a real gap (the parity/style answer keys are truth, and truth that drifted is a false pass),
+  and it is **not** covered by F.
+  - **The rule.** A gate's answer key is fresh only if the legacy source it was derived from has not
+    moved since. Record `answerKeyEvidence.{stage} = { at, commit, legacyTree }` beside
+    `gateEvidence`, where `legacyTree` is `scripts/gate-tree-hash.sh` (the **same** script, never an
+    inline pipeline) over the **specific** legacy files the answer key cites — the `styleSurface`
+    entries and `// legacy:` anchor files, **not** the whole `legacyDir` (hashing the whole app flags
+    every page stale on any legacy change). `fm-parity` is the producer — it records
+    `answerKeyEvidence.parity = { at, commit, legacyPaths, legacyTree }` in Step 4 beside
+    `gateEvidence.parity`, storing the path **list** so consumers recompute the identical set.
+    `fm-progress` re-measures it and reports `answer-key-stale`; `fm-route --flag-on` Step 1a
+    **blocks** on it (re-checked under the lock in Step 2), sending the user to `fm-delta` (legacy
+    drifted) or `fm-verify` (re-run the chain). A page with no `answerKeyEvidence` (parity-passed before
+    the producer landed) is `unverifiable` on this axis — acknowledged, never blocked.
+  - **The generalized stale-stamp rule (this one is in force now, via `templates/pr-body.md`).** Any
+    number an artifact, report, or answer key asserts as "measured at HEAD" — a gate hash, a manifest
+    total, a self-test count, a byte count — is **recomputed after a merge/rebase, never copied
+    across it.** A stamp carried over a merge is the single most common review finding on
+    merge-synced branches (OMH-938 PR #302's whole cluster; OMH-936's manifest totals). `fm-route`
+    Step 0b blocks a branch behind its base for exactly this reason, and the PR body emits
+    `TODO(owner): re-measure at HEAD` in place of any number it cannot recompute at the current HEAD.
+  - **Status:** wired end to end — the generalized stale-stamp rule and branch-freshness block
+    (`fm-route` Step 0b, `templates/pr-body.md`), the `answerKeyEvidence` producer (`fm-parity`
+    Step 4), the read-only `answer-key-stale` readout (`fm-progress`), and the hard `answer-key-stale`
+    block on the flip (`fm-route --flag-on` Step 1a, re-checked in Step 2).
+
 Codex stays advisory: D counts findings, it does not give Codex a veto.
+
+## Cutover Ledger & PR Body
+
+Two records the review history shows missing — both about **evidence the reviewer and the cutover
+batch can read**, not about code. The recurring approved-round finding is not a wrong line; it is a
+deferral recorded nowhere the deployment can look it up, and a PR body that omits Risk/Rollback/Rebase
+or asserts a stamp already stale on merge.
+
+**Cutover model.** The flip is graded against **flag-ON at merge** — a confirmed **big-bang cutover**
+of all ready pages together, not a per-page Strangler flip (this supersedes per-page flip grading).
+The per-page `--flag-off` still prepares each page's code PR with the flag OFF, and `fm-route
+--flag-on` / `--confirm-live` remain the per-page mechanics the batch is assembled from; what changes
+is that an item a page defers "before the flip" is due **before the cutover batch** and must be
+enumerable batch-wide, not left in one PR's prose. The batch flip itself is **`fm-route --cutover`**
+(fm-route → "Batch cutover"): it resolves the ready set (every `parity-passed` + `routePrepared` page,
+never a cluster), runs each page's flag-on gates, and refuses unless **every** page passes **and** the
+ledger below has zero open `blocksCutover` entries — all-or-nothing, since a big-bang flips as a unit.
+
+**Cutover ledger** — `docs/migration/cutover-ledger.json`, schema in `templates/cutover-ledger.md`.
+The batch-scoped projection of every unresolved **flip-precondition** across pages: the one list the
+cutover reads to know what is not ready. `fm-route --flag-off` projects each `migration-plan.json`
+`openApprovals[]` entry marked `blocksFlip: true` into it (owner/ticket carried across); `fm-route
+--flag-on` refuses a page whose ledger holds an **open** `blocksCutover` entry (Step 1c), the same
+handling as an unresolved Codex `high`; `fm-progress` renders batch readiness. It never replaces
+`openApprovals[]` — it is a projection with a `sourceApproval` pointer back. An `owner` is never
+`TBD`: an unowned blocker is the defect to surface. App-wide file — written under `.app.lock` →
+`.tracker.lock`.
+
+**PR body** — `templates/pr-body.md`. `fm-route` emits a complete PR body for both PRs it prepares
+(`--flag-off` code PR, `--flag-on` flip PR), carrying the fields the reviews repeatedly find missing —
+Risk level, Rollback plan, a real Jira **link**, Rebase confirmation, the changed set — plus Gate
+evidence whose freshness is **recomputed at HEAD** (never a stamp copied across a merge) and a
+Deferred-items section pointing at the page's ledger rows. A field the skill cannot fill is emitted
+`TODO(owner): …`, never a plausible blank. Branch freshness is checked first (`fm-route` Step 0b): a
+branch behind its base blocks the PR, since both PRs are graded at merge.
 
 ## Skills
 

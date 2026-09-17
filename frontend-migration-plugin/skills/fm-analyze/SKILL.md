@@ -1,7 +1,7 @@
 ---
 name: fm-analyze
 description: "Use to analyze a legacy OhMyHotel Angular target (page / component / service / store) before migrating it — produces analysis.json with the dependency graph, shared-package candidates, 3-app diff, and required gates."
-argument-hint: "<target> [--app pc|mobile|hana] [--kind page|component|service|store]"
+argument-hint: "<target> [--app pc|mobile|hana] [--kind page|cluster|component|service|store]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -29,10 +29,14 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 
 ### Step 1: Resolve the target
 1. From `<target>` + optional `--kind`, locate the entry file/dir under `legacyDir`
-   (e.g. a page dir `pages/hotel/hotel-booking-info/`, a service file, a store slice).
+   (e.g. a page dir `pages/hotel/hotel-booking-info/`, a service file, a store slice). A
+   `--kind cluster` target is a **group of components migrated ahead of the page that consumes them**
+   (`hotel-map-integration`) — a non-routed target that runs the full gate chain but reaches
+   `cluster-ready`, never `flipped` (CLAUDE.md → Component Clusters). Ask which page(s) will mount it
+   (`consumedBy`) when it is not obvious from the source.
    - If ambiguous, Glob candidates and ask the user to pick.
-2. Derive a stable `page` key (e.g. `hotel-booking-info`) for the state path
-   `docs/migration/{app}/{page}/`.
+2. Derive a stable `page` key (e.g. `hotel-booking-info`, or a cluster key like
+   `hotel-map-integration`) for the state path `docs/migration/{app}/{page}/`.
 3. Compute `counterpartDirs` — the same relative path under the other apps' `legacyDir`
    (and the `pages/hana-travel/...` fork for Hana). Skip those that do not exist.
 
@@ -73,7 +77,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
 1. The agent writes `analysis.json`. Verify it exists and parses (`jq empty`).
 2. Update `docs/migration/tracker.json` (Read-Modify-Write — read latest, **merge only the changed
    fields**, write the whole object): set `apps[app].pages[page].status = "analyzed"` plus `kind`,
-   `requiredGates`, `risk`, `updatedAt`. **Merge, never replace the page object.** A re-analysis that
+   `requiredGates`, `risk`, `updatedAt` — and, when `kind` is `cluster`, `consumedBy` (the page keys
+   that will mount it), so `fm-route --flag-off` of a consuming page can read it back and project a
+   flip-precondition while the cluster is not yet `cluster-ready` (CLAUDE.md → Component Clusters).
+   **Merge, never replace the page object.** A re-analysis that
    assigned a fresh five-field object would delete everything else the record accumulates —
    `sourcePaths`, `gateEvidence`, `codexAudit`, `flippedAt`, `flagKey`, `routePrepared`, `verifiedAt`
    — silently resetting the page's freshness and audit history (CLAUDE.md → Read-Modify-Write rule).
