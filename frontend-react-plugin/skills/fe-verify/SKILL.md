@@ -153,6 +153,12 @@ npx react-router build 2>&1
 
 #### 2.4 Test Check
 
+**Workspace API package (`plan.apiLayer == "workspace-package"`, Phase 2 D15).** When `plan.api[]` carries any
+`additions[]`, first run the **package's own** suite from its directory — `cd {apiPackage.dir} && npx vitest run 2>&1`
+(`apiPackage` is copied into plan.json; read `dir` from there, never from the app config) — and record it as a
+separate `packageTests` result. A failure here is a `fail` for the test axis even when the app suite below is
+green. No additions → `packageTests: not-run (no package additions)`; the app suite is unaffected.
+
 Check `tests[]` in plan.json:
 - If `tests[]` is not empty:
   ```bash

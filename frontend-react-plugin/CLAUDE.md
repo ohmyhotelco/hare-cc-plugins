@@ -265,7 +265,7 @@ Key files:
 - Subsequent features: reuses existing layout, optionally adds nav items
 
 ### Route & i18n Auto-Integration
-- Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory
+- Each feature generates `routes.tsx` (route definitions) and `i18n.ts` (namespace registration) in its feature directory — under `i18nBinding: custom-hook` there is no `i18n.ts`; the integration phase appends the feature's flat keys to the shared resource files instead (D16)
 - Integration-generator auto-integrates by adding import + spread to the central route file and i18n config (same pattern as MSW handler aggregation)
 - Supports declarative mode (`<Route>` JSX fragments) and data mode (`RouteObject[]` arrays)
 - Layout route nesting: spreads feature routes under existing layout route's children when present

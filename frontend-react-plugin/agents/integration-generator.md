@@ -331,9 +331,21 @@ npx vite build 2>&1
 npx react-router build 2>&1
 ```
 
+**f. Workspace API package** (`apiLayer == workspace-package` and `plan.api[]` has any `additions[]`): run the
+**package's** suite — `cd {projectRoot}/{apiPackage.dir} && npx vitest run 2>&1` — and record it as
+`verification.packageVitest`. The app suite above does not reach package sources; "full verification" without
+this run would report complete while the package is red. No additions → `packageVitest: n/a`.
+
 All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 
 ## Output Format
+
+> **`i18nBinding == custom-hook`** changes the i18n shape below: `filesCreated` lists **no** `i18n.ts` and no
+> `{localesDir}/{lang}/{feature}.json`; instead `filesModified` lists each merged
+> `{i18nHook.resourcesDir}/{resourceFile}` and `filesCreated` includes
+> `docs/specs/{feature}/.implementation/frontend/i18n-review.md`; `i18nIntegration` becomes
+> `{ "status": "merged", "resourceFiles": [...], "keysAdded": N, "keysAlreadyPresent": [...], "reviewFile": "…/i18n-review.md" }`
+> with no `featureFile` / `centralFile` / `namespace`.
 
 ```json
 {
@@ -377,6 +389,7 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
     "tsc": "pass | fail",
     "eslint": "pass | fail | skipped",
     "vitest": "pass | fail",
+    "packageVitest": "pass | fail | n/a",
     "build": "pass | fail"
   },
   "manualSteps": []

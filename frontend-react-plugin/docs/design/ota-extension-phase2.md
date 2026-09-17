@@ -113,11 +113,12 @@ generated files (package dir, ui-kit, resource files) and change every import li
 | File | Change |
 |---|---|
 | `skills/fe-init/SKILL.md` | Steps 2i–2l ask the four knobs (profile default = today's value for both profiles); Step 1 guard list gains the four; Step 3 writes them (+ nested objects) only when non-default; Step 4a prints the external package line and suppresses nothing else; Step 5 confirm block shows them. |
-| `skills/fe-plan/SKILL.md`, `skills/fe-gen/SKILL.md` | Read the four knobs (+ objects) with defaults; pass them to every agent launch; the summary's shadcn line becomes library-neutral. |
+| `skills/fe-plan/SKILL.md`, `skills/fe-gen/SKILL.md` | Read the four knobs (+ objects) with defaults; pass each agent the knobs it consumes (planner, foundation, tdd-cycle-runner and delta-modifier take all four; integration-generator takes `apiLayer`/`i18nBinding` + objects and `i18n`); the summary's shadcn line becomes library-neutral. |
 | `agents/implementation-planner.md` | Inputs; Phase 1 scans branch on the knobs (package `.d.ts` inventory, api entry inventory, resource-file prefix scan); §2.2 reuse-first; §2.3 empty under `none`; §2.7 flat keys; §2.8 → `componentDependencies` + gaps; §2.12 phase notes; §3.6 routing for package/ui-kit/resource paths; output schema; summary; Key Rule 5 rewritten. |
 | `agents/foundation-generator.md` | Inputs; Step 2 layouts import per binding/library; Step 3 skips shadcn install under external; **Step 5f form adapters** (D18); Step 5d passes `resourceFile` to the coverage spec; output fields. |
 | `agents/tdd-cycle-runner.md` | Inputs; Step 0 loads `reuse`/`additions`; api-tdd package target + package Vitest; component-tdd library rule + adapter import; page-tdd loader client per `apiPackage.clientImport`; checklist. |
 | `agents/integration-generator.md` | Inputs; Step 4/5 branch: custom-hook merges keys into resource files (app lock) and skips registration; D19 values + review file; output/checklist. |
+| `skills/fe-verify/SKILL.md` | Test check additionally runs the workspace package's own Vitest when the plan has `api[].additions[]` (`packageTests`). |
 | `agents/quality-reviewer.md` | 1.6 library-aware; new gated checks: forbidden/shadcn/lucide imports under external, `axios` import in app code under workspace-package, `react-i18next` under custom-hook, `zustand` under none; 1.8 `native:` wording. |
 | `templates/feature-module.md` | External-library, workspace-API and custom-hook variants beside the existing examples. |
 | `templates/form-adapters.md` (new) | Adapter surface + example wrapping a generic `InputField`. |

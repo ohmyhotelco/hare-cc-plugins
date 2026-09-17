@@ -93,6 +93,14 @@ For each test entry in the plan's `tests[]` matching this phase:
    export const entityApi = {} as Record<string, never>;
    ```
 
+   > **`apiLayer == workspace-package` (D15) — different paths, same discipline.** No feature-local
+   > `api/` file is stubbed or written. The stub is each `api[].additions[].file` **inside `{apiPackage.dir}`**
+   > (e.g. `packages/shared-data/src/hotel/use-hotel-list-promotion.ts`), and its test sits where the
+   > package keeps tests (the module pattern the planner recorded — co-located `*.test.ts` or the package's
+   > `__tests__/`). `api[].reuse[]` entries get **no** stub and **no** test. The `api/queries.ts` stub below
+   > applies to `feature-local` only — under `workspace-package` the package's hooks already are the
+   > query layer.
+
    For `store-tdd`:
    ```typescript
    // Stub: {baseDir}/features/{feature}/stores/entityStore.ts
@@ -131,7 +139,7 @@ For each test entry in the plan's `tests[]` matching this phase:
    The stub ensures imports resolve so tests FAIL on assertions, not on MODULE_NOT_FOUND.
 
 2. **Write test file** based on plan's test cases:
-   - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}`
+   - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}` — `api-tdd` under `workspace-package`: the package's test location for that addition (see the note above), never the app feature's `__tests__/`
    - Each test case from `plan.tests[].cases` → one `it()` block
    - **Spec anchor** on each test: `// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88`.
      The anchor names the **spec** line the expected behavior comes from (`TS-nnn`, `FR-nnn`, or a
@@ -158,6 +166,10 @@ For each test entry in the plan's `tests[]` matching this phase:
 ```bash
 npx vitest run {srcPath}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
 ```
+
+> `api-tdd` + `apiLayer == workspace-package`: run the **package's** suite instead —
+> `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative test path} --reporter=verbose 2>&1`
+> — with the package's own `vitest.config.*` (R10). The same substitution applies in Step 4 and Step 4b.
 
 **Check the output carefully:**
 
@@ -205,7 +217,7 @@ is app-wide — edit it under `docs/specs/.app.lock`), and verified with the **p
 R10). Nothing is generated for `api[].reuse[]`; feature code imports those hooks from `{apiPackage.package}`.
 The app never imports `axios` directly under this layer. The MSW handlers stay in the app feature.
 
-*When `serverState == tanstack-query`* — the phase covers the axios service (above, **unchanged**) **plus**
+*When `serverState == tanstack-query` and `apiLayer == feature-local`* — the phase covers the axios service (above, **unchanged**) **plus**
 `api/queries.ts` per the plan's `api[].queries` block:
 - Build the **query-key factory** + `queryOptions`/`infiniteQueryOptions` + hooks (query / infinite /
   mutation) exactly as planned. The `queryOptions` factory is **fetch-client-agnostic** — it takes the API
@@ -280,6 +292,8 @@ The app never imports `axios` directly under this layer. The MSW handlers stay i
 ```bash
 npx vitest run {srcPath}/features/{feature}/__tests__/{testFile} --reporter=verbose 2>&1
 ```
+
+> `api-tdd` + `apiLayer == workspace-package`: `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative test path} --reporter=verbose 2>&1` (Step 2 note). The TypeScript check below then also runs the package's `tsc` from `{apiPackage.dir}` (its own `tsconfig.json`), because the app's project may not include the package sources.
 
 **Check:**
 - ALL tests pass

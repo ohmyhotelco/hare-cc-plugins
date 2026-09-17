@@ -46,6 +46,17 @@ Canonical structure for a feature module. The `implementation-planner`, `foundat
 
 ## Canonical Patterns
 
+> **Phase 2 substitutions (apply to every example below).** The examples are written for the default
+> knobs. Under `componentLibrary == external`, every `@/components/ui/*` import becomes the configured
+> package (`import { Button, Input, Table } from '{externalComponents.package}'`), `lucide-react` icons
+> become the package's icon exports, `cn()` becomes the library's className prop or `{uiKitDir}/cn.ts`, and
+> the rhf-zod `Form*` primitives come from `{formAdapters}`. Under `i18nBinding == custom-hook`,
+> `useTranslation('{feature}')` becomes `const t = {i18nHook.hook}()` from `{i18nHook.from}` with flat keys
+> (`t('tl.entity-list.title')`) and the i18n JSON / `i18n.ts` sections do not apply. Under
+> `apiLayer == workspace-package`, the API Service and Server-State Queries sections apply only to
+> `api[].additions[]` written inside the package; reused hooks are imported from `{apiPackage.package}`.
+> Under `clientStore == none`, the Zustand Store section and its test do not apply.
+
 ### Types (`types/{entity}.ts`)
 
 ```typescript

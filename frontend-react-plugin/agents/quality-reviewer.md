@@ -45,7 +45,7 @@ The skill will provide these parameters in the prompt:
    - Derive project base: remove the trailing `features/{feature}` segment from `baseDir` (e.g., `app/src/features/order-management` → `app/src`)
    - Glob: `{projectBase}/features/*/` → verify existing module structure
    - Check import style and naming conventions of existing code
-4. **Generated files** — read all generated files under `baseDir`
+4. **Generated files** — read all generated files under `baseDir`. **Phase 2 paths live outside it** — also read, from the plan: every `componentDependencies.gaps[].plannedAs` and `componentDependencies.formAdapters` (external library), every `api[].additions[].file` (workspace package), and each configured language's `{i18nHook.resourcesDir}/{resourceFile}` (custom-hook; scan only for the feature's keys and `[LANG]` placeholders — do not review the whole bundle). Without these the D14–D17 checks below examine nothing.
 5. **Accepted deviations** — read `plan.json` `openApprovals[]` (absent → none). An entry with
    `status: "approved"` **and** a named `owner` (not `TBD`, not an agent) is a decision already
    taken: do **not** re-raise a matching issue. List it once under "accepted deviations" so it stays

@@ -34,7 +34,9 @@ export { Form, FormField, FormItem, FormLabel, FormControl, FormMessage, useForm
 import * as React from 'react';
 import { Controller, FormProvider, useFormContext, type ControllerProps, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Label } from '{externalComponents.package}';   // the library's label primitive
-import { {i18nHook.hook} } from '{i18nHook.from}';      // or useTranslation under react-i18next
+// Translation binding — pick ONE at scaffold time from the config:
+//   i18nBinding == react-i18next (default):  import { useTranslation } from 'react-i18next';
+//   i18nBinding == custom-hook:              import { {i18nHook.hook} } from '{i18nHook.from}';
 
 export const Form = FormProvider;
 
@@ -92,7 +94,7 @@ export function FormControl({ children }: { children: React.ReactElement }) {
 
 export function FormMessage(props: React.HTMLAttributes<HTMLParagraphElement>) {
   const { error, formMessageId } = useFormField();
-  const t = {i18nHook.hook}();
+  const t = {i18nHook.hook}(); // custom-hook binding — under react-i18next: `const { t } = useTranslation();` (zod messages are full keys, no namespace)
   const key = error?.message ? String(error.message) : null;
   if (!key) return null;
   return (
@@ -105,6 +107,8 @@ export function FormMessage(props: React.HTMLAttributes<HTMLParagraphElement>) {
 
 ## Rules
 
+- **Binding-aware.** The scaffold resolves the translation import from `i18nBinding` (the two variants
+  above); it never references `i18nHook` when the binding is `react-i18next`, where that object does not exist.
 - **Once per app.** `foundation-generator` globs the directory and never overwrites an existing adapter.
 - **No behavior beyond wiring.** Validation stays in the zod schema; the adapters only connect
   react-hook-form state to the library's primitives and to `t()`.

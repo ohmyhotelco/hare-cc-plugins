@@ -48,7 +48,7 @@ The coordinator skill provides:
 
 ### Step 1: Read Plan & Context
 
-1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`, `workingLanguage`, `localesDir`, and the top-level stack keys (`routerMode`, `serverState`, `formStack` — copied into the plan by the planner; fall back to the input params / defaults if absent). When `formStack == rhf-zod`, also load `components[].formSchema` (zod field specs + `errorMapping`) for schema generation.
+1. **Plan** — read `planFile` → load `types[]`, `mocks{}`, `sharedLayouts[]`, `shadcnDependencies`, `componentDependencies` (external library: `formAdapters` path for Step 5f), `i18n.keyPrefix`/`resourcesDir`/`resourceFile` (custom-hook: Step 2 layout keys and Step 5d), `workingLanguage`, `localesDir`, and the top-level stack keys (`routerMode`, `serverState`, `formStack` — copied into the plan by the planner; fall back to the input params / defaults if absent). When `formStack == rhf-zod`, also load `components[].formSchema` (zod field specs + `errorMapping`) for schema generation.
 2. **Existing patterns** — check patterns in existing project code:
    - Import style and naming conventions of existing feature modules
    - Existing type patterns (Glob: `{baseDir}/features/*/types/*.ts`)
@@ -84,8 +84,8 @@ For each entry in `sharedLayouts[]`:
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels — **`componentLibrary == external`**: use only `{externalComponents.package}` exports and existing `{uiKitDir}` primitives (no `@/components/ui/*`, no `lucide-react`); a class-merge helper, if needed, is `{uiKitDir}/cn.ts` (clsx + tailwind-merge) created once
 3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** — **`i18nBinding == custom-hook`**: no `layout.json`; append the layout keys (flat, `i18n.keyPrefix`) to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (spec translation where one exists, otherwise agent-translated and listed in `i18n-review.md`), never a `[LANG]` placeholder (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
-   - `workingLanguage` translation is the primary (fully translated)
-   - Other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
+   - `react-i18next` only: `workingLanguage` translation is the primary (fully translated); other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
+   - `custom-hook`: no placeholders — D19 values as stated above
 4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
    ```bash
    # If root tsconfig.json contains "references": use tsc -b
@@ -95,7 +95,7 @@ For each entry in `sharedLayouts[]`:
 **If `exists: true` AND `navItemsToAdd` is non-empty** (subsequent feature):
 1. Read existing layout file
 2. Edit to add new navigation items (targeted Edit, not rewrite)
-3. Update `{localesDir}/{lang}/layout.json` with new keys (follow same `workingLanguage` primary / placeholder convention)
+3. Update the layout keys — `react-i18next`: `{localesDir}/{lang}/layout.json` (same `workingLanguage` primary / placeholder convention); `custom-hook`: append the new flat keys to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (no `layout.json`, no placeholders)
 
 **If `exists: true` AND `navItemsToAdd` is empty**: Skip.
 
