@@ -35,7 +35,7 @@ The skill will provide these parameters in the prompt:
 
 #### Phase 0-P: Pipeline Mode (default)
 
-1. **Plan** — read `planFile` → extract file list, type definitions, component structure, `routerMode`, and (when present) `serverState`/`formStack` (the plan copies these from config). Also read `.claude/frontend-react-plugin.json` for `appProfile` (not copied into the plan) — needed for the ota date-convention check under dimension 1.6. When any key is absent, apply its default (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`) — the config-gated checks below then do not fire and behavior is unchanged.
+1. **Plan** — read `planFile` → extract file list, type definitions, component structure, `routerMode`, and (when present) `serverState`/`formStack` (the plan copies these from config). Also read `.claude/frontend-react-plugin.json` for `appProfile` (not copied into the plan) — needed for the ota date-convention check under dimension 1.6 — and for the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` with their companion objects (`externalComponents`/`apiPackage`/`i18nHook`; the plan copies the knobs, the config is authoritative). When any key is absent, apply its default (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`) — the config-gated checks below then do not fire and behavior is unchanged.
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
    - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). **RSC/SSR rules are router-mode conditional** (CLAUDE.md § Router-mode command matrix, "SSR rules" row): in `declarative`/`data` (Vite SPA) skip them; in `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG) — **apply** the SSR/rendering-strategy rules.
    - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition rules when evaluating dimensions 1.1 (Single Responsibility) and 1.7 (Architecture & Design).
@@ -59,7 +59,7 @@ The skill will provide these parameters in the prompt:
 
 1. **Skip** plan loading — no `planFile` required
 2. **Skip** external skill loading — no per-feature skill reading
-3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode`, `serverState`, `formStack`, `appProfile` (for the config-gated convention checks in dimensions 1.6/1.2). Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`), leaving the gated checks inactive.
+3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode`, `serverState`, `formStack`, `appProfile`, and the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (+ companion objects) for the config-gated convention checks in dimensions 1.6/1.2. Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`), leaving the gated checks inactive.
 4. **Project patterns** — identify patterns from existing modules:
    - If `targetPath` contains `/features/`: derive project base by removing `/features/...` suffix
    - Otherwise: use `baseDir` from config to derive project base
@@ -142,8 +142,8 @@ Each issue MUST include the following fields:
 
 #### 1.6 Convention Compliance
 
-- Verify only shadcn/ui components are used
-- Verify conditional className handling uses the `cn()` utility
+- Verify only the configured component library is used — shadcn/ui under `componentLibrary == shadcn` (default); under `external`, only `externalComponents.package` exports and `{uiKitDir}` primitives
+- Verify conditional className handling uses the `cn()` utility (under `external`: the library's className prop or the project's single `{uiKitDir}/cn.ts`)
 - Verify `react-router` import (not `react-router-dom`)
 - Verify routing patterns match the rules from `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (loaded in Phase 0) — import style, route structure, NavLink patterns only (NOT permission/auth decisions)
 - Route permissions (RoleRoute, ProtectedRoute placement) are spec compliance matters — do NOT evaluate whether a route should or should not require authentication/roles
@@ -156,6 +156,10 @@ Each issue MUST include the following fields:
 - **`routerMode == "framework"` — server-render safety (R1/D13)**: no server-only imports reachable from client components; loaders and `entry.server` code import **only** the D13 **base client** (never the browser wrapper with its JWT/localStorage interceptors). **No browser-only globals (`localStorage`, `window`, `document`) reachable in the server-render path** (loaders, and the module scope of `ssr`/`ssg` route modules) — such access → issue (severity: critical; it crashes the server render).
 - **`serverState == "tanstack-query"` — query/store layering (D9)**: server data must **not** live in Zustand stores (server list/entity/loading/error state belongs in the query cache; a store holding it is a convention violation → issue, severity: warning). Loader-fed queries carry an explicit `staleTime` (> 0) **and** `initialDataUpdatedAt` per D9 (a)–(c) — a loader-fed `useQuery`/`queryOptions` relying on the default `staleTime: 0` or omitting `initialDataUpdatedAt` → issue (severity: warning). (The companion "no `useEffect` fetching" rule is checked under dimension 1.2.)
 - **`formStack == "rhf-zod"` — form validation (D4)**: forms use `useForm` + `zodResolver(schema)` against the generated zod schema; ad-hoc / hand-rolled field validation instead of the schema resolver → issue (severity: warning).
+- **`componentLibrary == "external"` — library boundary (D14)**: an import from `@/components/ui/*`, `lucide-react`, any `shadcn` path, or a prefix listed in `externalComponents.forbiddenImports[]` → issue (severity: warning); a gap component planned as `origin: "ui-kit"` implemented outside `{uiKitDir}` → issue (severity: warning).
+- **`apiLayer == "workspace-package"` — API boundary (D15)**: app feature code importing `axios` directly, or defining a fetcher for an endpoint that `apiInventory[]` already covers, → issue (severity: warning); a planned `api[].additions[]` file outside `{apiPackage.dir}` → issue (severity: critical — it forks the package's export surface).
+- **`i18nBinding == "custom-hook"` — translation binding (D16/D19)**: an import from `react-i18next`, a per-feature `i18n.ts`, or a `[LANG] …` placeholder value in a resource file → issue (severity: warning); a key referenced in code but absent from any configured language's resource file is the key-coverage spec's finding — do not duplicate it here.
+- **`clientStore == "none"` — no client store (D17)**: any `zustand` import or `stores/` file → issue (severity: warning).
 - **`appProfile == "ota"` — date convention (D12)**: date handling goes through **dayjs** (+ `locale`/`utc`/`timezone` plugins); hand-rolled date math (manual `Date` arithmetic for nights/ranges/hotel-local cutoffs) → issue (severity: warning). Currency stays `Intl.NumberFormat` in both profiles — do NOT flag it. (Admin profile keeps the Intl-only date convention — this check does not run.)
 
 - _Standalone: read `routerMode`, `serverState`, `formStack`, `appProfile` from `.claude/frontend-react-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions plus the config-gated checks above_
@@ -175,7 +179,7 @@ Hunt complexity the spec/plan never asked for. Prefix each issue `message` with 
 
 - `delete:` — dead code, unused exports, unused flexibility, speculative features not in the plan
 - `stdlib:` — hand-rolled logic the JS/TS standard library or platform built-ins already ship (`Intl.DateTimeFormat`, `URLSearchParams`, `structuredClone`, …)
-- `native:` — code or a dependency doing what the platform or shadcn/ui already provides (`<input type="date">` over a picker lib, CSS over JS, Dialog over a custom modal)
+- `native:` — code or a dependency doing what the platform or the configured component library already provides (`<input type="date">` over a picker lib, CSS over JS, Dialog over a custom modal)
 - `yagni:` — abstraction with one implementation (interface/factory/wrapper with a single consumer), config for a value that never changes, layer with one caller
 - `shrink:` — same logic achievable in clearly fewer lines (put the shorter form in `fixHint`)
 

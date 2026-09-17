@@ -24,6 +24,12 @@ The skill will provide these parameters in the prompt:
 - `projectRoot` — project root path
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
+- `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent).
+- `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
+- `componentLibrary` — `"shadcn"` (default) | `"external"`; with `externalComponents` (optional object). Same generation rules as tdd-cycle-runner § component-tdd (Phase 2, D14/D18).
+- `apiLayer` — `"feature-local"` (default) | `"workspace-package"`; with `apiPackage` (optional object). Modified API files live in the package under `workspace-package` (D15).
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"`; with `i18nHook` (optional object). Under `custom-hook` there is no feature `i18n.ts`; key changes go to the flat resource files (D16).
+- `clientStore` — `"zustand"` (default) | `"none"`. Under `none` no store file may be created or modified (D17).
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
