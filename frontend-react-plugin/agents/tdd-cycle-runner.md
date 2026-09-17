@@ -48,7 +48,7 @@ The coordinator skill provides:
 1. **Plan** — read `planFile` → extract entries relevant to this phase:
    - `api-tdd`: `api[]`, `tests[type:"api"]` — **also `api[].queries` when `serverState == tanstack-query`** (query-key factory + hooks to build in `api/queries.ts`). **`apiLayer == workspace-package`**: `api[].reuse[]` is read-only context (import those hooks, generate nothing for them); only `api[].additions[]` are built, and their files live under `{apiPackage.dir}` — the phase is skipped (`status: "skipped"`) when `additions` is empty.
    - `store-tdd`: `stores[]`, `tests[type:"store"]` — under `tanstack-query` the planner excludes server data from stores; **if there is no store for this feature, skip the phase** (report `status: "skipped"`).
-   - `component-tdd`: `components[]`, `tests[type:"component"]` — **also `components[].formSchema` / the generated `schemas/{entity}Schema.ts` when `formStack == rhf-zod`**.
+   - `component-tdd`: `components[]`, `tests[type:"component"]` — **also `components[].formSchema` / the generated `schemas/{entity}Schema.ts` when `formStack == rhf-zod`**. **`componentLibrary == external`**: for each `components[]` entry with `origin: "ui-kit"`, re-glob its `plannedAs` on disk **now, before RED** (do not trust the plan) — present → drop it and its `tests[]` entry from this phase (an existing gap is imported, never re-tested or rebuilt); absent → it stays in scope and is built under the app lock (Step 3).
    - `page-tdd`: `pages[]`, `tests[type:"page"]` — **also `pages[].rendering`/`loader`/`meta` when `routerMode == framework`** (the TDD target is the extracted page-body component, not the route module — D10).
    - **Delta mode filter**: if `deltaMode` is `true`, filter the extracted entries to include ONLY files listed in `scopedFiles`. All other files in the plan for this phase are treated as existing — import and reference them as-is, but do NOT generate stubs, tests, or implementations for them.
 
@@ -96,8 +96,8 @@ For each test entry in the plan's `tests[]` matching this phase:
    > **`apiLayer == workspace-package` (D15) — different paths, same discipline.** No feature-local
    > `api/` file is stubbed or written. The stub is each `api[].additions[].file` **inside `{apiPackage.dir}`**
    > (e.g. `packages/shared-data/src/hotel/use-hotel-list-promotion.ts`), and its test sits where the
-   > package keeps tests (the module pattern the planner recorded — co-located `*.test.ts` or the package's
-   > `__tests__/`). `api[].reuse[]` entries get **no** stub and **no** test. The `api/queries.ts` stub below
+   > package keeps tests — the path the plan's `tests[type:"api"]` already carries, derived from
+   > `plan.apiPackagePattern` (co-located `*.test.ts` or the package's `__tests__/`). `api[].reuse[]` entries get **no** stub and **no** test. The `api/queries.ts` stub below
    > applies to `feature-local` only — under `workspace-package` the package's hooks already are the
    > query layer.
 
@@ -139,7 +139,7 @@ For each test entry in the plan's `tests[]` matching this phase:
    The stub ensures imports resolve so tests FAIL on assertions, not on MODULE_NOT_FOUND.
 
 2. **Write test file** based on plan's test cases:
-   - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}` — `api-tdd` under `workspace-package`: the package's test location for that addition (see the note above), never the app feature's `__tests__/`
+   - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}` — `api-tdd` under `workspace-package`: the plan's `tests[type:"api"].file` (a package path per `apiPackagePattern`), never the app feature's `__tests__/`
    - Each test case from `plan.tests[].cases` → one `it()` block
    - **Spec anchor** on each test: `// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88`.
      The anchor names the **spec** line the expected behavior comes from (`TS-nnn`, `FR-nnn`, or a
@@ -241,7 +241,7 @@ The app never imports `axios` directly under this layer. The MSW handlers stay i
   phase and report `status: "skipped"` — fe-gen already skips phases with no files.
 
 **`component-tdd`** — Shared Components:
-- shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the plan's `origin: "ui-kit"` gap components **first** (feature components import them); no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
+- shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the gap components still in scope after the Step 0 re-glob **first** (feature components import them), each written under `docs/specs/.app.lock` (`{uiKitDir}` is app-wide — CLAUDE.md § Lock file) and released right after the write, so two features planning the same gap never overwrite each other; no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
 - Translation hook: `useTranslation('{feature}')` — **`i18nBinding == custom-hook`** (D16): `import { {hook} } from '{from}'` and `const t = {hook}()`, flat keys per `i18n.keyPrefix`, no namespace argument
 - No boolean props → compound component or discriminated union
 - All labels/placeholders → `t()` function

@@ -310,7 +310,7 @@ Two scopes, acquired in this order — **feature lock → app lock**, never the 
 | Lock | Scope | Held by |
 | --- | --- | --- |
 | `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `fe-gen`, `fe-verify`, `fe-review`, `fe-fix`, `fe-e2e` |
-| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, and the shared layouts + their locale files under `{sourceBaseDir}/layouts/` | `foundation-generator`, `integration-generator`, `delta-modifier`, `review-fixer` |
+| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, the shared layouts + their locale files under `{sourceBaseDir}/layouts/`, and the Phase 2 targets: `{apiPackage.entry}`, each `{i18nHook.resourcesDir}/{resourceFile}`, and `{externalComponents.uiKitDir}/**` (gap components, form adapters) | `foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`, `review-fixer` |
 
 The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
 
@@ -560,7 +560,7 @@ An ota app that owns an external design system, a workspace data package and a f
 - `componentLibrary`: `"shadcn"` (default when absent) | `"external"` — with `externalComponents` (`package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`). Phase 2, D14/D18.
 - `apiLayer`: `"feature-local"` (default when absent) | `"workspace-package"` — with `apiPackage` (`package`, `dir`, `entry`, `clientImport`). Requires `tanstack-query`. Phase 2, D15.
 - `i18nBinding`: `"react-i18next"` (default when absent) | `"custom-hook"` — with `i18nHook` (`hook`, `from`, `resourcesDir`, `resourceFile`). Phase 2, D16/D19.
-- `clientStore`: `"zustand"` (default when absent) | `"none"`. Phase 2, D17.
+- `clientStore`: `"zustand"` (default when absent) | `"none"`. Requires `tanstack-query`. Phase 2, D17.
 - `formStack`: `"native"` (default when absent) | `"rhf-zod"` — form approach.
 - `e2eTool`: `"agent-browser"` (default when absent) | `"playwright"` — E2E runner.
 - `renderingDefault`: framework mode only — `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering for a page whose plan does not specify one. Per-page decisions live in `plan.json` `pages[].rendering`.

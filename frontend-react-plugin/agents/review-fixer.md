@@ -29,6 +29,7 @@ The skill will provide these parameters in the prompt:
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
 - `e2eTool` — `"agent-browser"` (default when absent) | `"playwright"`. In `e2e` fix mode this selects the failure evidence: **playwright** → read each failing scenario's `scenarios[].evidence.trace` and open it with `npx playwright show-trace`, following `templates/e2e-playwright.md`; **agent-browser** → read the screenshots/snapshot excerpts, following `templates/e2e-testing.md`. Do not extract screenshots unconditionally — a Playwright run has none, and diagnosing without the trace is guessing.
 - `sourceBaseDir` — the **source root** from config (e.g. `app/src`). App-wide fix targets resolve against this; `baseDir` here is the feature directory and matches none of them.
+- `componentLibrary` / `apiLayer` / `i18nBinding` / `clientStore` — Phase 2 knobs (defaults `shadcn` / `feature-local` / `react-i18next` / `zustand` when absent) with their companion objects `externalComponents` / `apiPackage` / `i18nHook` when present. Fix targets outside the feature follow delta-modifier's Phase 2 path rules: a file under `{apiPackage.dir}` is package code — its test location is `plan.apiPackagePattern`, and every `vitest`/`tsc` run for it is `cd {projectRoot}/{apiPackage.dir} && …` with the package's own configs; a fix under `{externalComponents.uiKitDir}` (gap components, form adapters) follows tdd-cycle-runner § component-tdd import rules; under `custom-hook` i18n key fixes go to `{i18nHook.resourcesDir}/{resourceFile}` with real values (never `[LANG]`); under `clientStore == none` no `stores/` file may be created.
 
 ## Issue Classification
 
@@ -61,7 +62,8 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 
 > **App lock.** A fix whose target is an app-wide file — the central route file
 > (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
-> `{sourceBaseDir}/mocks/handlers.ts`, or a shared layout under `{sourceBaseDir}/layouts/` — takes
+> `{sourceBaseDir}/mocks/handlers.ts`, a shared layout under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}`,
+> a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}`, or anything under `{externalComponents.uiKitDir}/` — takes
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and releases it right
 > after. This includes **direct** (non-TDD) fixes: a `route_coverage` fix edits the central route
 > table, and the feature lock does not exclude another feature's integration writing the same file.
@@ -140,6 +142,7 @@ Classify each confirmed issue into one of three categories:
      - `api/` → `"api-tdd"`, `stores/` → `"store-tdd"`
      - `components/` → `"component-tdd"`, `pages/` → `"page-tdd"`
      - `routes`/`i18n` → `"integration"`
+     - Phase 2 paths: `{apiPackage.dir}/**` → `"api-tdd"`; `{externalComponents.uiKitDir}/**` gap components → `"component-tdd"`, `{formAdapters}/**` → `"foundation"`; `{i18nHook.resourcesDir}/**` → `"integration"` (search `api[].additions[]`, `componentDependencies.gaps[].plannedAs` and `componentDependencies.formAdapters` for plan coverage)
    - Record: dimension, severity, message, missingFiles, recommendedPhase, reason
    - Record `refs` if present (spec-reviewer issues provide this); omit for quality-reviewer issues where the field is absent
 
@@ -149,7 +152,8 @@ Classify each confirmed issue into one of three categories:
      - `stores/` → `{baseDir}/__tests__/{target}.test.ts`
      - `components/` → `{baseDir}/__tests__/{Component}.test.tsx`
      - `pages/` → `{baseDir}/__tests__/{Page}.test.tsx`
-   - If the expected test file does not exist → reclassify as **regen-required** with reason `"test file missing — TDD fix requires existing test file to extend"`
+     - `{apiPackage.dir}/**` → the package's test location per `plan.apiPackagePattern`; `{externalComponents.uiKitDir}/{Name}.tsx` → glob `{sourceBaseDir}/features/*/__tests__/{Name}.test.tsx` (the feature that built the gap owns its test); none found → mark `escalated` with reason `"ui-kit test file not found"`, **not** regen-required (regen re-globs the gap, finds it present, and writes nothing)
+   - Otherwise, if the expected test file does not exist → reclassify as **regen-required** with reason `"test file missing — TDD fix requires existing test file to extend"`
    - Derive `recommendedPhase` using the same mapping as category 1
 
 3. **direct-fix** — existing file needs mechanical changes (per Issue Classification table above)
@@ -170,7 +174,7 @@ For each **direct-fix** issue (sorted: critical first, then warnings, then sugge
 4. If tsc passes → mark issue as `fixed`
 
 **After all direct fixes are applied**, run regression check once:
-- `npx vitest run {srcPath}` → confirm no regressions
+- `npx vitest run {srcPath}` → confirm no regressions; when a direct fix touched `{apiPackage.dir}`: also `cd {projectRoot}/{apiPackage.dir} && npx vitest run`
 - If regressions detected: identify which fix caused the failure, revert it, re-run vitest to confirm, mark that issue as `failed`
 
 ### Step 3: Execute TDD Fixes
@@ -192,6 +196,7 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
 3. Run `npx vitest run {testFile} --reporter=verbose` → confirm:
 
 > **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
+> **`{testFile}` under `{apiPackage.dir}`** (workspace-package): every run in 3.1–3.3 is instead `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative path} --reporter=verbose` with the package's own `vitest.config.*`; the app context does not reach it.
    - New test FAILS (correct RED state)
    - Existing tests still PASS (no false regressions)
 
@@ -231,7 +236,7 @@ Run full verification suite:
 
 1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
 2. ESLint — same detection logic as fe-verify Step 2.2 (includes template fallback)
-3. `npx vitest run {srcPath}` → all feature tests
+3. `npx vitest run {srcPath}` → all feature tests; when a fix touched `{apiPackage.dir}`: also `cd {projectRoot}/{apiPackage.dir} && npx vitest run` and the package's tsc → package suite passes
 4. Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.

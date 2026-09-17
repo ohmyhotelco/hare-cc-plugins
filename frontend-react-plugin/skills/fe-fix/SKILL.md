@@ -20,6 +20,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
 4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
+4b. Phase 2 knobs: extract `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`; absent → `shadcn` / `feature-local` / `react-i18next` / `zustand`, and pass a companion object only when present.
 5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
@@ -200,6 +201,13 @@ Task(subagent_type: "review-fixer", prompt: "
   - appDir: {appDir}
   - srcPath: {srcPath}
   - e2eTool: {e2eTool}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
 
   Follow the process defined in agents/review-fixer.md.
   Read templates/tdd-rules.md for TDD rules.

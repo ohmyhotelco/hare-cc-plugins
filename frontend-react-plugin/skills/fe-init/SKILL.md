@@ -263,7 +263,8 @@ Present:
 - **none** — no store library: UI state stays in component state, the URL, or existing app contexts;
   the planner emits no `stores[]` and `store-tdd` is skipped for every feature.
 
-Default: `zustand` for both profiles. Record as `clientStore`.
+Default: `zustand` for both profiles. Record as `clientStore`. `none` requires `serverState == tanstack-query`
+(under `zustand-only` server data flows through stores); refuse the combination with `zustand-only` (O8).
 
 ### Step 2h: Run the Reconfiguration Guards (reconfiguration only)
 

@@ -188,7 +188,7 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 > edits the same files under its own feature lock. Take `docs/specs/.app.lock` around each Step 2
 > read-modify-write as well, on the same acquire → re-read → edit → release cycle.
 >
-> **App lock.** Steps 5b through 5e below all write **app-wide, once-per-app** files. Take
+> **App lock.** Steps 5b through 5f below all write **app-wide, once-per-app** files. Take
 > `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
 > `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint

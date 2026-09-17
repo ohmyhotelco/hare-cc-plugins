@@ -26,7 +26,7 @@ Generates production React code based on the implementation plan (plan.json) usi
    - Stop here.
 7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
 
-**Empty-store-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)". Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
+**Empty-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache; under `clientStore="none"` it never emits one; under `apiLayer="workspace-package"` a feature fully covered by `api[].reuse[]` has no `additions[]`. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)"; likewise mark `api-tdd` `skipped` / `skipKind: "auto"` / `reason: "no package additions"` when every `api[]` entry has `reuse[]` and no `additions[]`. Any other phase skipped for having no matching entries (Phase 2-5 "Skip if") records the same `skipKind: "auto"` and a reason — a skip without `skipKind` blocks the feature (Step 8). Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
 
 ### Step 1: Validate Plan
 
@@ -602,7 +602,7 @@ Agent(subagent_type: "foundation-generator", prompt: "
 
 For each TDD phase in order (`api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`):
 
-**Skip if** plan has no matching tests or implementation entries for this phase.
+**Skip if** plan has no matching tests or implementation entries for this phase — record it as `skipped` with `skipKind: "auto"` and a reason (Step 0, Empty-phase skip); never launch the runner for an empty phase.
 
 Get the `skills` list from the corresponding `buildOrder` entry.
 

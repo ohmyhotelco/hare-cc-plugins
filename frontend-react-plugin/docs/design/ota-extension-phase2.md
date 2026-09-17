@@ -99,8 +99,10 @@ generated files (package dir, ui-kit, resource files) and change every import li
   `{ package, available: [...], used: [...], gaps: [{ name, plannedAs: "{uiKitDir}/{Name}.tsx", reason }], formAdapters }`.
   Each gap also appears in `components[]` with `origin: "ui-kit"` so the TDD phases build it.
 - **`api[]`** (workspace-package only): `file` is omitted; `reuse: [{ name, from, covers: ["FR-…"] }]` and
-  `additions: [{ name, file: "{apiPackage.dir}/src/…", exportFrom: "{apiPackage.entry}", methods|hooks, source }]`.
-  The MSW `mocks.handlers` endpoint list is derived from reuse + additions.
+  `additions: [{ name, file: "{apiPackage.dir}/src/…", exportFrom: "{apiPackage.entry}", methods|queries, source }]`.
+  `apiPackagePattern` records the package's test location (`testLocation`, `testSuffix`, `vitestConfig`), and the
+  `tests[type:"api"]` / `buildOrder[api-tdd].testFiles[]` paths derive from it. The MSW `mocks.handlers` endpoint list
+  is derived from reuse + additions.
 - **`i18n`** (custom-hook only): `binding: "custom-hook"`, `resourcesDir`, `resourceFile`, `keyPrefix`
   (observed convention), `featureI18nFile: null`, `autoIntegration: null`. `keyGroups` unchanged. The
   plan's `localesDir` equals `resourcesDir`.
@@ -158,3 +160,5 @@ generated files (package dir, ui-kit, resource files) and change every import li
   `@omh/shared-ui` views but allow its headless hooks)? Deferred: express it as two prefixes for now.
 - **O7** — `apiLayer: workspace-package` with `serverState: zustand-only` is untested; Phase 2 documents it
   as unsupported (the planner refuses the combination).
+- **O8** — `clientStore: none` with `serverState: zustand-only` leaves server state with no planned home;
+  unsupported for the same reason (fe-init and the planner refuse the combination).

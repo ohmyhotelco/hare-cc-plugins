@@ -18,6 +18,7 @@ The skill will provide these parameters in the prompt:
 - `appDir` — directory containing `package.json` and `vite.config.*` (for running vitest)
 - `projectRoot` — project root path
 - `srcPath` — the source root relative to `appDir`; every `npx …` path argument uses it
+- `apiPackageDir` — **optional**; the workspace API package directory (`apiPackage.dir`, repo-relative) under `apiLayer == workspace-package`. When present and `targetPath` is the default scope, its test files are collected too (Phase 0) and its `src/**` modules join the coverage cross-reference (1.5); any `vitest` run for them is `cd {projectRoot}/{apiPackageDir} && npx vitest run …` with the package's own config, never from `appDir`.
 - `specDir` — **optional**; the feature's working-language spec directory
   (`docs/specs/{feature}/{lang}`). Supplied on pipeline runs, absent on standalone
   `fe-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
@@ -32,6 +33,7 @@ The skill will provide these parameters in the prompt:
    - Glob: `{targetPath}/**/__tests__/**/*.{test,spec}.{ts,tsx}`
    - Also: `{targetPath}/**/*.{test,spec}.{ts,tsx}` (co-located test files)
    - Deduplicate results
+   - `apiPackageDir` present (default scope): also glob `{apiPackageDir}/**/*.{test,spec}.{ts,tsx}` and `{apiPackageDir}/**/__tests__/**/*.{test,spec}.{ts,tsx}`
 3. Count test files
 4. Grep for `it\(` and `test\(` patterns across collected files → count test methods
 
@@ -121,6 +123,7 @@ Cross-reference source files under `{baseDir}` against test files:
   - `stores/*.ts` → test files covering stores
   - `components/*.tsx` → test files covering components
   - `pages/*.tsx` → test files covering pages
+  - `{apiPackageDir}/src/**/*.ts` (when `apiPackageDir` is present; hooks/services, excluding tests and barrels) → test files covering the package additions
 - Check test content for coverage breadth:
   - Happy path tested (success scenario) → missing: severity: critical
   - Error path tested (API failure, validation error) → missing: severity: warning
