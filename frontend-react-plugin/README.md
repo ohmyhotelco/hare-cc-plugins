@@ -26,6 +26,8 @@ Selected at `fe-init` via `appProfile` (default `admin`). A config with none of 
 
 Framework mode builds with `react-router build`/`typegen`, decides SSR/SSG/SPA per page in `plan.json`, and mocks SSR loaders with an MSW-node hook. See `docs/design/ota-extension-phase1.md`.
 
+**Phase 2 knobs (v2.3.0)** — four additive settings for apps that already own part of the stack, each defaulting to today's behavior: `componentLibrary` (`shadcn` | `external` design-system package + app `ui-kit/` for gaps), `apiLayer` (`feature-local` | `workspace-package` of data hooks, reuse-first), `i18nBinding` (`react-i18next` | `custom-hook` over a flat shared resource bundle), `clientStore` (`zustand` | `none`). See `docs/design/ota-extension-phase2.md`.
+
 ## Architecture Overview
 
 ```
@@ -93,12 +95,12 @@ Loop 2 — E2E:
 | Framework | React 19 + TypeScript (strict) | same |
 | Build | Vite | React Router (framework mode: `react-router build`) |
 | Routing | React Router v7 (declarative or data) | React Router v7 framework mode (per-route SSR/SSG/SPA) |
-| UI | Tailwind CSS + shadcn/ui + Lucide | same |
-| Server state | Zustand + Axios | TanStack Query (+ thin Zustand for UI state) |
-| Forms | native | react-hook-form + zod |
-| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (loader-safe) + browser wrapper |
+| UI | Tailwind CSS + shadcn/ui + Lucide | same — or an external design-system package + `ui-kit/` (`componentLibrary: external`) |
+| Server state | Zustand + Axios | TanStack Query (+ thin Zustand for UI state, or none with `clientStore: none`) |
+| Forms | native | react-hook-form + zod (form adapters scaffolded under an external library) |
+| HTTP | Axios (JWT, 401/403 interceptors) | Axios base client (loader-safe) + browser wrapper — or a workspace data package, reuse-first (`apiLayer: workspace-package`) |
 | Mock | MSW v2 (dev & test) | + MSW-node for SSR loaders |
-| i18n | i18next + react-i18next (ko/en/ja/vi) | + per-request SSR instance |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + per-request SSR instance — or a project hook over a flat shared bundle (`i18nBinding: custom-hook`) |
 | Dates | Intl | dayjs |
 | Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
@@ -178,9 +180,10 @@ Standalone mode gathers requirements interactively (description, entities, scree
 2. Prompts for mock-first development (MSW v2, default: enabled)
 3. Prompts for base source directory (default: `app/src`)
 4. Prompts for ESLint template usage (auto-generate `eslint.config.js` if none exists, default: enabled)
-5. Writes `.claude/frontend-react-plugin.json`
-6. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
-7. Displays next-step options (with or without planning-plugin)
+5. Prompts for the Phase 2 knobs — component library, API layer, i18n binding, client store (each defaults to current behavior)
+6. Writes `.claude/frontend-react-plugin.json`
+7. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
+8. Displays next-step options (with or without planning-plugin)
 
 ---
 

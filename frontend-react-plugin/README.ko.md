@@ -30,6 +30,8 @@
 
 framework 모드는 `react-router build`/`typegen`으로 빌드하고, 페이지별 SSR/SSG/SPA를 `plan.json`에서 결정하며, SSR loader는 MSW-node 훅으로 목킹합니다. `docs/design/ota-extension-phase1.md` 참조.
 
+**Phase 2 옵션(v2.3.0)** — 스택 일부를 이미 갖춘 앱을 위한 추가 설정 4개로, 모두 기본값은 기존 동작입니다: `componentLibrary`(`shadcn` | `external` 디자인 시스템 패키지 + 부족분용 앱 `ui-kit/`), `apiLayer`(`feature-local` | 데이터 훅 `workspace-package`, 재사용 우선), `i18nBinding`(`react-i18next` | 평탄한 공용 리소스 번들 위의 `custom-hook`), `clientStore`(`zustand` | `none`). `docs/design/ota-extension-phase2.md` 참조.
+
 ## 아키텍처 개요
 
 ```
@@ -97,12 +99,12 @@ Loop 2 — E2E:
 | Framework | React 19 + TypeScript (strict) | 동일 |
 | Build | Vite | React Router (framework 모드: `react-router build`) |
 | Routing | React Router v7 (declarative / data) | React Router v7 framework 모드 (라우트별 SSR/SSG/SPA) |
-| UI | Tailwind CSS + shadcn/ui + Lucide | 동일 |
-| 서버 상태 | Zustand + Axios | TanStack Query (+ UI 상태용 thin Zustand) |
-| 폼 | native | react-hook-form + zod |
-| HTTP | Axios (JWT, 401/403 인터셉터) | Axios base client (loader 안전) + 브라우저 래퍼 |
+| UI | Tailwind CSS + shadcn/ui + Lucide | 동일 — 또는 외부 디자인 시스템 패키지 + `ui-kit/`(`componentLibrary: external`) |
+| 서버 상태 | Zustand + Axios | TanStack Query (+ UI 상태용 thin Zustand, 또는 `clientStore: none`이면 없음) |
+| 폼 | native | react-hook-form + zod (외부 라이브러리에서는 폼 어댑터를 스캐폴드) |
+| HTTP | Axios (JWT, 401/403 인터셉터) | Axios base client (loader 안전) + 브라우저 래퍼 — 또는 워크스페이스 데이터 패키지 재사용 우선(`apiLayer: workspace-package`) |
 | Mock | MSW v2 (dev & test) | + SSR loader용 MSW-node |
-| i18n | i18next + react-i18next (ko/en/ja/vi) | + 요청별 SSR 인스턴스 |
+| i18n | i18next + react-i18next (ko/en/ja/vi) | + 요청별 SSR 인스턴스 — 또는 평탄한 공용 번들 위의 프로젝트 훅(`i18nBinding: custom-hook`) |
 | 날짜 | Intl | dayjs |
 | Testing | Vitest + @testing-library/react + agent-browser (E2E) | Vitest + @testing-library/react + Playwright (E2E) |
 
@@ -182,9 +184,10 @@ Loop 2 — E2E:
 2. Mock-first 개발(MSW v2, 기본값: 활성화)을 선택하도록 안내합니다
 3. 기본 소스 디렉토리(기본값: `app/src`)를 선택하도록 안내합니다
 4. ESLint 템플릿 사용 여부(ESLint 설정이 없을 때 `eslint.config.js` 자동 생성, 기본값: 활성화)를 선택하도록 안내합니다
-5. `.claude/frontend-react-plugin.json`을 생성합니다
-6. 6개의 외부 스킬(React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)을 설치합니다
-7. 다음 단계 옵션(planning-plugin 유무에 따른)을 표시합니다
+5. Phase 2 옵션(컴포넌트 라이브러리 · API 계층 · i18n 바인딩 · 클라이언트 스토어)을 선택하도록 안내합니다 (각각 기본값은 기존 동작)
+6. `.claude/frontend-react-plugin.json`을 생성합니다
+7. 6개의 외부 스킬(React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)을 설치합니다
+8. 다음 단계 옵션(planning-plugin 유무에 따른)을 표시합니다
 
 ---
 
