@@ -108,7 +108,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   },
   "stagingConfig": {
     "baseUrl": "https://staging.ohmyhotel.com",
-    "paymentGateways": { "nicePay": "", "eximbay": "", "kakaoPay": "" }
+    "paymentGateways": { "nicePay": "", "alipay": "", "onePay": "" }
   }
 }
 ```
@@ -204,9 +204,11 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 - `apps.*.cloudfrontDir` / `apps.*.manifest` — cloudfront flip only (defaults `infra/cloudfront` /
   `v2-routes.json`). Ignored when `flipMechanism` is `nginx`.
 - `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
-  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` passes to `e2e-test-runner` for transactional
-  scenarios. Transactional E2E runs against these, never production. Scaffolded empty (PC-first);
-  filled in when the first transactional page is reached.
+  `alipay` / `onePay` — the v2 gateways, `templates/payment-flow-v2.md`) that `fm-e2e` passes to
+  `e2e-test-runner` for transactional scenarios. Transactional E2E runs against these, never production.
+  Scaffolded empty (PC-first); filled in when the first transactional page is reached. A config written
+  before 1.4.0 carries `eximbay` / `kakaoPay` instead: Eximbay is dead (OMH-1178) and KakaoPay was never
+  a gateway the storefront selects, so replace both keys when filling the block.
 
 PC is fully configured; `mobile`/`hana` entries are scaffolded — recognized now, validated
 in later phases.
@@ -1044,6 +1046,26 @@ Two generation rules close the robustness half of the same class (`templates/tdd
 input (URL, cookie, storage, legacy-written values) is `safeParse`d at the boundary with the legacy
 fallback, never `.parse()`d where a throw reaches render or a loader, and every data route exports an
 `ErrorBoundary`; wiring is tested through the route's default export, not an injected prop.
+
+## Payment Funnel (v2 flow)
+
+The payment funnel is the one surface where "legacy is the reference" does not hold end to end. v2
+changed the flow: oh-api signs the gateway request (`POST /payment/nicepay/prepare`), recomputes the
+amount, owns the gateway return legs, books, and redirects to `/payment-complete?result=…` (OMH-1089,
+OMH-1130). Legacy signs in the browser and returns through its Express server. Porting the legacy
+mechanism faithfully is therefore a defect.
+
+`angular-analyzer` records a `payment` entry in `gateTriggers[]` (not a gate) for a page that submits a
+gateway form or consumes a gateway return. That page is planned, generated and tested to
+`templates/payment-flow-v2.md`:
+- what not to port (client signing, the Express return legs, Eximbay), each recorded as an approved
+  `openApprovals[]` entry with its ticket;
+- what to preserve per app (the window model per gateway, form field order, alerts, telemetry);
+- the URLs other systems hold: unprefixed PG paths, path-literal AASA exclusions, the funnel's flip unit,
+  and oh-api's return-host allow-list. `fm-route` Step 1d checks them;
+- the two test legs: the storefront contract under MSW, and the real gateway on staging.
+
+Facts in the template come from `develop` as of 2026-09-24 and had not reached `master`.
 
 ## Skills
 

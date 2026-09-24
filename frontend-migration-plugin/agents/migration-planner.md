@@ -44,7 +44,11 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    implements, so never add one `parity-verifier` has no check for). A `sso` entry in the analysis's
    `gateTriggers[]` is not a gate: emit an `e2eScenarios` entry covering the `?ts` SSO entry instead,
    and build to `templates/hana-sso.md`. A `secret` trigger is Phase 0 posture (`fm-secret-audit`) plus
-   the hard `shared-domain` ESLint boundary — it needs nothing in the plan. Emit a `gateAcceptance` entry
+   the hard `shared-domain` ESLint boundary — it needs nothing in the plan. A `payment` trigger is not a
+   gate either: plan the page to `templates/payment-flow-v2.md`, not to the legacy mechanism. Record each
+   legacy mechanism v2 does not port (client signing, the Express return legs, Eximbay) as an
+   `openApprovals[]` entry with `status: "approved"` and its ticket, and emit the two-leg scenarios that
+   template's Testing section names. Emit a `gateAcceptance` entry
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
    `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
@@ -95,7 +99,8 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    in `openApprovals[]`, or `fm-plan` Step 4 rejects the plan. See `templates/i18n-copy-parity.md`.
 8. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
    names + steps + which are transactional (staging gateways). `fm-e2e` (AA-45) realizes these as
-   Playwright specs; you only enumerate them.
+   Playwright specs; you only enumerate them. A transactional scenario's `gateway` is one of the v2
+   gateways — `nicePay`, `alipay`, `onePay` — never `eximbay` (`templates/payment-flow-v2.md`).
    **Failure branches are not optional.** Happy-path-only scenario sets are why copy regressions
    reached production: a wrong error string never appears in a successful flow. Derive one scenario
    per `copySources` failure point — every place legacy sets a form error flag, opens an alert, or

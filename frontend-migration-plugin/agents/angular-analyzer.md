@@ -82,7 +82,7 @@ always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trig
 report slot for cannot fail, so naming it would make the page record `pass` for a criterion nobody
 evaluated — a silent pass, which CLAUDE.md → Design Principles forbids outright.
 
-Two triggers are therefore **detected but never promoted to a gate**. Record each in
+Three triggers are therefore **detected but never promoted to a gate**. Record each in
 `gateTriggers[]` with its anchors, and route it to the consumer that actually acts on it:
 
 - **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
@@ -91,7 +91,17 @@ Two triggers are therefore **detected but never promoted to a gate**. Record eac
   Consumed by **`fm-secret-audit`** (Phase 0 posture audit + relocation guidance) and enforced at
   generation time by the `shared-domain` ESLint secret boundary, which is a **hard** rejection (see
   CLAUDE.md → Lint & Format Gate). A per-page parity gate would add nothing: there is no legacy-vs-v2
-  comparison to make — a leaked key is wrong on both sides.
+  comparison to make — a leaked key is wrong on both sides. The PG signers are not ported at all: oh-api
+  signs in v2 (`templates/payment-flow-v2.md`). Record the Eximbay builders and forms as dead code
+  (`eximbayStart()` alerts and returns, OMH-1178), not as a flow to port.
+- **`payment`** — the page submits a payment-gateway form or consumes a gateway return: `goPay(`,
+  `nicepaySubmit`/`nicepayClose`, a form posting to `v3Payment.jsp` / `pcRequest.jsp` /
+  `smartRequest.jsp`, `/payment/onepay/getPaymentUrl`, a read of the `pgName` query a return leg
+  carries, the `/payment/np-alipay/verify` / `/payment/np-verify` calls, or the booking-detail
+  balance-payment modal. Consumed by `migration-planner` and the generators, which build to
+  `templates/payment-flow-v2.md` instead of porting the legacy mechanism, and by `fm-route` Step 1d.
+  Not a gate: the flow is verified through `e2eScenarios` (the storefront contract under MSW, the real
+  gateway on staging).
 - **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
   `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.) Consumed by
   `templates/hana-sso.md` as the **generation** contract (the `?ts` flow ports to a `clientLoader`),
@@ -312,7 +322,7 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
   "requiredGates": ["e2e", "visual", "contract", "telemetry"],
-  "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],
+  "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],   // secret | sso | payment
   "threeAppDiff": [{ "file": "...", "vsMobile": "near", "vsHana": "diverged", "note": "..." }],
   "risk": "low | medium | high",
   "openQuestions": []

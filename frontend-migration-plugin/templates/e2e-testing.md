@@ -15,8 +15,16 @@ Scenarios come from `migration-plan.json.e2eScenarios[]` (mapped from legacy flo
 | non-transactional | new app | **MSW** intercept (`VITE_ENABLE_MOCKS=true`) — deterministic |
 | transactional (payment funnel) | **staging** | real PG **test** endpoints (OMH-459); never production |
 
-The payment matrix to cover on staging (OMH-459): each gateway × method — KR card, KR bank,
-Alipay (NicePay), Eximbay / international, OnePay / VN.
+The payment matrix follows the v2 gateways (`templates/payment-flow-v2.md`): NicePay (KRW), OnePay
+(VND), and Alipay+ through NicePay (every other currency). Eximbay has been dead since OMH-1178 and is
+not tested. A payment page has two legs:
+- **the storefront contract**, non-transactional under MSW with a stub of the gateway SDK: the prepare
+  request, the form handed to the gateway (`action` = oh-api's callback), and each landing hop;
+- **the real gateway**, transactional on staging or dev, recorded `not-run` with the reason where the
+  sandbox cannot run it (OnePay `INVALID_INVOICE`, OMH-795).
+
+The template lists the known sandbox blockers and the two mocking traps (service-worker requests, the
+SDK's form-navigation callback).
 
 **SSR / loader network (RR v7 framework mode).** Loaders and actions run **server-side**, so the
 browser MSW worker does **not** intercept their network calls — it only sees client-side fetches.

@@ -56,7 +56,9 @@ Dependency substitutions during extraction:
 
 `shared-domain/payment/` holds only `gateway-selector`, `payment-form-validators`,
 `display-formatting`. Reading a PG/OAuth secret or computing a PG hash here is **forbidden** —
-those move server-side (plan §5/§11.9, OMH-477). Enforce with ESLint in
+those move server-side (plan §5/§11.9, OMH-477). For the PG signers that server is oh-api, which signs
+in `POST /payment/nicepay/prepare` (`templates/payment-flow-v2.md`). The funnel's other pure modules
+live in `@omh/shared-funnel`, which signs nothing either. Enforce with ESLint in
 `packages/shared-domain/eslint.config.js`:
 
 ```js

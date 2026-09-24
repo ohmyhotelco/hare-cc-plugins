@@ -402,6 +402,15 @@ that the page navigates correctly from the state the flip creates. Read the app'
   lands on the error boundary; it must be a document navigation to the bare legacy path instead.
 - **Inbound producers**: the `navigationSurface[]` inbound entries are updated to the mechanism the
   flip calls for, or recorded as a ledger precondition with an owner.
+- **URLs other systems hold** — for a page whose `analysis.json` `gateTriggers[]` carries `payment`,
+  check what `templates/payment-flow-v2.md` → URLs other systems hold names:
+  - `/hotel/payment`, `/payment-complete` and `/booking-complete` are each one unprefixed route with no
+    locale-redirect twin;
+  - if the legacy path was excluded in the app's AASA, every URL shape v2 serves for the page is
+    excluded too;
+  - the funnel's flip unit holds: the terminals flip together, and not before `/hotel/payment`.
+  oh-api's return-host allow-list is the one item this repository cannot show. Name it in the PR
+  body's Migration notes instead of reporting it verified.
 
 Any unresolved path or wrong mechanism **blocks** the flip and is named with the file and target.
 An analysis with no `navigationSurface[]` (written before it existed) is `unverifiable` on the last

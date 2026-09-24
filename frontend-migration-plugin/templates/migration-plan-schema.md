@@ -85,7 +85,8 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "coversCopyBinding": "login failure message",
       "steps": ["..."], "legacyAnchor": "login-password.component.ts:114" },
     { "name": "complete card payment", "transactional": true, "gateway": "nicePay",
-      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | eximbay | kakaoPay);
+      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | alipay | onePay —
+      // the v2 gateways, templates/payment-flow-v2.md; Eximbay is dead and KakaoPay was never one);
       // no case normalization is performed, so "nicepay" reads as an unconfigured gateway
       "steps": ["..."] }
   ],
@@ -117,8 +118,9 @@ target and the parity check share one legacy-truth source and cannot drift.
 Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
 (`e2e` / `visual` / `contract` / `webview` / `telemetry` — the complete set; `parity-verifier`
 implements no other check and `parity-report.json` has no other slot, so a plan naming anything else
-is rejected by `fm-plan` Step 4.1. `secret` and `sso` are **not** gates: they are `gateTriggers[]`
-entries routed to `fm-secret-audit` and to `e2eScenarios` + `templates/hana-sso.md` respectively). A plan without `gateAcceptance` is
+is rejected by `fm-plan` Step 4.1. `secret`, `sso` and `payment` are **not** gates: they are
+`gateTriggers[]` entries routed to `fm-secret-audit`, to `e2eScenarios` + `templates/hana-sso.md`, and to
+`templates/payment-flow-v2.md` respectively). A plan without `gateAcceptance` is
 **incomplete**: `fm-gen` and `fm-parity` Step 0 reject it and point back to `fm-plan`. Each entry:
 
 - `compares` — what is compared, against what reference.

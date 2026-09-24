@@ -127,9 +127,12 @@ details — they can be refined when those phases begin.
 - `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
   `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
 - `stagingConfig` — the staging `baseUrl` + payment-gateway **test** endpoints (`nicePay` /
-  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` hands to `e2e-test-runner` for transactional
-  scenarios (never production). Scaffold it empty for PC-first; offer to fill it when a
-  transactional page is reached. See CLAUDE.md → "Configuration".
+  `alipay` / `onePay`, the v2 gateways — `templates/payment-flow-v2.md`) that `fm-e2e` hands to
+  `e2e-test-runner` for transactional scenarios (never production). Scaffold it empty for PC-first;
+  offer to fill it when a transactional page is reached. When reconfiguring a config whose
+  `paymentGateways` still has the pre-1.4.0 `eximbay` / `kakaoPay` keys, write the v2 set in Step 5
+  instead — carrying `nicePay`'s value across — and ask first if `eximbay` or `kakaoPay` holds a
+  non-empty value. See CLAUDE.md → "Configuration".
 
 ### Step 5: Write Config and Initialize Tracker
 
