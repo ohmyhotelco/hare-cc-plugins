@@ -83,6 +83,23 @@ falling out of the harness's collection:
     failure carry the gate; its remedy is the one that applies.
 - No `i18n` block in config → record `skipped` (never a silent pass); note that `fm-init` can add it.
 
+**Route-target spec** (`foundation-generator` 3c) — the same observed-in-the-run reading, lighter
+consequences. Its failures already fail Step 4's vitest run. Find it by name, `route-targets.test.ts`
+under `{appDir}`, and record `routeTargets` as one of:
+- `present` — its results appear in the output. Surface its `uncheckable` count.
+- `absent` — no such file.
+- `not-observed` — the file exists but vitest exited non-zero before per-file reporting. The
+  hard-tool failure carries the gate, as in the i18n branch.
+- **not collected** — the file exists but its results are not in the output while vitest exited 0.
+  This is a **gate failure**, exactly like the i18n branch above: summary
+  `route-target spec not collected: <path>`, no `regenRequiredAt`, repaired by `verify-fix`. File
+  existence is not the test.
+
+**Only `absent` is reported rather than failed**, because the spec postdates many already-generated
+apps. The next page this app generates scaffolds it (`foundation-generator`
+checks per app, not per page); `fm-gen {page} --force` does it now. Say so in the report and name
+the command.
+
 ### Step 4b: Lint (hard) & format (advisory)
 Follow CLAUDE.md → "Lint & Format Gate" (detection / scaffold-if-flag-on / skip-if-deps-missing).
 - **ESLint — hard.** `npx eslint . 2>&1`. Exit ≠ 0 is a gate failure. `skipped` (config absent &
@@ -98,14 +115,16 @@ fails.
 ### Step 6: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 Update `tracker.json` (Read-Modify-Write):
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
-  `present` or `skipped` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
-  summary, the spec's `uncheckable` count under `i18nCoverage`, and any Prettier advisory under
-  `formatWarnings` (both are reporting surfaces for `fm-progress` and a human reading the tracker —
-  no gate branches on either; a Prettier advisory never fails anything). **Clear `regenRequiredAt`**
+  `present` or `skipped` **and** the route-target spec is `present` or `absent` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
+  summary, the spec's `uncheckable` count under `i18nCoverage`, the route-target spec's state under
+  `routeTargets` (`{ "state": "present", "uncheckable": N }` or `{ "state": "absent" }`), and any
+  Prettier advisory under `formatWarnings` (all three are reporting surfaces for `fm-progress` and a
+  human reading the tracker — no gate branches on any of them; a Prettier advisory never fails
+  anything). **Clear `regenRequiredAt`**
   — a passing gate means the full regeneration it records as owed is discharged, however it was
   met. Also record
   `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
@@ -130,7 +149,8 @@ Update `tracker.json` (Read-Modify-Write):
   `unverifiable`), exit 1 is an error.
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines,
-  **minus every axis-1 entry under `{appDir}/e2e/`** (F's carve-out: `fm-e2e` has not realized
+  **minus every axis-1 entry under `{appDir}/e2e/`**, and minus any untracked axis-1 entry
+  `git check-ignore -q` accepts (F) (the e2e carve-out: `fm-e2e` has not realized
   them yet, and a re-run rewrites them);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
@@ -164,6 +184,9 @@ Update `tracker.json` (Read-Modify-Write):
   keeps its entry status and `fm-fix` — the remedy Step 7 names — refuses it; without the summary
   in `tracker.json` the harness repair in `migration-fixer`'s `verify-fix` mode has nothing to key
   on, since verify writes no report file.
+- the route-target spec **exists but its results are not in the output, and no hard tool failed**
+  → `verify-failed`, summary `route-target spec not collected: <path>`, no `regenRequiredAt` — the
+  same handling and the same reasons as the i18n not-collected branch above.
 - the spec is **absent while `i18n` is configured** → `verify-failed` **and record
   `regenRequiredAt`**. `fm-fix` cannot produce the spec (Step 7), and the next-step advisors
   already override the `*-failed` wildcard to `fm-gen --force` when that field is set — this is
@@ -184,7 +207,8 @@ changes the page status. Surface its verdict below.
 ### Step 7: Report
 In `workingLanguage`: per-tool result (tsc / build / vitest / eslint) with the evidence (exit code,
 counts), the i18n key-coverage result (`present` + `uncheckable` count / `absent` / `not collected` /
-`not-observed` / `skipped`), the
+`not-observed` / `skipped`), the route-target spec result (`present` + `uncheckable` count /
+`absent` with its remedy / `not collected` / `not-observed`), the
 Prettier advisory if any, and the Codex audit verdict (advisory). Next step: on pass →
 `/frontend-migration-plugin:fm-cascade {page}` when the page injects markup it does not author (CMS
 rich text, i18n values containing HTML, editor output — the case no element-indexed style spec and no

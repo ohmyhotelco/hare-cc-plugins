@@ -71,7 +71,7 @@ omitting it makes Step 4.1 reject the plan in a loop the planner cannot break), 
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
    **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry

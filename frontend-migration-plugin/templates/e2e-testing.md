@@ -77,6 +77,52 @@ records each failing scenario's paths under `artifacts` (trace/video/screenshot)
 primary evidence `fm-fix` (e2e-fix) reads to self-correct — open it with `npx playwright show-trace
 <trace.zip>`, the way a developer opens DevTools. Diagnose from the trace before editing code.
 
+## Run output is disposable; baselines are source
+Two kinds of file land under an app's `e2e/` tree and they look alike to anyone reading the
+directory. They are not alike:
+
+| Kind | Examples | Committed? |
+| --- | --- | --- |
+| **Baseline** — the reference a later run compares against | `toHaveScreenshot` snapshots, dual-run capture JSON/PNG a spec writes through its own artifact dir, `style-spec` probe output the parity gate reuses | **Yes** — source, reviewed like code |
+| **Run output** — what one run left behind | `trace.zip`, `test-failed-*.png`, `video.webm`, `error-context.md`, a `failed-traces/` dir, the HTML/blob report, `storageState` (`.auth/`) | **Never** — disposable, and `storageState` holds a live session |
+
+Keep them in **different trees**, so a blanket ignore is safe:
+- The Playwright config sets `outputDir` explicitly to `test-results/` (the default, written down so
+  nobody moves it) and keeps `snapshotPathTemplate` and every spec-owned artifact dir **outside** it.
+- **Never point `--output` (or `outputDir`) into a tree that holds baselines** — not `e2e/.artifacts/`,
+  not a snapshot dir, not `docs/migration/`. A run redirected there drops its traces beside the
+  baselines, and a directory-level `git add` takes both.
+
+**Ignore run output by name as well as by directory.** The output location is a CLI flag, so an
+ignore file that lists only Playwright's default directories is walked past by the first
+`--output`-redirected run (OMH-837: an 18-file / 19 MB commit of `trace.zip` + `test-failed-*.png`
+rode a PR branch that way). So the name rules are **unanchored**: they match wherever `--output`
+put the files. The names are Playwright's own (`test-failed-N.png`, `test-finished-N.png` under
+`screenshot: 'on'`, `video.webm` then `video-N.webm` for later pages), and no baseline uses them. The app's
+`.gitignore` carries this block — `foundation-generator`
+ensures it on every run, `fm-init` for apps that already exist; paths are relative to `{appDir}`:
+
+```gitignore
+# Playwright run output — disposable, never committed (templates/e2e-testing.md)
+/test-results/
+/playwright-report/
+/blob-report/
+.auth/
+.last-run.json
+failed-traces/
+trace.zip
+test-failed-*.png
+test-finished-*.png
+video.webm
+video-*.webm
+error-context.md
+```
+
+Ensure = append each missing line (with a leading newline, so a file ending without one does not glue
+the first rule onto its last line); never rewrite or reorder lines already there. Before reporting a
+failing run's `artifacts`, the runner confirms each path with `git check-ignore -q` — an artifact git
+would commit is reported, not silently left in the tree.
+
 ## Conventions
 - Resolve dynamic route params (`:id`) to fixture ids before navigation.
 - Tag each spec with the scenario name + `legacyAnchor` for traceability.
@@ -106,7 +152,8 @@ A failing scenario means the gate has not passed. A scenario recorded `not-run` 
 the gate `fail`, but it does make the gate **`not-run`**: the top-level `result` becomes `not-run`,
 the page stays at `verified`, and the chain is blocked until the missing prerequisite is supplied.
 Unmeasured is not passed. `fm-route --flag-on` is blocked until
-`e2e-report.json.result === "pass"` (and `fm-verify` + `fm-parity` pass). On failure, loop back
+`e2e-report.json.result === "pass"` — or `"not-applicable"` under a still-approved exemption
+(CLAUDE.md → Gate Result Accounting G) — and `fm-verify` + `fm-parity` pass. On failure, loop back
 through `fm-fix` (e2e-fix mode), which returns the page to `generated` — so re-run the chain from
 **`fm-verify`**, not `fm-e2e`, which requires exactly `verified`; on `not-run`, fix the prerequisite (not the
 code) and re-run `fm-e2e`.

@@ -96,7 +96,7 @@ React/Angular dependency (grep). Report exit codes as evidence.
 ### Step 5: Record state
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 1. Update `docs/migration/tracker.json` (Read-Modify-Write): under `packages`, set each
    extracted package/candidate to `{ "status": "extracted", "candidates": [...], "updatedAt": ISO }`
    — **only when the extraction actually passed**: `package-extractor` reports its own tsc/Vitest

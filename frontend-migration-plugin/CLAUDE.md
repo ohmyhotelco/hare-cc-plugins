@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.3.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.4.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -178,7 +178,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 - `apps.*.webview` / `apps.*.sso` / `apps.*.ssr` — **informational only. Do not branch on these
   three.** The gate set comes from `analysis.json` `requiredGates`/`gateTriggers`; the rendering
   mode is decided per page in `migration-plan.json`.
-- `apps.*.flipMechanism` — `nginx` (default) | `cloudfront`. Which edge layer the Strangler Fig
+- `apps.*.flipMechanism` — `nginx` (default) | `cloudfront` | `script`. Which edge layer the Strangler Fig
   route flip is prepared at **for this app**. The flip *semantics* are identical across mechanisms;
   only the **edited artifact** differs. An app with no `flipMechanism` is treated as `nginx`.
   - `nginx` → `apps.*.infraDir` (default `infra/nginx`): the in-repo nginx host/path routing block
@@ -187,12 +187,25 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
     (default `v2-routes.json`): a **version-controlled** CloudFront behavior manifest that maps
     `guardsPath` path-patterns to the v2 origin. `fm-route` edits only this in-repo manifest, for
     a PR the user opens — it **never pushes to AWS**.
+  - `script` → `apps.*.flipArtifacts` + `apps.*.flipCommands`: for an edge where **one flip moves
+    several artifacts together** and editing one alone is a half-flip. Mobile is the case that forced
+    it: `www` and `m` share one CloudFront distribution, so a mobile page is live only when both the
+    viewer-request function's `MOBILE_*` arrays and the ALB listener rule's `path-pattern` list it —
+    and the PC behavior manifest, where a `cloudfront` config would point, has no mobile entries.
+    The project owns the flip script (it knows the pairing rules); `fm-route` runs it, then refuses
+    unless it exited 0, made a non-empty change only inside `flipArtifacts`, and the project's
+    `status` check passes.
 
-  Which app uses which is project config, decided at `fm-init`. See `templates/strangler-fig.md`.
-- `apps.*.infraDir` — nginx flip only (default `infra/nginx`). Ignored when
-  `flipMechanism` is `cloudfront`.
+  Which app uses which is project config, decided at `fm-init`. An unrecognised value stops
+  `fm-route`; it is never read as `nginx`. See `templates/strangler-fig.md`.
+- `apps.*.infraDir` — nginx flip only (default `infra/nginx`). Ignored by the other mechanisms.
 - `apps.*.cloudfrontDir` / `apps.*.manifest` — cloudfront flip only (defaults `infra/cloudfront` /
-  `v2-routes.json`). Ignored when `flipMechanism` is `nginx`.
+  `v2-routes.json`). Ignored by the other mechanisms.
+- `apps.*.flipArtifacts` / `apps.*.flipCommands` — script flip only, no defaults.
+  `flipArtifacts`: every repo-relative file a flip of this app may edit. `flipCommands`: shell
+  commands run from the repo root, keyed by action — `flag-on` and `revert` required, `flag-off`
+  (prepare, not active) and `status` (the project's pair/drift check) optional — with the
+  placeholders `{page}` `{app}` `{guardsPath}` `{flagKey}`.
 - `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
   `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` passes to `e2e-test-runner` for transactional
   scenarios. Transactional E2E runs against these, never production. Scaffolded empty (PC-first);
@@ -284,6 +297,9 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   in-flight one. Every other status writer refuses and points at `fm-route --revert`, for an
   in-flight flip and for `flipped`; **`done` gets manual intervention instead**, since `--revert`
   refuses it too. `--flag-off` keeps the status, so it is never the way out of `flipped`.
+- **`e2e-passed` / `parity-passed` can also be issued under an owner-approved exemption** for a gate
+  that cannot run for this page — by the gate skill itself, marked `gateEvidence.{gate}.notApplicable`
+  and never read as a real pass. See "Gate Result Accounting" G.
 - No gate accepts `fixing` as an entry state. A page at `fixing` is re-entered through `fm-fix`
   (or `escalated` for manual intervention) — never by invoking a gate directly.
 - `fm-delta` re-enters from `generated` or beyond when legacy source drifts (a `planned` page has
@@ -332,7 +348,44 @@ When updating any state JSON:
 1. Read the **latest** file content immediately before writing — never use data cached
    earlier in the session.
 2. Merge only the fields being changed; preserve all existing fields.
-3. Write the complete merged object.
+3. Write the complete merged object, serialized per "Serialization" below.
+
+### Serialization
+
+The lock prevents lost updates; it does not stop two writers disagreeing about *format*. Every
+writer of **`tracker.json`** and **`secret-audit-report.json`** — the two shared, many-writer files —
+emits the same bytes for the same object, so a write's diff is its change and nothing else:
+
+- **2-space indent**, `": "` / `","` separators, one element per line.
+- **Non-ASCII written raw** (UTF-8), never `\uXXXX`-escaped — Korean copy and typographic quotes
+  included.
+- **Existing key order preserved.** Never sort keys (`jq -S`, `sort_keys=True`); a new key is
+  appended where the merge naturally puts it.
+- **LF line endings, exactly one trailing newline.**
+
+**The reference serializer is Python** `json.dumps(obj, ensure_ascii=False, indent=2) + "\n"`.
+Node's `JSON.stringify(obj, null, 2)` is **not** equivalent in general. It writes `7.0` as `7`, and
+`1.5e-07` as `1.5e-7`. It hoists integer-like keys (`"1280"`) ahead of the other keys. It rounds
+integers above 2^53. Use it only on data you know holds none of these. A round-trip of a conforming
+file reproduces it byte-for-byte; on OMH-837's 1.2 MB `tracker.json` it does, under both.
+
+**Every other state JSON** (`analysis.json`, `migration-plan.json`, `style-spec.json`, the reports) is
+written by one stage at a time, and existing files use mixed layouts: inline arrays, and some with no
+trailing newline. There, **match the file's existing format and splice**. Never re-emit such a file
+through the serializer above; that reflows it, which is the defect this section exists to prevent.
+
+**For a single-entry change, prefer splicing the entry's lines in place** (the `Edit` tool) over
+re-emitting the document — a one-field change is then a `+1/-1` diff by construction. Whichever way
+you write, **check your own write while you still hold the lock**: diff the bytes you read (step 1)
+against the bytes you wrote. Copy the file before writing (`cp "$FILE" "$FILE.before.tmp"`), then
+`diff "$FILE.before.tmp" "$FILE"` and delete the copy. A shell variable is not a copy: `$(cat …)` strips
+the trailing newline, so it differs on every write. Every changed line must belong to an entry you meant to change. If any other line moved, your
+serializer diverged: write the bytes you read back, then redo the change by splicing. **Never compare
+against the index or `HEAD`, and never restore from either** — `tracker.json` is routinely unstaged
+(most writers do not stage it) and carries other pages' in-flight rows, so an index diff always
+reaches entries you did not touch, and a restore from it deletes them. (OMH-837: a 1-space re-emit turned one rebase into three
+~700-line conflicts on this file with no content conflict among them, and a `\u`-escaping round-trip
+turned a one-sentence `openItems` edit into a `+12/-12` diff across untouched PC pages.)
 
 ### Lock file
 
@@ -355,7 +408,7 @@ fields:
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 11 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
-| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, the `infraDir`/`cloudfrontDir` routing artifact or every `flipArtifacts` file, and `{appDir}/.gitignore` | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`, `fm-init`** |
 
 The page lock does **not** protect `tracker.json`: no lock is common to a page skill and
 `fm-extract`, and two page locks do not exclude each other. Two pages in flight is a supported
@@ -598,7 +651,8 @@ report slot, so it is never placed in `requiredGates`, and the `?ts` flow is ver
 page's `e2eScenarios`.
 The Strangler Fig routing template (`templates/strangler-fig.md`, authored in **AA-47**) drives
 `fm-route`: the per-app flip topology (nginx host/path routing **or** a CloudFront behavior
-manifest, selected by `apps.*.flipMechanism`), the 2-PR flag flow, and the gate-guarded flip.
+manifest, or a project flip script over several artifacts, selected by `apps.*.flipMechanism`), the
+2-PR flag flow, and the gate-guarded flip.
 
 The lint/format templates (`templates/eslint-config.md`, `templates/prettier-config.md`) define the
 monorepo's ESLint v9 flat config (composed per workspace, with the `shared-domain` secret boundary)
@@ -852,6 +906,12 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   written before it and an entry added by any skill fall under it alike. **A gitignored path is
   never a watch path**: it never reaches a commit and the script refuses it — every merge into
   `sourcePaths[]` skips paths `git check-ignore -q` accepts (a Playwright `storageState`, a trace).
+  **Resolution skips them too**, on every producer and consumer alike. An **untracked**
+  `sourcePaths[]` entry that an ignore rule added later now matches (v1.4.0's run-output block
+  catching an old, never-committed trace) is dropped when the watch paths are resolved. Neither
+  `git check-ignore` nor the script treats a tracked file as ignored, so it stays watched. Otherwise the script would refuse the whole set
+  and block `fm-route` Step 1a and `fm-progress` for that page. A page whose recorded `tree` included
+  such a file reads stale once and re-runs from `fm-verify`.
 
   `fm-route` Step 1a (both modes) and `fm-progress` resolve them identically, per gate; a consumer
   resolving a different set can never match a producer. **`fm-gen` and `fm-delta` clear `gateEvidence` together with the legacy
@@ -859,6 +919,54 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   clearing `gateEvidence` alone leaves `fm-route` Step 1 and Step 1-pre re-authorizing the flip.
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must
   report which axes it checked.
+
+- **G (a gate that cannot run).** Some gates are not *pending* for a page but *impossible*: no
+  dual-run harness exists for the app yet, or the flow needs a real third-party provider CI cannot
+  drive. (OMH-837 `/social-connect`: real-provider OAuth, no mobile dual-run harness — the state had
+  to be written as prose in `openItems`, and a page with `gatesRun: []` invites the next reader to
+  try running them.) The state is structured, in the page's tracker record:
+
+  ```jsonc
+  "notApplicable": [{
+    "gate": "e2e",                              // "e2e" | "parity" — never "verify"
+    "reason": "real-provider OAuth; no mobile dual-run harness",
+    "compensatingEvidence": "manual QA on DEV, OMH-1234",   // optional; what stands in for the gate
+    "approvedBy": "<decision owner>",           // both required — without them the entry is a REQUEST
+    "approvedAt": "2026-09-24T10:00:00+07:00",
+    "grantedTree": "…"                          // written by the gate on the first exempted pass, below
+  }]
+  ```
+
+  - **Whole gates only, and never `verify`.** A page that does not build and test does not ship. A
+    parity *sub-gate* (visual / contract / webview / telemetry) is not recorded here — the plan's
+    `requiredGates` and an approved `openApprovals` entry already express that.
+  - **A human writes it; no skill or agent does** (a skill adds only `grantedTree`, below). Write it
+    under `.tracker.lock` and per "Serialization", like any other writer. The pipeline cannot approve its own skip — the
+    same reason a `pending` `openApprovals` entry does not authorize a contract skip. An entry
+    without `approvedBy` + `approvedAt` is a **request**: every gate ignores it, and `fm-progress`
+    shows it as requested, not granted.
+  - **The gate itself honours it, so the chain stays linear.** `fm-e2e` / `fm-parity` at their entry
+    status, finding an approved entry for their own gate, launch no agent, write their report with
+    `result: "not-applicable"` carrying the entry, and record their passed status with
+    `gateEvidence.{gate}.notApplicable: true` and the usual `tree`. "Only the gate issues its own
+    passed state" still holds, and so does Step 1a freshness: a later change stales the exempted
+    pass like any other.
+  - **An approval covers one tree, not the page forever.** The first exempted pass writes the tree it
+    recorded into the entry as `grantedTree`, in the same `.tracker.lock` write as `gateEvidence`.
+    `fm-route` Step 1 requires the two to be equal, and blocks an exemption with no recorded `tree`
+    (no `pluginRoot`, or `unverifiable`), because it cannot be bound to code. It is the only field a skill ever writes into the entry,
+    and it grants nothing. A later Step 0b whose tree differs finds the approval **lapsed**: the code
+    changed after the owner decided (after `fm-fix`, `fm-gen` or `fm-delta`, say). It treats the entry
+    as a request and runs the gate normally, until the owner re-approves by rewriting `approvedAt` and
+    deleting `grantedTree`. Without this, the gate would re-mint the pass on every rewrite and only the
+    flipper, never the approver, would see the new code.
+  - **`fm-route --flag-on` accepts `not-applicable` only while the tracker entry is still approved**,
+    and lists every exemption in Step 1b for explicit acknowledgement — the flip rests on it. Deleting
+    the entry (the harness now exists) makes Step 1 refuse the exempted report; the gate then runs
+    for real from `fm-verify`.
+  - `fm-progress` renders an exempted gate as **N/A** with its reason and approver — never as
+    `pass`, never as `pending` — and a request (unapproved entry) as **N/A requested**. Its next
+    command is still the gate's own skill, noted as recording the exemption rather than running.
 
 Codex stays advisory: D counts findings, it does not give Codex a veto.
 

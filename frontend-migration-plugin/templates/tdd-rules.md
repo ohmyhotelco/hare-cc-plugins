@@ -42,6 +42,39 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
 - Mock anything but the network boundary — use real stores, real components.
 - Claim a pass you did not run.
 
+## Async: a rendered node is not an attached listener
+`findBy*` resolves shortly after the node is in the DOM: Testing Library's async wrapper yields one
+`setTimeout(0)` after its check passes. A `useEffect` is a **passive** effect, run by React's scheduler
+as a separate task after the commit, and nothing orders that task before the timer. With an asynchronously resolved route (`createRoutesStub`, a loader, a lazy
+route) the commit lands after the `act()` around `render()` has exited, so there is a real window in
+which the element is on screen and the effect that attaches its `window`/`document` listener has not
+run. A loaded CI runner widens it. Two rules, both machine-checkable (`test-reviewer` flags them):
+
+- **Let the scheduled effects run before dispatching an event a listener must receive.** After a
+  `findBy*`, and before `window.dispatchEvent` / `document.dispatchEvent` / a `fireEvent` on
+  `window`/`document` whose handler an effect attaches, run `await act(async () => {})`. This is a
+  macrotask yield, not a direct flush: the commit happened outside `act`, so `act` has no queue of
+  its own to drain. In that yield the scheduler's already-queued passive-effect task runs. Where the
+  component exposes an observable sign that the listener is attached, waiting on that sign is
+  stronger still. Dispatch inside `await act(async () =>
+  { … })`.
+- **Do not wrap a synchronous outcome in `waitFor`.** If the update under test happens
+  synchronously inside the `act()` that dispatched it, assert it synchronously right after. A
+  `waitFor` there waits for nothing — and when the listener is missing it turns an immediate, precise
+  failure into a timeout whose message names the symptom (the element is still present), not the
+  cause.
+
+```ts
+expect(await screen.findByTestId("child-body")).toBeInTheDocument();
+await act(async () => {});                                  // yield so the passive effect runs
+await act(async () => { window.dispatchEvent(new Event("pageshow")); });
+expect(screen.queryByTestId("child-body")).not.toBeInTheDocument();   // synchronous: no waitFor
+```
+
+Origin: OMH-837 — a `pageshow` spec written as `findBy*` → sync `act(dispatch)` → `waitFor` passed
+locally and failed `web-mobile-master-ci` on an unrelated PC PR. With the two rules applied the same
+regression fails in ~50 ms at the line that broke.
+
 ## Migration-specific
 - Import extracted logic from `@omh/shared-*`; never re-implement what `fm-extract` produced.
 - Preserve legacy behavior exactly (parity is gated later by `fm-e2e`/`fm-parity`) — including

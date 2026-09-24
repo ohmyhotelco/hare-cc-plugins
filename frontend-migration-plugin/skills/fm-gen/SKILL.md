@@ -110,7 +110,7 @@ modified code, with the Step 3 lock held for 30 minutes.
 ### Step 5: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.

@@ -23,6 +23,18 @@ gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.s
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
+### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting G)
+If the page's tracker record has a `notApplicable` entry with `gate: "e2e"` **and** both
+`approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
+paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
+decided (CLAUDE.md → Gate Result Accounting G). Say so, name the entry, and run the gate normally.
+Otherwise this run is the **exemption path**: skip Step 1 and Step 3's runner,
+take the lock (Step 2) and re-verify under it that the entry is still approved and the status is
+still `verified`, then write `e2e-report.json` as
+`{ "page", "result": "not-applicable", "notApplicable": <the entry>, "scenarios": [], "filesChanged": [], "ranAt" }`
+and go to Step 4. An entry missing either field is a request, not an exemption — say so and run
+the gate normally.
+
 ### Step 1: Ensure Playwright run permission
 The runner executes as a sub-agent, so session approvals do not transfer. Ensure
 `.claude/settings.json` `permissions.allow` includes the Playwright command
@@ -58,7 +70,7 @@ server the runner needs.
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 **Merge `filesChanged[]` whatever the result** — pass, fail, or `not-run`. The files exist in the
 tree now, and a later passing run that reuses them unchanged will not list them again; skipping
@@ -91,7 +103,8 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   `unverifiable`), exit 1 is an error.
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
-  all of axis 1, including the `{appDir}/e2e/` entries `verify` leaves out; resolve `packagesDir`
+  all of axis 1, including the `{appDir}/e2e/` entries `verify` leaves out, minus any untracked
+  entry `git check-ignore -q` accepts (F); resolve `packagesDir`
   and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here. **First merge the runner's
   `filesChanged[]` into `sourcePaths`** (Read-Modify-Write under `.tracker.lock`) — every file it
   created or modified: specs, page objects, fixtures, helpers alike, since any of them outside the
@@ -126,6 +139,15 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `e2ePassedAt` for
   backward compatibility.
+- `result: not-applicable` (Step 0b only — a runner never writes it) → `status = "e2e-passed"` and
+  `gateEvidence.e2e = { "at", "commit", "tree", "notApplicable": true }`. In the same write, set the
+  entry's `grantedTree` to that `tree` when it has none. If the script could not produce a `tree`,
+  write none and say that this exemption cannot reach `fm-route --flag-on`. The `criteriaCompliance` check and the
+  `filesChanged[]` merge above do not apply on this path: the synthetic report has neither, because
+  no runner ran. Compute `commit` and the manifest/`tree` exactly as the pass branch does, once, at
+  record time; there is no pre-run comparison. Promote and stage the manifest with the tracker
+  as the pass branch does. Do not write `e2ePassedAt` — nothing passed; the evidence record says
+  what happened.
 - `result: fail` → `e2e-failed`.
 - `result: not-run` → keep the page at `verified` (it did not pass e2e) and report which scenarios
   were unmeasured and why, from `notRunScenarios[]`. Do **not** set `e2e-passed`: an unmeasured
@@ -138,6 +160,7 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+Skip this step on the exemption path — no scenario ran, so there is no pass for Codex to test.
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
@@ -150,4 +173,12 @@ truly cover legacy parity. Advisory — never changes the page status. Surface i
 In `workingLanguage`: scenarios run (msw vs staging), pass/fail with evidence, legacy dual-run
 parity, the Codex audit verdict (advisory), and the next step — on pass
 `/frontend-migration-plugin:fm-parity {page}`; on fail `/frontend-migration-plugin:fm-fix {page}`
-(auto-detects e2e-fix mode).
+(auto-detects e2e-fix mode). On the exemption path, say the gate was **not run** under an approved
+exemption, quote the reason and approver, and that `fm-route --flag-on` will ask for it to be
+acknowledged; the next step is still `fm-parity`.
+
+If the report's `runOutput.unignored` is non-empty, say so whatever the result, and name the files:
+they are traces or failure captures a commit would take (`templates/e2e-testing.md` → "Run output is
+disposable; baselines are source"). Print the ignore lines that would cover them and tell the user
+not to stage those files. It does not change the gate result — the gate judges behavior — but a
+failing run is exactly when these files exist, and the next `git add` of the directory ships them.

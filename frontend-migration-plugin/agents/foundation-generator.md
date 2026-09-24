@@ -39,13 +39,26 @@ If the app's harness is absent, scaffold it in `{appDir}`:
   per app). Enable **trace-first diagnostics** so a failed run leaves the agent rich evidence to
   self-correct: `use: { trace: 'retain-on-failure', screenshot: 'only-on-failure', video:
   'retain-on-failure' }` (or `trace: 'on-first-retry'` when `retries` is set). The harness is set
-  up here; `fm-e2e`/`fm-parity` (AA-45/46) use it.
+  up here; `fm-e2e`/`fm-parity` (AA-45/46) use it. Set `outputDir: 'test-results'` explicitly and
+  keep `snapshotPathTemplate` and every spec-owned artifact dir outside it — run output and
+  baselines live in different trees (`templates/e2e-testing.md` → "Run output is disposable;
+  baselines are source").
 - **Playwright auth + reuse scaffolding**: an **auth setup project** that logs in once and writes
   `storageState` to `.auth/<role>.json` (specs load it instead of logging in each time), and an
   `e2e/` layout with shared **page objects / helpers** (auth, state-setup, data factories) so specs
   reuse selectors and flows. `e2e-test-runner` fills these in per page.
 Do not auto-install npm deps — if packages are missing, list the `pnpm add -D …` command and
 note it; scaffold the config regardless.
+
+**Run-output ignore block (every foundation-phase run, not only when the harness is absent).** Ensure
+`{appDir}/.gitignore` carries the Playwright run-output block from `templates/e2e-testing.md` →
+"Run output is disposable; baselines are source" — append each missing line, never rewrite existing
+ones. It is checked every run because the apps that most need it are the ones whose harness already
+exists and so skip the scaffold above. `.gitignore` is an app-wide file: edit it inside
+`docs/migration/.app.lock`, like the other app-wide files (CLAUDE.md → Lock file). **Do not list it
+in `filesChanged`** — an ignore rule is not page code, and `fm-gen` would make it a watch path of
+this page, staling its gate evidence the next time any other page's run appends a line. Say in your
+final message whether you appended to it.
 
 ### 3b. i18n key-coverage spec (once per app) — read `templates/i18n-copy-parity.md`
 If the config has an `i18n` block and the app has no key-coverage spec yet, generate one next to
@@ -71,6 +84,56 @@ falls back to returning the key itself — so a missing translation reaches the 
 `keyPrefix` is configured, assert that no rendered string matches it: a value starting with the
 prefix is an unresolved key, not copy. Without this the field was collected by `fm-init` and read by
 nothing.
+
+### 3c. Route-target spec (once per app)
+If the app has no route-target spec yet, generate one next to the harness, named
+**`route-targets.test.ts`**. `fm-verify` finds it by that name. It is a Vitest file, so use the
+`.test.ts` suffix (`.spec.ts` is the Playwright convention here), and place it where the app's Vitest
+`include` collects it, beside the i18n key-coverage spec (in `web-mobile`, under `app/`). Check the
+`include` before writing: a spec that is never collected fails `fm-verify` on every page. **Rule: a client-side
+navigation target must resolve to a route the app registers; anything else must be a document
+navigation.** Registering a route and flipping it at the edge are different things, and a
+client-side navigation is matched by the router alone — so `navigate('/hotel')` in an app whose
+route config has no `/hotel` renders React Router's error page, not the legacy page that owns
+`/hotel`. (OMH-837: a failure exit changed from a document load to `navigate('/hotel')` to escape an
+iOS WKWebView applink loop; `/hotel` was legacy-owned, the app had no catch-all and no
+`ErrorBoundary`, and every platform landed on the router's error page — on a failure path.)
+
+The spec:
+1. **Collects the literal targets** of every client-side navigation in the app source (not tests):
+   `navigate(…)` from `useNavigate`, `<Link to>` / `<NavLink to>`, and `redirect(…)` from
+   `react-router` (a loader/action redirect during a client navigation is also matched
+   client-side). Strip the query and hash. Skip absolute URLs (`http:`, `https:`, `//`) — those are
+   document navigations already.
+2. **Loads the app's route config** (`app/routes.ts` in RR v7 framework mode — import it and
+   `await` the default export, which may be a promise; the `route()`/`index()`/`layout()`/`prefix()`
+   helpers return plain objects). A config built with `flatRoutes()` reads the app directory through
+   the RR Vite plugin's context and may not load under plain Vitest. In that case, set the context up
+   the way the app's own test harness does, or scaffold the spec to fail with that reason named. It
+   must **never** pass silently on a table it could not build. Then the spec matches each target with
+   `matchRoutes`. A match counts only when its leaf is a real route. **Any segment the target fills
+   through a dynamic parameter is a catch-all too, unless the parameter's domain is known.** A bare
+   splat (`*`) never resolves. Neither does a top-level `:locale` that swallows `hotel`: in OMH-837's
+   own `web-mobile`, `route(":locale", "routes/home.tsx")` matches `/hotel` with
+   `{ locale: "hotel" }`, so a splat-only rule would have passed the very bug this spec exists for.
+   The spec carries a `paramDomains` map, seeded with every locale-like parameter → the configured
+   `i18n.languages` (lower-cased as the URLs use them). A bound value outside a known domain means
+   **unresolved**. A bound value for a parameter with no known domain means **uncheckable**.
+   Placeholder segments from template literals (item 4) are in-domain by construction.
+   Loading gotchas: the default export may be a Promise, and a `flatRoutes()` config needs
+   `globalThis.__reactRouterAppDirectory` set to the app directory before the import.
+3. **Fails** on every literal target that does not resolve, naming the target, the calling
+   `file:line`, and the fix: `window.location.assign(…)` (or a plain `<a href>` / `reloadDocument`),
+   the form the app's other exits to legacy-owned paths already use.
+4. **Tallies as `uncheckable`** (with `file:line` and a printed count — never a silent pass, never a
+   failure) any target it cannot resolve statically: a variable, a relative path, a template
+   literal whose interpolations do not each occupy a whole path segment. A template literal whose
+   interpolations each fill one whole segment (`` `/${lang}/hotel` ``) **is** checked, with a
+   placeholder value per interpolated segment.
+
+App-wide, like 3b: `fm-verify`'s `npx vitest run` makes it hard on every page with no separate gate
+step. It checks only navigations the app performs itself — a legacy-owned path reached by a document
+navigation is correct by construction and never appears here.
 
 ### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
 Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
@@ -114,7 +177,8 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
   the gates can never watch. The list is the phase's **output set, not its write log**: a file
   this phase owns but left byte-identical because it already existed (a `--force` run finding the
   prior harness in place) is still listed — `fm-gen` rewrites `sourcePaths` from these lists, so
-  an unlisted reused file silently drops out of the watch set.
+  an unlisted reused file silently drops out of the watch set. **One exception: `{appDir}/.gitignore`
+  is never listed** (task 3 says why).
 - Final message (in `workingLanguage`) — keep it short; the report is the record: files created, assets copied (count + any missing sources),
   harness status (created/existing), and any missing deps to install.
 

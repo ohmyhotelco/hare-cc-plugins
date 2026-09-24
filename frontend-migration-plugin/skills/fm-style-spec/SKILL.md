@@ -80,7 +80,7 @@ side is `unresolved`, which counts as absent and fails the gate), `workingLangua
 ### Step 5: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 1. Verify `style-spec.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,

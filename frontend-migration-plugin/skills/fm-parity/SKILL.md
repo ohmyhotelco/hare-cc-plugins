@@ -25,6 +25,19 @@ point to `fm-style-spec {page}` and stop).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
+### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting G)
+If the page's tracker record has a `notApplicable` entry with `gate: "parity"` **and** both
+`approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
+paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
+decided (CLAUDE.md → Gate Result Accounting G). Say so, name the entry, and run the gate normally.
+Otherwise this run is the **exemption path**: take the lock (Step 1),
+re-verify under it that the entry is still approved and the status is still `e2e-passed`, write
+`parity-report.json` as
+`{ "page", "result": "not-applicable", "notApplicable": <the entry>, "gates": {}, "ranAt" }`,
+skip Steps 2 and 3, and go to Step 4. An entry missing either field is a request, not an
+exemption — say so and run the gate normally. A single parity *sub-gate* that cannot run is not
+this path: that is the plan's `requiredGates` plus an approved `openApprovals` entry.
+
 ### Step 1: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
 
@@ -91,7 +104,7 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
@@ -133,7 +146,7 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 
   Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
   all of axis 1, including `{appDir}/e2e/` (this gate runs after the specs exist, and a weakened
-  spec must stale it);
+  spec must stale it), minus any untracked entry `git check-ignore -q` accepts (F);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
   The redirect target must be the real repo root, not `{monorepoRoot}` — this skill runs from
   `{appDir}`.
@@ -142,6 +155,12 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `parityPassedAt` for
   backward compatibility.
+- `result: not-applicable` (Step 0b only — the verifier never writes it) → `status =
+  "parity-passed"` and `gateEvidence.parity = { "at", "commit", "tree", "notApplicable": true }`,
+  `commit` and the manifest/`tree` computed once at record time exactly as the pass branch does (no
+  verifier ran, so there is no pre-run comparison), the manifest promoted and staged with the
+  tracker the same way. In the same write, set the entry's `grantedTree` to that `tree` when it
+  has none. With no `tree`, write none and say the exemption cannot reach `fm-route --flag-on`. Do not write `parityPassedAt`.
 - `result: fail` or any Step 3 override → `parity-failed`.
 - Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
   coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.
@@ -153,6 +172,7 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
 Release the lock.
 
 ### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+Skip this step on the exemption path — nothing was compared, so there is no pass for Codex to test.
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
 `codex-auditor`
@@ -166,4 +186,6 @@ changes the page status. Surface its verdict below.
 In `workingLanguage`: per-gate result (visual / contract / webview / telemetry) with evidence,
 the Codex audit verdict (advisory), and the next step — on pass
 `/frontend-migration-plugin:fm-route {page} --flag-off` (then the flag-on PR after review); on fail
-`/frontend-migration-plugin:fm-fix {page}` (auto-detects parity-fix mode).
+`/frontend-migration-plugin:fm-fix {page}` (auto-detects parity-fix mode). On the exemption path,
+say the gate was **not run** under an approved exemption, quote the reason and approver, and that
+`fm-route --flag-on` will ask for it to be acknowledged.

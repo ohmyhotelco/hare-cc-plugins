@@ -56,7 +56,7 @@ Acquire the page `.lock` (`docs/migration/{app}/{page}/.lock`; stale only when i
 Write `codex-audit.json` — merge the `{stage}` entry, preserve sibling stages.
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 Update `tracker.json`
 `apps[app].pages[page].codexAudit[stage]` with the verdict. Release the lock.

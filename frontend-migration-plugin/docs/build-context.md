@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-09-14)
+## Status (2026-09-24)
 
-- **Build complete — v1.3.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
+- **Build complete — v1.4.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -1055,6 +1055,34 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   working-tree-resolves-nothing carve-out re-running a chain when HEAD still matched; and every
   action staging the tracker it wrote (PR2 and the rollback PR carry `flipPrOpenedAt`/`flipped`).
   Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
+- **v1.4.0 — consumer feedback from OMH-837 (mobile Phase M2).** The first release driven by a team
+  *consuming* the pipeline's artifacts rather than by an audit of the prompts; the seven findings
+  and their evidence are in `docs/pipeline-feedback-omh-837.md`. (1) **State-file serialization** —
+  CLAUDE.md "Serialization": `tracker.json` and `secret-audit-report.json` are 2-space, raw UTF-8,
+  key order kept, one trailing newline, with Python's `json.dumps` as the reference (Node diverges on
+  floats and integer-like keys). Every other state JSON is spliced in its existing format. Each
+  writer diffs its own before/after copy under the lock, never against the index. Every
+  `.tracker.lock` paragraph points at it. The lock
+  solved lost updates; format drift had cost three ~700-line no-content rebase conflicts. (2) **Run
+  output vs baselines** — `templates/e2e-testing.md` separates the two trees and adds a name-matched
+  ignore block that `foundation-generator` ensures on every run (not only on a fresh harness) and
+  `fm-init` for existing apps; the runner reports unignored artifacts in `runOutput.unignored` and
+  keeps them out of `filesChanged`. A redirected `--output` had committed 19 MB of traces. (3) **The
+  passive-effect race** — `templates/tdd-rules.md` "Async: a rendered node is not an attached
+  listener" (flush before dispatch; no `waitFor` around a synchronous outcome), flagged by name in
+  `test-reviewer`. (4) **`flipMechanism: script`** — a project flip script over declared
+  `flipArtifacts`, for edges where one flip moves several files (mobile: CloudFront function arrays +
+  ALB rule path-patterns, while the PC manifest carries no mobile entries); `fm-route` runs the
+  project's command with shell-quoted placeholders, refuses (never restores) a before/after delta outside
+  the declared artifacts or an empty one, and requires the project's
+  `status` pair check. An unrecognised mechanism now stops `fm-route` instead of reading as `nginx`.
+  (5) **Gate exemptions** — Gate Result Accounting G: an owner-approved `notApplicable` entry lets
+  `fm-e2e`/`fm-parity` record an exempted pass themselves (`gateEvidence.{gate}.notApplicable`),
+  keeps the FSM linear, and surfaces every exemption for acknowledgement at `--flag-on`. (6)
+  **`v2CarryOver`** in `secret-audit-report.json`, with `fm-secret-audit` scanning each existing v2
+  `targetDir`. (7) **Route-target spec** — `foundation-generator` 3c: a literal client-side
+  navigation target must resolve to a registered, non-catch-all route, else be a document
+  navigation; hard through `fm-verify`'s vitest run, absence reported, not failed.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

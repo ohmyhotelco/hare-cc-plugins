@@ -19,6 +19,18 @@ You receive (no session history): `testPath` (file or dir), `appDir`, `workingLa
 2. **Testing Library** — query by role/label/text (accessible queries), not brittle CSS/test-ids
    where a role exists; `userEvent` over raw fire where appropriate.
 3. **Async** — proper `await` / `findBy*` / `waitFor`; no arbitrary sleeps; act warnings resolved.
+   Flag both shapes from `templates/tdd-rules.md` → "Async: a rendered node is not an attached
+   listener" by name, each as a flakiness finding with its `file:line`:
+   - **event dispatch after `findBy*` with no effect flush** — a `window`/`document`
+     `dispatchEvent` (or `fireEvent` on either) following a `findBy*` with no
+     `await act(async () => {})` between them, when the handler is attached in a `useEffect`. The
+     listener may not exist yet; the test passes or fails on scheduler timing.
+   - **synchronous `act()` followed by `waitFor`** — `act(() => { … })` (non-async) whose outcome is
+     then awaited with `waitFor`. If the update is synchronous the `waitFor` waits for nothing and
+     converts a missing listener into a 1 s timeout; assert synchronously instead.
+
+   Grep for them rather than sampling: `dispatchEvent` and `fireEvent(\.\w+)?\((window|document)` in
+   each spec, then read the lines before and after each hit.
 4. **Coverage** — the planned scenarios/edge cases are tested; the 4-state coverage for pages
    (loading/empty/error/success) where relevant; each test carries a `// scenario` anchor, and a
    test **asserting legacy behavior** carries a `// legacy: <path>:<line>` anchor into the legacy

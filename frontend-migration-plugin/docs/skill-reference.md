@@ -18,15 +18,15 @@ holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock s
 | `fm-gen` | `foundation-generator`, `tdd-cycle-runner`, `integration-generator` | plan → RR v7 page (TDD) | `generated` (resume via `generation-state.json`) |
 | `fm-verify` | — | build / tsc / vitest / eslint (hard) from `appDir`, Prettier advisory | `verified` / `verify-failed` |
 | `fm-cascade` | `cascade-differ` | legacy's compiled CSS vs the app's, diffed node-by-node on the page's real markup → `cascade-diff.json` | none — adds evidence to a page at `verified`, does not advance it |
-| `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
-| `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` / stays `e2e-passed` on `not-run` |
+| `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` (also under an owner-approved `notApplicable` exemption, marked as such) / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
+| `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` (also under an owner-approved `notApplicable` exemption, marked as such) / `parity-failed` / stays `e2e-passed` on `not-run` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |
-| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
+| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, CloudFront behavior manifest, or the project's flip script over `flipArtifacts`, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
 | `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (incremental); unchanged (Full) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
 | `fm-test-review` | `test-reviewer` | generated tests → test-quality report (read-only) | — |
-| `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` → `secret-audit-report.json` (read-only) | — |
+| `fm-secret-audit` | `secret-auditor` | legacy `environment.*.ts` (+ each existing v2 `targetDir`, for `v2CarryOver`) → `secret-audit-report.json` (read-only) | — |
 | `fm-audit-codex` | `codex-auditor` | stage artifacts → independent Codex review → `codex-audit.json` (advisory) | `pages[page].codexAudit[stage]` |
 
 ## Agents
@@ -56,12 +56,13 @@ holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock s
 - **e2e-test-runner** — Playwright specs; legacy dual-run; staging payment for transactional pages.
 - **parity-verifier** — visual regression, contract freeze, WebView round-trip, telemetry dual-fire.
 - **strangler-orchestrator** — prepares/flips/reverts the route at the app's configured edge layer
-  (nginx routing + flag, or a CloudFront behavior manifest entry, per `flipMechanism`) under one
-  interface; cloudfront edits the in-repo manifest only (PR, never pushes to AWS); refuses flag-on
-  unless all gates pass.
+  (nginx routing + flag, a CloudFront behavior manifest entry, or the project's flip commands over
+  every `flipArtifacts` file, per `flipMechanism`) under one interface; edits in-repo intent only
+  (PR, never pushes to AWS); refuses flag-on unless all gates pass or carry an approved exemption.
 - **delta-modifier** — applies `delta-plan.json` ops; preserves prior fm-fix edits; cascade order.
 - **quality-reviewer** / **test-reviewer** — standalone code/test quality audits.
-- **secret-auditor** — legacy secret inventory + exposure classification (posture only; OMH-477).
+- **secret-auditor** — legacy secret inventory + exposure classification, plus where each secret
+  lives once carried into a v2 app (`v2CarryOver`) (posture only; OMH-477).
 - **codex-auditor** — independent Codex review of one stage's artifact via the `codex-cli-runtime`
   contract (headless `codex exec`); records `codex-audit.json`. Advisory; never migrates or changes
   pipeline state. See CLAUDE.md → "Codex Independent Audit".

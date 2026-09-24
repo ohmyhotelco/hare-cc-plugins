@@ -78,17 +78,19 @@ leaves the page at `verified` and `fm-parity` at `e2e-passed` until the missing 
 ## Topology (Strangler Fig)
 
 ```
-edge flip point (per app: nginx OR CloudFront — apps.{app}.flipMechanism, default nginx)
+edge flip point (per app: nginx OR CloudFront OR script — apps.{app}.flipMechanism, default nginx)
   www.ohmyhotel.com  → legacy-pc :30210  | web-pc     :30220 (migrated paths, flag ON)
   m.ohmyhotel.com    → legacy-mobile     | web-mobile :30221
   hana.ohmyhotel.com → legacy-hana       | web-hana   :30321
   /api/*             → backend (frozen contract)
 ```
 Each app flips at its configured edge layer — an app-layer / entry **nginx** routing block + flag,
-or a **CloudFront** behavior manifest entry (`infra/cloudfront/<manifest>`, edited in-repo and
-PR'd, never pushed to AWS). The mapping is project config (`fm-init`), not plugin-baked.
+a **CloudFront** behavior manifest entry (`infra/cloudfront/<manifest>`, edited in-repo and
+PR'd, never pushed to AWS), or — when one flip must move several artifacts together, as mobile's
+CloudFront-function + ALB-rule pair does — the project's own flip script over its declared
+`flipArtifacts`. The mapping is project config (`fm-init`), not plugin-baked.
 
-2-PR flag flow (both mechanisms): code PR (flag OFF / behavior not-active) → gate pass → one-line
+2-PR flag flow (every mechanism): code PR (flag OFF / behavior not-active) → gate pass → one-line
 flag-ON PR. Rollback = flip OFF / remove the behavior.
 
 ## Three apps

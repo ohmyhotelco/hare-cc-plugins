@@ -125,7 +125,7 @@ tracker. Absence plus the `not-run` record is the honest state.
 ### Step 6: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around the `tracker.json` write below — after
-the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file).
+the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 **Failed run (no staging file).** When the differ failed and wrote nothing, skip items 1–2 — there
 is nothing to check or promote. Item 3 records `cascade` as `{ runAt, notRun: true, reason }`

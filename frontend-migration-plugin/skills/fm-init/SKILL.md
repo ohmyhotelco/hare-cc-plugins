@@ -65,7 +65,7 @@ For each surface (`pc`, `mobile`, `hana`), gather:
 - `ssr` — `mixed` (PC, Mobile) | `spa` (Hana)
 - `webview` — `false` (PC) | `true` (Mobile) | `"unknown"` (Hana, pending confirmation)
 - `sso` — `true` (Hana) | `false`
-- `flipMechanism` — `nginx` (default) | `cloudfront`. The edge layer the Strangler Fig route flip
+- `flipMechanism` — `nginx` (default) | `cloudfront` | `script`. The edge layer the Strangler Fig route flip
   is prepared at for this app (see CLAUDE.md → "Configuration"). **Ask per app — do not assume.**
   The mapping is project config, never plugin-baked, and a project can flip some apps at a CDN and
   others at nginx; guessing writes a `flipMechanism` that points `fm-route` at the wrong artifact
@@ -73,6 +73,13 @@ For each surface (`pc`, `mobile`, `hana`), gather:
   - `nginx` → `infraDir` (default `infra/nginx`).
   - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default
     `v2-routes.json`, the version-controlled CloudFront behavior manifest).
+  - `script` → `flipArtifacts` (every file one flip of this app edits) + `flipCommands` (`flag-on`,
+    `revert` required; `flag-off`, `status` optional). **Ask this question explicitly: "does one
+    flip of this app edit more than one file?"** — two hosts sharing one CDN distribution, a CDN
+    function plus a load-balancer rule, and similar multi-tier edges all answer yes, and a
+    `cloudfront` answer there points `fm-route` at a manifest that may not carry this app at all.
+    Confirm each artifact exists and each command's script exists; no defaults. See
+    `templates/strangler-fig.md` → "Project-script pattern".
 
   Keep this **project-driven** — the plugin has no built-in per-app mapping, which is why the ask
   above is per app rather than a default with an escape hatch.
@@ -135,7 +142,13 @@ details — they can be refined when those phases begin.
    one would glue the rule onto its last line). The page, tracker, package and app locks, the gate
    skills' pre-run manifests and `fm-delta`'s proposed baselines are transient; a page-directory
    `git add` (`fm-route --flag-off`) would otherwise stage a live lock into PR1. Commit it with the
-   config (`fm-route` Step 4c also stages it). Then create `docs/migration/tracker.json` if absent:
+   config (`fm-route` Step 4c also stages it). For every configured app whose `appDir` already
+   exists, ensure (inside `docs/migration/.app.lock`, the app-wide-file lock) that its `.gitignore`
+   carries the Playwright run-output block from
+   `templates/e2e-testing.md` → "Run output is disposable; baselines are source" (append missing
+   lines only, same leading-newline rule) — `foundation-generator` re-ensures it on every page run,
+   and this covers an app whose harness predates the plugin. Then create `docs/migration/tracker.json`
+   if absent, written per CLAUDE.md → Serialization (2-space indent, raw UTF-8, trailing newline):
    ```json
    {
      "apps": { "pc": { "pages": {} }, "mobile": { "pages": {} }, "hana": { "pages": {} } },
