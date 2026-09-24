@@ -12,6 +12,13 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
+# A native jq.exe on Windows (Git Bash / MSYS2) ends every output line with CRLF. Every read below
+# compares jq's output byte for byte (`= "parity-passed"`, `case "$status"`), so the trailing \r made
+# each status miss its branch: on a real 48-page tracker the hook told the 13 pages with a flip in
+# flight to run `--revert` instead of `--confirm-live`, and printed nothing for the other pages.
+# Strip CR once, here, for every jq call. (JSON strings cannot hold a raw CR, so writes are unaffected.)
+jq() { command jq "$@" | tr -d '\r'; }
+
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
