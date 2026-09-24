@@ -83,7 +83,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 ```jsonc
 {
   "monorepoRoot": ".",
-  "pluginRoot": "/Users/you/.claude/plugins/cache/…/frontend-migration-plugin/<version>",  // absolute; where scripts/ lives
+  // no "pluginRoot" here — it is per-machine and lives in .claude/frontend-migration-plugin.local.json
   "packagesDir": "packages",
   "contractsDir": "docs/migration/api-contracts",   // optional; recorded only when the dir exists
   "currentApp": "pc",
@@ -131,10 +131,20 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   addressed from the git root, everything else from here, and the two must coincide.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
-  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
-  `scripts/gate-tree-hash.sh`. The hook rewrites it **every session**, never capturing it once —
-  the cache path is version-pinned. Absent → those skills record no `tree` and report the freshness
-  axis as `unverifiable`; they must not improvise an inline hash pipeline.
+  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress`/`fm-cascade` locate the plugin's
+  `scripts/`. The hook rewrites it **every session**, never capturing it once — the cache path is
+  version-pinned. **It is per-machine, so it lives in `.claude/frontend-migration-plugin.local.json`,
+  never in the shared config above**: a committed value points every other clone at one developer's
+  home directory (a monorepo shipped `/Users/<dev>/…/1.2.0` that way). The hook keeps the local file
+  out of git through `.git/info/exclude`, `fm-init` also lists it in `.gitignore`, and a leftover
+  `pluginRoot` key in the shared config is reported by the hook and removed by `fm-init`. Absent → those
+  skills record no `tree` and report the freshness axis as `unverifiable`; they must not improvise an
+  inline hash pipeline.
+- **Per-machine tool permissions go to `.claude/settings.local.json`, never `.claude/settings.json`.**
+  Every fm-* step that must pre-authorize a sub-agent command (the Playwright probe, the cascade differ
+  with this machine's absolute path) writes the local file. The shared settings file is committed; a
+  tool writing to it changes team policy silently and rides a diff into the next PR (OMH-934 #317,
+  OMH-935 #362 and OMH-840 #337 each shipped a developer's absolute path that way).
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
   (default `docs/migration/api-contracts`, OMH-604/606/607) that are the **authoritative**
   schema source for **`shared-types` and `shared-data` only** (migration plan §5 — the legacy
@@ -995,13 +1005,45 @@ handling as an unresolved Codex `high`; `fm-progress` renders batch readiness. I
 `TBD`: an unowned blocker is the defect to surface. App-wide file — written under `.app.lock` →
 `.tracker.lock`.
 
-**PR body** — `templates/pr-body.md`. `fm-route` emits a complete PR body for both PRs it prepares
-(`--flag-off` code PR, `--flag-on` flip PR), carrying the fields the reviews repeatedly find missing —
-Risk level, Rollback plan, a real Jira **link**, Rebase confirmation, the changed set — plus Gate
-evidence whose freshness is **recomputed at HEAD** (never a stamp copied across a merge) and a
-Deferred-items section pointing at the page's ledger rows. A field the skill cannot fill is emitted
-`TODO(owner): …`, never a plausible blank. Branch freshness is checked first (`fm-route` Step 0b): a
-branch behind its base blocks the PR, since both PRs are graded at merge.
+**PR contract** — `templates/pr-body.md`, mirroring the team's Git & PR rules (§1 branch, §2 title,
+§3 body, §4 commits, §6 rebase sync). `fm-route` emits a `<type>(<scope>): <subject>` title (≤ 50
+characters) and a complete body for both PRs it prepares (`--flag-off` code PR, `--flag-on`/`--cutover`
+flip PR) with the §3 fields in order — Summary, Changed files (files outside the page listed
+separately), Test evidence, Risk level (equal to `tracker.json` `risk`), Jira as a link, Rebase
+confirmation with a date, Rollback plan when High, and **Migration notes on every flip PR** (it edits
+the edge) — plus Gate evidence whose freshness is **recomputed at HEAD** (never a stamp copied across a
+merge) and a Deferred-items section pointing at the page's ledger rows. A field the skill cannot fill
+is emitted `TODO(owner): …`, never a plausible blank. Branch freshness is checked first (`fm-route`
+Step 0b): a branch behind its base blocks the PR, since both PRs are graded at merge.
+
+## Legacy Behavior Inventories
+
+The largest code-defect class in the review record is legacy behavior that no inventory named, so no
+plan bound it and no gate drove it: the happy path passed, and the page shipped wrong. `angular-analyzer`
+records it in five inventories beside `behavioralVariants` and `copySources`, and `fm-plan` Step 4
+rejects a plan that neither carries each `mustPreserve` entry with its evidence nor records it in
+`openApprovals[]` (`templates/migration-plan-schema.md` → Failure-path reconciliation, Legacy inventory
+reconciliation):
+
+- `failurePaths[]` — side-effects gated on `succeedYn`, boundary clamps, retry arms, invented defaults.
+- `navigationSurface[]` — outbound navigations and their mechanism, the source route's `CanDeactivate`
+  and in-flight requests, route-table entries, inbound producers. The mechanism follows where the
+  target is served: client navigation only to v2-served routes, a document navigation to the bare
+  legacy path otherwise (`angular-to-react-mapping.md` → routing). `fm-route` Step 1d re-checks the
+  targets and the route table at flip time.
+- `apiCalls[]` request fields — `trigger`, `firesPerAction`, `fieldSources`, `identityScoped`.
+  TanStack Query caches where legacy re-POSTs, so each query's policy is set from `firesPerAction`
+  and pinned with a request-count scenario (`angular-to-react-mapping.md` → state).
+- `storageSurface[]` — every web-storage and cookie record, its legacy writer's shape and every reader,
+  still-legacy pages and telemetry included.
+- `stateSurface[]` — every write site of the state the page renders from (bootstrap and
+  `APP_INITIALIZER` included), event bindings, reset and re-creation rules, imperative effects,
+  shared-service semantics, input rules.
+
+Two generation rules close the robustness half of the same class (`templates/tdd-rules.md`): untrusted
+input (URL, cookie, storage, legacy-written values) is `safeParse`d at the boundary with the legacy
+fallback, never `.parse()`d where a throw reaches render or a loader, and every data route exports an
+`ErrorBoundary`; wiring is tested through the route's default export, not an injected prop.
 
 ## Skills
 

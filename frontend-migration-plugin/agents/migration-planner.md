@@ -118,6 +118,17 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    `componentTree` node `name` stays the PascalCase component identifier (`TravelerForm`); only the
    file is kebab-case. A dotted role suffix follows the target directory's existing one, and
    framework-reserved names (`root.tsx`, `routes.ts`, `entry.client.tsx`) keep their exact names.
+10. **Legacy inventories.** Carry the analysis's `navigationSurface[]`, the request fields of
+    `apiCalls[]`, `storageSurface[]` and `stateSurface[]` into the plan with the evidence the schema's
+    "Legacy inventory reconciliation" table names — `fm-plan` Step 4 rejects a plan that drops one.
+    Concretely: decide each navigation's mechanism from where its target is served when this page
+    flips (read `tracker.json`: flipped, or in the same cutover batch, means v2-served), and add the
+    `CanDeactivate`/in-flight-request and query-preserving redirect scenarios; write each query's cache
+    policy (`staleTime`, dedupe, `refetchOnWindowFocus`, invalidation scope, identity keying) into its
+    `mapping` row and add the request-count scenarios where legacy fires per action; name the v2
+    writer and every reader of each storage key; map each state write site, event binding and reset
+    rule, and plan its default-export test. Record anything you choose not to reproduce in
+    `openApprovals[]`.
 
 ## Coverage preservation (functional scope is not silently reducible)
 
@@ -141,7 +152,8 @@ dimensions the analysis actually discovered (the `behavioralVariants` dimensions
 your own discretion — a feature that varies across 5 locales cannot ship with a PC-KO-only gate
 scope, or the gates go blind to exactly the variants you narrowed.
 
-**The same rule governs `analysis.json.failurePaths[]`.** Every `mustPreserve` failure path is
+**The same rule governs the four behavior inventories** — `navigationSurface`, the request fields of
+`apiCalls`, `storageSurface` and `stateSurface` (item 10). **And `analysis.json.failurePaths[]`:** every `mustPreserve` failure path is
 implemented **and** covered by an `e2eScenarios` entry (item 8) **or** recorded in `openApprovals[]`
 with rationale + owner — `fm-plan` Step 4 rejects the plan otherwise, exactly like a `mustPreserve`
 `behavioralVariant`. Do not drop a failure branch because the happy path passes; it is the branch no

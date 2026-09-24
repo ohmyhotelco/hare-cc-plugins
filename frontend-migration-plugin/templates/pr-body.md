@@ -1,49 +1,71 @@
-# PR Body Contract
+# PR Contract (title, branch, commits, body)
 
-The body `fm-route` emits for the two PRs it prepares (the **code PR** on `--flag-off` and the
-**flag-ON PR** on `--flag-on`). Committed `.md` and the PR body are English (CLAUDE.md → Design
+What `fm-route` emits for the two PRs it prepares (the **code PR** on `--flag-off` and the **flip PR**
+on `--flag-on` / `--cutover`). Committed `.md` and the PR text are English (CLAUDE.md → Design
 Principles); only the skill's own summary is in `workingLanguage`.
 
-This exists because the recurring review blocker is not wrong code — it is a PR body that omits the
-fields a reviewer needs (Risk, Rollback, Rebase confirmation, a real Jira **link**, the changed set)
-and a body that asserts numbers already stale on merge. Every field below is **required**; a field the
-skill cannot fill is emitted with the literal `TODO(owner):` prefix so a reviewer sees the gap instead
-of a plausible-looking blank.
+**Source of truth.** This mirrors the team's Git & Pull Request rules (§1 branch naming, §2 title, §3
+required body fields, §4 commits, §5 policy, §6 merge strategy) and its PR template, which is what every
+migration PR is reviewed against. A project that defines its own PR template wins over this file; the
+migration-specific sections below (Gate evidence, Deferred items) are added to it, never substituted
+for a required field.
+
+Why it exists: the recurring review blocker is not wrong code — it is a PR missing the fields a reviewer
+must reject on (Risk, Jira link, Rebase confirmation, Migration notes), a merge-synced branch, and a body
+that asserts numbers already stale on merge. A field the skill cannot fill is emitted with the literal
+prefix `TODO(owner):`, so a reviewer sees the gap instead of a plausible blank.
 
 ## Grading standard
 
-Every flip PR is graded against **flag-ON at merge** — the confirmed big-bang cutover model (all
-ready pages flip together, not a per-page Strangler flip; supersedes the per-page grading). So an
-item this PR defers "before the flip" is due **before the cutover batch**, and it must be recorded in
-the cutover ledger, not only in prose here (see `templates/cutover-ledger.md`). State the grading line
-verbatim at the top of the body so the reviewer applies the same bar:
+Every flip PR is graded against **flag-ON at merge** — the confirmed big-bang cutover model (all ready
+pages flip together). An item this PR defers "before the flip" is due before the cutover batch and is
+recorded in the cutover ledger, not only in prose (`templates/cutover-ledger.md`). State this line
+verbatim at the top of the body:
 
 > Graded against flag-ON at merge (big-bang cutover). Items deferred below are cutover-batch
 > preconditions and are recorded in `docs/migration/cutover-ledger.json`.
 
-## Required fields
+## Title, branch, commits
 
-| Field | What goes in it | Source the skill fills it from |
+- **Title** — `<type>(<scope>): <subject>`. Types: `feat`, `fix`, `refactor`, `infra`, `hotfix`,
+  `docs`, `test`, `other`. Scope is the codebase area (`booking`, `search`, `ui`, `infra`), **not** the
+  Jira key. Subject imperative, lowercase after the scope, no trailing period, **≤ 50 characters**. A code
+  PR reads like `feat(booking): migrate booking-info to v2`; a flip PR like
+  `infra(routing): flip booking-info to v2`.
+- **Branch** — `{JIRA-KEY}-kebab-description` from the base branch (no `feature/` prefix;
+  `hotfix/{JIRA-KEY}-…` only for hotfixes). Synced with the base by **rebase**, never by merging the base
+  in (`fm-route` Step 0b checks it is not behind).
+- **Commits** — Conventional Commits: subject ≤ 50 characters, blank line, body wrapped at 72 explaining
+  what and why, footer `Refs: <JIRA-KEY>`. Every commit carries the ticket it belongs to.
+- **One surface per PR.** Files outside this page's plan belong to their own ticket and PR. A PR that
+  also edits another page, the shared shell or a shared package must name each such file and the pages
+  whose watch set it touches (see "Changed files"); an undisclosed shared-shell edit under a
+  "zero prod impact" claim is a review blocker (OMH-935 #362).
+
+## Body — required fields, in this order
+
+| Field | When | What goes in it |
 | --- | --- | --- |
-| **Summary** | One paragraph: what page/cluster, what rendering mode, flag OFF or ON. | `migration-plan.json` `page`/`rendering`/`flagPlan` |
-| **Jira link** | A **link**, not a bare key — `https://<jira-host>/browse/OMH-NNN`. A key alone is an incomplete field. | ticket key on the branch/plan; host from the project |
-| **Risk level** | `Low` / `Medium` / `High`, with one sentence of blast radius. Always required — never omitted. Default `Medium` for a page that flips a live path; `Low` for a dark/flag-off code PR with no reachable surface. | derived; the author confirms |
-| **Rollback plan** | For the flag-ON PR: `fm-route <page> --revert` (nginx flag OFF / remove the CloudFront behavior; soft rollback, target 5–10 min — `templates/strangler-fig.md`). For the code PR: revert the merge; the flag was OFF, so no live surface changes. | fixed per action |
-| **Rebase confirmation** | The branch is rebased/merged onto the latest base **and every gate stamp / manifest total / measured count in this body was re-measured at HEAD after that sync** (P0-A). If the branch is BEHIND base, this field is `TODO(owner): rebase then re-measure` and the PR is not ready. | `fm-route` Step 0b + the gate freshness recompute |
-| **Changed files / components** | The generated set — `tracker.json` `sourcePaths[]` for this page, plus the routing artifact edited (`infraDir` block or `cloudfrontDir/<manifest>` entry). | `sourcePaths[]` + the artifact `fm-route` edited |
-| **Gate evidence** | verify / e2e / parity: `pass` + the recorded `gateEvidence.{gate}` `commit`/`tree`, and each gate's **freshness verdict recomputed at HEAD** (fresh / stale / unverifiable). Answer-key freshness (`answerKeyEvidence`, P0-A) stated alongside. Never copy a stamp forward without recomputing it. | `tracker.json` + the `gate-tree-hash.sh` recompute |
-| **Test evidence** | The suites run and their pass counts, measured at HEAD (not carried from a pre-merge run). | the PR author's run |
-| **Deferred items & flip-preconditions** | The cutover-batch preconditions this PR does not close, each naming its `owner`, `ticket`, and `blocksCutover` flag — a one-line pointer per row into `docs/migration/cutover-ledger.json`. Silence on a deferred item is the thing to avoid (a named gate item with no disclosure is a review blocker). | the page's ledger rows |
+| **Summary** | always | 2–5 sentences: what and why, business impact — which page or cluster, rendering mode, flag OFF or ON. Not how. |
+| **Changed files / components** | always | `tracker.json` `sourcePaths[]` for this page, the routing artifact edited (`infraDir` block, `cloudfrontDir/<manifest>` entry), and — listed separately — every changed file **outside** the page (shared shell, `packages/shared-*`, another page) with the pages whose watch set it touches. |
+| **Test evidence** | always | Suites run and pass counts **measured at this HEAD**, the CI run link, and the gate results (next row). Missing evidence means rejection: if it cannot be produced, say why and tag the Tech Lead. |
+| **Risk level** | always | `Low` / `Medium` / `High` by the team definitions: Low = isolated, single module, easily reverted; Medium = shared utilities, several modules or an external service; High = cross-service, auth/payment/core booking, or not quickly revertible. A flip of an auth, payment or booking page is High; any other flip is at least Medium. **Must equal the page's `tracker.json` `risk`**, or say why it differs. High requires a written justification and a Tech Lead review request. |
+| **Jira ticket(s)** | always | `- OMH-NNN: https://<jira-host>/browse/OMH-NNN` — a link, not a bare key. |
+| **Rebase confirmation** | always | `- [x] Branch rebased onto latest <base> as of YYYY-MM-DD`, true at this HEAD (Step 0b). If it is behind: `TODO(owner): rebase, then re-measure every number below`. |
+| **Rollback plan** | Risk = High | How to revert in production. For a flip PR: `fm-route <page> --revert` (nginx flag OFF / remove the CloudFront behavior; soft rollback, target 5–10 min — `templates/strangler-fig.md`). For a code PR: revert the merge — the flag was OFF, so no live surface changes. |
+| **Migration notes** | DB / infra changes | **Required on every flip PR** — it edits the edge (CloudFront behavior manifest, ALB rule, nginx routing): the entries changed, who applies them and how (OMH-502), propagation time, whether it is zero-downtime, and the rollback steps. A flip PR without this section is rejected under §3 (OMH-935 #362). |
+| **Gate evidence** | migration PRs | verify / e2e / parity results with the recorded `gateEvidence.{gate}` `commit`/`tree` and each gate's freshness **recomputed at this HEAD** (fresh / stale / unverifiable), plus answer-key freshness (`answerKeyEvidence`). The cited SHAs must be reachable from this branch. |
+| **Deferred items & flip-preconditions** | migration PRs | One line per open row of this page in `docs/migration/cutover-ledger.json` — `item · owner · ticket · blocksCutover`. Silence on a named gate item is a review blocker. |
 
 ## Rules
 
-- **A stamp is re-measured, never copied.** A body that asserts a count or a gate hash as "measured at
-  HEAD" while HEAD moved under it is the single most common review finding on merge-synced branches
-  (OMH-938 PR #302; OMH-936 manifest totals). If the skill cannot recompute a number at the current
-  HEAD, it emits `TODO(owner): re-measure at HEAD` in place of the number — never the old value.
-- **A deferred item lives in the ledger, not only in prose.** Every "Deferred items" row points at a
-  `cutover-ledger.json` entry; a deferral that appears only in the PR body is unrecorded where the
-  cutover batch can enumerate it, which is the exact gap this contract closes (`templates/cutover-ledger.md`).
-- **The body is the reviewer's index, not the record.** The machine-readable artifacts
-  (`tracker.json`, the gate reports, the ledger) are the record; the body links to them and states the
-  freshness verdict. It never restates a criterion the reviewer will re-derive from the plan.
+- **A stamp is re-measured, never copied.** A body asserting a count or gate hash "at HEAD" while HEAD
+  moved under it is the most common finding on merge-synced branches (OMH-938 #302; OMH-936 manifest
+  totals; OMH-752 #269, three times). A number the skill cannot recompute at this HEAD is emitted as
+  `TODO(owner): re-measure at HEAD`, never as the old value.
+- **Regenerate the body on every push that changes code or syncs the base.** A body left unchanged
+  across fix rounds describes a branch that no longer exists (OMH-838 #336: unchanged from round 2 to
+  round 10).
+- **A deferred item lives in the ledger, not only in prose** (`templates/cutover-ledger.md`).
+- **The body is the reviewer's index, not the record.** `tracker.json`, the gate reports and the ledger
+  are the record; the body links to them and states the freshness verdict.

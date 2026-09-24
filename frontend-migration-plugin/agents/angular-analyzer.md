@@ -173,6 +173,74 @@ the branch is dead — `fm-plan` reconciles the plan against this list exactly a
 Record the anchor for both the branch condition **and** the gated side-effect, so a test can pin the
 fire/no-fire, not just the branch.
 
+Sections 11–14 are the rest of the page's behavioral contract: how it leaves itself, what it sends,
+what it stores and what state it keeps. Each is emitted as an array with `mustPreserve: true` unless
+the source proves the entry dead, and `fm-plan` reconciles the plan against every one of them exactly
+as it does `behavioralVariants` (`templates/migration-plan-schema.md` → Legacy inventory
+reconciliation). They exist because the review record shows these four are where ported code drifted
+most while every gate stayed green.
+
+### 11. Navigation surface → `navigationSurface[]`
+
+- **Every outbound navigation**: `routerLink`, `router.navigate`/`navigateByUrl`, `href`,
+  `window.location.href`/`assign`, `window.open` — the target path, the mechanism (router or
+  document), which query params survive, the anchor.
+- **What a navigation away runs**: the source route's `CanDeactivate` guards, and any request or
+  callback fired just before it and not awaited.
+- **This page's route-table facts**: legacy `**`, redirect and index routes that resolve to it, child
+  paths under its prefix (a wildcard edge entry hands them all to v2), and reuse settings
+  (`shouldReuseRoute`, `onSameUrlNavigation`).
+- **Inbound producers**: every legacy and v2 component that links to this page's path — grep the whole
+  app, not only this page's module. After the flip each of them must use the right mechanism too.
+
+(OMH-837 #261 re-introduced a production incident by changing the mechanism; OMH-749 #335 lost a
+`CanDeactivate` nudge; OMH-934 #317 and OMH-839 #396 soft-navigated into routes v2 did not serve.)
+
+### 12. Request behavior → extra fields on each `apiCalls[]` entry
+
+- `trigger` — the user action or lifecycle event that sends it (click, blur, poll tick, route entry,
+  focus), and for a replaced library its firing rule (ngx-infinite-scroll fires on each tick).
+- `firesPerAction` — `every` when legacy sends it on each action (the effect POSTs and the reducer
+  overwrites), `once` when the store is reused. This decides the TanStack Query cache policy
+  (`angular-to-react-mapping.md` → state).
+- `fieldSources` — for each body field, the exact legacy expression that supplies it (URL param, store
+  slice, cookie, profile field, constant). A body with the right shape and the wrong source is the
+  defect a shape test cannot see (my-page wish-list sent `DEFAULT_LOCALE` instead of the member's
+  locale; OMH-937 #329 A11).
+- `identityScoped` — the response is per user and must not survive a login, logout or member change.
+
+### 13. Storage and handoff records → `storageSurface[]`
+
+Every `sessionStorage`/`localStorage`/cookie key the page reads or writes: the legacy writer's exact
+record (including in-place mutations made before the write), **every other reader** — still-legacy
+pages and telemetry services included — with the fields each reads, every reset or remove site, and
+legacy-written values that are real but off-schema (uppercase codes, legacy enum values). A v2 writer
+that drops a field a legacy reader still reads breaks the legacy page, not the v2 one (OMH-937 #329 A1:
+three legacy pages marked every room non-refundable).
+
+### 14. State and lifecycle → `stateSurface[]`
+
+For every piece of state the page renders from — a store slice, locale/currency/nation, UI flags
+(loading, skeleton, latches), the current selection — list **every write site in legacy**. Find them by
+grepping the variable being assigned, not the business word: components, effects, guards, resolvers,
+interceptors, services, and `APP_INITIALIZER`/bootstrap code, which runs before any page and is the
+easiest to miss (PR #320's affected-user analysis missed the `app.module.ts` write of
+`locale.currency`). Also record:
+
+- **Event bindings** of each handler — `(blur)`, `(change)`, `(keyup)`, `debounceTime`, submit. A
+  keystroke handler where legacy used blur fires a request per key (OMH-839 #396 H5).
+- **Reset and re-creation** — what `ngOnDestroy` or a remount (`shouldReuseRoute = false`) clears, and
+  the components legacy recreates on every open (dialogs, galleries).
+- **Imperative effects** — `window.scroll`, `scrollIntoView`, focus moves (booking-history dropped the
+  scroll-to-top that cancel-history kept).
+- **Shared-service semantics the page relies on** — the alert service (drops a new alert while one is
+  open; the close-X does not run the confirm handler; the confirm label key per call).
+- **Input rules** — each `Validators.*` rule and input-filter directive (`allowedPattern`), including
+  what they do **not** reject (a stricter v2 `.trim()` is a divergence).
+
+(OMH-936 #339 cleared `isLoading` on every poll tick; OMH-935 #362 L3/M1 and OMH-749 #365 F2 missed
+re-creation, handler side-effect and library-trigger rules.)
+
 ## Output — `analysis.json`
 
 Write to `outPath` (Read-Modify-Write if it exists). Shape:
@@ -186,7 +254,11 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "dependencyGraph": { "facades": [], "services": [], "stores": [],
                        "childComponents": [], "dtos": [], "pipes": [], "directives": [] },
   "apiCalls": [{ "method": "POST_HOTEL_LIST_V2", "dtoIn": "...", "dtoOut": "...",
-                 "envelope": true, "anchor": "file:line" }],
+                 "envelope": true, "anchor": "file:line",
+                 "trigger": "filter change (click) + poll tick",
+                 "firesPerAction": "every",            // every | once — decides the query cache policy
+                 "fieldSources": { "currency": "store locale.currency", "condition.checkIn": "URL ?checkIn" },
+                 "identityScoped": true }],
   "rxjs": { "subscriptions": [], "subjects": [], "silentCatch": ["file:line"] },
   "mappingNotes": [{ "angular": "NgbModal.open", "react": "shadcn Dialog",
                      "anchor": "file:line", "catalogRef": "modals" }],
@@ -215,6 +287,19 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                      "wrongPort": "fireCancelConfirm called before the succeedYn branch → full-value refund pushed",
                      "branchAnchor": "cancel-booking.component.ts:136", "effectAnchor": "cancel-booking.component.ts:148",
                      "mustPreserve": true }],
+  "navigationSurface": [{ "kind": "outbound", "target": "/event", "mechanism": "router",
+                          "queryKept": ["link_id"], "sourceGuards": ["BookingCompleteGuard (CanDeactivate)"],
+                          "pendingSideEffects": [], "anchor": "file:line", "mustPreserve": true },
+                        { "kind": "route-table", "detail": "legacy '**' under /my-page redirects to booking-history",
+                          "anchor": "my-page-routing.module.ts:90-94", "mustPreserve": true }],
+  "storageSurface": [{ "key": "sessionStorage:hotelResult", "writer": "file:line",
+                       "shape": "hotel (object), refundableYn, clientCancelDeadline",
+                       "readers": [{ "where": "legacy booking-info (still legacy)", "fields": ["refundableYn"] },
+                                   { "where": "data-layer.service.ts", "fields": ["hotelName"] }],
+                       "resetSites": ["file:line"], "offSchemaValues": ["nation 'HANS'"], "mustPreserve": true }],
+  "stateSurface": [{ "state": "isLoading", "writeSites": ["map.component.ts:1240", "map.component.ts:1344"],
+                     "bootstrapWrites": [], "eventBinding": null, "resets": "ngOnDestroy",
+                     "anchor": "file:line", "mustPreserve": true }],
   "styleSurface": {
     "elements": [{ "selector": ".btn-promotion-tab", "instanceSelector": ".btn-promotion-tab:first-of-type",
                    "classes": ["btn-promotion-tab"], "sheets": ["_contents.scss", "base.css"],

@@ -101,7 +101,8 @@ after the user has chosen it.
 - **Incremental** →
   1. **Refresh the answer key in-lock — do NOT nest the `fm-style-spec` skill** (it acquires this
      same page `.lock`, which this skill holds from Step 1 → deadlock). Because the skill is bypassed,
-     its **Step 2b is bypassed too**: ensure `.claude/settings.json` `permissions.allow` includes the
+     its **Step 2b is bypassed too**: ensure `.claude/settings.local.json` (per-machine, untracked —
+     never the shared `.claude/settings.json`) `permissions.allow` includes the
      Playwright command (e.g. `Bash(npx playwright *)`) here, or the sub-agent probe cannot launch and
      the refresh silently degrades to `source-derived` — defeating the point of refreshing the answer
      key. When `styleDrift` was set,

@@ -322,6 +322,26 @@ the unit test is authored from the same one reading as the implementation, so bo
 branch (the self-confirmation bias — CLAUDE.md → Self-confirmation Hardening). The legacy dual-run is
 the independent check.
 
+## Legacy inventory reconciliation (required)
+
+The same rule over the analysis's four behavior inventories (`agents/angular-analyzer.md` sections
+11–14). Every `mustPreserve` entry is carried into the plan **with the evidence named below**, or
+recorded in `openApprovals[]` with a rationale and owner. Silently absent from both makes the plan
+**incomplete** — `fm-plan` Step 4 rejects it back to the planner.
+
+| Inventory | Carried into the plan as | Evidence that pins it |
+| --- | --- | --- |
+| `navigationSurface[]`, outbound | a `mapping` row per target, the mechanism decided by where the target is served when this page flips (`angular-to-react-mapping.md` → routing): client navigation only to v2-served targets, a document navigation to the bare legacy path otherwise | an `e2eScenarios` entry for every navigation that runs a `CanDeactivate` guard or leaves a request in flight; a redirect test carrying `utm_*`/`gclid` |
+| `navigationSurface[]`, route table and inbound producers | a v2 route (or redirect route) for each legacy `**`, redirect, index route and child path; the list of inbound producers to update | `fm-route` Step 1d re-checks them at flip time |
+| `apiCalls[]` request behavior | the cache policy in the query's `mapping` row — `staleTime`, dedupe, `refetchOnWindowFocus`, invalidation scope, identity keying (`angular-to-react-mapping.md` → state) | a body test asserting each field's **source** (`fieldSources`), not only its presence; where `firesPerAction: every`, a request-count e2e scenario (A→B→A toggle-back, same-body re-emit); for `identityScoped` data, a login-mid-page scenario |
+| `storageSurface[]` | the v2 writer and each reader named in `mapping` | a golden test of the written record against the legacy writer's shape; a test per legacy reader's fields; a malformed-value test for each off-schema legacy value (`safeParse` plus the legacy fallback) |
+| `stateSurface[]` | a `mapping` row per write site, event binding, reset/re-creation rule, imperative effect, shared-service semantic and input rule | a test through the **route's default export**, not an injected prop; an e2e scenario for transitions a unit test cannot drive (poll ticks, remount, scroll) |
+
+Why the evidence column: a divergence in these inventories passes every gate that does not drive it.
+A happy-path e2e never toggles back, a shape test never asks where a value came from, and a jsdom test
+with injected props never proves the route passes them. The review record's worst misses in this class
+shipped behind green gates (OMH-935 #362 H1, OMH-839 #396 H2–H5, OMH-937 #329 A1).
+
 ## 2-PR flag plan
 
 Every page migration ships as two PRs (Git Branch Strategy + migration plan §12):

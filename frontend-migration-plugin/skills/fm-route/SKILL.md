@@ -18,7 +18,7 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
 `port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
-`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives). **Absent → the freshness
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives). **Absent → the freshness
 check cannot run at all**, so decide by what is recorded: if any gate has a `gateEvidence.{gate}.tree`,
 **block** — there is evidence that cannot be checked, which is not the same as no evidence; if no
 gate has one, treat it as `unverifiable` and acknowledge. Never improvise an inline pipeline. `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
@@ -63,7 +63,7 @@ Every per-page action writes or clears route state, so every one needs an entry 
 | action | requires | on refusal |
 | --- | --- | --- |
 | `--flag-off` | `status = parity-passed`, **no** `flipPrOpenedAt`, and Step 1's gate guard | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
-| `--flag-on` | Steps 1, 1-pre, 1a, 1b below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
+| `--flag-on` | Steps 1, 1-pre, 1a, 1b, 1c, 1d below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
 | `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
 | `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status **except `done`**, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back — and on `done` there is nothing to roll back *to*: name manual intervention, never a command |
 
@@ -386,6 +386,27 @@ and the entry moves to `resolved`. This is what stops a page flipping while a na
 ("internal-link conversion complete for this path", "style gate must run on the real route") is still
 open with no owner — the recurring "deferral set is recorded nowhere the cutover can read it" gap.
 
+### Step 1d: Route resolution and navigation targets (flag-on only; hard gate) — see `templates/angular-to-react-mapping.md` → routing
+The edge is about to send this page's paths to v2, so check that v2 can serve every one of them and
+that the page navigates correctly from the state the flip creates. Read the app's route config
+(`routes.ts`), the routing artifact entries for `flagPlan.guardsPath`, and the page's
+`analysis.json` `navigationSurface[]`:
+- **Every path the edge entry sends to v2 resolves to a v2 route** — each locale-prefixed variant,
+  the locale-less legacy entry (served by a redirect route), and every legacy child path the pattern
+  covers (a wildcard hands the whole subtree over). A path with no v2 route is a broken entry point
+  after the flip (PR #236 B2: the main mobile `/hotel` entry). Where the project serves loader
+  data from sibling paths (`.data`), each loader route's sibling is covered too (OMH-934 #317).
+- **Every redirect keeps the query string** (`utm_*`, `gclid`) unless legacy strips it (OMH-840 #337).
+- **Every client navigation (`<Link>`, `navigate()`) in the page's code targets a v2-served route** —
+  flipped, or in this same flip or cutover batch. A client navigation into a path legacy still serves
+  lands on the error boundary; it must be a document navigation to the bare legacy path instead.
+- **Inbound producers**: the `navigationSurface[]` inbound entries are updated to the mechanism the
+  flip calls for, or recorded as a ledger precondition with an owner.
+
+Any unresolved path or wrong mechanism **blocks** the flip and is named with the file and target.
+An analysis with no `navigationSurface[]` (written before it existed) is `unverifiable` on the last
+two checks — say so; the route-resolution checks still run from the route config and the artifact.
+
 ### Step 2: Lock
 **The checks above read `tracker.json` without holding it.** That is deliberate — Steps 1a/1b
 prompt a human — but it means the state can move
@@ -394,7 +415,8 @@ for every action, and — for plain `--flag-on` only — Step 1's gate guard, St
 `routePrepared`, Step 1a's hashes (v2-side **and** answer-key freshness), Step 1b's Codex-finding adjudication state (a concurrent audit
 can publish a new `high` between the unlocked check and this lock), Step 1c's cutover-ledger
 preconditions (a concurrent `fm-route --flag-off` or an owner edit can add or reopen a
-`blocksCutover` entry between the unlocked read and this lock), and the cascade-divergence
+`blocksCutover` entry between the unlocked read and this lock), Step 1d's route resolution (another
+page's integration can rewrite `routes.ts` under `.app.lock` meanwhile), and the cascade-divergence
 check (every `real` row in `cascade-diff.json` must be fixed or `status: approved` **with
 `by`/`when`** in `owner-decisions.md` — `pending` or incomplete blocks, the same criteria as the
 unlocked check — because a concurrent `fm-cascade` can publish new rows between the unlocked read
@@ -531,17 +553,21 @@ In `workingLanguage`: action, the `flipMechanism` and the artifact edited (the n
 in `infraDir`, **or** the CloudFront behavior manifest `cloudfrontDir/<manifest>`), the
 path/flag/app:port mapping, gate-guard result, and next step.
 
-**Emit the PR body (`--flag-off` and `--flag-on`).** A PR-preparing action ends by printing a
-complete PR body from `templates/pr-body.md` for the operator to paste — the code PR body on
-`--flag-off`, the one-line flip PR body on `--flag-on`. Fill every required field from the artifacts
-already read: Summary/Jira/Changed-files from `migration-plan.json` + `sourcePaths[]`; Risk level
-(default `Medium` for a live-path flip, `Low` for a flag-off code PR with no reachable surface);
-Rollback plan (`--revert`); the **Rebase-confirmation** field from Step 0b's verdict (current at
-HEAD, or `TODO(owner): rebase + re-measure` when it could not be confirmed); Gate evidence with each
-gate's freshness verdict **recomputed at this HEAD** — never a stamp copied forward; and Deferred
-items pointing at this page's `cutover-ledger.json` rows. A field the skill cannot fill is emitted as
-`TODO(owner): …`, never as a plausible blank. The body is English (a committed artifact); only the
-surrounding skill summary is in `workingLanguage`.
+**Emit the PR title and body (`--flag-off`, `--flag-on`, `--cutover`).** A PR-preparing action ends by
+printing a title and a complete body from `templates/pr-body.md` for the operator to paste — the code
+PR on `--flag-off`, the flip PR on `--flag-on` / `--cutover`. The title is `<type>(<scope>): <subject>`
+within 50 characters. Fill every required body field, in the template's order, from the artifacts
+already read: Summary and Changed files from `migration-plan.json` + `sourcePaths[]` (every changed
+file outside the page listed separately, with the pages whose watch set it touches); Test evidence
+measured at this HEAD; Risk level by the team definitions and **equal to `tracker.json` `risk`** (or
+say why not); Jira as `KEY: link`; the **Rebase confirmation** checkbox with today's date from Step
+0b's verdict (or `TODO(owner): rebase + re-measure` when it could not be confirmed); **Rollback plan**
+when Risk is High; **Migration notes on every flip PR** — it edits the edge artifact, so name the
+entries changed, who applies them, propagation time, zero-downtime or not, and the `--revert` steps;
+Gate evidence with each gate's freshness **recomputed at this HEAD**, never a stamp copied forward; and
+Deferred items pointing at this page's `cutover-ledger.json` rows. A field the skill cannot fill is
+emitted as `TODO(owner): …`, never as a plausible blank. The text is English (a committed artifact);
+only the surrounding skill summary is in `workingLanguage`.
 
 Next step:
 - after `--flag-off`: open the **code PR** with the flip prepared but OFF — for `nginx` the routing
@@ -578,9 +604,11 @@ Report the set and the excluded pages before doing anything.
 Big-bang means the batch flips as a unit, so **one unready page blocks the whole batch** rather than
 flipping the rest. Refuse the cutover unless **both** hold:
 1. **Every page in the set passes its own flag-on preconditions** — run Steps 1, 1a (v2-side **and**
-   answer-key freshness), 1b (Codex acknowledgement), and 1c (that page's ledger entries) for each,
-   exactly as a per-page `--flag-on` would. Any page that is stale, answer-key-stale, has an
-   unacknowledged Codex `high`, or an uncommitted evidence pair blocks the batch; name it.
+   answer-key freshness), 1b (Codex acknowledgement), 1c (that page's ledger entries) and 1d (route
+   resolution and navigation targets — a navigation into another page of the same batch counts as
+   v2-served) for each, exactly as a per-page `--flag-on` would. Any page that is stale,
+   answer-key-stale, has an unacknowledged Codex `high`, an uncommitted evidence pair or an unresolved
+   path blocks the batch; name it.
 2. **The cutover ledger is clean for the whole batch** — `docs/migration/cutover-ledger.json` has
    **zero** `blocksCutover: true` entries at `status: "open"` for any page in the set (this is the
    ledger's whole purpose: the batch-level readiness view). An `approved` entry proceeds; an `open`

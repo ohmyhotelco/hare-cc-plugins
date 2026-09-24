@@ -58,7 +58,9 @@ tracker from the edge flag still serving production traffic (CLAUDE.md → Per-p
 ### Step 2b: Ensure Playwright run permission
 `style-spec-extractor` runs the legacy probe as a **sub-agent**, so session approvals do not
 transfer — this is the pipeline's *first* sub-agent Playwright run, three stages before `fm-e2e`.
-Ensure `.claude/settings.json` `permissions.allow` includes the Playwright command (e.g.
+Ensure `.claude/settings.local.json` (per-machine, untracked — never the shared, committed
+`.claude/settings.json`: a tool must not change team policy or ride a diff into a PR)
+`permissions.allow` includes the Playwright command (e.g.
 `Bash(npx playwright *)`); if missing, add it (Read-Modify-Write the settings file) and note it in
 the report. Resolve the app's `legacyPort` / `port` / `domain` here too — Step 4 hands all three to
 the extractor for provenance side-resolution, and an unresolved one makes every capture

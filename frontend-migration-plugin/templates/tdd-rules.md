@@ -76,6 +76,24 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
   level** and present where it belongs (e.g. inside `condition`). Keep the request schema non-strict
   so `.parse()` filters rather than throws. Origin: OMH-748 — a login body spread the root
   `stationTypeCode` back in and the backend rejected it 400.
+- **Untrusted input never reaches `.parse()` in render or a loader.** URL params, cookies,
+  web-storage records and legacy-written values are checked **at the boundary** with `safeParse`, with
+  the legacy fallback, before any body is built from them; write one malformed-value test per source
+  (`?userNo=1.5`, `?o-cur=usd`, a legacy nation `HANS`). When you fix one builder, fix every sibling that
+  reads the same input. Every data route exports an `ErrorBoundary`, and a route-level test proves a
+  loader or parse failure renders legacy's error copy rather than the framework's 500
+  (`angular-to-react-mapping.md` → http).
+- **A request is tested for where its values come from and how often it fires.** The body test asserts
+  each field's source from `apiCalls[].fieldSources` — a correct shape with the wrong source passes a
+  shape test. Where `firesPerAction` is `every`, add a request-count assertion (A→B→A toggle-back,
+  same-body re-emit); the TanStack Query defaults hide exactly this (`angular-to-react-mapping.md` →
+  state).
+- **Wiring is tested through the route's default export.** A seam test that injects a prop proves the
+  component, not that the route passes the prop. Anything that depends on route-level wiring — an
+  identity gate, a handler, a safety flag — gets at least one test that renders the route's default
+  export and drives it, and a safety prop defaults to its fail-safe value (OMH-756 #309, OMH-749 #335,
+  OMH-839 #396 M17). A legacy-behavior helper with no route-reachable caller is not done, however green
+  its own tests are (OMH-839 #396 H3: a load-time price alert implemented and never called).
 - **New files are kebab-case** (CLAUDE.md → File Naming). Name every file you create in kebab-case —
   `traveler-form.tsx` and its test `traveler-form.test.tsx`, never `TravelerForm.tsx` — while the
   exported identifier keeps its own convention (component/type PascalCase, function/hook camelCase:

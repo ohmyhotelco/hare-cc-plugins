@@ -75,13 +75,30 @@ The app uses a **Facade layer** in front of NgRx — components never touch the 
 | `*.facade.ts` method (`loadX` / `getX$`) | **custom hook** `useX()` wrapping Query + Zustand |
 | `store.dispatch(loadX({ body }))` | `useQuery`/`useMutation` (server) |
 | `store.select(getX)` (selector) | hook return value / Zustand selector |
-| NgRx Effect `ofType→switchMap→service.POST_*→map→Set` | TanStack Query `queryFn`/`mutationFn` |
+| NgRx Effect `ofType→switchMap→service.POST_*→map→Set` | TanStack Query `queryFn`/`mutationFn` — **with the cache policy legacy actually has** (see note below) |
 | reducer `on(setX, …)` | Query cache / Zustand setter |
 | `catchError(() => EMPTY)` (silent) | **do not preserve silently** — surface error or decide deliberately; the analyzer flags every site |
 
 Server state (API-backed lists/details) → TanStack Query. Client/UI state (search form, locale,
 toggles) → Zustand (thin). Anchors: `store/hotel/hotel.facade.ts`, `store/hotel/hotel.effects.ts`,
 `store/booking/*`.
+
+> **TanStack Query caches by default; legacy does not.** A legacy effect sends its POST on every
+> dispatch and the reducer overwrites the slice, so every user action reaches the backend. TanStack
+> Query does the opposite unless told otherwise: a result stays fresh for the app's default
+> `staleTime` (`app/lib/query-client.ts`, 60 s at review time), an identical key is answered from cache
+> with no request, and a window refocus refetches. Ported as-is, an A→B→A filter toggle sends no third
+> request and the wish heart reverts (OMH-935 #362 H1); a re-search refetches the pre-reset key
+> (booking-history L1); a refocus re-runs a read whose failure raises an alert (OMH-936 #339). So for
+> each `apiCalls[]` entry read the analysis `firesPerAction` and set the policy to match it:
+> `staleTime: 0` — and no dedupe of an identical body — where legacy sends the request on every
+> action; `refetchOnWindowFocus: false` unless legacy re-reads on focus; invalidate exactly what legacy
+> re-reads after a mutation, no wider (`couponKeys.all` was too wide, OMH-937 #329); per-open loading
+> reads `isPending`, not `isFetching`. **Per-user queries are identity-scoped**: key them by the member
+> id or clear them on every session change, or a login mid-page keeps the guest rows and submits as a
+> guest (OMH-935 #362 item 13, OMH-839 #396 H4). Record the policy per query in the plan's mapping row
+> and pin it with a request-count e2e scenario (`migration-plan-schema.md` → Legacy inventory
+> reconciliation).
 
 ## reactivity
 
@@ -168,6 +185,20 @@ Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.servi
 > with a body-shape test (`tdd-rules.md` → "request bodies"). Origin: OMH-748 — a login body spread
 > the root `stationTypeCode` back in and the backend rejected it 400.
 
+> **Values the app does not control are untrusted — never `.parse()` them where a throw reaches
+> render or a loader.** URL params, cookies, `localStorage`/`sessionStorage` records and anything a
+> legacy page wrote arrive in shapes the zod types reject: `?userNo=1.5`, `?o-cur=usd`, a
+> legacy-written nation `HANS`, a lowercase language code. A builder that feeds them into `.parse()`
+> inside `useMemo`, a component or a loader turns one malformed value into a blank page, an SSR 500 or
+> a reload loop (OMH-934 #317, OMH-840 #337, OMH-1126 #408) — the body-shape rule above is the trigger
+> when its inputs are untrusted. Validate each untrusted input **at the boundary** with `safeParse`,
+> fall back to what legacy does with the same value (usually the default it would have used), and build
+> the body from the checked value; the body-shape `.parse()` then filters values that are already
+> valid. Apply a fix to every sibling builder that reads the same input. **Every route that loads data
+> exports an `ErrorBoundary`** that renders legacy's error copy — without one, any throw becomes the
+> framework's 500 and the localized alert is lost (OMH-935 #362, OMH-937 #345). A malformed-input test
+> per untrusted source is required (`tdd-rules.md`).
+
 ## routing
 
 | Angular | React Router v7 |
@@ -178,17 +209,39 @@ Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.servi
 | module ctor `commonFacade.setCurrentRootUrl('/hotel')` | layout route loader / context |
 | `Resolve<T>` resolver | route `loader` |
 | `ActivatedRoute.params`/`queryParams.subscribe` | `useParams` / `useSearchParams` / `loaderData` |
-| `routerLink` | `<Link>` / `<NavLink>` |
-| `Router.navigate([...])` | `useNavigate()` |
+| `routerLink` / `Router.navigate[ByUrl]` to a target **v2 serves** when this page flips (already flipped, or in the same cutover batch) | `<Link>` / `<NavLink>` / `useNavigate()`, with the locale-prefixed path from the page's language |
+| `routerLink` / `Router.navigate[ByUrl]` to a target **legacy still serves** (not migrated, or dark at the edge) | a **document navigation** — `<a href>` / `window.location.assign` — to the **bare legacy path** (legacy's `APP_INITIALIZER` adds the prefix itself) |
+| `window.location.href = …` (legacy full reload) | keep it a document navigation; find out why legacy reloads before changing it |
+| `CanDeactivate` guard on the source route | runs on every navigation away — reproduce it (`useBlocker`, or the same check before a document navigation); never drop it silently |
+| `shouldReuseRoute = () => false` / `onSameUrlNavigation: 'reload'` | a same-URL navigation re-creates the page: key the route element or revalidate so state resets as legacy's new instance did |
 
 Anchors: `app-routing.module.ts:1`, `pages/hotel/hotel-routing.module.ts:9`,
 `pages/hotel/resolvers/ads-search-result.resolver.ts`.
+
+> **Navigation crosses the migration boundary; the mechanism follows where the target is served.**
+> During the strangler period a v2 page links to pages legacy still serves, and legacy pages link to
+> pages v2 now serves. A client navigation into a route the v2 app does not serve lands on the error
+> boundary or the wrong route (OMH-934 #317 soft-navigated to a dark `/event`; OMH-839 #396 L7). A
+> document navigation into legacy with a prefixed path makes legacy's `APP_INITIALIZER` redirect a
+> second time and reset the currency (my-page-layout H1). Links **into** a migrated page are a
+> migration surface too — grep the whole app, including other clusters, for its bare path (the
+> sign-up consent rows linked to bare `/privacy` and `/common-agreement`, so the terms opened in the
+> cookie's language). The reverse direction has its own traps: turning a legacy router navigation into
+> `location.href` skips the source route's `CanDeactivate` guard (OMH-749 #335: the marketing-consent
+> nudge never showed) and races any fire-and-forget request still in flight — send it with
+> `keepalive`/`sendBeacon`, or await it. Changing SPA vs full-load can also re-open an incident legacy
+> fixed on purpose: read the legacy file's git history before changing the mechanism (OMH-837 #261
+> re-introduced OMH-941, an iOS universal-link loop). Every redirect keeps the query string (`utm_*`,
+> `gclid`) unless legacy strips it (OMH-840 #337). The analysis lists each navigation in
+> `navigationSurface[]`, the plan records the mechanism per target, and `fm-route` Step 1d re-checks
+> the targets at flip time.
 
 ## guards-init
 
 | Angular | React Router v7 |
 | --- | --- |
 | `CanActivate` guard | route `loader` redirect / `<ProtectedRoute>` |
+| a guard or `canActivate` that runs on **every** navigation (route-level, or a `createRoute` wrapper applied app-wide) | a step that also runs on client navigation — a root/layout `loader` whose `shouldRevalidate` keeps it running — not a one-time `clientLoader`: a flag it clears or a `returnUrl` it stamps goes stale on child-to-child navigation (my-page-layout M1, M3) |
 | `AuthGuardService` opens **LoginModal** (not redirect) on fail | preserve the modal UX — loader sets a flag / triggers the login dialog rather than a hard redirect |
 | non-member token query (`?token=`) access | loader param check |
 | `APP_INITIALIZER` language-prefix redirect (PC) | root loader / middleware |

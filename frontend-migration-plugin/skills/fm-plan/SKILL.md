@@ -92,8 +92,15 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    silently absent from both makes the plan incomplete — re-run the planner before recording (exactly
    like a missing `gateAcceptance` entry). A `failurePaths` entry must land in an `e2eScenario` that
    drives its branch and asserts the fire/no-fire (a happy-path suite never reaches it — see
-   `templates/migration-plan-schema.md` → Failure-path reconciliation). Surface any `openApprovals` in
-   the report so the reduction reaches a human, not the next stage.
+   `templates/migration-plan-schema.md` → Failure-path reconciliation). **The same check covers the
+   four behavior inventories** — `navigationSurface`, the request fields of `apiCalls` (`trigger`,
+   `firesPerAction`, `fieldSources`, `identityScoped`), `storageSurface` and `stateSurface`: each
+   `mustPreserve` entry is carried with the evidence the schema's "Legacy inventory reconciliation"
+   table names (a navigation mechanism per target, a cache policy per query, a request-count or
+   source-asserting test, a golden record test, a default-export test), or it is an `openApprovals`
+   entry. An analysis written before these inventories existed has none — say so in the report
+   rather than passing the check vacuously, and re-run `fm-analyze` when the page is next touched.
+   Surface any `openApprovals` in the report so the reduction reaches a human, not the next stage.
 3. **Copy-source reconciliation.** For every `analysis.json.copySources` entry with
    `mustPreserve: true`, confirm it is either bound in the plan's `copyBindings[]` (mechanism + key
    or map module + `renderMode`) **or** recorded in `openApprovals[]` with a rationale and decision
