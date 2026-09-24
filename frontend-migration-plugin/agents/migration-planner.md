@@ -111,7 +111,13 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    that never drives the failed response, so the `e2eScenarios` entry (with the legacy dual-run) is the
    independent check — a `mustPreserve` failure path bound only in a unit test is an incomplete plan.
 9. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
-   integration`, listing the files each phase creates and their test counts.
+   integration`, listing the files each phase creates and their test counts. **Every file you name in
+   `creates` is kebab-case** (CLAUDE.md → File Naming) — `components/traveler-form.tsx`,
+   `stores/booking-form.ts`, `pages/booking-info-page.tsx`, never `TravelerForm.tsx` or
+   `bookingForm.ts` — because the generators create exactly the names you write here. The
+   `componentTree` node `name` stays the PascalCase component identifier (`TravelerForm`); only the
+   file is kebab-case. A dotted role suffix follows the target directory's existing one, and
+   framework-reserved names (`root.tsx`, `routes.ts`, `entry.client.tsx`) keep their exact names.
 
 ## Coverage preservation (functional scope is not silently reducible)
 

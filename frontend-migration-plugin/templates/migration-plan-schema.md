@@ -92,10 +92,12 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
   "buildOrder": [
     { "phase": "foundation", "creates": ["types.ts", "mocks/handlers.ts"], "tests": 0 },
     { "phase": "api",        "creates": ["api/booking.ts"], "tests": 6 },
-    { "phase": "store",      "creates": ["stores/bookingForm.ts"], "tests": 4 },
-    { "phase": "component",  "creates": ["components/TravelerForm.tsx"], "tests": 8 },
-    { "phase": "page",       "creates": ["pages/BookingInfoPage.tsx"], "tests": 5 },
-    { "phase": "integration","creates": ["routes.tsx", "i18n.ts"], "tests": 0 }
+    { "phase": "store",      "creates": ["stores/booking-form.ts"], "tests": 4 },
+    { "phase": "component",  "creates": ["components/traveler-form.tsx"], "tests": 8 },
+    { "phase": "page",       "creates": ["pages/booking-info-page.tsx"], "tests": 5 },
+    { "phase": "integration","creates": ["routes.ts", "i18n.ts"], "tests": 0 }
+    // file names are kebab-case (CLAUDE.md → File Naming); componentTree `name` stays the
+    // PascalCase identifier. `routes.ts` is React Router's reserved route config — exact name.
   ]
 }
 ```

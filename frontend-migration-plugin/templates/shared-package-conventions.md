@@ -20,6 +20,14 @@ packages/shared-domain/
     └── **/*.test.ts     # co-located Vitest tests
 ```
 
+**File names are kebab-case** (CLAUDE.md → File Naming), with a dotted role suffix where the package
+already uses one — the existing packages are consistent on this: `common-request-params.ts`,
+`session-interceptor.ts`, `booking.queries.ts`, `auth.service.ts`, `get-public-config.ts`. The file is
+kebab-case while the exported symbol keeps its own convention — `shared-domain/src/booking/mask-mobile.ts`
+exports `maskMobileNo`, `shared-types/src/responses/hotel-mypage.ts` exports `HotelMapRsSchema` — so a
+new module is `price-range.ts`, never `priceRange.ts` or `PriceRange.ts`. Never rename an existing
+module to conform — the barrel and every consumer import it by path.
+
 `package.json` essentials:
 ```jsonc
 {

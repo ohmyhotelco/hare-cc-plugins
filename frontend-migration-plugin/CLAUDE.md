@@ -508,6 +508,40 @@ These apply to every agent and skill in this plugin.
   that one of them holds until it finishes. Agents that share a lock or a write target are not
   independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
 
+## File Naming (new files)
+
+Every **new** file the pipeline creates — components, hooks, API modules, stores, pages, tests, e2e
+specs, fixtures, shared-package modules — is named in **kebab-case**: lowercase words joined by
+hyphens (e.g. `traveler-form.tsx`, `use-booking-detail.ts`, `booking-info-page.tsx`). This is the
+repo's own convention, measured rather than assumed: `apps/web-*/app` and `packages/shared-*` are
+kebab-case throughout (`hotel-product-card.tsx`, `use-faq-answer.ts`, `booking.queries.ts`), and
+`shared-ui` holds 80 kebab-case `.tsx` files against 4 PascalCase outliers. A plan or generator that
+emits `TravelerForm.tsx` creates a file that matches nothing around it.
+
+- **The file name is kebab-case; the identifier inside is not.** An exported component or type keeps
+  PascalCase and a function or hook keeps camelCase — `hotel-product-card.tsx` exports
+  `HotelProductCard`, `use-faq-answer.ts` exports `useFaqAnswer`. Kebab-case never leaks into an
+  identifier, and a `componentTree` node's `name` stays the PascalCase component name.
+- **A dot-separated role suffix is not a violation** — each dot segment is itself kebab-case:
+  `booking.queries.ts`, `auth.service.ts`, `event-visual.e2e.ts`, `handlers.faq.test.ts`,
+  `hotel.queries.test-d.ts`, `sanitized-html.fixtures.ts`. Use the suffix the target directory
+  already uses (`.queries`, `.service`, `.test`, `.e2e`); never invent a new one.
+- **Framework-reserved and tool-config names are exempt — never rename them.** React Router v7
+  resolves `root.tsx`, `routes.ts` and `entry.client.tsx` (and `entry.server.tsx`, if one is added) by
+  exact name; tool configs keep their tool's name (`vite.config.ts`, `vitest.config.ts`,
+  `playwright.config.ts`, `eslint.config.js`, `tsconfig.json`, `package.json`). Renaming one breaks
+  the framework or the tool, silently.
+- **New files only — never rename an existing file to conform.** A rename moves every import and the
+  file's history for no behavior change; the existing outliers (`shared-ui` `Accordion.tsx`,
+  `Textarea.tsx`) are a separate, deliberate change, not something a migration run fixes in passing.
+  A new file created **next to** an outlier is still kebab-case.
+- **Directories follow the same rule** (`features/booking-info/`, `components/hotel-map/`), as do
+  page keys and the `docs/migration/{app}/{page}/` paths, which are already kebab-case.
+
+The planner decides most names (`migration-plan.json` `buildOrder[].creates`) and the generators create
+what it names, so the rule binds `migration-planner` first; every agent that creates a file carries it
+too (`templates/tdd-rules.md`, `templates/shared-package-conventions.md`, and the generators' own Rules).
+
 ## Build Command Working Directory
 
 All build/test commands (`npx vite`, `npx vitest`, `npx tsc`, `npx playwright`,

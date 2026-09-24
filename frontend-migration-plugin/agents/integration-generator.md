@@ -62,6 +62,10 @@ add it rather than risk a broken edit.
 
 ## Rules
 - Read-modify-write central files; never clobber other features' routes/keys/handlers.
+- **New files are kebab-case** (CLAUDE.md → File Naming) — a route module is `booking-info.tsx`, not
+  `BookingInfo.tsx`. React Router's reserved names (`root.tsx`, `routes.ts`, `entry.client.tsx`) keep
+  their exact names: RR v7 resolves them by name, so renaming one breaks the app. Never rename an
+  existing file to conform.
 - Verify the app still type-checks after integration; report the result.
 - Lint the generated feature + the central files you modified: `npx eslint {generated paths}
   {modified central files} 2>&1` (hard). Use the detection/scaffold/skip rule in CLAUDE.md →

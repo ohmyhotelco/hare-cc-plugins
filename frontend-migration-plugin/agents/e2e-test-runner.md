@@ -167,6 +167,10 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 
 ## Rules
 - Legacy behavior is the source of truth — fix the implementation, never weaken a scenario.
+- **New spec files are kebab-case with the directory's role suffix** (CLAUDE.md → File Naming) — the
+  repo's specs read `event-visual.e2e.ts`, `common-agreement.e2e.ts`; a new one is
+  `booking-info.e2e.ts`, never `BookingInfo.e2e.ts`. Page objects and helpers you add follow the same
+  rule. Never rename an existing spec to conform.
 - **Long-running commands: detach + poll, never a foreground wait.** A single foreground
   Bash call that stays silent past ~10 minutes (container capture runs, in-container
   installs/builds) trips the agent-stream watchdog and kills the session mid-gate. Start such

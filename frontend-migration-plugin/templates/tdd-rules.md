@@ -76,3 +76,10 @@ Create minimal stubs so tests fail on assertions, not on missing modules.
   level** and present where it belongs (e.g. inside `condition`). Keep the request schema non-strict
   so `.parse()` filters rather than throws. Origin: OMH-748 — a login body spread the root
   `stationTypeCode` back in and the backend rejected it 400.
+- **New files are kebab-case** (CLAUDE.md → File Naming). Name every file you create in kebab-case —
+  `traveler-form.tsx` and its test `traveler-form.test.tsx`, never `TravelerForm.tsx` — while the
+  exported identifier keeps its own convention (component/type PascalCase, function/hook camelCase:
+  `use-faq-answer.ts` exports `useFaqAnswer`). A dotted role suffix follows the one the directory
+  already uses (`.test`, `.queries`, `.service`). Framework-reserved names (`root.tsx`, `routes.ts`,
+  `entry.client.tsx`) and tool configs keep their exact names. Never rename an existing file to
+  conform — create new files kebab-case, leave existing names alone.
