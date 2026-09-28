@@ -129,6 +129,33 @@ decision.
   this one is **not** settled by comparing the default render, because in the default render there is
   usually nothing to contain. See the protocol below.
 
+### Design-token traps (Tailwind v4) — a utility's name is not its computed value
+
+A named-scale utility resolves through the **theme layer**, and this repo overrides that layer, so a
+utility that reads correct produces the wrong pixels. The computed-style probes above catch it **when
+they run** — but they are skipped in jsdom, deferred when the gate is blocked, and (before the cluster
+model) not run at all for cluster-shaped work, which is how a **codified** trap re-shipped
+(`rounded-lg` on OMH-936, already in the repo's css-parity checklist). So enumerate the traps here and
+prefer an **arbitrary value** for any bespoke legacy value rather than a scale utility whose token the
+repo may have moved:
+
+- **`rounded-lg` ≠ 8px.** `shared-ui` sets `--radius: 1rem` and maps `--radius-lg: var(--radius)` in an
+  `@theme inline` block imported **after** `tailwindcss`, so `rounded-lg` computes **16px**, not
+  Tailwind's stock `0.5rem`. Legacy bespoke radii (8px, 10px) → `rounded-[8px]`, **never** `rounded-lg`.
+  The style-spec's computed `border-radius` is the target; pin it in the component's own unit test, not
+  only in the parity probe.
+- **No-op utilities.** Tailwind v4 emits **no CSS** for `font-inherit` (there is no `--font-inherit`
+  token) or per-side border-style (`border-t-solid`). A port that "carried the legacy declaration
+  across" via one of these carried nothing. Use the arbitrary form (`font-[inherit]`); the parity
+  probe's typography/border axis is what confirms it landed.
+- **The rule.** For any axis whose legacy value is bespoke (a radius, a spacing, a font), the generation
+  target is the style-spec's **computed value**, reproduced as an arbitrary value; a scale utility is
+  acceptable only when its computed value equals the spec (verified, not assumed). A matching class name
+  is never evidence — CLAUDE.md → the classname-≠-style-evidence rule and `templates/style-spec.md`.
+
+This list is the plugin-owned twin of a project's own css-parity checklist: a project may carry more
+traps in `docs/migration/**/css-parity-checklist.md`; a generator reads both.
+
 ### Containment: the axis a screenshot cannot decide
 
 A screenshot compares the content the fixture happened to have. `overflow`, `flex-wrap`, `min-width`,

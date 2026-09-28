@@ -31,8 +31,14 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
    gate skills and `fm-route`, while every other `docs/migration/` path is `monorepoRoot`-relative;
    a nested layout splits the two and the freshness gate false-blocks on every page. Refuse to write
    the config otherwise, and re-check after the user corrects paths in item 3.
-1a. **`pluginRoot` is written by the SessionStart hook, not here.** The five skills that shell
-   out to `scripts/gate-tree-hash.sh` read it from config, but this skill cannot compute it: a
+1a. **`pluginRoot` is written by the SessionStart hook, not here — and into the per-machine
+   `.claude/frontend-migration-plugin.local.json`, never into the shared config this skill writes.**
+   It is one developer's absolute, version-pinned path into their plugin cache; committed, it points
+   every other clone at a directory that does not exist there (a monorepo shipped
+   `/Users/<dev>/…/frontend-migration-plugin/1.2.0` in its shared config). **If the shared config
+   already carries a `pluginRoot` key** (a pre-1.4 hook wrote it there), remove it in Step 5's write
+   and tell the user to commit the removal. The six skills that shell out to the plugin's scripts
+   read it from the local file, but this skill cannot compute it: a
    Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
    reaches it, and `${CLAUDE_PLUGIN_ROOT}` is expanded only for `hooks/hooks.json`, never in a
    skill's shell. `scripts/session-init.sh` *is* inside the install, so it derives the value
@@ -121,9 +127,12 @@ details — they can be refined when those phases begin.
 - `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
   `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
 - `stagingConfig` — the staging `baseUrl` + payment-gateway **test** endpoints (`nicePay` /
-  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` hands to `e2e-test-runner` for transactional
-  scenarios (never production). Scaffold it empty for PC-first; offer to fill it when a
-  transactional page is reached. See CLAUDE.md → "Configuration".
+  `alipay` / `onePay`, the v2 gateways — `templates/payment-flow-v2.md`) that `fm-e2e` hands to
+  `e2e-test-runner` for transactional scenarios (never production). Scaffold it empty for PC-first;
+  offer to fill it when a transactional page is reached. When reconfiguring a config whose
+  `paymentGateways` still has the pre-1.4.0 `eximbay` / `kakaoPay` keys, write the v2 set in Step 5
+  instead — carrying `nicePay`'s value across — and ask first if `eximbay` or `kakaoPay` holds a
+  non-empty value. See CLAUDE.md → "Configuration".
 
 ### Step 5: Write Config and Initialize Tracker
 
@@ -135,7 +144,12 @@ details — they can be refined when those phases begin.
    one would glue the rule onto its last line). The page, tracker, package and app locks, the gate
    skills' pre-run manifests and `fm-delta`'s proposed baselines are transient; a page-directory
    `git add` (`fm-route --flag-off`) would otherwise stage a live lock into PR1. Commit it with the
-   config (`fm-route` Step 4c also stages it). Then create `docs/migration/tracker.json` if absent:
+   config (`fm-route` Step 4c also stages it). Make the repository root `.gitignore` carry
+   `.claude/frontend-migration-plugin.local.json` and `.claude/settings.local.json` the same way
+   (append only the lines it lacks, with a leading newline) — both hold per-machine state: this
+   plugin's `pluginRoot`, and the tool permissions the fm-* skills record (a Playwright command, the
+   cascade differ with this machine's absolute path). Neither may reach a commit. Then create
+   `docs/migration/tracker.json` if absent:
    ```json
    {
      "apps": { "pc": { "pages": {} }, "mobile": { "pages": {} }, "hana": { "pages": {} } },

@@ -44,7 +44,11 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
     { "topic": "social-login provider set", "coversVariant": "social-login-buttons",
       "decision": "reduce 6→4 (drop Line, Facebook)",
       "rationale": "Line not confirmed live for PC-KO; Facebook initFacebookSDK commented out",
-      "owner": "TBD", "status": "pending" }
+      "owner": "TBD", "status": "pending",
+      "blocksFlip": false }                 // true → this reduction must close BEFORE the path flips;
+                                            // fm-route --flag-off projects such entries into the
+                                            // cutover ledger (templates/cutover-ledger.md), owner/ticket
+                                            // carried across. A plan-time-only reduction stays false.
     // coversVariant links to a behavioralVariants.feature; use coversCopySource for a
     // copySources[] surface, so a copy-side reduction is traceable to what it reduced
   ],
@@ -81,17 +85,20 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "coversCopyBinding": "login failure message",
       "steps": ["..."], "legacyAnchor": "login-password.component.ts:114" },
     { "name": "complete card payment", "transactional": true, "gateway": "nicePay",
-      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | eximbay | kakaoPay);
+      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | alipay | onePay —
+      // the v2 gateways, templates/payment-flow-v2.md; Eximbay is dead and KakaoPay was never one);
       // no case normalization is performed, so "nicepay" reads as an unconfigured gateway
       "steps": ["..."] }
   ],
   "buildOrder": [
     { "phase": "foundation", "creates": ["types.ts", "mocks/handlers.ts"], "tests": 0 },
     { "phase": "api",        "creates": ["api/booking.ts"], "tests": 6 },
-    { "phase": "store",      "creates": ["stores/bookingForm.ts"], "tests": 4 },
-    { "phase": "component",  "creates": ["components/TravelerForm.tsx"], "tests": 8 },
-    { "phase": "page",       "creates": ["pages/BookingInfoPage.tsx"], "tests": 5 },
-    { "phase": "integration","creates": ["routes.tsx", "i18n.ts"], "tests": 0 }
+    { "phase": "store",      "creates": ["stores/booking-form.ts"], "tests": 4 },
+    { "phase": "component",  "creates": ["components/traveler-form.tsx"], "tests": 8 },
+    { "phase": "page",       "creates": ["pages/booking-info-page.tsx"], "tests": 5 },
+    { "phase": "integration","creates": ["routes.ts", "i18n.ts"], "tests": 0 }
+    // file names are kebab-case (CLAUDE.md → File Naming); componentTree `name` stays the
+    // PascalCase identifier. `routes.ts` is React Router's reserved route config — exact name.
   ]
 }
 ```
@@ -111,8 +118,9 @@ target and the parity check share one legacy-truth source and cannot drift.
 Per-gate acceptance criteria — one entry for **every** gate in `requiredGates`
 (`e2e` / `visual` / `contract` / `webview` / `telemetry` — the complete set; `parity-verifier`
 implements no other check and `parity-report.json` has no other slot, so a plan naming anything else
-is rejected by `fm-plan` Step 4.1. `secret` and `sso` are **not** gates: they are `gateTriggers[]`
-entries routed to `fm-secret-audit` and to `e2eScenarios` + `templates/hana-sso.md` respectively). A plan without `gateAcceptance` is
+is rejected by `fm-plan` Step 4.1. `secret`, `sso` and `payment` are **not** gates: they are
+`gateTriggers[]` entries routed to `fm-secret-audit`, to `e2eScenarios` + `templates/hana-sso.md`, and to
+`templates/payment-flow-v2.md` respectively). A plan without `gateAcceptance` is
 **incomplete**: `fm-gen` and `fm-parity` Step 0 reject it and point back to `fm-plan`. Each entry:
 
 - `compares` — what is compared, against what reference.
@@ -264,8 +272,12 @@ gate scope. A source note ("ticket names 4", "SDK commented out") is input to a 
 never authority for a silent one; the decision lives in `openApprovals` or it does not happen.
 
 `openApprovals[]` entries: `topic`, `coversVariant` (the `behavioralVariants.feature` it reduces),
-`decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`). `fm-plan` surfaces
-every `pending` entry in its report; a coverage reduction is a human decision, not a default.
+`decision`, `rationale`, `owner`, `status` (`pending | approved | rejected`), and `blocksFlip`
+(`true` when the reduction must close before the path flips — a **cutover-batch precondition**, not a
+plan-time-only reduction). `fm-plan` surfaces every `pending` entry in its report; a coverage
+reduction is a human decision, not a default. A `blocksFlip: true` entry is projected into the cutover
+ledger by `fm-route --flag-off` and blocks that page's flip until an owner approves or resolves it
+(`templates/cutover-ledger.md`) — so it carries a real `owner`/`ticket`, never `TBD`.
 
 ## Copy-source reconciliation (required)
 
@@ -283,6 +295,54 @@ putting English on every non-English screen. Legacy instead uses a fixed localiz
 screen (it was, on three). `renderMode` is part of the binding: a value carrying markup (`<br/>`,
 `<a href>`) must render as HTML rather than JSX text, and a path inside such a value still follows
 the migration's route scheme. See `templates/i18n-copy-parity.md`.
+
+## Failure-path reconciliation (required)
+
+The same rule, applied to the axis where ported code diverges most and no happy-path test looks:
+**failure and boundary branches**. Every `analysis.json.failurePaths[]` entry marked `mustPreserve`
+must survive into the plan — implemented in `componentTree`/`mapping` **and** covered by an
+`e2eScenarios[]` entry that drives the branch and asserts its side-effect — **or** be recorded in
+`openApprovals[]` with a rationale and owner. Silently absent from both makes the plan **incomplete**
+(`fm-plan` Step 4 rejects it back to the planner, exactly like a missing `gateAcceptance` entry).
+
+Why an `e2eScenario` and not just a `mapping` line: a `side-effect-gating` failure path (a telemetry
+event that must *not* fire on `succeedYn:false`, an error alert that must show the server
+`errorMessage`) is invisible to a happy-path flow and to a jsdom unit test that never drives the
+failed response. The scenario drives the failed envelope and asserts the fire/no-fire — the same
+reason `e2eScenarios` failure branches are required for copy. In particular:
+
+- **`side-effect-gating`** → an `e2eScenario` driving the `succeedYn:false` (or thrown) branch that
+  asserts the gated telemetry/navigation/alert does **not** fire (or fires with the correct value, not
+  a full-amount default). The `telemetry` gate's dual-fire parity compares this per branch, not only on
+  the happy path (`parity-verifier` → telemetry).
+- **`boundary-clamp`** → a scenario at the boundary (last page next, empty result) asserting the clamp.
+- **`no-default`** → assert the v2 surface renders what legacy renders (raw/empty), not an invented
+  default the legacy never showed.
+
+A `mustPreserve` failure path bound only in a unit test, with no `e2eScenario`, is an incomplete plan:
+the unit test is authored from the same one reading as the implementation, so both can agree on a wrong
+branch (the self-confirmation bias — CLAUDE.md → Self-confirmation Hardening). The legacy dual-run is
+the independent check.
+
+## Legacy inventory reconciliation (required)
+
+The same rule over the analysis's four behavior inventories (`agents/angular-analyzer.md` sections
+11–14). Every `mustPreserve` entry is carried into the plan **with the evidence named below**, or
+recorded in `openApprovals[]` with a rationale and owner. Silently absent from both makes the plan
+**incomplete** — `fm-plan` Step 4 rejects it back to the planner.
+
+| Inventory | Carried into the plan as | Evidence that pins it |
+| --- | --- | --- |
+| `navigationSurface[]`, outbound | a `mapping` row per target, the mechanism decided by where the target is served when this page flips (`angular-to-react-mapping.md` → routing): client navigation only to v2-served targets, a document navigation to the bare legacy path otherwise | an `e2eScenarios` entry for every navigation that runs a `CanDeactivate` guard or leaves a request in flight; a redirect test carrying `utm_*`/`gclid` |
+| `navigationSurface[]`, route table and inbound producers | a v2 route (or redirect route) for each legacy `**`, redirect, index route and child path; the list of inbound producers to update | `fm-route` Step 1d re-checks them at flip time |
+| `apiCalls[]` request behavior | the cache policy in the query's `mapping` row — `staleTime`, dedupe, `refetchOnWindowFocus`, invalidation scope, identity keying (`angular-to-react-mapping.md` → state) | a body test asserting each field's **source** (`fieldSources`), not only its presence; where `firesPerAction: every`, a request-count e2e scenario (A→B→A toggle-back, same-body re-emit); for `identityScoped` data, a login-mid-page scenario |
+| `storageSurface[]` | the v2 writer and each reader named in `mapping` | a golden test of the written record against the legacy writer's shape; a test per legacy reader's fields; a malformed-value test for each off-schema legacy value (`safeParse` plus the legacy fallback) |
+| `stateSurface[]` | a `mapping` row per write site, event binding, reset/re-creation rule, imperative effect, shared-service semantic and input rule | a test through the **route's default export**, not an injected prop; an e2e scenario for transitions a unit test cannot drive (poll ticks, remount, scroll) |
+
+Why the evidence column: a divergence in these inventories passes every gate that does not drive it.
+A happy-path e2e never toggles back, a shape test never asks where a value came from, and a jsdom test
+with injected props never proves the route passes them. The review record's worst misses in this class
+shipped behind green gates (OMH-935 #362 H1, OMH-839 #396 H2–H5, OMH-937 #329 A1).
 
 ## 2-PR flag plan
 

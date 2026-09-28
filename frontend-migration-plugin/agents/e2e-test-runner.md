@@ -64,12 +64,19 @@ too — it is one line and it catches overflow from elements no spec indexes. De
   transactional page is reached. If the gateway a scenario needs is empty or absent, record that
   scenario as `result: "not-run"` with `reason: "staging gateway not configured: <name>"` — never
   silently fall back to MSW, which would turn the one scenario that must exercise a real gateway
-  into a mock run that always passes.
+  into a mock run that always passes. The **storefront contract** of a payment page is a separate,
+  non-transactional scenario the plan names: under MSW with a stub of the gateway SDK, it asserts the
+  prepare request, the form handed to the gateway and each landing hop (`templates/payment-flow-v2.md`
+  → Testing). It does not stand in for the transactional scenario, and the transactional scenario
+  does not fall back to it.
 
 ### 4. Legacy dual-run (behavior parity)
 Run the same scenario against the legacy Angular app (its base URL) and the new RR v7 app, and
 compare the observable behavior (navigation, key outputs, success/failure paths). Record
-differences as failures — the legacy behavior is the reference.
+differences as failures — the legacy behavior is the reference. The one scoped exception is a payment
+page: dual-run the half `templates/payment-flow-v2.md` preserves (window model, form fields and order,
+alert copy, telemetry); the redesigned half (signing source, form `action`, return leg) is asserted
+against that template, and its divergence is the plan's approved `openApprovals` entry.
 
 **Each leg records its own `provenance`** (`templates/capture-provenance.md`): the spec writes
 `origin` (the base URL it actually drove, host:port included), the `side` resolved by that
@@ -167,6 +174,10 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 
 ## Rules
 - Legacy behavior is the source of truth — fix the implementation, never weaken a scenario.
+- **New spec files are kebab-case with the directory's role suffix** (CLAUDE.md → File Naming) — the
+  repo's specs read `event-visual.e2e.ts`, `common-agreement.e2e.ts`; a new one is
+  `booking-info.e2e.ts`, never `BookingInfo.e2e.ts`. Page objects and helpers you add follow the same
+  rule. Never rename an existing spec to conform.
 - **Long-running commands: detach + poll, never a foreground wait.** A single foreground
   Bash call that stays silent past ~10 minutes (container capture runs, in-container
   installs/builds) trips the agent-stream watchdog and kills the session mid-gate. Start such

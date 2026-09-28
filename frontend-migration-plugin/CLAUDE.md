@@ -83,7 +83,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 ```jsonc
 {
   "monorepoRoot": ".",
-  "pluginRoot": "/Users/you/.claude/plugins/cache/…/frontend-migration-plugin/<version>",  // absolute; where scripts/ lives
+  // no "pluginRoot" here — it is per-machine and lives in .claude/frontend-migration-plugin.local.json
   "packagesDir": "packages",
   "contractsDir": "docs/migration/api-contracts",   // optional; recorded only when the dir exists
   "currentApp": "pc",
@@ -108,7 +108,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   },
   "stagingConfig": {
     "baseUrl": "https://staging.ohmyhotel.com",
-    "paymentGateways": { "nicePay": "", "eximbay": "", "kakaoPay": "" }
+    "paymentGateways": { "nicePay": "", "alipay": "", "onePay": "" }
   }
 }
 ```
@@ -131,10 +131,20 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   addressed from the git root, everything else from here, and the two must coincide.
 - `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
   SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
-  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress` locate
-  `scripts/gate-tree-hash.sh`. The hook rewrites it **every session**, never capturing it once —
-  the cache path is version-pinned. Absent → those skills record no `tree` and report the freshness
-  axis as `unverifiable`; they must not improvise an inline hash pipeline.
+  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress`/`fm-cascade` locate the plugin's
+  `scripts/`. The hook rewrites it **every session**, never capturing it once — the cache path is
+  version-pinned. **It is per-machine, so it lives in `.claude/frontend-migration-plugin.local.json`,
+  never in the shared config above**: a committed value points every other clone at one developer's
+  home directory (a monorepo shipped `/Users/<dev>/…/1.2.0` that way). The hook keeps the local file
+  out of git through `.git/info/exclude`, `fm-init` also lists it in `.gitignore`, and a leftover
+  `pluginRoot` key in the shared config is reported by the hook and removed by `fm-init`. Absent → those
+  skills record no `tree` and report the freshness axis as `unverifiable`; they must not improvise an
+  inline hash pipeline.
+- **Per-machine tool permissions go to `.claude/settings.local.json`, never `.claude/settings.json`.**
+  Every fm-* step that must pre-authorize a sub-agent command (the Playwright probe, the cascade differ
+  with this machine's absolute path) writes the local file. The shared settings file is committed; a
+  tool writing to it changes team policy silently and rides a diff into the next PR (OMH-934 #317,
+  OMH-935 #362 and OMH-840 #337 each shipped a developer's absolute path that way).
 - `contractsDir` — **optional**. Path to the confirmed backend verification contracts
   (default `docs/migration/api-contracts`, OMH-604/606/607) that are the **authoritative**
   schema source for **`shared-types` and `shared-data` only** (migration plan §5 — the legacy
@@ -194,9 +204,11 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 - `apps.*.cloudfrontDir` / `apps.*.manifest` — cloudfront flip only (defaults `infra/cloudfront` /
   `v2-routes.json`). Ignored when `flipMechanism` is `nginx`.
 - `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
-  `eximbay` / `kakaoPay`, OMH-459) that `fm-e2e` passes to `e2e-test-runner` for transactional
-  scenarios. Transactional E2E runs against these, never production. Scaffolded empty (PC-first);
-  filled in when the first transactional page is reached.
+  `alipay` / `onePay` — the v2 gateways, `templates/payment-flow-v2.md`) that `fm-e2e` passes to
+  `e2e-test-runner` for transactional scenarios. Transactional E2E runs against these, never production.
+  Scaffolded empty (PC-first); filled in when the first transactional page is reached. A config written
+  before 1.4.0 carries `eximbay` / `kakaoPay` instead: Eximbay is dead (OMH-1178) and KakaoPay was never
+  a gateway the storefront selects, so replace both keys when filling the block.
 
 PC is fully configured; `mobile`/`hana` entries are scaffolded — recognized now, validated
 in later phases.
@@ -293,6 +305,42 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   once the legacy page is deleted — retiring legacy code is outside this plugin's scope.
   `fm-progress` and the SessionStart hook print no next command for either.
 
+### Component Clusters (a non-routed target kind)
+
+A **cluster** is a group of components migrated **together, ahead of the page that consumes them** —
+`hotel-map-integration`, `hotel-search-box-cluster`. `fm-analyze --kind cluster` records it like any
+target (`kind: "cluster"` in the tracker, plus `consumedBy[]` — the page keys that will mount it). It
+runs the **same gate chain** as a page — analyze → style-spec → plan → gen → verify → e2e → parity
+(e2e and parity run against the cluster's harness on the v2 side, legacy-side below) — and
+that is the point: the review record shows clusters shipping **off-pipeline**, with no tracker entry,
+no `style-spec.json`, and no parity artifact, which is how a codified style trap (`rounded-lg` = 16px,
+already in the repo's css-parity checklist) re-shipped on `hotel-map-integration` (OMH-936). A cluster
+is first-class so it cannot skip the gates.
+
+Only **two** things differ from a routed page:
+
+- **Parity is legacy-side, not v2-route.** A cluster owns no route, so there is no v2 URL to pixel-
+  diff or flip. Its `fm-parity` visual gate compares the v2 render (from the cluster's harness route —
+  e.g. a dormant `__e2e/*-harness` route the project provides) against the **legacy render of that
+  cluster within its host legacy page** (legacy `/hotel/search-result-map` renders the map pins
+  today). `fm-style-spec` captures the answer key the same way — the extractor probes the cluster's
+  elements in the live legacy host page. Everything the visual/style gate catches for a page it
+  catches here; only the *v2 side's* source is a harness, not a route.
+- **The terminal state is `cluster-ready`, and there is no flip.** A cluster advances
+  analyzed → … → parity-passed and then to **`cluster-ready`**. `fm-route` **refuses a cluster** —
+  there is nothing to flip — so a cluster never reaches `flipped`/`done`, and `fm-progress` / the
+  SessionStart hook print no `fm-route` next step for it. Instead, **a cluster's readiness is a
+  flip-precondition for every page that consumes it**: while a consumed cluster is not yet
+  `cluster-ready`, `fm-route --flag-off` of the consuming page projects a `blocksCutover: true` entry
+  into the cutover ledger (`kind: "flip-precondition"`, `item: "cluster <name> not yet cluster-ready"`
+  — see "Cutover Ledger & PR Body"), so a page cannot flip on a cluster that has not passed its own
+  gates. This is what stops the OMH-936 shape — a cluster's defects going live the moment the
+  consuming page mounts it — from reaching production silently.
+
+Everything else — locks, the `*-failed → fixing` recovery, `fm-fix`, `fm-delta` on legacy drift, the
+Codex audit, and the answer-key/gate freshness of "Gate Result Accounting" — applies to a cluster
+unchanged. A cluster lives in the same `apps[app].pages` map, discriminated by `kind: "cluster"`.
+
 ## State Files & Lock Convention
 
 State files keep the multi-skill pipeline resumable. Layout:
@@ -300,6 +348,10 @@ State files keep the multi-skill pipeline resumable. Layout:
 ```
 docs/migration/
 ├── tracker.json                       ← global: per-app/per-page status, package extraction
+├── cutover-ledger.json                ← app-wide: batch-scoped flip-preconditions/deferrals projected
+│                                        from per-page openApprovals (fm-route --flag-off writes,
+│                                        --flag-on blocks on open rows, fm-progress renders). See
+│                                        templates/cutover-ledger.md. Under .app.lock → .tracker.lock.
 ├── .gitignore                         ← fm-init: `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — locks,
 │                                        pre-run manifests and proposed baselines never reach a commit
 ├── .packages.lock                    ← fm-extract (package-scope lock; same JSON schema as the
@@ -355,7 +407,7 @@ fields:
 | `docs/migration/{app}/{page}/.lock` | one page's work | the 11 page skills + `codex-auditor` |
 | `docs/migration/.packages.lock` | `packages/shared-*` work | `fm-extract` |
 | **`docs/migration/.tracker.lock`** | **every Read-Modify-Write of `tracker.json`** | **all of the above** |
-| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, and the `infraDir`/`cloudfrontDir` routing artifact | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`** |
+| **`docs/migration/.app.lock`** | **every Read-Modify-Write of an app-wide file** — the RR v7 route table, the i18n namespace registration, the MSW handler aggregation, the `infraDir`/`cloudfrontDir` routing artifact, and `cutover-ledger.json` | **`integration-generator`, `strangler-orchestrator`, `foundation-generator`, `delta-modifier`, `fm-route`** |
 
 The page lock does **not** protect `tracker.json`: no lock is common to a page skill and
 `fm-extract`, and two page locks do not exclude each other. Two pages in flight is a supported
@@ -467,6 +519,40 @@ These apply to every agent and skill in this plugin.
   Read-Modify-Write `codex-audit.json`, so parallel auditors on one page contend for a single lock
   that one of them holds until it finishes. Agents that share a lock or a write target are not
   independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
+
+## File Naming (new files)
+
+Every **new** file the pipeline creates — components, hooks, API modules, stores, pages, tests, e2e
+specs, fixtures, shared-package modules — is named in **kebab-case**: lowercase words joined by
+hyphens (e.g. `traveler-form.tsx`, `use-booking-detail.ts`, `booking-info-page.tsx`). This is the
+repo's own convention, measured rather than assumed: `apps/web-*/app` and `packages/shared-*` are
+kebab-case throughout (`hotel-product-card.tsx`, `use-faq-answer.ts`, `booking.queries.ts`), and
+`shared-ui` holds 80 kebab-case `.tsx` files against 4 PascalCase outliers. A plan or generator that
+emits `TravelerForm.tsx` creates a file that matches nothing around it.
+
+- **The file name is kebab-case; the identifier inside is not.** An exported component or type keeps
+  PascalCase and a function or hook keeps camelCase — `hotel-product-card.tsx` exports
+  `HotelProductCard`, `use-faq-answer.ts` exports `useFaqAnswer`. Kebab-case never leaks into an
+  identifier, and a `componentTree` node's `name` stays the PascalCase component name.
+- **A dot-separated role suffix is not a violation** — each dot segment is itself kebab-case:
+  `booking.queries.ts`, `auth.service.ts`, `event-visual.e2e.ts`, `handlers.faq.test.ts`,
+  `hotel.queries.test-d.ts`, `sanitized-html.fixtures.ts`. Use the suffix the target directory
+  already uses (`.queries`, `.service`, `.test`, `.e2e`); never invent a new one.
+- **Framework-reserved and tool-config names are exempt — never rename them.** React Router v7
+  resolves `root.tsx`, `routes.ts` and `entry.client.tsx` (and `entry.server.tsx`, if one is added) by
+  exact name; tool configs keep their tool's name (`vite.config.ts`, `vitest.config.ts`,
+  `playwright.config.ts`, `eslint.config.js`, `tsconfig.json`, `package.json`). Renaming one breaks
+  the framework or the tool, silently.
+- **New files only — never rename an existing file to conform.** A rename moves every import and the
+  file's history for no behavior change; the existing outliers (`shared-ui` `Accordion.tsx`,
+  `Textarea.tsx`) are a separate, deliberate change, not something a migration run fixes in passing.
+  A new file created **next to** an outlier is still kebab-case.
+- **Directories follow the same rule** (`features/booking-info/`, `components/hotel-map/`), as do
+  page keys and the `docs/migration/{app}/{page}/` paths, which are already kebab-case.
+
+The planner decides most names (`migration-plan.json` `buildOrder[].creates`) and the generators create
+what it names, so the rule binds `migration-planner` first; every agent that creates a file carries it
+too (`templates/tdd-rules.md`, `templates/shared-package-conventions.md`, and the generators' own Rules).
 
 ## Build Command Working Directory
 
@@ -860,7 +946,126 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   A page missing `sourcePaths` is `unverifiable` on axis 1, still checkable on 2 and 3, and must
   report which axes it checked.
 
+- **G (answer-key freshness — the legacy side of the watch set).** F hashes the **v2** side (the
+  generated files, shared deps, and plan). It deliberately leaves out the thing the gates compare
+  *against*: the **legacy answer key** — the specific legacy source the `// legacy: file:line` anchors
+  and `analysis.json.styleSurface` cite, plus `style-spec.json` and `analysis.json`. A later master
+  merge that changes legacy source rots the answer key silently: the v2 hash still matches, every
+  F-based freshness check stays green, and the gate now compares v2 against a legacy truth that moved.
+  This is a real gap (the parity/style answer keys are truth, and truth that drifted is a false pass),
+  and it is **not** covered by F.
+  - **The rule.** A gate's answer key is fresh only if the legacy source it was derived from has not
+    moved since. Record `answerKeyEvidence.{stage} = { at, commit, legacyTree }` beside
+    `gateEvidence`, where `legacyTree` is `scripts/gate-tree-hash.sh` (the **same** script, never an
+    inline pipeline) over the **specific** legacy files the answer key cites — the `styleSurface`
+    entries and `// legacy:` anchor files, **not** the whole `legacyDir` (hashing the whole app flags
+    every page stale on any legacy change). `fm-parity` is the producer — it records
+    `answerKeyEvidence.parity = { at, commit, legacyPaths, legacyTree }` in Step 4 beside
+    `gateEvidence.parity`, storing the path **list** so consumers recompute the identical set.
+    `fm-progress` re-measures it and reports `answer-key-stale`; `fm-route --flag-on` Step 1a
+    **blocks** on it (re-checked under the lock in Step 2), sending the user to `fm-delta` (legacy
+    drifted) or `fm-verify` (re-run the chain). A page with no `answerKeyEvidence` (parity-passed before
+    the producer landed) is `unverifiable` on this axis — acknowledged, never blocked.
+  - **The generalized stale-stamp rule (this one is in force now, via `templates/pr-body.md`).** Any
+    number an artifact, report, or answer key asserts as "measured at HEAD" — a gate hash, a manifest
+    total, a self-test count, a byte count — is **recomputed after a merge/rebase, never copied
+    across it.** A stamp carried over a merge is the single most common review finding on
+    merge-synced branches (OMH-938 PR #302's whole cluster; OMH-936's manifest totals). `fm-route`
+    Step 0b blocks a branch behind its base for exactly this reason, and the PR body emits
+    `TODO(owner): re-measure at HEAD` in place of any number it cannot recompute at the current HEAD.
+  - **Status:** wired end to end — the generalized stale-stamp rule and branch-freshness block
+    (`fm-route` Step 0b, `templates/pr-body.md`), the `answerKeyEvidence` producer (`fm-parity`
+    Step 4), the read-only `answer-key-stale` readout (`fm-progress`), and the hard `answer-key-stale`
+    block on the flip (`fm-route --flag-on` Step 1a, re-checked in Step 2).
+
 Codex stays advisory: D counts findings, it does not give Codex a veto.
+
+## Cutover Ledger & PR Body
+
+Two records the review history shows missing — both about **evidence the reviewer and the cutover
+batch can read**, not about code. The recurring approved-round finding is not a wrong line; it is a
+deferral recorded nowhere the deployment can look it up, and a PR body that omits Risk/Rollback/Rebase
+or asserts a stamp already stale on merge.
+
+**Cutover model.** The flip is graded against **flag-ON at merge** — a confirmed **big-bang cutover**
+of all ready pages together, not a per-page Strangler flip (this supersedes per-page flip grading).
+The per-page `--flag-off` still prepares each page's code PR with the flag OFF, and `fm-route
+--flag-on` / `--confirm-live` remain the per-page mechanics the batch is assembled from; what changes
+is that an item a page defers "before the flip" is due **before the cutover batch** and must be
+enumerable batch-wide, not left in one PR's prose. The batch flip itself is **`fm-route --cutover`**
+(fm-route → "Batch cutover"): it resolves the ready set (every `parity-passed` + `routePrepared` page,
+never a cluster), runs each page's flag-on gates, and refuses unless **every** page passes **and** the
+ledger below has zero open `blocksCutover` entries — all-or-nothing, since a big-bang flips as a unit.
+
+**Cutover ledger** — `docs/migration/cutover-ledger.json`, schema in `templates/cutover-ledger.md`.
+The batch-scoped projection of every unresolved **flip-precondition** across pages: the one list the
+cutover reads to know what is not ready. `fm-route --flag-off` projects each `migration-plan.json`
+`openApprovals[]` entry marked `blocksFlip: true` into it (owner/ticket carried across); `fm-route
+--flag-on` refuses a page whose ledger holds an **open** `blocksCutover` entry (Step 1c), the same
+handling as an unresolved Codex `high`; `fm-progress` renders batch readiness. It never replaces
+`openApprovals[]` — it is a projection with a `sourceApproval` pointer back. An `owner` is never
+`TBD`: an unowned blocker is the defect to surface. App-wide file — written under `.app.lock` →
+`.tracker.lock`.
+
+**PR contract** — `templates/pr-body.md`, mirroring the team's Git & PR rules (§1 branch, §2 title,
+§3 body, §4 commits, §6 rebase sync). `fm-route` emits a `<type>(<scope>): <subject>` title (≤ 50
+characters) and a complete body for both PRs it prepares (`--flag-off` code PR, `--flag-on`/`--cutover`
+flip PR) with the §3 fields in order — Summary, Changed files (files outside the page listed
+separately), Test evidence, Risk level (equal to `tracker.json` `risk`), Jira as a link, Rebase
+confirmation with a date, Rollback plan when High, and **Migration notes on every flip PR** (it edits
+the edge) — plus Gate evidence whose freshness is **recomputed at HEAD** (never a stamp copied across a
+merge) and a Deferred-items section pointing at the page's ledger rows. A field the skill cannot fill
+is emitted `TODO(owner): …`, never a plausible blank. Branch freshness is checked first (`fm-route`
+Step 0b): a branch behind its base blocks the PR, since both PRs are graded at merge.
+
+## Legacy Behavior Inventories
+
+The largest code-defect class in the review record is legacy behavior that no inventory named, so no
+plan bound it and no gate drove it: the happy path passed, and the page shipped wrong. `angular-analyzer`
+records it in five inventories beside `behavioralVariants` and `copySources`, and `fm-plan` Step 4
+rejects a plan that neither carries each `mustPreserve` entry with its evidence nor records it in
+`openApprovals[]` (`templates/migration-plan-schema.md` → Failure-path reconciliation, Legacy inventory
+reconciliation):
+
+- `failurePaths[]` — side-effects gated on `succeedYn`, boundary clamps, retry arms, invented defaults.
+- `navigationSurface[]` — outbound navigations and their mechanism, the source route's `CanDeactivate`
+  and in-flight requests, route-table entries, inbound producers. The mechanism follows where the
+  target is served: client navigation only to v2-served routes, a document navigation to the bare
+  legacy path otherwise (`angular-to-react-mapping.md` → routing). `fm-route` Step 1d re-checks the
+  targets and the route table at flip time.
+- `apiCalls[]` request fields — `trigger`, `firesPerAction`, `fieldSources`, `identityScoped`.
+  TanStack Query caches where legacy re-POSTs, so each query's policy is set from `firesPerAction`
+  and pinned with a request-count scenario (`angular-to-react-mapping.md` → state).
+- `storageSurface[]` — every web-storage and cookie record, its legacy writer's shape and every reader,
+  still-legacy pages and telemetry included.
+- `stateSurface[]` — every write site of the state the page renders from (bootstrap and
+  `APP_INITIALIZER` included), event bindings, reset and re-creation rules, imperative effects,
+  shared-service semantics, input rules.
+
+Two generation rules close the robustness half of the same class (`templates/tdd-rules.md`): untrusted
+input (URL, cookie, storage, legacy-written values) is `safeParse`d at the boundary with the legacy
+fallback, never `.parse()`d where a throw reaches render or a loader, and every data route exports an
+`ErrorBoundary`; wiring is tested through the route's default export, not an injected prop.
+
+## Payment Funnel (v2 flow)
+
+The payment funnel is the one surface where "legacy is the reference" does not hold end to end. v2
+changed the flow: oh-api signs the gateway request (`POST /payment/nicepay/prepare`), recomputes the
+amount, owns the gateway return legs, books, and redirects to `/payment-complete?result=…` (OMH-1089,
+OMH-1130). Legacy signs in the browser and returns through its Express server. Porting the legacy
+mechanism faithfully is therefore a defect.
+
+`angular-analyzer` records a `payment` entry in `gateTriggers[]` (not a gate) for a page that submits a
+gateway form or consumes a gateway return. That page is planned, generated and tested to
+`templates/payment-flow-v2.md`:
+- what not to port (client signing, the Express return legs, Eximbay), each recorded as an approved
+  `openApprovals[]` entry with its ticket;
+- what to preserve per app (the window model per gateway, form field order, alerts, telemetry);
+- the URLs other systems hold: unprefixed PG paths, path-literal AASA exclusions, the funnel's flip unit,
+  and oh-api's return-host allow-list. `fm-route` Step 1d checks them;
+- the two test legs: the storefront contract under MSW, and the real gateway on staging.
+
+Facts in the template come from `develop` as of 2026-09-24 and had not reached `master`.
 
 ## Skills
 

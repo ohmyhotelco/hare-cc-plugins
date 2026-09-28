@@ -78,7 +78,7 @@ Failure output names, per finding: the **key**, the **languages missing it**, an
 ✗ tl.login.otp-subject — missing in KO, EN, JA, ZH, VI
     apps/web-pc/app/components/auth/verify-code.tsx:155
 ✗ tl.booking.guest-count — missing in VI
-    apps/web-pc/app/features/booking/GuestCounter.tsx:42
+    apps/web-pc/app/features/booking/guest-counter.tsx:42
 ℹ 3 uncheckable (dynamic) keys — see report
 ```
 

@@ -44,7 +44,11 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    implements, so never add one `parity-verifier` has no check for). A `sso` entry in the analysis's
    `gateTriggers[]` is not a gate: emit an `e2eScenarios` entry covering the `?ts` SSO entry instead,
    and build to `templates/hana-sso.md`. A `secret` trigger is Phase 0 posture (`fm-secret-audit`) plus
-   the hard `shared-domain` ESLint boundary — it needs nothing in the plan. Emit a `gateAcceptance` entry
+   the hard `shared-domain` ESLint boundary — it needs nothing in the plan. A `payment` trigger is not a
+   gate either: plan the page to `templates/payment-flow-v2.md`, not to the legacy mechanism. Record each
+   legacy mechanism v2 does not port (client signing, the Express return legs, Eximbay) as an
+   `openApprovals[]` entry with `status: "approved"` and its ticket, and emit the two-leg scenarios that
+   template's Testing section names. Emit a `gateAcceptance` entry
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
    `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
@@ -79,7 +83,13 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    forbids. If the value turns out wrong later, it is amended by the decision owner via
    `criterionAmendment` (schema template), never quietly narrowed by whoever hits it.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
-   one-line flag-ON PR). See the schema template.
+   one-line flag-ON PR). See the schema template. **A cluster has no route** — when
+   `analysis.json.target.kind` is `cluster`, omit `flagPlan` entirely: it reaches `cluster-ready`,
+   not `flipped`, and its gates run against a harness, not a routed URL (CLAUDE.md → Component
+   Clusters). Mark an `openApprovals[]` entry `blocksFlip: true` when the coverage it reduces must
+   close **before the path flips** (a cutover-batch precondition, not a plan-time-only reduction) —
+   `fm-route --flag-off` projects those into the cutover ledger, so give such an entry a real
+   `owner`/`ticket`, never `TBD` (`templates/cutover-ledger.md`).
 7. **Copy bindings.** Carry every `analysis.json.copySources` entry into `copyBindings[]`: the
    mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), the key or map
    module + codes, the `renderMode` (`text` vs `html` — a value carrying `<br/>`/`<a href>` must
@@ -89,15 +99,41 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    in `openApprovals[]`, or `fm-plan` Step 4 rejects the plan. See `templates/i18n-copy-parity.md`.
 8. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
    names + steps + which are transactional (staging gateways). `fm-e2e` (AA-45) realizes these as
-   Playwright specs; you only enumerate them.
+   Playwright specs; you only enumerate them. A transactional scenario's `gateway` is one of the v2
+   gateways — `nicePay`, `alipay`, `onePay` — never `eximbay` (`templates/payment-flow-v2.md`).
    **Failure branches are not optional.** Happy-path-only scenario sets are why copy regressions
    reached production: a wrong error string never appears in a successful flow. Derive one scenario
    per `copySources` failure point — every place legacy sets a form error flag, opens an alert, or
    shows an inline message — and mark it `assertsCopy: true` so the dual-run compares the **displayed
    text**, not just navigation. Where those surfaces exist, at minimum: wrong password, OTP/
    verification-code failure, and blocked/duplicate email.
+   **Also derive a scenario per `analysis.json.failurePaths[]` entry** (`templates/migration-plan-schema.md`
+   → Failure-path reconciliation): drive the failed branch and assert the side-effect legacy gates —
+   a `side-effect-gating` entry asserts the telemetry/navigation/alert does **not** fire (or fires with
+   the correct value, not an invented full-amount default) on `succeedYn:false`; a `boundary-clamp`
+   entry asserts the clamp at the boundary; a `no-default` entry asserts the surface renders what legacy
+   renders, not an invented default. These are invisible to a happy-path flow and to a jsdom unit test
+   that never drives the failed response, so the `e2eScenarios` entry (with the legacy dual-run) is the
+   independent check — a `mustPreserve` failure path bound only in a unit test is an incomplete plan.
 9. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
-   integration`, listing the files each phase creates and their test counts.
+   integration`, listing the files each phase creates and their test counts. **Every file you name in
+   `creates` is kebab-case** (CLAUDE.md → File Naming) — `components/traveler-form.tsx`,
+   `stores/booking-form.ts`, `pages/booking-info-page.tsx`, never `TravelerForm.tsx` or
+   `bookingForm.ts` — because the generators create exactly the names you write here. The
+   `componentTree` node `name` stays the PascalCase component identifier (`TravelerForm`); only the
+   file is kebab-case. A dotted role suffix follows the target directory's existing one, and
+   framework-reserved names (`root.tsx`, `routes.ts`, `entry.client.tsx`) keep their exact names.
+10. **Legacy inventories.** Carry the analysis's `navigationSurface[]`, the request fields of
+    `apiCalls[]`, `storageSurface[]` and `stateSurface[]` into the plan with the evidence the schema's
+    "Legacy inventory reconciliation" table names — `fm-plan` Step 4 rejects a plan that drops one.
+    Concretely: decide each navigation's mechanism from where its target is served when this page
+    flips (read `tracker.json`: flipped, or in the same cutover batch, means v2-served), and add the
+    `CanDeactivate`/in-flight-request and query-preserving redirect scenarios; write each query's cache
+    policy (`staleTime`, dedupe, `refetchOnWindowFocus`, invalidation scope, identity keying) into its
+    `mapping` row and add the request-count scenarios where legacy fires per action; name the v2
+    writer and every reader of each storage key; map each state write site, event binding and reset
+    rule, and plan its default-export test. Record anything you choose not to reproduce in
+    `openApprovals[]`.
 
 ## Coverage preservation (functional scope is not silently reducible)
 
@@ -120,6 +156,13 @@ This is the functional-behavior twin of the `gateAcceptance.scope` full-matrix r
 dimensions the analysis actually discovered (the `behavioralVariants` dimensions), **never** to
 your own discretion — a feature that varies across 5 locales cannot ship with a PC-KO-only gate
 scope, or the gates go blind to exactly the variants you narrowed.
+
+**The same rule governs the four behavior inventories** — `navigationSurface`, the request fields of
+`apiCalls`, `storageSurface` and `stateSurface` (item 10). **And `analysis.json.failurePaths[]`:** every `mustPreserve` failure path is
+implemented **and** covered by an `e2eScenarios` entry (item 8) **or** recorded in `openApprovals[]`
+with rationale + owner — `fm-plan` Step 4 rejects the plan otherwise, exactly like a `mustPreserve`
+`behavioralVariant`. Do not drop a failure branch because the happy path passes; it is the branch no
+happy-path test reaches.
 
 ## Output
 

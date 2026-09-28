@@ -21,7 +21,7 @@ holder is gone — CLAUDE.md → Lock file; the 30-minute rule is a ghost-lock s
 | `fm-e2e` | `e2e-test-runner` | plan `e2eScenarios` → Playwright (dual-run, staging) → `e2e-report.json` | `e2e-passed` / `e2e-failed` / stays `verified` on `not-run` (an unmeasured scenario is not a pass) |
 | `fm-parity` | `parity-verifier` | visual/contract/webview/telemetry → `parity-report.json` | `parity-passed` / `parity-failed` / stays `e2e-passed` on `not-run` |
 | `fm-fix` | `migration-fixer` | failing gate report → targeted edits → `fix-report.json` | `fixing` → `generated` (a fix changes code, so the whole gate chain re-runs; each gate issues its own passed state) / `escalated` |
-| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`) | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live` |
+| `fm-route` | `strangler-orchestrator` | flagPlan + gate reports → flip artifact (nginx routing + flag, or CloudFront behavior manifest, per `flipMechanism`); emits the PR body (`templates/pr-body.md`) and projects flip-preconditions into `cutover-ledger.json` | `flipPrOpenedAt` (flag-on, gate-guarded); `flipped` only on `--flag-on --confirm-live`. `--cutover` flips all ready pages together (big-bang, ledger-gated); refuses a `cluster` (no route) |
 | `fm-progress` | — | `tracker.json` → dashboard (read-only) | — |
 | `fm-delta` | `migration-planner` (incremental) + `style-spec-extractor` (on `styleDrift`) + `delta-modifier` | legacy drift → `delta-plan.json` → targeted edits | `generated` (incremental); unchanged (Full) |
 | `fm-clean-code` | `quality-reviewer` | generated code → quality report (read-only) | — |
