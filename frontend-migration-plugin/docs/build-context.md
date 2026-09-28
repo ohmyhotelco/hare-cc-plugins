@@ -1124,7 +1124,8 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
     still has an approved entry bound to its tree. `fm-route` applies this at `--flag-off` (Step 4a),
     again at `--flag-on` (Step 1c), and lists the cluster's exemptions for acknowledgement (Step 1b).
     A withdrawn cluster exemption now blocks the consuming page's flip, and so does a cluster whose
-    status regressed after the code PR.
+    status regressed after the code PR, unless an owner approved that ledger entry. `fm-progress`
+    points a `cluster-ready` cluster that fails the test at `fm-verify`.
   - **S6:** `fm-audit-codex` counts a `script` app's `route` stage as available once `routePrepared`
     is set.
   - **S7:** `quality-reviewer` now matches navigation targets by `foundation-generator` 3c's rule.

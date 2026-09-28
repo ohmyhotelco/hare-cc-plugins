@@ -108,7 +108,7 @@ and surface a `cascade` record with `unresolved > 0` — those rows block `fm-ro
 fixed or recorded), e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
 `--flag-on --confirm-live` per the three sub-states above, `*-failed`→`fm-fix`, `done`→no command.
 A `kind: "cluster"` target never routes: `cluster-ready`→**no command** (terminal — a cluster has no
-flip), and a cluster at any pre-terminal status takes the same chain command as a page **except** it
+flip) while it passes `fm-route` Step 4a's readiness test, else `fm-verify`; and a cluster at any pre-terminal status takes the same chain command as a page **except** it
 can never reach `fm-route` (CLAUDE.md → Component Clusters). Print its readiness as the flip-precondition
 it is for the pages in its `consumedBy`.
 

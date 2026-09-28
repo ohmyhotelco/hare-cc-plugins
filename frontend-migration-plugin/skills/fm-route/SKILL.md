@@ -408,8 +408,9 @@ and the entry moves to `resolved`. This is what stops a page flipping while a na
 ("internal-link conversion complete for this path", "style gate must run on the real route") is still
 open with no owner — the recurring "deferral set is recorded nowhere the cutover can read it" gap.
 Then repeat Step 4a's consumed-cluster test: a consumed cluster that is not ready blocks the flip like
-an `open` entry, whatever the ledger says, because its status and its exemptions can change after the
-code PR.
+an `open` entry — even when its ledger entry reads `resolved` or is absent, because its status and its
+exemptions can change after the code PR — unless an owner has `approved` that entry. The way out is
+the cluster's chain from `fm-verify`, or that approval.
 
 ### Step 1d: Route resolution and navigation targets (flag-on only; hard gate) — see `templates/angular-to-react-mapping.md` → routing
 The edge is about to send this page's paths to v2, so check that v2 can serve every one of them and
