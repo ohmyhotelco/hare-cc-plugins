@@ -83,10 +83,11 @@ Return the path to the legacy app. This is the soft rollback.
   `active: false` — that is the flag-off/prepared state; revert deletes the entry).
 - `script`: run `flipCommands.revert`. Absent → refuse and say the rollback must be done by hand in
   every file of `flipArtifacts` — never in some of them. **Exception — a page that was only prepared**
-  (`routePrepared`, no `flipPrOpenedAt`, and the `flipArtifacts` match `HEAD` — see the template):
-  nothing was activated, so run nothing and report the prepared entries the rollback PR removes by
-  hand. On any refusal **after** a command ran, report its in-artifact writes as uncommitted flip
-  state and restore each path to its before-snapshot copy, never to the index (template).
+  (`status` `parity-passed`, never `flipped`; `routePrepared`; no `flipPrOpenedAt`; and the
+  `flipArtifacts` match `HEAD` — see the template): nothing was activated, so run nothing and report
+  the prepared entries the rollback PR removes by hand. On any refusal **after** a command ran,
+  report its in-artifact writes as uncommitted flip state and restore each path to its
+  before-snapshot blob, never to the index (template).
 
 ## Editing the artifact
 Read-modify-write per `templates/strangler-fig.md`; touch only this page's `guardsPath` rule, never

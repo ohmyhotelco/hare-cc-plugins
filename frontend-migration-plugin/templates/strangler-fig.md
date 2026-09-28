@@ -175,8 +175,8 @@ time. So the checks compare a **before/after snapshot** and never touch what the
 change:
 1. Before running, record `git status --porcelain=v1 -z -uall` (NUL-separated, so a rename entry
    parses) plus `git hash-object` of every dirty or untracked path. For each `flipArtifacts` path,
-   also keep a recoverable copy (`git hash-object -w`, or `cp` to `<path>.before.tmp`). After the
-   command, take the same snapshot.
+   also store its bytes with `git hash-object -w` — never as a copy inside the worktree, which the
+   after-snapshot would report as a delta. After the command, take the same snapshot.
 2. The command exited 0.
 3. **Every path whose entry or hash changed between the two snapshots is in `flipArtifacts`.** Any
    other delta → refuse and name the files. Do not restore them; they may be someone's work. The
@@ -192,14 +192,15 @@ change:
 
 **A refusal after the command ran leaves its writes on disk.** Report every `flipArtifacts` path it
 changed, with before/after hashes, as **uncommitted flip state**. Restore each of those paths to its
-**before-snapshot**: the `.before.tmp` copy, or `git cat-file blob <beforeHash> > <path>`. Never
+**before-snapshot**: `git cat-file blob <beforeHash> > <path>`. Never
 use the index for this. `git restore` is correct only for a path the before-snapshot showed clean;
 an artifact that was already dirty may hold another page's uncommitted entries. Without the restore,
 a re-run of `flag-on` finds the page "already live", changes nothing, and the empty-delta check
-refuses it indefinitely. Delete the `.before.tmp` copies once the run ends either way.
+refuses it indefinitely.
 
-**`--revert` of a page that was only prepared** (`routePrepared`, no `flipPrOpenedAt`), whether or
-not `flag-off` is declared, and **decided by content, not by fields**: every `flipArtifacts` file is
+**`--revert` of a page that was only prepared** (`status` `parity-passed` — never `flipped` — with
+`routePrepared` and no `flipPrOpenedAt`), whether or not `flag-off` is declared, and **then confirmed
+by content**: every `flipArtifacts` file is
 identical to `HEAD` (`git diff --quiet HEAD -- <artifacts>`). Nothing was activated, and the
 project's revert command may rightly refuse a page it does not list. Run nothing. Report the
 prepared entries in `flipArtifacts` that the rollback PR removes by hand, and let `fm-route` clear

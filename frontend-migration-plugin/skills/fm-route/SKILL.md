@@ -393,7 +393,7 @@ acknowledge and proceed, or send the page back through the gates — **not `fm-f
 only `*-failed`/`fixing`/`escalated` and refuses the `parity-passed` this step runs at. To act on a
 finding rather than acknowledge it, re-run `fm-verify` (it accepts a gate-passed page and demotes
 with a warning), which puts the page back on the chain a fixer can reach. If `codexAudit` is disabled or Codex is
-unavailable, skip this step.
+unavailable, skip only the Codex findings; the gate exemptions still need the acknowledgement.
 
 ### Step 1c: Cutover-ledger preconditions (flag-on only; hard gate) — see `templates/cutover-ledger.md`
 Read `docs/migration/cutover-ledger.json` (absent → no ledger entries, not a block). Collect this
