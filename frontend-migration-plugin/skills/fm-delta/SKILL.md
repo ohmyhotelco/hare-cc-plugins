@@ -160,7 +160,7 @@ after the user has chosen it.
 ### Step 5: Record (incremental path only)
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file).
+after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 - **Promote the staged baseline.** `migration-planner` (incremental mode) wrote its proposal to
   `migration-plan.next.json` and `analysis.next.json`; verify both parse and reflect the applied ops
   rather than re-deriving them here (the `styleSurface` is already current from Step 4), then move

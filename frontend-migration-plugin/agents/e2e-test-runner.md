@@ -131,6 +131,14 @@ failing scenario, capture the **artifact paths** (trace zip, video, screenshot) 
 (e2e-fix) can open them — these are the agent's DevTools. Evidence before claims — do not report a
 pass you did not observe (CLAUDE.md 5-step gate).
 
+Those artifacts are **run output, not source** (`templates/e2e-testing.md` → "Run output is
+disposable; baselines are source"). Never pass `--output` into a tree that holds baselines
+(`e2e/.artifacts/`, a snapshot dir, `docs/migration/`); leave it at the config's `test-results/`.
+Confirm each artifact path with `git check-ignore -q` and list every one git would **not** ignore
+under `runOutput.unignored` — never in `filesChanged` (that list feeds the gate's watch paths; a trace
+there would be hashed as page code and committed with it). You do not edit `.gitignore` yourself;
+`fm-e2e` reports the gap.
+
 ## Output — `e2e-report.json`
 ```jsonc
 {
@@ -166,6 +174,9 @@ pass you did not observe (CLAUDE.md 5-step gate).
   // gate can never watch; an app-relative path here would make it watch a nonexistent one.
   "filesChanged": ["apps/web-mobile/e2e/pages/hotel-booking-info.spec.ts",
                    "apps/web-mobile/e2e/support/overload.ts"],
+  // Playwright run output (traces, failure screenshots, videos) — never part of filesChanged.
+  // `unignored`: artifact paths `git check-ignore -q` did NOT match, i.e. files a commit would take.
+  "runOutput": { "dir": "apps/web-mobile/test-results", "unignored": [] },
   "ranAt": "ISO"
 }
 ```

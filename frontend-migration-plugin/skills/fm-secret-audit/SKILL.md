@@ -1,6 +1,6 @@
 ---
 name: fm-secret-audit
-description: "Use as Phase 0 security pre-work — inventory the secrets read from the legacy environment.*.ts files, classify each by client-bundle vs server-only exposure, flag cross-environment reuse, and emit relocation guidance. Read-only posture audit."
+description: "Use as Phase 0 security pre-work — inventory the secrets read from the legacy environment.*.ts files, classify each by client-bundle vs server-only exposure, flag cross-environment reuse, and emit relocation guidance; re-run once pages ship to track secrets carried into the v2 apps. Read-only posture audit."
 argument-hint: "[--app pc|mobile|hana] [env-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Agent
@@ -16,7 +16,9 @@ no lock. All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve the
-`legacyDir`(s) to scan (`--app` or all apps), `workingLanguage`.
+`legacyDir`(s) to scan (`--app` or all apps), the same apps' `targetDir`s **that exist on disk**
+(`v2Dirs` — a migrated app is where carried-over secrets now live; none exist in Phase 0, so it is
+normally `[]` the first time), and `workingLanguage`.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
@@ -25,14 +27,19 @@ Locate `src/environments/*.ts` under the legacy dir(s) (or use `[env-path]` if g
 `src/app/**` + `server.ts` readers.
 
 ### Step 2: Audit
-Launch `secret-auditor` (Agent) with `legacyDir`(s), `outPath` =
+Launch `secret-auditor` (Agent) with `legacyDir`(s), `v2Dirs`, `outPath` =
 `docs/migration/secret-audit-report.json`, `workingLanguage`.
 
 ### Step 3: Report
 In `workingLanguage`: the count of client-exposed secrets, the highest-impact items (PG
 merchant keys, Kakao OAuth secret), cross-environment reuse risks (dev tests hitting prod
-merchants), and the relocation sequence. Link the work to **OMH-477** (remediation is tracked
+merchants), the relocation sequence, and — when `v2Dirs` was non-empty — the `v2CarryOver` entries
+whose exposure is `client` or `unresolved` or that still read a `committedLiteral`. Link the work to **OMH-477** (remediation is tracked
 there; this skill only inventories). Never print secret values.
+
+> **Re-run it after a page carries a secret into a v2 app** (typically an auth or payment page):
+> the Phase 0 report describes legacy only, and a secret moved behind a v2 server boundary is
+> audited only by a run that scans that app.
 
 > This is a hard prerequisite framing for Phase 4 (payment) and Phase 5 (auth): the
 > `shared-domain/payment` boundary (enforced by `fm-extract`) and the server-side PG payload

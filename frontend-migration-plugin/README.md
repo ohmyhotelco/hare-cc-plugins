@@ -5,7 +5,7 @@ Hana) to **React Router v7**, following the revised v2 migration plan. It is **f
 — its own agents and pipeline — but shares the stack conventions of `frontend-react-plugin` so the
 generated React is consistent across the org.
 
-> Status: feature-complete tooling (v1.3.0). The plugin does **not** contain the product apps —
+> Status: feature-complete tooling (v1.5.0). The plugin does **not** contain the product apps —
 > it operates on a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
 ## What it does
@@ -23,7 +23,9 @@ New to the migration? These terms recur throughout:
 - **Strangler Fig** — migrate page-by-page. The edge layer routes each path to either the legacy
   Angular app or the new React app; you "strangle" the old app one route at a time, never a
   big-bang rewrite. The flip happens at each app's configured edge — an app-layer / entry **nginx**
-  routing block, or a **CloudFront** behavior — selected per app (`flipMechanism`, default `nginx`).
+  routing block, a **CloudFront** behavior, or — when one flip must move several files together —
+  the project's own flip script over its declared artifacts; selected per app (`flipMechanism`,
+  default `nginx`).
 - **The per-page loop** — every page goes through the same sequence: `analyze → style-spec → plan →
   gen → verify → (cascade, for pages that inject markup they do not author) → e2e → parity →
   route`. One page at a time.
@@ -187,12 +189,12 @@ A route flip (`fm-route --flag-on`) is refused unless all three pass for the pag
 | `fm-cascade` | Stylesheet-level diff vs legacy over every node (evidence, not a status) |
 | `fm-e2e` | Playwright E2E gatekeeper (legacy dual-run, staging gateways) |
 | `fm-parity` | Visual / contract / WebView / telemetry parity |
-| `fm-route` | Strangler Fig route flip (2-PR feature flag; per-app nginx or CloudFront edge) |
+| `fm-route` | Strangler Fig route flip (2-PR feature flag; per-app nginx, CloudFront, or project flip-script edge) |
 | `fm-progress` | Read-only migration dashboard |
 | `fm-delta` | Incremental re-migration on legacy drift |
 | `fm-clean-code` | Standalone code-quality audit |
 | `fm-test-review` | Standalone test-quality audit |
-| `fm-secret-audit` | Secret inventory + relocation guidance |
+| `fm-secret-audit` | Secret inventory (legacy + v2 carry-over) + relocation guidance |
 | `fm-audit-codex` | Independent Codex audit of each audited stage — the seven, not fm-style-spec (advisory second opinion) |
 
 See `docs/skill-reference.md` for each skill's inputs/outputs, the agent it drives, and the

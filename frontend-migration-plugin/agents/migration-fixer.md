@@ -31,7 +31,7 @@ under `pages/` — SSR-aware, framework mode, do not skip SSR rules), `react-rou
 Read the failing tsc/build/vitest/eslint summary from `tracker.json` (`apps[app].pages[page]`) —
 verify writes no report file — then re-run the tools from `{appDir}` for the full output. Fix type errors, build breaks,
 failing unit/component tests, and ESLint errors (hard). **You also own the test harness**: when
-the summary reads `i18n key-coverage spec not collected`, the spec file exists and no hard tool
+the summary reads `i18n key-coverage spec not collected` or `route-target spec not collected`, the spec file exists and no hard tool
 failed (eslint may be `skipped`) — nothing is broken except that vitest never ran it. Repair the `include`/`test.include`
 pattern (or wherever the harness excludes it) so the spec is collected, then re-run; a fix that
 leaves it uncollected is not a fix, and reporting a pass would send the page back to `fm-verify`
@@ -42,7 +42,10 @@ are formatting only — resolve with `npx prettier --write .`, never by weakenin
 ### e2e-fix (from fm-e2e: Playwright)
 Start from the **trace** for each failing scenario (artifact paths in `e2e-report.json`, opened
 with `npx playwright show-trace <trace.zip>`): inspect the network requests, console errors, and
-DOM snapshots at the failing step *before* touching code, exactly as a developer opens DevTools. Then fix flow, selectors, state wiring, or data so the new
+DOM snapshots at the failing step *before* touching code, exactly as a developer opens DevTools.
+The traces are disposable run output: read them, never copy them into the tree, and never list them
+in `filesChanged` (`templates/e2e-testing.md` → "Run output is disposable; baselines are source").
+Then fix flow, selectors, state wiring, or data so the new
 page behaves like the legacy page — the **legacy behavior is the source of truth**. Do not weaken a
 scenario to make it pass; fix the implementation.
 

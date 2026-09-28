@@ -76,7 +76,7 @@ Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone 
 ### Step 3: Mark fixing
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write
-**anywhere in this skill**, after the page lock (CLAUDE.md → Lock file).
+**anywhere in this skill**, after the page lock (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on

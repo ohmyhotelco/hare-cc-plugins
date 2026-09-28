@@ -4,7 +4,7 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 플러그인입니다. 개정된 v2 마이그레이션 계획을 따릅니다. **완전 독립형**(자체 에이전트·파이프라인)
 이지만, 생성 결과의 일관성을 위해 `frontend-react-plugin`의 스택 컨벤션을 공유합니다.
 
-> 상태: 기능 완성 툴링(v1.3.0). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
+> 상태: 기능 완성 툴링(v1.5.0). 이 플러그인은 제품 앱을 포함하지 않으며, 마이그레이션
 > 프로젝트가 스캐폴딩하는 v2 모노레포(`apps/` + `packages/`)를 대상으로 동작합니다.
 
 ## 무엇을 하나
@@ -21,8 +21,9 @@ OhMyHotel Angular 15 앱(PC·Mobile·Hana)을 **React Router v7**로 마이그�
 
 - **Strangler Fig** — 페이지 단위로 마이그레이션. 엣지 레이어가 각 경로를 레거시 Angular 앱 또는
   신규 React 앱으로 라우팅하여, 한 번에 하나씩 구 앱을 "교살(strangle)"합니다. 빅뱅 재작성 아님.
-  플립 지점은 앱별로 설정합니다 — 앱 레이어/엔트리 **nginx** 라우팅 블록 또는 **CloudFront**
-  비헤이비어 (`flipMechanism`, 기본값 `nginx`).
+  플립 지점은 앱별로 설정합니다 — 앱 레이어/엔트리 **nginx** 라우팅 블록, **CloudFront**
+  비헤이비어, 또는 한 번의 플립이 여러 파일을 함께 바꿔야 할 때는 선언된 아티팩트를 다루는
+  프로젝트 자체 플립 스크립트 (`flipMechanism`, 기본값 `nginx`).
 - **페이지 루프** — 모든 페이지가 동일 순서를 거칩니다: `analyze → style-spec → plan → gen →
   verify → e2e → parity → route`. 한 번에 한 페이지.
 - **3중 패리티 게이트** — 생성 후 순서대로 통과해야 함: `fm-verify`(기술: 빌드/타입/단위테스트 +
