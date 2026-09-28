@@ -77,7 +77,7 @@ The app uses a **Facade layer** in front of NgRx — components never touch the 
 | `store.select(getX)` (selector) | hook return value / Zustand selector |
 | NgRx Effect `ofType→switchMap→service.POST_*→map→Set` | TanStack Query `queryFn`/`mutationFn` — **with the cache policy legacy actually has** (see note below) |
 | reducer `on(setX, …)` | Query cache / Zustand setter |
-| `catchError(() => EMPTY)` (silent) | **do not preserve silently** — surface error or decide deliberately; the analyzer flags every site |
+| `catchError(() => EMPTY)` in an effect | the effect swallows the error, but that does not make the page silent: `ApiService.handleError` runs first and may already have raised the global alert (see the http rows — it differs per app). Port what the user saw, not the effect's silence — and check the endpoint against legacy's silent list (`isSilentErrorEndpoint`, e.g. `/user/agree-terms`). The analyzer flags every site |
 
 Server state (API-backed lists/details) → TanStack Query. Client/UI state (search form, locale,
 toggles) → Zustand (thin). Anchors: `store/hotel/hotel.facade.ts`, `store/hotel/hotel.effects.ts`,
@@ -147,7 +147,7 @@ See **http** and `templates/shared-package-spec.md` for where each lands.
 | --- | --- |
 | `apis/services` `POST_*`/`GET_*` (`ApiService.post`) | axios call in `shared-data/services` |
 | `usertoken` header injection | axios request interceptor |
-| `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor |
+| `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor. **`handleError` is a user-visible failure path, not logging — and it differs per app, so read it in each app's `core/services/api.service.ts`.** On legacy-pc every failed call shows an alert ("Updating service. Please try again later." for a transport failure, `status 0`; a generic message otherwise) whose confirm runs `window.location.reload()`; it stays quiet only when the browser is offline (the network service alerts instead) and for endpoints on `isSilentErrorEndpoint`. Legacy-mobile's shows the alert with no reload, and as written it returns early — with no alert — whenever `error.url?.indexOf("/hana/session-user")` is truthy, which includes `-1`. A v2 page that turns a legacy-alerted failure into an empty list or a silent no-op has dropped this path (OMH-749 #191, OMH-936 #339) |
 | `HttpHelperService` session-expiry (`'Invalid Session Token'`/`'Session Expired'` → remove token + LoginModal) | axios response interceptor with a UX callback (modal on PC / route on mobile) |
 | `getCommonRequestParams()` (localStorage `locale`) spread into body | `shared-data` request builder reading the locale store — **parse the assembled body through its endpoint `RqSchema` at runtime** (see note below) |
 | response envelope `{ succeedYn, errorMessage, result, transactionSetId, errorCode }` | typed in `shared-types` (zod); unwrap in the query layer — **`errorMessage` is not display copy** (see note) |

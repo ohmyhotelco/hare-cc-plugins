@@ -47,13 +47,14 @@ The page's code is merging but must not yet serve users. Ensure the routing arti
 This is the state the code PR merges with.
 - `nginx`: ensure the routing block for `guardsPath` exists, gated by `flagPlan.key`, flag default
   OFF. Create the flag entry OFF if absent.
-- `cloudfront`: ensure the manifest has an entry mapping `guardsPath` to the v2 origin, marked
-  **not yet active** (prepared/off). Do not activate it.
+- `cloudfront`: ensure the manifest has the page's entries — every path-pattern of its flip unit
+  (`templates/strangler-fig.md` → Flip unit), each mapped to the v2 origin and keyed to
+  `flagPlan.key` — marked **not yet active** (prepared/off). Do not activate them.
 - `script`: run `flipCommands["flag-off"]` if declared. If it is not, **edit nothing** — report the
   `flipArtifacts` whose prepared-but-inactive entries the code PR authors by hand (see
   `templates/strangler-fig.md` → "Project-script pattern").
 
-### flag-on (the one-line flip PR) — guarded
+### flag-on (the flip PR — the page's whole flip unit) — guarded
 **Precondition (hard):** confirm the page `status` is `parity-passed` in `tracker.json` (the
 monotonic chain guarantees verify and e2e passed first — the single `status` field has since been
 overwritten past `verified`/`e2e-passed`) and `verifiedAt` is present (verify's durable trace —
@@ -65,7 +66,9 @@ approved entry, **refuse** and report which gate blocks the flip — do not flip
 When all pass, activate the prepared rule for `guardsPath` (on `domain`); unmatched paths still hit
 the legacy app (`legacyPort`).
 - `nginx`: flip `flagPlan.key` to ON so nginx routes `guardsPath` to the new app (`port`).
-- `cloudfront`: mark the `guardsPath` manifest entry **active** (path-pattern → v2 origin).
+- `cloudfront`: mark **every** manifest entry keyed to `flagPlan.key` **active** (path-pattern → v2
+  origin) — the whole edge half of the flip unit, never a subset. Report the unit's app-side switches
+  (nav `migrated` flags, runtime flags, converted legacy anchors) for the PR to carry.
 - `script`: run `flipCommands["flag-on"]`. Absent → refuse: there is no way to flip this app.
 
 ### revert (rollback) — guarded
@@ -79,8 +82,12 @@ gate-passed status no gate produced (`fm-route` Step 0a).
 
 Return the path to the legacy app. This is the soft rollback.
 - `nginx`: flip the flag back OFF (the routing block stays, dormant).
-- `cloudfront`: **remove** the `guardsPath` behavior entry from the manifest (not merely
-  `active: false` — that is the flag-off/prepared state; revert deletes the entry).
+- `cloudfront`: set every entry keyed to `flagPlan.key` back to `active: false` and **keep** them —
+  the prepared state the page returns to, and the consuming project's own rollback convention. Only
+  a page that was never flag-on (`parity-passed`, `routePrepared`, no `flipPrOpenedAt`, never
+  `flipped`) has its prepared entries **removed** — that is the undo of `--flag-off`. Report the
+  unit's app-side switches the rollback PR reverts, and that they deploy **before** the edge change
+  is applied (`templates/strangler-fig.md` → Rollback order).
 - `script`: run `flipCommands.revert`. Absent → refuse and say the rollback must be done by hand in
   every file of `flipArtifacts` — never in some of them. **Exception — a page that was only prepared**
   (`status` `parity-passed`, never `flipped`; `routePrepared`; no `flipPrOpenedAt`; and the
@@ -97,7 +104,7 @@ other paths'. Keep the change minimal and reversible.
 - **cloudfront** (`cloudfrontDir/<manifest>`): edit **only** the in-repo behavior manifest —
   `/build/*` immutable, the SSR document path no-cache + cookie-forward, and the per-page flipped
   path-patterns → v2 origin. **Never push to AWS / never run `aws cloudfront …`** — governance is
-  detect / PR, not apply; the deployment owner applies the manifest (OMH-502).
+  detect / PR, not apply; the deployment owner (`apps.{app}.applyOwner`) applies the manifest.
 - **script** (`flipArtifacts` via `flipCommands`): never hand-edit the artifacts — the pairing rules
   live in the project's script. Substitute `{page}` `{app}` `{guardsPath}` `{flagKey}`
   **shell-quoted**, and run the command from the repo root. Apply the before/after checks in
@@ -124,4 +131,4 @@ other paths'. Keep the change minimal and reversible.
 - Changes must be reversible (flag flip / behavior removal = rollback). Read-modify-write the
   artifact files; do not clobber other paths' rules.
 - Do not deploy, restart, or push to any cloud provider — you edit in-repo config only; deployment
-  (nginx reload, CloudFront behavior apply) is operated elsewhere (OMH-502).
+  (nginx reload, CloudFront behavior apply) is operated elsewhere, by the app's `applyOwner`.

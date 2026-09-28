@@ -83,7 +83,8 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    forbids. If the value turns out wrong later, it is amended by the decision owner via
    `criterionAmendment` (schema template), never quietly narrowed by whoever hits it.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
-   one-line flag-ON PR). See the schema template. **A cluster has no route** — when
+   the flag-ON PR that activates the page's **flip unit**: every edge entry keyed to the flag plus the
+   app-side switches — list both in `flagPlan.unit`, `templates/strangler-fig.md` → Flip unit). See the schema template. **A cluster has no route** — when
    `analysis.json.target.kind` is `cluster`, omit `flagPlan` entirely: it reaches `cluster-ready`,
    not `flipped`, and its gates run against a harness, not a routed URL (CLAUDE.md → Component
    Clusters). Mark an `openApprovals[]` entry `blocksFlip: true` when the coverage it reduces must

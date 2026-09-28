@@ -209,7 +209,12 @@ most while every gate stayed green.
 ### 12. Request behavior → extra fields on each `apiCalls[]` entry
 
 - `trigger` — the user action or lifecycle event that sends it (click, blur, poll tick, route entry,
-  focus), and for a replaced library its firing rule (ngx-infinite-scroll fires on each tick).
+  focus), and for a replaced library its firing rule, read from the library source, not assumed.
+  ngx-infinite-scroll@15, for instance, listens only to `scroll` events on its container, fires once
+  per distinct `totalToScroll` (it stays latched at an unchanged height, so a failed page is not
+  retried until the content grows), and never checks on init (`immediateCheck` is declared but not
+  read). An `IntersectionObserver` port that fires on every intersection, or on mount, is a request
+  legacy never sent (OMH-935 #362).
 - `firesPerAction` — `every` when legacy sends it on each action (the effect POSTs and the reducer
   overwrites), `once` when the store is reused. This decides the TanStack Query cache policy
   (`angular-to-react-mapping.md` → state).

@@ -42,11 +42,22 @@ export async function clientLoader({ request }: LoaderFunctionArgs) {
     return null;
   }
 
-  const res = await POST_HANA_VERIFY_TIME({
-    ...getCommonRequestParams(),
-    condition: { code: decodeURIComponent(ts) },
-  });
-  if (!res.succeedYn || !res.result) throw redirect("/not-found");   // see decision 1
+  let res;
+  try {
+    res = await POST_HANA_VERIFY_TIME({
+      ...getCommonRequestParams(),
+      condition: { code: decodeURIComponent(ts) },
+    });
+  } catch (err) {
+    // OMH-631 (decision 1): reproduce legacy `error.status === 0` — a transport failure (no HTTP
+    // response) lets the visitor through. Do NOT fail closed here.
+    if (!err?.response) {
+      sessionStorage.setItem("passAuth", "true");
+      return null;
+    }
+    throw redirect("/not-found");                      // a real HTTP error response denies
+  }
+  if (!res.succeedYn || !res.result) throw redirect("/not-found");   // an "invalid token" answer denies
 
   sessionStorage.setItem("passAuth", "true");
   url.searchParams.delete("ts");                       // see decision 3
@@ -59,10 +70,15 @@ export default function HanaLayout() { return <Outlet />; }
 
 All Hana routes nest under this layout. Hana ships **SPA** (no SEO surface; external SSO entry).
 
-## Four security decisions (resolve with the Hana/HanaCard contact in the migration PR)
-1. **Fail-open on network error.** Legacy treats `error.status === 0` as verified. Default the
-   v2 loader to **fail-closed** (redirect to `/not-found`) unless stakeholders require fail-open
-   for operational continuity.
+## Four security decisions (1 is resolved; resolve 2–4 with the Hana/HanaCard contact in the migration PR)
+1. **Fail-open on network error — RESOLVED 2026-06-22 (OMH-631): keep it.** Legacy treats
+   `error.status === 0` as verified, and the Hana/BE stakeholder confirmed this is a deliberate
+   graceful-degradation buffer: no HTTP response includes requests dropped during our own rolling
+   deploys, and a real visitor should not be blocked by those. The backend's genuine "invalid token"
+   answer (HTTP 200, `result: false`) still denies. The v2 loader **must** reproduce the pass-through
+   on a transport failure (the `catch` branch above) and must not default to fail-closed. The record
+   is the monorepo's `docs/migration/v2-migration-plan.md` → Hana, and the legacy rationale landed via
+   PR #46. This is a decision, not an open question: do not list it in `openQuestions`.
 2. **PG-callback bypass scope.** Legacy sets `passAuth = true` for the whole session when hitting
    `/payment-complete` or `/hana/my-page/booking-history/K*`. Consider a **one-shot** pass (allow
    the specific render, do not persist `passAuth`).
@@ -72,6 +88,8 @@ All Hana routes nest under this layout. Hana ships **SPA** (no SEO surface; exte
    shortcut. Decide whether to keep or drop it for v2.
 
 ## Behavior criteria (e2e scenarios)
-The SSO loader verifies against staging external SSO; the four decisions above are recorded as
-the page's `openQuestions` until signed off. Do **not** port the dead Mobile-OMH `?ts` capture —
+The SSO loader verifies against staging external SSO; decisions 2–4 above are recorded as the
+page's `openQuestions` until signed off. Decision 1 is settled, so its scenario asserts the
+pass-through: a transport failure on `POST_HANA_VERIFY_TIME` renders the page, while an HTTP error
+response and a `result: false` answer both redirect to `/not-found`. Do **not** port the dead Mobile-OMH `?ts` capture —
 no OMH flow sets `?ts` (plan §7).

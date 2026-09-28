@@ -216,6 +216,15 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   commands run from the repo root, keyed by action — `flag-on` and `revert` required, `flag-off`
   (prepare, not active) and `status` (the project's pair/drift check) optional — with the
   placeholders `{page}` `{app}` `{guardsPath}` `{flagKey}`.
+- `apps.*.applyOwner` — **optional**. Who applies the merged routing artifact to the live edge
+  (a person, team or ticket). The plugin prepares artifacts for a PR and never applies them, so every
+  place that names the apply step reads this key, and emits `TODO(owner): name the apply owner`
+  when it is unset. Do not fill it from an old ticket: the monorepo's runbook
+  (`docs/migration/runbooks/route-flip.md`, corrected 2026-08-21) found that OMH-502, which earlier
+  plugin text named as the owner, is a closed epic whose scope never covered the CloudFront apply.
+- `defaultBaseBranch` — **optional**. The branch a PR targets when `fm-route` is not given `--base`.
+  Absent → `origin/HEAD`. Set it when most migration PRs target a branch other than the repo
+  default, and pass `--base` for the rest (`fm-route` Step 0b).
 - `stagingConfig` — the staging base URL and payment-gateway **test** endpoints (`nicePay` /
   `alipay` / `onePay` — the v2 gateways, `templates/payment-flow-v2.md`) that `fm-e2e` passes to
   `e2e-test-runner` for transactional scenarios. Transactional E2E runs against these, never production.

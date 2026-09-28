@@ -1,7 +1,7 @@
 # Strangler Fig Routing
 
 Patterns the `strangler-orchestrator` / `fm-route` use. Migration plan §11.4–§11.5. The
-deployment pipeline that runs the containers is operated outside this repo (OMH-502); here we
+deployment pipeline that runs the containers is operated outside this repo (by the apply owner, `apps.{app}.applyOwner`); here we
 manage the **in-repo routing config and feature flags only** — `fm-route` never deploys, reloads,
 or pushes to any cloud provider.
 
@@ -66,7 +66,7 @@ location = /hotel/booking-info {
 ```
 
 The exact flag mechanism (cookie, header, included conf file, or an edge map) is confirmed with
-the deployment owner (OMH-502). Keep one routing block per `guardsPath`; default OFF.
+the deployment owner (`apps.{app}.applyOwner`). Keep one routing block per `guardsPath`; default OFF.
 
 ## CloudFront pattern (`flipMechanism: cloudfront`, per migrated path)
 
@@ -74,14 +74,14 @@ When an app flips at a CDN, the "flag" is a **CloudFront behavior**: a path-patt
 v2 origin. `fm-route` edits a **version-controlled manifest** in the repo
 (`cloudfrontDir/<manifest>`, default `infra/cloudfront/v2-routes.json`) for a PR the user opens — it
 **never calls AWS** (`aws cloudfront …` is out of scope). Governance is **detect / PR, not apply**;
-the deployment owner applies the manifest to the live distribution (OMH-502).
+the deployment owner applies the manifest to the live distribution (`apps.{app}.applyOwner`; `TODO(owner)` when unset).
 
 The manifest mirrors the distribution's v2-owned behaviors. Two cross-cutting behaviors are stable
 and not per-page; the rest are the per-page flipped path-patterns:
 
 ```jsonc
 // infra/cloudfront/v2-routes.json — version-controlled CloudFront behavior manifest (machine truth
-// for the v2-owned behaviors; mirrors the live distribution, applied out-of-band by OMH-502).
+// for the v2-owned behaviors; mirrors the live distribution, applied out-of-band by the apply owner).
 {
   "origins": {
     "v2":     { "id": "web-pc-v2",  "comment": "ECS/ALB target for the new app" },
@@ -100,14 +100,18 @@ and not per-page; the rest are the per-page flipped path-patterns:
 }
 ```
 
-- `--flag-off` → add/ensure the `guardsPath` behavior with `active: false` (prepared, legacy still
+- `--flag-off` → add/ensure the page's behavior entries with `active: false` (prepared, legacy still
   serves). `/build/*` immutable + the SSR-document no-cache + cookie-forward behaviors are present.
-- `--flag-on` → set the `guardsPath` behavior `active: true` (path-pattern → v2 origin), only after
+- `--flag-on` → set the page's entries `active: true` (path-pattern → v2 origin), only after
   the gates pass.
-- `--revert` → **remove** the `guardsPath` behavior entry from the manifest (delete it, not just
-  `active: false` — that is the flag-off state); the path returns to legacy.
+- `--revert` of a flipped or in-flight page → set the page's entries back to `active: false`, and keep
+  them. That is the prepared state the page returns to, and it matches the consuming monorepo's own
+  rollback (`notice/migration-plan.json` `rollback`: "flip the 16 entries active:true → active:false,
+  NOT remove them"). `--revert` of a page that was only prepared (never flag-on) removes the
+  prepared entries, which is the undo of `--flag-off`.
 
-Keep one behavior entry per `guardsPath`; default not-active. Field names above are illustrative —
+"The page's entries" is every entry keyed to its `flagPlan.key`, not one `guardsPath` entry — see
+"Flip unit" below. Default not-active. Field names above are illustrative —
 the manifest shape is the consuming project's (mirroring its real `get-distribution-config`); the
 plugin only relies on "one version-controlled entry per flipped path-pattern, present/active flag".
 
@@ -206,7 +210,7 @@ project's revert command may rightly refuse a page it does not list. Run nothing
 prepared entries in `flipArtifacts` that the rollback PR removes by hand, and let `fm-route` clear
 the route fields.
 
-The script edits **in-repo intent only**; it must not call a cloud API (the same OMH-502 governance
+The script edits **in-repo intent only**; it must not call a cloud API (the same detect / PR, not apply governance
 as the other two mechanisms), and the plugin never runs it with credentials of its own.
 
 ## 2-PR flag flow (every mechanism)
@@ -216,24 +220,46 @@ as the other two mechanisms), and the plugin never runs it with credentials of i
    PR1 carries the page's `docs/migration/{app}/{page}/` evidence and its `tracker.json` rows —
    the gate skills and `--flag-off` stage them. The RR v7 code merges; users still get legacy.
 2. **Flag-ON PR** — `fm-route <page> --flag-on`, run on the **merged base checkout** (Step 1a
-   treats HEAD as what ships): one-line flip, **only after `fm-verify` +
-   `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise). This edits the artifact
-   and records `flipPrOpenedAt`; the page stays `parity-passed`.
+   treats HEAD as what ships): it activates the page's whole **flip unit** (below), **only after
+   `fm-verify` + `fm-e2e` + `fm-parity` all pass** (the orchestrator refuses otherwise). This edits
+   the artifact and records `flipPrOpenedAt`; the page stays `parity-passed`.
 2b. **Confirm live** — `fm-route <page> --flag-on --confirm-live`, run once that PR is merged **and
    deployed and propagated**. Only this sets `flipped`. It requires `flipPrOpenedAt` to be present,
    edits no artifact, and launches no agent — it records a human's observation, which is the one
    thing nothing in the plugin can make for itself.
-3. **Rollback** — `fm-route <page> --revert`: nginx flag OFF, remove the cloudfront behavior, or the
-   project's `revert` command.
+3. **Rollback** — `fm-route <page> --revert`: nginx flag OFF, the cloudfront entries back to
+   `active: false`, or the project's `revert` command — and the app-side half of the flip unit.
    Soft rollback, target 5–10 min (CloudFront propagation is minutes-grade — still within target).
    Requires a live or in-flight route change to undo (`flipped`, or `flipPrOpenedAt` set at any
    status except `done`, or `parity-passed` with `routePrepared`); it returns a `flipped` page to `parity-passed` and otherwise
    leaves the status alone. It never promotes a page into a gate-passed state.
 
+## Flip unit
+
+A page's flip is never one line. It is a **unit** that goes on together and comes back together:
+- **every edge entry keyed to the page's `flagPlan.key`** — each locale-prefixed path-pattern, its
+  `.data` sibling where loaders serve data from sibling paths, the bare legacy path's redirect entry,
+  and any auxiliary entry (ads, tracking) the page needs. The consuming monorepo's flips ran 13–16
+  entries per key (the notice flip alone was 16; OMH-706/707 #246 flipped 27 for two pages as one
+  unit);
+- **the app-side switches** — navigation config that marks the page migrated (a sidebar
+  `migrated: true`), runtime flags, and the legacy anchors converted to document navigations for it.
+
+The flip PR lists the whole unit, and so does its rollback. Calling the flip PR "one-line" misled
+plans and PR bodies into saying the flip changes nothing but the edge (OMH-750 #330, OMH-749 #335).
+A per-page guard test pins the unit: for every entry keyed to the page, it asserts `origin`,
+`cachePolicy`, `active`, the exact pattern and the `.data` sibling, and it must go red when any
+entry is set to `origin: legacy` (OMH-935 #389: the guard would still pass with the page's two ads
+entries set to `origin: legacy` and a cacheable policy).
+
+**Rollback order.** Deploy the app-side revert (`migrated: false`, the flags) **before** the edge
+change is applied. Edge-first leaves already-loaded v2 clients soft-navigating to a `.data` path the
+edge no longer serves (OMH-755 #312). The rollback PR's Migration notes state this order.
+
 ## Per-version S3 artifacts (recommended)
 Prod tars currently overwrite a single key (`s3://omh-data/prd/<app>.tar`). Recommend per-version
 paths (`s3://omh-data/prd/<app>/<git-sha>/<app>.tar`) so a rollback can re-deploy a prior build
-without re-running CI. This is a deployment-owner improvement (OMH-502), not a blocker for the
+without re-running CI. This is a deployment-owner improvement, not a blocker for the
 flag-based soft rollback above.
 
 ## Where the config lives
@@ -244,5 +270,5 @@ Per app, by `flipMechanism`:
   version-controlled mirror of the live distribution's v2-owned behaviors.
 - `script` → the files listed in `flipArtifacts`, edited by the project's `flipCommands`.
 
-Ownership and the sync/apply mechanism are an OMH-502 discovery item. `fm-route` edits the in-repo
+Who applies it is `apps.{app}.applyOwner` (CLAUDE.md → Configuration) — not OMH-502, which earlier revisions named: that epic is closed and never covered the apply. `fm-route` edits the in-repo
 config for a PR the user opens; it does not deploy, reload, or push to AWS.

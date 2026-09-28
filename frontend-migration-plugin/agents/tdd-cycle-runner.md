@@ -43,6 +43,11 @@ absent, proceed without it (the install is non-blocking).
      field actually drops it at runtime (TS excess-property check does not see fields re-added by a
      `...spread`; only the real backend rejects the stray field with a 400). Keep request schemas
      non-strict so `.parse()` strips rather than throws. See `angular-to-react-mapping.md` → http.
+     **`getCommonRequestParams()` reads the stored locale, which is untrusted input** — legacy writes
+     values the schema rejects (`HANS`, lowercase codes, arrays). Normalize the stored value with
+     `safeParse` and the legacy fallback before it reaches the body schema, so a bad stored locale
+     degrades the way legacy does instead of throwing out of the request builder (OMH-758 #202,
+     `templates/tdd-rules.md` → untrusted input).
    - **store**: thin Zustand for UI/client state (BehaviorSubject/Facade UI state → store).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
      `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX. **Style to the

@@ -140,6 +140,11 @@ details — they can be refined when those phases begin.
   `paymentGateways` still has the pre-1.4.0 `eximbay` / `kakaoPay` keys, write the v2 set in Step 5
   instead — carrying `nicePay`'s value across — and ask first if `eximbay` or `kakaoPay` holds a
   non-empty value. See CLAUDE.md → "Configuration".
+- `apps.{app}.applyOwner` — optional. Ask who applies a merged routing artifact to the live edge for
+  each app (a person, team or open ticket). Leave it unset rather than guess; every flip PR then says
+  `TODO(owner): name the apply owner`, which is visible, where a wrong name is not.
+- `defaultBaseBranch` — optional. Ask which branch migration PRs usually target when it is not the
+  repo default (`origin/HEAD`); `fm-route` Step 0b checks branch freshness against it.
 
 ### Step 5: Write Config and Initialize Tracker
 

@@ -1,7 +1,7 @@
 ---
 name: fm-route
 description: "Use to manage the Strangler Fig route flip for a migrated page at the app's configured edge layer (nginx, CloudFront, or a project flip script spanning several artifacts) — --flag-off prepares the routing artifact + flag (default OFF) for the code PR, --flag-on flips the path to the new app once verify/e2e/parity all pass."
-argument-hint: "<page> --flag-off | --flag-on [--confirm-live] | --revert | --cutover [--confirm-live] [--app pc|mobile|hana]"
+argument-hint: "<page> --flag-off | --flag-on [--confirm-live] | --revert | --cutover [--confirm-live] [--base <branch>] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -104,19 +104,39 @@ Both PRs are graded against **flag-ON at merge** (the big-bang cutover model —
 it was never validated against. This is the recurring merge-sync finding (OMH-936 PR #294 "BEHIND by
 43", OMH-938 PR #302) — catch it before the PR is prepared, not in review.
 
-Resolve the base branch from the repo: `git -C {monorepoRoot} symbolic-ref --quiet --short
-refs/remotes/origin/HEAD` (strip the `origin/`), else fall back to `main`, else `master`. Then, from
-the repo root, count what the base has that HEAD lacks:
+Resolve the base branch — **the branch this PR will target**, not the repo's default. First match wins:
+1. `--base <branch>`;
+2. config `defaultBaseBranch`;
+3. `git -C {monorepoRoot} symbolic-ref --quiet --short refs/remotes/origin/HEAD` (strip the `origin/`);
+4. `main`, else `master`.
+
+The repo default is only a fallback because a repo that ships through several long-lived branches
+targets them from different PRs. In the consuming monorepo `origin/HEAD` is `master`, while 127 of its
+v2 PRs target `develop` and 27 target `staging` (the `-develop` / `-staging` branch copies). Checking
+freshness against `master` passes a branch that is behind `develop`, and blocks one that is only
+missing master-only commits. **When the branch will target anything but the repo default, pass
+`--base`.** Say which base was used, and how it was resolved, in the PR body's Rebase-confirmation
+field.
+
+Then, from the repo root, count what the base has that HEAD lacks:
 
 ```sh
 BASE=<resolved base ref, e.g. origin/main>
 git -C {monorepoRoot} rev-list --count HEAD.."$BASE" 2>/dev/null   # commits on base not on HEAD
 ```
 
-- **> 0 → block.** The branch is behind its base. Tell the operator to rebase or merge the base in,
-  then **re-measure every gate stamp at the new HEAD** (Step 1a's freshness recompute, and the
-  answer-key freshness of P0-A) before re-running this action — a stamp carried across a merge is the
+- **> 0 → block.** The branch is behind its base. Tell the operator to **rebase** onto the base
+  (`templates/pr-body.md` → Branch: synced by rebase, never by merging the base in), then
+  **re-measure every gate stamp at the new HEAD** (Step 1a's freshness recompute, and the answer-key
+  freshness of P0-A) before re-running this action — a stamp carried across a sync is the
   stale-on-merge defect (`templates/pr-body.md` → Rules). Refuse; do not prepare the PR.
+  **Sync, re-stamp, then ask for review — in one push.** On a repo that dismisses stale approvals on
+  push, any sync after approval costs a re-approval. So rebase and re-stamp before requesting review,
+  never as a separate last commit after approval (OMH-936 #354: re-stamping as the last commit before
+  merge dismissed the approval it was meant to satisfy). A rebase rewrites SHAs: re-point every SHA the
+  records cite to its rebased twin (`git range-diff`) in that same push.
+  Also count merge commits (`git rev-list --merges --count "$BASE"..HEAD`): a branch synced by merging
+  the base in is reported, not blocked, so the operator can rebase before review.
 - **0 → proceed**, and record in the PR body's Rebase-confirmation field that the branch is current at
   this HEAD.
 - **Base unresolvable, or the count command errors** (no `origin/HEAD`, offline mirror, detached
@@ -520,9 +540,10 @@ Update `tracker.json` (Read-Modify-Write):
   status → leave it unchanged. This skill never issues a gate-passed state.
   Clearing `routePrepared` matters as much as `flippedAt`: the SessionStart hook
   splits `parity-passed` on it and would otherwise tell the operator to run `--flag-on` — re-flipping
-  the page they just rolled back. On `cloudfront` it would also be false on its face, since a revert
-  *removes* the manifest entry (`strangler-orchestrator`), leaving nothing prepared to activate. Clearing
-  it matters: `templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
+  the page they just rolled back. On `cloudfront` the entries stay in the manifest at `active: false`
+  after a revert of a flipped or in-flight page (`strangler-orchestrator`), but they describe a flip
+  that was rolled back: another flip goes through a fresh `--flag-off`, which re-arms `routePrepared`
+  over the kept entries. Clearing `flippedAt` matters too: `templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
   `flippedAt` is present without a `flipped` status, because that combination normally means the
   tracker and the edge have drifted. A completed revert is the one case where it does *not* — the
   edge really is serving legacy again — so leaving `flippedAt` behind would make the production host
@@ -568,7 +589,7 @@ independent sign-off of the whole page. Advisory; its high-severity findings are
 
 ### Step 4c: Stage the evidence (every action)
 Every action wrote `tracker.json` in Step 4, and the PR that action prepares carries it — PR1, the
-one-line PR2, the rollback PR — or `flipPrOpenedAt` / `flipped` / `revertedAt` exist in one working
+PR2 (the flip unit), the rollback PR — or `flipPrOpenedAt` / `flipped` / `revertedAt` exist in one working
 tree only and every other checkout re-arms the flip. Stage it. `--flag-off` additionally stages the
 page's evidence, after Step 4b — the route audit is part of the record PR1 must carry:
 
@@ -618,14 +639,14 @@ Next step:
   block + flag entry (default OFF), for `cloudfront` the manifest entry mapping `guardsPath` to the
   v2 origin but **not yet active**, for `script` whatever the project's `flag-off` command prepared
   or, with none declared, the inactive entries authored by hand in every `flipArtifacts` file. When
-  review passes, run `fm-route {page} --flag-on` for the one-line flip PR.
+  review passes, run `fm-route {page} --flag-on` for the flip PR (the page's whole flip unit).
 - after `--flag-on`: the flip artifact is **prepared, not live** — and **opening PR2 is your step**,
   the same as the code PR on `--flag-off`. The path keeps serving legacy until that PR
   is merged and the change is deployed and propagated — this skill edits an in-repo artifact and
   never deploys. Once the operator has confirmed it is live, `fm-route {page} --flag-on
   --confirm-live` records `flipped`. Rollback = `fm-route {page} --revert`.
 - for `cloudfront`, remind the user `fm-route` only edits the in-repo manifest for a PR they open — it
-  **does not push to AWS**; applying the behavior change is the deployment owner's step (OMH-502).
+  **does not push to AWS**; applying the behavior change is the apply owner's step (`apps.{app}.applyOwner`, else `TODO(owner): name the apply owner`).
 - for `script`, name every `flipArtifacts` file the PR must carry together — a PR that lands one
   tier without the other is a half-flip — and, after a `--flag-off` with no `flag-off` command, list
   the entries the code PR must author by hand. Applying them at the edge is the deployment owner's
@@ -686,5 +707,5 @@ transition that claims the edge is serving v2, and only a human can observe it.
 
 ### C5: Rollback
 There is no batch `--revert`: roll back per page with `fm-route <page> --revert` (nginx flag OFF /
-remove the CloudFront behavior / the project's `revert` command), which returns a `flipped` page to `parity-passed`. Reverting the whole
+the CloudFront entries back to `active: false` / the project's `revert` command), which returns a `flipped` page to `parity-passed`. Reverting the whole
 batch is repeating that per page — deliberately explicit, so a rollback names each path it touches.

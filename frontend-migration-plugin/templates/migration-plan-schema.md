@@ -76,7 +76,10 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
     "telemetry": { "compares": "...", "scope": "...", "artifacts": "...", "excludes": [] }
   },
   "flagPlan": { "key": "v2_pc_booking_info", "guardsPath": "/hotel/booking-info",
-                "twoPr": ["code PR with flag OFF", "one-line flag-ON PR after parity passes"] },
+                "twoPr": ["code PR with flag OFF", "flag-ON PR activating the flip unit after parity passes"],
+                "unit": { "edge": ["/ko/hotel/booking-info", "/ko/hotel/booking-info.data", "…every locale, /hotel/booking-info redirect"],
+                          "appSide": ["sidebar-menu-config migrated: true", "legacy anchors → document navigation"] } },
+                // unit = the whole flip, on and off together (templates/strangler-fig.md → Flip unit)
   "e2eScenarios": [
     { "name": "fill traveler form and proceed to payment", "transactional": false,
       "steps": ["..."], "legacyAnchor": "file:line" },
@@ -349,13 +352,15 @@ shipped behind green gates (OMH-935 #362 H1, OMH-839 #396 H2–H5, OMH-937 #329 
 Every page migration ships as two PRs (Git Branch Strategy + migration plan §12):
 1. **Code PR** — the RR v7 implementation with the feature flag **OFF**. Merges to `main`; the
    path still serves the legacy app.
-2. **Flag-ON PR** — a one-line change flipping the flag, opened only after `fm-verify`,
+2. **Flag-ON PR** — activates the page's whole flip unit (`flagPlan.unit`), opened only after `fm-verify`,
    `fm-e2e`, and `fm-parity` all pass. `fm-route` manages the route flip at the app's configured
    edge layer — nginx routing + flag, or a CloudFront behavior manifest entry (per
    `apps.{app}.flipMechanism`; AA-47). `guardsPath` is the nginx `location` *and* the CloudFront
    path-pattern, so the plan is mechanism-independent.
 
-`flagPlan.key` is the flag; `guardsPath` is the route it gates. Rollback = flip the flag back.
+`flagPlan.key` is the flag; `guardsPath` is the route it gates; `flagPlan.unit` is everything the
+flip turns on. Rollback reverts the whole unit, app side first (`templates/strangler-fig.md` →
+Rollback order) — never "flip the flag back" alone.
 
 ## E2E scenarios
 

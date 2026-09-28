@@ -243,7 +243,12 @@ native shell is unchanged — the new web must stay contract-compatible. (PC has
 
 ### 4. telemetry (when triggered)
 Per the 40-event `DataLayerEvent` set, verify the new page fires the same `dataLayer.push` events
-with the same names and payload shape as legacy on the same flow. For transactional pages, note
+as legacy on the same flow: the same names, the same **number of fires** per step, and the same
+payload **values** — not only the same keys. A key-only comparison passes a `pg_name`, `currency` or
+`item_category` that carries the wrong value, and a set-based comparison passes a double fire
+(OMH-937 #357 had to add value, count and exact-token parity after a key-only pass; OMH-935 #362
+found `onViewItemList` firing twice after an in-place refetch). Values that legitimately differ
+per run (timestamps, generated ids) are listed by key in the report as excluded, never skipped silently. For transactional pages, note
 the dual-fire observation requirement (≥ 7 days before flag-on, OMH-459) — this gate confirms
 event parity; the time window is operational.
 
