@@ -15,8 +15,16 @@ Scenarios come from `migration-plan.json.e2eScenarios[]` (mapped from legacy flo
 | non-transactional | new app | **MSW** intercept (`VITE_ENABLE_MOCKS=true`) — deterministic |
 | transactional (payment funnel) | **staging** | real PG **test** endpoints (OMH-459); never production |
 
-The payment matrix to cover on staging (OMH-459): each gateway × method — KR card, KR bank,
-Alipay (NicePay), Eximbay / international, OnePay / VN.
+The payment matrix follows the v2 gateways (`templates/payment-flow-v2.md`): NicePay (KRW), OnePay
+(VND), and Alipay+ through NicePay (every other currency). Eximbay has been dead since OMH-1178 and is
+not tested. A payment page has two legs:
+- **the storefront contract**, non-transactional under MSW with a stub of the gateway SDK: the prepare
+  request, the form handed to the gateway (`action` = oh-api's callback), and each landing hop;
+- **the real gateway**, transactional on staging or dev, recorded `not-run` with the reason where the
+  sandbox cannot run it (OnePay `INVALID_INVOICE`, OMH-795).
+
+The template lists the known sandbox blockers and the two mocking traps (service-worker requests, the
+SDK's form-navigation callback).
 
 **SSR / loader network (RR v7 framework mode).** Loaders and actions run **server-side**, so the
 browser MSW worker does **not** intercept their network calls — it only sees client-side fetches.
@@ -68,6 +76,19 @@ assertions in each language the plan lists in `gateAcceptance.e2e.languages` (= 
 flow, so a happy-path-only suite is blind to the entire copy axis. Run the plan's failure scenarios
 — wrong password, OTP/verification-code failure, blocked or duplicate email — on both apps. See
 `templates/i18n-copy-parity.md`.
+
+**Count requests, and compare them.** For the plan's request-count scenarios (`apiCalls[]` entries with
+`firesPerAction: every`, identity-scoped reads, interaction scripts such as add/remove room or
+type-then-blur), record every request to the endpoint on each leg — `page.on('request')` filtered by
+URL and method, or the MSW request log — and assert the **count and the body** per step, not only the
+final UI. A client cache answers an A→B→A toggle-back with no request at all and the page still looks
+right until the next server read (OMH-935 #362 H1). Server-side fetches (an SSR loader) are invisible
+to a browser `page.route`; capture them on the server leg or say which requests the scenario could not
+observe instead of passing it (OMH-840 #337 H-9).
+
+**Click like a user.** Drive controls with a real pointer at the element's visible centre, without
+`force`, after every style change: a jsdom test that clicks a test id cannot see an element painted
+over by a later sibling (OMH-839 #396 B-1, a coupon card dead to taps).
 
 ## Trace-first diagnostics
 Playwright is configured (in `foundation-generator`) to retain **trace + video + screenshot on
@@ -153,14 +174,14 @@ the gate `fail`, but it does make the gate **`not-run`**: the top-level `result`
 the page stays at `verified`, and the chain is blocked until the missing prerequisite is supplied.
 Unmeasured is not passed. `fm-route --flag-on` is blocked until
 `e2e-report.json.result === "pass"` — or `"not-applicable"` under a still-approved exemption
-(CLAUDE.md → Gate Result Accounting G) — and `fm-verify` + `fm-parity` pass. On failure, loop back
+(CLAUDE.md → Gate Result Accounting H) — and `fm-verify` + `fm-parity` pass. On failure, loop back
 through `fm-fix` (e2e-fix mode), which returns the page to `generated` — so re-run the chain from
 **`fm-verify`**, not `fm-e2e`, which requires exactly `verified`; on `not-run`, fix the prerequisite (not the
 code) and re-run `fm-e2e`.
 
 ## Permissions
 Every Playwright run in this pipeline happens inside a sub-agent, and session approvals do not
-transfer to one. So `.claude/settings.json` `permissions.allow` must include the Playwright command
+transfer to one. So `.claude/settings.local.json` `permissions.allow` must include the Playwright command
 (`Bash(npx playwright *)`) before the **first** such run — which is `fm-style-spec`'s legacy probe
 (Step 2b), three stages ahead of `fm-e2e`, not `fm-e2e` itself. `fm-style-spec`, `fm-e2e` (Step 1),
 `fm-parity`, and `fm-delta` (which launches the extractor directly, bypassing `fm-style-spec`) each

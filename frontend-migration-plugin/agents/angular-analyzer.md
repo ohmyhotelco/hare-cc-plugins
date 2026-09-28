@@ -82,7 +82,7 @@ always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trig
 report slot for cannot fail, so naming it would make the page record `pass` for a criterion nobody
 evaluated — a silent pass, which CLAUDE.md → Design Principles forbids outright.
 
-Two triggers are therefore **detected but never promoted to a gate**. Record each in
+Three triggers are therefore **detected but never promoted to a gate**. Record each in
 `gateTriggers[]` with its anchors, and route it to the consumer that actually acts on it:
 
 - **`secret`** — `environment.nicePay.{simple,aliAuth,nonAuth}.merchantKey`,
@@ -91,7 +91,17 @@ Two triggers are therefore **detected but never promoted to a gate**. Record eac
   Consumed by **`fm-secret-audit`** (Phase 0 posture audit + relocation guidance) and enforced at
   generation time by the `shared-domain` ESLint secret boundary, which is a **hard** rejection (see
   CLAUDE.md → Lint & Format Gate). A per-page parity gate would add nothing: there is no legacy-vs-v2
-  comparison to make — a leaked key is wrong on both sides.
+  comparison to make — a leaked key is wrong on both sides. The PG signers are not ported at all: oh-api
+  signs in v2 (`templates/payment-flow-v2.md`). Record the Eximbay builders and forms as dead code
+  (`eximbayStart()` alerts and returns, OMH-1178), not as a flow to port.
+- **`payment`** — the page submits a payment-gateway form or consumes a gateway return: `goPay(`,
+  `nicepaySubmit`/`nicepayClose`, a form posting to `v3Payment.jsp` / `pcRequest.jsp` /
+  `smartRequest.jsp`, `/payment/onepay/getPaymentUrl`, a read of the `pgName` query a return leg
+  carries, the `/payment/np-alipay/verify` / `/payment/np-verify` calls, or the booking-detail
+  balance-payment modal. Consumed by `migration-planner` and the generators, which build to
+  `templates/payment-flow-v2.md` instead of porting the legacy mechanism, and by `fm-route` Step 1d.
+  Not a gate: the flow is verified through `e2eScenarios` (the storefront contract under MSW, the real
+  gateway on staging).
 - **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
   `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.) Consumed by
   `templates/hana-sso.md` as the **generation** contract (the `?ts` flow ports to a `clientLoader`),
@@ -147,6 +157,100 @@ Emit as `copySources[]` (schema below) with `mustPreserve: true` unless the sour
 is dead. `fm-plan` reconciles the plan against this list exactly as it does `behavioralVariants` — a
 `mustPreserve` copy source the plan neither binds nor explicitly defers is a plan defect.
 
+### 10. Failure & edge paths (the branches no happy-path test covers)
+
+Behavior on a **failure or boundary** branch is where a port silently diverges, because the happy
+path passes and no test drives the branch. `behavioralVariants` catches *dimension-varying* behavior
+and `copySources` catches failure *copy*; this catches failure *side-effects and edge behavior*.
+Enumerate every one as `failurePaths[]` (schema below), `mustPreserve: true` unless the source proves
+the branch is dead — `fm-plan` reconciles the plan against this list exactly as it does
+`behavioralVariants`:
+
+- **Side-effect gating on the response envelope.** For each `POST_*` whose handler branches on
+  `succeedYn` (or a `catchError`), record which side-effects legacy fires **only inside** the success
+  branch vs unconditionally: telemetry/`dataLayer.push` events (and their value — a business-failed
+  cancel must not push a full-value `refund`), navigation, alert/modal, NgRx writes. The trap is a
+  side-effect legacy gates behind `if (succeedYn)` that the port fires before branching (OMH-booking-
+  detail: `refund` + `view_cart` on a 200 `succeedYn:false`).
+- **Boundary / clamp behavior.** Pager next/prev at the last/first page (does legacy clamp, and where),
+  empty/zero-result handling, off-by-one windows.
+- **Retry vs first-attempt arms.** A branch that exists only on retry (or only for a guest/member),
+  where the success handler differs from the first attempt.
+- **"No default" cases.** Where legacy renders raw/empty (a missing currency, a null field) and a port
+  would **invent** a default (`"KRW"`, a placeholder) that legacy never shows — record the legacy
+  behavior as the target so the invented default is caught.
+
+Record the anchor for both the branch condition **and** the gated side-effect, so a test can pin the
+fire/no-fire, not just the branch.
+
+Sections 11–14 are the rest of the page's behavioral contract: how it leaves itself, what it sends,
+what it stores and what state it keeps. Each is emitted as an array with `mustPreserve: true` unless
+the source proves the entry dead, and `fm-plan` reconciles the plan against every one of them exactly
+as it does `behavioralVariants` (`templates/migration-plan-schema.md` → Legacy inventory
+reconciliation). They exist because the review record shows these four are where ported code drifted
+most while every gate stayed green.
+
+### 11. Navigation surface → `navigationSurface[]`
+
+- **Every outbound navigation**: `routerLink`, `router.navigate`/`navigateByUrl`, `href`,
+  `window.location.href`/`assign`, `window.open` — the target path, the mechanism (router or
+  document), which query params survive, the anchor.
+- **What a navigation away runs**: the source route's `CanDeactivate` guards, and any request or
+  callback fired just before it and not awaited.
+- **This page's route-table facts**: legacy `**`, redirect and index routes that resolve to it, child
+  paths under its prefix (a wildcard edge entry hands them all to v2), and reuse settings
+  (`shouldReuseRoute`, `onSameUrlNavigation`).
+- **Inbound producers**: every legacy and v2 component that links to this page's path — grep the whole
+  app, not only this page's module. After the flip each of them must use the right mechanism too.
+
+(OMH-837 #261 re-introduced a production incident by changing the mechanism; OMH-749 #335 lost a
+`CanDeactivate` nudge; OMH-934 #317 and OMH-839 #396 soft-navigated into routes v2 did not serve.)
+
+### 12. Request behavior → extra fields on each `apiCalls[]` entry
+
+- `trigger` — the user action or lifecycle event that sends it (click, blur, poll tick, route entry,
+  focus), and for a replaced library its firing rule (ngx-infinite-scroll fires on each tick).
+- `firesPerAction` — `every` when legacy sends it on each action (the effect POSTs and the reducer
+  overwrites), `once` when the store is reused. This decides the TanStack Query cache policy
+  (`angular-to-react-mapping.md` → state).
+- `fieldSources` — for each body field, the exact legacy expression that supplies it (URL param, store
+  slice, cookie, profile field, constant). A body with the right shape and the wrong source is the
+  defect a shape test cannot see (my-page wish-list sent `DEFAULT_LOCALE` instead of the member's
+  locale; OMH-937 #329 A11).
+- `identityScoped` — the response is per user and must not survive a login, logout or member change.
+
+### 13. Storage and handoff records → `storageSurface[]`
+
+Every `sessionStorage`/`localStorage`/cookie key the page reads or writes: the legacy writer's exact
+record (including in-place mutations made before the write), **every other reader** — still-legacy
+pages and telemetry services included — with the fields each reads, every reset or remove site, and
+legacy-written values that are real but off-schema (uppercase codes, legacy enum values). A v2 writer
+that drops a field a legacy reader still reads breaks the legacy page, not the v2 one (OMH-937 #329 A1:
+three legacy pages marked every room non-refundable).
+
+### 14. State and lifecycle → `stateSurface[]`
+
+For every piece of state the page renders from — a store slice, locale/currency/nation, UI flags
+(loading, skeleton, latches), the current selection — list **every write site in legacy**. Find them by
+grepping the variable being assigned, not the business word: components, effects, guards, resolvers,
+interceptors, services, and `APP_INITIALIZER`/bootstrap code, which runs before any page and is the
+easiest to miss (PR #320's affected-user analysis missed the `app.module.ts` write of
+`locale.currency`). Also record:
+
+- **Event bindings** of each handler — `(blur)`, `(change)`, `(keyup)`, `debounceTime`, submit. A
+  keystroke handler where legacy used blur fires a request per key (OMH-839 #396 H5).
+- **Reset and re-creation** — what `ngOnDestroy` or a remount (`shouldReuseRoute = false`) clears, and
+  the components legacy recreates on every open (dialogs, galleries).
+- **Imperative effects** — `window.scroll`, `scrollIntoView`, focus moves (booking-history dropped the
+  scroll-to-top that cancel-history kept).
+- **Shared-service semantics the page relies on** — the alert service (drops a new alert while one is
+  open; the close-X does not run the confirm handler; the confirm label key per call).
+- **Input rules** — each `Validators.*` rule and input-filter directive (`allowedPattern`), including
+  what they do **not** reject (a stricter v2 `.trim()` is a divergence).
+
+(OMH-936 #339 cleared `isLoading` on every poll tick; OMH-935 #362 L3/M1 and OMH-749 #365 F2 missed
+re-creation, handler side-effect and library-trigger rules.)
+
 ## Output — `analysis.json`
 
 Write to `outPath` (Read-Modify-Write if it exists). Shape:
@@ -160,7 +264,11 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
   "dependencyGraph": { "facades": [], "services": [], "stores": [],
                        "childComponents": [], "dtos": [], "pipes": [], "directives": [] },
   "apiCalls": [{ "method": "POST_HOTEL_LIST_V2", "dtoIn": "...", "dtoOut": "...",
-                 "envelope": true, "anchor": "file:line" }],
+                 "envelope": true, "anchor": "file:line",
+                 "trigger": "filter change (click) + poll tick",
+                 "firesPerAction": "every",            // every | once — decides the query cache policy
+                 "fieldSources": { "currency": "store locale.currency", "condition.checkIn": "URL ?checkIn" },
+                 "identityScoped": true }],
   "rxjs": { "subscriptions": [], "subjects": [], "silentCatch": ["file:line"] },
   "mappingNotes": [{ "angular": "NgbModal.open", "react": "shadcn Dialog",
                      "anchor": "file:line", "catalogRef": "modals" }],
@@ -183,6 +291,25 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                     "mechanism": "empty-string",       // reset uses a dedicated key; login sends ""
                     "note": "backend picks its default template; a raw key breaks OTP validation",
                     "anchor": "verify-code.component.ts:155", "mustPreserve": true }],
+  "failurePaths": [{ "surface": "cancel telemetry", "branch": "POST cancel 200 succeedYn:false",
+                     "kind": "side-effect-gating",   // side-effect-gating | boundary-clamp | retry-arm | no-default
+                     "legacyBehavior": "cancelChargeAmount assigned outside try, so refund/cancel_confirm never fire on a business-failed cancel",
+                     "wrongPort": "fireCancelConfirm called before the succeedYn branch → full-value refund pushed",
+                     "branchAnchor": "cancel-booking.component.ts:136", "effectAnchor": "cancel-booking.component.ts:148",
+                     "mustPreserve": true }],
+  "navigationSurface": [{ "kind": "outbound", "target": "/event", "mechanism": "router",
+                          "queryKept": ["link_id"], "sourceGuards": ["BookingCompleteGuard (CanDeactivate)"],
+                          "pendingSideEffects": [], "anchor": "file:line", "mustPreserve": true },
+                        { "kind": "route-table", "detail": "legacy '**' under /my-page redirects to booking-history",
+                          "anchor": "my-page-routing.module.ts:90-94", "mustPreserve": true }],
+  "storageSurface": [{ "key": "sessionStorage:hotelResult", "writer": "file:line",
+                       "shape": "hotel (object), refundableYn, clientCancelDeadline",
+                       "readers": [{ "where": "legacy booking-info (still legacy)", "fields": ["refundableYn"] },
+                                   { "where": "data-layer.service.ts", "fields": ["hotelName"] }],
+                       "resetSites": ["file:line"], "offSchemaValues": ["nation 'HANS'"], "mustPreserve": true }],
+  "stateSurface": [{ "state": "isLoading", "writeSites": ["map.component.ts:1240", "map.component.ts:1344"],
+                     "bootstrapWrites": [], "eventBinding": null, "resets": "ngOnDestroy",
+                     "anchor": "file:line", "mustPreserve": true }],
   "styleSurface": {
     "elements": [{ "selector": ".btn-promotion-tab", "instanceSelector": ".btn-promotion-tab:first-of-type",
                    "classes": ["btn-promotion-tab"], "sheets": ["_contents.scss", "base.css"],
@@ -195,7 +322,7 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
                          "package": "shared-domain", "reason": "...", "anchor": "file:line",
                          "apis": [] }],
   "requiredGates": ["e2e", "visual", "contract", "telemetry"],
-  "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],
+  "gateTriggers": [{ "gate": "secret", "anchor": "file:line", "detail": "..." }],   // secret | sso | payment
   "threeAppDiff": [{ "file": "...", "vsMobile": "near", "vsHana": "diverged", "note": "..." }],
   "risk": "low | medium | high",
   "openQuestions": []

@@ -15,7 +15,7 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
-`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline).
+`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline).
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
 at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present**: "at least `generated`" is a
 monotonic comparison and `flipped`/`done` both satisfy it, so
@@ -106,6 +106,23 @@ Follow CLAUDE.md → "Lint & Format Gate" (detection / scaffold-if-flag-on / ski
   `eslintTemplate: false`, or deps missing) does not fail the gate.
 - **Prettier — advisory.** `npx prettier --check . 2>&1`. Exit ≠ 0 is recorded as a warning only;
   it never blocks `verified`. Surface the unformatted file list and suggest `npx prettier --write .`.
+
+### Step 4c: Design-token traps (advisory — `templates/visual-parity-checklist.md`)
+The computed-value parity probe catches a mis-resolved Tailwind token, but it runs later and is
+skipped/blocked exactly where clusters and blocked pages ship — so surface the **known** traps here,
+at the first gate, where they are cheap to fix. Grep this page's generated files (`tracker.json`
+`sourcePaths[]` — never the legacy tree) for the enumerated trap literals:
+
+```sh
+grep -nE '\brounded-lg\b|\bfont-inherit\b|\bborder-[trbl]-solid\b' -- <sourcePaths...> 2>/dev/null || true
+```
+
+Report each hit `file:line · <literal>` as an **advisory warning** (like Prettier — it never sets
+`verify-failed` or blocks): `rounded-lg` computes 16px in this repo (use `rounded-[8px]` for a bespoke
+legacy radius), and `font-inherit` / per-side border-style emit no CSS in Tailwind v4. Point at the
+checklist's "Design-token traps" section and the page's `style-spec.json` computed value. A project's
+own `docs/migration/**/css-parity-checklist.md`, if present, may list more literals to grep. This is a
+reminder to check the computed value against the spec, not a verdict.
 
 ### Step 5: Read and judge (evidence before claims)
 Apply the 5-step gate: RUN → READ the full output (exit codes, error/test counts) → VERIFY →

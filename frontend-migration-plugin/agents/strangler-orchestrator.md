@@ -60,7 +60,7 @@ overwritten past `verified`/`e2e-passed`) and `verifiedAt` is present (verify's 
 verify records its pass as `verifiedAt`, not a report file), and that `e2e-report.json` and
 `parity-report.json` both have `result: pass` for this page — or `result: "not-applicable"` for a
 gate that has a matching entry in `notApplicable` carrying `approvedBy` and `approvedAt` (CLAUDE.md →
-Gate Result Accounting G). If any is missing or failing, or a `not-applicable` report has no
+Gate Result Accounting H). If any is missing or failing, or a `not-applicable` report has no
 approved entry, **refuse** and report which gate blocks the flip — do not flip.
 When all pass, activate the prepared rule for `guardsPath` (on `domain`); unmatched paths still hit
 the legacy app (`legacyPort`).
@@ -118,7 +118,7 @@ other paths'. Keep the change minimal and reversible.
 
 ## Rules
 - **Never flip flag-on unless verify + e2e + parity all pass** (or a gate carries an approved
-  exemption — CLAUDE.md → Gate Result Accounting G) — this is the load-bearing safety
+  exemption — CLAUDE.md → Gate Result Accounting H) — this is the load-bearing safety
   gate; a wrongful flip ships a regression. Identical for every mechanism.
 - Changes must be reversible (flag flip / behavior removal = rollback). Read-modify-write the
   artifact files; do not clobber other paths' rules.

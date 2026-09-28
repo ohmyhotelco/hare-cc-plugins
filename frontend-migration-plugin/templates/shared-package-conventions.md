@@ -20,6 +20,14 @@ packages/shared-domain/
     └── **/*.test.ts     # co-located Vitest tests
 ```
 
+**File names are kebab-case** (CLAUDE.md → File Naming), with a dotted role suffix where the package
+already uses one — the existing packages are consistent on this: `common-request-params.ts`,
+`session-interceptor.ts`, `booking.queries.ts`, `auth.service.ts`, `get-public-config.ts`. The file is
+kebab-case while the exported symbol keeps its own convention — `shared-domain/src/booking/mask-mobile.ts`
+exports `maskMobileNo`, `shared-types/src/responses/hotel-mypage.ts` exports `HotelMapRsSchema` — so a
+new module is `price-range.ts`, never `priceRange.ts` or `PriceRange.ts`. Never rename an existing
+module to conform — the barrel and every consumer import it by path.
+
 `package.json` essentials:
 ```jsonc
 {
@@ -48,7 +56,9 @@ Dependency substitutions during extraction:
 
 `shared-domain/payment/` holds only `gateway-selector`, `payment-form-validators`,
 `display-formatting`. Reading a PG/OAuth secret or computing a PG hash here is **forbidden** —
-those move server-side (plan §5/§11.9, OMH-477). Enforce with ESLint in
+those move server-side (plan §5/§11.9, OMH-477). For the PG signers that server is oh-api, which signs
+in `POST /payment/nicepay/prepare` (`templates/payment-flow-v2.md`). The funnel's other pure modules
+live in `@omh/shared-funnel`, which signs nothing either. Enforce with ESLint in
 `packages/shared-domain/eslint.config.js`:
 
 ```js

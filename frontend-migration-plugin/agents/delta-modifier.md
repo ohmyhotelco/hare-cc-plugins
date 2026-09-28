@@ -27,11 +27,11 @@ SSR-aware, framework mode), `react-router-framework-mode` (routes/i18n integrati
   "page": "...", "baseline": "analysis@<sha>",
   "summary": { "added": 1, "modified": 3, "removed": 0 },
   "ops": [
-    { "op": "modify", "phase": "component", "file": "components/TravelerForm.tsx",
+    { "op": "modify", "phase": "component", "file": "components/traveler-form.tsx",
       "reason": "legacy added passport-expiry field", "legacyAnchor": "file:line",
       "behavioral": true },
     { "op": "create", "phase": "api", "file": "api/passport.ts", "...": "..." },
-    { "op": "remove", "phase": "store", "file": "stores/legacyFlag.ts", "reason": "..." }
+    { "op": "remove", "phase": "store", "file": "stores/legacy-flag.ts", "reason": "..." }
   ],
   "cascade": ["types", "api", "component", "page"],
   "styleDrift": {

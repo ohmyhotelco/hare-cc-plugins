@@ -16,18 +16,18 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`,
+gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`,
 `workingLanguage`, and `stagingConfig` (payment-gateway test endpoints). Require the page at
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
 `fm-verify`/`fm-plan`).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting G)
+### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "e2e"` **and** both
 `approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
 paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
-decided (CLAUDE.md → Gate Result Accounting G). Say so, name the entry, and run the gate normally.
+decided (CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
 Otherwise this run is the **exemption path**: skip Step 1 and Step 3's runner,
 take the lock (Step 2) and re-verify under it that the entry is still approved and the status is
 still `verified`, then write `e2e-report.json` as
@@ -37,7 +37,8 @@ the gate normally.
 
 ### Step 1: Ensure Playwright run permission
 The runner executes as a sub-agent, so session approvals do not transfer. Ensure
-`.claude/settings.json` `permissions.allow` includes the Playwright command
+`.claude/settings.local.json` (per-machine, untracked — never the shared, committed
+`.claude/settings.json`) `permissions.allow` includes the Playwright command
 (e.g. `Bash(npx playwright *)`). If missing, add it (Read-Modify-Write the settings file) and
 note it in the report. Normally `fm-style-spec` (Step 2b) already added it — it runs the first
 sub-agent probe — but check rather than assume: a page can reach this gate on a spec captured in

@@ -185,6 +185,9 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 ## Rules
 - Output must `tsc`-compile. Verify with a quick typecheck and report the result.
 - MSW responses match full TypeScript interfaces (complete mocks only).
+- **New files are kebab-case** (CLAUDE.md → File Naming): `booking-traveler.types.ts`, never
+  `BookingTraveler.ts`; exported types keep PascalCase inside. Tool configs you scaffold keep their
+  tool's exact name (`eslint.config.js`, `vitest.config.ts`); never rename an existing file.
 - Read-modify-write shared setup files (server.ts/handlers aggregator) **inside
   `docs/migration/.app.lock`** (taken after the page lock, released right after the write —
   CLAUDE.md → Lock file), since two page locks do not exclude each other; never clobber other

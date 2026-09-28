@@ -74,14 +74,23 @@ boundary is sound.
   dev tests can hit production merchants.
 - **Relocation guidance** — the structural sequence (rotate → server-side PG payload build →
   server-side OAuth exchange → move server secrets to a runtime secret manager → per-env
-  separation → git-history cleanup). Map each client-exposed secret to its target.
+  separation → git-history cleanup). Map each client-exposed secret to its target. For the PG keys
+  the target already exists: oh-api signs NicePay and Alipay in `POST /payment/nicepay/prepare`
+  (OMH-1089, OMH-1130), so v2 needs no storefront signer (`templates/payment-flow-v2.md`).
+  `eximbay.key` is not relocated: Eximbay is dead (OMH-1178), so its target is delete and rotate.
+- **Name each hash for what it is.** Read the builder before labeling it: the Eximbay `fgkey` is a plain
+  SHA-256 over `key + "?" + query` (`createFgkey`), not an HMAC. A wrong label sends whoever implements
+  it server-side to the wrong primitive.
 
 ## Output — `secret-audit-report.json`
 ```jsonc
 { "scannedApps": ["..."],            // every legacy dir AND every v2 dir scanned
   "secrets": [
+    { "field": "nicePay.simple.merchantKey", "reader": "hotel-payment.component.ts:504",
+      "clientExposed": true, "impact": "PG signature forgery",
+      "relocateTo": "oh-api POST /payment/nicepay/prepare (OMH-1089)" },
     { "field": "eximbay.key", "reader": "hotel-payment.component.ts:623",
-      "clientExposed": true, "impact": "PG hash forgery", "relocateTo": "server-side build" }],
+      "clientExposed": true, "impact": "PG hash forgery", "relocateTo": "delete + rotate (dead, OMH-1178)" }],
   "publicIds": ["gtmContainerId", "..."],
   "crossEnvReuse": [{ "field": "...", "sameValue": true }],
   // v2 apps only. This agent writes `entries` ([] when v2Dirs was empty or held none); every

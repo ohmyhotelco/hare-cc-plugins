@@ -12,13 +12,25 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 
+# A native jq.exe on Windows (Git Bash / MSYS2) ends every output line with CRLF. Every read below
+# compares jq's output byte for byte (`= "parity-passed"`, `case "$status"`), so the trailing \r made
+# each status miss its branch: on a real 48-page tracker the hook told the 13 pages with a flip in
+# flight to run `--revert` instead of `--confirm-live`, and printed nothing for the other pages.
+# Strip CR once, here, for every jq call. (JSON strings cannot hold a raw CR, so writes are unaffected.)
+jq() { command jq "$@" | tr -d '\r'; }
+
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
 CONFIG_FILE="$CWD/.claude/frontend-migration-plugin.json"
+# Per-machine state lives in an untracked file beside the shared config. `pluginRoot` is an
+# absolute path into THIS machine's plugin cache, pinned to the installed version, so it must
+# never be written to the shared, committed config: a committed value points every other
+# developer at someone else's home directory (a monorepo shipped `/Users/<dev>/…/1.2.0` that way).
+LOCAL_FILE="$CWD/.claude/frontend-migration-plugin.local.json"
 
 # Refresh `pluginRoot` — the absolute path the fm-verify / fm-e2e / fm-parity / fm-route /
-# fm-progress skills use to locate scripts/gate-tree-hash.sh.
+# fm-progress / fm-cascade skills use to locate scripts/.
 #
 # This hook is the only component that can know it. A skill's Bash shell does not get
 # ${CLAUDE_PLUGIN_ROOT} (Claude Code expands that for hooks/hooks.json only), and no path
@@ -40,6 +52,33 @@ plugin_root_warn() {
   echo "           Gate freshness will report 'unverifiable' until this is fixed."
 }
 
+# Keep the two per-machine files out of git WITHOUT editing a tracked file: add them to this
+# clone's .git/info/exclude (idempotent). `.claude/settings.local.json` is where the fm-* skills
+# record per-machine tool permissions (a Playwright or cascade-differ command with this machine's
+# absolute path); the shared `.claude/settings.json` is committed and must never carry them.
+# fm-init also lists both in the repository's .gitignore; this covers clones that predate that.
+ensure_local_ignored() {
+  git -C "$CWD" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  prefix=$(git -C "$CWD" rev-parse --show-prefix 2>/dev/null) || return 0
+  excl=$(git -C "$CWD" rev-parse --git-path info/exclude 2>/dev/null) || return 0
+  case $excl in /*|?:*) ;; *) excl="$CWD/$excl" ;; esac
+  mkdir -p "$(dirname "$excl")" 2>/dev/null || return 0
+  for f in .claude/frontend-migration-plugin.local.json .claude/settings.local.json; do
+    if git -C "$CWD" ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+      # Tracked already: an ignore rule cannot help, and every write lands in a commit.
+      echo "  Warning: [frontend-migration-plugin] $f is tracked by git but is per-machine."
+      echo "           Untrack it (git rm --cached -- $f) so machine paths stop reaching commits."
+      continue
+    fi
+    git -C "$CWD" check-ignore -q -- "$f" 2>/dev/null && continue
+    pat="/$prefix$f"
+    grep -qxF -- "$pat" "$excl" 2>/dev/null && continue
+    printf '\n%s\n' "$pat" >> "$excl" 2>/dev/null \
+      || echo "  Warning: [frontend-migration-plugin] could not add $f to $excl — keep it out of commits by hand."
+  done
+  return 0
+}
+
 write_plugin_root() {
   [ -f "$CONFIG_FILE" ] || return 0
   root=$(cd "$(dirname "$0")/.." 2>/dev/null && pwd) || return 0
@@ -49,25 +88,19 @@ write_plugin_root() {
     plugin_root_warn "could not locate the plugin install from \$0 — invoke the hook by its real path"
     return 0
   }
-  [ "$(jq -r '.pluginRoot // ""' "$CONFIG_FILE" 2>/dev/null || echo "")" = "$root" ] && return 0
-  # Same-directory temp file so `mv` is atomic; mode copied from the original so a shared
-  # checkout does not silently become 0600; every failure is swallowed because this is a
-  # convenience refresh and must never take the hook's real output down with it.
-  # Resolve a symlinked config to its target before rewriting: `mv` replaces the LINK, so a team
-  # sharing one config through a symlink would silently get a detached copy on first session start.
-  target="$CONFIG_FILE"
-  while [ -L "$target" ]; do
-    link=$(readlink -- "$target" 2>/dev/null) || break
-    case $link in /*) target="$link" ;; *) target="$(dirname "$target")/$link" ;; esac
-  done
-  tmp="$target.fm-tmp.$$"
-  if jq --arg p "$root" '.pluginRoot = $p' "$target" > "$tmp" 2>/dev/null; then
-    chmod --reference="$target" "$tmp" 2>/dev/null \
-      || chmod "$(stat -f '%Lp' "$target" 2>/dev/null || echo 644)" "$tmp" 2>/dev/null || true
-    if ! mv "$tmp" "$target" 2>/dev/null; then
-      rm -f "$tmp"
-      plugin_root_warn
-    fi
+  ensure_local_ignored
+  [ "$(jq -r '.pluginRoot // ""' "$LOCAL_FILE" 2>/dev/null || echo "")" = "$root" ] && return 0
+  # Same-directory temp file so `mv` is atomic; other keys in the local file are preserved; every
+  # failure is swallowed because this is a convenience refresh and must never take the hook's real
+  # output down with it.
+  tmp="$LOCAL_FILE.fm-tmp.$$"
+  if [ -f "$LOCAL_FILE" ]; then
+    jq --arg p "$root" '.pluginRoot = $p' "$LOCAL_FILE" > "$tmp" 2>/dev/null
+  else
+    jq -n --arg p "$root" '{pluginRoot: $p}' > "$tmp" 2>/dev/null
+  fi
+  if [ $? -eq 0 ] && mv "$tmp" "$LOCAL_FILE" 2>/dev/null; then
+    :
   else
     rm -f "$tmp"
     plugin_root_warn
@@ -91,6 +124,14 @@ echo ""
 echo "[Frontend Migration Plugin] Configuration loaded:"
 echo "  Current app: $CURRENT_APP"
 echo "  Working language: $WORKING_LANG"
+
+# A pre-1.4 hook wrote pluginRoot into the shared config. Report it; never rewrite a tracked file
+# from a hook (that is how the per-machine path reached commits in the first place).
+if [ "$(jq -r 'has("pluginRoot")' "$CONFIG_FILE" 2>/dev/null || echo false)" = "true" ]; then
+  echo "  Warning: the shared config still records pluginRoot, a per-machine path. It now lives in"
+  echo "           .claude/frontend-migration-plugin.local.json (untracked). Remove the key from"
+  echo "           .claude/frontend-migration-plugin.json and commit — re-running fm-init does this."
+fi
 
 # Playwright CLI availability (E2E + visual regression depend on it).
 if command -v playwright >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then

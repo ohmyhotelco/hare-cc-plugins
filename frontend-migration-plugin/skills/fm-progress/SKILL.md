@@ -16,7 +16,7 @@ changes nothing. All user-facing output in `workingLanguage`.
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `workingLanguage`, `monorepoRoot`, and
 `packagesDir` (the stale-evidence check maps `sharedDeps[]` through it and shells out to
-`scripts/gate-tree-hash.sh`; without them that check cannot run). **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → report the freshness
+`scripts/gate-tree-hash.sh`; without them that check cannot run). **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → report the freshness
 axis as `unverifiable` and skip the check. This skill records nothing; it is read-only). Optional `--app` / `page`
 narrow the view — when `--app` is given, **confirm `apps[app]` exists** (CLAUDE.md → Configuration)
 rather than silently reporting an empty view for a name that was never configured.
@@ -29,11 +29,12 @@ Read `tracker.json`. For detail, read the per-page reports under `docs/migration
 In `workingLanguage`, show:
 - **Per app** (pc / mobile / hana): page count by status across the state machine
   (`analyzed → style-specced → planned → generated → verified → e2e-passed → parity-passed → flipped
-  → done`, plus `*-failed` / `fixing` / `escalated`).
+  → done`, plus `*-failed` / `fixing` / `escalated`; a `kind: "cluster"` target terminates at
+  **`cluster-ready`** instead of flipping — CLAUDE.md → Component Clusters).
 - **Per page** (for the active app or the named page): current status, `requiredGates`, the gate
   results (verify / e2e / parity: pass / fail / pending / **N/A**), rendering mode, flag key, and
   risk. A gate is **N/A** when the page's `notApplicable` has an entry for it with `approvedBy` and
-  `approvedAt` (CLAUDE.md → Gate Result Accounting G) — show the reason and approver beside it, and
+  `approvedAt` (CLAUDE.md → Gate Result Accounting H) — show the reason and approver beside it, and
   keep it visibly distinct from `pass` even after the gate recorded its exempted pass
   (`gateEvidence.{gate}.notApplicable: true`). An entry missing either field is **N/A requested** —
   still pending, awaiting the owner's approval; say whose. Two more states to name rather than
@@ -44,6 +45,11 @@ In `workingLanguage`, show:
   next gate run executes for real unless the owner re-approves.
 - **Shared packages**: `tracker.packages` extraction status, and any pieces deferred to
   `fm-secret-audit`.
+- **Cutover readiness** (`docs/migration/cutover-ledger.json`, absent → nothing to show): per app, the
+  count of pages with **open** `blocksCutover` entries, and the full list of open `flip-precondition`
+  rows with `item · owner · ticket` — the single place the big-bang cutover batch reads what is not
+  yet ready. Flag any entry whose `owner` is `TBD` (an unowned blocker is itself the defect). Read-only
+  — never writes the ledger. See `templates/cutover-ledger.md`.
 - **Blockers**: pages in `*-failed` / `fixing` / `escalated` (a `gen-failed` page goes back to
   `fm-gen`, which resumes the incomplete phase — not to `fm-fix`, which has no generation mode), and any unextracted shared
   candidates blocking `fm-gen`.
@@ -69,6 +75,14 @@ In `workingLanguage`, show:
   `gateEvidence`, or whose record predates `tree`, are shown as `unverifiable`, not stale; a page with no `sourcePaths` is
   `unverifiable` on its own-source axis but still checkable on its shared-package axis — say which
   axis was checked rather than reporting a bare "fresh". Read-only — flags, never re-runs.
+- **Answer-key freshness** (CLAUDE.md → "Gate Result Accounting" G): where a page records
+  `answerKeyEvidence.parity`, re-compute `{pluginRoot}/scripts/gate-tree-hash.sh` over its recorded
+  `legacyPaths` (the same set `fm-parity` hashed) and compare against the stored `legacyTree`; report
+  `answer-key-stale` when it moved — a master merge changed legacy source under a recorded style/parity
+  answer key, which the v2-side stale-evidence check above cannot see (`fm-route --flag-on` blocks on
+  this; here it is the early read-only warning). A page with **no** `answerKeyEvidence` (parity-passed
+  before the producer landed) is `not-recorded`, never fresh and never stale — do not infer freshness
+  from its absence. Read-only.
 
 ### Step 3: Next-step guidance
 For each in-flight page, print the exact next command, using the same mapping as the SessionStart
@@ -93,6 +107,10 @@ verified→`fm-e2e` (say to run `fm-cascade` first when the page injects markup 
 and surface a `cascade` record with `unresolved > 0` — those rows block `fm-route --flag-on` until
 fixed or recorded), e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
 `--flag-on --confirm-live` per the three sub-states above, `*-failed`→`fm-fix`, `done`→no command.
+A `kind: "cluster"` target never routes: `cluster-ready`→**no command** (terminal — a cluster has no
+flip), and a cluster at any pre-terminal status takes the same chain command as a page **except** it
+can never reach `fm-route` (CLAUDE.md → Component Clusters). Print its readiness as the flip-precondition
+it is for the pages in its `consumedBy`.
 
 The mapping does not change for an exempted gate: `verified` → `fm-e2e` and `e2e-passed` →
 `fm-parity` still hold, because the gate skill is what records the exemption. Say "records the

@@ -26,7 +26,8 @@ gate that covers this, and it needs both hosts live. This stage covers it with l
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
 (`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, the app's `legacyPort` / `port`,
-`pluginRoot` (absolute; where `scripts/cascade-diff.mjs` lives — absent → stop: the differ cannot
+`pluginRoot` (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never
+the shared config; where `scripts/cascade-diff.mjs` lives — absent → stop: the differ cannot
 run, and an unrun diff is `not-run`, never a pass), and `workingLanguage`. Resolve `viewport` as
 `{width}x{height}` from the page's `style-spec.json` → `legacySource.provenance.viewport` when the
 file exists **and** carries it (a source-fallback spec may omit it — capture-provenance records
@@ -68,9 +69,13 @@ The agent runs the probe as a **sub-agent**, so session approvals do not transfe
 three plain commands (`agents/cascade-differ.md` Step 3): `cp` the differ script to
 `{appDir}/.cascade-diff.tmp.mjs`, `node {appDir}/.cascade-diff.tmp.mjs …` with absolute arguments
 (no `cd`, no `&&` — a compound command would not match a `node`-prefixed allow rule), `rm` the
-copy. Ensure `.claude/settings.json` `permissions.allow` covers the `node` call with `appDir`
-expanded (e.g. `Bash(node /abs/path/apps/web-mobile/.cascade-diff.tmp.mjs *)`); if missing, add it
-(Read-Modify-Write) and note it in the report. Without it the probe cannot launch and there is no
+copy. Ensure **`.claude/settings.local.json`** `permissions.allow` covers the `node` call with
+`appDir` expanded (e.g. `Bash(node /abs/path/apps/web-mobile/.cascade-diff.tmp.mjs *)`); if missing,
+add it (Read-Modify-Write) and note it in the report. **Never write it to the shared
+`.claude/settings.json`**: the rule carries this machine's absolute path, and the shared file is
+committed — that is how a developer's home path reached three reviewed PRs (OMH-934 #317, OMH-935
+#362, OMH-840 #337). The local file is per-machine and kept out of git (the SessionStart hook adds it
+to `.git/info/exclude`; `fm-init` lists it in `.gitignore`). Without it the probe cannot launch and there is no
 partial-credit fallback here — an unrun cascade diff is `not-run`, never a pass.
 
 ### Step 3: Lock

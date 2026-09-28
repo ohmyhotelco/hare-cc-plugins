@@ -1076,7 +1076,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   project's command with shell-quoted placeholders, refuses (never restores) a before/after delta outside
   the declared artifacts or an empty one, and requires the project's
   `status` pair check. An unrecognised mechanism now stops `fm-route` instead of reading as `nginx`.
-  (5) **Gate exemptions** — Gate Result Accounting G: an owner-approved `notApplicable` entry lets
+  (5) **Gate exemptions** — Gate Result Accounting H: an owner-approved `notApplicable` entry lets
   `fm-e2e`/`fm-parity` record an exempted pass themselves (`gateEvidence.{gate}.notApplicable`),
   keeps the FSM linear, and surfaces every exemption for acknowledgement at `--flag-on`. (6)
   **`v2CarryOver`** in `secret-audit-report.json`, with `fm-secret-audit` scanning each existing v2

@@ -16,7 +16,7 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
+gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
 `migration-plan.json` with `requiredGates` (absent → point to `fm-plan`); the per-gate
 `gateTriggers` anchors live in `analysis.json`, not the plan. Require `plan.gateAcceptance`
 (absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
@@ -25,11 +25,11 @@ point to `fm-style-spec {page}` and stop).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting G)
+### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "parity"` **and** both
 `approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
 paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
-decided (CLAUDE.md → Gate Result Accounting G). Say so, name the entry, and run the gate normally.
+decided (CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
 Otherwise this run is the **exemption path**: take the lock (Step 1),
 re-verify under it that the entry is still approved and the status is still `e2e-passed`, write
 `parity-report.json` as
@@ -107,7 +107,10 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
-- `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"`, and record
+- `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"` — **except a
+  cluster** (`kind: "cluster"`), which has no flip stage after parity, so set its terminal
+  **`cluster-ready`** instead (CLAUDE.md → Component Clusters); `fm-route` refuses it and the
+  consuming page's `--flag-off` reads `cluster-ready` to clear its flip-precondition. Then record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
@@ -155,8 +158,23 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   the page is unverifiable on this axis, which `fm-route` acknowledges rather than blocks. Never
   store the word `unverifiable`, and never store a hash the script did not print. Keep `parityPassedAt` for
   backward compatibility.
-- `result: not-applicable` (Step 0b only — the verifier never writes it) → `status =
-  "parity-passed"` and `gateEvidence.parity = { "at", "commit", "tree", "notApplicable": true }`,
+
+  **Answer-key freshness (`answerKeyEvidence`, CLAUDE.md → "Gate Result Accounting" G).** The
+  `gateEvidence.parity.tree` above hashes the **v2** side; it says nothing about whether the **legacy
+  answer key** this gate compared against has since moved. So also record
+  `apps[app].pages[page].answerKeyEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "legacyPaths": [...], "legacyTree": <hash> }`
+  — `legacyPaths` the **specific legacy files** the answer key cites: the distinct legacy source paths
+  (drop any `:line`) referenced by `style-spec.json` `legacyAnchor`/`legacySource` and the plan's
+  `gateAcceptance.*.expectedValueSource` legacy anchors, resolved under `legacyDir`; `legacyTree` the
+  **same** `{pluginRoot}/scripts/gate-tree-hash.sh` (never an inline pipeline) over exactly those
+  paths. Record the path **list** so `fm-progress` and `fm-route` recompute over the identical set —
+  the consumer cannot re-derive the anchors and a different set never matches. Hash the cited files,
+  **not** the whole `legacyDir` (that flags every page stale on any legacy change). If none resolve,
+  record **no `answerKeyEvidence`** (unverifiable on this axis, not a block). A later master merge that
+  changes a cited legacy file moves `legacyTree`, and `fm-progress` (readout) and `fm-route --flag-on`
+  (block, Step 1a) both surface it.
+- `result: not-applicable` (Step 0b only — the verifier never writes it) → `status` as the
+  pass branch sets it (`parity-passed`, or `cluster-ready` for a cluster) and `gateEvidence.parity = { "at", "commit", "tree", "notApplicable": true }`,
   `commit` and the manifest/`tree` computed once at record time exactly as the pass branch does (no
   verifier ran, so there is no pre-run comparison), the manifest promoted and staged with the
   tracker the same way. In the same write, set the entry's `grantedTree` to that `tree` when it
