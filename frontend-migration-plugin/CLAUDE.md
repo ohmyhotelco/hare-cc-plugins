@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.5.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.5.1)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -346,11 +346,12 @@ Only **two** things differ from a routed page:
   analyzed → … → parity-passed and then to **`cluster-ready`**. `fm-route` **refuses a cluster** —
   there is nothing to flip — so a cluster never reaches `flipped`/`done`, and `fm-progress` / the
   SessionStart hook print no `fm-route` next step for it. Instead, **a cluster's readiness is a
-  flip-precondition for every page that consumes it**: while a consumed cluster is not yet
-  `cluster-ready`, `fm-route --flag-off` of the consuming page projects a `blocksCutover: true` entry
+  flip-precondition for every page that consumes it**: while a consumed cluster is not ready — not
+  yet `cluster-ready`, or resting on an exemption that no longer holds (Gate Result Accounting H) —
+  `fm-route --flag-off` of the consuming page projects a `blocksCutover: true` entry
   into the cutover ledger (`kind: "flip-precondition"`, `item: "cluster <name> not yet cluster-ready"`
-  — see "Cutover Ledger & PR Body"), so a page cannot flip on a cluster that has not passed its own
-  gates. This is what stops the OMH-936 shape — a cluster's defects going live the moment the
+  — see "Cutover Ledger & PR Body"), and `--flag-on` re-checks it (Step 1c), so a page cannot flip on
+  a cluster that has not passed its own gates. This is what stops the OMH-936 shape — a cluster's defects going live the moment the
   consuming page mounts it — from reaching production silently.
 
 Everything else — locks, the `*-failed → fixing` recovery, `fm-fix`, `fm-delta` on legacy drift, the
@@ -1025,7 +1026,8 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
     `fm-progress` re-measures it and reports `answer-key-stale`; `fm-route --flag-on` Step 1a
     **blocks** on it (re-checked under the lock in Step 2), sending the user to `fm-delta` (legacy
     drifted) or `fm-verify` (re-run the chain). A page with no `answerKeyEvidence` (parity-passed before
-    the producer landed) is `unverifiable` on this axis — acknowledged, never blocked.
+    the producer landed, or under a parity exemption — H) is `unverifiable` on this axis —
+    acknowledged, never blocked.
   - **The generalized stale-stamp rule (this one is in force now, via `templates/pr-body.md`).** Any
     number an artifact, report, or answer key asserts as "measured at HEAD" — a gate hash, a manifest
     total, a self-test count, a byte count — is **recomputed after a merge/rebase, never copied
@@ -1081,7 +1083,8 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   - **`fm-route --flag-on` accepts `not-applicable` only while the tracker entry is still approved**,
     and lists every exemption in Step 1b for explicit acknowledgement — the flip rests on it. Deleting
     the entry (the harness now exists) makes Step 1 refuse the exempted report; the gate then runs
-    for real from `fm-verify`.
+    for real from `fm-verify`. A cluster never reaches `fm-route`, so each page that consumes it
+    runs the same test on the cluster's exemptions (`fm-route` Steps 1b, 1c, 4a).
   - `fm-progress` renders an exempted gate as **N/A** with its reason and approver — never as
     `pass`, never as `pending` — and a request (unapproved entry) as **N/A requested**. Its next
     command is still the gate's own skill, noted as recording the exemption rather than running.

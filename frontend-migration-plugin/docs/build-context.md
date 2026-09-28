@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-09-28)
 
-- **Build complete — v1.5.0.** 18 `fm-*` skills, 17 agents, 20 templates, multilingual README,
+- **Build complete — v1.5.1.** 18 `fm-*` skills, 17 agents, 20 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -1116,6 +1116,18 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   bytes are now `git hash-object -w` blobs. The exemption acknowledgement was skipped with Codex
   off; now only the Codex findings are. A second round found nothing new. Deferred: a parity
   exemption leaves a stale `answerKeyEvidence.parity` behind. Origin: OMH-837, PR #68.
+- **v1.5.1 — PR #68 audit follow-ups.** The four findings that audit deferred.
+  - **S4:** the parity exemption branch now deletes an earlier `answerKeyEvidence.parity`, so a page
+    that once passed parity and later took an exemption no longer blocks as answer-key-stale with no
+    way out. The readers of a missing `answerKeyEvidence` name the exemption case.
+  - **S5:** a consumed cluster is ready only when it is `cluster-ready` **and** every exempted gate
+    still has an approved entry bound to its tree. `fm-route` applies this at `--flag-off` (Step 4a),
+    again at `--flag-on` (Step 1c), and lists the cluster's exemptions for acknowledgement (Step 1b).
+    A withdrawn cluster exemption now blocks the consuming page's flip, and so does a cluster whose
+    status regressed after the code PR.
+  - **S6:** `fm-audit-codex` counts a `script` app's `route` stage as available once `routePrepared`
+    is set.
+  - **S7:** `quality-reviewer` now matches navigation targets by `foundation-generator` 3c's rule.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

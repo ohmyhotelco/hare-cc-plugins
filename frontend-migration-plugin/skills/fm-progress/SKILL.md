@@ -81,7 +81,7 @@ In `workingLanguage`, show:
   `answer-key-stale` when it moved — a master merge changed legacy source under a recorded style/parity
   answer key, which the v2-side stale-evidence check above cannot see (`fm-route --flag-on` blocks on
   this; here it is the early read-only warning). A page with **no** `answerKeyEvidence` (parity-passed
-  before the producer landed) is `not-recorded`, never fresh and never stale — do not infer freshness
+  before the producer landed, or under a parity exemption) is `not-recorded`, never fresh and never stale — do not infer freshness
   from its absence. Read-only.
 
 ### Step 3: Next-step guidance
