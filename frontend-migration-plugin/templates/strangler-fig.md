@@ -152,7 +152,7 @@ looks the page up in `infra/alb/v2-mobile-routes.json` `paths[]` and calls
 `fm-route-mobile.mjs <action> --kind <match.kind> <match.value>`. Any project keys that script reads
 from the plugin config (there, `apps.mobile.routerFunction` / `albRuleIntent`) stay beside
 `flipMechanism`. A config note that forbids `script` because the plugin could not model a two-file
-flip is obsolete from v1.4.0 and should be updated with the switch.
+flip is obsolete from v1.5.0 and should be updated with the switch.
 
 Exit codes map onto the checks below. A missing `paths[]` entry, a revert of a page that is not
 live, and status drift all exit non-zero. "Already live" exits 0 with no change, which the

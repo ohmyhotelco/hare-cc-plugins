@@ -210,9 +210,9 @@ this reason and only this one diverged.
 
 ---
 
-## Resolution (v1.4.0)
+## Resolution (v1.5.0)
 
-All seven items were taken up in v1.4.0. Where each landed, and where the fix went further or
+All seven items were taken up in v1.5.0. Where each landed, and where the fix went further or
 narrower than proposed:
 
 | # | Landed in | Note |

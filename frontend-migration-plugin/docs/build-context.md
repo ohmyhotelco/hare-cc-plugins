@@ -11,9 +11,9 @@ migration (PC, Mobile, Hana), per the revised v2 migration plan. It owns its age
 generated React is consistent. It is **tooling** — it does not contain the product apps; runtime
 execution targets a v2 monorepo (`apps/` + `packages/`) that the migration project scaffolds.
 
-## Status (2026-09-24)
+## Status (2026-09-28)
 
-- **Build complete — v1.4.0.** 18 `fm-*` skills, 17 agents, 17 templates, multilingual README,
+- **Build complete — v1.5.0.** 18 `fm-*` skills, 17 agents, 20 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -1055,7 +1055,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   working-tree-resolves-nothing carve-out re-running a chain when HEAD still matched; and every
   action staging the tracker it wrote (PR2 and the rollback PR carry `flipPrOpenedAt`/`flipped`).
   Origin: OMH-750 / PR #330 (2026-09-09), PR #65 review rounds 2026-09-14.
-- **v1.4.0 — consumer feedback from OMH-837 (mobile Phase M2).** The first release driven by a team
+- **v1.5.0 — consumer feedback from OMH-837 (mobile Phase M2).** The first release driven by a team
   *consuming* the pipeline's artifacts rather than by an audit of the prompts; the seven findings
   and their evidence are in `docs/pipeline-feedback-omh-837.md`. (1) **State-file serialization** —
   CLAUDE.md "Serialization": `tracker.json` and `secret-audit-report.json` are 2-space, raw UTF-8,

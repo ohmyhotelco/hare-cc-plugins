@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.4.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.5.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -993,7 +993,7 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   never a watch path**: it never reaches a commit and the script refuses it — every merge into
   `sourcePaths[]` skips paths `git check-ignore -q` accepts (a Playwright `storageState`, a trace).
   **Resolution skips them too**, on every producer and consumer alike. An **untracked**
-  `sourcePaths[]` entry that an ignore rule added later now matches (v1.4.0's run-output block
+  `sourcePaths[]` entry that an ignore rule added later now matches (v1.5.0's run-output block
   catching an old, never-committed trace) is dropped when the watch paths are resolved. Neither
   `git check-ignore` nor the script treats a tracked file as ignored, so it stays watched. Otherwise the script would refuse the whole set
   and block `fm-route` Step 1a and `fm-progress` for that page. A page whose recorded `tree` included
