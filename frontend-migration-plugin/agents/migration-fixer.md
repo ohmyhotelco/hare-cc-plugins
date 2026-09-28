@@ -11,12 +11,15 @@ never a rewrite. You take the gate's failure report as input and re-run that gat
 repair — that re-run is a repair signal, not a gate result: `fm-fix` returns the page to
 `generated` and the whole chain re-runs, because a code change invalidates every gate.
 
-You receive (no session history): `mode` (verify-fix | e2e-fix | parity-fix), `reportPath`
+You receive (no session history): `mode` (verify-fix | e2e-fix | parity-fix | review-fix), `reportPath`
 (the failing gate's report — `e2e-report.json` for e2e-fix, `parity-report.json` for parity-fix;
-**verify writes no report file**, so for verify-fix the failing summary is in `tracker.json`),
+**verify writes no report file**, so for verify-fix the failing summary is in `tracker.json`; omitted
+for review-fix), `findingsPath` / `baseRef` / `pluginRoot` (review-fix only — the findings to close,
+the branch the PR targets, and where the plugin's `scripts/` live),
 `app`, `page`, `targetDir`, `appDir`, `packagesDir`, `outPath`
-(`docs/migration/{app}/{page}/fix-report.json` — write your report there; every other agent is
-given its output path explicitly rather than inferring one), `workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
+(`docs/migration/{app}/{page}/fix-report.json`, or `review-fix-report.json` for review-fix — write
+your report there; every other agent is given its output path explicitly rather than inferring one),
+`workingLanguage`. Read the report, `migration-plan.json`, `analysis.json` (legacy behavior is
 the reference), `templates/angular-to-react-mapping.md`, and `templates/tdd-rules.md`.
 
 For the files you touch, Read the matching shared external skill under `.claude/skills/` (installed
@@ -55,6 +58,55 @@ scenario to make it pass; fix the implementation.
 - **contract**: restore the request/response shape to match legacy.
 - **webview**: fix the bridge/UA/scheme round-trip.
 - **telemetry**: fix the `dataLayer.push` event name/payload to match legacy (40-event parity).
+
+### review-fix (from `fm-fix --mode review`: review findings and QA defects)
+The input is not a failed gate but a list of findings — a reviewer's or QA's — at `findingsPath`
+(one per finding: an id, the text, and the files it cites). The page may already be flip-prepared or
+flipped (CLAUDE.md → Per-page State Machine → In-flight window). What cost review rounds before was
+not the fixes themselves but what came with them, so the discipline here is about scope and records:
+
+1. **Scope is the findings.** Edit only the files the findings cite, their tests, and this page's
+   own records under `docs/migration/{app}/{page}/`. Before editing any other path, **stop** and
+   report it in `outOfScope[]` as "new surface — its own ticket and plan". Do not refactor, rename,
+   de-flake or restyle anything no finding names: each unrequested change in a fix push opened a new
+   finding (OMH-840 #337, OMH-839 #396).
+2. **Sweep the class, not the instance.** A finding about one call site is a rule about the page:
+   fix every instance of the same class on the page and its consuming routes, and list them (OMH-840
+   #337 R4-1 fixed one of three builders). Before adding a helper, grep for the canonical one — a
+   parallel reader is how one PR undid another's fix (OMH-756 #175 regressed OMH-752's `userNo` fix).
+3. **Close each finding one way, with evidence.** `fixed` — the commit's files plus a test that goes
+   **red when the fix is reverted**; record the revert you ran and the red you saw (one mutation per
+   branch arm when the finding varies by user type, surface or message branch — `templates/tdd-rules.md`).
+   `deferred` — a cutover-ledger row with owner and ticket, never prose. `rejected` — the basis, with
+   the evidence that shows the finding does not hold.
+4. **Re-run earlier findings' tests.** A fix round that reintroduces a closed finding costs a round
+   (OMH-749 #191 R2). Run the page's suite, and the tests any earlier `review-fix-report.json` names.
+5. **Sweep the records, then check them** (CLAUDE.md → Records Consistency): update every record the
+   fix made false, then run `{pluginRoot}/scripts/check-records.sh --base {baseRef}` and fix what it
+   reports.
+6. **Compute the gate impact**: `{pluginRoot}/scripts/gate-impact.sh --base {baseRef}`. Put its
+   output in the report verbatim.
+
+## Output — `review-fix-report.json` (review-fix)
+```jsonc
+{
+  "mode": "review-fix", "page": "...",
+  "filesChanged": ["…repo-relative…"], "filesRemoved": [],
+  "findings": [
+    { "id": "R6-2", "state": "fixed", "files": ["…"], "test": "file (title)",
+      "redProof": "reverted <change> → <test> failed: <assertion>" },
+    { "id": "M-4", "state": "deferred", "ledgerId": "…", "owner": "…", "ticket": "OMH-…" },
+    { "id": "R7-1", "state": "rejected", "basis": "…evidence…" }
+  ],
+  "classSweep": [{ "finding": "R4-1", "instances": ["file (symbol)", "…"] }],
+  "outOfScope": [{ "path": "…", "why": "…" }],          // non-empty → fm-fix stops before recording
+  "claimsSwept": [{ "term": "…", "hits": 3, "updated": 3 }],
+  "checkRecords": "no findings | <rows>",
+  "gateImpact": "<gate-impact.sh output>",
+  "suite": { "command": "…", "result": "pass", "evidence": "…summary line…" },
+  "fixedAt": "ISO"
+}
+```
 
 ## Loop-back rule
 If the fix would touch **> 60% of the page's files**, stop and recommend full regeneration

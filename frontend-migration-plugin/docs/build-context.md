@@ -13,7 +13,7 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
 
 ## Status (2026-09-28)
 
-- **Build complete — v1.5.1.** 18 `fm-*` skills, 17 agents, 20 templates, multilingual README,
+- **Build complete — v1.6.0.** 18 `fm-*` skills, 17 agents, 20 templates, multilingual README,
   session hooks, `scripts/gate-tree-hash.sh` (the gate-evidence content hash — one implementation, run
   by both gate writers and both freshness consumers), state-machine/lock infrastructure. Version history: v0.2.1 added the ESLint (hard)
   / Prettier (advisory) lint & format gate; v0.4.0 added the **Codex independent-audit layer**
@@ -1129,6 +1129,25 @@ execution targets a v2 monorepo (`apps/` + `packages/`) that the migration proje
   - **S6:** `fm-audit-codex` counts a `script` app's `route` stage as available once `routePrepared`
     is set.
   - **S7:** `quality-reviewer` now matches navigation targets by `foundation-generator` 3c's rule.
+- **v1.6.0 — fewer review rounds, from every v2 PR review.** Source: all 298 v2-touching PRs of the
+  consumer monorepo (119 with review discussion) plus the saved review reports of #337, #396 and
+  #448, read on 2026-09-28. After round 1, the rounds were driven mostly by records going false
+  and by work done outside the pipeline — a flip-prepared page could not be fixed or re-gated by any
+  skill for weeks under the big-bang cutover. (1) **In-flight window** (CLAUDE.md → Per-page State
+  Machine): `fm-fix --mode review` fixes review findings or QA defects, scope-confined to the cited
+  files, and writes no status on an in-flight or flipped page. `--regate` on `fm-verify` / `fm-e2e` /
+  `fm-parity` records fresh evidence without a status change and `regateFailed.{gate}` on a failure.
+  `fm-route --confirm-live` now runs Step 1a and blocks on stale or failed evidence, because
+  `--regate` can clear it. (2) **Records Consistency** (CLAUDE.md): sweep every copy, re-derive
+  rather than transcribe, `path:line (symbol)` anchors, cited SHAs on the branch.
+  `scripts/check-records.sh` checks SHAs and anchors; it reproduced the two phantom SHAs a reviewer
+  found by hand on #375. `scripts/gate-impact.sh` lists the pages whose recorded evidence a change
+  moves, as of the base; it reproduced #374's five other pages and its unwatched helper. The PR body
+  gains Gate impact and Claims swept. (3) **Corrected plugin text**: Hana fail-open (OMH-631), legacy
+  `handleError` alerts per app, ngx-infinite-scroll's firing rule, telemetry values and counts, the
+  stored locale as untrusted input, the PR's target branch in Step 0b with rebase-only sync,
+  `apps.*.applyOwner` in place of OMH-502, and the flip unit with `active:false` rollback, app side
+  first. The CRLF wrapper for `jq` now covers `check-staleness.sh` too.
 - **Not yet runtime-validated.** The skills run against a v2 monorepo that does not exist yet;
   the PC end-to-end validation is the open follow-up.
 - **JIRA:** epic **AA-39** is in `Verification` (awaiting that runtime validation); child tasks

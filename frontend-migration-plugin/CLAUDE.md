@@ -11,7 +11,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.5.1)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.6.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -311,13 +311,14 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
   transition. A refusal must name `done` explicitly, because "at least `generated`"-style monotonic
   comparisons satisfy it silently.
 - **No skill writes a status, or rewrites the page's code, while `flipPrOpenedAt` is present —
-  except `fm-route`'s own `--confirm-live` and `--revert`.** Those two are the field's only legal
-  consumers: `--confirm-live` *requires* it (it is what proves a flip is in flight) and clears it
-  while writing `flipped`; `--revert` clears it while rolling back. Repeated `--flag-off` or a plain
-  `--flag-on` on a page that already has it are refused — that would prepare a second flip over an
-  in-flight one. Every other status writer refuses and points at `fm-route --revert`, for an
-  in-flight flip and for `flipped`; **`done` gets manual intervention instead**, since `--revert`
-  refuses it too. `--flag-off` keeps the status, so it is never the way out of `flipped`.
+  except `fm-route`'s own `--confirm-live` and `--revert`, and the two status-free lanes of the
+  in-flight window below.** `--confirm-live` *requires* the field (it is what proves a flip is in
+  flight) and clears it while writing `flipped`; `--revert` clears it while rolling back. Repeated
+  `--flag-off` or a plain `--flag-on` on a page that already has it are refused — that would prepare
+  a second flip over an in-flight one. Every other status writer refuses and points at the in-flight
+  lanes, or at `fm-route --revert` to abandon the flip; **`done` gets manual intervention instead**,
+  since `--revert` refuses it too. `--flag-off` keeps the status, so it is never the way out of
+  `flipped`.
 - **`e2e-passed` / `parity-passed` can also be issued under an owner-approved exemption** for a gate
   that cannot run for this page — by the gate skill itself, marked `gateEvidence.{gate}.notApplicable`
   and never read as a real pass. See "Gate Result Accounting" H.
@@ -329,6 +330,42 @@ analyzed → style-specced → planned → generated → verified → e2e-passed
 - `flipped` is where the `fm-*` pipeline ends; no skill advances past it. **`done` is set by hand**,
   once the legacy page is deleted — retiring legacy code is outside this plugin's scope.
   `fm-progress` and the SessionStart hook print no next command for either.
+
+### In-flight window: review fixes and re-gating
+
+Under the big-bang cutover a page can hold `flipPrOpenedAt` for weeks: its flip PR is merged, but the
+edge is applied only at cutover. Review findings and QA defects keep arriving in that window, and
+until 1.6 every fm-* skill refused the page, so the fixes shipped by hand with no gate, no records
+sweep and no mover disclosure. Reviewers then did that work in extra rounds and follow-up PRs
+(OMH-1146 #448, OMH-1156 #449, OMH-1127 #414), and most of what they raised after round 1 was
+records and evidence rather than code. Two lanes cover the window. **Neither writes `status`,
+`routePrepared`, `flagKey`, `flipPrOpenedAt` or `flippedAt`.**
+
+- **`fm-fix <page> --mode review --findings <file>`** — fix review findings or QA defects on a page at
+  `generated` … `parity-passed` (with or without `flipPrOpenedAt`) or `flipped`. It is scope-confined:
+  the fixer edits only the files the findings cite, their tests, and the page's own records, and it
+  **stops** on any other path ("new surface — its own ticket and plan"), because unrequested changes
+  in fix pushes kept opening new findings (OMH-840 #337 added new surfaces in rounds 3, 6, 7 and 8 of
+  twelve; the OMH-839 #396 reviewer: "each unrequested commit has cost a round"). Each finding closes as `fixed` (with a test that goes red when the fix is
+  reverted), `deferred` (with a ledger row) or `rejected` (with the basis) in
+  `review-fix-report.json`, and the records sweep and gate impact of "Records Consistency" run before
+  it reports. On a page **below** the flip it then behaves like any fix — the page returns to
+  `generated` and the chain re-runs from `fm-verify` (`fm-fix` Step 5). On an in-flight or flipped
+  page the status stays, and the next step is re-gating.
+- **`--regate` on `fm-verify`, `fm-e2e` and `fm-parity`** — re-run a gate on a page with
+  `flipPrOpenedAt` or at `flipped`, record fresh evidence, and write no status. Order follows the
+  evidence, not the status: `fm-e2e --regate` needs verify's evidence fresh at HEAD (its `tree`
+  recomputed as `fm-route` Step 1a does) and no `regateFailed.verify`; `fm-parity --regate` needs the
+  same for verify and e2e. A pass rewrites the gate's report, manifest and `gateEvidence.{gate}`
+  exactly as a normal pass does and deletes `regateFailed.{gate}`. A fail writes the report and
+  `regateFailed.{gate} = { "at", "commit", "summary" }`, and leaves everything else as it was. On any
+  other page, `--regate` refuses and names the normal gate run, which is what advances a status.
+
+`fm-route --flag-on --confirm-live` blocks while any gate is stale (Step 1a) or any `regateFailed`
+entry is present, and names the `--regate` command. It used to skip Step 1a because no gate could
+re-run on an in-flight page; `--regate` removes that premise. `fm-progress` and both hooks send an
+in-flight page with stale evidence to `fm-verify {page} --regate`, and a code edit on one to
+`fm-fix {page} --mode review`. `--revert` stays the way to abandon a flip, not to fix a page.
 
 ### Component Clusters (a non-routed target kind)
 
@@ -810,9 +847,10 @@ scope note — design in `docs/design/self-confirmation-hardening.md`:
 - **A (entity render, machine-checked).** `i18n-copy-parity.md` render-mode covers markup **or HTML
   entity**; the generated key-coverage spec (`foundation-generator` 3b) fails a markup/entity value
   on the plain-text path. Was prose-only, which is why `&apos;` shipped (OMH-749).
-- **B (legacy anchors).** A test asserting legacy behavior carries `// legacy: file:line` into the
-  legacy source, not `analysis`/`plan` — scoped to legacy-behavior tests (`tdd-cycle-runner`,
-  `tdd-rules`, `test-reviewer`).
+- **B (legacy anchors).** A test asserting legacy behavior carries `// legacy: file:line (symbol)` into
+  the legacy source, not `analysis`/`plan` — scoped to legacy-behavior tests (`tdd-cycle-runner`,
+  `tdd-rules`, `test-reviewer`). The symbol keeps the anchor checkable after the line moves (Records
+  Consistency).
 - **C (Codex cross-read).** `codex-audit.md` `gen`/`verify` receive the legacy source at those
   anchors; `verify` states whether each cited line's condition matches the test's assumption. B+C
   interlock (B makes the reading an artifact, C is the second reader).
@@ -1167,6 +1205,45 @@ input (URL, cookie, storage, legacy-written values) is `safeParse`d at the bound
 fallback, never `.parse()`d where a throw reaches render or a loader, and every data route exports an
 `ErrorBoundary`; wiring is tested through the route's default export, not an injected prop.
 
+## Records Consistency
+
+A records claim is anything this pipeline writes that states a fact about the tree: plan and analysis
+fields, tracker notes and summaries, `decisions.md` / `owner-decisions.md`, Codex adjudications, gate
+reports, code comments, test titles, `e2eScenarios` steps, runbooks, `$note`/`comment` fields in infra
+JSON, and the PR body. Across the v2 PR reviews, rounds after the first were driven mostly by these
+claims going false, not by code: each fix commit left the old statement in some copy, or wrote a new
+one that was wrong (OMH-750 #330 ran three rounds that way, OMH-936 #354 three, OMH-937 #357 three of its four). The
+rules below apply to every writer — generation, `fm-fix` in every mode, `fm-delta`, `fm-route` — and
+to hand edits.
+
+1. **Sweep every copy.** A change to behavior, a decision, a count or a flip state is not done until
+   every record that states the old value is updated or marked superseded in the same commit. Grep
+   the old literal in every spelling (identifier, count, `active:false`, "still legacy", "dark", "not
+   flipped", "no meta", "inert") across the page's records, source comments, test titles, runbooks
+   and infra notes. The PR body's **Claims swept** field lists the terms and the hit counts.
+2. **Re-derive, never transcribe.** A PR number, SHA, option letter, line number or mechanism copied
+   from a review, a PR body or another record is re-derived from git, `gh` or the source before it is
+   written, even when the reviewer wrote it (OMH-936 #354 and OMH-937 #357 both carried a reviewer's
+   own typo into the records). Counts are computed from the array or the command, never typed.
+3. **Anchors carry a symbol.** A legacy or code citation is `path:line (symbol)`; the symbol is
+   authoritative and the line is a hint. After a rebase or merge moves a cited file, re-resolve by
+   symbol, never by applying a line offset.
+4. **Cited commits must exist on the branch.** A rebase rewrites every SHA, so re-point citations to
+   their rebased twins (`git range-diff`) in the same push. `scripts/check-records.sh` reports a
+   cited SHA that does not resolve or is not an ancestor of HEAD, and an anchor whose symbol moved.
+   Run it before a PR is prepared or updated; its findings are fixed, not waived.
+5. **Comments point at records instead of restating them.** A comment that states legacy behavior
+   carries a legacy anchor. A comment that states a flip state, a count or "the owner decided" points
+   at the manifest or the record rather than restating it. A comment that declares a divergence
+   (`DIVERGENCE`, "deliberate", "differs from legacy") cites its `openApprovals[]` or `acceptedDeltas[]`
+   id: a decision that lives only in a comment or a PR thread is not registered (OMH-1126 #408,
+   OMH-840 #337 R6-10).
+6. **Gate impact is generated.** Any PR that touches `apps/web-*` or `packages/shared-*` runs
+   `scripts/gate-impact.sh --base <target branch>` and puts its output in the PR body's **Gate impact**
+   field. For every in-flight or flipped page it lists, the next step is `--regate`
+   (Per-page State Machine → In-flight window). `UNWATCHED` rows name changed app files no page's
+   evidence covers (the app shell, app-local helpers): say what covers them, or that nothing does.
+
 ## Payment Funnel (v2 flow)
 
 The payment funnel is the one surface where "legacy is the reference" does not hold end to end. v2
@@ -1220,6 +1297,8 @@ hooks/           - Hook configuration (hooks.json)
 scripts/         - Hook handlers (session-init.sh, check-staleness.sh) + gate-tree-hash.sh
                    (the gate-evidence content hash — one implementation, run by fm-verify /
                    fm-e2e / fm-parity when recording and by fm-route / fm-progress when checking)
+                   + gate-impact.sh (which pages' recorded evidence a change moves) and
+                   check-records.sh (cited SHAs and symbol anchors) — Records Consistency
 templates/       - Mapping catalog, package spec, gate templates
 docs/            - Documentation
 ```

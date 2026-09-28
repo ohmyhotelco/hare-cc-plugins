@@ -44,15 +44,17 @@ actions `--flag-off` | `--flag-on` | `--flag-on --confirm-live` | `--revert`, **
 not read a single page's `flagPlan` here.
 `--confirm-live` is a **distinct action**, not a modifier on `flag-on`: it edits no artifact, runs no
 agent, and only records the human's observation that the merged flip is live (Step 3 is skipped for
-it). Treating it as `flag-on` would re-activate the routing rule and re-run the Step 1a/1b
-acknowledgements the operator already gave. **Step 1a deliberately does not run here.** It is a
-hard gate with no acknowledgement path, and at `parity-passed` + `flipPrOpenedAt` no gate can
-re-run to clear it (`fm-verify` refuses while the timestamp stands; `fm-e2e`/`fm-parity`
-require earlier statuses) — so applying it here would make `flipped` unreachable and leave
-`--revert` of an already-deployed flip as the only move. Another page rewriting a shared file
-during the merge window can leave this page's evidence stale; `fm-progress` reports that, and
-it is not blocked here because the flip is already live and nothing this command does changes
-the edge.
+it). Treating it as `flag-on` would re-activate the routing rule and re-run the Step 1b/1c/1d
+acknowledgements the operator already gave. **Step 1a does run here, and so does a `regateFailed`
+check.** Under the big-bang cutover the window between the flip PR and the edge apply lasts weeks,
+and QA fixes and other pages' shared-file changes land inside it; reviewers found this page's
+evidence stale at exactly this point (OMH-1146 #448: "`--confirm-live` skips Step 1a, so tooling will
+not re-check any of this"). Step 1a used to be skipped because at `parity-passed` + `flipPrOpenedAt`
+no gate could re-run to clear it, which would have made `flipped` unreachable. `--regate` removes that
+premise (CLAUDE.md → Per-page State Machine → In-flight window): a stale gate, or any
+`regateFailed.{gate}` entry, blocks `--confirm-live` and names `fm-verify {page} --regate` (then e2e,
+then parity). Run the regates **before** the edge is applied, so the block is met while the page is
+still on legacy.
 
 ### Step 0a: Action preconditions (per-page actions)
 **For `--cutover`, skip this step** — its preconditions are batch-level and live in "Batch cutover"
@@ -72,7 +74,7 @@ Every per-page action writes or clears route state, so every one needs an entry 
 | --- | --- | --- |
 | `--flag-off` | `status = parity-passed`, **no** `flipPrOpenedAt`, and Step 1's gate guard | gates not all passed (name the stage), or a flip is already in flight — `--revert` it first |
 | `--flag-on` | Steps 1, 1-pre, 1a, 1b, 1c, 1d below, and **no** `flipPrOpenedAt` | as each step states; a present `flipPrOpenedAt` means a flip is already in flight — use `--confirm-live` or `--revert`, never a second `--flag-on` |
-| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present | no flip is in flight — run `--flag-on` first |
+| `--flag-on --confirm-live` | `status = parity-passed` **and** `flipPrOpenedAt` present, Step 1a fresh, and no `regateFailed` entry | no flip is in flight — run `--flag-on` first; stale or failed evidence — `fm-verify {page} --regate` first |
 | `--revert` | `status = flipped`, **or** `flipPrOpenedAt` set at any status **except `done`**, **or** `status = parity-passed` with `routePrepared` set | there is nothing in rotation or in flight to roll back — and on `done` there is nothing to roll back *to*: name manual intervention, never a command |
 
 **`flipPrOpenedAt` admits `--revert` at any status but `done`** because every other rule in this plugin
@@ -169,7 +171,7 @@ unless `tracker.json` records `routePrepared: true` from a prior `--flag-off`. W
 can be raised on a page whose code PR was never prepared, skipping the route-stage Codex audit that
 runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 
-### Step 1a: Gate-evidence freshness (flag-on only) — see CLAUDE.md → "Gate Result Accounting"
+### Step 1a: Gate-evidence freshness (flag-on and --confirm-live) — see CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code that changed after it. For each gate with a
 `gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
 page's **watch paths** from three recorded sources — never by guessing which files belong to the page:
@@ -478,10 +480,9 @@ check (every `real` row in `cascade-diff.json` must be fixed or `status: approve
 unlocked check — because a concurrent `fm-cascade` can publish new rows between the unlocked read
 and this lock). A concurrent `fm-fix` or `fm-delta` can demote the page
 while the operator is reading the Step 1b findings, and the whole point of those guards is that a
-flip never proceeds from a status the page no longer has. **Do not re-run Step 1a for
-`--confirm-live`** — it never ran it (Step 0, Step 1a's heading), and re-running it here reinstates
-the dead end that revert removed: a hard gate with no acknowledgement path, in a state where no
-gate can re-run to clear it.
+flip never proceeds from a status the page no longer has. For `--confirm-live`, re-verify Step 1a's
+hashes and the absence of `regateFailed` entries — a concurrent `--regate` or QA fix can change
+either between the unlocked check and this lock. That is no longer a dead end: `--regate` clears it.
 
 **Any refusal here releases the lock first.** Step 4's release is on the success path and is not
 reached here (Step 3's orchestrator-refusal release is the other one) — stopping without releasing strands the page under a holder that has ended
@@ -629,8 +630,13 @@ say why not); Jira as `KEY: link`; the **Rebase confirmation** checkbox with tod
 0b's verdict (or `TODO(owner): rebase + re-measure` when it could not be confirmed); **Rollback plan**
 when Risk is High; **Migration notes on every flip PR** — it edits the edge artifact, so name the
 entries changed, who applies them, propagation time, zero-downtime or not, and the `--revert` steps;
-Gate evidence with each gate's freshness **recomputed at this HEAD**, never a stamp copied forward; and
-Deferred items pointing at this page's `cutover-ledger.json` rows. A field the skill cannot fill is
+Gate evidence with each gate's freshness **recomputed at this HEAD**, never a stamp copied forward;
+Deferred items pointing at this page's `cutover-ledger.json` rows; **Gate impact** — the output of
+`{pluginRoot}/scripts/gate-impact.sh --base <Step 0b's base>`, with the re-gate plan for every
+in-flight page it lists; and **Claims swept** — the records sweep and the result of
+`{pluginRoot}/scripts/check-records.sh --base <Step 0b's base>` (CLAUDE.md → Records Consistency).
+Run both before printing the body; a `check-records.sh` finding is fixed before the PR is opened, not
+listed. A field the skill cannot fill is
 emitted as `TODO(owner): …`, never as a plausible blank. The text is English (a committed artifact);
 only the surrounding skill summary is in `workingLanguage`.
 

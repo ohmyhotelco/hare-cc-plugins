@@ -1,7 +1,7 @@
 ---
 name: fm-fix
-description: "Use when a migration gate fails (fm-verify, fm-e2e, or fm-parity) — auto-detects the fix mode from the latest failure report, applies targeted repairs via the migration-fixer agent, and re-runs the gate."
-argument-hint: "<page> [--app pc|mobile|hana] [--mode verify|e2e|parity]"
+description: "Use when a migration gate fails (fm-verify, fm-e2e, or fm-parity) — auto-detects the fix mode from the latest failure report, applies targeted repairs via the migration-fixer agent, and re-runs the gate. Also use with --mode review to fix PR review findings or QA defects on a gated, flip-prepared or flipped page."
+argument-hint: "<page> [--app pc|mobile|hana] [--mode verify|e2e|parity] | <page> --mode review --findings <file> [--base <branch>] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -18,6 +18,42 @@ Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp
 `appDir`, `packagesDir`, `workingLanguage`.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+### Step 0b: Review mode (`--mode review`) — a separate lane
+`--mode review` fixes review findings or QA defects, not a failed gate (CLAUDE.md → Per-page State
+Machine → In-flight window). It skips Steps 1–5 below and runs this lane instead:
+
+1. **Entry.** Require `--findings <file>` (the findings: id, text, cited files — the reviewer's list
+   or a QA ticket's, transcribed as data). Accept a page at `generated`, `verified`, `e2e-passed`,
+   `parity-passed` (with or without `flipPrOpenedAt`) or `flipped`. Refuse `done` (manual
+   intervention), every `*-failed` state and `fixing`/`escalated` (a failed gate goes through the
+   gate modes below — say which), and anything below `generated`.
+2. **Resolve** `pluginRoot` (`.claude/frontend-migration-plugin.local.json`; absent → stop, the
+   records check and gate impact cannot run and this lane exists for them) and the base branch the
+   PR targets, the same way `fm-route` Step 0b does (`--base`, config `defaultBaseBranch`,
+   `origin/HEAD`).
+3. **Lock** as Step 2 does. Write **no** status here — this lane never writes `fixing`.
+4. **Run the fixer.** Launch `migration-fixer` (Agent) with `mode = "review-fix"`, `findingsPath`,
+   `baseRef`, `pluginRoot`, `app`, `page`, `targetDir`, `appDir`, `packagesDir`,
+   `outPath = docs/migration/{app}/{page}/review-fix-report.json`, `workingLanguage`.
+5. **Resolve.** Read `review-fix-report.json`.
+   - `outOfScope[]` non-empty → the fixer stopped at a new surface. Report each path and that it
+     needs its own ticket and plan; record nothing, and leave the edits for the operator to split.
+   - Any finding without one of `fixed` + `redProof`, `deferred` + a ledger row, or `rejected` +
+     `basis` → the run is incomplete; report the open ids and record nothing.
+   - Otherwise, refresh `sourcePaths` from `filesChanged`/`filesRemoved` as Step 5 does, and record
+     the adjudication of any Codex finding it closed. Then:
+     - **page below the flip** (no `flipPrOpenedAt`, not `flipped`) → exactly Step 5's pass branch:
+       status `generated`, every trace the code change invalidated cleared, the chain re-runs from
+       `fm-verify`;
+     - **in-flight or flipped page** → **no status write**. The recorded evidence is now stale by
+       content (the gates hash what they watched), so the next step is `fm-verify {page} --regate`,
+       then `fm-e2e --regate`, then `fm-parity --regate`.
+6. **Report** in `workingLanguage`: each finding and how it closed, the class sweep, the claims swept,
+   the `check-records.sh` result, the `gate-impact.sh` output (other in-flight pages it lists need
+   their own `--regate`), and the next step. Then **print the updated PR title and body** from
+   `templates/pr-body.md` — including Gate impact and Claims swept — for the operator to paste: a
+   body left unchanged across fix rounds is a finding of its own (`templates/pr-body.md` → Rules).
 
 ### Step 1: Detect fix mode
 **Entry precondition.** This skill only closes a failed gate, so it accepts exactly
@@ -57,18 +93,19 @@ derive the mode from the status first — `verify-failed` → `verify-fix`, `e2e
 selected it.
 
 ### Step 1b: Refuse a flipped, done, or flip-in-flight page
-If the status is `flipped`, stop and point the user at
-`/frontend-migration-plugin:fm-route {page} --revert` — Step 3 would write `fixing` over a live page.
+If the status is `flipped`, stop — Step 3 would write `fixing` over a live page. For a code fix on the
+live page, point at `--mode review` (Step 0b), which writes no status; to take the page off v2, at
+`/frontend-migration-plugin:fm-route {page} --revert`.
 
 **Also refuse `done`, and refuse while a flip is in flight.**
 - `done` is past `flipped` — the edge serves v2 *and* the legacy page has been deleted — so there is
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
   point at `--revert`.
 - `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
-  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
-  the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
-  timestamp survives every read-modify-write, so the session hook later reads it and recommends
-  `--confirm-live` on superseded code.
+  (`CLAUDE.md` → Per-page State Machine defines the field). The gate modes refuse it: they write
+  `fixing` and then `generated`, which would demote a page whose flip is in flight. Point at the
+  status-free lane instead — `fm-fix {page} --mode review --findings <file>` for a code fix, then
+  `--regate` on the gates — or at `fm-route --revert` to abandon the flip.
 
 ### Step 2: Lock
 Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).

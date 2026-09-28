@@ -80,13 +80,16 @@ regression fails in ~50 ms at the line that broke.
 - Preserve legacy behavior exactly (parity is gated later by `fm-e2e`/`fm-parity`) — including
   the AuthGuard login-modal UX and the API response envelope handling.
 - Tag each test with a `// scenario` comment, and — for any test that **asserts legacy behavior** —
-  a `// legacy: <path>:<line>` anchor pointing at the **legacy source itself**, not `analysis`/`plan`
+  a `// legacy: <path>:<line> (<symbol>)` anchor pointing at the **legacy source itself**, not `analysis`/`plan`
   (those are derivatives of one reading; an anchor into them can't catch a misreading). A legacy
   anchor makes the reading checkable: a reviewer or Codex can open that exact line and confirm the
   condition the test assumes (e.g. `dirty` vs `touched`). Scope it to legacy-behavior tests only —
   tests of v2-only structure (routing, loading states) have no legacy line, so do not force an anchor
   there (a formalistic anchor is worse than none). Origin: OMH-749 (a misread `control.dirty` → a
-  test asserting the wrong condition, green).
+  test asserting the wrong condition, green). **The symbol is the authoritative half.** A bare line
+  number goes stale with every edit above it, and reviewers asked for member names instead after
+  anchors drifted in seven PRs (OMH-936 #374 R3, OMH-935 #376 R2). `scripts/check-records.sh` checks
+  that the symbol is still at the cited line and reports where it moved.
 - **Pure transforms are pinned to the legacy output (golden test), not spot-checked.** When a phase
   ports a **pure transform** — a sanitizer, formatter, serializer, URL builder, any
   input→string/DOM function — the test target is the **full legacy output** over a **representative

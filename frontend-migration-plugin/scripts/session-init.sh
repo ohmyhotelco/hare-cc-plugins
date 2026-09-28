@@ -261,7 +261,13 @@ if [ -n "$PAGES" ]; then
       FLIPPR=$(jq -r --arg a "$app" --arg p "$page" '.apps[$a].pages[$p].flipPrOpenedAt // ""' "$TRACKER" 2>/dev/null || echo "")
       if [ -n "$FLIPPR" ]; then
         FLAGS=" --flag-on --confirm-live"
-        NOTE="flip prepared $FLIPPR; open PR2 if you have not, and run this only once it is merged and deployed"
+        NOTE="flip prepared $FLIPPR; open PR2 if you have not, and run this only once it is merged and deployed; it blocks on stale evidence, so check fm-progress first"
+        # A failed re-gate names its gate (CLAUDE.md -> Per-page State Machine -> In-flight window).
+        FAILED=$(jq -r --arg a "$app" --arg p "$page" '(.apps[$a].pages[$p].regateFailed // {}) as $rf | [ ["verify","e2e","parity"][] | select(. as $g | $rf | has($g)) ] | first // ""' "$TRACKER" 2>/dev/null || echo "")
+        if [ -n "$FAILED" ]; then
+          STEP="fm-fix"; FLAGS=" --mode review --findings <file>"
+          NOTE="the $FAILED re-gate failed on this in-flight page; fix it, then re-run fm-$FAILED $page --regate"
+        fi
       elif [ "$PREPARED" = "true" ]; then
         FLAGS=" --flag-on"
       fi

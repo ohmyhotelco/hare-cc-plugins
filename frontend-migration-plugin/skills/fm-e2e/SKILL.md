@@ -1,7 +1,7 @@
 ---
 name: fm-e2e
 description: "Use after fm-verify to run the Playwright E2E gatekeeper on a migrated page — realizes the planned scenarios, dual-runs against the legacy app for behavior parity, and runs transactional flows against staging gateways."
-argument-hint: "<page> [--app pc|mobile|hana]"
+argument-hint: "<page> [--regate] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -19,9 +19,19 @@ Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDi
 gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`,
 `workingLanguage`, and `stagingConfig` (payment-gateway test endpoints). Require the page at
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
-`fm-verify`/`fm-plan`).
+`fm-verify`/`fm-plan`) — except under `--regate` (Step 0a).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`, **and**
+verify's evidence fresh at HEAD — `gateEvidence.verify.tree` equal to its recomputation, the way
+`fm-route` Step 1a recomputes it — with no `regateFailed.verify`. Otherwise refuse and name
+`fm-verify {page} --regate`. Run the gate unchanged. Step 4 then records **evidence only**: it never
+writes `status` or the route fields. A pass writes the report, `e2ePassedAt`, `gateEvidence.e2e` and
+the manifest exactly as the pass branch does and deletes `regateFailed.e2e`. A `fail` or `not-run`
+writes `regateFailed.e2e = { "at", "commit", "summary" }` instead of a status — an unmeasured
+scenario does not clear an in-flight page any more than a failed one.
 
 ### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "e2e"` **and** both
@@ -80,7 +90,8 @@ the merge on a failed first attempt is how a spec ends up permanently unwatched.
 Read `e2e-report.json`. **Check `criteriaCompliance` first**: a non-empty `deviations` is a gate
 failure regardless of the top-level `result` — the criteria bind the runner verbatim, and a report
 that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection). Then update
-`tracker.json` (Read-Modify-Write):
+`tracker.json` (Read-Modify-Write). **Under `--regate`, apply Step 0a instead of every status
+write below:**
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
   exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
@@ -176,7 +187,9 @@ parity, the Codex audit verdict (advisory), and the next step — on pass
 `/frontend-migration-plugin:fm-parity {page}`; on fail `/frontend-migration-plugin:fm-fix {page}`
 (auto-detects e2e-fix mode). On the exemption path, say the gate was **not run** under an approved
 exemption, quote the reason and approver, and that `fm-route --flag-on` will ask for it to be
-acknowledged; the next step is still `fm-parity`.
+acknowledged; the next step is still `fm-parity`. Under `--regate`: on a pass,
+`/frontend-migration-plugin:fm-parity {page} --regate`; on a failure, `fm-fix {page} --mode review
+--findings <file>` with the failure as the finding, or `fm-route {page} --revert`.
 
 If the report's `runOutput.unignored` is non-empty, say so whatever the result, and name the files:
 they are traces or failure captures a commit would take (`templates/e2e-testing.md` → "Run output is

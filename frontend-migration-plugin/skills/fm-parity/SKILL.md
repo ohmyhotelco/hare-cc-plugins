@@ -1,7 +1,7 @@
 ---
 name: fm-parity
 description: "Use after fm-e2e to run the non-behavioral parity gates on a migrated page — visual regression vs legacy baseline, API contract freeze, WebView bridge round-trip, and telemetry dual-fire parity — the last gate before a route flip."
-argument-hint: "<page> [--app pc|mobile|hana]"
+argument-hint: "<page> [--regate] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
@@ -16,7 +16,7 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`) and
+gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`; under `--regate`, Step 0c instead) and
 `migration-plan.json` with `requiredGates` (absent → point to `fm-plan`); the per-gate
 `gateTriggers` anchors live in `analysis.json`, not the plan. Require `plan.gateAcceptance`
 (absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
@@ -24,6 +24,16 @@ gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.cla
 point to `fm-style-spec {page}` and stop).
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`, **and**
+verify's and e2e's evidence fresh at HEAD (each `gateEvidence.{gate}.tree` equal to its recomputation,
+as `fm-route` Step 1a recomputes it) with no `regateFailed.verify` or `regateFailed.e2e`. Otherwise
+refuse and name the first gate that needs `--regate`. Run the gate unchanged, answer-key freshness
+included. Step 4 then records **evidence only**: it never writes `status` or the route fields. A pass
+writes the report, `parityPassedAt`, `gateEvidence.parity`, `answerKeyEvidence` and the manifest
+exactly as the pass branch does and deletes `regateFailed.parity`. A `fail`, a Step 3 override or a
+`not-run` writes `regateFailed.parity = { "at", "commit", "summary" }` instead of a status.
 
 ### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "parity"` **and** both
@@ -106,7 +116,8 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
-Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
+Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write). **Under `--regate`, apply Step 0a
+instead of every status write below:**
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"` — **except a
   cluster** (`kind: "cluster"`), which has no flip stage after parity, so set its terminal
   **`cluster-ready`** instead (CLAUDE.md → Component Clusters); `fm-route` refuses it and the
@@ -207,4 +218,7 @@ the Codex audit verdict (advisory), and the next step — on pass
 `/frontend-migration-plugin:fm-route {page} --flag-off` (then the flag-on PR after review); on fail
 `/frontend-migration-plugin:fm-fix {page}` (auto-detects parity-fix mode). On the exemption path,
 say the gate was **not run** under an approved exemption, quote the reason and approver, and that
-`fm-route --flag-on` will ask for it to be acknowledged.
+`fm-route --flag-on` will ask for it to be acknowledged. Under `--regate`: on a pass, the page's
+evidence is current again — `/frontend-migration-plugin:fm-route {page} --flag-on --confirm-live`
+once the edge is live (nothing, for a `flipped` page); on a failure, `fm-fix {page} --mode review
+--findings <file>` with the failure as the finding, or `fm-route {page} --revert`.

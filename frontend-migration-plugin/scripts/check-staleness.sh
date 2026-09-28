@@ -15,6 +15,9 @@ set -euo pipefail
 if ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
+# A native jq.exe on Windows ends every line with CRLF; the status comparisons below are byte-exact,
+# so a trailing CR would send every page past its branch (the same fix as session-init.sh).
+jq() { command jq "$@" | tr -d '\r'; }
 
 INPUT=$(cat)
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
@@ -75,9 +78,18 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           echo "  This page is 'done' — the legacy page has been deleted, so there is no legacy"
           echo "  source to diff against and no rollback target. Reopening it is a manual decision;"
           echo "  fm-delta and fm-route --revert both refuse a done page."
+        elif [ -n "$FLIPPR" ] && [ "$STATUS" = "parity-passed" ]; then
+          # The in-flight window (CLAUDE.md -> Per-page State Machine): the status-free lanes admit
+          # this page; --revert is only for abandoning the flip.
+          echo "  A flip is in flight for this page (prepared $FLIPPR), and this edit moves its"
+          echo "  gate evidence. Re-gate before the edge is applied:"
+          echo "  /frontend-migration-plugin:fm-verify $PAGE$APP_FLAG --regate, then fm-e2e and fm-parity"
+          echo "  with --regate (fm-route --confirm-live blocks until they pass). For a code fix, use"
+          echo "  fm-fix $PAGE$APP_FLAG --mode review --findings <file>; fm-route --revert only abandons the flip."
         elif [ -n "$FLIPPR" ]; then
-          # Name only --revert. Naming the follow-up here would shadow the status branches below
-          # and send fixing / escalated / gen-failed to fm-delta, which refuses all three.
+          # A flip in flight below parity-passed (a demoted dependent). Name only --revert: naming the
+          # follow-up here would shadow the status branches below and send fixing / escalated /
+          # gen-failed to fm-delta, which refuses all three.
           echo "  A flip is in flight for this page (prepared $FLIPPR), so every other command"
           echo "  refuses it. Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert"
           echo "  first; the session hook then names the command this page's status calls for."
@@ -106,8 +118,9 @@ if [[ "$REL_PATH" =~ ^docs/migration/([^/]+)/([^/]+)/(analysis|style-spec|migrat
           fi
         elif [ "$STATUS" = "flipped" ]; then
           echo "  Generated code may be out of sync, but this page is flipped and serving traffic."
-          echo "  Run /frontend-migration-plugin:fm-route $PAGE$APP_FLAG --revert first, then"
-          echo "  fm-delta $PAGE$APP_FLAG (incremental mode preserves accumulated code fixes)."
+          echo "  To fix it in place: /frontend-migration-plugin:fm-fix $PAGE$APP_FLAG --mode review"
+          echo "  --findings <file>, then --regate the gates. To re-migrate from legacy instead:"
+          echo "  fm-route $PAGE$APP_FLAG --revert first, then fm-delta (incremental mode keeps code fixes)."
         else
           echo "  Generated code may be out of sync. Run"
           echo "  /frontend-migration-plugin:fm-delta $PAGE$APP_FLAG (incremental mode preserves"

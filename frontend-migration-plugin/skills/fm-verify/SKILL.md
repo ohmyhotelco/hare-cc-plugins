@@ -1,7 +1,7 @@
 ---
 name: fm-verify
 description: "Use after fm-gen to run the technical gate on a migrated page — build, TypeScript (composite-aware), Vitest, and ESLint (hard); Prettier --check is advisory — from the app's appDir, and advance the page to verified."
-argument-hint: "<page> [--app pc|mobile|hana]"
+argument-hint: "<page> [--regate] [--app pc|mobile|hana]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -17,13 +17,14 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
 `packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline).
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
-at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present**: "at least `generated`" is a
+at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present** (unless `--regate`, Step 0a, admits it): "at least `generated`" is a
 monotonic comparison and `flipped`/`done` both satisfy it, so
 without this guard a re-verify would write `verified` over a live page and desync the tracker from
 the edge flag (CLAUDE.md → Per-page State Machine). For `flipped` or a present `flipPrOpenedAt`,
-point the user at `/frontend-migration-plugin:fm-route {page} --revert` first. For **`done`, do
-not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no rollback
-target); reopening it is a manual decision.
+point the user at `/frontend-migration-plugin:fm-verify {page} --regate` (Step 0a — re-gate without
+a status change), or at `/frontend-migration-plugin:fm-route {page} --revert` to abandon the flip.
+For **`done`, do not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no
+rollback target); reopening it is a manual decision.
 
 **Warn before demoting, and clear the route fields.** If the page is already at `verified`,
 `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate
@@ -34,6 +35,16 @@ satisfied by the stale `--flag-off` and the route-stage Codex audit that step ex
 re-runs. This is the recovery `fm-route` Step 1a now names, so it is the path that reaches it. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
 
 **Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+
+### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`;
+refuse anything else and name the plain `fm-verify {page}` run, which is what advances a status.
+Run Steps 1–5 unchanged. Step 6 then records **evidence only**: it never writes `status`,
+`routePrepared`, `flagKey`, `flipPrOpenedAt` or `flippedAt`, and skips the demotion warning above.
+On a pass it writes `verifiedAt`, `gateEvidence.verify` and the manifest exactly as the pass branch
+does, and deletes `regateFailed.verify`. On a failure it writes
+`regateFailed.verify = { "at", "commit", "summary" }` (the failing summary) instead of
+`verify-failed`. `fm-route --confirm-live` blocks while verify's evidence is stale or `regateFailed.verify` is present.
 
 ### Step 1: Lock
 This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale only when
@@ -134,7 +145,8 @@ fails.
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
 after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
 
-Update `tracker.json` (Read-Modify-Write):
+Update `tracker.json` (Read-Modify-Write). **Under `--regate`, apply Step 0a instead of every status
+write below** — the evidence writes are the same:
 - tsc + build + vitest + eslint all pass (or eslint `skipped`) **and** the i18n key-coverage spec is
   `present` or `skipped` **and** the route-target spec is `present` or `absent` → `apps[app].pages[page].status = "verified"`, with `verifiedAt`, the tool
   summary, the spec's `uncheckable` count under `i18nCoverage`, the route-target spec's state under
@@ -235,3 +247,8 @@ jsdom test can cover), otherwise `/frontend-migration-plugin:fm-e2e {page}`; on 
 `/frontend-migration-plugin:fm-gen {page} --force`. `fm-fix` cannot produce that spec: its
 `verify-fix` mode re-runs tsc/build/vitest/eslint, all of which pass, so it would report a
 successful fix, set the page back to `generated`, and land on this same failure again.
+
+**Under `--regate`** the next step follows the evidence, not a status: on a pass,
+`/frontend-migration-plugin:fm-e2e {page} --regate`; on a failure,
+`/frontend-migration-plugin:fm-fix {page} --mode review --findings <file>` with the failure as the
+finding (then re-gate), or `fm-route {page} --revert` to take the page back to legacy.

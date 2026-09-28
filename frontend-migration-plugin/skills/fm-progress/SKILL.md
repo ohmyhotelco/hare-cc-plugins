@@ -53,8 +53,9 @@ In `workingLanguage`, show:
 - **Blockers**: pages in `*-failed` / `fixing` / `escalated` (a `gen-failed` page goes back to
   `fm-gen`, which resumes the incomplete phase — not to `fm-fix`, which has no generation mode), and any unextracted shared
   candidates blocking `fm-gen`.
-- **Stale evidence**: `parity-passed` (awaiting flip) pages whose gate evidence no longer matches
-  the current content of their watch paths. For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`
+- **Stale evidence**: `parity-passed` (awaiting flip, in flight included) and `flipped` pages whose
+  gate evidence no longer matches the current content of their watch paths, plus every page carrying
+  a `regateFailed.{gate}` entry (shown with its `summary`). For each such page, resolve its **watch paths** exactly as `fm-route --flag-on`
   Step 1a does — `tracker.json` `sourcePaths[]` (minus untracked entries `git check-ignore -q`
   accepts), each `migration-plan.json` `sharedDeps[]` entry
   mapped from `@omh/<package>:<symbol>` to the directory `{packagesDir}/<package>`, **and the page's
@@ -100,8 +101,15 @@ key-coverage spec); a page under an app other than `currentApp` → append
 `--app {app}`;
 and `parity-passed`'s **three** sub-states — `flipPrOpenedAt` set → `fm-route --flag-on
 --confirm-live` (the flip artifact is prepared and PR2 handed over; re-running plain `--flag-on`
-would prepare a second flip over an in-flight one),
-else `routePrepared` set → `--flag-on`, else `--flag-off`:
+would prepare a second flip over an in-flight one) **unless** the "Stale evidence" check above lists
+a stale gate for the page or it carries a `regateFailed.{gate}` entry — then the next command is
+`--regate` on the first such gate in chain order (`fm-verify {page} --regate`, then `fm-e2e`, then
+`fm-parity`), because `--confirm-live` blocks on both (CLAUDE.md → Per-page State Machine →
+In-flight window). Show a `regateFailed` entry's `summary`; its remedy is `fm-fix {page} --mode
+review`, not a plain re-run.
+A `flipped` page with a stale gate or a `regateFailed` entry prints the same `--regate` command — it
+is live, so nothing blocks, but its evidence no longer describes what users are served.
+Else `routePrepared` set → `--flag-on`, else `--flag-off`:
 analyzed→`fm-style-spec`, style-specced→`fm-plan`, planned→`fm-gen`, generated→`fm-verify`,
 verified→`fm-e2e` (say to run `fm-cascade` first when the page injects markup it does not author,
 and surface a `cascade` record with `unresolved > 0` — those rows block `fm-route --flag-on` until
