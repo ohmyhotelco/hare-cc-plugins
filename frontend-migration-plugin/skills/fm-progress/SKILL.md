@@ -81,7 +81,7 @@ In `workingLanguage`, show:
   `answer-key-stale` when it moved — a master merge changed legacy source under a recorded style/parity
   answer key, which the v2-side stale-evidence check above cannot see (`fm-route --flag-on` blocks on
   this; here it is the early read-only warning). A page with **no** `answerKeyEvidence` (parity-passed
-  before the producer landed) is `not-recorded`, never fresh and never stale — do not infer freshness
+  before the producer landed, or under a parity exemption) is `not-recorded`, never fresh and never stale — do not infer freshness
   from its absence. Read-only.
 
 ### Step 3: Next-step guidance
@@ -108,7 +108,7 @@ and surface a `cascade` record with `unresolved > 0` — those rows block `fm-ro
 fixed or recorded), e2e-passed→`fm-parity`, parity-passed→`fm-route --flag-off` / `--flag-on` /
 `--flag-on --confirm-live` per the three sub-states above, `*-failed`→`fm-fix`, `done`→no command.
 A `kind: "cluster"` target never routes: `cluster-ready`→**no command** (terminal — a cluster has no
-flip), and a cluster at any pre-terminal status takes the same chain command as a page **except** it
+flip) while it passes `fm-route` Step 4a's readiness test, else `fm-verify`; and a cluster at any pre-terminal status takes the same chain command as a page **except** it
 can never reach `fm-route` (CLAUDE.md → Component Clusters). Print its readiness as the flip-precondition
 it is for the pages in its `consumedBy`.
 

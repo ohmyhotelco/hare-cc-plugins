@@ -357,7 +357,8 @@ the identical set — `fm-parity` Step 4), and compare against the stored `legac
   page — the skill that re-migrates the changed surface) or, if the drift is only the answer key,
   re-run the gate chain from **`fm-verify`**. Do not offer an acknowledgement path — a stale answer key
   is a provably-changed premise, the same standing as a stale v2 gate.
-- **No `answerKeyEvidence` recorded** (a page parity-passed before the producer landed) →
+- **No `answerKeyEvidence` recorded** (a page parity-passed before the producer landed, or under a
+  parity exemption) →
   `unverifiable` on this axis: acknowledge and proceed, never block, no retro-fill — the same
   grandfathering as an absent `gateEvidence.tree`.
 Re-check this under the lock in Step 2, exactly as the v2-side hashes are — a concurrent merge can move
@@ -377,7 +378,8 @@ which is exactly the one that must not ship untested. Send the user back to **`f
 runs at. `fm-verify` accepts a gate-passed page (with its demotion warning) and the chain then
 re-runs `fm-e2e` → `fm-parity` in order.
 
-**Gate exemptions.** List every gate that reached this page as `not-applicable`, with its `reason`,
+**Gate exemptions.** List every gate that reached this page, or a cluster it consumes, as
+`not-applicable`, with its `reason`,
 `compensatingEvidence` if any, `approvedBy` and `approvedAt`. They join the acknowledgement below:
 the flip rests on a gate that did not run, and the person flipping has to say they know it.
 
@@ -405,6 +407,10 @@ owner's call, not this skill's; a `resolved` entry proceeds. There is no acknowl
 and the entry moves to `resolved`. This is what stops a page flipping while a named flip-precondition
 ("internal-link conversion complete for this path", "style gate must run on the real route") is still
 open with no owner — the recurring "deferral set is recorded nowhere the cutover can read it" gap.
+Then repeat Step 4a's consumed-cluster test: a consumed cluster that is not ready blocks the flip like
+an `open` entry — even when its ledger entry reads `resolved` or is absent, because its status and its
+exemptions can change after the code PR — unless an owner has `approved` that entry. The way out is
+the cluster's chain from `fm-verify`, or that approval.
 
 ### Step 1d: Route resolution and navigation targets (flag-on only; hard gate) — see `templates/angular-to-react-mapping.md` → routing
 The edge is about to send this page's paths to v2, so check that v2 can serve every one of them and
@@ -535,11 +541,13 @@ with `owner: "TBD"` projects an entry whose owner is `TBD`, which is itself the 
 a value to fill in. A plan with no `blocksFlip` approvals writes nothing.
 
 **Also project not-yet-ready consumed clusters (CLAUDE.md → Component Clusters).** Scan `tracker.json`
-for entries with `kind: "cluster"` whose `consumedBy` contains this page and whose status is **not**
-`cluster-ready`. For each, write a ledger entry `kind: "flip-precondition"`, `blocksCutover: true`,
+for entries with `kind: "cluster"` whose `consumedBy` contains this page and that are **not ready**. A
+cluster is ready when its status is `cluster-ready` **and** every gate its `gateEvidence` marks
+`notApplicable` still has an approved entry whose `grantedTree` equals that gate's `tree` (Step 1's
+exemption test). For each cluster that is not ready, write a ledger entry `kind: "flip-precondition"`, `blocksCutover: true`,
 `item: "cluster <name> not yet cluster-ready"`, `owner`/`ticket` from the cluster's tracker record (or
 `TODO(owner):` when it has none — an unowned unready cluster is the blocker to surface). A page must
-not flip on a cluster that has not passed its own gates. A cluster already at `cluster-ready` writes
+not flip on a cluster that has not passed its own gates. A ready cluster writes
 nothing (and a prior entry for it moves to `resolved`).
 
 This is an app-wide file:

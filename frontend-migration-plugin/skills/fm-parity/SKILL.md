@@ -178,7 +178,8 @@ Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write):
   `commit` and the manifest/`tree` computed once at record time exactly as the pass branch does (no
   verifier ran, so there is no pre-run comparison), the manifest promoted and staged with the
   tracker the same way. In the same write, set the entry's `grantedTree` to that `tree` when it
-  has none. With no `tree`, write none and say the exemption cannot reach `fm-route --flag-on`. Do not write `parityPassedAt`.
+  has none, and delete any earlier `answerKeyEvidence.parity` — nothing was compared. With no
+  `tree`, write none and say the exemption cannot reach `fm-route --flag-on`. Do not write `parityPassedAt`.
 - `result: fail` or any Step 3 override → `parity-failed`.
 - Surface `coverage.languagesReason` whenever it is set: a language-axis `not-run` is a real
   coverage reduction (no `i18n` block configured) and must reach the user, not sit in the JSON.

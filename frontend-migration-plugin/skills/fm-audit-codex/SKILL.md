@@ -40,7 +40,8 @@ hint, in the report.
   invocation, the same defect described next for `route`; gate it on `verifiedAt` being present.
   For `route`:
   gate it on the page being at `parity-passed` or beyond with a routing artifact prepared in the
-  app's `infraDir`/`cloudfrontDir`, never on a page-directory file — an artifact-only filter makes
+  app's `infraDir`/`cloudfrontDir` (for `flipMechanism: script`, with `routePrepared` set — its
+  entries may be hand-authored), never on a page-directory file — an artifact-only filter makes
   `route` permanently unreachable from this entry point. Its **inputs are the full route-stage set**
   `templates/codex-audit.md` specifies and `fm-route` Step 4b passes: the full PR diff **plus** all
   gate reports (the `verify` summary, `e2e-report.json`, `parity-report.json`) **plus** the prior

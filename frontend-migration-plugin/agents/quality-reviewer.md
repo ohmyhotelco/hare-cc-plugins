@@ -39,11 +39,11 @@ dimension; skip any that are absent:
    Zustand; i18next for text (no hardcoded strings); 2-space indent; functional components +
    hooks; mapping-catalog idioms applied correctly (Facade→hook, NgbModal→Dialog, etc.).
    **Client-side navigation targets resolve.** Every literal `navigate()` / `<Link to>` /
-   `<NavLink to>` / `redirect()` target must match a route in the app's route config
-   (`app/routes.ts`) other than a bare `*` catch-all; a target that does not — typically a
-   legacy-owned path — must be a document navigation (`window.location.assign`, `<a href>`,
-   `reloadDocument`). A client navigation to an unregistered path renders the router's error page,
-   not the legacy page (`foundation-generator` 3c states the rule and its origin). Grep the call
+   `<NavLink to>` / `redirect()` target must resolve to a route in the app's route config
+   (`app/routes.ts`) by `foundation-generator` 3c's rule — a bare `*`, or a dynamic segment bound
+   outside its known domain (a top-level `:locale` matching `hotel`), is not a match; a target that
+   does not resolve — typically a legacy-owned path — must be a document navigation
+   (`window.location.assign`, `<a href>`, `reloadDocument`). Grep the call
    sites and check each literal against the route config; report the ones you could not resolve
    statically as such rather than passing them.
 7. **Simplicity / over-engineering** — no complexity that neither the plan nor the legacy source
