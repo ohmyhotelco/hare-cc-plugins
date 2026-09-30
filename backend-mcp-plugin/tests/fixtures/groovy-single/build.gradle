@@ -1,0 +1,16 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+    id 'org.springframework.boot' version '3.5.0'
+}
+java { toolchain { languageVersion = JavaLanguageVersion.of(21) } }
+repositories { maven { url = 'https://repo.spring.io/milestone' } }
+ext { set('springAiVersion', "1.0.1") }
+dependencyManagement { imports { mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}" } }
+dependencies {
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    // implementation 'org.springframework.boot:spring-boot-starter-security'
+    /* implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webflux'
+       implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server' */
+    compileOnly 'org.projectlombok:lombok'
+}

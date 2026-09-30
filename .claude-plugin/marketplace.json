@@ -170,6 +170,40 @@
       ]
     },
     {
+      "name": "backend-mcp-plugin",
+      "description": "Spring AI MCP server development plugin: @Tool/@ToolParam authoring with a compact description convention, tool contract snapshot + changelog, upstream client resilience, OAuth2/RBAC/audit, OWASP MCP Top 10 security review, strict TDD, Gradle verification gate, and review-fix loop for Claude Code",
+      "version": "0.2.0",
+      "author": {
+        "name": "Daniel"
+      },
+      "source": "./backend-mcp-plugin/",
+      "category": "development",
+      "keywords": [
+        "backend",
+        "mcp",
+        "model-context-protocol",
+        "spring-ai",
+        "spring-boot",
+        "java",
+        "gradle",
+        "tdd",
+        "tool-contract",
+        "oauth2",
+        "rbac",
+        "audit",
+        "owasp-mcp",
+        "archunit",
+        "resilience4j",
+        "code-review",
+        "build",
+        "debug",
+        "pipeline",
+        "security",
+        "spec-driven",
+        "planning-plugin"
+      ]
+    },
+    {
       "name": "frontend-migration-plugin",
       "description": "Claude Code plugin that drives the Angular 15 to React Router v7 migration: Angular source analysis, framework-agnostic shared-package extraction, RR v7 page generation, legacy-parity gates (Playwright E2E, visual, contract, WebView, telemetry), and Strangler Fig progress tracking",
       "version": "1.5.1",

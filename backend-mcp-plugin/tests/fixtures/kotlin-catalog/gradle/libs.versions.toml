@@ -1,0 +1,16 @@
+[versions]
+spring-ai = "1.1.0"
+boot = "3.5.0"
+
+[libraries]
+spring-ai-bom = { module = "org.springframework.ai:spring-ai-bom", version.ref = "spring-ai" }
+spring-ai-starter-mcp-server-webflux = { module = "org.springframework.ai:spring-ai-starter-mcp-server-webflux" }
+oauth2 = { group = "org.springframework.boot", name = "spring-boot-starter-oauth2-resource-server" }
+
+[bundles]
+security = [
+    "oauth2",
+]
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "boot" }

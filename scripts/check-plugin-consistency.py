@@ -343,7 +343,8 @@ def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]
     out = []
     for name, (path, text) in skills.items():
         fm = frontmatter(text)
-        allowed = {t.strip() for t in fm.get("allowed-tools", "").split(",") if t.strip()}
+        # a scoped rule such as `Bash(git diff *)` declares the tool too
+        allowed = {re.sub(r"\(.*\)$", "", t.strip()) for t in fm.get("allowed-tools", "").split(",") if t.strip()}
         body = text[text.find("\n---", 3):]
         for tool, pats in TOOL_EVIDENCE.items():
             if tool in allowed:

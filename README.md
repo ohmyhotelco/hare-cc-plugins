@@ -94,6 +94,32 @@ migration, database, driver, and coverage-tool decision record.
 
 ---
 
+### [Backend MCP Plugin](./backend-mcp-plugin/) `v0.2.0`
+
+Develops Model Context Protocol servers on Spring AI (Spring Boot, `@Tool`/`@ToolParam`) with
+strict Test-Driven Development. Treats the tool description as a published contract (compact
+description template, contract snapshot + changelog), the calling model as a consumer of
+untrusted upstream text (sanitizing, PII masking, result caps with warnings), and the server as a
+deputy (OAuth2 resource server, per-tool RBAC, audit, no token passthrough, read-only enforced by
+ArchUnit).
+
+**Pipeline**: `mcp-plan` -> `mcp-code` (TDD) -> `mcp-verify` -> `mcp-review` <-> `mcp-fix` -> `mcp-commit`
+
+**Key features**:
+- No init step: every skill detects Spring AI MCP transports (webmvc / webflux / stdio), tool
+  registration style, security and contract-snapshot setup on each run; stops on a project without
+  an MCP server starter
+- Tool specification + TDD in one skill, ending in a bounded contract-snapshot acceptance step
+- Verification gate (compile + tests + contract snapshot/changelog pairing + build, optional
+  checkstyle/JaCoCo) recorded against a source-tree hash
+- 7-dimension review incl. an OWASP-MCP-Top-10-style security dimension, or one dimension as a
+  focused audit; TDD-disciplined fix loop
+- Upstream client conventions: timeouts, transport-only retry, rate limiting, circuit breaker,
+  caching with per-caller RBAC re-applied
+- Java 21/25, Spring Boot 4.x, Spring AI MCP server, Gradle, JUnit 5, ArchUnit
+
+---
+
 ### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.5.1`
 
 Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
@@ -132,6 +158,12 @@ planning-plugin                 backend-webflux-plugin
                                       │
                                       └── Spring WebFlux API (CQRS + TDD, R2DBC/MyBatis)
 
+planning-plugin                 backend-mcp-plugin
+     │                                │
+     └── (independent) ───────────────┘
+                                      │
+                                      └── Spring AI MCP server (tools + TDD)
+
 planning-plugin                 homepage-plugin
      │                                │
      └── (independent) ───────────────┘
@@ -142,6 +174,7 @@ planning-plugin                 homepage-plugin
 - **planning-plugin → frontend-react-plugin**: Specs, UI DSL, and prototypes flow from planning to frontend code generation. The frontend plugin can also run standalone without planning-plugin.
 - **backend-springboot-plugin**: Operates independently with its own work document system and TDD workflow. Does not require planning-plugin.
 - **backend-webflux-plugin**: Operates independently, same as backend-springboot-plugin. Separate plugin, separate stack (WebFlux + R2DBC/MyBatis vs MVC + JPA) -- see `backend-webflux-plugin/docs/decisions.md`.
+- **backend-mcp-plugin**: Operates independently; `mcp-plan` can read a planning-plugin spec or any source document (e.g. an upstream API inventory). Separate plugin, separate product shape (MCP tools over an upstream API, no database layer).
 - **homepage-plugin**: Operates independently with its own interactive planning. Does not require planning-plugin.
 
 ## Installation
@@ -155,6 +188,7 @@ planning-plugin                 homepage-plugin
 /plugin install frontend-react-plugin@ohmyhotelco --scope project
 /plugin install backend-springboot-plugin@ohmyhotelco --scope project
 /plugin install backend-webflux-plugin@ohmyhotelco --scope project
+/plugin install backend-mcp-plugin@ohmyhotelco --scope project
 /plugin install homepage-plugin@ohmyhotelco --scope project
 /plugin install frontend-migration-plugin@ohmyhotelco --scope project
 ```

@@ -1,0 +1,2 @@
+java { sourceCompatibility = JavaVersion.VERSION_1_8 }
+dependencies { implementation "org.springframework.ai:spring-ai-starter-mcp-server:1.0.0" }
