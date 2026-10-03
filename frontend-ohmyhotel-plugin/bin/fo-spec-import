@@ -28,10 +28,32 @@ import argparse, hashlib, io, json, os, re, shutil, sys, tempfile, zipfile
 from datetime import date
 
 HEADER_RE = {
-    "status": re.compile(r"^>\s*\*\*Status\*\*\s*:\s*(.+?)\s*$", re.M),
-    "version": re.compile(r"^>\s*\*\*Version\*\*\s*:\s*(.+?)\s*$", re.M),
-    "lastUpdated": re.compile(r"^>\s*\*\*Last Updated\*\*\s*:\s*(.+?)\s*$", re.M),
+    # planning-plugin headers: "> **Status**: FINALIZED" / "- 상태: 확정 (2026-07-19)"
+    "status": re.compile(r"^(?:>\s*)?(?:[-*]\s*)?\*{0,2}(?:Status|상태)\*{0,2}\s*:\s*(.+?)\s*$", re.M),
+    "version": re.compile(r"^(?:>\s*)?(?:[-*]\s*)?\*{0,2}(?:Version|버전)\*{0,2}\s*:\s*(.+?)\s*$", re.M),
+    # "Last Updated" may share a line with "Created" ("**Created**: … / **Last Updated**: …")
+    "lastUpdated": re.compile(r"\*{0,2}Last Updated\*{0,2}\s*:\s*(.+?)\s*$", re.M),
 }
+VERSION_IN_STATUS = re.compile(r"\bv?(\d+\.\d+(?:\.\d+)?)\b")
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+def normalise_meta(meta):
+    """Status keeps only its keyword; a version embedded in it ("DRAFT v0.4.1 (…)") fills Version when
+    the header has no Version line; Last Updated keeps the date only."""
+    st = meta.get("status")
+    if st:
+        m = VERSION_IN_STATUS.search(st)
+        if m and not meta.get("version"):
+            meta["version"] = m.group(1)
+        meta["status"] = re.split(r"[\s(（]", st.strip(), 1)[0].strip() or st.strip()
+    lu = meta.get("lastUpdated")
+    if lu:
+        d = DATE_RE.search(lu)
+        meta["lastUpdated"] = d.group(0) if d else lu[:10]
+    v = meta.get("version")
+    if v:
+        meta["version"] = v.strip().lstrip("vV")
+    return meta
 
 def sha256_file(p):
     h = hashlib.sha256()
@@ -55,6 +77,17 @@ def extract(src, dst):
             os.makedirs(os.path.dirname(target), exist_ok=True)
             with z.open(info) as s, open(target, "wb") as d:
                 shutil.copyfileobj(s, d)
+
+def hoist_wrapper(stage):
+    """Some attachments wrap everything in one top-level folder (spec_b2c-foo/ko, ...); lift it so the
+    snapshot always has ko/ en/ vi/ at its top, like the others."""
+    entries = [e for e in os.listdir(stage) if e != ".DS_Store"]
+    if len(entries) == 1 and os.path.isdir(os.path.join(stage, entries[0])):
+        inner = os.path.join(stage, entries[0])
+        if any(os.path.isdir(os.path.join(inner, l)) for l in ("ko", "en", "vi")):
+            for e in os.listdir(inner):
+                shutil.move(os.path.join(inner, e), os.path.join(stage, e))
+            os.rmdir(inner)
 
 def content_hash(folder):
     h = hashlib.sha256()
@@ -86,7 +119,7 @@ def header_meta(folder):
         if any(found.values()):
             meta.update({k: v for k, v in found.items() if v})
             break
-    return meta
+    return normalise_meta(meta)
 
 def read_manifest(path):
     if not os.path.exists(path):
@@ -124,6 +157,7 @@ def main():
         stage = os.path.join(tmp, "stage")
         os.makedirs(stage)
         extract(a.src, stage)
+        hoist_wrapper(stage)
         for extra in a.extra:
             if not os.path.exists(extra):
                 sys.exit(f"--extra not found: {extra}")

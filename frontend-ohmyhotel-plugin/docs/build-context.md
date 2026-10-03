@@ -49,3 +49,14 @@ names the pre-rename design-system packages (`@omh/*`) — fixed by the product 
 by the plugin. `bin/fo-spec-import` was exercised against the real attachments: the recorded sha256
 values match the vault ledger (`a851af14492c`, `f07628af238e`), Windows-separator entries normalise,
 re-importing the same zip reports `changed: false`.
+
+### Importer fixes found by the real import (product repo branch `chore/fo-init-scaffold-20261003`)
+
+Zia's attachments differ from Lexi's and the planning-plugin originals: one wrapper folder
+(`spec_b2c-<screen>/`) above `ko/ en/ vi/`, a `.progress/` state folder, generic file names
+(`screens.md`, `test-scenarios.md`), `Status: DRAFT v0.4.1 (…)` with the version inside the status,
+`Last Updated` sharing a line with `Created`, and `- 상태: 확정 (date)` for the admin extension.
+`fo-spec-import` now hoists a single wrapper folder, splits status/version, keeps the date only, and
+accepts the Korean bullet header. Package-level versions (`v0.2` in the zip name, no header version)
+stay in the manifest note. The product repo gained `.gitattributes` (`specs/** -text`) because git
+reported a CRLF conversion on the city-landing CSV — a converted file would no longer match its sha256.

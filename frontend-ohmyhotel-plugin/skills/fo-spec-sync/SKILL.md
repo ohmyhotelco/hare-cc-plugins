@@ -38,7 +38,9 @@ Run the importer once with `--dry-run`:
 fo-spec-import --screen <screen> --from <path> --ticket <ticket> [--extra ...] [--note "..."] --dry-run
 ```
 
-It prints a JSON object: header metadata read from the spec (`status`, `version`, `lastUpdated`), the
+It prints a JSON object: header metadata read from the spec (`status`, `version`, `lastUpdated` —
+a version embedded in the status line is split out; attachments that wrap `ko/ en/ vi/` in one folder
+are hoisted; a package-level version that only appears in the zip name goes into `--note`), the
 attachment `sha256`, the markdown `contentHash`, `previousContentHash` for the current snapshot, and
 `changed`. Show the user the prospective ledger row and, when a previous snapshot exists:
 
