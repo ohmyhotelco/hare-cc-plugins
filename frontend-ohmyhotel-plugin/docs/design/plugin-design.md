@@ -1,6 +1,6 @@
 # Design: frontend-ohmyhotel-plugin — repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend`
 
-> Status: **draft for CTO review** — target first release **v0.1.0**
+> Status: **CTO-reviewed draft (2026-10-03: §11 answers recorded)** — target first release **v0.1.0**
 > Prefix: `fo-` (`/frontend-ohmyhotel-plugin:fo-<command>`)
 > Scope: a standalone plugin that carries the *working method* for every app in the
 > `ohmyhotel-frontend` repository (first app: `apps/www`, the V3 "All New B2C" site). It is copied from
@@ -97,6 +97,11 @@ Written by `fo-init`; every path is repo-relative.
       "requestConventions": "docs/rules/request-conventions.json"
     }
   },
+  "seo": {                                          // read by fo-seo; policy source = specs/04-reference/omh-744-seo
+    "canonicalHost": "www.ohmyhotel.com",
+    "sitemapHost": "www.ohmyhotel.com",
+    "specRef": "specs/04-reference/omh-744-seo",   // integrated spec v1.1, meta template v0.2, slug lists (file names as imported)
+  },
   "gates": { "evidenceDir": "docs/gates", "designerReview": "manual", "planningAcceptance": "manual" },
   "codexAudit": { "enabled": false }
 }
@@ -131,15 +136,17 @@ State and evidence:
 | Gates | `fo-verify` | DS verify, typecheck, lint, vitest, i18n key coverage, rule-list checks; writes evidence | skill → **workflow** (checks in parallel) | `fe-verify` + `fm-verify` evidence |
 | | `fo-visual` | renders 4 × 5 states, compares with Figma where frames exist, breakage check elsewhere; writes evidence | skill → **workflow** | `fm-parity` visual part + `homepage-plugin` `visual-fidelity-reviewer`, rewritten |
 | | `fo-e2e` | realizes spec test-scenarios as Playwright specs and runs them | skill → 1 agent | `fe-e2e` |
-| | `fo-contract` | request conventions, external URL contract, WebView contract, telemetry, SEO head; reads the rule lists from config | skill → **workflow** | `parity-verifier` contract parts + new |
+| | `fo-contract` | request conventions, external URL contract, WebView contract, telemetry; reads the rule lists from config | skill → **workflow** | `parity-verifier` contract parts + new |
+| | `fo-seo` | head meta vs the meta template, canonical = `www`, hreflang for the 5 languages, sitemap/robots host rules, structured data, slug lists, city-landing texts; policy read from the SEO spec snapshot | skill → **workflow** | `homepage-plugin` `seo-reviewer` pattern + new |
 | | `fo-review` → `fo-fix` | spec / quality / test / security reviewers in parallel → merged findings → approval → fixer per cluster | skill → **workflow** → approval → **workflow** | `fe-review` / `fe-fix` + agents |
 | Whole app | `fo-progress` | per-screen status × gate matrix, blockers, stale evidence | skill (no agent) | `fm-progress` |
 | | `fo-cutover` | cutover ledger + readiness check (P9) | skill → **workflow** (checks) | `fm-route` ledger ideas only |
 | Support | `fo-debug`, `fo-clean-code`, `fo-test-review`, `fo-security` | debugging, independent audits | skill → 1 agent | `fe-*` |
 | | `fo-audit-codex` | optional independent Codex audit of a stage artifact | skill → 1 agent | `fm-audit-codex` / `codex-auditor` |
 
-Folded rather than separate: spec deltas live inside `fo-plan` (react style); contract checks are one
-command (`fo-contract`) — split out `fo-seo` later only if the SEO list grows its own owner.
+Folded rather than separate: spec deltas live inside `fo-plan` (react style). SEO is its own command
+(`fo-seo`, CTO 2026-10-03) because its policy source (`OMH-744` SEO spec, Zia) and owner differ from the
+backend/app contracts that `fo-contract` checks.
 
 ## 5. Orchestration model (P4)
 
@@ -196,7 +203,8 @@ Rules that follow from it:
 | `package-extractor` | migration | shared-* extraction with TDD | `inherit` | `medium` | Read, Write, Edit, Glob, Grep, Bash |
 | `figma-extractor` | new (homepage `design-token-extractor` pattern) | manifest → frames, tokens | `sonnet` | `medium` | Read, Write, Glob, Bash, Figma MCP |
 | `visual-verifier` | new (homepage `visual-fidelity-reviewer` + fm-parity capture) | 4×5 render, Figma compare, breakage | `opus` | `medium` | Read, Write, Glob, Bash, Figma MCP |
-| `contract-verifier` | migration `parity-verifier` (contract parts) | rule-list checks, WebView, telemetry, SEO head | `sonnet` | `medium` | Read, Glob, Grep, Bash, Write |
+| `contract-verifier` | migration `parity-verifier` (contract parts) | rule-list checks, WebView, telemetry | `sonnet` | `medium` | Read, Glob, Grep, Bash, Write |
+| `seo-verifier` | new (homepage `seo-reviewer` pattern) | head meta, canonical/hreflang, sitemap/robots, structured data, slugs vs SEO spec | `sonnet` | `medium` | Read, Glob, Grep, Bash, Write |
 | `codex-auditor` | migration | optional independent audit | n/a (Codex) | — | Read, Glob, Grep, Bash, Write |
 
 Not copied: `strangler-orchestrator`, `style-spec-extractor`, `cascade-differ`, `migration-planner`,
@@ -238,7 +246,7 @@ frontend-ohmyhotel-plugin/
 ├── skills/
 │   ├── fo-shared/                      preloaded via agents' `skills:` — locks, state files, evidence format, reporting format
 │   ├── fo-init/ … fo-cutover/          §4; each SKILL.md ≤ 500 lines + references/
-├── workflows/                          fo-gen.js · fo-verify.js · fo-visual.js · fo-contract.js · fo-review.js · fo-fix.js · fo-cutover-check.js
+├── workflows/                          fo-gen.js · fo-verify.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js · fo-cutover-check.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
 │                                       framework-app-shell, server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec-5-blocks
 ├── bin/                                gate-tree-hash.sh · fo-evidence.sh (on PATH while the plugin is enabled)
@@ -258,7 +266,7 @@ frontend-ohmyhotel-plugin/
 | `frontend-react-plugin` agents | all 12 | add `model`/`effort`/`skills: [fo-shared]`; P6 rewrite; `spec-reviewer` reporting rule; planner reads three answer keys and the rule lists | — |
 | `frontend-react-plugin` templates | `tdd-rules`, `e2e-playwright`, `i18n-key-coverage`, `form-adapters`, `framework-app-shell`, `server-state`, `eslint/prettier-config` | paths from config | `feature-module` (replaced by screen folder shape from V3 plan D9), `e2e-testing` (agent-browser path) |
 | `frontend-migration-plugin` | `fm-progress` tracker + gate accounting; `fm-verify` evidence recording; `gate-tree-hash.sh`; artifact provenance; `angular-analyzer`; `package-extractor`; `codex-auditor`; `parity-verifier` contract sections; owner-approval model for gate overrides | analyzer reads the archive permalink; evidence paths from config; provenance drops legacy-render fields; incident text → `docs/build-context.md` | `fm-route`, `strangler-orchestrator`, `fm-parity` visual, `fm-cascade`, `fm-style-spec`, `fm-delta` (folded), `fm-secret-audit` (merged), `hana-sso`, `payment-flow-v2`, `webview-bridge` templates (→ product repo `docs/rules/`), `session-init.sh` path recording, `pluginRoot` `.local.json` |
-| `homepage-plugin` | `design-token-extractor` and `visual-fidelity-reviewer` patterns | rewritten for screen states × viewports × languages | Astro specifics |
+| `homepage-plugin` | `design-token-extractor`, `visual-fidelity-reviewer` and `seo-reviewer` patterns | rewritten for screen states × viewports × languages; SEO dimensions replaced by the `OMH-744` spec rules | Astro specifics |
 
 ## 10. Order of work
 
@@ -274,7 +282,7 @@ The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) be
    rule lists; delta path.
 4. **`fo-gen` workflow** with the five stages and `generation-state.json`; `fo-verify` workflow with
    evidence.
-5. **`fo-visual`, `fo-e2e`, `fo-contract`.**
+5. **`fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`.**
 6. **`fo-review` / `fo-fix` workflows**, `fo-progress`.
 7. **`fo-analyze`, `fo-extract`, `fo-figma`** (needed from the first reused screen, not from 01-main).
 8. **`fo-cutover`**, `fo-audit-codex`, `docs/build-context.md`, `claude plugin eval` suite.
@@ -282,15 +290,15 @@ The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) be
 Each step is one PR on this repo with `feat(frontend-ohmyhotel): …` scope and a version bump only
 when the plugin becomes usable for the next V3 step.
 
-## 11. Open questions for the CTO
+## 11. Questions put to the CTO — answered 2026-10-03
 
-| # | Question | Default if unanswered |
+| # | Question | Decision |
 |---|---|---|
 | Q1 | Dry run of `agentType` from a plugin workflow (step 1). If it fails, accept the notification-driven skill fallback? | yes, fallback |
 | Q2 | Keep the optional Codex audit (`fo-audit-codex`)? It costs a Codex runtime per audited stage. | keep, disabled by default |
 | Q3 | Gate evidence committed under `docs/gates/` (reviewable in PRs) vs kept in `.claude/` (not committed)? | committed |
 | Q4 | Reviewer agents pinned to `opus`, writers `inherit` (§6)? | as in §6 |
-| Q5 | `fo-contract` as one command, or `fo-seo` separate from day one? | one command |
+| Q5 | `fo-contract` as one command, or `fo-seo` separate from day one? | **`fo-seo` separate** (§4, §6, `seo` config block) |
 | Q6 | Keep a maintainer `CLAUDE.md` at the plugin root although agents never see it? | keep, marked maintainer-only |
 
 ## 12. Sources
