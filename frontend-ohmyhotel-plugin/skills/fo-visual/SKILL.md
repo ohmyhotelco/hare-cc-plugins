@@ -3,7 +3,7 @@ name: fo-visual
 description: Visual gate for one generated screen — captures every planned state at each configured viewport × language through a Playwright spec, checks breakage (overflow, console errors, broken images, clipped text, DS responsive boundary), compares captures with their Figma frames where frames exist, and writes docs/gates/<app>/<screen>/visual.json. Use after fo-verify passes.
 argument-hint: "--app <name> --screen <id> [--no-figma]"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Workflow
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 ---
 
 # fo-visual — visual gate
@@ -31,7 +31,8 @@ image — say so); no frames at all → run `fo-figma` first, or `--no-figma` fo
 ## Step 2 — Run and wait
 
 `Workflow` with `name: "frontend-ohmyhotel-plugin:fo-visual"` and
-`args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/visual", fileKey, figma: frames }`.
+`args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/visual", fileKey, lang: <plan spec.primaryLanguage>, figma: frames }`
+(`lang` picks which language's capture is compared with each frame; the frames are language-neutral).
 Wait for the task notification; do not end the turn after announcing the run.
 
 ## Step 3 — Evidence
@@ -42,7 +43,8 @@ From the result (`result`, `capture`, `comparisons`, `framesWithoutCapture`), wr
 fo-evidence --app <app> --screen <screen> --gate visual --result <pass|fail|not-run> --from <result json>
 ```
 
-(`not-run` when the capture did not run — harness or server failure.) Set the `visual` row in block 5
+(`not-run` when the capture did not run, or when a frame could not be compared — the workflow's
+`result` already says which; a render error or breakage is `fail`.) Set the `visual` row in block 5
 of `<Screen>.spec.md`. Release the lock.
 
 ## Step 4 — Report and next

@@ -15,13 +15,13 @@ per run; `fo-seo` starts one of these per aspect in parallel.
 
 ## Input (given in the prompt)
 
-- `app`, `screen`, `config`, `planFile`, `specDir`, `aspect` (one of `head` | `links` | `sitemap` |
+- `app`, `screen`, `config`, `planFile`, `specDir`, `serverUrl` (the running mock-first dev server the skill started; empty → `not-run`), `aspect` (one of `head` | `links` | `sitemap` |
   `structuredData` | `slugs`), `outDir`
 
 ## Aspects
 
-**`head`** — for each route × language: render the server HTML (`curl -s` against the harness dev
-server with the locale set the way the app reads it) and compare `<title>`, `meta description`, OG
+**`head`** — for each route × language: render the server HTML (`curl -s <serverUrl><route>` with the
+locale set the way the app reads it) and compare `<title>`, `meta description`, OG
 tags against the meta template's entry for this screen (the template gives per-language copy and
 placeholders); `noindex` only where the spec says (non-production hosts, member-only screens).
 
@@ -30,7 +30,7 @@ placeholders); `noindex` only where the spec says (non-production hosts, member-
 `x-default`; internal links in the rendered HTML use the canonical host and the locale rule the
 spec states; pagination/filter URLs follow the spec's indexable/non-indexable split.
 
-**`sitemap`** — `/sitemap.xml` and `/robots.txt` from the harness: only `config.seo.sitemapHost`
+**`sitemap`** — `<serverUrl>/sitemap.xml` and `<serverUrl>/robots.txt`: only `config.seo.sitemapHost`
 URLs, this screen's indexable routes present (city landing entries from the slug list), disallow
 rules as the integrated spec lists; the `m` host is canonical-only (no sitemap) at cutover.
 

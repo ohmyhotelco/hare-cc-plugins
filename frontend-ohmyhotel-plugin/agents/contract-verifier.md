@@ -17,7 +17,7 @@ apply to it. You do not invent rules: an entry that is missing from the list is 
 
 ## Input (given in the prompt)
 
-- `app`, `screen`, `config`, `planFile`, `specDir`, `check` (one of `externalUrls` | `webviewContract` |
+- `app`, `screen`, `config`, `planFile`, `specDir`, `serverUrl` (the running mock-first dev server the skill started; empty → probes that need it record `not-run`), `check` (one of `externalUrls` | `webviewContract` |
   `sensitiveQueryKeys` | `requestConventions` | `telemetry`), `ruleFile` (path from `config.rules.lists`,
   absent for `telemetry`), `outDir`
 
@@ -26,9 +26,8 @@ apply to it. You do not invent rules: an entry that is missing from the list is 
 **`externalUrls`** — for each entry whose `hosts` include this app's hosts and whose `appliesTo`
 (when present) names this screen: the path pattern must resolve to a route module in `routesDir`
 (expand `{param}` to a `:param` segment; `localePrefix: false` entries must resolve without the
-locale segment) or to a declared `redirectTo`. Probe: with the harness dev server
-(`npx react-router dev` through the Playwright `webServer`, or a running server the prompt names),
-`curl -sI` each URL with a sample value and expect 200/3xx as declared. Query keys the entry lists
+locale segment) or to a declared `redirectTo`. Probe: `curl -sI <serverUrl><path>` with a sample
+value and expect 200/3xx as declared. Query keys the entry lists
 must survive the route (not stripped by a redirect).
 
 **`webviewContract`** — for entries with `appliesTo: "*"` or this screen: `path` kind → the path is

@@ -49,6 +49,8 @@ const RESULT = {
   required: ['stage', 'status', 'evidence'],
 }
 
+if (!args || !args.app || !args.screen) return { ok: false, result: 'not-run', reason: 'args {app, screen, …} are required; this workflow is started by its skill' }
+if (args.resumeFrom && !ORDER.includes(args.resumeFrom)) return { ok: false, result: 'not-run', reason: `resumeFrom ${args.resumeFrom} is not a stage (${ORDER.join(', ')})` }
 const common = `app: ${args.app}\nscreen: ${args.screen}\nplanFile: ${args.planFile}\nstateFile: ${args.stateFile}\nspecDir: ${args.specDir}\nconfig: ${JSON.stringify(args.config)}`
 const effortFor = s => (args.effort && (args.effort[s] || (s.endsWith('-tdd') ? args.effort.tdd : undefined))) || undefined
 

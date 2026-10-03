@@ -9,6 +9,10 @@ USAGE
   fo-verify-run --app <name> --screen <id> [--config .claude/frontend-ohmyhotel-plugin.json]
                 [--only typecheck,lint,unit,package,i18n] [--timeout 600] [--no-write]
 
+  --only runs a subset for diagnosis: the result is forced to `partial`, written to verify-partial.json
+  (never to verify.json), and the exit code is 1 — a subset can never stand in for the gate.
+  Toolchain: each check needs its binary under the app's (or repo's) node_modules/.bin; absent → not-run.
+
 CHECKS (each → pass | fail | skipped | not-run, with a reason for the last two)
   typecheck   npx react-router typegen, then tsc --noEmit (tsc -b when tsconfig has "references"), in the app dir
   package     the API package's own tsc + vitest for the plan's api.additions test files (skipped when none)
@@ -22,6 +26,8 @@ EVIDENCE  <gates.evidenceDir>/<app>/<screen>/verify.json:
   treeHash is fo-screen-hash's (shared path set); a gate record is valid for exactly that content.
 """
 import argparse, json, os, re, shutil, subprocess, sys, time
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import sibling
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -84,6 +90,9 @@ def main():
     def rel(p, base):  # repo-relative path → relative to base dir
         return os.path.relpath(p, base)
 
+    def has_bin(name, *dirs):
+        return any(os.path.exists(os.path.join(d, "node_modules", ".bin", name)) for d in [*dirs, "."])
+
     def tsc_cmd(dir_):
         ts = os.path.join(dir_, "tsconfig.json")
         try:
@@ -100,6 +109,7 @@ def main():
 
     def do_typecheck():
         if not shutil.which("npx"): return record("typecheck", "not-run", reason="npx not on PATH")
+        if not has_bin("tsc", app_root) or not has_bin("react-router", app_root): return record("typecheck", "not-run", reason="typescript / react-router not installed (node_modules/.bin)")
         tsc = tsc_cmd(app_root)
         if not tsc: return record("typecheck", "not-run", reason=f"no tsconfig.json in {app_root}")
         cmd = f"npx react-router typegen 2>&1 && {tsc}"
@@ -110,6 +120,7 @@ def main():
     def do_package():
         if not additions: return record("package", "skipped", reason="no api.additions in the plan")
         if not pkg_dir or not os.path.isdir(pkg_dir): return record("package", "not-run", reason=f"package dir not found ({pkg_dir})")
+        if not has_bin("vitest", pkg_dir) or not has_bin("tsc", pkg_dir): return record("package", "not-run", reason="vitest / typescript not installed for the package")
         tsc = tsc_cmd(pkg_dir) or "npx tsc --noEmit 2>&1"
         tests = " ".join(rel(t, pkg_dir) for t in add_tests) or "."
         cmd = f"{tsc} && npx vitest run {tests} --reporter=verbose 2>&1"
@@ -121,6 +132,7 @@ def main():
         has_cfg = any(os.path.exists(os.path.join(d, f)) for d in (".", app_root) for f in
                       ("eslint.config.js", "eslint.config.mjs", "eslint.config.ts", ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json"))
         if not has_cfg: return record("lint", "skipped", reason="no eslint config in repo or app")
+        if not has_bin("eslint", app_root): return record("lint", "not-run", reason="eslint not installed (node_modules/.bin)")
         targets = " ".join([screen_dir] + add_files)
         cmd = f"npx eslint {targets} 2>&1"
         code, out, dur, err = run(cmd, ".", a.timeout)
@@ -129,6 +141,7 @@ def main():
 
     def do_unit():
         if not os.path.isdir(screen_dir): return record("unit", "not-run", reason=f"screen dir missing: {screen_dir}")
+        if not shutil.which("npx") or not has_bin("vitest", app_root): return record("unit", "not-run", reason="vitest not installed (node_modules/.bin)")
         cmd = f"npx vitest run {rel(screen_dir, app_root)} --reporter=verbose 2>&1"
         code, out, dur, err = run(cmd, app_root, a.timeout)
         if err: return record("unit", "not-run", cmd, app_root, None, dur, err)
@@ -138,6 +151,7 @@ def main():
     def do_i18n():
         spec = os.path.join(app_dir, "__tests__", "i18n-key-coverage.test.ts")
         if not os.path.exists(spec): return record("i18n", "skipped", reason="no i18n-key-coverage spec (foundation-generator writes it once per app)")
+        if not has_bin("vitest", app_root): return record("i18n", "not-run", reason="vitest not installed (node_modules/.bin)")
         cmd = f"npx vitest run {rel(spec, app_root)} --reporter=verbose 2>&1"
         code, out, dur, err = run(cmd, app_root, a.timeout)
         if err: return record("i18n", "not-run", cmd, app_root, None, dur, err)
@@ -149,18 +163,20 @@ def main():
         list(ex.map(lambda n: jobs[n](), selected))
 
     # tree hash over what was checked — the shared definition (bin/fo-screen-hash)
-    code, out, _, err = run(f"fo-screen-hash --app {a.app} --screen {a.screen} --config '{a.config}'", ".", 120)
+    code, out, _, err = run(f"'{sibling('fo-screen-hash')}' --app {a.app} --screen {a.screen} --config '{a.config}'", ".", 120)
     tree = out.strip().splitlines()[-1] if code == 0 and out.strip() else None
 
     results = [c["result"] for c in checks.values()]
     overall = "fail" if "fail" in results else ("not-run" if "not-run" in results else "pass")
+    if only: overall = "partial"   # a subset never stands in for the gate
     evidence = {
         "gate": "verify", "app": a.app, "screen": a.screen, "planVersion": plan.get("planVersion"),
         "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "treeHash": tree, "treeHashError": None if tree else (err or tail(out, 2)),
         "result": overall, "checks": checks,
     }
-    out_path = os.path.join(cfg.get("gates", {}).get("evidenceDir", "docs/gates"), a.app, a.screen, "verify.json")
+    out_path = os.path.join(cfg.get("gates", {}).get("evidenceDir", "docs/gates"), a.app, a.screen, "verify-partial.json" if only else "verify.json")
+    evidence["subset"] = sorted(only) if only else None
     if not a.no_write:
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
         with open(out_path, "w", encoding="utf-8") as f:

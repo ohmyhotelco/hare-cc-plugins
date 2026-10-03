@@ -32,7 +32,8 @@ Playwright only (the repo's harness, scaffolded once per app by `foundation-gene
    A spec that exists already is updated, not duplicated; a scenario whose steps cannot be realized
    (missing fixture, undefined route) is recorded as `not-run` with the reason, not written as a
    placeholder test.
-3. Run from `<app.dir>`: `npx playwright test e2e/<screen> --reporter=json > <outDir>/playwright.json`;
+3. Resolve `outDir` to an absolute path first (`OUT="$(git rev-parse --show-toplevel)/<outDir>"; mkdir -p "$OUT/traces"`),
+   then run from `<app.dir>`: `npx playwright test e2e/<screen> --reporter=json > "$OUT/playwright.json"`;
    copy traces of failed scenarios into `<outDir>/traces/`. Three retries of the whole run are not
    done — a flaky run is reported as flaky (run twice at most when the first run has failures, and say
    whether the failure reproduced).

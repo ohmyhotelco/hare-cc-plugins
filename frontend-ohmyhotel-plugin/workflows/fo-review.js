@@ -26,6 +26,7 @@ const REPORT = {
 }
 
 const AGENT = { spec: 'spec-reviewer', quality: 'quality-reviewer', test: 'test-reviewer', security: 'security-auditor' }
+if (!args || !args.app || !args.screen) return { ok: false, result: 'not-run', reason: 'args {app, screen, …} are required; this workflow is started by its skill' }
 const base = `app: ${args.app}\nscreen: ${args.screen}\nconfig: ${JSON.stringify(args.config)}\nplanFile: ${args.planFile}\nscreenDir: ${args.screenDir}\nspecDir: ${args.specDir}\nacceptedDeviations: ${JSON.stringify(args.acceptedDeviations || [])}`
 const extra = {
   spec: `figmaDir: ${args.figmaDir || ''}`,
@@ -36,14 +37,17 @@ const extra = {
 
 phase('Review')
 const names = args.reviewers || Object.keys(AGENT)
-const reports = await parallel(names.map(n => () =>
+const reportsRaw = await parallel(names.map(n => () =>
   agent(`${base}\n${extra[n]}`, { label: `${args.screen}:${n}`, phase: 'Review', schema: REPORT, agentType: `frontend-ohmyhotel-plugin:${AGENT[n]}` })
-    .then(r => ({ reviewer: n, report: r }))))
+    .then(r => ({ reviewer: n, report: r }))
+    .catch(e => ({ reviewer: n, report: null, error: String(e) }))))
+const reports = reportsRaw.map((r, i) => r || { reviewer: names[i], report: null, error: 'agent returned no result' })
+const incomplete = reports.filter(r => !r.report || r.report.status === 'not-run').map(r => r.reviewer)
 
 const SEV = { critical: 0, warning: 1, suggestion: 2 }
 const findings = []
-for (const { reviewer, report } of reports.filter(Boolean)) {
-  if (!report) { findings.push({ reviewer, severity: 'warning', confidence: 'high', message: 'reviewer returned no result', file: null }); continue }
+for (const { reviewer, report } of reports) {
+  if (!report || report.status === 'not-run') continue   // tracked in `incomplete`, not disguised as a finding
   const issues = [...(report.findings || []), ...Object.entries(report.dimensions || {}).flatMap(([dim, d]) => (d.issues || []).map(i => ({ ...i, dimension: dim })))]
   for (const i of issues) findings.push({ reviewer, severity: i.severity || 'warning', confidence: i.confidence || 'medium', dimension: i.dimension || null, message: i.message, file: i.file || null, line: i.line ?? null, fixHint: i.fixHint || null, refs: i.refs || [] })
 }
@@ -61,6 +65,9 @@ const clusters = [...groups.entries()].map(([key, items], i) => ({
 })).sort((a, b) => a.worst - b.worst || b.findings.length - a.findings.length).map((c, i) => ({ ...c, id: `C${i + 1}`, worst: ['critical', 'warning', 'suggestion'][c.worst] }))
 
 const counts = findings.reduce((m, f) => ({ ...m, [f.severity]: (m[f.severity] || 0) + 1 }), {})
-const status = reports.some(r => r && r.report && r.report.status === 'fail') || counts.critical ? 'fail' : (counts.warning || 0) > 5 ? 'pass_with_warnings' : 'pass'
-log(`${findings.length} findings from ${reports.filter(r => r && r.report).length}/${names.length} reviewers → ${clusters.length} clusters (${JSON.stringify(counts)})`)
-return { status, counts, reviewers: reports.filter(Boolean).map(r => ({ reviewer: r.reviewer, status: r.report ? r.report.status : 'not-run', overallScore: r.report ? r.report.overallScore ?? null : null, notes: r.report ? r.report.notes || [] : [] })), clusters }
+// a review is complete only when every requested reviewer reported; otherwise it is `incomplete` (recorded as not-run)
+const status = incomplete.length ? 'incomplete'
+  : reports.some(r => r.report.status === 'fail') || counts.critical ? 'fail'
+  : (counts.warning || 0) > 5 ? 'pass_with_warnings' : 'pass'
+log(`${findings.length} findings from ${names.length - incomplete.length}/${names.length} reviewers → ${clusters.length} clusters (${JSON.stringify(counts)}) → ${status}`)
+return { status, incomplete, counts, reviewers: reports.map(r => ({ reviewer: r.reviewer, status: r.report ? r.report.status : 'not-run', error: r.error || null, overallScore: r.report ? r.report.overallScore ?? null : null, notes: r.report ? r.report.notes || [] : [] })), clusters }
