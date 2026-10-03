@@ -60,3 +60,25 @@ Zia's attachments differ from Lexi's and the planning-plugin originals: one wrap
 accepts the Korean bullet header. Package-level versions (`v0.2` in the zip name, no header version)
 stay in the manifest note. The product repo gained `.gitattributes` (`specs/** -text`) because git
 reported a CRLF conversion on the city-landing CSV — a converted file would no longer match its sha256.
+
+### fo-plan headless test on the real 01-main-page spec (scratch clone of the scaffold branch)
+
+10 turns, 1 planner agent, ~$2.79; wrote a 561-line `implementation-plan.json` and a 179-line
+`MainPage.spec.md` from the v1.9 spec (ko primary, en for naming), the OMH-744 SEO reference, empty rule
+lists, no Figma entry, no analysis, DS not installed. It ended at the approval question as designed.
+
+What the test changed in the plugin:
+- **Hashing moved out of the agent.** The planner has no shell, so every `sourceHash` came back `null`.
+  `bin/fo-plan-hash` now resolves ids to passages (FR/TS heading section, BR bullet under its FR,
+  `screen:` section of `*screens*.md`) and fills the hashes after the agent returns (`--write`); delta
+  mode seeds the planner with `--check` output so both sides use one resolver. On the generated plan:
+  41/41 resolved after accepting `|` as a separator (the planner copied the react template's `a | b` form).
+  An FR-003 text edit on a spec copy flagged the 13 entries citing FR-003 — coarse, deterministic.
+- The planner's `source` convention is now `FR-003 BR-004` (BR numbers restart under every FR).
+
+What the test said about the project (kept here so it is not lost; owners decide, not the plugin):
+12 open approvals — most are "repo not scaffolded yet" (DS inventory unavailable, shared-data absent,
+rule lists empty, frozenCommit TBD); the rest are spec gaps (SNS URLs, cross-screen paths, redirect
+storage, currency conversion, banner admin). 5 conflicts between the main-page spec and the OMH-744 SEO
+spec: date overlay apply button, hero copy lines, home canonical `/` vs `/hotel`, cookie locale vs
+per-locale URLs, search path `/search` vs `/hotel?keyword=`.
