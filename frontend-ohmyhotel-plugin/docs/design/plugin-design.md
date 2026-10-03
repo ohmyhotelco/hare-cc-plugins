@@ -141,7 +141,7 @@ State and evidence:
 | | `fo-seo` | head meta vs the meta template, canonical = `www`, hreflang for the 5 languages, sitemap/robots host rules, structured data, slug lists, city-landing texts; policy read from the SEO spec snapshot | skill → **workflow** | `homepage-plugin` `seo-reviewer` pattern + new |
 | | `fo-review` → `fo-fix` | spec / quality / test / security reviewers in parallel → merged findings → approval → fixer per cluster | skill → **workflow** → approval → **workflow** | `fe-review` / `fe-fix` + agents |
 | Whole app | `fo-progress` | per-screen status × gate matrix, blockers, stale evidence | skill (no agent) | `fm-progress` |
-| | `fo-cutover` | cutover ledger + readiness check (P9) | skill → **workflow** (checks) | `fm-route` ledger ideas only |
+| | `fo-cutover` | cutover ledger + readiness check (P9) | skill → **script** `bin/fo-cutover-check` | `fm-route` ledger ideas only |
 | Support | `fo-debug`, `fo-clean-code`, `fo-test-review`, `fo-security` | debugging, independent audits | skill → 1 agent | `fe-*` |
 | | `fo-audit-codex` | optional independent Codex audit of a stage artifact | skill → 1 agent | `fm-audit-codex` / `codex-auditor` |
 
@@ -250,10 +250,10 @@ frontend-ohmyhotel-plugin/
 ├── skills/
 │   ├── fo-shared/                      preloaded via agents' `skills:` — locks, state files, evidence format, reporting format
 │   ├── fo-init/ … fo-cutover/          §4; each SKILL.md ≤ 500 lines + references/
-├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js · fo-cutover-check.js
+├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
-│                                       framework-app-shell, server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec-5-blocks
-├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export (on PATH while the plugin is enabled)
+│                                       server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec, implementation-plan, cutover-ledger, codex-audit
+├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export · fo-cutover-check (on PATH while the plugin is enabled)
 ├── hooks/hooks.json                    PostToolUse staleness check only (no SessionStart path recording)
 ├── scripts/                            validate-implementation.sh, check-staleness.sh (hook targets)
 └── docs/
@@ -289,7 +289,7 @@ The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) be
 5. **`fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`.** ✅ 2026-10-03 — workflows `fo-visual` (capture → parallel frame compare), `fo-contract` (one agent per rule list + telemetry), `fo-seo` (one per aspect); `fo-e2e` is one agent; every gate records through `bin/fo-evidence`.
 6. **`fo-review` / `fo-fix` workflows**, `fo-progress`. ✅ 2026-10-03 — four reviewers in parallel, merge and clustering in code, approval in the skill; fixers sequential per cluster then re-verify; progress computed by `bin/fo-progress-report` (staleness by tree hash).
 7. **`fo-analyze`, `fo-extract`, `fo-figma`** (needed from the first reused screen, not from 01-main). ✅ 2026-10-03 — archive worktree at the frozen commit, permalinked `analysis.json`, sequential extractors, Figma discovery by MCP + PNG export by REST token.
-8. **`fo-cutover`**, `fo-audit-codex`, `docs/build-context.md`, `claude plugin eval` suite.
+8. **`fo-cutover`**, `fo-audit-codex`, `docs/build-context.md`, `claude plugin eval` suite. ✅ 2026-10-03 — cutover is a ledger checked by `bin/fo-cutover-check` (computed / list / manual items), Codex audit advisory with adjudication carry-forward, support skills standalone over the reviewers, eval suite of 4 routing cases (4/4 on first run).
 
 Each step is one PR on this repo with `feat(frontend-ohmyhotel): …` scope and a version bump only
 when the plugin becomes usable for the next V3 step.

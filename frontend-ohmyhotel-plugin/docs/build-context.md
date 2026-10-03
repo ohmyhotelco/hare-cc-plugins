@@ -150,3 +150,21 @@ per-locale URLs, search path `/search` vs `/hotel?keyword=`.
   REST API with `FIGMA_TOKEN` from the environment (`bin/fo-figma-export`); the MCP can show a frame
   but cannot save it. Without a token the manifest records node ids and `fo-visual` compares inline,
   with no committed reference image — the report says so.
+
+### Step 8 — cutover ledger, Codex audit, support skills, evals (2026-10-03)
+
+- `fo-cutover` became a ledger plus a script (`bin/fo-cutover-check`): computed items from
+  `fo-progress-report` and the rule lists, `list` items from their files, manual items closed by a
+  named owner with an evidence link. The plugin never flips traffic (P9); readiness is the list of
+  closed items. The default items transcribe V3 decisions 12–14 (app contract, frozen-monorepo
+  hotfixes, rollback rehearsal, archive pointers, Hana termination) and the plan's §7 cutover gate.
+- Codex audit is advisory and independent: the auditor hands Codex artifacts and sources only, and
+  carries existing `adjudication` blocks across a re-audit so a decision on a finding survives the
+  code moving (rule from the migration plugin, kept because it prevented re-opened findings there).
+- Support skills (`fo-clean-code`, `fo-test-review`, `fo-security`) run the pipeline's reviewers in
+  `standalone` mode over a path; `fo-debug` uses a debugger that stops after three refuted hypotheses.
+- Eval suite: four cases, read-only tools, run in an empty workspace — so each routing case checks
+  two things: the right skill fired (`tool_used: Skill`) and the skill refused to invent state
+  (`llm` rubric: names fo-init / the missing files, does not import, plan or report status by hand);
+  the negative case checks no `fo-` skill fires on an unrelated request (`regex` over the trace with a
+  negative lookahead, `arm: both`). First run: 4/4, 88 s, $0.75, `--ablation none --runs 1`.

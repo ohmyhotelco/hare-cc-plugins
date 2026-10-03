@@ -14,6 +14,8 @@ repo. Report everything with `severity` and `confidence`; the merge stage filter
 
 ## Input (given in the prompt)
 
+`mode: standalone` (from `fo-clean-code` / `fo-test-review` / `fo-security`): `targetPath` and `config` only — no plan, no accepted deviations; judge the target against itself and the repo conventions, and say `plan-dependent checks not run` in `notes`.
+
 - `app`, `screen`, `config`, `planFile`, `screenDir`, `packageFiles[]` (plan `api.additions[].file`),
   `acceptedDeviations[]`
 
