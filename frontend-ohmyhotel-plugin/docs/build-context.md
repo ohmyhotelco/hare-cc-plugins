@@ -102,3 +102,18 @@ per-locale URLs, search path `/search` vs `/hotel?keyword=`.
   (`inherit`), foundation/integration on `sonnet` at `medium`.
 - Templates copied from the react plugin and rewritten for the fixed stack: `i18n-key-coverage`,
   `e2e-playwright`, `form-adapters`, `server-state` (knob names → config paths, `fe-*` → `fo-*`).
+
+### Step 5 — gate skills (2026-10-03)
+
+- One evidence writer for every gate: `bin/fo-evidence` adds gate/app/screen/planVersion/recordedAt/
+  treeHash/result around the gate's own payload, writes `<gate>.json` and the `gates.<gate>` entry in
+  `progress.json`; `--register` only indexes a file a gate wrote itself (`fo-verify-run`). Tested on
+  the scratch clone (visual not-run payload, verify register).
+- `fo-visual` captures once (a generated Playwright spec per screen, breakage checks in the same
+  test) and compares each Figma frame in parallel; breakage-only when the manifest has no frames
+  (decision 10). `fo-contract` and `fo-seo` start one worker per rule list / aspect; an empty rule
+  list is reported as a gap, never folded into a pass (P3: the lists belong to the product repo).
+  `fo-e2e` is a single agent because its scenarios share one harness run.
+- None of the four can run end to end before the app scaffold exists (same dependency as `fo-gen`);
+  the workflows are syntax-checked with the runtime's async-body semantics (`node --check` on a wrapped
+  copy, because top-level `return` is a workflow feature).

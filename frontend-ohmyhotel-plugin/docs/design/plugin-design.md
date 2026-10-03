@@ -252,7 +252,7 @@ frontend-ohmyhotel-plugin/
 ├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js · fo-cutover-check.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
 │                                       framework-app-shell, server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec-5-blocks
-├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run (on PATH while the plugin is enabled)
+├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence (on PATH while the plugin is enabled)
 ├── hooks/hooks.json                    PostToolUse staleness check only (no SessionStart path recording)
 ├── scripts/                            validate-implementation.sh, check-staleness.sh (hook targets)
 └── docs/
@@ -285,7 +285,7 @@ The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) be
    rule lists; delta path.
 4. **`fo-gen` workflow** with the five stages and `generation-state.json`; `fo-verify` script with
    evidence. ✅ 2026-10-03 (a full `fo-gen` run needs the Phase 0-B app scaffold; see build-context).
-5. **`fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`.**
+5. **`fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`.** ✅ 2026-10-03 — workflows `fo-visual` (capture → parallel frame compare), `fo-contract` (one agent per rule list + telemetry), `fo-seo` (one per aspect); `fo-e2e` is one agent; every gate records through `bin/fo-evidence`.
 6. **`fo-review` / `fo-fix` workflows**, `fo-progress`.
 7. **`fo-analyze`, `fo-extract`, `fo-figma`** (needed from the first reused screen, not from 01-main).
 8. **`fo-cutover`**, `fo-audit-codex`, `docs/build-context.md`, `claude plugin eval` suite.

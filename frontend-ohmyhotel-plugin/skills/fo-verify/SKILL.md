@@ -45,9 +45,13 @@ it with the current content; a changed hash means the evidence is stale, not wro
 
 ## Step 2 — Tracker and spec block
 
-Update `progress.json` under the screen: `gates.verify = { result, recordedAt, treeHash, evidence:
-"<path>" }`. Set the `verify` row of block 5 in `<Screen>.spec.md` to the evidence path and result.
-Release the lock.
+Register the file in the tracker (the script already wrote the evidence):
+
+```bash
+fo-evidence --app <app> --screen <screen> --gate verify --register <gates.evidenceDir>/<app>/<screen>/verify.json
+```
+
+Set the `verify` row of block 5 in `<Screen>.spec.md` to the evidence path and result. Release the lock.
 
 ## Step 3 — Report and next
 
