@@ -39,3 +39,13 @@ compares; the algorithm's own history is in that script's header comments.
 `claude plugin validate` warns that a plugin-root `CLAUDE.md` is not loaded as project context. It is kept
 on purpose as maintainer notes (design §11 Q6) and says so in its first paragraph; agent-facing rules are
 in `skills/fo-shared/SKILL.md`.
+
+### fo-init headless test (scratch clone of the product repo, README only)
+
+`claude -p --plugin-dir … "Run /frontend-ohmyhotel-plugin:fo-init …"` — 22 turns, ~$1.59. Wrote the config
+and the full scaffold, installed nothing, and reported two reconciliations worth keeping: the README's
+mobile breakpoint is 390 (the config default was 360 → changed to 390), and the README on `main` still
+names the pre-rename design-system packages (`@omh/*`) — fixed by the product repo's README PR #2, not
+by the plugin. `bin/fo-spec-import` was exercised against the real attachments: the recorded sha256
+values match the vault ledger (`a851af14492c`, `f07628af238e`), Windows-separator entries normalise,
+re-importing the same zip reports `changed: false`.

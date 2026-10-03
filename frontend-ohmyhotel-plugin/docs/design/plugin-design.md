@@ -86,7 +86,7 @@ Written by `fo-init`; every path is repo-relative.
               "resourcesDir": "packages/shared-i18n/src/locales", "resourceFile": "{LANG}/translation.json" }
   },
   "languages": ["ko", "en", "ja", "zh", "vi"],
-  "viewports": [360, 768, 1024, 1440],
+  "viewports": [390, 768, 1024, 1440],            // Figma frame widths; 769 is the DS responsive boundary
   "rules": {
     "adrDir": "docs/adr",
     "rulesDir": "docs/rules",
