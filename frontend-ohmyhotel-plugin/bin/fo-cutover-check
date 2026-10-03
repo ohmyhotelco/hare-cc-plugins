@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""fo-cutover-check — evaluate the cutover ledger: computed items from evidence, list items from their
+files, manual items from their recorded status. Read-only except --init (writes the ledger template).
+
+USAGE
+  fo-cutover-check --app <name> [--config …] [--init]
+"""
+import argparse, json, os, subprocess, sys
+from datetime import datetime, timezone
+
+def load(p):
+    try:
+        with open(p, encoding="utf-8") as f: return json.load(f)
+    except (OSError, ValueError): return None
+
+DEFAULT_ITEMS = [
+  {"id": "screens-all-gates", "kind": "computed", "title": "every screen: verify, visual, e2e, contract, seo pass and current; designer review and planning acceptance recorded"},
+  {"id": "rule-lists-populated", "kind": "computed", "title": "no rule list under docs/rules has an empty entries array"},
+  {"id": "integrated-qa", "kind": "manual", "title": "v3-stg integrated QA: all languages × viewports × screens", "owner": "QA"},
+  {"id": "payment-staging", "kind": "manual", "title": "payment flow verified on the staging gateway with a real transaction", "owner": "Dev"},
+  {"id": "app-contract", "kind": "list", "title": "native app contract items confirmed with the app team", "source": "docs/rules/webview-contract.json"},
+  {"id": "external-urls", "kind": "list", "title": "every external URL contract entry resolves on the staging host", "source": "docs/rules/external-urls.json"},
+  {"id": "frozen-hotfixes", "kind": "list", "title": "every monorepo hotfix since the freeze has a V3 PR or a recorded 'not applicable'", "source": "docs/cutover/frozen-hotfixes.json"},
+  {"id": "rollback-rehearsal", "kind": "manual", "title": "edge switch and revert rehearsed on staging", "owner": "Ops"},
+  {"id": "archive-pointers", "kind": "manual", "title": "monorepo README, Jira components and plugin configs point at this repo", "owner": "Dev"},
+  {"id": "hana-termination", "kind": "manual", "title": "Hana Card white-label termination items handled (cutover day)", "owner": "Business"},
+]
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json"); ap.add_argument("--init", action="store_true")
+    a = ap.parse_args()
+    cfg = load(a.config) or sys.exit("config not found")
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit("app not in config")
+    ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
+    path = os.path.join(ev_dir, a.app, "cutover-ledger.json")
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    if a.init:
+        if os.path.exists(path): sys.exit(f"{path} exists — edit it instead")
+        ledger = {"app": a.app, "mode": app.get("cutover", "big-bang"), "updatedAt": now,
+                  "items": [{**i, "status": "open", "evidence": None, "closedAt": None} for i in DEFAULT_ITEMS]}
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        json.dump(ledger, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(path, "a").write("\n")
+        hot = "docs/cutover/frozen-hotfixes.json"
+        if not os.path.exists(hot):
+            os.makedirs(os.path.dirname(hot), exist_ok=True)
+            json.dump({"$schema": "frontend-ohmyhotel-plugin/rule-list/v1", "list": "frozenHotfixes", "source": "TBD", "updatedAt": now[:10], "entries": []},
+                      open(hot, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(hot, "a").write("\n")
+        print(json.dumps({"written": path, "items": len(ledger["items"]), "hotfixes": hot})); return
+    ledger = load(path) or sys.exit(f"no ledger at {path} — run with --init")
+
+    prog = subprocess.run(["fo-progress-report", "--app", a.app, "--config", a.config], capture_output=True, text=True)
+    report = json.loads(prog.stdout) if prog.returncode == 0 and prog.stdout.strip() else {"screens": []}
+    results = []
+    for it in ledger["items"]:
+        r = {"id": it["id"], "kind": it["kind"], "title": it["title"], "status": it.get("status", "open"), "detail": None}
+        if it["kind"] == "computed":
+            if it["id"] == "screens-all-gates":
+                bad = [s["screen"] for s in report["screens"] if s["next"] != "done"]
+                r["status"] = "closed" if report["screens"] and not bad else "open"; r["detail"] = {"screens": len(report["screens"]), "notDone": bad}
+            elif it["id"] == "rule-lists-populated":
+                empty = [n for n, p in cfg.get("rules", {}).get("lists", {}).items() if not (load(p) or {}).get("entries")]
+                r["status"] = "closed" if not empty else "open"; r["detail"] = {"emptyLists": empty}
+        elif it["kind"] == "list":
+            data = load(it.get("source", "")) or {}
+            entries = data.get("entries", [])
+            pending = [e.get("id", "?") for e in entries if e.get("status") not in ("confirmed", "verified")]
+            r["status"] = "closed" if entries and not pending else "open"; r["detail"] = {"entries": len(entries), "pending": pending, "source": it.get("source")}
+        else:
+            r["status"] = it.get("status", "open"); r["detail"] = {"owner": it.get("owner"), "evidence": it.get("evidence"), "closedAt": it.get("closedAt")}
+        results.append(r)
+    open_items = [r["id"] for r in results if r["status"] != "closed"]
+    json.dump({"app": a.app, "mode": ledger.get("mode"), "ready": not open_items, "open": open_items, "items": results, "checkedAt": now}, sys.stdout, ensure_ascii=False, indent=2); print()
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+"""fo-evidence — write a gate's evidence file and register it in progress.json.
+
+Every gate (verify, visual, e2e, contract, seo, and the manual designer-review / planning-acceptance
+rows) records its result the same way: one JSON file under <gates.evidenceDir>/<app>/<screen>/ with a
+tree hash of what was checked, and one entry under the screen in progress.json. Skills call this
+instead of hand-writing either file.
+
+USAGE
+  fo-evidence --app <name> --screen <id> --gate <name> --result pass|fail|partial|skipped|not-run \
+              [--config …] [--from <json file> | < stdin json]
+  fo-evidence --app <name> --screen <id> --gate <name> --register <existing evidence file>
+
+  The stdin/--from JSON is the gate's own payload (checks, findings, captures …); this script adds
+  gate, app, screen, planVersion, recordedAt, treeHash, result and writes
+  <evidenceDir>/<app>/<screen>/<gate>.json. --register only updates progress.json from a file a gate
+  already wrote (fo-verify-run writes its own).
+  treeHash = fo-screen-hash (the one path set every producer and consumer uses). A record is valid
+  for exactly that content; fo-progress compares. A `result` in the payload is ignored — --result wins.
+"""
+import argparse, json, os, subprocess, sys
+from datetime import datetime, timezone
+
+def load(p):
+    with open(p, encoding="utf-8") as f: return json.load(f)
+
+def dump(p, o):
+    os.makedirs(os.path.dirname(p) or ".", exist_ok=True)
+    with open(p, "w", encoding="utf-8") as f:
+        json.dump(o, f, ensure_ascii=False, indent=2); f.write("\n")
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True); ap.add_argument("--gate", required=True)
+    ap.add_argument("--result", choices=["pass", "fail", "partial", "skipped", "not-run"])
+    ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
+    ap.add_argument("--from", dest="src"); ap.add_argument("--register")
+    a = ap.parse_args()
+
+    cfg = load(a.config)
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
+    ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
+    out_path = os.path.join(ev_dir, a.app, a.screen, f"{a.gate}.json")
+    progress_path = os.path.join(ev_dir, a.app, "progress.json")
+    screen_dir = os.path.join(app["screensDir"], a.screen)
+    plan_file = os.path.join(screen_dir, "implementation-plan.json")
+
+    if a.register:
+        ev = load(a.register); out_path = a.register
+    else:
+        if not a.result: sys.exit("--result is required unless --register")
+        payload = load(a.src) if a.src else (json.load(sys.stdin) if not sys.stdin.isatty() else {})
+        r = subprocess.run(["fo-screen-hash", "--app", a.app, "--screen", a.screen, "--config", a.config], capture_output=True, text=True)
+        tree = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+        tree_err = None if tree else (r.stderr.strip()[-300:] or r.stdout.strip()[-300:] or "fo-screen-hash failed")
+        plan_version = load(plan_file).get("planVersion") if os.path.exists(plan_file) else None
+        payload.pop("result", None)
+        ev = {**payload, "gate": a.gate, "app": a.app, "screen": a.screen, "planVersion": plan_version,
+              "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "treeHash": tree, "treeHashError": tree_err, "result": a.result}
+        dump(out_path, ev)
+
+    prog = load(progress_path) if os.path.exists(progress_path) else {"app": a.app, "screens": {}}
+    sc = prog.setdefault("screens", {}).setdefault(a.screen, {})
+    sc.setdefault("gates", {})[a.gate] = {"result": ev.get("result"), "recordedAt": ev.get("recordedAt"),
+                                          "treeHash": ev.get("treeHash"), "evidence": out_path}
+    prog["updatedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    dump(progress_path, prog)
+    json.dump({"evidence": out_path, "progress": progress_path, "result": ev.get("result"), "treeHash": ev.get("treeHash")}, sys.stdout); print()
+
+if __name__ == "__main__":
+    main()

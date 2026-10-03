@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+"""fo-progress-report — compute the screen × gate matrix for one app, with staleness.
+
+Reads progress.json, every screen's generation-state.json and gate evidence files, recomputes each
+screen's hash with fo-screen-hash and marks evidence whose treeHash no longer matches as stale.
+Any gate result other than a current `pass` blocks the screen's `next` (fail, partial, skipped,
+not-run, unknown). Pure read; the
+fo-progress skill renders the JSON this prints.
+
+USAGE
+  fo-progress-report --app <name> [--config …] [--screen <id>]
+"""
+import argparse, json, os, subprocess, sys
+
+GATES = ["verify", "visual", "e2e", "contract", "seo", "designerReview", "planningAcceptance"]
+
+def load(p):
+    try:
+        with open(p, encoding="utf-8") as f: return json.load(f)
+    except (OSError, ValueError): return None
+
+def screen_hash(app, screen, config):
+    r = subprocess.run(["fo-screen-hash", "--app", app, "--screen", screen, "--config", config], capture_output=True, text=True)
+    return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json"); ap.add_argument("--screen")
+    a = ap.parse_args()
+    cfg = load(a.config) or sys.exit("config not found — run fo-init")
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
+    ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
+    progress = load(os.path.join(ev_dir, a.app, "progress.json")) or {"screens": {}}
+    manifest = os.path.join(app["answerKeys"]["spec"]["dir"], "MANIFEST.md")
+    specs = {}
+    for l in (open(manifest, encoding="utf-8").read().splitlines() if os.path.exists(manifest) else []):
+        if l.startswith("| ") and not l.startswith("| Screen") :
+            c = [x.strip() for x in l.strip("|").split("|")]
+            if len(c) >= 9: specs[c[0]] = {"ticket": c[1], "status": c[3], "version": c[4], "contentHash": c[8]}
+
+    ids = sorted(set(specs) | set(progress.get("screens", {})))
+    if a.screen: ids = [a.screen]
+    rows = []
+    for sid in ids:
+        sc = progress.get("screens", {}).get(sid, {})
+        sdir = os.path.join(app["screensDir"], sid)
+        plan = load(os.path.join(sdir, "implementation-plan.json"))
+        state = load(os.path.join(".claude", "frontend-ohmyhotel", a.app, sid, "generation-state.json"))
+        now = screen_hash(a.app, sid, a.config)
+        spec = specs.get(sid, {})
+        plan_info = sc.get("plan") or {}
+        plan_stale = bool(plan and spec.get("contentHash") and not plan.get("spec", {}).get("contentHash", "").startswith(spec["contentHash"]))
+        gates = {}
+        for g in GATES:
+            e = (sc.get("gates") or {}).get(g)
+            if not e: gates[g] = {"result": None}; continue
+            ev = load(e.get("evidence") or "") or {}
+            gates[g] = {"result": e.get("result"), "recordedAt": e.get("recordedAt"), "stale": bool(e.get("treeHash") and now and e["treeHash"] != now),
+                        "evidence": e.get("evidence"), "reason": ev.get("reason") or ev.get("skipped")}
+        phases = {k: v.get("status") for k, v in (state or {}).get("phases", {}).items()} if state else None
+        # next step, in pipeline order
+        if not spec: nxt = "fo-spec-sync"
+        elif not plan: nxt = "fo-plan"
+        elif plan_stale or sc.get("specStale"): nxt = "fo-plan (delta)"
+        elif not plan_info.get("approved"): nxt = "fo-plan (approve)"
+        elif sc.get("delta", {}).get("pending"): nxt = "fo-gen --delta"
+        elif (sc.get("gen") or {}).get("status") not in ("done",): nxt = "fo-gen" + (" --resume" if sc.get("gen") else "")
+        elif (sc.get("review") or {}).get("clustersApproved"): nxt = "fo-fix"
+        else:
+            nxt = "done"
+            for g in GATES:
+                r = gates[g]
+                if r["result"] != "pass" or r.get("stale"):   # anything but a current pass blocks: fail, partial, skipped, not-run, unknown, missing
+                    nxt = {"designerReview": "fo-evidence --gate designerReview (manual)", "planningAcceptance": "fo-evidence --gate planningAcceptance (manual)"}.get(g, f"fo-{g}"); break
+        pending = [o for o in (plan or {}).get("openApprovals", []) if o.get("status") == "pending"] if plan else []
+        rows.append({"screen": sid, "spec": spec or None,
+                     "plan": {"version": plan.get("planVersion") if plan else None, "approved": plan_info.get("approved"), "stale": plan_stale,
+                              "openApprovals": len(pending) if plan else None, "firstOpenApproval": (pending[0].get("question") if pending else None)},
+                     "gen": sc.get("gen") or ({"phases": phases} if phases else None), "gates": gates,
+                     "review": {k: sc.get("review", {}).get(k) for k in ("clustersApproved", "clustersDeferred", "recordedAt")} if sc.get("review") else None,
+                     "treeHash": now, "next": nxt})
+    done = sum(1 for r in rows if r["next"] == "done")
+    blocked = [{"screen": r["screen"], "why": w} for r in rows for w in (
+        (["pending approvals"] if r["plan"]["openApprovals"] else []) + (["plan stale"] if r["plan"]["stale"] else []) +
+        (["deferred review clusters"] if r.get("review") and r["review"].get("clustersDeferred") else []) +
+        [f"{g}: {v['result']}" for g, v in r["gates"].items() if v["result"] in ("not-run", "skipped")] +
+        [f"{g}: stale" for g, v in r["gates"].items() if v.get("stale")])]
+    json.dump({"app": a.app, "screens": rows, "summary": {"total": len(rows), "done": done, "blocked": blocked}}, sys.stdout, ensure_ascii=False, indent=2); print()
+
+if __name__ == "__main__":
+    main()

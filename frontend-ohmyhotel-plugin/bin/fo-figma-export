@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""fo-figma-export — export Figma frames to PNG through the REST API and record them in the manifest.
+
+The MCP tools can show a frame inline but cannot save it; the visual gate compares files, so frames
+are exported here with a token. The token comes from the environment only (FIGMA_TOKEN) and is
+never written anywhere by this script.
+
+USAGE
+  fo-figma-export --manifest docs/figma-manifest.json --screen <id> --out-dir <dir> [--scale 2] [--only <state>@<viewport>]...
+
+  Reads manifest.fileKey and manifest.screens[<screen>].frames[] ({ state, viewport, nodeId }),
+  calls GET https://api.figma.com/v1/images/<fileKey>?ids=…&format=png&scale=<scale>, downloads each
+  image to <out-dir>/<state>-<viewport>.png, and writes the file path back into each frame's `export`
+  (plus `exportedAt`, `scale`). Prints a JSON summary. Exit 2 when FIGMA_TOKEN is unset.
+"""
+import argparse, json, os, sys, urllib.request, urllib.parse
+from datetime import datetime, timezone
+
+def req(url, token):
+    r = urllib.request.Request(url, headers={"X-Figma-Token": token})
+    with urllib.request.urlopen(r, timeout=120) as resp:
+        return resp.read()
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--manifest", default="docs/figma-manifest.json"); ap.add_argument("--screen", required=True)
+    ap.add_argument("--out-dir", required=True); ap.add_argument("--scale", default="2"); ap.add_argument("--only", action="append", default=[])
+    a = ap.parse_args()
+    token = os.environ.get("FIGMA_TOKEN")
+    if not token:
+        print(json.dumps({"error": "FIGMA_TOKEN is not set; export skipped", "exported": []})); sys.exit(2)
+    m = json.load(open(a.manifest, encoding="utf-8"))
+    key = m.get("fileKey") or sys.exit("manifest has no fileKey")
+    frames = m.get("screens", {}).get(a.screen, {}).get("frames", [])
+    if a.only: frames = [f for f in frames if f"{f['state']}@{f['viewport']}" in a.only]
+    if not frames: print(json.dumps({"exported": [], "note": "no frames for this screen"})); return
+    ids = ",".join(f["nodeId"] for f in frames)
+    meta = json.loads(req(f"https://api.figma.com/v1/images/{key}?ids={urllib.parse.quote(ids)}&format=png&scale={a.scale}", token))
+    images = meta.get("images", {})
+    os.makedirs(a.out_dir, exist_ok=True)
+    out = []
+    for f in frames:
+        url = images.get(f["nodeId"])
+        if not url:
+            out.append({"state": f["state"], "viewport": f["viewport"], "nodeId": f["nodeId"], "error": meta.get("err") or "no image url returned"}); continue
+        path = os.path.join(a.out_dir, f"{f['state']}-{f['viewport']}.png")
+        with open(path, "wb") as fh: fh.write(req(url, token))
+        f["export"] = path; f["exportedAt"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"); f["scale"] = a.scale
+        out.append({"state": f["state"], "viewport": f["viewport"], "nodeId": f["nodeId"], "export": path, "bytes": os.path.getsize(path)})
+    with open(a.manifest, "w", encoding="utf-8") as fh:
+        json.dump(m, fh, ensure_ascii=False, indent=2); fh.write("\n")
+    print(json.dumps({"exported": out, "manifest": a.manifest}, ensure_ascii=False, indent=2))
+
+if __name__ == "__main__":
+    main()

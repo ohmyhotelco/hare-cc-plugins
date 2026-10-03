@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+"""fo-screen-hash — the one definition of "what a screen's gate evidence covers".
+
+Every producer (fo-verify-run, fo-evidence, fo-gen) and every consumer (fo-progress-report,
+fo-cutover-check, the gate preconditions) must hash the same path set, or evidence goes stale for
+reasons that have nothing to do with the code. This script owns that set:
+
+  + <screensDir>/<screen>/                 the screen's code, tests, mocks, plan
+  - <screensDir>/<screen>/<Screen>.spec.md excluded: gate skills write block 5 of it AFTER recording
+                                           evidence, so including it would invalidate every record
+  + plan api.additions[].file               package code the screen added
+  + <app.dir>/e2e/<screen>/                 the screen's Playwright specs (when present)
+  + <app.dir>/e2e/visual/<screen>.spec.ts   the capture spec (when present)
+  + <app.dir>/e2e/seo/<screen>.*.spec.ts    the SEO specs (when present)
+  + <app.dir>/e2e/visual/… is covered above; docs/gates evidence itself is never included
+
+USAGE
+  fo-screen-hash --app <name> --screen <id> [--config …] [--paths]
+  --paths prints the resolved path list (one per line) instead of the hash, for debugging.
+"""
+import argparse, glob, json, os, re, subprocess, sys
+
+def load(p):
+    with open(p, encoding="utf-8") as f: return json.load(f)
+
+def pascal(screen_id):
+    return "".join(w.capitalize() for w in re.sub(r"^\d+[a-z]?-", "", screen_id).split("-"))
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True)
+    ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json"); ap.add_argument("--paths", action="store_true")
+    a = ap.parse_args()
+    cfg = load(a.config)
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
+    sdir = os.path.join(app["screensDir"], a.screen)
+    spec_md = os.path.join(sdir, f"{pascal(a.screen)}.spec.md")
+    paths, excludes = [], []
+    if os.path.isdir(sdir):
+        paths.append(sdir)
+        if os.path.exists(spec_md): excludes.append(spec_md)
+    plan_file = os.path.join(sdir, "implementation-plan.json")
+    if os.path.exists(plan_file):
+        for add in (load(plan_file).get("api", {}).get("additions", []) or []):
+            if add.get("file") and os.path.exists(add["file"]): paths.append(add["file"])
+    e2e = os.path.join(app["dir"], "e2e")
+    for p in [os.path.join(e2e, a.screen), os.path.join(e2e, "visual", f"{a.screen}.spec.ts")] + glob.glob(os.path.join(e2e, "seo", f"{a.screen}.*.spec.ts")):
+        if os.path.exists(p): paths.append(p)
+    if a.paths:
+        print("\n".join(paths + [f"!{e}" for e in excludes])); return
+    if not paths:
+        print(json.dumps({"hash": None, "reason": "nothing to hash yet"})); sys.exit(3)
+    cmd = ["fo-tree-hash"] + [x for e in excludes for x in ("--exclude", e)] + ["--"] + paths
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0 or not r.stdout.strip():
+        sys.stderr.write(r.stderr); sys.exit(r.returncode or 1)
+    print(r.stdout.strip().splitlines()[-1])
+
+if __name__ == "__main__":
+    main()
