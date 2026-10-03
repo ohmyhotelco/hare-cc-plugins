@@ -82,3 +82,23 @@ rule lists empty, frozenCommit TBD); the rest are spec gaps (SNS URLs, cross-scr
 storage, currency conversion, banner admin). 5 conflicts between the main-page spec and the OMH-744 SEO
 spec: date overlay apply button, hero copy lines, home canonical `/` vs `/hotel`, cookie locale vs
 per-locale URLs, search path `/search` vs `/hotel?keyword=`.
+
+### Step 4 — fo-gen workflow, fo-verify script, generation agents (2026-10-03)
+
+- `fo-verify` became a script rather than a workflow: every check is a command with an exit code
+  (typegen+tsc, package tsc/vitest, eslint, screen vitest, key-coverage spec), so `bin/fo-verify-run`
+  runs them in parallel, applies the pass/fail/skipped/not-run taxonomy from the migration plugin and
+  writes `verify.json` with a tree hash. No agent, no cost, same output every time. Smoke test on the
+  un-scaffolded repo: `typecheck`/`package` → not-run (no tsconfig, no package), `lint`/`i18n` →
+  skipped, `unit` → fail (no tests) — the taxonomy keeps "could not check" apart from "nothing to check".
+- `workflows/fo-gen.js` runs the five stages sequentially and stops at the first failed stage; the
+  skill passes `stages[]` (enabled from `buildOrder`) and `resumeFrom`, the agents write their own
+  stage entry into `generation-state.json` (the workflow has no filesystem). The workflow cannot be
+  exercised end to end until the app exists (`apps/www/app/root.tsx`, DS installed, vitest) — Phase 0-B
+  of the V3 plan; `fo-gen` Step 1 stops with that reason, which is the intended behaviour today.
+- Generation agents are rewritten from the react plugin: the mutation check and the red/green runs
+  stay (they produce evidence), the Iron Law / rationalisation tables are gone; `tdd-rules.md` now
+  explains why each step records something. `tdd-cycle-runner` runs on the session model
+  (`inherit`), foundation/integration on `sonnet` at `medium`.
+- Templates copied from the react plugin and rewritten for the fixed stack: `i18n-key-coverage`,
+  `e2e-playwright`, `form-adapters`, `server-state` (knob names → config paths, `fe-*` → `fo-*`).
