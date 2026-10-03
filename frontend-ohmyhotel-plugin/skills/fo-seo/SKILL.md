@@ -3,7 +3,7 @@ name: fo-seo
 description: SEO gate for one generated screen — checks head meta against the meta template, canonical and hreflang, sitemap/robots host rules, structured data and slug lists against the SEO spec snapshot (config.seo.specRef), one agent per aspect in parallel, and writes docs/gates/<app>/<screen>/seo.json. Use after fo-contract on indexable screens.
 argument-hint: "--app <name> --screen <id> [--only head,links,sitemap,structuredData,slugs]"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Workflow
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 ---
 
 # fo-seo — SEO gate
@@ -23,10 +23,16 @@ routes are all `noindex`/member-only → record `skipped` evidence with that rea
 Aspects: `head`, `links`, `sitemap`, `structuredData`, `slugs` — the last only for screens the slug
 list covers (city landing, search); `--only` narrows.
 
-## Step 1 — Run and wait
+## Step 1 — Dev server, run, wait
+
+The probes need the app running with mocks. Start it from `<app.dir>` in the background before the
+workflow and stop it after: `(npx react-router dev --port <devPort> > .claude/frontend-ohmyhotel/<app>/dev.log 2>&1 &)`;
+wait until `curl -s -o /dev/null -w '%{http_code}' http://localhost:<devPort>/` returns 200 (up to
+60 s; otherwise record the gate as `not-run` with that reason). Pass `serverUrl: "http://localhost:<devPort>"`
+in the workflow args; kill the server process in Step 2.
 
 `Workflow` with `name: "frontend-ohmyhotel-plugin:fo-seo"` and
-`args: { app, screen, config, planFile, specDir, outDir: "<evidenceDir>/<app>/<screen>/seo", aspects }`.
+`args: { app, screen, config, planFile, specDir, serverUrl, outDir: "<evidenceDir>/<app>/<screen>/seo", aspects }`.
 Wait for the task notification.
 
 ## Step 2 — Evidence

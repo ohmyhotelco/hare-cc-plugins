@@ -3,7 +3,7 @@ name: fo-e2e
 description: E2E gate for one generated screen — realizes the plan's test scenarios (TS ids from the spec snapshot) as Playwright specs, runs them against the mock-first dev server through the harness, and writes docs/gates/<app>/<screen>/e2e.json with per-scenario results and trace paths. Use after fo-visual.
 argument-hint: "--app <name> --screen <id> [--scenario <TS-id>]..."
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # fo-e2e — E2E gate

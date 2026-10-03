@@ -3,7 +3,7 @@ name: fo-audit-codex
 description: Run an optional, advisory Codex audit of one stage's artifact for a screen (plan, gen, review, visual, e2e, contract, seo) through codex-auditor, recording the independent verdict and findings in docs/gates/<app>/<screen>/codex-audit.json. Use when a second opinion is wanted before approving a plan or closing a gate; requires the codex CLI.
 argument-hint: "--app <name> --screen <id> --stage plan|gen|review|visual|e2e|contract|seo"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # fo-audit-codex — a second opinion

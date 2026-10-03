@@ -48,9 +48,12 @@ In delta mode, if `deltaFile` already exists and has not been applied (`progress
 fo-plan-hash --plan <planFile> --spec-dir <specDir> --check
 ```
 
-and keep its JSON (`changed`, `unchanged`, `hashless`, `unresolved`) as `hashReport` for the planner.
-Nothing changed and nothing hashless → the spec edit did not touch any cited passage; say so, record
-the new `contentHash` in the plan's `spec` block and in the tracker, and stop at Step 6.
+and keep its JSON (`changed`, `unchanged`, `hashless`, `unresolved`, `uncited`) as `hashReport` for the
+planner. The shortcut — "the spec edit did not touch anything the plan cites" — applies only when
+`changed`, `hashless`, `unresolved` **and** `uncited` are all empty (a removed section shows up in
+`changed` with `to: null`; a new FR/TS/AC/ERR/US section shows up in `uncited`). Then say so, record the
+new `contentHash` in the plan's `spec` block and in the tracker, and stop at Step 6. Otherwise the
+planner runs in delta mode.
 
 ## Step 3 — Preconditions worth stating before spending an agent
 
@@ -81,7 +84,9 @@ When the result arrives, fill the hashes — the planner cites ids but does not 
 fo-plan-hash --plan <planFile or deltaFile> --spec-dir <specDir> --write
 ```
 
-Its `unresolved[]` lists ids the planner cited that the spec does not contain (typos, or ids from a
+(The script recognises a delta file by its `changes[]` and hashes only `add`/`modify` entries that
+carry a `source`; `remove` entries and the delta's `fromHash`/`toHash` are left alone.) Its
+`unresolved[]` lists ids the planner cited that the spec does not contain (typos, or ids from a
 different spec); show them in Step 5 — an entry with a null hash cannot be delta-compared later.
 
 ## Step 5 — Present and ask

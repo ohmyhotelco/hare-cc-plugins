@@ -10,15 +10,25 @@ USAGE
   fo-plan-hash --plan <implementation-plan.json> --spec-dir <specs/<screen>> [--lang ko] --check
 
   --write   fill `sourceHash` for every entry that has `source`; set sourceHashStatus/sourceHashAlgorithm.
-  --check   recompute against the given spec dir without writing; print which entries changed,
-            which are unchanged, which are hashless (no previous hash) and which sources could not be
-            resolved. Used to seed delta mode.
+  --check   recompute against the given spec dir without writing; print which entries changed
+            (including entries whose cited section no longer resolves — a removed or renamed
+            requirement is a change), which are unchanged, which are hashless (no previous hash), which
+            sources could not be resolved, and `uncited`: FR/US (headings or table rows) and TS ids present
+            in the spec that no plan entry cites (`source`, `testScenarios[].id`) and `scope.excluded[]` does
+            not list — a new or unplanned requirement. BR/AC restart under each FR and ERR rows belong to
+            their FR, so they are hashed when cited but are not inventory. Used to seed delta mode; the
+            no-change shortcut is valid only when changed, hashless, unresolved AND uncited are all empty.
+  Delta files (delta-plan.json, detected by a top-level `changes[]`) are handled in --write: only
+  `add`/`modify` changes with a `source` get a sourceHash; `remove` entries and the delta's own
+  `fromHash/toHash` are left alone and no plan-level fields are injected.
 
 RESOLUTION (fixed; both modes use it)
   source is a list of refs separated by "," or "|", hashed in order:
-    FR-nnn / TS-nnn / AC-nnn / ERR-… / US-nnn   → the section whose heading contains the id, from that
-                                                  heading to the next heading of the same or higher level
-                                                  (spec file first, then screens, then test-scenarios)
+    FR-nnn / TS-nnn / AC-nnn / ERR-… / US-nnn   → the section whose heading contains the id as a whole
+                                                  token (FR-01 does not match FR-001), from that heading to
+                                                  the next heading of the same or higher level (spec file
+                                                  first, then screens, then test-scenarios); when no heading
+                                                  carries the id, the table row(s) whose first cell is the id
     BR-nnn                                      → BR ids repeat under each FR, so a bare BR resolves inside the
                                                   most recent FR named earlier in the same `source`; with no FR
                                                   before it, every line starting with "- BR-nnn" is taken
@@ -29,6 +39,7 @@ RESOLUTION (fixed; both modes use it)
 import argparse, hashlib, json, os, re, sys
 
 HEADING = re.compile(r"^(#{1,6})\s+(.*)$")
+ID_TOKEN = re.compile(r"\b((?:FR|TS|AC|US|ERR|BR)-[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)\b")
 EMPH = re.compile(r"[*_`]+")
 BR_LINE = re.compile(r"^\s*[-*]\s*(BR-[A-Za-z0-9-]+)\s*:", re.M)
 
@@ -70,13 +81,31 @@ class Resolver:
         self.sections = [(p, sections(t)) for p, t in self.docs]
 
     def section_with(self, needle, screens_only=False):
+        token = re.compile(r"(?<![A-Za-z0-9-])" + re.escape(needle) + r"(?![A-Za-z0-9-])")
         for p, secs in self.sections:
             if screens_only and "screen" not in os.path.basename(p).lower():
                 continue
             for lvl, h, body in secs:
-                if needle in h:
+                if token.search(h):
                     return body
-        return None
+        if screens_only:
+            return None
+        # ids that live in tables (ERR-…, US-…, AC-… in the planning-plugin format): the row(s) whose first cell is the id
+        rows = [l for _, t in self.docs for l in t.splitlines() if re.match(r"^\|\s*" + re.escape(needle) + r"\s*\|", l)]
+        return "\n".join(rows) if rows else None
+
+    def inventory(self):
+        """Top-level requirement ids the spec defines — FR/US (headings or first table cell) and TS (headings).
+        BR/AC restart under each FR and ERR rows belong to their FR's error handling, so they are not inventory."""
+        ids = set()
+        for _, secs in self.sections:
+            for _, h, _ in secs:
+                ids.update(i for i in ID_TOKEN.findall(h) if i.startswith(("FR-", "US-", "TS-")))
+        for _, t in self.docs:
+            for l in t.splitlines():
+                m = re.match(r"^\|\s*((?:FR|US)-[A-Za-z0-9-]+)\s*\|", l)
+                if m: ids.add(m.group(1))
+        return ids
 
     def resolve(self, source):
         refs = [r.strip() for r in re.split(r"[,|]", source) if r.strip()]
@@ -85,23 +114,25 @@ class Resolver:
             if ref.lower().startswith("screen:"):
                 title = ref.split(":", 1)[1].strip()
                 body = self.section_with(title, screens_only=True) or self.section_with(title)
-            elif re.fullmatch(r"BR-[A-Za-z0-9-]+", ref):
+            elif re.fullmatch(r"(?:BR|AC)-[A-Za-z0-9-]+", ref):
+                # BR and AC numbers restart under every FR; "- BR-003:" / "- [ ] AC-001:" bullets
+                bullet = rf"^\s*[-*]\s*(?:\[[ xX]\]\s*)?{re.escape(ref)}\s*:.*$"
                 body = None
                 if last_fr:
                     sec = self.section_with(last_fr)
                     if sec:
-                        m = re.search(rf"^\s*[-*]\s*{re.escape(ref)}\s*:.*$", sec, re.M)
+                        m = re.search(bullet, sec, re.M)
                         body = m.group(0) if m else None
                 if body is None:
-                    hits = [l for p, t in self.docs for l in t.splitlines() if re.match(rf"^\s*[-*]\s*{re.escape(ref)}\s*:", l)]
+                    hits = [l for p, t in self.docs for l in t.splitlines() if re.match(bullet, l)]
                     body = "\n".join(hits) if hits else None
             else:
                 # "FR-003 BR-004" written with a space: treat as FR then BR
-                m = re.fullmatch(r"(FR-[A-Za-z0-9-]+)\s+(BR-[A-Za-z0-9-]+)", ref)
+                m = re.fullmatch(r"(FR-[A-Za-z0-9-]+)\s+((?:BR|AC)-[A-Za-z0-9-]+)", ref)
                 if m:
                     last_fr = m.group(1)
                     sec = self.section_with(last_fr)
-                    mm = re.search(rf"^\s*[-*]\s*{re.escape(m.group(2))}\s*:.*$", sec, re.M) if sec else None
+                    mm = re.search(rf"^\s*[-*]\s*(?:\[[ xX]\]\s*)?{re.escape(m.group(2))}\s*:.*$", sec, re.M) if sec else None
                     body = mm.group(0) if mm else None
                 else:
                     body = self.section_with(ref)
@@ -141,11 +172,16 @@ def main():
     a = ap.parse_args()
 
     plan = json.load(open(a.plan, encoding="utf-8"))
-    lang = a.lang or plan.get("spec", {}).get("primaryLanguage") or "ko"
+    is_delta = isinstance(plan.get("changes"), list)
+    lang = a.lang or (plan.get("spec", {}) or {}).get("primaryLanguage") or "ko"
     res = Resolver(a.spec_dir, lang)
-    report = {"computed": 0, "unresolved": [], "changed": [], "unchanged": [], "hashless": []}
+    report = {"computed": 0, "unresolved": [], "changed": [], "unchanged": [], "hashless": [], "uncited": []}
+    cited = set()
 
     def visit(obj, path):
+        if is_delta and obj.get("kind") == "remove":
+            return
+        cited.update(ID_TOKEN.findall(obj["source"]))
         h, unres = res.resolve(obj["source"])
         key = label(obj, path)
         if unres:
@@ -159,18 +195,25 @@ def main():
             if prev is None:
                 report["hashless"].append(key)
             elif h is None:
-                pass
+                report["changed"].append({"entry": key, "source": obj["source"], "from": prev, "to": None, "note": "cited section no longer resolves"})
             elif h != prev:
                 report["changed"].append({"entry": key, "source": obj["source"], "from": prev, "to": h})
             else:
                 report["unchanged"].append(key)
 
     walk(plan, [], visit)
+    if not a.write:
+        cited.update(t.get("id") for t in plan.get("testScenarios", []) or [] if t.get("id"))
+        excluded = set()
+        for x in (plan.get("scope", {}) or {}).get("excluded", []) or []:
+            excluded.update(ID_TOKEN.findall(str(x.get("id", ""))))
+        report["uncited"] = sorted(res.inventory() - cited - excluded)
 
     if a.write:
         plan["sourceHashAlgorithm"] = "sha256-8/normalized/v1"
         plan["sourceHashStatus"] = "computed" if not report["unresolved"] else "partial"
-        plan.setdefault("spec", {})["primaryLanguage"] = lang
+        if not is_delta:
+            plan.setdefault("spec", {})["primaryLanguage"] = lang
         with open(a.plan, "w", encoding="utf-8") as f:
             json.dump(plan, f, ensure_ascii=False, indent=2)
             f.write("\n")

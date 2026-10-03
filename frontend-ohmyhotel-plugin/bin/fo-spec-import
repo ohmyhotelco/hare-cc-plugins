@@ -6,7 +6,7 @@ reports; this script does the file work the same way every time.
 
 USAGE
   fo-spec-import --screen <nn-screen> --from <zip|dir> --ticket <OMH-nnn> [--extra <path>]...
-                 [--specs-dir specs] [--manifest specs/MANIFEST.md] [--note "<text>"] [--dry-run]
+                 [--specs-dir specs] [--manifest specs/MANIFEST.md] [--note "<text>"] [--dry-run] [--stage-dir <dir>]
 
   --from     a zip as attached to Jira, or an already-extracted directory. The archive's top level is
              expected to hold ko/ en/ vi/ (and optionally prototype/, data/). Entries written with
@@ -14,6 +14,12 @@ USAGE
   --extra    additional attachment (zip or dir) copied into specs/<screen>/<basename>/ — e.g. a
              prototype delivered as a separate file. Repeatable.
   --dry-run  print the manifest row and the file list; write nothing.
+  --stage-dir keep the extracted (normalised, hoisted) tree at this path so the caller can diff it against
+             the current snapshot; without it the staging area is temporary.
+  --extra    a zip is extracted (and hoisted like the main attachment), a directory is copied, a plain
+             file is copied as-is into specs/<screen>/<basename-without-extension>/.
+  The manifest rewrite keeps the text above and below the table; when --note is absent the screen's
+  existing note is carried over.
 
 OUTPUT  one JSON object on stdout: screen, ticket, file, sha256, status, version, lastUpdated,
         contentHash, previousContentHash (null when new), changed (bool), files (count), manifest row.
@@ -45,7 +51,7 @@ def normalise_meta(meta):
         m = VERSION_IN_STATUS.search(st)
         if m and not meta.get("version"):
             meta["version"] = m.group(1)
-        meta["status"] = re.split(r"[\s(（]", st.strip(), 1)[0].strip() or st.strip()
+        meta["status"] = re.split(r"[\s(（]", st.strip(), maxsplit=1)[0].strip() or st.strip()
     lu = meta.get("lastUpdated")
     if lu:
         d = DATE_RE.search(lu)
@@ -122,12 +128,21 @@ def header_meta(folder):
     return normalise_meta(meta)
 
 def read_manifest(path):
+    """→ (head_text, rows, tail_text): the text before the table header, the data rows, the text after the table."""
     if not os.path.exists(path):
-        return None, []
+        return None, [], ""
     with open(path, encoding="utf-8") as f:
-        text = f.read()
-    rows = [l for l in text.splitlines() if l.startswith("| ") and not l.startswith("| Screen") and not l.startswith("|---")]
-    return text, rows
+        lines = f.read().splitlines()
+    hdr = next((i for i, l in enumerate(lines) if l.startswith("| Screen")), None)
+    if hdr is None:
+        return "\n".join(lines) + ("\n" if lines else ""), [], ""
+    rows, i = [], hdr + 1
+    if i < len(lines) and lines[i].startswith("|---"): i += 1
+    while i < len(lines) and lines[i].startswith("| "):
+        rows.append(lines[i]); i += 1
+    head = "\n".join(lines[:hdr]) + ("\n" if hdr else "")
+    tail = "\n".join(lines[i:])
+    return head, rows, (tail + "\n" if tail.strip() else "")
 
 def manifest_row(d):
     cells = [d["screen"], d["ticket"], d["file"], d["status"] or "—", d["version"] or "—",
@@ -144,6 +159,7 @@ def main():
     ap.add_argument("--manifest", default=None)
     ap.add_argument("--note", default="")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--stage-dir", default=None)
     a = ap.parse_args()
 
     if not re.fullmatch(r"\d{2}[a-z]?-[a-z0-9-]+", a.screen):
@@ -161,8 +177,13 @@ def main():
         for extra in a.extra:
             if not os.path.exists(extra):
                 sys.exit(f"--extra not found: {extra}")
-            sub = os.path.join(stage, os.path.splitext(os.path.basename(extra))[0] if not os.path.isdir(extra) else os.path.basename(extra.rstrip("/")))
-            extract(extra, sub)
+            if os.path.isdir(extra):
+                sub = os.path.join(stage, os.path.basename(extra.rstrip("/"))); extract(extra, sub); hoist_wrapper(sub)
+            elif zipfile.is_zipfile(extra):
+                sub = os.path.join(stage, os.path.splitext(os.path.basename(extra))[0]); extract(extra, sub); hoist_wrapper(sub)
+            else:
+                sub = os.path.join(stage, os.path.splitext(os.path.basename(extra))[0]); os.makedirs(sub, exist_ok=True)
+                shutil.copy2(extra, os.path.join(sub, os.path.basename(extra)))
 
         meta = header_meta(stage)
         chash, nfiles = content_hash(stage)
@@ -176,24 +197,29 @@ def main():
             "status": meta["status"], "version": meta["version"], "lastUpdated": meta["lastUpdated"],
             "sha256": src_sha, "imported": date.today().isoformat(), "contentHash": chash, "note": a.note,
         }
+        head, rows, tail = read_manifest(manifest)
+        existing = next((r for r in rows if r.startswith(f"| {a.screen} |")), None)
+        if not a.note and existing:
+            cells = [c.strip() for c in existing.strip().strip("|").split("|")]
+            if len(cells) >= 10: row["note"] = cells[9]
         result = {**row, "previousContentHash": prev_hash, "changed": prev_hash != chash, "files": nfiles,
                   "manifestRow": manifest_row(row), "target": target, "dryRun": a.dry_run}
+        if a.stage_dir:
+            if os.path.isdir(a.stage_dir): shutil.rmtree(a.stage_dir)
+            shutil.copytree(stage, a.stage_dir); result["stageDir"] = a.stage_dir
 
         if not a.dry_run:
+            if head is None:
+                sys.exit(f"manifest not found: {manifest} — run fo-init first")
             if os.path.isdir(target):
                 shutil.rmtree(target)
             shutil.copytree(stage, target)
-            text, rows = read_manifest(manifest)
-            if text is None:
-                sys.exit(f"manifest not found: {manifest} — run fo-init first")
             kept = [r for r in rows if not r.startswith(f"| {a.screen} |")]
             kept.append(manifest_row(row))
             kept.sort(key=lambda r: r.split("|")[1].strip())
-            head = text.split("|---")[0]
-            head = head[: head.rfind("| Screen")]
             header = "| Screen | Ticket | File | Status | Version | Last updated | sha256[:12] | Imported | Content hash | Notes |\n|---|---|---|---|---|---|---|---|---|---|\n"
             with open(manifest, "w", encoding="utf-8") as f:
-                f.write(head + header + "\n".join(kept) + "\n")
+                f.write(head + header + "\n".join(kept) + "\n" + tail)
 
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     print()
