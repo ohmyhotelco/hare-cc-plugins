@@ -42,8 +42,10 @@ stale findings. No clusters → nothing to do. Lock `fix.lock`.
 When at least one cluster is `done`: run `fo-verify-run --app <app> --screen <screen>` and register
 it (`fo-evidence --app <app> --screen <screen> --gate verify --register <gates.evidenceDir>/<app>/<screen>/verify.json`). The fix is not finished until the technical gate has seen it.
 
-Update `progress.json`: `fix: { recordedAt, from, clustersDone: [...], clustersFailed: [...],
-remaining: [...] }`; move the fixed clusters out of `review.clustersApproved`. Release the lock.
+Update the tracker through `fo-progress-set` (never by editing the file):
+`--set fix --json '{"recordedAt":…,"from":"review","clustersDone":[…],"clustersFailed":[…],"remaining":[…]}'`
+and `--set review.clustersApproved --json '[<remaining ids>]'`. A fixed review cluster set is only
+closed by a new `fo-review` pass — the review gate record itself stays as it was. Release the lock.
 
 ## Step 3 — Report and next
 

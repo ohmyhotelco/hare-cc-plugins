@@ -25,8 +25,9 @@ list covers (city landing, search); `--only` narrows.
 
 ## Step 1 — Dev server, run, wait
 
-The probes need the app running with mocks. Start it from `<app.dir>` in the background before the
-workflow and stop it after: `(npx react-router dev --port <devPort> > .claude/frontend-ohmyhotel/<app>/dev.log 2>&1 &)`;
+The probes need the app running with mocks. Start it in the background before the workflow and stop
+it after, with the log under the repo root (the command itself runs from `<app.dir>`):
+`ROOT=$(git rev-parse --show-toplevel); mkdir -p "$ROOT/.claude/frontend-ohmyhotel/<app>"; (cd <app.dir> && npx react-router dev --port <devPort> > "$ROOT/.claude/frontend-ohmyhotel/<app>/dev.log" 2>&1 &)`;
 wait until `curl -s -o /dev/null -w '%{http_code}' http://localhost:<devPort>/` returns 200 (up to
 60 s; otherwise record the gate as `not-run` with that reason). Pass `serverUrl: "http://localhost:<devPort>"`
 in the workflow args; kill the server process in Step 2.
@@ -38,7 +39,7 @@ Wait for the task notification.
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate seo --result <pass|fail|not-run> --from <result json>
+fo-evidence --app <app> --screen <screen> --gate seo --result <pass|fail|not-run> --from <result json> $(for f in <app.dir>/e2e/seo/<screen>.*.spec.ts; do [ -e "$f" ] && printf -- '--spec-path %s ' "$f"; done)
 ```
 
 Set the `seo` row in block 5 of `<Screen>.spec.md`. Release the lock.

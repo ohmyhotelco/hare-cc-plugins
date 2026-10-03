@@ -12,7 +12,10 @@ screen's hash with fo-screen-hash and decides per gate whether its record still 
   unverifiable           evidence missing/unreadable, or either hash missing — treated as a blocker
   anything else          fail, partial, not-run, unknown — blocker
 
-A screen is `done` only when it has no blockers. Blockers are listed per screen (`blockers[]`) and in
+A screen is `done` only when it has no blockers. The tracker entry is an index into the evidence
+file: gate, screen, result and treeHash must agree between the two, or the gate is unverifiable. A
+gate that recorded `specPaths` (its own Playwright specs) is stale when those files changed, even
+though they are outside the shared screen hash. Blockers are listed per screen (`blockers[]`) and in
 `summary.blocked`; fo-cutover-check consumes `blockers`, not just `next`.
 
 USAGE
@@ -29,14 +32,27 @@ def screen_hash(app, screen, config):
     r = subprocess.run([sibling("fo-screen-hash"), "--app", app, "--screen", screen, "--config", config], capture_output=True, text=True)
     return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
 
-def gate_state(entry, now):
-    """→ (state, detail) where state ∈ current | skipped | stale | unverifiable | blocked | missing."""
+def spec_hash(paths):
+    paths = [p for p in (paths or []) if os.path.exists(p)]
+    if not paths: return None
+    r = subprocess.run([sibling("fo-tree-hash"), "--", *paths], capture_output=True, text=True)
+    return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+
+def gate_state(gate, screen, entry, now):
+    """→ (state, detail) where state ∈ current | skipped | stale | unverifiable | blocked | missing.
+    The tracker entry is an index; the evidence file is the record. They must agree on gate, screen,
+    result and hash, or the entry is unverifiable (an interrupted gate can leave the two apart)."""
     if not entry: return "missing", None
     ev = read_json(entry.get("evidence") or "")
-    if ev is None: return "unverifiable", "evidence file missing or unreadable"
+    if not isinstance(ev, dict) or not ev: return "unverifiable", "evidence file missing, unreadable or empty"
+    for k, want in (("gate", gate), ("screen", screen), ("result", entry.get("result")), ("treeHash", entry.get("treeHash"))):
+        if ev.get(k) != want: return "unverifiable", f"evidence {k}={ev.get(k)!r} disagrees with tracker {want!r}"
     rec = entry.get("treeHash")
     if rec is None or now is None: return "unverifiable", "tree hash missing (recorded: %s, current: %s)" % (rec, now)
     if rec != now: return "stale", None
+    if ev.get("specPaths"):
+        cur = spec_hash(ev["specPaths"])
+        if cur is None or cur != ev.get("specHash"): return "stale", "the gate's own test files changed"
     res = entry.get("result")
     if res == "pass": return "current", None
     if res == "skipped" and (ev.get("reason") or ev.get("skipped")): return "skipped", ev.get("reason") or ev.get("skipped")
@@ -76,19 +92,17 @@ def main():
         gates, blockers = {}, []
         for g in GATES:
             e = (sc.get("gates") or {}).get(g)
-            st, detail = gate_state(e, now)
+            st, detail = gate_state(g, sid, e, now)
             gates[g] = {"result": (e or {}).get("result"), "state": st, "recordedAt": (e or {}).get("recordedAt"),
                         "evidence": (e or {}).get("evidence"), "detail": detail}
-        # review is a blocker only when it failed and nothing is approved/fixed, or clusters were deferred
-        if gates["review"]["state"] == "blocked" and not review.get("clustersApproved"):
-            blockers.append("review: failed, no clusters approved" + (" (deferred: %s)" % ",".join(review.get("clustersDeferred") or []) if review.get("clustersDeferred") else ""))
-        elif review.get("clustersDeferred"):
-            blockers.append("review: deferred clusters %s" % ",".join(review["clustersDeferred"]))
+        # review is a gate like the others (a failed, stale or unverifiable review blocks until a new
+        # review record is current and passing); deferred clusters block even on a current review
         for g in GATES:
-            if g == "review": continue
             st = gates[g]["state"]
             if st in ("stale", "unverifiable", "blocked"): blockers.append(f"{g}: {st}" + (f" ({gates[g]['detail']})" if gates[g]["detail"] else ""))
             elif st == "missing": blockers.append(f"{g}: not run")
+        if review.get("clustersDeferred"):
+            blockers.append("review: deferred clusters %s" % ",".join(review["clustersDeferred"]))
         if pending: blockers.insert(0, f"plan: {len(pending)} pending approvals")
         if plan_stale or sc.get("specStale"): blockers.insert(0, "plan: stale against the spec")
 
@@ -101,11 +115,9 @@ def main():
         elif (sc.get("delta") or {}).get("pending"): nxt = "fo-gen --delta"
         elif gen.get("status") != "done": nxt = "fo-gen" + (" --resume" if gen else "")
         elif review.get("clustersApproved"): nxt = "fo-fix"
-        elif gates["review"]["state"] == "blocked" and not review.get("clustersApproved"): nxt = "fo-review (failed; approve clusters or re-review)"
         else:
             nxt = "done"
             for g in GATES:
-                if g == "review": continue
                 if gates[g]["state"] not in ("current", "skipped"):
                     nxt = MANUAL.get(g, f"fo-{g}"); break
         if nxt == "done" and blockers: nxt = "blocked"

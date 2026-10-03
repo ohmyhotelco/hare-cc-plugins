@@ -40,7 +40,7 @@ Wait for the task notification; do not end the turn after announcing the run.
 From the result (`result`, `capture`, `comparisons`, `framesWithoutCapture`), write the gate record:
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate visual --result <pass|fail|not-run> --from <result json>
+fo-evidence --app <app> --screen <screen> --gate visual --result <pass|fail|not-run> --from <result json> --spec-path <app.dir>/e2e/visual/<screen>.spec.ts
 ```
 
 (`not-run` when the capture did not run, or when a frame could not be compared — the workflow's

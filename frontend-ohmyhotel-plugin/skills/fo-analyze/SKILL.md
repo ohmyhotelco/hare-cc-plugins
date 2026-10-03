@@ -43,7 +43,7 @@ Start one `Agent` with `subagent_type: frontend-ohmyhotel-plugin:legacy-analyzer
 
 ## Step 4 — Record, report, next
 
-Update `progress.json` under the screen: `analysis: { recordedAt, frozenCommit, targets, counts }`.
+Record in the tracker: `fo-progress-set --app <app> --screen <screen> --set analysis --json '{"recordedAt":…,"frozenCommit":…,"targets":[…],"counts":{…}}'`.
 Release the lock. Report counts per section, the PC/mobile differences (these become plan decisions),
 shared-package candidates (→ `fo-extract`), open questions (→ the planning team or an ADR), and the
 suggested commit (`analysis(<screen>): V2 behaviors at <frozenCommit[:7]>`). Next:

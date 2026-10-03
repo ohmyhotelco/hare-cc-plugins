@@ -242,3 +242,21 @@ confirmed the three worst defects; everything confirmed was fixed in this round.
 - Not done (follow-ups): an eval case with a seeded config so the suite reaches the scripts
   (`scaffold_script` + `--scaffold`); a `confirmedEmpty`-style explicit non-applicability for gates
   beyond `skipped` (currently a `skipped` with a reason counts as validated).
+
+### Dual audit round 2 (2026-10-03) — Codex on the round-1 fixes: 4 high / 3 medium, all fixed
+
+- **Review blocked only in one state.** A failed review that went `stale` or `unverifiable` stopped
+  blocking. Review is now a gate like the others in `fo-progress-report` (anything but a current pass
+  blocks) and deferred clusters block on top.
+- **Tracker trusted over evidence.** `gate_state` now checks that the evidence file agrees with the
+  tracker on gate, screen, result and treeHash (an interrupted gate can leave them apart) → otherwise
+  `unverifiable`. Reproduced: tampering `visual.json` to `fail` under a tracker `pass` → unverifiable.
+- **Test scenarios bypassed the delta check.** `fo-plan-hash` hashes `testScenarios[]` by id
+  (adds `source = id` on write); a changed TS section now appears in `changed`.
+- **Only fo-evidence held the tracker lock.** `bin/fo-progress-set` is the single locked, atomic
+  writer for every non-gate tracker field; all skills now call it instead of editing `progress.json`.
+- **Dropping `e2e/**` from the hash made gate specs unwatched.** Each Playwright gate records its own
+  spec files with `fo-evidence --spec-path …` (`specPaths`/`specHash`); `fo-progress-report` marks the
+  gate stale when those files change, without touching the shared screen hash.
+- `--from` with malformed JSON is refused (exit 5) instead of becoming an empty passing payload.
+- Dev-server log path for `fo-contract`/`fo-seo` resolved from the repo root before `cd`.

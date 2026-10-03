@@ -50,9 +50,10 @@ with the test is shown first — it means the implementation may be wrong for a 
 catch.
 
 Ask one question (`AskUserQuestion`, multi-select): which clusters go to `fo-fix` now. Offer "all
-critical and warning clusters" as the first option. Record the chosen ids in `progress.json` under
-`review: { recordedAt, clustersApproved: [...], clustersDeferred: [...] }`. Deferred clusters stay in
-the evidence file; `fo-progress` lists them.
+critical and warning clusters" as the first option. Record the choice with
+`fo-progress-set --app <app> --screen <screen> --set review --json '{"recordedAt":…,"clustersApproved":[…],"clustersDeferred":[…]}'`.
+Deferred clusters stay in the evidence file and block the screen in `fo-progress` until a later review
+pass records none.
 
 Release the lock.
 

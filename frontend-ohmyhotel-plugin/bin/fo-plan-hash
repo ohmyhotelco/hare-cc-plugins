@@ -18,6 +18,8 @@ USAGE
             not list — a new or unplanned requirement. BR/AC restart under each FR and ERR rows belong to
             their FR, so they are hashed when cited but are not inventory. Used to seed delta mode; the
             no-change shortcut is valid only when changed, hashless, unresolved AND uncited are all empty.
+  testScenarios[] entries are hashed by their TS id (a `source` equal to the id is added on --write), so a
+  changed or removed scenario shows up in `changed`.
   Delta files (delta-plan.json, detected by a top-level `changes[]`) are handled in --write: only
   `add`/`modify` changes with a `source` get a sourceHash; `remove` entries and the delta's own
   `fromHash/toHash` are left alone and no plan-level fields are injected.
@@ -148,6 +150,9 @@ class Resolver:
 
 def walk(obj, path, fn):
     if isinstance(obj, dict):
+        # testScenarios[] entries cite their own id; give them a source so they are hashed and compared too
+        if path and path[-2:-1] == ["testScenarios"] and "source" not in obj and isinstance(obj.get("id"), str):
+            obj["source"] = obj["id"]
         if "source" in obj and isinstance(obj["source"], str):
             fn(obj, path)
         for k, v in obj.items():

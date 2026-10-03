@@ -70,9 +70,9 @@ git add specs/<screen> specs/MANIFEST.md
 
 For the screen just imported, read `<screensDir>/<screen>/implementation-plan.json` if it exists and
 compare its `spec.contentHash` (the 12-hex prefix the manifest records) with the first 12 characters
-of the new `contentHash`. Different → the plan is stale: record
-`specStale: true` with both hashes in `<gates.evidenceDir>/<app>/progress.json` under the screen, so
-`fo-progress` shows it and `fo-plan` knows to produce a delta instead of a fresh plan.
+of the new `contentHash`. Different → the plan is stale:
+`fo-progress-set --app <app> --screen <screen> --set specStale --json 'true' --set specStaleHashes --json '{"plan":"…","spec":"…"}'`,
+so `fo-progress` shows it and `fo-plan` knows to produce a delta instead of a fresh plan.
 
 Also check every other screen in the manifest the same way (cheap: hashes only) so a backlog of
 un-synced specs surfaces here rather than at gate time.

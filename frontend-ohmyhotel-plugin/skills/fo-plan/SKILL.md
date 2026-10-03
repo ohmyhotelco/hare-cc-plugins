@@ -108,9 +108,9 @@ closed.
 
 ## Step 6 — Tracker, lock, next
 
-Update `<gates.evidenceDir>/<app>/progress.json` under the screen: `plan: { version, approved: bool,
-specContentHash, approvedAt }` or `delta: { pending: true, from, to }`; clear `specStale`. Release the
-lock. Suggest the commit (`plan(<screen>): v<planVersion> from spec v<version>` or
+Tracker (always through the locked helper, never by editing the file):
+`fo-progress-set --app <app> --screen <screen> --set plan --json '{"version":n,"approved":bool,"specContentHash":"…","approvedAt":…}' --unset specStale`
+or, for a delta, `--set delta --json '{"pending":true,"from":"…","to":"…"}' --unset specStale`. Release the lock. Suggest the commit (`plan(<screen>): v<planVersion> from spec v<version>` or
 `plan(<screen>): delta …`) — the user commits. Name the next command:
 
 - approved full plan → `/frontend-ohmyhotel-plugin:fo-gen --app <app> --screen <screen>`

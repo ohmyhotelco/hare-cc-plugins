@@ -30,8 +30,7 @@ Start one `Agent` with `subagent_type: frontend-ohmyhotel-plugin:figma-extractor
 
 ## Step 2 — Record, report, next
 
-`progress.json` under the screen: `figma: { recordedAt, frames, exported, missing }`. Release the
-lock. Report the coverage table (states × viewports: frame / exported / missing), unmatched frames,
+Tracker: `fo-progress-set --app <app> --screen <screen> --set figma --json '{"recordedAt":…,"frames":n,"exported":n,"missing":[…]}'`. Release the lock. Report the coverage table (states × viewports: frame / exported / missing), unmatched frames,
 the naming rule inferred, and the suggested commit (`figma(<screen>): <n> frames`). Missing frames
 are a request to the designer — list them in a form that can be pasted into the design ticket. Next:
 

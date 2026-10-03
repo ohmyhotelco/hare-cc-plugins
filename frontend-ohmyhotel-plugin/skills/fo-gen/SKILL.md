@@ -83,11 +83,11 @@ From the workflow result (`ok`, `stoppedAt`, `stages[]`) and `stateFile`:
 
 - record `treeHash` (`fo-screen-hash --app <app> --screen <screen>`) on every stage that finished
   `done` in this run
-- on `--delta` success: `fo-plan-hash --plan <planFile> --spec-dir <specDir> --write`, and clear
-  `delta: pending` in the tracker
-- update `progress.json` under the screen: `gen: { status: done | partial, stoppedAt, resumeFrom,
-  planVersion, finishedAt }` — `partial` whenever the run stopped before integration, whatever stage it
-  stopped at (`fo-progress` then offers `--resume`)
+- on `--delta` success: `fo-plan-hash --plan <planFile> --spec-dir <specDir> --write` (the tracker's
+  `delta` key is removed in the next bullet)
+- record in the tracker: `fo-progress-set --app <app> --screen <screen> --set gen --json '{"status":"done|partial","stoppedAt":…,"resumeFrom":…,"planVersion":…,"finishedAt":…}'`
+  — `partial` whenever the run stopped before integration, whatever stage it stopped at (`fo-progress`
+  then offers `--resume`); on `--delta` success also `--unset delta`
 - fill block 5 of `<Screen>.spec.md` with the evidence paths that now exist (the gate rows stay `—`
   until `fo-verify` and the later gates run)
 
