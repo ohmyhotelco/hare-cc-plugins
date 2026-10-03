@@ -117,3 +117,21 @@ per-locale URLs, search path `/search` vs `/hotel?keyword=`.
 - None of the four can run end to end before the app scaffold exists (same dependency as `fo-gen`);
   the workflows are syntax-checked with the runtime's async-body semantics (`node --check` on a wrapped
   copy, because top-level `return` is a workflow feature).
+
+### Step 6 — review, fix, progress (2026-10-03)
+
+- `fo-review.js` runs spec/quality/test/security reviewers in parallel and merges in code: every
+  finding normalised to one shape, clustered by file, clusters ordered by worst severity. The reviewers
+  are told to report everything (P6-3); the decision about what to fix is a multi-select question in
+  the skill, and the chosen cluster ids are recorded in `progress.json` so `fo-fix` reads them rather
+  than re-deciding.
+- `fo-fix.js` runs one `review-fixer` per cluster strictly in sequence (fixers edit the same screen;
+  parallel runs would race on files) and stops at the first failed cluster; the skill re-runs
+  `fo-verify-run` before reporting, because a fix the technical gate has not seen is not finished.
+- `fo-progress` is a script (`bin/fo-progress-report`) plus rendering: it recomputes each screen's
+  tree hash and marks evidence recorded against other content as stale (`⟳`), which is a different
+  state from failed. Tested on the scratch clone: 13 screens, 01-main-page `next = fo-plan (approve)`
+  with 12 pending approvals, the rest `fo-plan`.
+- `test-reviewer` follows every spec anchor into the snapshot and reports a cited line that
+  disagrees with the test as `critical` — the one review that can see a shared misreading between
+  test and implementation.
