@@ -1,7 +1,7 @@
 ---
 name: fo-spec-sync
 description: Import a planning-spec attachment (Jira zip or extracted folder) into specs/<screen>/ as an immutable snapshot, update specs/MANIFEST.md (ticket, version, status, sha256, content hash, date), and report which screens now have a plan older than their spec. Use when the planning team delivers a new or updated spec.
-argument-hint: "<screen> <zip-or-dir> --ticket <OMH-nnn> [--extra <path>]... [--note \"...\"]"
+argument-hint: "<screen> <zip-or-dir> --ticket <OMH-nnn> [--app <name>] [--extra <path>]... [--note \"...\"]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash
 ---
@@ -17,9 +17,10 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 
 ## Step 1 — Arguments and preconditions
 
-- `<screen>` — the screen id used across the repo (`01-main`, `02a-admin-hotel-recommendation`, …).
-  It must match a key in `apps[].screens` of the config if that map exists, or a directory under
-  `screensDir`; for a screen with neither yet, accept it (the spec arrives before the code).
+- `<screen>` — the screen id used across the repo (`01-main-page`, `02a-admin-hotel-recommendation`, …);
+  a directory under `screensDir` when the code exists, otherwise a new id (the spec arrives before the
+  code). `--app` selects the app (the only one when there is one) — its `answerKeys.spec.dir` is the
+  specs folder and its `progress.json` records stale plans.
 - `<zip-or-dir>` — the attachment as downloaded from Jira (`*-spec_v<ver>_<yyyymmdd>.zip`) or an
   extracted folder with `ko/ en/ vi/` at its top.
 - `--ticket` — the Jira issue the attachment came from. Required: the ledger is only useful if a row can
@@ -35,7 +36,7 @@ Read `.claude/frontend-ohmyhotel-plugin.json`; stop with the `fo-init` hint if i
 Run the importer once with `--dry-run`:
 
 ```bash
-fo-spec-import --screen <screen> --from <path> --ticket <ticket> [--extra ...] [--note "..."] --dry-run
+fo-spec-import --screen <screen> --from <path> --ticket <ticket> --specs-dir <answerKeys.spec.dir> [--extra ...] [--note "..."] --dry-run
 ```
 
 It prints a JSON object: header metadata read from the spec (`status`, `version`, `lastUpdated` —
@@ -68,7 +69,8 @@ git add specs/<screen> specs/MANIFEST.md
 ## Step 4 — Stale plans
 
 For the screen just imported, read `<screensDir>/<screen>/implementation-plan.json` if it exists and
-compare its `spec.contentHash` with the new `contentHash`. Different → the plan is stale: record
+compare its `spec.contentHash` (the 12-hex prefix the manifest records) with the first 12 characters
+of the new `contentHash`. Different → the plan is stale: record
 `specStale: true` with both hashes in `<gates.evidenceDir>/<app>/progress.json` under the screen, so
 `fo-progress` shows it and `fo-plan` knows to produce a delta instead of a fresh plan.
 

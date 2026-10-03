@@ -19,7 +19,10 @@ Config, `--app`/`--screen`, plan. Source of clusters by `--from` (default `revie
 
 | `--from` | Clusters from | Approval |
 |---|---|---|
-| `review` | `<evidenceDir>/<app>/<screen>/review.json` `clusters[]` filtered by `progress.json` `review.clustersApproved` (or `--cluster` ids) | already given in `fo-review` |
+| `review` | `<evidenceDir>/<app>/<screen>/review.json` `clusters[]` (each carries `source: "review"`) filtered by `progress.json` `review.clustersApproved` (or `--cluster` ids) | already given in `fo-review` |
+
+Clusters built here from a gate report get `source: "<gate>"`, `id`, `title`, `files[]`, `findings[]`
+(the fixer branches on `source`).
 | `verify` | one cluster per failed check in `verify.json` (`tail` as the finding) | ask once: fix now? |
 | `visual` | one cluster per capture with breakage, plus one per compared frame with `critical` findings | ask once |
 | `e2e` | one cluster per failed scenario in `e2e/e2e-report.json` (with its `trace`) | ask once |
@@ -37,7 +40,7 @@ stale findings. No clusters → nothing to do. Lock `fix.lock`.
 ## Step 2 — Re-verify
 
 When at least one cluster is `done`: run `fo-verify-run --app <app> --screen <screen>` and register
-it (`fo-evidence --register`). The fix is not finished until the technical gate has seen it.
+it (`fo-evidence --app <app> --screen <screen> --gate verify --register <gates.evidenceDir>/<app>/<screen>/verify.json`). The fix is not finished until the technical gate has seen it.
 
 Update `progress.json`: `fix: { recordedAt, from, clustersDone: [...], clustersFailed: [...],
 remaining: [...] }`; move the fixed clusters out of `review.clustersApproved`. Release the lock.

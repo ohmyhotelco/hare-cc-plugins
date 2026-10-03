@@ -29,7 +29,8 @@ rule files are owned by the repo and change by PR.
 |---|---|---|
 | `.claude/frontend-ohmyhotel/<app>/<screen>/generation-state.json` | `fo-gen` workflow | stage checklist: `stage`, `status`, `treeHash`, `startedAt`, `finishedAt`, `evidence[]` |
 | `.claude/frontend-ohmyhotel/<app>/<screen>/*.lock` | the skill that starts a run | one writer per screen; contents `{ "command", "startedAt", "runId" }` |
-| `<gates.evidenceDir>/<app>/<screen>/<gate>.json` | gate workflows (`fo-verify`, `fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`) | committed evidence: `command`, `exitCode`, `treeHash`, `artifacts[]`, `recordedAt`, `agent` |
+| `.claude/frontend-ohmyhotel/<app>/app.lock` | `foundation-generator`, `integration-generator`, `fo-extract` | guards app-wide files (harness, i18n resources, route table, MSW aggregate, packages); held only around the write |
+| `<gates.evidenceDir>/<app>/<screen>/<gate>.json` | gates (`verify`, `visual`, `e2e`, `contract`, `seo`, `review`) and the two manual gates (`designerReview`, `planningAcceptance`, recorded by a person with `fo-evidence --gate … --result pass` and a payload naming reviewer/ticket) | committed evidence written by `fo-evidence`: payload + `treeHash` (from `fo-screen-hash`), `recordedAt`, `result` |
 | `<gates.evidenceDir>/<app>/progress.json` | `fo-progress` and every gate | screen × gate matrix read by `fo-progress` and `fo-cutover` |
 | `<screensDir>/<screen>/<Screen>.spec.md` | `fo-plan`, updated by `fo-gen` | the five-block implementation spec (template `screen-spec.md`) |
 
@@ -37,15 +38,19 @@ Evidence is produced by running the command and recording what happened. It is n
 judgement such as "looks complete"; if a gate did not run, the file says so (`"exitCode": null`,
 `"skipped": "<reason>"`).
 
-Tree hash: `fo-tree-hash <path>` (on `PATH` while the plugin is enabled) hashes the tracked content
-under a path. A stage whose recorded `treeHash` equals the current one may be reused; otherwise it is
-stale and runs again.
+Tree hash: `fo-screen-hash --app <app> --screen <screen>` (on `PATH` while the plugin is enabled) is the
+one definition of what a screen's evidence covers — the screen folder minus `<Screen>.spec.md`, the
+package additions, the screen's Playwright specs. Every producer and consumer uses it; nothing hashes
+its own path list. A record whose `treeHash` equals the current value may be reused; otherwise it is
+stale and the gate runs again.
 
 ## Locks
 
 A skill that will write to a screen takes `<screen>/<command>.lock` before reading state and releases
 it in its final step, including when the run fails. A workflow started by the skill runs under the
-skill's lock; agents inside it do not take locks. Finding a lock whose `runId` is still live means
+skill's lock; agents inside it take no screen lock. The one lock an agent does take is `app.lock`,
+briefly, around a write to an app-wide file — two screens generated at the same time would otherwise
+both see the file as absent. Finding a lock whose `runId` is still live means
 another run owns the screen — report that and stop; do not delete it.
 
 ## Scope

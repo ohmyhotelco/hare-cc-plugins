@@ -56,7 +56,7 @@ for (const f of findings) {
   groups.get(key).push(f)
 }
 const clusters = [...groups.entries()].map(([key, items], i) => ({
-  id: `C${i + 1}`, title: key, files: [...new Set(items.map(x => x.file).filter(Boolean))],
+  id: `C${i + 1}`, title: key, source: 'review', files: [...new Set(items.map(x => x.file).filter(Boolean))],
   worst: items.reduce((w, x) => Math.min(w, SEV[x.severity] ?? 1), 2), findings: items.sort((a, b) => (SEV[a.severity] ?? 1) - (SEV[b.severity] ?? 1)),
 })).sort((a, b) => a.worst - b.worst || b.findings.length - a.findings.length).map((c, i) => ({ ...c, id: `C${i + 1}`, worst: ['critical', 'warning', 'suggestion'][c.worst] }))
 

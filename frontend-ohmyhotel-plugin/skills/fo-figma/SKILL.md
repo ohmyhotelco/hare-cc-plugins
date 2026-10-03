@@ -12,7 +12,7 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 
 ## Step 0 — Preconditions
 
-Config with `answerKeys.figma.manifest`; the manifest exists (`fo-init` creates `{ "screens": {} }`).
+Config with `answerKeys.figma.manifest`; the manifest exists (`fo-init` creates `{ "fileKey": null, "screens": {} }`).
 `fileKey`: from the manifest, `--file-key`, or ask once and store it in the manifest. The Figma
 MCP must be connected in this session (a tool named `mcp__figma*__get_metadata` is available);
 without it, say so and stop — there is no non-MCP discovery path. `FIGMA_TOKEN` in the environment

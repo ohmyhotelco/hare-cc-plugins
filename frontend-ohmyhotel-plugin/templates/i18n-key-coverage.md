@@ -29,14 +29,18 @@ it for partially-translated languages. Catch the gap at generation and verificat
 
 ## What the generated spec asserts
 
-Requires the `i18n` config block (`languages`, `lookupFns`); the locale resources come from the plan's
-`localesDir` — in this repo from one **flat** file per language at
-`{sharedPackages.i18n.resourcesDir}/{sharedPackages.i18n.resourceFile}` (`{LANG}` uppercased / `{lang}` as configured), where a key is
-looked up verbatim (no namespace segment). When that block is absent the spec is not generated and `fo-verify` reports the axis as
+Inputs come from the plugin config: `languages` (top level) and `sharedPackages.i18n` (`hook` — the
+lookup function name, e.g. `useT`'s returned `t` — plus `resourcesDir`/`resourceFile`). The resources
+are one **flat** file per language at `{resourcesDir}/{resourceFile}` (`{LANG}` uppercased / `{lang}`
+as configured), where a key is looked up verbatim (no namespace segment). `foundation-generator`
+writes the spec once per app with a `CONFIG_FINGERPRINT` constant built from `languages` and the
+resource pattern, and regenerates it when the fingerprint no longer matches the config — a spec
+generated before a language was added would otherwise keep passing while never testing it. When
+`sharedPackages.i18n` is absent the spec is not generated and `fo-verify` reports the axis as
 `skipped` — never a silent pass.
 
 1. **Every key literal resolves in every language.** Collect string-literal keys at every
-   `i18n.lookupFns` call site under `{baseDir}`; assert each is present in **all** `i18n.languages`
+   lookup call site (the configured hook's `t(...)`) under `<appDir>`; assert each is present in **all** configured `languages`
    resources. Missing in any one language fails (K1, K4).
 2. **Placeholders get parameters.** If a resolved value contains `{{param}}`, assert the call site
    passes a params argument covering it (K5).
@@ -61,12 +65,12 @@ Failure output names, per finding, the **key**, the **languages missing it**, an
 ```
 
 Scope: an **app-wide invariant**, generated once alongside the test harness and re-run by every
-screen's `fo-verify`. Location: `{baseDir}/__tests__/i18n-key-coverage.test.ts`.
+screen's `fo-verify`. Location: `<appDir>/__tests__/i18n-key-coverage.test.ts`.
 
 ## K2 is a generation rule, not a spec assertion
 
-Where a screen's error copy comes from is decided by the spec's `errorMapping`, carried into
-`plan.json`. A backend `message` / `errorMessage` field is **not** display copy: servers commonly
+Where a screen's error copy comes from is decided by the spec's error-handling section and recorded
+in the plan (`components[].states`, `i18n.keys`). A backend `message` / `errorMessage` field is **not** display copy: servers commonly
 resolve it against one fixed locale, so rendering it puts that locale's text on every other
 language's screen. Render the mapped i18n key. Rendering a server string verbatim is legitimate only
 where the spec explicitly says so.

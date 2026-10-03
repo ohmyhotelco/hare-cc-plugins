@@ -41,7 +41,12 @@ def main():
                   "items": [{**i, "status": "open", "evidence": None, "closedAt": None} for i in DEFAULT_ITEMS]}
         os.makedirs(os.path.dirname(path), exist_ok=True)
         json.dump(ledger, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(path, "a").write("\n")
-        print(json.dumps({"written": path, "items": len(ledger["items"])})); return
+        hot = "docs/cutover/frozen-hotfixes.json"
+        if not os.path.exists(hot):
+            os.makedirs(os.path.dirname(hot), exist_ok=True)
+            json.dump({"$schema": "frontend-ohmyhotel-plugin/rule-list/v1", "list": "frozenHotfixes", "source": "TBD", "updatedAt": now[:10], "entries": []},
+                      open(hot, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(hot, "a").write("\n")
+        print(json.dumps({"written": path, "items": len(ledger["items"]), "hotfixes": hot})); return
     ledger = load(path) or sys.exit(f"no ledger at {path} — run with --init")
 
     prog = subprocess.run(["fo-progress-report", "--app", a.app, "--config", a.config], capture_output=True, text=True)

@@ -6,6 +6,10 @@ file with an empty `entries` array and a `README.md` beside them. `fo-contract` 
 them; `fo-plan` lists the entries a screen touches. Values below are placeholders, not the repo's
 rules.
 
+Every entry may carry `status` (`draft` | `confirmed` | `verified`) and `confirmedAt`/`confirmedBy`;
+`fo-cutover` closes a list item only when every entry is `confirmed` or `verified` — `draft` is what
+`fo-init` and a first PR write, and it keeps the cutover item open on purpose.
+
 Common envelope:
 
 ```jsonc

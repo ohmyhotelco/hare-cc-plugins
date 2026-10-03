@@ -9,9 +9,9 @@ and trace-first self-correction — all Playwright-only. Binding the tool to the
 generating suites on another tool that would be thrown away later.
 
 ## Scenario source
-Scenarios come from `implementation-plan.json e2eTests[]` (mapped from `test-scenarios.md` TS-nnn by
-`implementation-planner`). The step schema (`navigate`/`fill`/`click`/`verify`/`wait` + `target`/`value`/
-`expect`) is tool-neutral; here it realizes as Playwright specs.
+Scenarios come from `implementation-plan.json testScenarios[]` entries with `kind: "e2e"` (TS ids from the
+spec snapshot's `*test-scenarios*.md`, chosen by `implementation-planner`); the runner reads each TS
+section's steps and expected results from the snapshot and realizes them as Playwright specs.
 Only the realization differs.
 
 ## Harness (scaffolded once per app by `foundation-generator`)
@@ -21,8 +21,7 @@ Only the realization differs.
 - `e2e/fixtures.ts` — auth/state-setup helpers and page-object base.
 
 ## Spec realization
-- One spec per scenario: `{appDir}/e2e/{screen}/{TS-nnn}.spec.ts`, tagged with the scenario name + TS-nnn. Scenarios without a TS reference (standalone plans cite FR ids) use the scenario's `e2eTests[].id` — `E2E-001.spec.ts` — for both filename and tag.
-- Step mapping: `navigate`→`page.goto`; `fill`→`getByLabel`/`getByRole().fill`; `click`→`getByRole().click`;
+- One spec per scenario: `<app.dir>/e2e/<screen>/<TS-nnn>.spec.ts` (`app.dir` = the app package, e.g. `apps/www`, where `playwright.config.ts` lives; not `appDir` = `apps/www/app`), tagged with the scenario name + TS id. - Step mapping: `navigate`→`page.goto`; `fill`→`getByLabel`/`getByRole().fill`; `click`→`getByRole().click`;
   `verify`→`expect(...)` **web-first assertions** (auto-retry) — never bare `waitForTimeout`; `wait`→a
   web-first assertion on the awaited condition.
 - Stable selectors (role/label/test-id), not brittle CSS chains.
@@ -32,7 +31,7 @@ Only the realization differs.
 Loaders and actions run **server-side**, so the browser MSW worker does **not** intercept their calls —
 it only sees client-side fetches. A framework-mode page with a loader needs **both** paths mocked: the
 browser path via MSW (`VITE_ENABLE_MOCKS=true`) and the server (loader) path via the MSW **node** server
-(`{baseDir}/mocks/node.ts`, wired in `entry.server.tsx`). Only mock what you control — never let an E2E
+(`<appDir>/mocks/node.ts`, wired in `entry.server.tsx`). Only mock what you control — never let an E2E
 hit a real external dependency.
 
 ## Auth & state setup
@@ -61,15 +60,15 @@ retry, so with `retries: 0` an ordinary failure produces no trace at all while t
 `fo-fix` both require one. (`on-first-retry` is correct only alongside an explicit `retries: 1`;
 retries also mask flakiness, so the first-failure mode is the better default here.)
 
-`e2e-report.json` records each failing scenario's trace path under **`scenarios[].evidence.trace`** —
-the one field name the runner, `fo-e2e`, and `fo-fix` all read. Do not write it under `artifacts`;
+`e2e-report.json` records each failing scenario's trace path under **`scenarios[].trace`** — the one
+field name the runner, `fo-e2e`, and `fo-fix` all read. Do not write it under `artifacts` or `evidence`;
 a report that puts the path somewhere else is a report `fo-fix` cannot use. This is the primary
 evidence `fo-fix` (e2e-fix) reads — open it with `npx playwright show-trace <trace.zip>`
 (CLI-built-in, no skill) and diagnose from the trace before editing code.
 
 ## Run
-From `{appDir}` (webServer manages the dev server — no manual start/stop):
+From `<app.dir>` (webServer manages the dev server — no manual start/stop):
 ```bash
 npx playwright test e2e/{screen} 2>&1
 ```
-`e2e-report.json` carries per-scenario pass/fail + evidence; `fo-progress` and `fo-fix` read it.
+`e2e-report.json` carries per-scenario pass/fail + trace paths; `fo-e2e` records it as the gate's evidence and `fo-fix --from e2e` reads it.

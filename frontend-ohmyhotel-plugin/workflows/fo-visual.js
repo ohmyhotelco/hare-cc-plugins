@@ -36,7 +36,7 @@ const common = `app: ${args.app}\nscreen: ${args.screen}\nconfig: ${JSON.stringi
 phase('Capture')
 const cap = await agent(`mode: capture\n${common}`, { label: `${args.screen}:capture`, phase: 'Capture', schema: CAPTURE, agentType: 'frontend-ohmyhotel-plugin:visual-verifier' })
 if (!cap || cap.status !== 'done') {
-  return { ok: false, result: cap ? cap.status : 'failed', reason: cap ? cap.reason : 'capture agent returned no result', capture: cap, comparisons: [] }
+  return { ok: false, result: cap && cap.status === 'not-run' ? 'not-run' : 'fail', reason: cap ? cap.reason : 'capture agent returned no result', capture: cap, comparisons: [] }
 }
 
 const frames = (args.figma || []).map(f => ({ ...f, rendered: cap.captures.find(c => c.state === f.state && c.viewport === f.viewport && !c.error) }))

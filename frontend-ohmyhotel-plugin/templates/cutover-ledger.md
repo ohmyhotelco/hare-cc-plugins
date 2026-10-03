@@ -33,4 +33,6 @@ evidence, not an impression.
 `kind`: `computed` (the check script decides from evidence), `list` (every entry of the named list
 file must carry `status: "confirmed"` or `"verified"` with a date), `manual` (a named owner closes it
 with an evidence link). `fo-init` does not create this file; `fo-cutover init` writes it with the
-items above and the user edits owners and adds items.
+items above — and `docs/cutover/frozen-hotfixes.json` (same envelope as the rule lists, entries
+`{ id, ticket, monorepoCommit, v3Pr | "not-applicable", reason, status }`) — and the user edits owners
+and adds items.

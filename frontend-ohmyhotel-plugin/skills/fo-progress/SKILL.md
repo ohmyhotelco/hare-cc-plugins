@@ -25,8 +25,9 @@ these marks: `✓` pass, `✗` fail/partial, `○` not run yet, `◌` skipped/no
 (evidence recorded against different content — the gate must run again, the earlier result is not
 wrong). Then:
 
-- **Blocked**: screens with pending `openApprovals` (count and the first question), stale plans,
-  deferred review clusters (`review.clustersDeferred`), gates whose evidence is `not-run`.
+- **Blocked**: from `summary.blocked[]` — pending approvals (count and `plan.firstOpenApproval`),
+  stale plans, deferred review clusters (`review.clustersDeferred`), gates `skipped`/`not-run` with
+  their `reason`, stale gates.
 - **Next**: the `next` command per screen, grouped (ready for `fo-gen`, waiting on approval, in gates…).
 - With `--blocked`, only the blocked section.
 

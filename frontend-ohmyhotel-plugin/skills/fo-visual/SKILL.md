@@ -18,8 +18,8 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 ## Step 0 — Preconditions
 
 Config, `--app`/`--screen`, plan, `progress.json`: `gates.verify.result` must be `pass` with a
-`treeHash` equal to `fo-tree-hash <screenDir> <planFile>` now (a visual run on unverified or changed
-code records nothing useful — say so and point at `fo-verify`). Harness present
+`treeHash` equal to `fo-screen-hash --app <app> --screen <screen>` now (a visual run on unverified or
+changed code records nothing useful — say so and point at `fo-verify`). Harness present
 (`<app.dir>/playwright.config.ts`). Lock `visual.lock`.
 
 ## Step 1 — Frames

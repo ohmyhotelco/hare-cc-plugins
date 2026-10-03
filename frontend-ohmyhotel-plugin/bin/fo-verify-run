@@ -19,8 +19,7 @@ CHECKS (each → pass | fail | skipped | not-run, with a reason for the last two
 EVIDENCE  <gates.evidenceDir>/<app>/<screen>/verify.json:
   { gate, app, screen, planVersion, recordedAt, treeHash, result, checks: { name: { result, command,
     cwd, exitCode, durationMs, reason?, summary } } }
-  treeHash covers the screen dir, the package addition files and the plan (fo-tree-hash); a gate
-  record is valid for exactly that content.
+  treeHash is fo-screen-hash's (shared path set); a gate record is valid for exactly that content.
 """
 import argparse, json, os, re, shutil, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
@@ -149,9 +148,8 @@ def main():
     with ThreadPoolExecutor(max_workers=len(selected)) as ex:
         list(ex.map(lambda n: jobs[n](), selected))
 
-    # tree hash over what was checked
-    hash_paths = [screen_dir] + add_files + [plan_file]
-    code, out, _, err = run("fo-tree-hash " + " ".join(f"'{p}'" for p in hash_paths), ".", 120)
+    # tree hash over what was checked — the shared definition (bin/fo-screen-hash)
+    code, out, _, err = run(f"fo-screen-hash --app {a.app} --screen {a.screen} --config '{a.config}'", ".", 120)
     tree = out.strip().splitlines()[-1] if code == 0 and out.strip() else None
 
     results = [c["result"] for c in checks.values()]

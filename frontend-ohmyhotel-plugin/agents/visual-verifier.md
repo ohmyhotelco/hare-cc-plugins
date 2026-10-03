@@ -36,7 +36,10 @@ Input: `app`, `screen`, `config`, `planFile`, `outDir` (`<evidenceDir>/<app>/<sc
    `webServer` starts the app with mocks. Write `<outDir>/capture.json`: one record per capture with
    `path`, `state`, `viewport`, `lang`, `breakage[]`, `durationMs`; captures that failed to render
    are recorded with `error`, not dropped.
-4. Return the capture list and the breakage summary.
+4. Return the capture list and the breakage summary with `status`: `done` when the spec ran and every
+   planned capture exists (captures with a render `error` still count as done — they are findings);
+   `not-run` with `reason` when the harness or dev server could not start; `failed` with `reason` when
+   the spec itself could not be written or run.
 
 ## Mode `compare`
 
@@ -57,7 +60,7 @@ is missing or misplaced; `warning` for spacing/typography drift; `suggestion` ot
 
 Capture:
 ```json
-{ "mode": "capture", "spec": "apps/www/e2e/visual/01-main-page.spec.ts", "captures": [ { "path": "…/default-390-ko.png", "state": "default", "viewport": 390, "lang": "ko", "breakage": [] } ],
+{ "mode": "capture", "status": "done", "reason": null, "spec": "apps/www/e2e/visual/01-main-page.spec.ts", "captures": [ { "path": "…/default-390-ko.png", "state": "default", "viewport": 390, "lang": "ko", "breakage": [] } ],
   "breakage": { "overflow": 0, "consoleErrors": 1, "brokenImages": 0, "clippedText": 2, "layoutBoundary": 0 },
   "evidence": [ { "command": "npx playwright test e2e/visual/01-main-page", "exitCode": 0, "summary": "20 passed" } ], "notes": [] }
 ```

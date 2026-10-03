@@ -25,7 +25,7 @@ the gap visible in the evidence). Lock `contract.lock`.
 ## Step 1 — Run and wait
 
 `Workflow` with `name: "frontend-ohmyhotel-plugin:fo-contract"` and
-`args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/contract",
+`args: { app, screen, config, planFile, specDir, outDir: "<evidenceDir>/<app>/<screen>/contract",
 checks: [ { check: "externalUrls", ruleFile }, { check: "webviewContract", ruleFile }, { check: "sensitiveQueryKeys", ruleFile }, { check: "requestConventions", ruleFile }, { check: "telemetry" } ] }`
 (reduced by `--only`). Wait for the task notification.
 

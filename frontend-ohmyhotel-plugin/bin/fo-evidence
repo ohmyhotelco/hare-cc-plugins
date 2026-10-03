@@ -8,15 +8,15 @@ instead of hand-writing either file.
 
 USAGE
   fo-evidence --app <name> --screen <id> --gate <name> --result pass|fail|partial|skipped|not-run \
-              [--config …] [--extra-path <repo path>]... [--from <json file> | < stdin json]
+              [--config …] [--from <json file> | < stdin json]
   fo-evidence --app <name> --screen <id> --gate <name> --register <existing evidence file>
 
   The stdin/--from JSON is the gate's own payload (checks, findings, captures …); this script adds
   gate, app, screen, planVersion, recordedAt, treeHash, result and writes
   <evidenceDir>/<app>/<screen>/<gate>.json. --register only updates progress.json from a file a gate
   already wrote (fo-verify-run writes its own).
-  treeHash = fo-tree-hash over the screen dir, the plan file and any --extra-path (package additions,
-  route files). A record is valid for exactly that content; fo-progress compares.
+  treeHash = fo-screen-hash (the one path set every producer and consumer uses). A record is valid
+  for exactly that content; fo-progress compares. A `result` in the payload is ignored — --result wins.
 """
 import argparse, json, os, subprocess, sys
 from datetime import datetime, timezone
@@ -34,7 +34,6 @@ def main():
     ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True); ap.add_argument("--gate", required=True)
     ap.add_argument("--result", choices=["pass", "fail", "partial", "skipped", "not-run"])
     ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
-    ap.add_argument("--extra-path", action="append", default=[])
     ap.add_argument("--from", dest="src"); ap.add_argument("--register")
     a = ap.parse_args()
 
@@ -51,16 +50,14 @@ def main():
     else:
         if not a.result: sys.exit("--result is required unless --register")
         payload = load(a.src) if a.src else (json.load(sys.stdin) if not sys.stdin.isatty() else {})
-        paths = [p for p in [screen_dir, plan_file] + a.extra_path if os.path.exists(p)]
-        tree, tree_err = None, None
-        if paths:
-            r = subprocess.run(["fo-tree-hash", *paths], capture_output=True, text=True)
-            tree = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
-            tree_err = None if tree else (r.stderr.strip()[-300:] or "fo-tree-hash failed")
+        r = subprocess.run(["fo-screen-hash", "--app", a.app, "--screen", a.screen, "--config", a.config], capture_output=True, text=True)
+        tree = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+        tree_err = None if tree else (r.stderr.strip()[-300:] or r.stdout.strip()[-300:] or "fo-screen-hash failed")
         plan_version = load(plan_file).get("planVersion") if os.path.exists(plan_file) else None
-        ev = {"gate": a.gate, "app": a.app, "screen": a.screen, "planVersion": plan_version,
+        payload.pop("result", None)
+        ev = {**payload, "gate": a.gate, "app": a.app, "screen": a.screen, "planVersion": plan_version,
               "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-              "treeHash": tree, "treeHashError": tree_err, "result": a.result, **payload}
+              "treeHash": tree, "treeHashError": tree_err, "result": a.result}
         dump(out_path, ev)
 
     prog = load(progress_path) if os.path.exists(progress_path) else {"app": a.app, "screens": {}}

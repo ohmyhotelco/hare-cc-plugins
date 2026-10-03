@@ -1,5 +1,5 @@
 // fo-contract — one contract-verifier per rule list (and telemetry), in parallel; merged in code.
-// args: { app, screen, config, planFile, outDir, checks: [ { check, ruleFile } ] }
+// args: { app, screen, config, planFile, specDir, outDir, checks: [ { check, ruleFile } ] }
 
 export const meta = {
   name: 'fo-contract',
@@ -20,7 +20,7 @@ const RESULT = {
 }
 
 phase('Check')
-const common = `app: ${args.app}\nscreen: ${args.screen}\nconfig: ${JSON.stringify(args.config)}\nplanFile: ${args.planFile}\noutDir: ${args.outDir}`
+const common = `app: ${args.app}\nscreen: ${args.screen}\nconfig: ${JSON.stringify(args.config)}\nplanFile: ${args.planFile}\nspecDir: ${args.specDir}\noutDir: ${args.outDir}`
 const results = (await parallel((args.checks || []).map(c => () =>
   agent(`check: ${c.check}\nruleFile: ${c.ruleFile || ''}\n${common}`, { label: `${args.screen}:${c.check}`, phase: 'Check', schema: RESULT, agentType: 'frontend-ohmyhotel-plugin:contract-verifier' })
     .then(r => r || { check: c.check, result: 'not-run', reason: 'agent returned no result', findings: [], evidence: [] })

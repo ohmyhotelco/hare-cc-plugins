@@ -24,7 +24,7 @@ Read the plan and `<gates.evidenceDir>/<app>/progress.json`:
 - no plan → `fo-plan` first
 - plan not approved (`progress.json` `plan.approved` false) → stop; generation builds on an approved
   plan, otherwise the approval step means nothing
-- `plan.spec.contentHash` ≠ the manifest's hash for the screen → the spec moved since planning; point
+- `plan.spec.contentHash` ≠ the manifest row's 12-hex content hash → the spec moved since planning; point
   at `fo-plan` (delta) and stop
 - `openApprovals[]` with `status: pending` → list them; continue (they block nothing here) and carry
   them into the report so they are not forgotten
@@ -57,13 +57,14 @@ Take `.claude/frontend-ohmyhotel/<app>/<screen>/gen.lock`. Create or read `state
 
 Build `stages[]` from `plan.buildOrder`: `enabled` = the stage has files (or test files); on
 `--resume` set `resumeFrom` to the first stage whose status is not `done` (or `--from`). A stage that
-is `done` with a `treeHash` equal to `fo-tree-hash <screenDir>` now is reused; a different hash means
-the files moved under it — say so and restart from that stage.
+is `done` with a `treeHash` equal to `fo-screen-hash --app <app> --screen <screen>` now is reused; a
+different hash means the files moved under it — say so and restart from that stage.
 
 ## Step 3 — Run
 
 Call the `Workflow` tool with `name: "frontend-ohmyhotel-plugin:fo-gen"` and
-`args: { app, screen, planFile, stateFile, specDir, config, stages, resumeFrom }`. Tell the user which
+`args: { app, screen, planFile, stateFile, specDir, config, stages, resumeFrom, effort? }` (`effort`
+is optional per-stage overrides `{ foundation, tdd, integration }`; omit to inherit the session effort). Tell the user which
 stages will run and that the result arrives as a task notification; then wait for it. Do not end the
 turn after announcing the run, do not poll, do not start agents of your own while it runs.
 
@@ -74,12 +75,13 @@ and the inputs its file lists, and waits for its completion notification the sam
 
 From the workflow result (`ok`, `stoppedAt`, `stages[]`) and `stateFile`:
 
-- record `treeHash` (`fo-tree-hash <screenDir> <package addition paths>`) on every stage that finished
+- record `treeHash` (`fo-screen-hash --app <app> --screen <screen>`) on every stage that finished
   `done` in this run
 - on `--delta` success: `fo-plan-hash --plan <planFile> --spec-dir <specDir> --write`, and clear
   `delta: pending` in the tracker
-- update `progress.json` under the screen: `gen: { status: done | failed | partial, stoppedAt,
-  planVersion, finishedAt }`
+- update `progress.json` under the screen: `gen: { status: done | partial, stoppedAt, resumeFrom,
+  planVersion, finishedAt }` — `partial` whenever the run stopped before integration, whatever stage it
+  stopped at (`fo-progress` then offers `--resume`)
 - fill block 5 of `<Screen>.spec.md` with the evidence paths that now exist (the gate rows stay `—`
   until `fo-verify` and the later gates run)
 

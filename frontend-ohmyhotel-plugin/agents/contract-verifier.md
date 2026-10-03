@@ -17,7 +17,7 @@ apply to it. You do not invent rules: an entry that is missing from the list is 
 
 ## Input (given in the prompt)
 
-- `app`, `screen`, `config`, `planFile`, `check` (one of `externalUrls` | `webviewContract` |
+- `app`, `screen`, `config`, `planFile`, `specDir`, `check` (one of `externalUrls` | `webviewContract` |
   `sensitiveQueryKeys` | `requestConventions` | `telemetry`), `ruleFile` (path from `config.rules.lists`,
   absent for `telemetry`), `outDir`
 

@@ -29,7 +29,7 @@ Start one `Agent` with `subagent_type: frontend-ohmyhotel-plugin:e2e-test-runner
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate e2e --result <pass|fail|partial|not-run> --from <outDir>/e2e-report.json --extra-path <app.dir>/e2e/<screen>
+fo-evidence --app <app> --screen <screen> --gate e2e --result <pass|fail|partial|not-run> --from <outDir>/e2e-report.json
 ```
 
 `pass` = `completed`; `partial` when some scenarios failed; `fail` when none passed; `not-run` when the

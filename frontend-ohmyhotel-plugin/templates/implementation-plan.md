@@ -30,7 +30,7 @@ some ids could not be resolved (listed in the skill's report).
     "ticket": "OMH-794",
     "version": "1.9",
     "status": "FINALIZED",
-    "contentHash": "d7d0368ee46c…",        // full hash from specs/MANIFEST.md
+    "contentHash": "d7d0368ee46c",         // the 12-hex prefix exactly as specs/MANIFEST.md records it; every comparison uses this prefix
     "primaryLanguage": "ko"               // language whose text the hashes were taken from
   },
   "answerKeys": {

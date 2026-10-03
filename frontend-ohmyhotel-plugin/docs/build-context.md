@@ -168,3 +168,31 @@ per-locale URLs, search path `/search` vs `/hotel?keyword=`.
   (`llm` rubric: names fo-init / the missing files, does not import, plan or report status by hand);
   the negative case checks no `fo-` skill fires on an unrelated request (`regex` over the trace with a
   negative lookahead, `arm: both`). First run: 4/4, 88 s, $0.75, `--ablation none --runs 1`.
+
+### Pre-merge review (2026-10-03) — 20 findings, 6 high
+
+An independent agent compared every file pair the consistency script cannot see (skill → workflow
+args, workflow → agent inputs, skill → script flags, progress.json writers vs readers, hash path sets).
+What changed:
+
+- **One hash definition.** Every gate skill wrote its evidence and then edited block 5 of
+  `<Screen>.spec.md` inside the hashed folder, so every record was stale the moment it was written;
+  producers and the consumer also hashed different path sets. `bin/fo-screen-hash` now owns the set
+  (screen folder minus `<Screen>.spec.md`, package additions, the screen's Playwright specs) and
+  `fo-evidence`, `fo-verify-run`, `fo-progress-report`, `fo-gen` and the gate preconditions all call
+  it. Verified: editing the spec file leaves the hash unchanged.
+- `fo-evidence`: `--result` wins over a `result` key in the payload; `fo-visual` normalises its
+  capture failure to `fail`/`not-run`; `fo-progress-report` treats anything but a current `pass` as
+  blocking (a `failed` string could previously slip past).
+- The two manual gates (`designerReview`, `planningAcceptance`) now have an exact recording command
+  (`fo-evidence --gate … --result pass` with reviewer/ticket payload) named in `fo-shared`, `fo-seo`,
+  the screen-spec template and `fo-progress`; without it the cutover item `screens-all-gates` could
+  never close.
+- Rule-list entries carry `status` (`draft` → `confirmed`/`verified`); `fo-cutover init` also creates
+  `docs/cutover/frozen-hotfixes.json`; both were required by the cutover check but produced by nothing.
+- `contentHash` comparisons use the 12-hex prefix the manifest records, everywhere.
+- `fo-contract` passes `specDir` (the telemetry check greps the spec); `fo-review` clusters carry
+  `source: "review"` and `fo-fix` adds `source` to gate-built clusters; `app.lock` is in the shared file
+  table with its rule; `e2e-playwright.md` and `i18n-key-coverage.md` lost their react-plugin names
+  (`e2eTests`, `{appDir}` for the app package, `evidence.trace`, `lookupFns`, `localesDir`, `plan.json`);
+  `fo-gen` writes `done | partial` only; `fo-spec-sync` passes `--specs-dir` and takes `--app`.

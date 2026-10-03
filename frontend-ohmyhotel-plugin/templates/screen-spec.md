@@ -45,7 +45,8 @@ States (loading / empty / error / success) and the common state policy exception
 | e2e | … | — |
 | contract | … | — |
 | seo | … | — |
-| designer review | reviewer, date | — |
-| planning acceptance | ticket comment | — |
+| review | `docs/gates/www/01-main-page/review.json` | — |
+| designerReview | reviewer, date (`fo-evidence --gate designerReview`) | — |
+| planningAcceptance | ticket comment (`fo-evidence --gate planningAcceptance`) | — |
 Open approvals carried from the plan, with owner and status.
 ```

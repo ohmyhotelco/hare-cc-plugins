@@ -37,7 +37,7 @@ agent roster, and the order of work. It does not restate the V3 plan; it points 
 | P1 | **Repo-scoped, not V3-scoped.** The config holds an `apps[]` list (initially `www` only). Every command takes `--app` (defaults to the single configured app). Trackers, state and locks are per app. | Future `apps/companion` / `apps/affiliate` share the repo, the design system and `shared-*`. Starting with the list costs one array; retrofitting it later means touching every skill. Naming the plugin after the repo (not `v3`) follows the same reasoning that renamed `ohmyhotel-v3` → `ohmyhotel-frontend`. |
 | P2 | **Standalone copy.** Files are copied and renamed (`fe-`/`fm-` → `fo-`); nothing imports the source plugins and `dependencies` is not used. The source plugins keep serving the monorepo until it is archived. | The two sources will stop evolving when V2 is frozen; a shared base would couple a live tool to two retiring ones. The repo's consistency checker already treats plugins as independent corpora. |
 | P3 | **Three-layer rule placement.** (a) Rules stated in the planning spec stay in `specs/` and are read from there — never transcribed. (b) Development and CTO decisions that the spec does not contain (WebView contract, external URL contract, `deviceTypeCode`, non-member token leak prevention, host rules, payment flow) live in the product repo under `docs/adr/` and `docs/rules/`; machine-checked lists use a fixed JSON shape that the plugin defines. (c) The plugin holds only method: TDD procedure, gate evidence, approval flow, Figma comparison, locks. `fo-init` scaffolds the empty rule files and the config records their paths. | Specs changed twice on 2026-10-02 alone. A rule copied into the plugin would force a plugin release, marketplace sync and per-developer update on every change, and the spec snapshot, rules and code could no longer change in one PR. Subagents receive the product repo's `CLAUDE.md` automatically, so pointing it at `docs/rules/` is enough to deliver the rules to every agent. |
-| P4 | **Workflows for every multi-agent chain; skills for entry points and approvals; scripts for anything that is only commands.** `fo-gen`, `fo-review`, `fo-visual`, `fo-contract`, `fo-seo` and the `fo-cutover` check run as workflow scripts shipped in `workflows/` and started by the skill of the same name; `fo-verify` is a script (`bin/fo-verify-run`) because its checks are commands with exit codes and need no agent. A skill never starts more than one subagent on its own and never assumes an `Agent` call returns in the same turn. Human approvals (plan sign-off, review-fix acceptance, gate overrides) happen between workflow runs, in the skill. | In interactive sessions subagents run in the background and report by completion notification; `fe-gen`'s "Agent is synchronous" assumption no longer holds. Workflows fix stage order, retries and resume in code rather than in prose, which is where the two source plugins spend most of their instruction volume. Workflows cannot take input mid-run, so approvals must sit outside them. |
+| P4 | **Workflows for every multi-agent chain; skills for entry points and approvals; scripts for anything that is only commands.** `fo-gen`, `fo-review`, `fo-fix`, `fo-visual`, `fo-contract` and `fo-seo` run as workflow scripts shipped in `workflows/` and started by the skill of the same name; `fo-verify`, `fo-progress` and the `fo-cutover` check are scripts (`bin/`) because they are commands and file reads with no judgement to delegate. A skill never starts more than one subagent on its own and never assumes an `Agent` call returns in the same turn. Human approvals (plan sign-off, review-fix acceptance, gate overrides) happen between workflow runs, in the skill. | In interactive sessions subagents run in the background and report by completion notification; `fe-gen`'s "Agent is synchronous" assumption no longer holds. Workflows fix stage order, retries and resume in code rather than in prose, which is where the two source plugins spend most of their instruction volume. Workflows cannot take input mid-run, so approvals must sit outside them. |
 | P5 | **Every agent declares `model` and `effort`.** Initial values in §6; tuned with `claude plugin eval` once the first screens run. Workflow scripts omit `model` (inherit the session model) and set `effort` per stage. | Effort replaces the removed thinking instructions and is not portable across model generations (Opus 5.5 `medium` ≈ Opus 5 `high`). Sonnet 5.5 at `low` is known to skip real checks, so no verifying agent runs below `medium`. |
 | P6 | **Claude 5 instruction style** (§7): plain imperative sentences with the reason attached; no `MUST`/`ALWAYS`/`NEVER` capitals, no "Iron Law" / "red-flag rationalization" tables, no "re-verify / double-check / use a subagent to confirm" steps; reviewers report every finding with a severity and a separate stage filters; orchestrating skills state the completion condition and the early-stop patterns to avoid; incident history moves to `docs/build-context.md`. | Current-generation models follow instructions literally and self-verify. Emphasis produces over-reaction, re-verification scaffolding produces over-verification and cost, and "only report traceable issues" measurably reduces recall. The official skill-authoring guidance says the same: explain the why, keep instructions lean, generalize beyond the incident that motivated a rule. |
 | P7 | **Current plugin mechanics.** `Agent` (not `Task`); `${CLAUDE_PLUGIN_ROOT}` inside skill and agent bodies; executables in `bin/`; no SessionStart hook that records the install path; shared agent rules in a preloaded skill (`skills/fo-shared/`) referenced through agent `skills:` frontmatter, because a plugin-root `CLAUDE.md` is not loaded into context; `disallowed-tools: AskUserQuestion` on unattended skills; `SKILL.md` under 500 lines with `references/`; `claude plugin validate` plus `scripts/check-plugin-consistency.py` on every change. | Each item is a verified contract change since the source plugins were written (see vault session notes 2026-10-02). The migration plugin's `session-init.sh` + `.local.json` path recording exists only because `${CLAUDE_PLUGIN_ROOT}` once expanded in hooks alone. |
@@ -118,7 +118,7 @@ State and evidence:
 | What | Where | Committed |
 |---|---|---|
 | transient run state (`generation-state.json`, locks, workflow run ids) | `.claude/frontend-ohmyhotel/<app>/<screen>/` | no |
-| gate evidence (per gate: command, exit code, tree hash, artifact paths, timestamp) | `docs/gates/<app>/<screen>/` | yes — reviewed in the screen PR |
+| gate evidence (per gate: payload, result, tree hash from `bin/fo-screen-hash` — the screen folder minus `<Screen>.spec.md`, package additions, the screen's Playwright specs — recordedAt) | `docs/gates/<app>/<screen>/` | yes — reviewed in the screen PR |
 | progress tracker | `docs/gates/<app>/progress.json` | yes |
 | cutover ledger | `docs/gates/<app>/cutover-ledger.json` | yes |
 | screen implementation spec (5 blocks, V3 plan D9) | `<screensDir>/<screen>/<Screen>.spec.md` | yes |
@@ -154,7 +154,7 @@ backend/app contracts that `fo-contract` checks.
 ```
 skill fo-gen --app www --screen 01-main
   ├─ preflight (inline): config, lock, plan approved, spec hash matches plan
-  ├─ Workflow({ name: "frontend-ohmyhotel-plugin:fo-gen", args: {app, screen, resumeFrom?} })
+  ├─ Workflow({ name: "frontend-ohmyhotel-plugin:fo-gen", args: {app, screen, planFile, stateFile, specDir, config, stages[], resumeFrom?} })
   │     stage foundation   agent(…, {agentType: "frontend-ohmyhotel-plugin:foundation-generator", effort: "medium"})
   │     stage api-tdd      agent(…, {agentType: "…:tdd-cycle-runner", effort: "medium"})
   │     stage component-tdd …
@@ -218,7 +218,7 @@ session with; reviewers are pinned so review quality does not drift with the ses
 
 ## 7. Instruction-writing rules for this plugin (P6)
 
-Applied while copying; `scripts/check-plugin-consistency.py` gains a lint for the first three.
+Applied while copying; a lint for the first three in `scripts/check-plugin-consistency.py` is a follow-up.
 
 1. **Plain sentences, reason attached.** "Run the package's own Vitest for additions, because the app's
    config does not see package sources" — not "CRITICAL: You MUST run …".
@@ -244,7 +244,7 @@ Applied while copying; `scripts/check-plugin-consistency.py` gains a lint for th
 ```
 frontend-ohmyhotel-plugin/
 ├── .claude-plugin/plugin.json          name, version 0.1.0, description, keywords (synced to marketplace + root README label)
-├── README.md · README.ko.md · README.vi.md
+├── README.md                           (ko/vi translations after the first real run, as the other plugins do)
 ├── CLAUDE.md                           maintainer notes only — not loaded into agent context (P7)
 ├── agents/                             §6
 ├── skills/
@@ -253,13 +253,10 @@ frontend-ohmyhotel-plugin/
 ├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
 │                                       server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec, implementation-plan, cutover-ledger, codex-audit
-├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export · fo-cutover-check (on PATH while the plugin is enabled)
-├── hooks/hooks.json                    PostToolUse staleness check only (no SessionStart path recording)
-├── scripts/                            validate-implementation.sh, check-staleness.sh (hook targets)
+├── bin/                                fo-tree-hash · fo-screen-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export · fo-cutover-check (on PATH while the plugin is enabled)
 └── docs/
     ├── design/plugin-design.md         this file
-    ├── build-context.md                incident history and rationale moved out of instructions (P6-5)
-    ├── workflow.md · skill-reference.md
+    ├── build-context.md                incident history, test records and rationale moved out of instructions (P6-5)
 ```
 
 ## 9. Copy matrix
