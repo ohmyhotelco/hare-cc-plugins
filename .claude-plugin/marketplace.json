@@ -209,6 +209,46 @@
       "license": "MIT",
       "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/frontend-migration-plugin",
       "repository": "https://github.com/ohmyhotelco/hare-cc-plugins"
+    },
+    {
+      "name": "frontend-ohmyhotel-plugin",
+      "description": "Repo-scoped development plugin for ohmyhotelco/ohmyhotel-frontend (V3 All New B2C and later apps in the same repo): spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress and big-bang cutover ledger — orchestrated with workflows; product rules stay in the product repo",
+      "version": "0.1.0",
+      "author": {
+        "name": "Justin Choi"
+      },
+      "source": "./frontend-ohmyhotel-plugin/",
+      "category": "development",
+      "keywords": [
+        "frontend",
+        "ohmyhotel",
+        "react",
+        "react-router",
+        "ssr",
+        "design-system",
+        "workspace",
+        "shared-packages",
+        "tanstack-query",
+        "react-hook-form",
+        "zod",
+        "i18next",
+        "tdd",
+        "vitest",
+        "playwright",
+        "msw",
+        "figma",
+        "visual-gate",
+        "seo",
+        "contract",
+        "code-review",
+        "fix",
+        "cutover",
+        "workflows",
+        "codex-audit"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/frontend-ohmyhotel-plugin",
+      "repository": "https://github.com/ohmyhotelco/hare-cc-plugins"
     }
   ]
 }

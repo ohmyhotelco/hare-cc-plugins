@@ -177,11 +177,14 @@ Rules that follow from it:
   unchanged). Both are recorded in the tracker so `fo-progress` can show where a screen stopped.
 - **Fan-out is bounded.** Reviewers run four-wide; verify checks run as many as there are commands;
   nothing spawns per-file agents. Agents' `tools:` lists exclude `Agent`, so they cannot re-delegate.
-- **Dry run before anything else is built:** a one-stage plugin workflow calling
-  `agentType: "frontend-ohmyhotel-plugin:<agent>"` with a `schema`. The workflow reference documents
-  `agentType` as resolved from the same registry as the `Agent` tool; it has not been exercised from a
-  plugin-shipped workflow in this repo yet. If it fails, the fallback is a skill that starts one agent
-  per turn and advances on notification (option 가 from the 2026-10-02 review).
+- **Dry run — passed 2026-10-03** (`docs/build-context.md` § Dry run). (1) From an inline workflow,
+  `agentType: "frontend-react-plugin:spec-reviewer"` + `schema` resolved and the agent answered in its
+  own role. (2) Headless `claude -p --plugin-dir ./frontend-ohmyhotel-plugin`: the plugin-shipped
+  `workflows/fo-probe.js` resolved by name (`frontend-ohmyhotel-plugin:fo-probe`), started
+  `frontend-ohmyhotel-plugin:spec-reviewer`, which reported `sawSharedConventions: true` (the
+  `skills: [fo-shared]` preload reaches workflow-started agents) and ran on the pinned model
+  (`claude-opus-5-5` in `modelUsage` while the main loop was Fable). The fallback (a skill that starts one
+  agent per turn and advances on notification) is therefore not needed.
 
 ## 6. Agent roster (initial `model` / `effort`)
 
@@ -273,9 +276,9 @@ frontend-ohmyhotel-plugin/
 Sequence only; dates belong to the V3 plan §7 (Phase 0-B scaffold, screen group A from mid-October).
 The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) before group A starts.
 
-1. **Skeleton + dry run.** `plugin.json`, marketplace entry, README label, `fo-shared`, one agent, one
-   workflow with `agentType` + `schema`; `claude plugin validate`; consistency script clean. Decides P4's
-   fallback question.
+1. **Skeleton + dry run.** ✅ 2026-10-03 — `plugin.json`, marketplace entry, README label, `fo-shared`,
+   `spec-reviewer`, `workflows/fo-probe.js`, `bin/fo-tree-hash`, `templates/rule-lists.md`;
+   `claude plugin validate` and the consistency script clean; both dry runs passed (§5).
 2. **`fo-init`, `fo-spec-sync`, rule-list templates.** Scaffold the product repo (`docs/rules/`,
    `docs/gates/`, `specs/MANIFEST.md`), import the 13 current spec snapshots.
 3. **`fo-plan` + `implementation-planner`** reading spec, `analysis.json` (optional), Figma manifest,
@@ -294,7 +297,7 @@ when the plugin becomes usable for the next V3 step.
 
 | # | Question | Decision |
 |---|---|---|
-| Q1 | Dry run of `agentType` from a plugin workflow (step 1). If it fails, accept the notification-driven skill fallback? | yes, fallback |
+| Q1 | Dry run of `agentType` from a plugin workflow (step 1). If it fails, accept the notification-driven skill fallback? | yes, fallback — **not needed: dry run passed 2026-10-03** (§5) |
 | Q2 | Keep the optional Codex audit (`fo-audit-codex`)? It costs a Codex runtime per audited stage. | keep, disabled by default |
 | Q3 | Gate evidence committed under `docs/gates/` (reviewable in PRs) vs kept in `.claude/` (not committed)? | committed |
 | Q4 | Reviewer agents pinned to `opus`, writers `inherit` (§6)? | as in §6 |

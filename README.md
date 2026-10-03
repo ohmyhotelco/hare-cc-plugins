@@ -109,6 +109,14 @@ Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to R
 
 ---
 
+### [Frontend Ohmyhotel Plugin](./frontend-ohmyhotel-plugin/) `v0.1.0`
+
+Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New B2C `apps/www` and later apps in the same repo). Carries the working method — spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress, big-bang cutover ledger — as workflows plus entry-point skills. Product rules stay in the product repo (`specs/`, `docs/adr/`, `docs/rules/`). Standalone copy of the two frontend plugins above, rewritten for Claude 5-era agents. **v0.1.0 is a skeleton**; see its design document.
+
+**Pipeline (planned)**: `fo-init` → `fo-spec-sync` → (`fo-analyze` → `fo-extract` → `fo-figma`) → `fo-plan` → `fo-gen` → `fo-verify` → `fo-visual` → `fo-e2e` → `fo-contract` → `fo-seo` → `fo-review` ↔ `fo-fix` → `fo-progress` → `fo-cutover`
+
+---
+
 ## How They Work Together
 
 ```
@@ -157,6 +165,7 @@ planning-plugin                 homepage-plugin
 /plugin install backend-webflux-plugin@ohmyhotelco --scope project
 /plugin install homepage-plugin@ohmyhotelco --scope project
 /plugin install frontend-migration-plugin@ohmyhotelco --scope project
+/plugin install frontend-ohmyhotel-plugin@ohmyhotelco --scope project
 ```
 
 ## Management
