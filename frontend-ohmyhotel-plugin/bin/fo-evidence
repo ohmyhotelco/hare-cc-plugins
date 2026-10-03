@@ -18,7 +18,8 @@ USAGE
   --spec-path names the test files THIS gate owns (its Playwright specs); their hash is recorded as
   specHash/specPaths so fo-progress-report can tell when the gate's own tests changed, without those
   files being part of the shared screen hash (which would stale every other gate).
-  A malformed --from file is refused (exit 5); empty stdin means an empty payload.
+  A malformed --from file is refused (exit 5); empty stdin means an empty payload. A pass whose
+  --spec-path is missing or unhashable is refused (exit 6): the requested watch set never shrinks silently.
 
   treeHash = fo-screen-hash (the one path set every producer and consumer uses). A `pass` with no
   computable hash is refused (exit 4) — an unverifiable pass would stay "current" forever — except for
@@ -70,11 +71,15 @@ def main():
             print(f"refused: --result pass with no computable treeHash ({tree_err}); record not-run, or fix the hash input", file=sys.stderr)
             sys.exit(4)
         payload.pop("result", None)
-        spec_paths = [p for p in a.spec_path if os.path.exists(p)]
+        spec_paths = list(a.spec_path)
+        missing = [p for p in spec_paths if not os.path.exists(p)]
         spec_hash = None
-        if spec_paths:
+        if spec_paths and not missing:
             rs = subprocess.run([sibling("fo-tree-hash"), "--", *spec_paths], capture_output=True, text=True)
             spec_hash = rs.stdout.strip().splitlines()[-1] if rs.returncode == 0 and rs.stdout.strip() else None
+        if a.result == "pass" and spec_paths and (missing or spec_hash is None):
+            print(f"refused: --result pass but the gate's own spec paths cannot be watched (missing: {missing or 'none'}; hash: {spec_hash}) — the watch set would silently shrink", file=sys.stderr)
+            sys.exit(6)
         plan = read_json(plan_file) or {}
         ev = {**payload, "gate": a.gate, "app": a.app, "screen": a.screen, "planVersion": plan.get("planVersion"),
               "recordedAt": utcnow(), "treeHash": tree, "treeHashError": tree_err,

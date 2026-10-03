@@ -260,3 +260,11 @@ confirmed the three worst defects; everything confirmed was fixed in this round.
   gate stale when those files change, without touching the shared screen hash.
 - `--from` with malformed JSON is refused (exit 5) instead of becoming an empty passing payload.
 - Dev-server log path for `fo-contract`/`fo-seo` resolved from the repo root before `cd`.
+
+### Dual audit round 3 (2026-10-03) — Codex on the round-2 commit: 2 medium, fixed
+
+- `fo-fix` replaced `review.clustersApproved` with this run's remaining ids, dropping approvals for
+  clusters it did not attempt or that failed. `fo-progress-set --pull` subtracts only the fixed ids
+  under the lock; fixes from other gates leave `review.*` alone.
+- `fo-evidence --spec-path` dropped missing paths silently, so a mistyped path produced a `pass` with
+  no watched specs. A pass with a missing or unhashable spec path is now refused (exit 6).
