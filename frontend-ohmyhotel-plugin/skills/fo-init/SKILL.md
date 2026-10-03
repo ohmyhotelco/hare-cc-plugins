@@ -51,7 +51,8 @@ Ask once, in one message, with defaults:
 1. `hosts` for the app — default `["www.ohmyhotel.com", "m.ohmyhotel.com"]` for `www`; empty for a new app.
 2. `answerKeys.legacySource` — does this app reimplement screens that exist in the archived monorepo?
    If yes: `archiveRepo` (default `ohmyhotelco/ohmyhotel-monorepo`), `frozenCommit` (the freeze commit
-   recorded in the ADR; may be `TBD` until the freeze), `apps` (default `["apps/web-pc", "apps/web-mobile"]`).
+   recorded in the ADR; may be `TBD` until the freeze), `apps` (default `["apps/web-pc", "apps/web-mobile"]`),
+   `localPath` (a local clone, optional — `fo-analyze` adds a worktree there instead of cloning).
    If no: omit the key.
 3. `answerKeys.figma.manifest` — default `docs/figma-manifest.json` (created empty in Step 4) or omit.
 4. `cutover` — `big-bang` (replaces a live site) or `launch` (new app). Default `big-bang` for `www`.
@@ -70,7 +71,7 @@ Everything else takes the defaults from the design document §3 (`seo`, `gates`,
    - one file per entry in `rules.lists` from `${CLAUDE_PLUGIN_ROOT}/templates/rule-lists.md`, with
      the envelope and an empty `entries` array, `source` set to `TBD`
    - `docs/adr/README.md` from `${CLAUDE_PLUGIN_ROOT}/templates/adr-readme.md` when `docs/adr/` has no README
-   - `docs/figma-manifest.json` as `{ "screens": {} }` when configured and absent
+   - `docs/figma-manifest.json` as `{ "fileKey": null, "screens": {} }` when configured and absent (`fo-figma` fills `fileKey`)
    - `<gates.evidenceDir>/<app>/progress.json` as `{ "app": "<name>", "screens": {}, "updatedAt": "<ISO>" }`
    - `specs/MANIFEST.md` from `${CLAUDE_PLUGIN_ROOT}/templates/specs-manifest.md` (header only)
    - `.claude/frontend-ohmyhotel/.gitignore` containing `*` (run state is per machine)

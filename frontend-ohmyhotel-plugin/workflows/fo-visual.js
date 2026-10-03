@@ -2,7 +2,7 @@
 // each capture that has a Figma frame against that frame, in parallel. Breakage findings come from the
 // capture; divergence findings from the comparisons; the skill writes the evidence from this result.
 //
-// args: { app, screen, config, planFile, outDir, figma: [ { state, viewport, export } ] }
+// args: { app, screen, config, planFile, outDir, fileKey, figma: [ { state, viewport, nodeId, export } ] }
 
 export const meta = {
   name: 'fo-visual',
@@ -47,7 +47,7 @@ if (!pairs.length) log('no Figma frames for this screen — breakage check only'
 
 phase('Compare')
 const comparisons = (await parallel(pairs.map(f => () =>
-  agent(`mode: compare\nscreen: ${args.screen}\nstate: ${f.state}\nviewport: ${f.viewport}\nnodeId: ${f.nodeId || ''}\nrendered: ${f.rendered.path}\nfigma: ${f.export}`,
+  agent(`mode: compare\nscreen: ${args.screen}\nstate: ${f.state}\nviewport: ${f.viewport}\nnodeId: ${f.nodeId || ''}\nfileKey: ${args.fileKey || ''}\nrendered: ${f.rendered.path}\nfigma: ${f.export || ''}`,
     { label: `${args.screen}:compare:${f.state}@${f.viewport}`, phase: 'Compare', schema: COMPARE, agentType: 'frontend-ohmyhotel-plugin:visual-verifier' })
 ))).filter(Boolean)
 

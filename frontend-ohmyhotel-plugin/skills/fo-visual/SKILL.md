@@ -25,13 +25,13 @@ code records nothing useful — say so and point at `fo-verify`). Harness presen
 ## Step 1 — Frames
 
 Read `docs/figma-manifest.json` → `screens[<screen>].frames[]` (`state`, `viewport`, `nodeId`,
-`export`). An `export` path that does not exist yet → run `fo-figma` first (or `--no-figma` to run the
-breakage check alone). No entry → breakage-only; say so.
+`export`). A frame without an `export` file is compared inline through the Figma MCP (no committed reference
+image — say so); no frames at all → run `fo-figma` first, or `--no-figma` for the breakage check alone.
 
 ## Step 2 — Run and wait
 
 `Workflow` with `name: "frontend-ohmyhotel-plugin:fo-visual"` and
-`args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/visual", figma: frames }`.
+`args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/visual", fileKey, figma: frames }`.
 Wait for the task notification; do not end the turn after announcing the run.
 
 ## Step 3 — Evidence

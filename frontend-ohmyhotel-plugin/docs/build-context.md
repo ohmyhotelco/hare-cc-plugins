@@ -135,3 +135,18 @@ per-locale URLs, search path `/search` vs `/hotel?keyword=`.
 - `test-reviewer` follows every spec anchor into the snapshot and reports a cited line that
   disagrees with the test as `critical` — the one review that can see a shared misreading between
   test and implementation.
+
+### Step 7 — analysis, extraction, Figma (2026-10-03)
+
+- The V2 answer key is read from a worktree of the frozen monorepo commit under
+  `.claude/frontend-ohmyhotel/archive/` (ignored); every claim in `analysis.json` carries a permalink
+  at that commit, because the V3 repo has no `archive/` (D9) and the analyzer must not read a moving
+  tree. `frozenCommit: TBD` stops `fo-analyze` on purpose.
+- `legacy-analyzer` reads React/RR V2 route bodies (not Angular — the angular analyzer's gate
+  triggers and style surface are gone); it keeps the surfaces that caught real defects in the
+  migration plugin: copy sources, failure paths gated on `succeedYn`, navigation/storage/state, and
+  adds the PC-vs-mobile diff the responsive merge decision needs.
+- `fo-figma` discovers frames by MCP (names, sizes → state × viewport) and exports PNGs through the
+  REST API with `FIGMA_TOKEN` from the environment (`bin/fo-figma-export`); the MCP can show a frame
+  but cannot save it. Without a token the manifest records node ids and `fo-visual` compares inline,
+  with no committed reference image — the report says so.

@@ -3,7 +3,7 @@ name: visual-verifier
 description: Visual gate worker for one screen — in `capture` mode writes and runs a Playwright spec that renders every planned state at each configured viewport × language and records breakage (overflow, console errors, broken images, clipped text); in `compare` mode judges one rendered capture against its Figma frame export and reports divergences with severity. Writes under docs/gates only.
 model: opus
 effort: medium
-tools: Read, Write, Edit, Glob, Grep, Bash
+tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
 skills: [fo-shared]
 ---
 
@@ -40,10 +40,11 @@ Input: `app`, `screen`, `config`, `planFile`, `outDir` (`<evidenceDir>/<app>/<sc
 
 ## Mode `compare`
 
-Input: `rendered` (png path), `figma` (png export path from `fo-figma`), `state`, `viewport`,
-`screen`, `nodeId`.
+Input: `rendered` (png path), `figma` (png export path from `fo-figma`, or empty when no token was
+available), `state`, `viewport`, `screen`, `nodeId`, `fileKey`.
 
-Read both images. Judge the composition the screen owns, in this order, each 0–10 with the specific
+Read both images — the Figma side from the export file, or, when it is empty, inline through
+`get_screenshot` with `fileKey` and `nodeId` (then say in `notes` that no reference image is committed). Judge the composition the screen owns, in this order, each 0–10 with the specific
 divergence named: layout structure (sections, order, columns) · spacing and alignment against the DS
 grid (gutters 120/40/32/20·10, 769 boundary) · typography hierarchy · colour usage (tokens, not exact
 pixels — DS internals are not judged here) · component presence (every element in the frame exists

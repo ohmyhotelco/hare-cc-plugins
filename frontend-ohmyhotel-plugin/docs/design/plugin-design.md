@@ -66,7 +66,8 @@ Written by `fo-init`; every path is repo-relative.
         "legacySource": {                             // optional
           "archiveRepo": "ohmyhotelco/ohmyhotel-monorepo",
           "frozenCommit": "<sha recorded in ADR at freeze>",
-          "apps": ["apps/web-pc", "apps/web-mobile"]
+          "apps": ["apps/web-pc", "apps/web-mobile"],
+          "localPath": "~/Development/work/ohmyhotel-monorepo"   // optional local clone; fo-analyze adds a worktree at frozenCommit
         },
         "figma": { "manifest": "docs/figma-manifest.json" }   // optional
       },
@@ -252,7 +253,7 @@ frontend-ohmyhotel-plugin/
 ├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js · fo-cutover-check.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
 │                                       framework-app-shell, server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec-5-blocks
-├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report (on PATH while the plugin is enabled)
+├── bin/                                fo-tree-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export (on PATH while the plugin is enabled)
 ├── hooks/hooks.json                    PostToolUse staleness check only (no SessionStart path recording)
 ├── scripts/                            validate-implementation.sh, check-staleness.sh (hook targets)
 └── docs/
@@ -287,7 +288,7 @@ The plugin has to carry `fo-plan` and `fo-gen` for the first screen (01-main) be
    evidence. ✅ 2026-10-03 (a full `fo-gen` run needs the Phase 0-B app scaffold; see build-context).
 5. **`fo-visual`, `fo-e2e`, `fo-contract`, `fo-seo`.** ✅ 2026-10-03 — workflows `fo-visual` (capture → parallel frame compare), `fo-contract` (one agent per rule list + telemetry), `fo-seo` (one per aspect); `fo-e2e` is one agent; every gate records through `bin/fo-evidence`.
 6. **`fo-review` / `fo-fix` workflows**, `fo-progress`. ✅ 2026-10-03 — four reviewers in parallel, merge and clustering in code, approval in the skill; fixers sequential per cluster then re-verify; progress computed by `bin/fo-progress-report` (staleness by tree hash).
-7. **`fo-analyze`, `fo-extract`, `fo-figma`** (needed from the first reused screen, not from 01-main).
+7. **`fo-analyze`, `fo-extract`, `fo-figma`** (needed from the first reused screen, not from 01-main). ✅ 2026-10-03 — archive worktree at the frozen commit, permalinked `analysis.json`, sequential extractors, Figma discovery by MCP + PNG export by REST token.
 8. **`fo-cutover`**, `fo-audit-codex`, `docs/build-context.md`, `claude plugin eval` suite.
 
 Each step is one PR on this repo with `feat(frontend-ohmyhotel): …` scope and a version bump only
