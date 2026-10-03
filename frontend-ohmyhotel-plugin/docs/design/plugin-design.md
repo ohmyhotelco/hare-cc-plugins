@@ -244,7 +244,7 @@ Applied while copying; a lint for the first three in `scripts/check-plugin-consi
 ```
 frontend-ohmyhotel-plugin/
 ├── .claude-plugin/plugin.json          name, version 0.1.0, description, keywords (synced to marketplace + root README label)
-├── README.md                           (ko/vi translations after the first real run, as the other plugins do)
+├── README.md · README.ko.md            (Vietnamese after the first real run)
 ├── CLAUDE.md                           maintainer notes only — not loaded into agent context (P7)
 ├── agents/                             §6
 ├── skills/
