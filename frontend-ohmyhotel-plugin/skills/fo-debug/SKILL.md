@@ -3,7 +3,7 @@ name: fo-debug
 description: Debug a failing test, gate or runtime error on a screen with the debugger agent — reproduce, one hypothesis at a time with evidence, fix the confirmed cause with a regression test, escalate after three refuted hypotheses. Use when fo-verify, fo-e2e or a dev run fails for a reason the evidence does not make obvious.
 argument-hint: "--app <name> --screen <id> [--from verify|e2e|visual|contract|seo] [--symptom \"<command or error>\"]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # fo-debug — find the cause before fixing

@@ -196,3 +196,75 @@ What changed:
   table with its rule; `e2e-playwright.md` and `i18n-key-coverage.md` lost their react-plugin names
   (`e2eTests`, `{appDir}` for the app package, `evidence.trace`, `lookupFns`, `localesDir`, `plan.json`);
   `fo-gen` writes `done | partial` only; `fo-spec-sync` passes `--specs-dir` and takes `--app`.
+
+### Post-merge dual audit (2026-10-03) — Codex adversarial review + Claude runtime audit
+
+Two independent passes over the merged plugin, with different lenses from the pre-merge wiring
+review: Codex (`adversarial-review` against `d4a5724`, 8 high / 4 medium) and a Claude agent that
+executed the scripts against the scratch repo with edge inputs (17 confirmed / 8 suspected). Overlaps
+confirmed the three worst defects; everything confirmed was fixed in this round.
+
+- **Gate chain invalidated itself (both).** `fo-screen-hash` included `e2e/**`, which the visual, e2e
+  and seo gates *write*; after `fo-visual` the verify record was stale and every later precondition
+  refused. The hash set now excludes `e2e/**` and shared files edited by every screen (i18n resources,
+  `routes.ts`, MSW aggregate) and includes what the screen owns outside its folder (route modules,
+  ui-kit gaps, package additions). Each gate's evidence carries its own spec paths.
+- **Unverifiable evidence counted as current (both).** A record with `treeHash: null`, a missing
+  evidence file, or a failed current hash could never go stale. `fo-evidence` refuses `--result pass`
+  without a hash (manual gates excepted, exit 4); `fo-progress-report` classifies every gate as
+  current / skipped(with reason) / stale / unverifiable / blocked / missing and lists `blockers[]`
+  per screen; `next` is `done` only with no blockers; `fo-cutover-check` consumes `blockers`.
+- **Review could not block cutover (both).** `review` is now in the gate loop: a failed review with
+  nothing approved, or deferred clusters, is a blocker. `fo-review.js` returns `incomplete` when any
+  reviewer is missing or `not-run` (recorded as `not-run`), instead of passing on fewer reviewers.
+- **Delta flow blocked by its own precondition (Codex).** `fo-gen --delta` validates the delta's
+  from/to hashes instead of requiring the plan to match the manifest.
+- **No-change shortcut hid added/removed requirements (both).** `fo-plan-hash --check` reports a
+  cited section that no longer resolves as `changed (to: null)` and adds `uncited` (FR/US/TS present
+  in the spec but cited nowhere and not in `scope.excluded`); the shortcut needs all four lists empty.
+  Table-row ids (ERR/US) and `- [ ] AC-001:` bullets now resolve; heading match is token-exact.
+- **Visual gate passed on failed renders / dropped comparisons (Codex).** Render errors fail;
+  a frame without a successful comparison (missing capture, agent error/null) makes the gate
+  `not-run`; captures pair with the spec's primary language.
+- **Subset verify overwrote the gate (Codex).** `--only` writes `verify-partial.json` with
+  `result: partial`, exit 1, never registered.
+- **Toolchain absence mis-reported (Claude).** `fo-verify-run` requires the binaries under
+  `node_modules/.bin` and records `not-run` otherwise (previously `fail` via `/bin/sh: npx` or a
+  cached global vitest).
+- **Concurrent tracker writes (Codex).** `progress.json` is updated under a file lock with atomic
+  replace (`bin/fo_lib.py`); sibling scripts resolve by path, so the scripts work off-PATH.
+- `fo-evidence` with empty non-TTY stdin no longer crashes; `fo-spec-import` keeps the manifest's
+  text around the table and the existing note, copies plain-file extras, hoists wrapped extras,
+  keeps the staged tree with `--stage-dir` for the dry-run diff; `fo-gen --resume` trusts `done`
+  stages; dev server start/stop and `serverUrl` added to `fo-contract`/`fo-seo`; e2e report path made
+  absolute; `allowed-tools` now include Write/Edit where the steps write; workflows guard `args`,
+  `.catch` agent errors, return `not-run` on zero checks, and `fo-gen` validates `resumeFrom`.
+- Not done (follow-ups): an eval case with a seeded config so the suite reaches the scripts
+  (`scaffold_script` + `--scaffold`); a `confirmedEmpty`-style explicit non-applicability for gates
+  beyond `skipped` (currently a `skipped` with a reason counts as validated).
+
+### Dual audit round 2 (2026-10-03) — Codex on the round-1 fixes: 4 high / 3 medium, all fixed
+
+- **Review blocked only in one state.** A failed review that went `stale` or `unverifiable` stopped
+  blocking. Review is now a gate like the others in `fo-progress-report` (anything but a current pass
+  blocks) and deferred clusters block on top.
+- **Tracker trusted over evidence.** `gate_state` now checks that the evidence file agrees with the
+  tracker on gate, screen, result and treeHash (an interrupted gate can leave them apart) → otherwise
+  `unverifiable`. Reproduced: tampering `visual.json` to `fail` under a tracker `pass` → unverifiable.
+- **Test scenarios bypassed the delta check.** `fo-plan-hash` hashes `testScenarios[]` by id
+  (adds `source = id` on write); a changed TS section now appears in `changed`.
+- **Only fo-evidence held the tracker lock.** `bin/fo-progress-set` is the single locked, atomic
+  writer for every non-gate tracker field; all skills now call it instead of editing `progress.json`.
+- **Dropping `e2e/**` from the hash made gate specs unwatched.** Each Playwright gate records its own
+  spec files with `fo-evidence --spec-path …` (`specPaths`/`specHash`); `fo-progress-report` marks the
+  gate stale when those files change, without touching the shared screen hash.
+- `--from` with malformed JSON is refused (exit 5) instead of becoming an empty passing payload.
+- Dev-server log path for `fo-contract`/`fo-seo` resolved from the repo root before `cd`.
+
+### Dual audit round 3 (2026-10-03) — Codex on the round-2 commit: 2 medium, fixed
+
+- `fo-fix` replaced `review.clustersApproved` with this run's remaining ids, dropping approvals for
+  clusters it did not attempt or that failed. `fo-progress-set --pull` subtracts only the fixed ids
+  under the lock; fixes from other gates leave `review.*` alone.
+- `fo-evidence --spec-path` dropped missing paths silently, so a mistyped path produced a `pass` with
+  no watched specs. A pass with a missing or unhashable spec path is now refused (exit 6).

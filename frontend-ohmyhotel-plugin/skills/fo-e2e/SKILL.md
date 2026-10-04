@@ -3,7 +3,7 @@ name: fo-e2e
 description: E2E gate for one generated screen — realizes the plan's test scenarios (TS ids from the spec snapshot) as Playwright specs, runs them against the mock-first dev server through the harness, and writes docs/gates/<app>/<screen>/e2e.json with per-scenario results and trace paths. Use after fo-visual.
 argument-hint: "--app <name> --screen <id> [--scenario <TS-id>]..."
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # fo-e2e — E2E gate
@@ -29,7 +29,7 @@ Start one `Agent` with `subagent_type: frontend-ohmyhotel-plugin:e2e-test-runner
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate e2e --result <pass|fail|partial|not-run> --from <outDir>/e2e-report.json
+fo-evidence --app <app> --screen <screen> --gate e2e --result <pass|fail|partial|not-run> --from <outDir>/e2e-report.json --spec-path <app.dir>/e2e/<screen>
 ```
 
 `pass` = `completed`; `partial` when some scenarios failed; `fail` when none passed; `not-run` when the

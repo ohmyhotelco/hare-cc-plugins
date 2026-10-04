@@ -2,7 +2,7 @@
 
 Patterns for `e2e-test-runner` / `fo-e2e`. Playwright is the repo's only E2E tool.
 Ported from the migration plugin's harness **minus** the migration-specific pieces (no legacy dual-run,
-no visual-regression parity, no staging payment gateways — those arrive in later OTA phases). When
+no visual-regression parity, no staging payment gateways).
 
 Why Playwright: visual baselines (`toHaveScreenshot`, used by `fo-visual`), staging payment E2E,
 and trace-first self-correction — all Playwright-only. Binding the tool to the profile now avoids

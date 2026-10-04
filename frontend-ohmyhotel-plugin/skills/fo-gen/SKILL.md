@@ -24,8 +24,12 @@ Read the plan and `<gates.evidenceDir>/<app>/progress.json`:
 - no plan → `fo-plan` first
 - plan not approved (`progress.json` `plan.approved` false) → stop; generation builds on an approved
   plan, otherwise the approval step means nothing
-- `plan.spec.contentHash` ≠ the manifest row's 12-hex content hash → the spec moved since planning; point
-  at `fo-plan` (delta) and stop
+- without `--delta`: `plan.spec.contentHash` ≠ the manifest row's 12-hex content hash → the spec moved
+  since planning; point at `fo-plan` (delta) and stop
+- with `--delta`: the plan is expected to lag the spec. Check instead that `delta-plan.json`
+  `spec.fromContentHash` matches the plan's `spec.contentHash` and `spec.toContentHash` matches the
+  manifest row (12-hex prefixes); a mismatch means the delta was planned against a different pair →
+  `fo-plan` again
 - `openApprovals[]` with `status: pending` → list them; continue (they block nothing here) and carry
   them into the report so they are not forgotten
 - `sourceHashStatus` not `computed` → warn: a later delta cannot compare those entries
@@ -56,9 +60,11 @@ Take `.claude/frontend-ohmyhotel/<app>/<screen>/gen.lock`. Create or read `state
 ```
 
 Build `stages[]` from `plan.buildOrder`: `enabled` = the stage has files (or test files); on
-`--resume` set `resumeFrom` to the first stage whose status is not `done` (or `--from`). A stage that
-is `done` with a `treeHash` equal to `fo-screen-hash --app <app> --screen <screen>` now is reused; a
-different hash means the files moved under it — say so and restart from that stage.
+`--resume` set `resumeFrom` to the first stage whose status is not `done` (or `--from`). A `done`
+stage is trusted on resume — the documented path to `--resume` is "fix the cause, then resume", so
+the screen hash will have moved and must not be the reason to redo finished stages. The hash recorded
+per stage is informational (`fo-progress` shows it); `fo-verify` is the check that the whole screen
+still holds together after the fix.
 
 ## Step 3 — Run
 
@@ -77,11 +83,11 @@ From the workflow result (`ok`, `stoppedAt`, `stages[]`) and `stateFile`:
 
 - record `treeHash` (`fo-screen-hash --app <app> --screen <screen>`) on every stage that finished
   `done` in this run
-- on `--delta` success: `fo-plan-hash --plan <planFile> --spec-dir <specDir> --write`, and clear
-  `delta: pending` in the tracker
-- update `progress.json` under the screen: `gen: { status: done | partial, stoppedAt, resumeFrom,
-  planVersion, finishedAt }` — `partial` whenever the run stopped before integration, whatever stage it
-  stopped at (`fo-progress` then offers `--resume`)
+- on `--delta` success: `fo-plan-hash --plan <planFile> --spec-dir <specDir> --write` (the tracker's
+  `delta` key is removed in the next bullet)
+- record in the tracker: `fo-progress-set --app <app> --screen <screen> --set gen --json '{"status":"done|partial","stoppedAt":…,"resumeFrom":…,"planVersion":…,"finishedAt":…}'`
+  — `partial` whenever the run stopped before integration, whatever stage it stopped at (`fo-progress`
+  then offers `--resume`); on `--delta` success also `--unset delta`
 - fill block 5 of `<Screen>.spec.md` with the evidence paths that now exist (the gate rows stay `—`
   until `fo-verify` and the later gates run)
 

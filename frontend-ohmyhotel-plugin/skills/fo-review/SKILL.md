@@ -33,10 +33,12 @@ announcing the run.
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate review --result <pass|pass_with_warnings→pass|fail> --from <result json>
+fo-evidence --app <app> --screen <screen> --gate review --result <pass|pass_with_warnings→pass|fail|incomplete→not-run> --from <result json>
 ```
 
-(`pass_with_warnings` records as `pass` with the counts visible in the payload.) Set the review line
+(`pass_with_warnings` records as `pass` with the counts visible in the payload; `incomplete` — a
+reviewer returned nothing or `not-run` — records as `not-run`, and the review is run again rather than
+scored on fewer reviewers.) Set the review line
 in block 5 of `<Screen>.spec.md`.
 
 ## Step 3 — Present and ask
@@ -48,9 +50,10 @@ with the test is shown first — it means the implementation may be wrong for a 
 catch.
 
 Ask one question (`AskUserQuestion`, multi-select): which clusters go to `fo-fix` now. Offer "all
-critical and warning clusters" as the first option. Record the chosen ids in `progress.json` under
-`review: { recordedAt, clustersApproved: [...], clustersDeferred: [...] }`. Deferred clusters stay in
-the evidence file; `fo-progress` lists them.
+critical and warning clusters" as the first option. Record the choice with
+`fo-progress-set --app <app> --screen <screen> --set review --json '{"recordedAt":…,"clustersApproved":[…],"clustersDeferred":[…]}'`.
+Deferred clusters stay in the evidence file and block the screen in `fo-progress` until a later review
+pass records none.
 
 Release the lock.
 

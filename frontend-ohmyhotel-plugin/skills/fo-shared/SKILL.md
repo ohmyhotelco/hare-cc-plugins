@@ -31,7 +31,7 @@ rule files are owned by the repo and change by PR.
 | `.claude/frontend-ohmyhotel/<app>/<screen>/*.lock` | the skill that starts a run | one writer per screen; contents `{ "command", "startedAt", "runId" }` |
 | `.claude/frontend-ohmyhotel/<app>/app.lock` | `foundation-generator`, `integration-generator`, `fo-extract` | guards app-wide files (harness, i18n resources, route table, MSW aggregate, packages); held only around the write |
 | `<gates.evidenceDir>/<app>/<screen>/<gate>.json` | gates (`verify`, `visual`, `e2e`, `contract`, `seo`, `review`) and the two manual gates (`designerReview`, `planningAcceptance`, recorded by a person with `fo-evidence --gate … --result pass` and a payload naming reviewer/ticket) | committed evidence written by `fo-evidence`: payload + `treeHash` (from `fo-screen-hash`), `recordedAt`, `result` |
-| `<gates.evidenceDir>/<app>/progress.json` | `fo-progress` and every gate | screen × gate matrix read by `fo-progress` and `fo-cutover` |
+| `<gates.evidenceDir>/<app>/progress.json` | `fo-evidence` (gate results) and `fo-progress-set` (everything else) — **never edited directly**; both hold the same file lock and replace atomically, because every screen shares the file | screen × gate matrix read by `fo-progress` and `fo-cutover` |
 | `<screensDir>/<screen>/<Screen>.spec.md` | `fo-plan`, updated by `fo-gen` | the five-block implementation spec (template `screen-spec.md`) |
 
 Evidence is produced by running the command and recording what happened. It is not a place for a
@@ -40,8 +40,10 @@ judgement such as "looks complete"; if a gate did not run, the file says so (`"e
 
 Tree hash: `fo-screen-hash --app <app> --screen <screen>` (on `PATH` while the plugin is enabled) is the
 one definition of what a screen's evidence covers — the screen folder minus `<Screen>.spec.md`, the
-package additions, the screen's Playwright specs. Every producer and consumer uses it; nothing hashes
-its own path list. A record whose `treeHash` equals the current value may be reused; otherwise it is
+plan's route modules, ui-kit gap files and package additions. The gates' own Playwright specs
+(`e2e/**`) are **not** in it: the visual/e2e/seo gates write them, and hashing them would stale every
+earlier gate each time a later one runs. Every producer and consumer uses it; nothing hashes its own
+path list. A `pass` with no computable hash is refused by `fo-evidence` (manual gates excepted). A record whose `treeHash` equals the current value may be reused; otherwise it is
 stale and the gate runs again.
 
 ## Locks

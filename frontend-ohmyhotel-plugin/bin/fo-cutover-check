@@ -6,12 +6,9 @@ USAGE
   fo-cutover-check --app <name> [--config …] [--init]
 """
 import argparse, json, os, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import read_json as load, write_json_atomic, sibling
 from datetime import datetime, timezone
-
-def load(p):
-    try:
-        with open(p, encoding="utf-8") as f: return json.load(f)
-    except (OSError, ValueError): return None
 
 DEFAULT_ITEMS = [
   {"id": "screens-all-gates", "kind": "computed", "title": "every screen: verify, visual, e2e, contract, seo pass and current; designer review and planning acceptance recorded"},
@@ -39,25 +36,24 @@ def main():
         if os.path.exists(path): sys.exit(f"{path} exists — edit it instead")
         ledger = {"app": a.app, "mode": app.get("cutover", "big-bang"), "updatedAt": now,
                   "items": [{**i, "status": "open", "evidence": None, "closedAt": None} for i in DEFAULT_ITEMS]}
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        json.dump(ledger, open(path, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(path, "a").write("\n")
+        write_json_atomic(path, ledger)
         hot = "docs/cutover/frozen-hotfixes.json"
         if not os.path.exists(hot):
-            os.makedirs(os.path.dirname(hot), exist_ok=True)
-            json.dump({"$schema": "frontend-ohmyhotel-plugin/rule-list/v1", "list": "frozenHotfixes", "source": "TBD", "updatedAt": now[:10], "entries": []},
-                      open(hot, "w", encoding="utf-8"), ensure_ascii=False, indent=2); open(hot, "a").write("\n")
+            write_json_atomic(hot, {"$schema": "frontend-ohmyhotel-plugin/rule-list/v1", "list": "frozenHotfixes", "source": "TBD", "updatedAt": now[:10],
+                                    "confirmedEmpty": False, "entries": []})
         print(json.dumps({"written": path, "items": len(ledger["items"]), "hotfixes": hot})); return
     ledger = load(path) or sys.exit(f"no ledger at {path} — run with --init")
 
-    prog = subprocess.run(["fo-progress-report", "--app", a.app, "--config", a.config], capture_output=True, text=True)
+    prog = subprocess.run([sibling("fo-progress-report"), "--app", a.app, "--config", a.config], capture_output=True, text=True)
     report = json.loads(prog.stdout) if prog.returncode == 0 and prog.stdout.strip() else {"screens": []}
     results = []
     for it in ledger["items"]:
         r = {"id": it["id"], "kind": it["kind"], "title": it["title"], "status": it.get("status", "open"), "detail": None}
         if it["kind"] == "computed":
             if it["id"] == "screens-all-gates":
-                bad = [s["screen"] for s in report["screens"] if s["next"] != "done"]
-                r["status"] = "closed" if report["screens"] and not bad else "open"; r["detail"] = {"screens": len(report["screens"]), "notDone": bad}
+                bad = [s["screen"] for s in report["screens"] if s["next"] != "done" or s.get("blockers")]
+                r["status"] = "closed" if report["screens"] and not bad else "open"
+                r["detail"] = {"screens": len(report["screens"]), "notDone": bad, "blockers": [b for s in report["screens"] for b in s.get("blockers", [])][:20]}
             elif it["id"] == "rule-lists-populated":
                 empty = [n for n, p in cfg.get("rules", {}).get("lists", {}).items() if not (load(p) or {}).get("entries")]
                 r["status"] = "closed" if not empty else "open"; r["detail"] = {"emptyLists": empty}
@@ -65,7 +61,10 @@ def main():
             data = load(it.get("source", "")) or {}
             entries = data.get("entries", [])
             pending = [e.get("id", "?") for e in entries if e.get("status") not in ("confirmed", "verified")]
-            r["status"] = "closed" if entries and not pending else "open"; r["detail"] = {"entries": len(entries), "pending": pending, "source": it.get("source")}
+            # a list may be legitimately empty (no hotfixes during the freeze) — only an explicit confirmedEmpty closes it
+            closed = (entries and not pending) or (not entries and data.get("confirmedEmpty") is True)
+            r["status"] = "closed" if closed else "open"
+            r["detail"] = {"entries": len(entries), "pending": pending, "confirmedEmpty": data.get("confirmedEmpty", False), "source": it.get("source")}
         else:
             r["status"] = it.get("status", "open"); r["detail"] = {"owner": it.get("owner"), "evidence": it.get("evidence"), "closedAt": it.get("closedAt")}
         results.append(r)

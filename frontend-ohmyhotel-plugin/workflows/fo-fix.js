@@ -21,6 +21,7 @@ const RESULT = {
 }
 
 phase('Fix')
+if (!args || !args.app || !args.screen) return { ok: false, result: 'not-run', reason: 'args {app, screen, …} are required; this workflow is started by its skill' }
 const base = `app: ${args.app}\nscreen: ${args.screen}\nconfig: ${JSON.stringify(args.config)}\nplanFile: ${args.planFile}\nspecDir: ${args.specDir}`
 const results = []
 for (const c of args.clusters || []) {

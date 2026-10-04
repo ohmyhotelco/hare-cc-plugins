@@ -3,7 +3,7 @@ name: fo-verify
 description: Run the technical gate for one generated screen — route typegen + tsc, the API package's own tsc/vitest for additions, eslint, the screen's vitest suite, the i18n key-coverage spec — through the deterministic fo-verify-run script, write docs/gates/<app>/<screen>/verify.json with a tree hash, and report. Use after fo-gen and after every fo-fix.
 argument-hint: "--app <name> --screen <id> [--only typecheck,lint,unit,package,i18n]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # fo-verify — technical gate
@@ -27,8 +27,10 @@ to verify (say so and stop). Take `.claude/frontend-ohmyhotel/<app>/<screen>/ver
 fo-verify-run --app <app> --screen <screen> [--only …]
 ```
 
-Exit code 0 = every selected check passed; 1 = at least one `fail` or `not-run`. The JSON it prints
-(and writes to `<gates.evidenceDir>/<app>/<screen>/verify.json`) has one entry per check:
+Exit code 0 = every check passed; 1 = at least one `fail` or `not-run`. The JSON it prints (and
+writes to `<gates.evidenceDir>/<app>/<screen>/verify.json`) has one entry per check. With `--only`
+the run is a diagnosis: the result is `partial`, it goes to `verify-partial.json`, and it is **not**
+registered as the gate (skip Step 2) — only a full run stands as `verify`.
 
 | Result | Meaning | What to do with it |
 |---|---|---|

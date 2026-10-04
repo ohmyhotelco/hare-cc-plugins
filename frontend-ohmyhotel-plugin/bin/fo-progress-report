@@ -1,40 +1,75 @@
 #!/usr/bin/env python3
-"""fo-progress-report — compute the screen × gate matrix for one app, with staleness.
+"""fo-progress-report — compute the screen × gate matrix for one app, with staleness and blockers.
 
 Reads progress.json, every screen's generation-state.json and gate evidence files, recomputes each
-screen's hash with fo-screen-hash and marks evidence whose treeHash no longer matches as stale.
-Any gate result other than a current `pass` blocks the screen's `next` (fail, partial, skipped,
-not-run, unknown). Pure read; the
-fo-progress skill renders the JSON this prints.
+screen's hash with fo-screen-hash and decides per gate whether its record still counts:
+
+  current pass           result pass, evidence file readable, recorded treeHash and current hash both
+                         present and equal
+  validated skip         result skipped WITH a reason in the evidence, current — the gate looked and
+                         found nothing applicable (member-only screen for seo, no e2e scenarios)
+  stale                  hashes present but different — the code moved; the gate must run again
+  unverifiable           evidence missing/unreadable, or either hash missing — treated as a blocker
+  anything else          fail, partial, not-run, unknown — blocker
+
+A screen is `done` only when it has no blockers. The tracker entry is an index into the evidence
+file: gate, screen, result and treeHash must agree between the two, or the gate is unverifiable. A
+gate that recorded `specPaths` (its own Playwright specs) is stale when those files changed, even
+though they are outside the shared screen hash. Blockers are listed per screen (`blockers[]`) and in
+`summary.blocked`; fo-cutover-check consumes `blockers`, not just `next`.
 
 USAGE
   fo-progress-report --app <name> [--config …] [--screen <id>]
 """
 import argparse, json, os, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import read_json, sibling
 
-GATES = ["verify", "visual", "e2e", "contract", "seo", "designerReview", "planningAcceptance"]
-
-def load(p):
-    try:
-        with open(p, encoding="utf-8") as f: return json.load(f)
-    except (OSError, ValueError): return None
+GATES = ["verify", "visual", "e2e", "contract", "seo", "review", "designerReview", "planningAcceptance"]
+MANUAL = {"designerReview": "fo-evidence --gate designerReview (manual)", "planningAcceptance": "fo-evidence --gate planningAcceptance (manual)"}
 
 def screen_hash(app, screen, config):
-    r = subprocess.run(["fo-screen-hash", "--app", app, "--screen", screen, "--config", config], capture_output=True, text=True)
+    r = subprocess.run([sibling("fo-screen-hash"), "--app", app, "--screen", screen, "--config", config], capture_output=True, text=True)
     return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+
+def spec_hash(paths):
+    paths = [p for p in (paths or []) if os.path.exists(p)]
+    if not paths: return None
+    r = subprocess.run([sibling("fo-tree-hash"), "--", *paths], capture_output=True, text=True)
+    return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+
+def gate_state(gate, screen, entry, now):
+    """→ (state, detail) where state ∈ current | skipped | stale | unverifiable | blocked | missing.
+    The tracker entry is an index; the evidence file is the record. They must agree on gate, screen,
+    result and hash, or the entry is unverifiable (an interrupted gate can leave the two apart)."""
+    if not entry: return "missing", None
+    ev = read_json(entry.get("evidence") or "")
+    if not isinstance(ev, dict) or not ev: return "unverifiable", "evidence file missing, unreadable or empty"
+    for k, want in (("gate", gate), ("screen", screen), ("result", entry.get("result")), ("treeHash", entry.get("treeHash"))):
+        if ev.get(k) != want: return "unverifiable", f"evidence {k}={ev.get(k)!r} disagrees with tracker {want!r}"
+    rec = entry.get("treeHash")
+    if rec is None or now is None: return "unverifiable", "tree hash missing (recorded: %s, current: %s)" % (rec, now)
+    if rec != now: return "stale", None
+    if ev.get("specPaths"):
+        cur = spec_hash(ev["specPaths"])
+        if cur is None or cur != ev.get("specHash"): return "stale", "the gate's own test files changed"
+    res = entry.get("result")
+    if res == "pass": return "current", None
+    if res == "skipped" and (ev.get("reason") or ev.get("skipped")): return "skipped", ev.get("reason") or ev.get("skipped")
+    return "blocked", ev.get("reason") or res
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True); ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json"); ap.add_argument("--screen")
     a = ap.parse_args()
-    cfg = load(a.config) or sys.exit("config not found — run fo-init")
+    cfg = read_json(a.config) or sys.exit("config not found — run fo-init")
     app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
     ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
-    progress = load(os.path.join(ev_dir, a.app, "progress.json")) or {"screens": {}}
+    progress = read_json(os.path.join(ev_dir, a.app, "progress.json")) or {"screens": {}}
     manifest = os.path.join(app["answerKeys"]["spec"]["dir"], "MANIFEST.md")
     specs = {}
     for l in (open(manifest, encoding="utf-8").read().splitlines() if os.path.exists(manifest) else []):
-        if l.startswith("| ") and not l.startswith("| Screen") :
+        if l.startswith("| ") and not l.startswith("| Screen"):
             c = [x.strip() for x in l.strip("|").split("|")]
             if len(c) >= 9: specs[c[0]] = {"ticket": c[1], "status": c[3], "version": c[4], "contentHash": c[8]}
 
@@ -44,47 +79,57 @@ def main():
     for sid in ids:
         sc = progress.get("screens", {}).get(sid, {})
         sdir = os.path.join(app["screensDir"], sid)
-        plan = load(os.path.join(sdir, "implementation-plan.json"))
-        state = load(os.path.join(".claude", "frontend-ohmyhotel", a.app, sid, "generation-state.json"))
+        plan = read_json(os.path.join(sdir, "implementation-plan.json"))
+        state = read_json(os.path.join(".claude", "frontend-ohmyhotel", a.app, sid, "generation-state.json"))
         now = screen_hash(a.app, sid, a.config)
         spec = specs.get(sid, {})
         plan_info = sc.get("plan") or {}
-        plan_stale = bool(plan and spec.get("contentHash") and not plan.get("spec", {}).get("contentHash", "").startswith(spec["contentHash"]))
-        gates = {}
+        plan_hash = ((plan or {}).get("spec", {}) or {}).get("contentHash") or ""
+        plan_stale = bool(plan and spec.get("contentHash") and not plan_hash.startswith(spec["contentHash"]))
+        pending = [o for o in (plan or {}).get("openApprovals", []) if o.get("status") == "pending"] if plan else []
+        review = sc.get("review") or {}
+
+        gates, blockers = {}, []
         for g in GATES:
             e = (sc.get("gates") or {}).get(g)
-            if not e: gates[g] = {"result": None}; continue
-            ev = load(e.get("evidence") or "") or {}
-            gates[g] = {"result": e.get("result"), "recordedAt": e.get("recordedAt"), "stale": bool(e.get("treeHash") and now and e["treeHash"] != now),
-                        "evidence": e.get("evidence"), "reason": ev.get("reason") or ev.get("skipped")}
+            st, detail = gate_state(g, sid, e, now)
+            gates[g] = {"result": (e or {}).get("result"), "state": st, "recordedAt": (e or {}).get("recordedAt"),
+                        "evidence": (e or {}).get("evidence"), "detail": detail}
+        # review is a gate like the others (a failed, stale or unverifiable review blocks until a new
+        # review record is current and passing); deferred clusters block even on a current review
+        for g in GATES:
+            st = gates[g]["state"]
+            if st in ("stale", "unverifiable", "blocked"): blockers.append(f"{g}: {st}" + (f" ({gates[g]['detail']})" if gates[g]["detail"] else ""))
+            elif st == "missing": blockers.append(f"{g}: not run")
+        if review.get("clustersDeferred"):
+            blockers.append("review: deferred clusters %s" % ",".join(review["clustersDeferred"]))
+        if pending: blockers.insert(0, f"plan: {len(pending)} pending approvals")
+        if plan_stale or sc.get("specStale"): blockers.insert(0, "plan: stale against the spec")
+
         phases = {k: v.get("status") for k, v in (state or {}).get("phases", {}).items()} if state else None
-        # next step, in pipeline order
+        gen = sc.get("gen") or {}
         if not spec: nxt = "fo-spec-sync"
         elif not plan: nxt = "fo-plan"
         elif plan_stale or sc.get("specStale"): nxt = "fo-plan (delta)"
         elif not plan_info.get("approved"): nxt = "fo-plan (approve)"
-        elif sc.get("delta", {}).get("pending"): nxt = "fo-gen --delta"
-        elif (sc.get("gen") or {}).get("status") not in ("done",): nxt = "fo-gen" + (" --resume" if sc.get("gen") else "")
-        elif (sc.get("review") or {}).get("clustersApproved"): nxt = "fo-fix"
+        elif (sc.get("delta") or {}).get("pending"): nxt = "fo-gen --delta"
+        elif gen.get("status") != "done": nxt = "fo-gen" + (" --resume" if gen else "")
+        elif review.get("clustersApproved"): nxt = "fo-fix"
         else:
             nxt = "done"
             for g in GATES:
-                r = gates[g]
-                if r["result"] != "pass" or r.get("stale"):   # anything but a current pass blocks: fail, partial, skipped, not-run, unknown, missing
-                    nxt = {"designerReview": "fo-evidence --gate designerReview (manual)", "planningAcceptance": "fo-evidence --gate planningAcceptance (manual)"}.get(g, f"fo-{g}"); break
-        pending = [o for o in (plan or {}).get("openApprovals", []) if o.get("status") == "pending"] if plan else []
+                if gates[g]["state"] not in ("current", "skipped"):
+                    nxt = MANUAL.get(g, f"fo-{g}"); break
+        if nxt == "done" and blockers: nxt = "blocked"
+
         rows.append({"screen": sid, "spec": spec or None,
                      "plan": {"version": plan.get("planVersion") if plan else None, "approved": plan_info.get("approved"), "stale": plan_stale,
                               "openApprovals": len(pending) if plan else None, "firstOpenApproval": (pending[0].get("question") if pending else None)},
-                     "gen": sc.get("gen") or ({"phases": phases} if phases else None), "gates": gates,
-                     "review": {k: sc.get("review", {}).get(k) for k in ("clustersApproved", "clustersDeferred", "recordedAt")} if sc.get("review") else None,
-                     "treeHash": now, "next": nxt})
+                     "gen": gen or ({"phases": phases} if phases else None), "gates": gates,
+                     "review": {k: review.get(k) for k in ("clustersApproved", "clustersDeferred", "recordedAt")} if review else None,
+                     "treeHash": now, "blockers": blockers, "next": nxt})
     done = sum(1 for r in rows if r["next"] == "done")
-    blocked = [{"screen": r["screen"], "why": w} for r in rows for w in (
-        (["pending approvals"] if r["plan"]["openApprovals"] else []) + (["plan stale"] if r["plan"]["stale"] else []) +
-        (["deferred review clusters"] if r.get("review") and r["review"].get("clustersDeferred") else []) +
-        [f"{g}: {v['result']}" for g, v in r["gates"].items() if v["result"] in ("not-run", "skipped")] +
-        [f"{g}: stale" for g, v in r["gates"].items() if v.get("stale")])]
+    blocked = [{"screen": r["screen"], "why": b} for r in rows for b in r["blockers"]]
     json.dump({"app": a.app, "screens": rows, "summary": {"total": len(rows), "done": done, "blocked": blocked}}, sys.stdout, ensure_ascii=False, indent=2); print()
 
 if __name__ == "__main__":

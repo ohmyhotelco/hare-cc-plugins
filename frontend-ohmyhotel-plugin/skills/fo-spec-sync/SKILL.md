@@ -3,7 +3,7 @@ name: fo-spec-sync
 description: Import a planning-spec attachment (Jira zip or extracted folder) into specs/<screen>/ as an immutable snapshot, update specs/MANIFEST.md (ticket, version, status, sha256, content hash, date), and report which screens now have a plan older than their spec. Use when the planning team delivers a new or updated spec.
 argument-hint: "<screen> <zip-or-dir> --ticket <OMH-nnn> [--app <name>] [--extra <path>]... [--note \"...\"]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
 
 # fo-spec-sync — bring a spec snapshot into the repo
@@ -36,7 +36,7 @@ Read `.claude/frontend-ohmyhotel-plugin.json`; stop with the `fo-init` hint if i
 Run the importer once with `--dry-run`:
 
 ```bash
-fo-spec-import --screen <screen> --from <path> --ticket <ticket> --specs-dir <answerKeys.spec.dir> [--extra ...] [--note "..."] --dry-run
+fo-spec-import --screen <screen> --from <path> --ticket <ticket> --specs-dir <answerKeys.spec.dir> [--extra ...] [--note "..."] --dry-run --stage-dir .claude/frontend-ohmyhotel/stage/<screen>
 ```
 
 It prints a JSON object: header metadata read from the spec (`status`, `version`, `lastUpdated` —
@@ -47,8 +47,8 @@ attachment `sha256`, the markdown `contentHash`, `previousContentHash` for the c
 
 - `changed: false` → say the content is identical (only the attachment or its name differs); still
   record the row if the ticket or file name is new, otherwise stop here.
-- `changed: true` → list what differs at file level (`diff -rq` between the staged folder and the
-  current snapshot is enough — the importer already normalised paths), and run a quick comparison of
+- `changed: true` → list what differs at file level (`diff -rq <stage-dir> specs/<screen>` — the
+  staged tree is kept at `--stage-dir`, already normalised and hoisted), and run a quick comparison of
   the `ko/*-spec_ko.md` headers and section headings so the user sees whether this is a re-upload or a
   real revision. Do not attempt a semantic diff of requirements here; that is `fo-plan`'s delta step.
 
@@ -70,9 +70,9 @@ git add specs/<screen> specs/MANIFEST.md
 
 For the screen just imported, read `<screensDir>/<screen>/implementation-plan.json` if it exists and
 compare its `spec.contentHash` (the 12-hex prefix the manifest records) with the first 12 characters
-of the new `contentHash`. Different → the plan is stale: record
-`specStale: true` with both hashes in `<gates.evidenceDir>/<app>/progress.json` under the screen, so
-`fo-progress` shows it and `fo-plan` knows to produce a delta instead of a fresh plan.
+of the new `contentHash`. Different → the plan is stale:
+`fo-progress-set --app <app> --screen <screen> --set specStale --json 'true' --set specStaleHashes --json '{"plan":"…","spec":"…"}'`,
+so `fo-progress` shows it and `fo-plan` knows to produce a delta instead of a fresh plan.
 
 Also check every other screen in the manifest the same way (cheap: hashes only) so a backlog of
 un-synced specs surfaces here rather than at gate time.

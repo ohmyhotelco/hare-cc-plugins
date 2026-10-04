@@ -32,7 +32,7 @@ next (they edit the same package). A failed extraction stops the sequence; repor
 ## Step 2 — Record, report, next
 
 After the last one: the package's `tsc` and `vitest` once more (`cd <package> && npx tsc --noEmit && npx vitest run`).
-Update `analysis.json` (`extractedTo`) and `progress.json` (`extract: { recordedAt, done: [...], failed: [...] }`).
+Update `analysis.json` (`extractedTo`) and the tracker: `fo-progress-set --app <app> --screen <screen> --set extract --json '{"recordedAt":…,"done":[…],"failed":[…]}'`.
 Release both locks. Report per candidate (module, tests, red/green/mutation evidence), the suggested
 commit (`feat(shared-<pkg>): <candidates> from V2 <screen>`), and next:
 `/frontend-ohmyhotel-plugin:fo-plan --app <app> --screen <screen>`.

@@ -3,7 +3,7 @@ name: fo-contract
 description: Contract gate for one generated screen — checks it against the product repo's machine-checked rule lists (external URL contract, WebView contract, sensitive query keys, request conventions) and the telemetry events its spec names, one agent per list in parallel, and writes docs/gates/<app>/<screen>/contract.json. Use after fo-e2e; required before cutover.
 argument-hint: "--app <name> --screen <id> [--only externalUrls,webviewContract,sensitiveQueryKeys,requestConventions,telemetry]"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Workflow
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 ---
 
 # fo-contract — contract gate
@@ -22,10 +22,17 @@ rule file in `config.rules.lists`; a file with `entries: []` is listed in the re
 recorded" and its check is still started (the agent reports `skipped` with that reason, which keeps
 the gap visible in the evidence). Lock `contract.lock`.
 
-## Step 1 — Run and wait
+## Step 1 — Dev server, run, wait
+
+The probes need the app running with mocks. Start it in the background before the workflow and stop
+it after, with the log under the repo root (the command itself runs from `<app.dir>`):
+`ROOT=$(git rev-parse --show-toplevel); mkdir -p "$ROOT/.claude/frontend-ohmyhotel/<app>"; (cd <app.dir> && npx react-router dev --port <devPort> > "$ROOT/.claude/frontend-ohmyhotel/<app>/dev.log" 2>&1 &)`;
+wait until `curl -s -o /dev/null -w '%{http_code}' http://localhost:<devPort>/` returns 200 (up to
+60 s; otherwise record the gate as `not-run` with that reason). Pass `serverUrl: "http://localhost:<devPort>"`
+in the workflow args; kill the server process in Step 2.
 
 `Workflow` with `name: "frontend-ohmyhotel-plugin:fo-contract"` and
-`args: { app, screen, config, planFile, specDir, outDir: "<evidenceDir>/<app>/<screen>/contract",
+`args: { app, screen, config, planFile, specDir, serverUrl, outDir: "<evidenceDir>/<app>/<screen>/contract",
 checks: [ { check: "externalUrls", ruleFile }, { check: "webviewContract", ruleFile }, { check: "sensitiveQueryKeys", ruleFile }, { check: "requestConventions", ruleFile }, { check: "telemetry" } ] }`
 (reduced by `--only`). Wait for the task notification.
 

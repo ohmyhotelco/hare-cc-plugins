@@ -129,8 +129,8 @@ some ids could not be resolved (listed in the skill's report).
   ],
 
   "testScenarios": [
-    { "id": "TS-001", "kind": "e2e", "covers": ["FR-001", "FR-003"] },
-    { "id": "TS-014", "kind": "unit", "covers": ["BR-004"] }
+    { "id": "TS-001", "kind": "e2e", "covers": ["FR-001", "FR-003"], "sourceHash": "0a1b2c3d" },   // hashed by id (fo-plan-hash adds source = id)
+    { "id": "TS-014", "kind": "unit", "covers": ["BR-004"], "sourceHash": "4e5f6a7b" }
   ],
 
   "sourceHashAlgorithm": "sha256-8/normalized/v1"
