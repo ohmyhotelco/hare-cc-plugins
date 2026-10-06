@@ -20,7 +20,9 @@ It wraps screen generation with the five things the V3 build needs:
 1. **Spec snapshots as the source of truth** — planning attachments imported byte-exact into
    `specs/`, hashed, ledgered; plans and tests cite them by id and line.
 2. **Three answer keys per screen** — the spec (always), Figma frames (view), and the V2
-   implementation from the frozen monorepo (logic), each toggled per app.
+   implementation from the monorepo (logic), each toggled per app. The V2 key is read at one frozen
+   commit (`tracking: "frozen"`), or per screen at a baseline-branch commit with drift detection and
+   deltas while V2 keeps changing (`tracking: "delta"`).
 3. **TDD generation in five stages** — foundation → api-tdd → component-tdd → page-tdd →
    integration, as a workflow that stops at the first failed stage and resumes.
 4. **A gate chain with evidence** — verify, visual (vs Figma), E2E, contract (product rule lists),
@@ -83,8 +85,10 @@ This plugin is tooling; the product repository provides:
 - `specs/` with the planning snapshots (`fo-spec-sync` imports them) and `docs/rules/*.json`
   populated by their owners with an ADR each (`fo-init` scaffolds them empty — an empty list is a
   reported gap, not a pass).
-- For reused screens: a local clone of the archived monorepo and the freeze commit recorded in an
-  ADR (`legacySource.frozenCommit`); `fo-analyze` refuses `TBD`.
+- For reused screens: a local clone of the monorepo, and either the freeze commit recorded in an
+  ADR (`legacySource.frozenCommit`, `tracking: "frozen"`; `fo-analyze` refuses `TBD`), or
+  `tracking: "delta"` with `baselineBranch` and `importCommit`. In delta mode each screen is read at the
+  branch head, `fo-legacy-drift` reports what moved since, and the change ledger counts unjudged commits.
 - For the visual gate: `docs/figma-manifest.json` with the file key, and `FIGMA_TOKEN` in the
   environment when PNG exports should be committed (the token is never written anywhere).
 - Optional: the Codex CLI for `fo-audit-codex` (auto-skips when absent).
@@ -152,7 +156,7 @@ A spec revision later: `fo-spec-sync` again (it flags the stale plan) → `fo-pl
 ```
 specs/<screen>/  ──fo-spec-sync──▶  MANIFEST.md (ticket · version · sha256 · content hash)
       │
-      │  fo-figma ──▶ docs/figma-manifest.json        fo-analyze ──▶ analysis.json (permalinks @ frozenCommit)
+      │  fo-figma ──▶ docs/figma-manifest.json        fo-analyze ──▶ analysis.json (permalinks @ its commit)
       ▼                                                       │  fo-extract ──▶ packages/shared-*
    fo-plan  ──▶ implementation-plan.json + <Screen>.spec.md  ◀┘
       │  (approval)
@@ -191,7 +195,7 @@ closes only then.
 | --- | --- | --- |
 | `fo-init` | Config + product-repo scaffold (`docs/rules`, `docs/adr`, `docs/gates`, `specs/MANIFEST.md`, repo `CLAUDE.md` block) | skill |
 | `fo-spec-sync` | Import a planning attachment as an immutable snapshot; ledger row; stale-plan flag | skill + `bin/fo-spec-import` |
-| `fo-analyze` | V2 implementation(s) from the frozen monorepo → permalinked `analysis.json` | one agent (`legacy-analyzer`) |
+| `fo-analyze` | V2 implementation(s) from the monorepo → permalinked `analysis.json`; re-run on drift updates it and lists `legacyChanges` | one agent (`legacy-analyzer`) |
 | `fo-extract` | Shared-package candidates → `packages/shared-*` with TDD | agents in sequence (`package-extractor`) |
 | `fo-figma` | Frames (state × viewport) → `docs/figma-manifest.json`; PNG export with a token | one agent (`figma-extractor`) + `bin/fo-figma-export` |
 | `fo-plan` | Spec + answer keys + rule lists → plan and screen spec; delta on spec change; approval | one agent (`implementation-planner`) + `bin/fo-plan-hash` |
@@ -226,7 +230,8 @@ after adding an agent or upgrading Claude Code), `fo-gen`, `fo-visual`, `fo-cont
 | `fo-progress-set` | the one locked writer for every non-gate tracker field (`--set`, `--pull`, `--unset`, `--get`) |
 | `fo-progress-report` | the matrix with gate states and blockers |
 | `fo-figma-export` | Figma REST export of frames with `FIGMA_TOKEN` |
-| `fo-cutover-check` | ledger evaluation (`--init` writes the default items and `docs/cutover/frozen-hotfixes.json`) |
+| `fo-cutover-check` | ledger evaluation (`--init` writes the default items and `docs/cutover/frozen-hotfixes.json`; under delta tracking the hotfix list is the V2 change ledger and unjudged commits keep it open) |
+| `fo-legacy-drift` | delta tracking: commits on the baseline branch since each screen's analysis that touch its targets (`--record` → `legacyStale`), or (`--ledger`) commits since `importCommit` with no ledger entry |
 
 ## Troubleshooting / FAQ
 

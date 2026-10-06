@@ -325,3 +325,21 @@ screen whose decisions were all known elsewhere; handing the note and the questi
 re-deriving settled ground and re-asking owned questions. Config gained `docs.screenNotesDir` / `docs.openQuestions`;
 `fo-init` scaffolds the two READMEs; `fo-plan` passes `screenNote`/`openQuestions`; the planner treats the note as
 settled and cites question rows.
+
+### Delta legacy tracking (v0.2.0, 2026-10-06)
+
+The product decided not to freeze the monorepo during the V3 build (its ADR-0022): V2 stays in QA and keeps
+improving, so a single `frozenCommit` would either stop V2 or let V3 miss its changes. `legacySource.tracking`
+selects the model — `frozen` (default; v0.1 behaviour unchanged) or `delta`:
+- `fo-analyze` reads the head of `baselineBranch`, records `commit` per screen, and on a re-run updates the
+  previous analysis over the diff, keeping entry ids and listing `legacyChanges[]`.
+- `bin/fo-legacy-drift` reports per screen the commits after its analysis that touch its targets (`--record` →
+  tracker `legacyStale`), and with `--ledger` the first-parent commits after `importCommit` on `ledgerPaths`
+  that have no entry in `docs/cutover/frozen-hotfixes.json`.
+- Plans record `legacy.commit` and cite analysis ids in `legacySource`; `fo-plan` turns an analysis that moved
+  past the plan into a delta (`legacyDelta`) or, when nothing cited changed, only advances the commit;
+  `delta-modifier` carries `legacy.commit` on merge; `fo-gen` checks the pair.
+- `fo-progress-report` shows `legacy` per screen, blocks on drift (next: `fo-analyze`) and on a lagging plan
+  (next: `fo-plan (delta)`); `fo-cutover-check` keeps the ledger item open while commits are unjudged or the
+  import baseline is `TBD`.
+

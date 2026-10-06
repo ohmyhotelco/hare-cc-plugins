@@ -2,7 +2,8 @@
 
 Written by `implementation-planner` (started from `fo-plan`) to `<screensDir>/<screen>/implementation-plan.json`.
 `fo-gen` builds from it stage by stage, the reviewers judge against it, `fo-spec-sync` compares its
-`spec.contentHash` with the manifest to detect a stale plan. Keys are fixed by the repo's stack (RR v7
+`spec.contentHash` with the manifest to detect a stale plan, and under delta legacy tracking
+`fo-progress-report` compares `legacy.commit` with the analysis commit to detect a plan that lags the V2 answer key. Keys are fixed by the repo's stack (RR v7
 framework mode, SSR, `@ohmyhotelco/design-system`, workspace API package, `useT` over flat JSON, no
 client store), so there are no profile or knob fields.
 
@@ -38,10 +39,11 @@ some ids could not be resolved (listed in the skill's report).
       { "state": "default", "viewport": 390, "nodeId": "1:234", "export": "docs/gates/www/01-main-page/figma/default-390.png" }
     ],
     "legacy": [                           // only when the screen reimplements a V2 route (answerKeys.legacySource)
-      { "app": "apps/web-pc", "path": "src/app/routes/main/", "permalink": "https://github.com/ohmyhotelco/ohmyhotel-monorepo/blob/<frozenCommit>/apps/web-pc/src/app/routes/main/" }
+      { "app": "apps/web-pc", "path": "apps/web-pc/src/app/routes/main/", "permalink": "https://github.com/ohmyhotelco/ohmyhotel-monorepo/blob/<analysis commit>/apps/web-pc/src/app/routes/main/" }
     ],
     "analysis": "apps/www/app/screens/01-main-page/analysis.json"   // or null
   },
+  "legacy": { "commit": "<sha>" },        // the analysis commit this plan was built from; null without an analysis
 
   "files": {
     "view": "apps/www/app/screens/01-main-page/MainPage.tsx",
@@ -66,7 +68,8 @@ some ids could not be resolved (listed in the skill's report).
       "states": ["loading", "empty", "error", "success"],
       "interactions": ["date-range-overlay", "guest-count-overlay"],
       "formSchema": { "file": "…/schemas/searchSchema.ts", "fields": [ { "name": "checkIn", "zod": "z.coerce.date()" } ] },
-      "source": "FR-003, BR-004", "sourceHash": "83f310be" }
+      "source": "FR-003, BR-004", "sourceHash": "83f310be",
+      "legacySource": "B4, F2" }                                // analysis.json entry ids this entry carries over (reused screens)
   ],
 
   "designSystem": {
@@ -139,7 +142,8 @@ some ids could not be resolved (listed in the skill's report).
 
 ## delta-plan.json
 
-Written instead of a new plan when a plan exists and the spec's `contentHash` changed. Applied by
+Written instead of a new plan when a plan exists and the spec's `contentHash` changed, or (delta legacy
+tracking) when the analysis was updated past the plan's `legacy.commit` — or both, in one delta. Applied by
 `delta-modifier` through `fo-gen --delta`, then merged into `implementation-plan.json` with `planVersion + 1`.
 
 ```jsonc
@@ -147,12 +151,15 @@ Written instead of a new plan when a plan exists and the spec's `contentHash` ch
   "app": "www", "screen": "01-main-page",
   "basePlanVersion": 1,
   "spec": { "fromContentHash": "d7d0368ee46c…", "toContentHash": "9a1f…", "fromVersion": "1.9", "toVersion": "2.0" },
+  "legacy": { "fromCommit": "<plan legacy.commit>", "toCommit": "<analysis commit>" },   // null when only the spec moved
   "changes": [
     { "kind": "modify", "section": "components", "name": "HeroSearch", "source": "FR-003",
       "fromHash": "83f310be", "toHash": "0c21aa90", "summary": "check-in range now today..+1y",
       "files": ["…/components/HeroSearch.tsx"], "stage": "component-tdd", "behavioral": true },
     { "kind": "add", "section": "api.additions", "name": "useCityBanners", "source": "FR-007", "toHash": "1c5b6a93", "files": ["…"], "stage": "api-tdd", "behavioral": true },
-    { "kind": "remove", "section": "components", "name": "LegacyBanner", "source": "FR-009", "fromHash": "77ab01cd", "files": ["…"], "stage": "component-tdd", "behavioral": true }
+    { "kind": "remove", "section": "components", "name": "LegacyBanner", "source": "FR-009", "fromHash": "77ab01cd", "files": ["…"], "stage": "component-tdd", "behavioral": true },
+    { "kind": "modify", "section": "components", "name": "BookingList", "legacySource": "B4", "legacyChange": "modify",
+      "summary": "V2 now lists refund-pending bookings under cancelled", "files": ["…"], "stage": "component-tdd", "behavioral": true }
   ],
   "unchanged": 23,
   "hashless": []                           // entries that had no sourceHash and therefore could not be compared

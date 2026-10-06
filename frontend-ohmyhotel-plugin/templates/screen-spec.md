@@ -15,7 +15,7 @@ The V3 plan fixes the count at five blocks; their content is defined here.
 ## 1. Sources
 - Spec: `specs/01-main-page/` — ko primary; en/vi for naming.
 - Figma: frames per state × viewport (table) — or "no frames; breakage check only".
-- Legacy (reimplemented screens only): permalinks into the frozen monorepo, with the behaviors taken from them.
+- Legacy (reimplemented screens only): permalinks into the monorepo at the analysis commit (`legacy.commit`), with the behaviors taken from them.
 - Rules touched: ids from `docs/rules/*.json`, with the ADR behind each.
 - Out of scope: items the spec defers to a later phase (id → reason). Conflicts and how they were proposed to be resolved.
 

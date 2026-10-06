@@ -1,6 +1,6 @@
 ---
 name: implementation-planner
-description: Turns one screen's planning-spec snapshot, its Figma frames, its legacy analysis (when the screen reimplements a V2 route) and the product rule lists into implementation-plan.json plus a draft <Screen>.spec.md; in delta mode compares the new spec against the existing plan and writes delta-plan.json. Writes only those files.
+description: Turns one screen's planning-spec snapshot, its Figma frames, its legacy analysis (when the screen reimplements a V2 route) and the product rule lists into implementation-plan.json plus a draft <Screen>.spec.md; in delta mode compares the new spec and/or the updated legacy analysis against the existing plan and writes delta-plan.json. Writes only those files.
 model: opus
 effort: medium
 tools: Read, Glob, Grep, Write
@@ -24,6 +24,8 @@ tests or anything outside the two (or, in delta mode, one) output files.
 - `openQuestions` — the repo's `docs/open-questions.md`, or null
 - `analysisFile` — `analysis.json` from `fo-analyze`, or null
 - `existingPlan`, `hashReport` — the current `implementation-plan.json` and the `fo-plan-hash --check` result (delta mode)
+- `legacyDelta` — delta mode when the analysis moved past the plan: `{ fromCommit, toCommit, changes }`, where
+  `changes` is the analysis's `legacyChanges[]`; null otherwise
 - `outputPlan`, `outputSpec`, `outputDelta` — where to write
 
 ## Procedure
@@ -44,7 +46,9 @@ tests or anything outside the two (or, in delta mode, one) output files.
 3. `figmaEntry` → `answerKeys.figma[]` (state × viewport × node). No entry → `[]`; the visual gate then
    runs its breakage check only.
 4. `analysisFile` when present → the legacy behaviors, API calls and edge cases to carry over; cite
-   its permalinks under `answerKeys.legacy[]`. When the config enables `legacySource` for the app and
+   its permalinks under `answerKeys.legacy[]`, write its `commit` (`frozenCommit` in a v0.1 file) as the
+   plan's `legacy.commit`, and give every plan entry that carries an analysis entry over a `legacySource`
+   with those ids (`"B4, F2"`) — a later legacy delta finds the affected plan entries through them. When the config enables `legacySource` for the app and
    the spec says the screen is reused from V2 but no analysis exists, plan from the spec and record an
    open approval ("legacy analysis missing — run fo-analyze or accept spec-only").
 5. The repo as it is: existing screens under `screensDir` (follow their file shapes and naming),
@@ -102,6 +106,16 @@ exactly as the spec writes them. Record the language you read in `spec.primaryLa
   renames and structure. Write `outputDelta` in the template's `delta-plan.json` shape with
   `sourceHash: null` on new entries (the skill hashes them). The plan file is updated later by
   `fo-gen --delta`, not by you.
+  When `legacyDelta` is present, handle each change by its kind:
+  - `modify`: change the plan entries whose `legacySource` cites the id, with `legacyChange: "modify"`.
+  - `add`: add an entry when the new analysis entry is `mustPreserve` or the spec says to keep current
+    behaviour (otherwise record it in `notes`).
+  - `remove`: remove the plan entries that existed only for that id, or drop the id from a shared
+    entry's `legacySource`.
+
+  A legacy change the spec overrides (the spec redefines that behaviour) is not carried over. Name it in
+  `notes` instead. Write `legacy: { fromCommit, toCommit }` into the delta. With both a spec change and
+  a legacy change, write one delta that covers both.
 
 ## Output
 
@@ -120,7 +134,8 @@ Return JSON (the skill reads it; keep it short — the files carry the detail):
 }
 ```
 
-In delta mode replace `plan`/`spec` with `delta` and add `changes: { add, modify, remove, hashless }` counts.
+In delta mode replace `plan`/`spec` with `delta` and add `changes: { add, modify, remove, hashless }` counts
+(and `legacy: { carried, overriddenBySpec }` when `legacyDelta` was given).
 
 Deliver the plan for the screen you were given; if you notice an adjacent screen or a shared piece
 that needs work, name it in `notes` and continue.

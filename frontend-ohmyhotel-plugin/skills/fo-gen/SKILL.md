@@ -25,11 +25,13 @@ Read the plan and `<gates.evidenceDir>/<app>/progress.json`:
 - plan not approved (`progress.json` `plan.approved` false) → stop; generation builds on an approved
   plan, otherwise the approval step means nothing
 - without `--delta`: `plan.spec.contentHash` ≠ the manifest row's 12-hex content hash → the spec moved
-  since planning; point at `fo-plan` (delta) and stop
+  since planning; point at `fo-plan` (delta) and stop. Under delta legacy tracking, likewise when the
+  plan's `legacy.commit` ≠ the commit in `<screenDir>/analysis.json` — the V2 answer key moved since planning
 - with `--delta`: the plan is expected to lag the spec. Check instead that `delta-plan.json`
   `spec.fromContentHash` matches the plan's `spec.contentHash` and `spec.toContentHash` matches the
-  manifest row (12-hex prefixes); a mismatch means the delta was planned against a different pair →
-  `fo-plan` again
+  manifest row (12-hex prefixes); when the delta carries `legacy`, its `fromCommit` must equal the plan's
+  `legacy.commit` and its `toCommit` the analysis commit; a mismatch means the delta was planned against a
+  different pair → `fo-plan` again
 - `openApprovals[]` with `status: pending` → list them; continue (they block nothing here) and carry
   them into the report so they are not forgotten
 - `sourceHashStatus` not `computed` → warn: a later delta cannot compare those entries

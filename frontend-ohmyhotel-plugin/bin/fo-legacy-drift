@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""fo-legacy-drift — what moved in the V2 answer key since it was read (legacySource.tracking = "delta").
+
+Screens (default): for every screen with an analysis.json (or --screen), list the commits on
+origin/<baselineBranch> after the analysis commit that touch the analysis targets, and the files they
+changed. Any commit means the screen's V2 source drifted: re-run fo-analyze (it updates analysis.json
+and lists legacyChanges[]), then fo-plan (delta). --record writes the result to the tracker through
+fo-progress-set: `legacyStale` is set for a drifted screen and removed from a clean one.
+
+Ledger (--ledger): first-parent commits on origin/<baselineBranch> after legacySource.importCommit that
+touch legacySource.ledgerPaths and have no entry in docs/cutover/frozen-hotfixes.json (matched on
+`monorepoCommit`, full or ≥7-hex prefix) — the V2 changes nobody has judged for V3 yet. Read-only;
+the judgement itself is a person's (ported / delta / not applicable).
+
+Frozen tracking has no drift by design: the script says so and exits 0. --fetch updates the remote
+branch first (network); without it the last fetched state is used.
+
+USAGE
+  fo-legacy-drift --app <name> [--config …] [--screen <id>] [--fetch] [--record] [--ledger]
+"""
+import argparse, json, os, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import read_json, sibling, utcnow, legacy_source, legacy_git_dir, analysis_commit
+
+LEDGER = os.path.join("docs", "cutover", "frozen-hotfixes.json")
+
+def git(d, *args):
+    r = subprocess.run(["git", "-C", d, *args], capture_output=True, text=True)
+    return r.returncode, r.stdout.strip(), r.stderr.strip()
+
+def exists_at(d, commit, path):
+    return subprocess.run(["git", "-C", d, "cat-file", "-e", f"{commit}:{path}"], capture_output=True).returncode == 0
+
+def target_paths(d, commit, analysis):
+    """Repo-relative target paths. `path` is repo-relative; older analyses wrote it relative to `app`."""
+    out = []
+    for t in analysis.get("targets") or []:
+        p = (t.get("path") or "").strip("/")
+        if not p: continue
+        app = (t.get("app") or "").strip("/")
+        cands = [p] if not app or p.startswith(app + "/") else [p, f"{app}/{p}"]
+        out.append(next((c for c in cands if exists_at(d, commit, c)), cands[-1]))
+    return sorted(set(out))
+
+def log(d, rng, paths, first_parent=False):
+    rc, out, err = git(d, "log", "--format=%H%x09%cI%x09%s", *(["--first-parent"] if first_parent else []), rng, "--", *paths)
+    if rc: raise RuntimeError(err or f"git log {rng} failed")
+    return [dict(zip(("sha", "date", "subject"), l.split("\t", 2))) for l in out.splitlines() if l]
+
+def tracker_has(cfg, app, screen, key):
+    prog = read_json(os.path.join(cfg.get("gates", {}).get("evidenceDir", "docs/gates"), app, "progress.json")) or {}
+    return key in ((prog.get("screens") or {}).get(screen) or {})
+
+def record(a, screen, value):
+    args = [sibling("fo-progress-set"), "--app", a.app, "--screen", screen, "--config", a.config]
+    args += ["--set", "legacyStale", "--json", json.dumps(value)] if value else ["--unset", "legacyStale"]
+    r = subprocess.run(args, capture_output=True, text=True)
+    if r.returncode: sys.exit(f"fo-progress-set failed for {screen}: {r.stderr.strip()}")
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
+    ap.add_argument("--screen"); ap.add_argument("--fetch", action="store_true")
+    ap.add_argument("--record", action="store_true"); ap.add_argument("--ledger", action="store_true")
+    a = ap.parse_args()
+    cfg = read_json(a.config) or sys.exit("config not found — run fo-init")
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
+    ls = legacy_source(app) or sys.exit(f"app {a.app!r} has no answerKeys.legacySource")
+    if ls["tracking"] != "delta":
+        print(json.dumps({"app": a.app, "tracking": ls["tracking"], "note": "frozen tracking: the answer key does not move; nothing to check"})); return
+    d = legacy_git_dir(ls) or sys.exit("no local checkout of the archive repo — set legacySource.localPath or run fo-analyze once")
+    branch = ls["baselineBranch"]
+    if a.fetch:
+        rc, _, err = git(d, "fetch", "-q", "origin", branch)
+        if rc: sys.exit(f"git fetch origin {branch} failed in {d}: {err}")
+    rc, head, err = git(d, "rev-parse", f"origin/{branch}")
+    if rc: sys.exit(f"origin/{branch} not found in {d}: {err}")
+    out = {"app": a.app, "tracking": "delta", "branch": branch, "head": head, "gitDir": d, "checkedAt": utcnow()}
+
+    if a.ledger:
+        imp = ls.get("importCommit")
+        if not imp or imp == "TBD":
+            out["ledger"] = {"importCommit": imp, "detail": "import baseline not recorded yet — nothing to count"}
+        else:
+            try: cs = log(d, f"{imp}..{head}", ls["ledgerPaths"], first_parent=True)
+            except RuntimeError as e: sys.exit(str(e))
+            judged = [str(e.get("monorepoCommit") or "") for e in (read_json(LEDGER) or {}).get("entries", [])]
+            judged = [j for j in judged if len(j) >= 7]
+            unjudged = [c for c in cs if not any(c["sha"].startswith(j) for j in judged)]
+            out["ledger"] = {"importCommit": imp, "paths": ls["ledgerPaths"], "file": LEDGER, "commits": len(cs), "unjudged": unjudged}
+        json.dump(out, sys.stdout, ensure_ascii=False, indent=2); print(); return
+
+    sdir = app["screensDir"]
+    ids = [a.screen] if a.screen else sorted(x for x in (os.listdir(sdir) if os.path.isdir(sdir) else [])
+                                             if os.path.exists(os.path.join(sdir, x, "analysis.json")))
+    rows = []
+    for sid in ids:
+        an = read_json(os.path.join(sdir, sid, "analysis.json"))
+        base = analysis_commit(an)
+        if not base:
+            rows.append({"screen": sid, "stale": None, "detail": "no analysis.json, or no commit recorded in it"}); continue
+        paths = target_paths(d, base, an)
+        if not paths:
+            rows.append({"screen": sid, "from": base, "stale": None, "detail": "analysis lists no targets"}); continue
+        try:
+            cs = log(d, f"{base}..{head}", paths)
+            rc, files, err = git(d, "diff", "--name-only", base, head, "--", *paths)
+            if rc: raise RuntimeError(err)
+        except RuntimeError as e:
+            rows.append({"screen": sid, "from": base, "stale": None, "detail": f"git: {e}"}); continue
+        row = {"screen": sid, "from": base, "to": head, "stale": bool(cs), "commits": cs, "files": files.splitlines() if files else []}
+        rows.append(row)
+        if a.record:
+            if cs: record(a, sid, {"from": base, "to": head, "commits": len(cs), "files": row["files"], "checkedAt": out["checkedAt"]})
+            elif tracker_has(cfg, a.app, sid, "legacyStale"): record(a, sid, None)
+    out["screens"] = rows
+    out["summary"] = {"screens": len(rows), "stale": [r["screen"] for r in rows if r.get("stale")],
+                      "unknown": [r["screen"] for r in rows if r.get("stale") is None]}
+    json.dump(out, sys.stdout, ensure_ascii=False, indent=2); print()
+
+if __name__ == "__main__":
+    main()
