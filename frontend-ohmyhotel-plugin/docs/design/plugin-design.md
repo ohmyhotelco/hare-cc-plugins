@@ -43,7 +43,7 @@ agent roster, and the order of work. It does not restate the V3 plan; it points 
 | P7 | **Current plugin mechanics.** `Agent` (not `Task`); `${CLAUDE_PLUGIN_ROOT}` inside skill and agent bodies; executables in `bin/`; no SessionStart hook that records the install path; shared agent rules in a preloaded skill (`skills/fo-shared/`) referenced through agent `skills:` frontmatter, because a plugin-root `CLAUDE.md` is not loaded into context; `disallowed-tools: AskUserQuestion` on unattended skills; `SKILL.md` under 500 lines with `references/`; `claude plugin validate` plus `scripts/check-plugin-consistency.py` on every change. | Each item is a verified contract change since the source plugins were written (see vault session notes 2026-10-02). The migration plugin's `session-init.sh` + `.local.json` path recording exists only because `${CLAUDE_PLUGIN_ROOT}` once expanded in hooks alone. |
 | P8 | **Gate chain per screen follows V3 plan §7:** DS verify green → `typecheck · lint · vitest` → visual gate (4 viewports × 5 languages; Figma comparison only where a frame exists, breakage check elsewhere) → E2E (spec test-scenarios) → designer review → planning acceptance. Each gate writes evidence (command, exit code, tree hash, artifact) the way `fm-verify` does. `fm-parity` (legacy pixel mirror) and `fm-cascade` are not carried over. | The answer key is Figma, not the legacy render. Evidence recording is a pipeline contract that survives the P6 cleanup: it produces artifacts, it does not ask the model to re-check itself. |
 | P9 | **Cutover is a ledger, not a flip.** `fo-cutover` maintains the cutover checklist (per V3 plan D7/D9, decisions 12–14: app contract items, frozen-monorepo hotfix re-application list, external URL contract, Hana termination items, rollback rehearsal) and reports readiness; it never edits `infra/` intent files. `strangler-orchestrator`, `fm-route` and the flag ledger are not copied. | The V3 decision is a host-level big bang with the ALB/CloudFront switch done by operations; the plugin's job is to prove every item is closed. |
-| P10 | **Three answer keys, toggled per app.** `spec` (always), `legacySource` (V2 hooks/domain from the frozen monorepo archive, referenced by commit permalink — the repo has no `archive/`), `figma` (`docs/figma-manifest.json`, only for screens that have frames). `www` has all three; a future app may have only `spec`. | Decision 8 reimplements reused screens with Figma for the view and V2 hooks for logic; the V3 repo deliberately omits legacy code (D9), so analysis reads the archive by permalink rather than a sibling folder. |
+| P10 | **Three answer keys, toggled per app.** `spec` (always), `legacySource` (V2 hooks/domain from the monorepo, referenced by commit permalink — the repo has no `archive/`; read at one frozen commit, or under `tracking: "delta"` at a per-screen baseline-branch commit with drift detection and deltas, added in v0.2 for products that keep changing V2 during the build), `figma` (`docs/figma-manifest.json`, only for screens that have frames). `www` has all three; a future app may have only `spec`. | Decision 8 reimplements reused screens with Figma for the view and V2 hooks for logic; the V3 repo deliberately omits legacy code (D9), so analysis reads the archive by permalink rather than a sibling folder. |
 
 ## 3. Configuration (`.claude/frontend-ohmyhotel-plugin.json`)
 
@@ -65,9 +65,13 @@ Written by `fo-init`; every path is repo-relative.
         "spec": { "dir": "specs", "manifest": "specs/MANIFEST.md" },
         "legacySource": {                             // optional
           "archiveRepo": "ohmyhotelco/ohmyhotel-monorepo",
-          "frozenCommit": "<sha recorded in ADR at freeze>",
+          "tracking": "frozen",                       // "frozen" (default) | "delta"
+          "frozenCommit": "<sha recorded in ADR at freeze>",   // frozen tracking
+          "baselineBranch": "master",                 // delta tracking: branch the screens are read from
+          "importCommit": "<sha or TBD>",             // delta tracking: import baseline; the change ledger counts commits after it
+          "ledgerPaths": ["apps/web-pc", "apps/web-mobile", "packages"],   // delta tracking: paths the ledger watches (default: apps + packages)
           "apps": ["apps/web-pc", "apps/web-mobile"],
-          "localPath": "~/Development/work/ohmyhotel-monorepo"   // optional local clone; fo-analyze adds a worktree at frozenCommit
+          "localPath": "~/Development/work/ohmyhotel-monorepo"   // optional local clone; fo-analyze adds a worktree at the commit it reads
         },
         "figma": { "manifest": "docs/figma-manifest.json" }   // optional
       },

@@ -2,12 +2,16 @@
 """fo-cutover-check — evaluate the cutover ledger: computed items from evidence, list items from their
 files, manual items from their recorded status. Read-only except --init (writes the ledger template).
 
+With legacySource.tracking = "delta" the frozen-hotfixes item is the V2 change ledger: besides every
+entry being confirmed, fo-legacy-drift --ledger must find no unjudged commit on the baseline branch
+after importCommit (an unrecorded import baseline, or a scan that cannot run, keeps the item open).
+
 USAGE
   fo-cutover-check --app <name> [--config …] [--init]
 """
 import argparse, json, os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from fo_lib import read_json as load, write_json_atomic, sibling
+from fo_lib import read_json as load, write_json_atomic, sibling, legacy_source
 from datetime import datetime, timezone
 
 DEFAULT_ITEMS = [
@@ -18,10 +22,21 @@ DEFAULT_ITEMS = [
   {"id": "app-contract", "kind": "list", "title": "native app contract items confirmed with the app team", "source": "docs/rules/webview-contract.json"},
   {"id": "external-urls", "kind": "list", "title": "every external URL contract entry resolves on the staging host", "source": "docs/rules/external-urls.json"},
   {"id": "frozen-hotfixes", "kind": "list", "title": "every monorepo hotfix since the freeze has a V3 PR or a recorded 'not applicable'", "source": "docs/cutover/frozen-hotfixes.json"},
+  # under delta tracking --init writes DELTA_LEDGER_TITLE for this item instead
   {"id": "rollback-rehearsal", "kind": "manual", "title": "edge switch and revert rehearsed on staging", "owner": "Ops"},
   {"id": "archive-pointers", "kind": "manual", "title": "monorepo README, Jira components and plugin configs point at this repo", "owner": "Dev"},
   {"id": "hana-termination", "kind": "manual", "title": "Hana Card white-label termination items handled (cutover day)", "owner": "Business"},
 ]
+
+DELTA_LEDGER_TITLE = ("every B2C change merged to the baseline branch since the import commit, and every freeze-window "
+                      "hotfix, has a V3 PR or a recorded 'not applicable'")
+
+def ledger_scan(app_name, config):
+    r = subprocess.run([sibling("fo-legacy-drift"), "--app", app_name, "--config", config, "--ledger"], capture_output=True, text=True)
+    if r.returncode or not r.stdout.strip(): return None, (r.stderr.strip() or "fo-legacy-drift failed")
+    led = (json.loads(r.stdout) or {}).get("ledger") or {}
+    if led.get("importCommit") in (None, "", "TBD"): return None, led.get("detail") or "import baseline not recorded"
+    return led, None
 
 def main():
     ap = argparse.ArgumentParser()
@@ -34,8 +49,10 @@ def main():
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     if a.init:
         if os.path.exists(path): sys.exit(f"{path} exists — edit it instead")
+        delta = (legacy_source(app) or {}).get("tracking") == "delta"
         ledger = {"app": a.app, "mode": app.get("cutover", "big-bang"), "updatedAt": now,
-                  "items": [{**i, "status": "open", "evidence": None, "closedAt": None} for i in DEFAULT_ITEMS]}
+                  "items": [{**i, **({"title": DELTA_LEDGER_TITLE} if delta and i["id"] == "frozen-hotfixes" else {}),
+                             "status": "open", "evidence": None, "closedAt": None} for i in DEFAULT_ITEMS]}
         write_json_atomic(path, ledger)
         hot = "docs/cutover/frozen-hotfixes.json"
         if not os.path.exists(hot):
@@ -63,8 +80,15 @@ def main():
             pending = [e.get("id", "?") for e in entries if e.get("status") not in ("confirmed", "verified")]
             # a list may be legitimately empty (no hotfixes during the freeze) — only an explicit confirmedEmpty closes it
             closed = (entries and not pending) or (not entries and data.get("confirmedEmpty") is True)
-            r["status"] = "closed" if closed else "open"
             r["detail"] = {"entries": len(entries), "pending": pending, "confirmedEmpty": data.get("confirmedEmpty", False), "source": it.get("source")}
+            if it["id"] == "frozen-hotfixes" and (legacy_source(app) or {}).get("tracking") == "delta":
+                led, why = ledger_scan(a.app, a.config)
+                if led is None: closed = False; r["detail"]["ledgerScan"] = why
+                else:
+                    r["detail"]["unjudged"] = len(led["unjudged"]); r["detail"]["unjudgedSample"] = [c["sha"][:9] + " " + c["subject"][:60] for c in led["unjudged"][:5]]
+                    closed = closed or (not entries and not led["unjudged"])
+                    if led["unjudged"]: closed = False
+            r["status"] = "closed" if closed else "open"
         else:
             r["status"] = it.get("status", "open"); r["detail"] = {"owner": it.get("owner"), "evidence": it.get("evidence"), "closedAt": it.get("closedAt")}
         results.append(r)

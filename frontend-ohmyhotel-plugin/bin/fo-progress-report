@@ -18,12 +18,16 @@ gate that recorded `specPaths` (its own Playwright specs) is stale when those fi
 though they are outside the shared screen hash. Blockers are listed per screen (`blockers[]`) and in
 `summary.blocked`; fo-cutover-check consumes `blockers`, not just `next`.
 
+Legacy tracking "delta" (legacySource.tracking): `legacyStale` in the tracker (written by
+fo-legacy-drift --record) means the screen's V2 source moved after its analysis → next is fo-analyze;
+a plan whose `legacy.commit` differs from the analysis commit lags the answer key → fo-plan (delta).
+
 USAGE
   fo-progress-report --app <name> [--config …] [--screen <id>]
 """
 import argparse, json, os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from fo_lib import read_json, sibling, e2e_inventory, e2e_layout_fingerprint
+from fo_lib import read_json, sibling, e2e_inventory, e2e_layout_fingerprint, legacy_source, analysis_commit
 
 GATES = ["verify", "visual", "e2e", "contract", "seo", "review", "designerReview", "planningAcceptance"]
 MANUAL = {"designerReview": "fo-evidence --gate designerReview (manual)", "planningAcceptance": "fo-evidence --gate planningAcceptance (manual)"}
@@ -77,6 +81,8 @@ def main():
             c = [x.strip() for x in l.strip("|").split("|")]
             if len(c) >= 9: specs[c[0]] = {"ticket": c[1], "status": c[3], "version": c[4], "contentHash": c[8]}
 
+    ls = legacy_source(app)
+    delta_tracking = bool(ls and ls["tracking"] == "delta")
     ids = sorted(set(specs) | set(progress.get("screens", {})))
     if a.screen: ids = [a.screen]
     rows = []
@@ -92,6 +98,10 @@ def main():
         plan_stale = bool(plan and spec.get("contentHash") and not plan_hash.startswith(spec["contentHash"]))
         pending = [o for o in (plan or {}).get("openApprovals", []) if o.get("status") == "pending"] if plan else []
         review = sc.get("review") or {}
+        ana_commit = analysis_commit(read_json(os.path.join(sdir, "analysis.json")))
+        plan_legacy = ((plan or {}).get("legacy") or {}).get("commit")
+        legacy_stale = sc.get("legacyStale") if delta_tracking else None
+        legacy_lag = bool(delta_tracking and plan and ana_commit and plan_legacy and plan_legacy != ana_commit)
 
         gates, blockers = {}, []
         for g in GATES:
@@ -108,13 +118,17 @@ def main():
         if review.get("clustersDeferred"):
             blockers.append("review: deferred clusters %s" % ",".join(review["clustersDeferred"]))
         if pending: blockers.insert(0, f"plan: {len(pending)} pending approvals")
+        if legacy_lag: blockers.insert(0, f"plan: behind the legacy analysis ({plan_legacy[:7]} → {ana_commit[:7]})")
+        if legacy_stale: blockers.insert(0, "analysis: the V2 source moved since %s (%s commits)" % (str(legacy_stale.get("from", ""))[:7], legacy_stale.get("commits", "?")))
         if plan_stale or sc.get("specStale"): blockers.insert(0, "plan: stale against the spec")
 
         phases = {k: v.get("status") for k, v in (state or {}).get("phases", {}).items()} if state else None
         gen = sc.get("gen") or {}
         if not spec: nxt = "fo-spec-sync"
-        elif not plan: nxt = "fo-plan"
+        elif not plan: nxt = "fo-analyze (delta)" if legacy_stale else "fo-plan"
         elif plan_stale or sc.get("specStale"): nxt = "fo-plan (delta)"
+        elif legacy_stale: nxt = "fo-analyze (delta)"
+        elif legacy_lag: nxt = "fo-plan (delta)"
         elif not plan_info.get("approved"): nxt = "fo-plan (approve)"
         elif (sc.get("delta") or {}).get("pending"): nxt = "fo-gen --delta"
         elif gen.get("status") != "done": nxt = "fo-gen" + (" --resume" if gen else "")
@@ -129,6 +143,7 @@ def main():
         rows.append({"screen": sid, "spec": spec or None,
                      "plan": {"version": plan.get("planVersion") if plan else None, "approved": plan_info.get("approved"), "stale": plan_stale,
                               "openApprovals": len(pending) if plan else None, "firstOpenApproval": (pending[0].get("question") if pending else None)},
+                     "legacy": {"analysisCommit": ana_commit, "planCommit": plan_legacy, "stale": bool(legacy_stale), "lagging": legacy_lag} if delta_tracking else None,
                      "gen": gen or ({"phases": phases} if phases else None), "gates": gates,
                      "review": {k: review.get(k) for k in ("clustersApproved", "clustersDeferred", "recordedAt")} if review else None,
                      "treeHash": now, "blockers": blockers, "next": nxt})

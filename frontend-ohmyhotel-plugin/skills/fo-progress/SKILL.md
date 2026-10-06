@@ -17,6 +17,12 @@ state and evidence files, recomputes each screen's tree hash and prints JSON; th
 fo-progress-report --app <app> [--screen <id>]
 ```
 
+Under delta legacy tracking (`legacySource.tracking: "delta"`) also run `fo-legacy-drift --app <app>`.
+It is read-only and uses the last fetched state of the baseline branch. A drifted screen it reports
+that the tracker does not yet mark (`legacyStale`) still belongs in the blocked list, as "V2 source
+moved since `<from>` (n commits) → fo-analyze". To refresh and record, the user runs
+`fo-legacy-drift --app <app> --fetch --record`; this skill writes nothing.
+
 ## Step 2 — Render
 
 A table per app, one row per screen (spec version and status · plan version/approved/pending
@@ -26,7 +32,7 @@ these marks: `✓` pass, `✗` fail/partial, `○` not run yet, `◌` skipped/no
 wrong). Then:
 
 - **Blocked**: from `summary.blocked[]` — pending approvals (count and `plan.firstOpenApproval`),
-  stale plans, deferred review clusters (`review.clustersDeferred`), gates `skipped`/`not-run` with
+  stale plans (against the spec, or behind the legacy analysis), drifted V2 sources, deferred review clusters (`review.clustersDeferred`), gates `skipped`/`not-run` with
   their `reason`, stale gates.
 - **Next**: the `next` command per screen, grouped (ready for `fo-gen`, waiting on approval, in gates…).
 - With `--blocked`, only the blocked section.

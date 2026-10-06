@@ -74,8 +74,9 @@
   `@playwright/test`.
 - 기획 스냅샷이 있는 `specs/`(`fo-spec-sync`가 반입)와 담당자가 ADR과 함께 채운 `docs/rules/*.json`
   (`fo-init`은 빈 틀만 — 빈 목록은 pass가 아니라 보고되는 갭).
-- 재사용 화면: 아카이브된 monorepo의 로컬 클론과 ADR에 기록된 동결 커밋(`legacySource.frozenCommit`).
-  `fo-analyze`는 `TBD`를 거부합니다.
+- 재사용 화면: monorepo 로컬 클론과, 둘 중 하나 —
+  - ADR에 기록된 동결 커밋(`legacySource.frozenCommit`, `tracking: "frozen"`). 이 경우 `fo-analyze`는 `TBD`를 거부합니다.
+  - `tracking: "delta"`와 `baselineBranch`·`importCommit`. 화면별로 기준 브랜치 HEAD에서 읽고, 그 뒤 바뀐 내용은 `fo-legacy-drift`가 보고하며, 변경 원장이 아직 판정되지 않은 커밋을 셉니다.
 - 비주얼 게이트: 파일 키가 있는 `docs/figma-manifest.json`, PNG를 커밋하려면 환경변수 `FIGMA_TOKEN`
   (토큰은 어디에도 기록되지 않음).
 - 선택: `fo-audit-codex`용 Codex CLI(없으면 자동 skip).
@@ -172,7 +173,8 @@ echo '{"ticket":"OMH-715","comment":"<코멘트 id>"}'          | fo-evidence --
 `fo-tree-hash`(내용 해시) · `fo-screen-hash`(**화면 증거 범위의 정의**) · `fo-spec-import` ·
 `fo-plan-hash`(`--check`: changed / hashless / unresolved / uncited) · `fo-verify-run` ·
 `fo-evidence`(증거 파일 + 색인, 해시 없는 pass 거부, `--spec-path`) · `fo-progress-set`(게이트 외
-트래커 필드의 유일한 잠금 기록기) · `fo-progress-report` · `fo-figma-export` · `fo-cutover-check`.
+트래커 필드의 유일한 잠금 기록기) · `fo-progress-report` · `fo-figma-export` · `fo-cutover-check` ·
+`fo-legacy-drift`(delta 추적: 화면 분석 이후 V2 변경, `--ledger`로 미판정 커밋).
 
 ## 문제 해결 / FAQ
 

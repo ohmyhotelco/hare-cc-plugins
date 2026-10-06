@@ -1,6 +1,6 @@
 {
   "name": "frontend-ohmyhotel-plugin",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Repo-scoped development plugin for ohmyhotelco/ohmyhotel-frontend (V3 All New B2C and later apps in the same repo): spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress and big-bang cutover ledger — orchestrated with workflows; product rules stay in the product repo",
   "author": {
     "name": "Justin Choi"

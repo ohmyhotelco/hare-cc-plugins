@@ -50,9 +50,15 @@ Ask once, in one message, with defaults:
 
 1. `hosts` for the app — default `["www.ohmyhotel.com", "m.ohmyhotel.com"]` for `www`; empty for a new app.
 2. `answerKeys.legacySource` — does this app reimplement screens that exist in the archived monorepo?
-   If yes: `archiveRepo` (default `ohmyhotelco/ohmyhotel-monorepo`), `frozenCommit` (the freeze commit
-   recorded in the ADR; may be `TBD` until the freeze), `apps` (default `["apps/web-pc", "apps/web-mobile"]`),
-   `localPath` (a local clone, optional — `fo-analyze` adds a worktree there instead of cloning).
+   If yes: `archiveRepo` (default `ohmyhotelco/ohmyhotel-monorepo`), `apps` (default `["apps/web-pc", "apps/web-mobile"]`),
+   `localPath` (a local clone, optional — `fo-analyze` adds a worktree there instead of cloning), and
+   `tracking`:
+   - `frozen` — the monorepo is frozen at one commit. Ask for `frozenCommit`, the freeze commit
+     recorded in the ADR. It may be `TBD` until the freeze.
+   - `delta` — V2 keeps changing while this app is built. Each screen's analysis records the commit it
+     read, `fo-legacy-drift` finds what moved, and the cutover ledger counts unjudged changes. Ask for
+     `baselineBranch` (default `master`), `importCommit` (the recorded import baseline; `TBD` until
+     the import), and `ledgerPaths` (default: the `apps` plus `packages`).
    If no: omit the key.
 3. `answerKeys.figma.manifest` — default `docs/figma-manifest.json` (created empty in Step 4) or omit.
 4. `cutover` — `big-bang` (replaces a live site) or `launch` (new app). Default `big-bang` for `www`.

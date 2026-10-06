@@ -1,6 +1,6 @@
 ---
 name: fo-plan
-description: Plan one screen of an app from its spec snapshot (+ Figma frames, legacy analysis, product rule lists) into implementation-plan.json and a draft <Screen>.spec.md, or — when a plan exists and the spec changed — produce delta-plan.json. Ends with the plan summary and an approval question. Use before fo-gen for a new screen, or after fo-spec-sync reports a stale plan.
+description: Plan one screen of an app from its spec snapshot (+ Figma frames, legacy analysis, product rule lists) into implementation-plan.json and a draft <Screen>.spec.md, or — when a plan exists and the spec changed or the legacy analysis moved past it — produce delta-plan.json. Ends with the plan summary and an approval question. Use before fo-gen for a new screen, or after fo-spec-sync reports a stale plan.
 argument-hint: "--app <name> --screen <id> [--force]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, AskUserQuestion
@@ -28,7 +28,8 @@ screen without a spec snapshot cannot be planned; point at `fo-spec-sync`). Deri
 - `figmaEntry` = `screens[<screen>]` of `docs/figma-manifest.json` (null when absent)
 - `screenNote` = `<docs.screenNotesDir>/<screen>.md` when it exists (decisions already applied, V2 sources, exclusions —
   the planner treats it as settled, not as something to re-derive); `openQuestions` = `<docs.openQuestions>` when it exists
-- `analysisFile` = `<screenDir>/analysis.json` when it exists
+- `analysisFile` = `<screenDir>/analysis.json` when it exists; `analysisCommit` = its `commit` (`frozenCommit`
+  in a v0.1 file)
 
 ## Step 1 — Lock
 
@@ -42,6 +43,16 @@ A live lock from another run → report and stop. Every later step, including a 
 | absent | — | `full` |
 | present | equal | **current** — say so and stop at Step 6, unless `--force` (then `full`, and say the previous plan is overwritten) |
 | present | different | `delta` |
+
+Under delta legacy tracking (`legacySource.tracking: "delta"`), a plan whose `legacy.commit` differs
+from `analysisCommit` is also `delta`, even when the spec hash is equal. Then:
+- Build `legacyDelta` = `{ fromCommit: plan.legacy.commit, toCommit: analysisCommit, changes: analysis.legacyChanges }`.
+- Shortcut: when `legacyChanges` is empty, or no plan entry's `legacySource` cites a changed id and
+  no change is an `add` of a `mustPreserve` entry, the V2 move did not touch the plan. Write
+  `legacy.commit` = `analysisCommit` into the plan, record it in the tracker, and stop at Step 6.
+- When the analysis lists no `legacyChanges` but is newer than the plan (it was regenerated in full
+  mode), there is nothing to compare. Say so and offer `--force`.
+- A spec change and a legacy change together make one delta with both inputs.
 
 In delta mode, if `deltaFile` already exists and has not been applied (`progress.json` shows
 `delta: pending`), ask whether to regenerate it or apply the existing one first. Then run
@@ -73,7 +84,7 @@ Report, do not stop, on each of these — the planner records them as open appro
 Start one agent with the `Agent` tool, `subagent_type: frontend-ohmyhotel-plugin:implementation-planner`,
 and a prompt that carries exactly the inputs its file lists: `mode`, `app`, `screen`, the parsed
 `config`, `specDir`, `specMeta`, `figmaEntry`, `screenNote`, `openQuestions`, `analysisFile`, `existingPlan` +
-`hashReport` (delta), and the output paths (`outputPlan`, `outputSpec`, `outputDelta`).
+`hashReport` + `legacyDelta` (delta), and the output paths (`outputPlan`, `outputSpec`, `outputDelta`).
 
 The agent runs in the background. Its result arrives as a completion notification in a later turn:
 tell the user the planner is running and what it was given, then wait for that notification. Do not
@@ -99,7 +110,8 @@ From the agent's JSON summary and the written file(s), show in the user's langua
 - **open approvals** — each with the planner's question; these are decisions the user takes now or
   assigns an owner to (ADR, Jira comment), not things the pipeline resolves
 - **conflicts** — with the planner's proposal; resolution follows the repo's rules
-- in delta mode: the change list grouped by stage, behavioral vs structural, and the `hashless` entries
+- in delta mode: the change list grouped by stage, behavioral vs structural, and the `hashless` entries;
+  for a legacy delta, the V2 commits it spans and the legacy changes the spec overrides (not carried)
 - the planner's `notes`
 
 Then ask one question (`AskUserQuestion`): approve the plan / delta as written, approve with the open
@@ -111,8 +123,8 @@ closed.
 ## Step 6 — Tracker, lock, next
 
 Tracker (always through the locked helper, never by editing the file):
-`fo-progress-set --app <app> --screen <screen> --set plan --json '{"version":n,"approved":bool,"specContentHash":"…","approvedAt":…}' --unset specStale`
-or, for a delta, `--set delta --json '{"pending":true,"from":"…","to":"…"}' --unset specStale`. Release the lock. Suggest the commit (`plan(<screen>): v<planVersion> from spec v<version>` or
+`fo-progress-set --app <app> --screen <screen> --set plan --json '{"version":n,"approved":bool,"specContentHash":"…","legacyCommit":"…"|null,"approvedAt":…}' --unset specStale`
+or, for a delta, `--set delta --json '{"pending":true,"from":"…","to":"…","legacy":{"from":"…","to":"…"}|null}' --unset specStale`. Release the lock. Suggest the commit (`plan(<screen>): v<planVersion> from spec v<version>` or
 `plan(<screen>): delta …`) — the user commits. Name the next command:
 
 - approved full plan → `/frontend-ohmyhotel-plugin:fo-gen --app <app> --screen <screen>`

@@ -21,7 +21,10 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 - **`check`** (default) — `fo-cutover-check --app <app>` evaluates every item: computed from
   `fo-progress-report` and the rule lists, `list` items from their files (every entry
   `confirmed`/`verified`), manual items from their recorded status. Render the table (item, kind,
-  status, detail, owner) and the open list.
+  status, detail, owner) and the open list. Under delta legacy tracking the `frozen-hotfixes` item is the
+  V2 change ledger. Its detail carries `unjudged` (commits on the baseline branch after `importCommit` that
+  touch `ledgerPaths` and have no ledger entry) and samples of them. Show them: each needs a person's
+  judgement (ported / delta / not applicable) as a new entry in `docs/cutover/frozen-hotfixes.json`.
 - **`close <item> --evidence <link>`** — for a `manual` item: set `status: closed`, `evidence`,
   `closedAt`; the person closing it is the owner, and the evidence is a link (QA report, PR, ticket
   comment), not prose. A `computed` or `list` item cannot be closed by hand — point at what makes it

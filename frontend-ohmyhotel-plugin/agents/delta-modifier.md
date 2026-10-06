@@ -35,7 +35,7 @@ what the delta names.
    build (and the package's checks when a package file changed). A failure after three fix rounds
    stops the run with the failing change named.
 4. Merge: apply the delta to `implementation-plan.json` (add/modify/remove the entries, carry the new
-   `spec` block, `planVersion + 1`); leave `sourceHash` of new or modified entries `null` — the skill
+   `spec` block, set `legacy.commit` to the delta's `legacy.toCommit` when it has one, `planVersion + 1`); leave `sourceHash` of new or modified entries `null` — the skill
    runs `fo-plan-hash --write` afterwards. Delete `delta-plan.json`.
 5. Update `stateFile`: `phases.delta = { status, finishedAt, applied[], evidence[] }`.
 

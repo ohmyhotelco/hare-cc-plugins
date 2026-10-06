@@ -104,3 +104,33 @@ def e2e_layout_fingerprint(files, leaked):
     for f in files: h.update(b"f:" + f.encode() + b"\0")
     for l in leaked: h.update(b"l:" + l.encode() + b"\0")
     return h.hexdigest()[:16]
+
+
+# ---- legacy source (the V2 answer key; shared by fo-legacy-drift, fo-progress-report, fo-cutover-check) ----
+ARCHIVE_DIR = os.path.join(".claude", "frontend-ohmyhotel", "archive")
+
+def legacy_source(app):
+    """The app's answerKeys.legacySource with defaults, or None. `tracking` is "frozen" (one frozenCommit;
+    the v0.1 behaviour, and the default when the key is absent) or "delta" (the archive keeps moving: each
+    screen's analysis records the baselineBranch commit it read, drift is detected, and the change ledger
+    counts commits after importCommit on ledgerPaths)."""
+    ls = (app.get("answerKeys") or {}).get("legacySource")
+    if not ls: return None
+    ls = dict(ls)
+    ls.setdefault("tracking", "frozen")
+    if ls["tracking"] == "delta":
+        ls.setdefault("baselineBranch", "master")
+        ls.setdefault("importCommit", "TBD")
+        ls.setdefault("ledgerPaths", list(ls.get("apps") or []) + ["packages"])
+    return ls
+
+def legacy_git_dir(ls):
+    """A local git checkout of the archive repo: legacySource.localPath when it is one, else the fo-analyze worktree."""
+    for p in (os.path.expanduser(ls.get("localPath") or ""), ARCHIVE_DIR):
+        if p and os.path.isdir(p) and subprocess.run(["git", "-C", p, "rev-parse", "--git-dir"], capture_output=True).returncode == 0:
+            return p
+    return None
+
+def analysis_commit(analysis):
+    """The archive commit an analysis.json was read at (`commit`; v0.1 files carry `frozenCommit`)."""
+    return (analysis or {}).get("commit") or (analysis or {}).get("frozenCommit")

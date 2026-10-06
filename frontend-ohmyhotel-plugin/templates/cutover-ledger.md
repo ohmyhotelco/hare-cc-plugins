@@ -36,3 +36,10 @@ with an evidence link). `fo-init` does not create this file; `fo-cutover init` w
 items above — and `docs/cutover/frozen-hotfixes.json` (same envelope as the rule lists, entries
 `{ id, ticket, monorepoCommit, v3Pr | "not-applicable", reason, status }`) — and the user edits owners
 and adds items.
+
+Under delta legacy tracking (`legacySource.tracking: "delta"`), the same file is the **V2 change
+ledger**. Every first-parent commit on the baseline branch after `importCommit` that touches
+`ledgerPaths` needs an entry (a V3 PR, the screen delta PR, or `"not-applicable"` with a reason), and so
+does every hotfix in the final-freeze window. `--init` writes the item's title for that meaning.
+`fo-cutover-check` keeps the item open while `fo-legacy-drift --ledger` reports unjudged commits, or
+while `importCommit` is still `TBD`.
