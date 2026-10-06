@@ -22,7 +22,7 @@ must preserve, with a permalink for every claim, so the planner and the reviewer
   `apps/web-pc/app/routes/my-page.booking-history.tsx`), `specDir`, `outPath` (`<screenDir>/analysis.json`)
 - update mode only: `previousAnalysis` (the existing `analysis.json`), `fromCommit` (the commit it was read at)
 
-## What to record (every entry carries `anchor: "<path>:<line>"` and `permalink`)
+## What to record (every entry carries an `id` — section prefix + number: `B1`, `A1`, `F1`, … — plus `anchor: "<path>:<line>"` and `permalink`)
 
 1. **Behaviors** — what each target does per user action; the states it renders; the rules it
    applies (date clamps, limits, defaults). Mark `mustPreserve: true` where the spec says "현행 유지"
@@ -71,7 +71,7 @@ Do not describe styles or markup — Figma is the view's answer key. Do not prop
   "fromCommit": null,                       // update mode: the commit the previous analysis was read at
   "targets": [ { "app": "apps/web-pc", "path": "apps/web-pc/app/routes/my-page.booking-history.tsx", "permalink": "https://github.com/<repo>/blob/<sha>/<path>" } ],
   "behaviors": [ { "id": "B1", "surface": "list", "rule": "cancelled bookings shown in a separate tab", "mustPreserve": true, "anchor": "…:120", "permalink": "…" } ],
-  "apiCalls": [ { "hook": "useBookingList", "endpoint": "POST /api/v1/booking/list", "fieldSources": { "deviceTypeCode": "constant PC" }, "responseFields": ["list", "totalCount"], "cache": "staleTime 0", "anchor": "…" } ],
+  "apiCalls": [ { "id": "A1", "hook": "useBookingList", "endpoint": "POST /api/v1/booking/list", "fieldSources": { "deviceTypeCode": "constant PC" }, "responseFields": ["list", "totalCount"], "cache": "staleTime 0", "anchor": "…" } ],
   "copySources": [], "failurePaths": [], "navigationSurface": [], "storageSurface": [], "stateSurface": [], "telemetry": [],
   "pcMobileDiff": [ { "behavior": "pagination", "pc": "numbered pages, 10/page", "mobile": "load more, 20/page", "anchors": ["…", "…"] } ],
   "sharedCandidates": [ { "name": "bookingStatusLabel", "from": "…", "usedBy": ["pc", "mobile"], "alreadyIn": null } ],

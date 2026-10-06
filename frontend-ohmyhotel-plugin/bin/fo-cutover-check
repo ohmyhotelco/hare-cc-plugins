@@ -3,7 +3,7 @@
 files, manual items from their recorded status. Read-only except --init (writes the ledger template).
 
 With legacySource.tracking = "delta" the frozen-hotfixes item is the V2 change ledger: besides every
-entry being confirmed, fo-legacy-drift --ledger must find no unjudged commit on the baseline branch
+entry being confirmed, fo-legacy-drift --fetch --ledger must find no unjudged commit on the baseline branch
 after importCommit (an unrecorded import baseline, or a scan that cannot run, keeps the item open).
 
 USAGE
@@ -32,7 +32,7 @@ DELTA_LEDGER_TITLE = ("every B2C change merged to the baseline branch since the 
                       "hotfix, has a V3 PR or a recorded 'not applicable'")
 
 def ledger_scan(app_name, config):
-    r = subprocess.run([sibling("fo-legacy-drift"), "--app", app_name, "--config", config, "--ledger"], capture_output=True, text=True)
+    r = subprocess.run([sibling("fo-legacy-drift"), "--app", app_name, "--config", config, "--fetch", "--ledger"], capture_output=True, text=True)
     if r.returncode or not r.stdout.strip(): return None, (r.stderr.strip() or "fo-legacy-drift failed")
     led = (json.loads(r.stdout) or {}).get("ledger") or {}
     if led.get("importCommit") in (None, "", "TBD"): return None, led.get("detail") or "import baseline not recorded"

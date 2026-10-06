@@ -20,7 +20,8 @@ though they are outside the shared screen hash. Blockers are listed per screen (
 
 Legacy tracking "delta" (legacySource.tracking): `legacyStale` in the tracker (written by
 fo-legacy-drift --record) means the screen's V2 source moved after its analysis → next is fo-analyze;
-a plan whose `legacy.commit` differs from the analysis commit lags the answer key → fo-plan (delta).
+a plan whose `legacy.commit` differs from the analysis commit (or is missing) lags the answer key →
+fo-plan (delta), which comes first: fo-analyze refuses to update past a lagging plan.
 
 USAGE
   fo-progress-report --app <name> [--config …] [--screen <id>]
@@ -101,7 +102,7 @@ def main():
         ana_commit = analysis_commit(read_json(os.path.join(sdir, "analysis.json")))
         plan_legacy = ((plan or {}).get("legacy") or {}).get("commit")
         legacy_stale = sc.get("legacyStale") if delta_tracking else None
-        legacy_lag = bool(delta_tracking and plan and ana_commit and plan_legacy and plan_legacy != ana_commit)
+        legacy_lag = bool(delta_tracking and plan and ana_commit and plan_legacy != ana_commit)
 
         gates, blockers = {}, []
         for g in GATES:
@@ -118,7 +119,7 @@ def main():
         if review.get("clustersDeferred"):
             blockers.append("review: deferred clusters %s" % ",".join(review["clustersDeferred"]))
         if pending: blockers.insert(0, f"plan: {len(pending)} pending approvals")
-        if legacy_lag: blockers.insert(0, f"plan: behind the legacy analysis ({plan_legacy[:7]} → {ana_commit[:7]})")
+        if legacy_lag: blockers.insert(0, f"plan: behind the legacy analysis ({(plan_legacy or 'none')[:7]} → {ana_commit[:7]})")
         if legacy_stale: blockers.insert(0, "analysis: the V2 source moved since %s (%s commits)" % (str(legacy_stale.get("from", ""))[:7], legacy_stale.get("commits", "?")))
         if plan_stale or sc.get("specStale"): blockers.insert(0, "plan: stale against the spec")
 
@@ -127,8 +128,8 @@ def main():
         if not spec: nxt = "fo-spec-sync"
         elif not plan: nxt = "fo-analyze (delta)" if legacy_stale else "fo-plan"
         elif plan_stale or sc.get("specStale"): nxt = "fo-plan (delta)"
-        elif legacy_stale: nxt = "fo-analyze (delta)"
         elif legacy_lag: nxt = "fo-plan (delta)"
+        elif legacy_stale: nxt = "fo-analyze (delta)"
         elif not plan_info.get("approved"): nxt = "fo-plan (approve)"
         elif (sc.get("delta") or {}).get("pending"): nxt = "fo-gen --delta"
         elif gen.get("status") != "done": nxt = "fo-gen" + (" --resume" if gen else "")

@@ -45,14 +45,15 @@ A live lock from another run → report and stop. Every later step, including a 
 | present | different | `delta` |
 
 Under delta legacy tracking (`legacySource.tracking: "delta"`), a plan whose `legacy.commit` differs
-from `analysisCommit` is also `delta`, even when the spec hash is equal. Then:
-- Build `legacyDelta` = `{ fromCommit: plan.legacy.commit, toCommit: analysisCommit, changes: analysis.legacyChanges }`.
+from `analysisCommit` is also `delta`, even when the spec hash is equal. Then, in order:
+- `plan.legacy.commit` is null or is not the analysis's `fromCommit` → its `legacyChanges` do not span
+  the plan. Say so and offer `--force`.
 - Shortcut: when `legacyChanges` is empty, or no plan entry's `legacySource` cites a changed id and
   no change is an `add` of a `mustPreserve` entry, the V2 move did not touch the plan. Write
-  `legacy.commit` = `analysisCommit` into the plan, record it in the tracker, and stop at Step 6.
-- When the analysis lists no `legacyChanges` but is newer than the plan (it was regenerated in full
-  mode), there is nothing to compare. Say so and offer `--force`.
-- A spec change and a legacy change together make one delta with both inputs.
+  `legacy.commit` = `analysisCommit` into the plan and record it in the tracker. With the spec hash
+  equal, stop at Step 6; otherwise continue with the spec delta alone.
+- Otherwise `legacyDelta` = `{ fromCommit: plan.legacy.commit, toCommit: analysisCommit, changes: analysis.legacyChanges }`.
+  A spec change and a legacy change together make one delta with both inputs.
 
 In delta mode, if `deltaFile` already exists and has not been applied (`progress.json` shows
 `delta: pending`), ask whether to regenerate it or apply the existing one first. Then run
@@ -63,7 +64,7 @@ fo-plan-hash --plan <planFile> --spec-dir <specDir> --check
 
 and keep its JSON (`changed`, `unchanged`, `hashless`, `unresolved`, `uncited`) as `hashReport` for the
 planner. The shortcut — "the spec edit did not touch anything the plan cites" — applies only when
-`changed`, `hashless`, `unresolved` **and** `uncited` are all empty (a removed section shows up in
+there is no `legacyDelta` and `changed`, `hashless`, `unresolved` **and** `uncited` are all empty (a removed section shows up in
 `changed` with `to: null`; a new FR/TS/AC/ERR/US section shows up in `uncited`). Then say so, record the
 new `contentHash` in the plan's `spec` block and in the tracker, and stop at Step 6. Otherwise the
 planner runs in delta mode.

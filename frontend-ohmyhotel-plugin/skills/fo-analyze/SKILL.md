@@ -27,10 +27,10 @@ Lock `analyze.lock`.
   after a fetch.
 
 `analysisFile` = `<screenDir>/analysis.json`. Mode:
-- `full` when it is absent, or under frozen tracking.
-- `update` under delta tracking when it exists and was read at an older commit (`commit`, or
-  `frozenCommit` in a v0.1 file). Then `fromCommit` = that commit, and `previousAnalysis` = the
-  existing file.
+- `full` when it is absent, under frozen tracking, or a v0.1 file (`frozenCommit`, no `commit`).
+- `update` under delta tracking when it records an older `commit`. Then `fromCommit` = that commit, and
+  `previousAnalysis` = the existing file. A plan whose `legacy.commit` is not `fromCommit` has not
+  taken in the previous analysis yet: say so, release the lock, and point at `fo-plan`.
 - When it already records `commit`, there is nothing to do. Say so, release the lock, and point at
   `fo-plan`.
 
