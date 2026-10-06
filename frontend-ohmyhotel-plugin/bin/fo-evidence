@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+"""fo-evidence — write a gate's evidence file and register it in progress.json.
+
+Every gate (verify, visual, e2e, contract, seo, review, and the manual designerReview /
+planningAcceptance rows) records its result the same way: one JSON file under
+<gates.evidenceDir>/<app>/<screen>/ with a tree hash of what was checked, and one entry under the
+screen in progress.json. Skills call this instead of hand-writing either file.
+
+USAGE
+  fo-evidence --app <name> --screen <id> --gate <name> --result pass|fail|partial|skipped|not-run \
+              [--config …] [--spec-path <path>]... [--from <json file> | < stdin json]
+  fo-evidence --app <name> --screen <id> --gate <name> --register <existing evidence file>
+
+  The stdin/--from JSON is the gate's own payload (checks, findings, captures …); an empty stdin is
+  fine. This script adds gate, app, screen, planVersion, recordedAt, treeHash, result and writes
+  <evidenceDir>/<app>/<screen>/<gate>.json. A `result` key in the payload is ignored: --result wins.
+  --register only updates progress.json from a file a gate already wrote (fo-verify-run writes its own).
+  --spec-path names the test files THIS gate owns (its Playwright specs); their hash is recorded as
+  specHash/specPaths so fo-progress-report can tell when the gate's own tests changed, without those
+  files being part of the shared screen hash (which would stale every other gate).
+  A malformed --from file is refused (exit 5); empty stdin means an empty payload. A pass whose
+  --spec-path is missing or unhashable is refused (exit 6): the requested watch set never shrinks silently.
+
+  treeHash = fo-screen-hash (the one path set every producer and consumer uses). A `pass` with no
+  computable hash is refused (exit 4) — an unverifiable pass would stay "current" forever — except for
+  the two manual gates, which may be recorded before any code exists.
+  progress.json is updated under a file lock with an atomic replace, because several screens share it.
+"""
+import argparse, json, os, subprocess, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import read_json, write_json_atomic, locked, read_stdin_json, sibling, utcnow
+
+MANUAL = ("designerReview", "planningAcceptance")
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True); ap.add_argument("--gate", required=True)
+    ap.add_argument("--result", choices=["pass", "fail", "partial", "skipped", "not-run"])
+    ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
+    ap.add_argument("--from", dest="src"); ap.add_argument("--register")
+    ap.add_argument("--spec-path", action="append", default=[])
+    a = ap.parse_args()
+
+    cfg = read_json(a.config) or sys.exit("config not found")
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None) or sys.exit(f"app {a.app!r} not in config")
+    ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
+    out_path = os.path.join(ev_dir, a.app, a.screen, f"{a.gate}.json")
+    progress_path = os.path.join(ev_dir, a.app, "progress.json")
+    plan_file = os.path.join(app["screensDir"], a.screen, "implementation-plan.json")
+
+    if a.register:
+        ev = read_json(a.register) or sys.exit(f"cannot read {a.register}")
+        out_path = a.register
+    else:
+        if not a.result: sys.exit("--result is required unless --register")
+        if a.src:
+            try:
+                with open(a.src, encoding="utf-8") as f: payload = json.load(f)
+            except (OSError, ValueError) as e:
+                print(f"refused: --from {a.src} is missing or not valid JSON ({e})", file=sys.stderr); sys.exit(5)
+            if not isinstance(payload, dict):
+                print(f"refused: --from {a.src} must hold a JSON object", file=sys.stderr); sys.exit(5)
+        else:
+            try: payload = read_stdin_json()
+            except ValueError as e:
+                print(f"refused: stdin is not valid JSON ({e})", file=sys.stderr); sys.exit(5)
+        r = subprocess.run([sibling("fo-screen-hash"), "--app", a.app, "--screen", a.screen, "--config", a.config], capture_output=True, text=True)
+        tree = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
+        tree_err = None if tree else ((r.stderr.strip() or r.stdout.strip())[-300:] or "fo-screen-hash failed")
+        if a.result == "pass" and tree is None and a.gate not in MANUAL:
+            print(f"refused: --result pass with no computable treeHash ({tree_err}); record not-run, or fix the hash input", file=sys.stderr)
+            sys.exit(4)
+        payload.pop("result", None)
+        spec_paths = list(a.spec_path)
+        missing = [p for p in spec_paths if not os.path.exists(p)]
+        spec_hash = None
+        if spec_paths and not missing:
+            rs = subprocess.run([sibling("fo-tree-hash"), "--", *spec_paths], capture_output=True, text=True)
+            spec_hash = rs.stdout.strip().splitlines()[-1] if rs.returncode == 0 and rs.stdout.strip() else None
+        if a.result == "pass" and spec_paths and (missing or spec_hash is None):
+            print(f"refused: --result pass but the gate's own spec paths cannot be watched (missing: {missing or 'none'}; hash: {spec_hash}) — the watch set would silently shrink", file=sys.stderr)
+            sys.exit(6)
+        plan = read_json(plan_file) or {}
+        ev = {**payload, "gate": a.gate, "app": a.app, "screen": a.screen, "planVersion": plan.get("planVersion"),
+              "recordedAt": utcnow(), "treeHash": tree, "treeHashError": tree_err,
+              "specPaths": spec_paths or None, "specHash": spec_hash, "result": a.result}
+        write_json_atomic(out_path, ev)
+
+    with locked(progress_path):
+        prog = read_json(progress_path) or {"app": a.app, "screens": {}}
+        sc = prog.setdefault("screens", {}).setdefault(a.screen, {})
+        sc.setdefault("gates", {})[a.gate] = {"result": ev.get("result"), "recordedAt": ev.get("recordedAt"),
+                                              "treeHash": ev.get("treeHash"), "specHash": ev.get("specHash"),
+                                              "specPaths": ev.get("specPaths"), "evidence": out_path}
+        prog["updatedAt"] = utcnow()
+        write_json_atomic(progress_path, prog)
+    print(json.dumps({"evidence": out_path, "progress": progress_path, "result": ev.get("result"), "treeHash": ev.get("treeHash")}))
+
+if __name__ == "__main__":
+    main()

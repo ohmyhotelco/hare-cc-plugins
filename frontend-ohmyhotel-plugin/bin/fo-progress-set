@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""fo-progress-set — the one way to change progress.json outside fo-evidence.
+
+Every skill that records plan approval, generation status, review decisions, fix results, analysis,
+figma or extract state writes through this script, so all tracker writers share one file lock and one
+atomic replace. Editing progress.json by hand or with a Write tool races with fo-evidence and loses
+updates.
+
+USAGE
+  fo-progress-set --app <name> --screen <id> --set <dotted.key> --json '<value>' [--set … --json …]... [--config …]
+  fo-progress-set --app <name> --screen <id> --unset <dotted.key> [--config …]
+  fo-progress-set --app <name> --screen <id> --get [<dotted.key>]
+
+  --set   assigns the JSON value at the key path under screens.<screen> (intermediate objects created;
+          an object value is merged into an existing object, other types replace). Repeatable, in order.
+  --pull  removes the listed values from an array at the key (atomic: read, subtract, write under the
+          lock) — e.g. --pull review.clustersApproved --json '["C1"]' after fixing C1; approvals for other
+          clusters survive.
+  --unset removes the key. --get prints the screen entry or one key.
+  Examples
+    fo-progress-set --app www --screen 01-main-page --set plan --json '{"version":1,"approved":true,"specContentHash":"d7d0368ee46c","approvedAt":"2026-10-06T02:00:00Z"}'
+    fo-progress-set --app www --screen 01-main-page --set gen.status --json '"done"'
+    fo-progress-set --app www --screen 01-main-page --unset specStale
+"""
+import argparse, json, os, sys
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import read_json, write_json_atomic, locked, utcnow
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True)
+    ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
+    ap.add_argument("--set", action="append", default=[]); ap.add_argument("--json", action="append", default=[])
+    ap.add_argument("--pull", action="append", default=[])
+    ap.add_argument("--unset", action="append", default=[]); ap.add_argument("--get", nargs="?", const="", default=None)
+    a = ap.parse_args()
+    if len(a.set) + len(a.pull) != len(a.json): sys.exit("each --set / --pull needs one --json value, in order (--set values first, then --pull values)")
+    cfg = read_json(a.config) or sys.exit("config not found")
+    ev_dir = cfg.get("gates", {}).get("evidenceDir", "docs/gates")
+    path = os.path.join(ev_dir, a.app, "progress.json")
+    values = []
+    for raw in a.json:
+        try: values.append(json.loads(raw))
+        except ValueError as e: sys.exit(f"--json is not valid JSON ({e}): {raw[:80]}")
+
+    with locked(path):
+        prog = read_json(path) or {"app": a.app, "screens": {}}
+        sc = prog.setdefault("screens", {}).setdefault(a.screen, {})
+        if a.get is not None:
+            node = sc
+            for part in [p for p in a.get.split(".") if p]:
+                node = node.get(part) if isinstance(node, dict) else None
+            json.dump(node, sys.stdout, ensure_ascii=False, indent=2); print(); return
+        for key, val in zip(a.set, values):
+            parts = key.split("."); node = sc
+            for part in parts[:-1]:
+                node = node.setdefault(part, {}) if isinstance(node.get(part), dict) or part not in node else node[part]
+                if not isinstance(node, dict): sys.exit(f"{key}: {part} is not an object")
+            last = parts[-1]
+            if isinstance(val, dict) and isinstance(node.get(last), dict): node[last] = {**node[last], **val}
+            else: node[last] = val
+        for key, val in zip(a.pull, values[len(a.set):]):
+            if not isinstance(val, list): sys.exit(f"--pull {key}: --json must be an array of values to remove")
+            parts = key.split("."); node = sc
+            for part in parts[:-1]:
+                node = node.get(part, {}) if isinstance(node, dict) else {}
+            if isinstance(node, dict) and isinstance(node.get(parts[-1]), list):
+                node[parts[-1]] = [x for x in node[parts[-1]] if x not in val]
+        for key in a.unset:
+            parts = key.split("."); node = sc
+            for part in parts[:-1]:
+                node = node.get(part, {}) if isinstance(node, dict) else {}
+            if isinstance(node, dict): node.pop(parts[-1], None)
+        prog["updatedAt"] = utcnow()
+        write_json_atomic(path, prog)
+    json.dump({"progress": path, "screen": a.screen, "set": a.set, "pull": a.pull, "unset": a.unset}, sys.stdout); print()
+
+if __name__ == "__main__":
+    main()

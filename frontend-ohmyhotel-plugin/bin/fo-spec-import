@@ -1,0 +1,228 @@
+#!/usr/bin/env python3
+"""fo-spec-import — import one planning-spec attachment into specs/<screen>/ and update specs/MANIFEST.md.
+
+Deterministic part of /frontend-ohmyhotel-plugin:fo-spec-sync. The skill decides *what* to import and
+reports; this script does the file work the same way every time.
+
+USAGE
+  fo-spec-import --screen <nn-screen> --from <zip|dir> --ticket <OMH-nnn> [--extra <path>]...
+                 [--specs-dir specs] [--manifest specs/MANIFEST.md] [--note "<text>"] [--dry-run] [--stage-dir <dir>]
+
+  --from     a zip as attached to Jira, or an already-extracted directory. The archive's top level is
+             expected to hold ko/ en/ vi/ (and optionally prototype/, data/). Entries written with
+             Windows separators (ko\\file.md) are normalised — the planning tool emits them that way.
+  --extra    additional attachment (zip or dir) copied into specs/<screen>/<basename>/ — e.g. a
+             prototype delivered as a separate file. Repeatable.
+  --dry-run  print the manifest row and the file list; write nothing.
+  --stage-dir keep the extracted (normalised, hoisted) tree at this path so the caller can diff it against
+             the current snapshot; without it the staging area is temporary.
+  --extra    a zip is extracted (and hoisted like the main attachment), a directory is copied, a plain
+             file is copied as-is into specs/<screen>/<basename-without-extension>/.
+  The manifest rewrite keeps the text above and below the table; when --note is absent the screen's
+  existing note is carried over.
+
+OUTPUT  one JSON object on stdout: screen, ticket, file, sha256, status, version, lastUpdated,
+        contentHash, previousContentHash (null when new), changed (bool), files (count), manifest row.
+
+RULES
+  - The target folder is replaced wholesale (a new version is a new snapshot, never a merge).
+  - Nothing inside specs/ is edited; MANIFEST.md rows are the only thing rewritten.
+  - contentHash covers the markdown files only (sorted paths + bytes) so prototype binaries do not
+    churn it; it is what fo-plan records to detect a stale plan.
+"""
+import argparse, hashlib, io, json, os, re, shutil, sys, tempfile, zipfile
+from datetime import date
+
+HEADER_RE = {
+    # planning-plugin headers: "> **Status**: FINALIZED" / "- 상태: 확정 (2026-07-19)"
+    "status": re.compile(r"^(?:>\s*)?(?:[-*]\s*)?\*{0,2}(?:Status|상태)\*{0,2}\s*:\s*(.+?)\s*$", re.M),
+    "version": re.compile(r"^(?:>\s*)?(?:[-*]\s*)?\*{0,2}(?:Version|버전)\*{0,2}\s*:\s*(.+?)\s*$", re.M),
+    # "Last Updated" may share a line with "Created" ("**Created**: … / **Last Updated**: …")
+    "lastUpdated": re.compile(r"\*{0,2}Last Updated\*{0,2}\s*:\s*(.+?)\s*$", re.M),
+}
+VERSION_IN_STATUS = re.compile(r"\bv?(\d+\.\d+(?:\.\d+)?)\b")
+DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+def normalise_meta(meta):
+    """Status keeps only its keyword; a version embedded in it ("DRAFT v0.4.1 (…)") fills Version when
+    the header has no Version line; Last Updated keeps the date only."""
+    st = meta.get("status")
+    if st:
+        m = VERSION_IN_STATUS.search(st)
+        if m and not meta.get("version"):
+            meta["version"] = m.group(1)
+        meta["status"] = re.split(r"[\s(（]", st.strip(), maxsplit=1)[0].strip() or st.strip()
+    lu = meta.get("lastUpdated")
+    if lu:
+        d = DATE_RE.search(lu)
+        meta["lastUpdated"] = d.group(0) if d else lu[:10]
+    v = meta.get("version")
+    if v:
+        meta["version"] = v.strip().lstrip("vV")
+    return meta
+
+def sha256_file(p):
+    h = hashlib.sha256()
+    with open(p, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+def extract(src, dst):
+    """Copy a dir or extract a zip into dst, normalising backslash entry names."""
+    if os.path.isdir(src):
+        shutil.copytree(src, dst, dirs_exist_ok=True)
+        return
+    with zipfile.ZipFile(src) as z:
+        for info in z.infolist():
+            name = info.filename.replace("\\", "/")
+            if name.endswith("/") or name.startswith("__MACOSX/") or os.path.basename(name) == ".DS_Store":
+                continue
+            parts = [p for p in name.split("/") if p not in ("", ".", "..")]
+            target = os.path.join(dst, *parts)
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            with z.open(info) as s, open(target, "wb") as d:
+                shutil.copyfileobj(s, d)
+
+def hoist_wrapper(stage):
+    """Some attachments wrap everything in one top-level folder (spec_b2c-foo/ko, ...); lift it so the
+    snapshot always has ko/ en/ vi/ at its top, like the others."""
+    entries = [e for e in os.listdir(stage) if e != ".DS_Store"]
+    if len(entries) == 1 and os.path.isdir(os.path.join(stage, entries[0])):
+        inner = os.path.join(stage, entries[0])
+        if any(os.path.isdir(os.path.join(inner, l)) for l in ("ko", "en", "vi")):
+            for e in os.listdir(inner):
+                shutil.move(os.path.join(inner, e), os.path.join(stage, e))
+            os.rmdir(inner)
+
+def content_hash(folder):
+    h = hashlib.sha256()
+    files = []
+    for root, _, names in os.walk(folder):
+        for n in names:
+            if n.endswith(".md"):
+                files.append(os.path.relpath(os.path.join(root, n), folder))
+    for rel in sorted(files):
+        h.update(rel.encode("utf-8") + b"\0")
+        with open(os.path.join(folder, rel), "rb") as f:
+            h.update(f.read())
+        h.update(b"\0")
+    return h.hexdigest(), len(files)
+
+def header_meta(folder):
+    """Status/Version/Last Updated from the first *-spec*.md found (ko preferred)."""
+    candidates = []
+    for root, _, names in os.walk(folder):
+        for n in names:
+            if n.endswith(".md") and "spec" in n and "screens" not in n and "scenario" not in n:
+                candidates.append(os.path.join(root, n))
+    candidates.sort(key=lambda p: (0 if "/ko/" in p or "_ko" in p else 1, p))
+    meta = {"status": None, "version": None, "lastUpdated": None}
+    for p in candidates:
+        with open(p, encoding="utf-8", errors="replace") as f:
+            head = f.read(4000)
+        found = {k: (m.group(1) if (m := rx.search(head)) else None) for k, rx in HEADER_RE.items()}
+        if any(found.values()):
+            meta.update({k: v for k, v in found.items() if v})
+            break
+    return normalise_meta(meta)
+
+def read_manifest(path):
+    """→ (head_text, rows, tail_text): the text before the table header, the data rows, the text after the table."""
+    if not os.path.exists(path):
+        return None, [], ""
+    with open(path, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+    hdr = next((i for i, l in enumerate(lines) if l.startswith("| Screen")), None)
+    if hdr is None:
+        return "\n".join(lines) + ("\n" if lines else ""), [], ""
+    rows, i = [], hdr + 1
+    if i < len(lines) and lines[i].startswith("|---"): i += 1
+    while i < len(lines) and lines[i].startswith("| "):
+        rows.append(lines[i]); i += 1
+    head = "\n".join(lines[:hdr]) + ("\n" if hdr else "")
+    tail = "\n".join(lines[i:])
+    return head, rows, (tail + "\n" if tail.strip() else "")
+
+def manifest_row(d):
+    cells = [d["screen"], d["ticket"], d["file"], d["status"] or "—", d["version"] or "—",
+             (d["lastUpdated"] or "—")[:10], d["sha256"][:12], d["imported"], d["contentHash"][:12], d["note"] or ""]
+    return "| " + " | ".join(str(c).replace("|", "\\|") for c in cells) + " |"
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--screen", required=True)
+    ap.add_argument("--from", dest="src", required=True)
+    ap.add_argument("--ticket", required=True)
+    ap.add_argument("--extra", action="append", default=[])
+    ap.add_argument("--specs-dir", default="specs")
+    ap.add_argument("--manifest", default=None)
+    ap.add_argument("--note", default="")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--stage-dir", default=None)
+    a = ap.parse_args()
+
+    if not re.fullmatch(r"\d{2}[a-z]?-[a-z0-9-]+", a.screen):
+        sys.exit(f"screen id must look like 01-main or 02a-admin-hotel-recommendation, got {a.screen!r}")
+    if not os.path.exists(a.src):
+        sys.exit(f"--from not found: {a.src}")
+    manifest = a.manifest or os.path.join(a.specs_dir, "MANIFEST.md")
+    target = os.path.join(a.specs_dir, a.screen)
+
+    with tempfile.TemporaryDirectory() as tmp:
+        stage = os.path.join(tmp, "stage")
+        os.makedirs(stage)
+        extract(a.src, stage)
+        hoist_wrapper(stage)
+        for extra in a.extra:
+            if not os.path.exists(extra):
+                sys.exit(f"--extra not found: {extra}")
+            if os.path.isdir(extra):
+                sub = os.path.join(stage, os.path.basename(extra.rstrip("/"))); extract(extra, sub); hoist_wrapper(sub)
+            elif zipfile.is_zipfile(extra):
+                sub = os.path.join(stage, os.path.splitext(os.path.basename(extra))[0]); extract(extra, sub); hoist_wrapper(sub)
+            else:
+                sub = os.path.join(stage, os.path.splitext(os.path.basename(extra))[0]); os.makedirs(sub, exist_ok=True)
+                shutil.copy2(extra, os.path.join(sub, os.path.basename(extra)))
+
+        meta = header_meta(stage)
+        chash, nfiles = content_hash(stage)
+        if nfiles == 0:
+            sys.exit("no markdown files found in the attachment — wrong file, or a layout this importer does not know")
+        prev_hash = content_hash(target)[0] if os.path.isdir(target) else None
+        src_sha = sha256_file(a.src) if os.path.isfile(a.src) else chash
+
+        row = {
+            "screen": a.screen, "ticket": a.ticket, "file": os.path.basename(a.src.rstrip("/")),
+            "status": meta["status"], "version": meta["version"], "lastUpdated": meta["lastUpdated"],
+            "sha256": src_sha, "imported": date.today().isoformat(), "contentHash": chash, "note": a.note,
+        }
+        head, rows, tail = read_manifest(manifest)
+        existing = next((r for r in rows if r.startswith(f"| {a.screen} |")), None)
+        if not a.note and existing:
+            cells = [c.strip() for c in existing.strip().strip("|").split("|")]
+            if len(cells) >= 10: row["note"] = cells[9]
+        result = {**row, "previousContentHash": prev_hash, "changed": prev_hash != chash, "files": nfiles,
+                  "manifestRow": manifest_row(row), "target": target, "dryRun": a.dry_run}
+        if a.stage_dir:
+            if os.path.isdir(a.stage_dir): shutil.rmtree(a.stage_dir)
+            shutil.copytree(stage, a.stage_dir); result["stageDir"] = a.stage_dir
+
+        if not a.dry_run:
+            if head is None:
+                sys.exit(f"manifest not found: {manifest} — run fo-init first")
+            if os.path.isdir(target):
+                shutil.rmtree(target)
+            shutil.copytree(stage, target)
+            kept = [r for r in rows if not r.startswith(f"| {a.screen} |")]
+            kept.append(manifest_row(row))
+            kept.sort(key=lambda r: r.split("|")[1].strip())
+            header = "| Screen | Ticket | File | Status | Version | Last updated | sha256[:12] | Imported | Content hash | Notes |\n|---|---|---|---|---|---|---|---|---|---|\n"
+            with open(manifest, "w", encoding="utf-8") as f:
+                f.write(head + header + "\n".join(kept) + "\n" + tail)
+
+    json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
+    print()
+
+if __name__ == "__main__":
+    main()

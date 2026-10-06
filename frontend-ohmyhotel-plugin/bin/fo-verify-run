@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""fo-verify-run — run the technical gate for one screen and write its evidence file.
+
+The checks are commands, not judgements, so they run from a script: the same commands, the same
+result taxonomy, the same evidence shape every time, with no agent in the loop. The fo-verify skill
+calls this, reads the JSON it prints, and reports.
+
+USAGE
+  fo-verify-run --app <name> --screen <id> [--config .claude/frontend-ohmyhotel-plugin.json]
+                [--only typecheck,lint,unit,package,i18n,e2e-layout] [--timeout 600] [--no-write]
+
+  --only runs a subset for diagnosis: the result is forced to `partial`, written to verify-partial.json
+  (never to verify.json), and the exit code is 1 — a subset can never stand in for the gate.
+  Toolchain: each check needs its binary under the app's (or repo's) node_modules/.bin; absent → not-run.
+
+CHECKS (each → pass | fail | skipped | not-run, with a reason for the last two)
+  typecheck   npx react-router typegen, then tsc --noEmit (tsc -b when tsconfig has "references"), in the app dir
+  package     the API package's own tsc + vitest for the plan's api.additions test files (skipped when none)
+  lint        eslint over the screen dir (+ package additions) when an eslint config exists
+  unit        npx vitest run <screenDir> in the app dir
+  i18n        npx vitest run <appDir>/__tests__/i18n-key-coverage.test.ts when that spec exists
+  e2e-layout  every file under <app.dir>/e2e/ sits where templates/e2e-playwright.md § The e2e tree
+              allows (fixtures.ts · tsconfig.json · support/*.ts · support/*.setup.ts · support/pages/<screen>.ts ·
+              screens/<screen>/<TS|E2E-nnn>.spec.ts · visual/<screen>.spec.ts · visual/__snapshots__/** ·
+              seo/<screen>.<aspect>.spec.ts), nothing else; and no run output is tracked by git — judged by
+              location (test-results/, playwright-report/, .auth/, **/.artifacts/, and Playwright artifact
+              names under e2e/), never by extension across the app. Skipped when the app has no e2e/ yet;
+              not-run when git cannot be consulted. The e2e file list + tracked run output are fingerprinted
+              into the evidence so fo-progress-report can stale a pass when they change (the shared screen
+              hash leaves e2e/** out on purpose). The lists are recorded in full (`misplaced`,
+              `trackedRunOutput`) for fo-fix.
+
+EVIDENCE  <gates.evidenceDir>/<app>/<screen>/verify.json:
+  { gate, app, screen, planVersion, recordedAt, treeHash, result, checks: { name: { result, command,
+    cwd, exitCode, durationMs, reason?, summary } } }
+  treeHash is fo-screen-hash's (shared path set); a gate record is valid for exactly that content.
+"""
+import argparse, json, os, re, shutil, subprocess, sys, time
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+from fo_lib import sibling, repo_root, e2e_inventory, e2e_layout_fingerprint
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime, timezone
+
+def load(p):
+    with open(p, encoding="utf-8") as f:
+        return json.load(f)
+
+def run(cmd, cwd, timeout):
+    t0 = time.time()
+    try:
+        p = subprocess.run(cmd, cwd=cwd, shell=True, capture_output=True, text=True, timeout=timeout)
+        out = (p.stdout or "") + (p.stderr or "")
+        return p.returncode, out, int((time.time() - t0) * 1000), None
+    except subprocess.TimeoutExpired:
+        return None, "", int((time.time() - t0) * 1000), f"timed out after {timeout}s"
+    except FileNotFoundError as e:
+        return None, "", 0, str(e)
+
+def tail(out, n=12):
+    lines = [l for l in out.strip().splitlines() if l.strip()]
+    return "\n".join(lines[-n:])
+
+def summarize(name, out):
+    if name in ("unit", "package", "i18n"):
+        m = re.search(r"Tests\s+(.+?)\s*$", out, re.M)
+        if m: return m.group(1)
+    if name == "typecheck":
+        n = len(re.findall(r"error TS\d+", out))
+        return f"{n} errors" if n else "0 errors"
+    if name == "lint":
+        m = re.search(r"✖ (\d+) problems?", out)
+        return m.group(0) if m else ("clean" if not out.strip() else tail(out, 3))
+    return tail(out, 3)
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--app", required=True); ap.add_argument("--screen", required=True)
+    ap.add_argument("--config", default=".claude/frontend-ohmyhotel-plugin.json")
+    ap.add_argument("--only", default=None); ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--no-write", action="store_true")
+    a = ap.parse_args()
+    root = repo_root()
+    if root and os.path.realpath(os.getcwd()) != os.path.realpath(root):
+        os.chdir(root)   # every path in the config is repo-relative; the gate runs from the root wherever it was invoked
+
+    cfg = load(a.config)
+    app = next((x for x in cfg["apps"] if x["name"] == a.app), None)
+    if not app: sys.exit(f"app {a.app!r} not in config")
+    screen_dir = os.path.join(app["screensDir"], a.screen)
+    plan_file = os.path.join(screen_dir, "implementation-plan.json")
+    if not os.path.exists(plan_file): sys.exit(f"no plan at {plan_file} — run fo-plan")
+    plan = load(plan_file)
+    app_dir, app_root = app["appDir"], app["dir"]
+    pkg = cfg.get("sharedPackages", {}).get("api", {})
+    pkg_dir = os.path.dirname(os.path.dirname(pkg.get("entry", ""))) if pkg.get("entry") else None
+    additions = plan.get("api", {}).get("additions", []) or []
+    add_files = [x["file"] for x in additions if x.get("file")]
+    add_tests = []
+    for st in plan.get("buildOrder", []):
+        if st.get("stage") == "api-tdd": add_tests += st.get("testFiles", [])
+    only = set(a.only.split(",")) if a.only else None
+
+    def rel(p, base):  # repo-relative path → relative to base dir
+        return os.path.relpath(p, base)
+
+    def has_bin(name, *dirs):
+        return any(os.path.exists(os.path.join(d, "node_modules", ".bin", name)) for d in [*dirs, "."])
+
+    def tsc_cmd(dir_):
+        ts = os.path.join(dir_, "tsconfig.json")
+        try:
+            comp = '"references"' in open(ts, encoding="utf-8").read()
+        except OSError:
+            return None
+        return "npx tsc -b 2>&1" if comp else "npx tsc --noEmit 2>&1"
+
+    checks = {}
+    def record(name, result, command="", cwd="", exit_code=None, dur=0, reason=None, out=""):
+        checks[name] = {k: v for k, v in {"result": result, "command": command, "cwd": cwd, "exitCode": exit_code,
+                        "durationMs": dur, "reason": reason, "summary": summarize(name, out) if out else (reason or ""),
+                        "tail": tail(out) if out and result == "fail" else None}.items() if v is not None}
+
+    def do_typecheck():
+        if not shutil.which("npx"): return record("typecheck", "not-run", reason="npx not on PATH")
+        if not has_bin("tsc", app_root) or not has_bin("react-router", app_root): return record("typecheck", "not-run", reason="typescript / react-router not installed (node_modules/.bin)")
+        tsc = tsc_cmd(app_root)
+        if not tsc: return record("typecheck", "not-run", reason=f"no tsconfig.json in {app_root}")
+        cmd = f"npx react-router typegen 2>&1 && {tsc}"
+        code, out, dur, err = run(cmd, app_root, a.timeout)
+        if err: return record("typecheck", "not-run", cmd, app_root, None, dur, err)
+        record("typecheck", "pass" if code == 0 else "fail", cmd, app_root, code, dur, out=out)
+
+    def do_package():
+        if not additions: return record("package", "skipped", reason="no api.additions in the plan")
+        if not pkg_dir or not os.path.isdir(pkg_dir): return record("package", "not-run", reason=f"package dir not found ({pkg_dir})")
+        if not has_bin("vitest", pkg_dir) or not has_bin("tsc", pkg_dir): return record("package", "not-run", reason="vitest / typescript not installed for the package")
+        tsc = tsc_cmd(pkg_dir) or "npx tsc --noEmit 2>&1"
+        tests = " ".join(rel(t, pkg_dir) for t in add_tests) or "."
+        cmd = f"{tsc} && npx vitest run {tests} --reporter=verbose 2>&1"
+        code, out, dur, err = run(cmd, pkg_dir, a.timeout)
+        if err: return record("package", "not-run", cmd, pkg_dir, None, dur, err)
+        record("package", "pass" if code == 0 else "fail", cmd, pkg_dir, code, dur, out=out)
+
+    def do_lint():
+        has_cfg = any(os.path.exists(os.path.join(d, f)) for d in (".", app_root) for f in
+                      ("eslint.config.js", "eslint.config.mjs", "eslint.config.ts", ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json"))
+        if not has_cfg: return record("lint", "skipped", reason="no eslint config in repo or app")
+        if not has_bin("eslint", app_root): return record("lint", "not-run", reason="eslint not installed (node_modules/.bin)")
+        targets = " ".join([screen_dir] + add_files)
+        cmd = f"npx eslint {targets} 2>&1"
+        code, out, dur, err = run(cmd, ".", a.timeout)
+        if err: return record("lint", "not-run", cmd, ".", None, dur, err)
+        record("lint", "pass" if code == 0 else "fail", cmd, ".", code, dur, out=out)
+
+    def do_unit():
+        if not os.path.isdir(screen_dir): return record("unit", "not-run", reason=f"screen dir missing: {screen_dir}")
+        if not shutil.which("npx") or not has_bin("vitest", app_root): return record("unit", "not-run", reason="vitest not installed (node_modules/.bin)")
+        cmd = f"npx vitest run {rel(screen_dir, app_root)} --reporter=verbose 2>&1"
+        code, out, dur, err = run(cmd, app_root, a.timeout)
+        if err: return record("unit", "not-run", cmd, app_root, None, dur, err)
+        if code != 0 and "No test files found" in out: return record("unit", "fail", cmd, app_root, code, dur, "no test files under the screen dir", out)
+        record("unit", "pass" if code == 0 else "fail", cmd, app_root, code, dur, out=out)
+
+    def do_i18n():
+        spec = os.path.join(app_dir, "__tests__", "i18n-key-coverage.test.ts")
+        if not os.path.exists(spec): return record("i18n", "skipped", reason="no i18n-key-coverage spec (foundation-generator writes it once per app)")
+        if not has_bin("vitest", app_root): return record("i18n", "not-run", reason="vitest not installed (node_modules/.bin)")
+        cmd = f"npx vitest run {rel(spec, app_root)} --reporter=verbose 2>&1"
+        code, out, dur, err = run(cmd, app_root, a.timeout)
+        if err: return record("i18n", "not-run", cmd, app_root, None, dur, err)
+        record("i18n", "pass" if code == 0 else "fail", cmd, app_root, code, dur, out=out)
+
+    layout = {"fingerprint": None}
+
+    def do_e2e_layout():
+        e2e = os.path.join(app_root, "e2e")
+        files, misplaced, leaked, err = e2e_inventory(app_root)
+        if err: return record("e2e-layout", "not-run", "git ls-files", ".", None, 0, f"cannot consult git: {err}")
+        layout["fingerprint"] = e2e_layout_fingerprint(files, leaked)
+        if not os.path.isdir(e2e) and not leaked: return record("e2e-layout", "skipped", reason="no e2e/ under the app yet")
+        out = "\n".join([f"misplaced: {b}" for b in misplaced] + [f"tracked run output: {l}" for l in leaked])
+        if misplaced or leaked:
+            record("e2e-layout", "fail", "layout check (templates/e2e-playwright.md § The e2e tree)", app_root, 1, 0, None, out)
+            checks["e2e-layout"]["summary"] = f"{len(misplaced)} misplaced file(s), {len(leaked)} tracked run-output file(s)"
+        else:
+            record("e2e-layout", "pass", "layout check (templates/e2e-playwright.md § The e2e tree)", app_root, 0, 0, None, "")
+            checks["e2e-layout"]["summary"] = "tree matches templates/e2e-playwright.md"
+        checks["e2e-layout"]["misplaced"] = misplaced
+        checks["e2e-layout"]["trackedRunOutput"] = leaked
+
+    jobs = {"typecheck": do_typecheck, "package": do_package, "lint": do_lint, "unit": do_unit, "i18n": do_i18n, "e2e-layout": do_e2e_layout}
+    selected = [n for n in jobs if not only or n in only]
+    with ThreadPoolExecutor(max_workers=len(selected)) as ex:
+        list(ex.map(lambda n: jobs[n](), selected))
+
+    # tree hash over what was checked — the shared definition (bin/fo-screen-hash)
+    code, out, _, err = run(f"'{sibling('fo-screen-hash')}' --app {a.app} --screen {a.screen} --config '{a.config}'", ".", 120)
+    tree = out.strip().splitlines()[-1] if code == 0 and out.strip() else None
+
+    results = [c["result"] for c in checks.values()]
+    overall = "fail" if "fail" in results else ("not-run" if "not-run" in results else "pass")
+    if only: overall = "partial"   # a subset never stands in for the gate
+    evidence = {
+        "gate": "verify", "app": a.app, "screen": a.screen, "planVersion": plan.get("planVersion"),
+        "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "treeHash": tree, "treeHashError": None if tree else (err or tail(out, 2)),
+        "e2eLayoutFingerprint": layout["fingerprint"],   # fo-progress-report recomputes it: a verify pass goes stale when e2e/ files or tracked run output change
+        "result": overall, "checks": checks,
+    }
+    out_path = os.path.join(cfg.get("gates", {}).get("evidenceDir", "docs/gates"), a.app, a.screen, "verify-partial.json" if only else "verify.json")
+    evidence["subset"] = sorted(only) if only else None
+    if not a.no_write:
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(evidence, f, ensure_ascii=False, indent=2); f.write("\n")
+        evidence["evidenceFile"] = out_path
+    json.dump(evidence, sys.stdout, ensure_ascii=False, indent=2); print()
+    sys.exit(0 if overall == "pass" else 1)
+
+if __name__ == "__main__":
+    main()
