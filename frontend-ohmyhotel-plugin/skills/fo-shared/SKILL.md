@@ -41,7 +41,8 @@ judgement such as "looks complete"; if a gate did not run, the file says so (`"e
 Tree hash: `fo-screen-hash --app <app> --screen <screen>` (on `PATH` while the plugin is enabled) is the
 one definition of what a screen's evidence covers — the screen folder minus `<Screen>.spec.md`, the
 plan's route modules, ui-kit gap files and package additions. The gates' own Playwright specs
-(`e2e/**`) are **not** in it: the visual/e2e/seo gates write them, and hashing them would stale every
+(`e2e/**`, laid out as `templates/e2e-playwright.md` § The e2e tree fixes it) are **not** in it: the
+visual/e2e/seo gates write them, and hashing them would stale every
 earlier gate each time a later one runs. Every producer and consumer uses it; nothing hashes its own
 path list. A `pass` with no computable hash is refused by `fo-evidence` (manual gates excepted). A record whose `treeHash` equals the current value may be reused; otherwise it is
 stale and the gate runs again.

@@ -18,7 +18,7 @@ tests were written under: `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md`.
 `mode: standalone` (from `fo-clean-code` / `fo-test-review` / `fo-security`): `targetPath` and `config` only — no plan, no accepted deviations; judge the target against itself and the repo conventions, and say `plan-dependent checks not run` in `notes`.
 
 - `app`, `screen`, `config`, `planFile`, `screenDir`, `specDir`, `packageTestFiles[]`, `e2eDir`
-  (`<app.dir>/e2e/<screen>`, may be absent)
+  (`<app.dir>/e2e/screens/<screen>`, may be absent)
 
 ## Dimensions (weights; score 0–10; findings carry `file`, `line`, `fixHint`)
 

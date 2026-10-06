@@ -268,3 +268,21 @@ confirmed the three worst defects; everything confirmed was fixed in this round.
   under the lock; fixes from other gates leave `review.*` alone.
 - `fo-evidence --spec-path` dropped missing paths silently, so a mistyped path produced a `pass` with
   no watched specs. A pass with a missing or unhashable spec path is now refused (exit 6).
+
+### e2e tree fixed (2026-10-06)
+
+Why: the V2 monorepo has one `e2e/` per app but inside them a dozen file suffixes (`.e2e.ts`,
+`.parity.e2e.ts`, `.baseline.ts`, `.fixtures.ts`, `.po.ts`, `.page.ts`, `nonvisual-*.mjs`, `.sh`, `.py`),
+helpers in four places (`support/`, `helpers/`, `page-objects/`, `legacy/`) and 349 run-output files
+committed under `e2e/.artifacts/`. The migration plugin's rules were a suffix, "follow the existing
+specs" and a prose rule about keeping run output in another tree — no folder structure, no role
+vocabulary, no check. "Follow the repo" copied whatever the first spec looked like, and each gate
+invented its own suffix.
+
+What changed here: `templates/e2e-playwright.md` § The e2e tree fixes the layout (folder = role,
+file = id, one suffix, run output and `storageState` outside `e2e/`); `foundation-generator` scaffolds
+it with Playwright projects by directory; `e2e-test-runner` writes `screens/<screen>/<TS>.spec.ts` and
+one page object at `support/pages/<screen>.ts`; "follow the repo" is narrowed to code style; `fo-init`
+writes the run-output `.gitignore` lines; and `fo-verify-run` gained `e2e-layout`, which fails on any
+file outside the tree (tracked or not) and on tracked run output. Tested: misplaced `.e2e.ts`/`.mjs`
+files and a tracked `.artifacts/` file fail; a conforming tree passes.

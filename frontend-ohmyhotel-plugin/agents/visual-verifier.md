@@ -20,7 +20,8 @@ Input: `app`, `screen`, `config`, `planFile`, `outDir` (`<evidenceDir>/<app>/<sc
 1. From the plan: the routes and the states each route can show (`components[].states`, the
    MSW scenarios the foundation handlers expose — loading, empty, error, success — and overlays the
    spec names as separate states). From the config: `viewports`, `languages`.
-2. Write `<app.dir>/e2e/visual/<screen>.spec.ts` (replace if present) following
+2. Write `<app.dir>/e2e/visual/<screen>.spec.ts` (replace if present; this is the only place a visual
+   spec may live, and `.png` captures go to `outDir`, never under `e2e/`) following
    `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`: one test per state × viewport × language;
    set the locale cookie/header the app uses; drive the state through MSW scenario headers or
    fixture ids; wait for network idle and fonts; `page.screenshot({ fullPage: true })` to
