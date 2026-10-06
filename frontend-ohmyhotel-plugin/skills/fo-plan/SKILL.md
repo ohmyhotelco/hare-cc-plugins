@@ -26,6 +26,8 @@ screen without a spec snapshot cannot be planned; point at `fo-spec-sync`). Deri
   `deltaFile` = `<screenDir>/delta-plan.json`; `specFile` = `<screenDir>/<Screen>.spec.md` where
   `<Screen>` is the PascalCase of the id without its number (`01-main-page` → `MainPage`)
 - `figmaEntry` = `screens[<screen>]` of `docs/figma-manifest.json` (null when absent)
+- `screenNote` = `<docs.screenNotesDir>/<screen>.md` when it exists (decisions already applied, V2 sources, exclusions —
+  the planner treats it as settled, not as something to re-derive); `openQuestions` = `<docs.openQuestions>` when it exists
 - `analysisFile` = `<screenDir>/analysis.json` when it exists
 
 ## Step 1 — Lock
@@ -70,8 +72,8 @@ Report, do not stop, on each of these — the planner records them as open appro
 
 Start one agent with the `Agent` tool, `subagent_type: frontend-ohmyhotel-plugin:implementation-planner`,
 and a prompt that carries exactly the inputs its file lists: `mode`, `app`, `screen`, the parsed
-`config`, `specDir`, `specMeta`, `figmaEntry`, `analysisFile`, `existingPlan` + `hashReport` (delta),
-and the output paths (`outputPlan`, `outputSpec`, `outputDelta`).
+`config`, `specDir`, `specMeta`, `figmaEntry`, `screenNote`, `openQuestions`, `analysisFile`, `existingPlan` +
+`hashReport` (delta), and the output paths (`outputPlan`, `outputSpec`, `outputDelta`).
 
 The agent runs in the background. Its result arrives as a completion notification in a later turn:
 tell the user the planner is running and what it was given, then wait for that notification. Do not

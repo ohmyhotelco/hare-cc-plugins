@@ -316,3 +316,12 @@ files and a tracked `.artifacts/` file fail; a conforming tree passes.
   design-doc sentence that said the screen hash includes Playwright specs corrected.
 - Shared logic (`E2E_ALLOWED`, run-output rules, inventory, fingerprint) lives in `bin/fo_lib.py` so
   the producer and the consumer cannot drift.
+
+### Screen notes and open questions as planner inputs (2026-10-06)
+
+The product repo now carries `docs/screens/<screen>.md` (decisions applied, V2 sources, exclusions) and
+`docs/open-questions.md`. The first planner dry run (2026-10-03) produced 12 open approvals and 5 conflicts on a
+screen whose decisions were all known elsewhere; handing the note and the question list to the planner stops it
+re-deriving settled ground and re-asking owned questions. Config gained `docs.screenNotesDir` / `docs.openQuestions`;
+`fo-init` scaffolds the two READMEs; `fo-plan` passes `screenNote`/`openQuestions`; the planner treats the note as
+settled and cites question rows.

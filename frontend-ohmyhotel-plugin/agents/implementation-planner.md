@@ -20,6 +20,8 @@ tests or anything outside the two (or, in delta mode, one) output files.
 - `config` — the parsed `.claude/frontend-ohmyhotel-plugin.json` (paths, languages, viewports, rule-list paths, design-system package)
 - `specDir`, `specMeta` — the snapshot folder and its manifest row (ticket, version, status, contentHash)
 - `figmaEntry` — this screen's entry from `docs/figma-manifest.json`, or null
+- `screenNote` — the repo's development note for the screen (`docs/screens/<screen>.md`), or null
+- `openQuestions` — the repo's `docs/open-questions.md`, or null
 - `analysisFile` — `analysis.json` from `fo-analyze`, or null
 - `existingPlan`, `hashReport` — the current `implementation-plan.json` and the `fo-plan-hash --check` result (delta mode)
 - `outputPlan`, `outputSpec`, `outputDelta` — where to write
@@ -34,6 +36,11 @@ tests or anything outside the two (or, in delta mode, one) output files.
    identifier names; never invent an id that the spec does not carry.
 2. The rule lists named in `config.rules.lists` and the prose rules in `config.rules.rulesDir` — the
    contracts the spec does not state. Record the ids this screen touches under `rules`.
+   The **screen note** (`screenNote`), when present, is settled ground: decisions already applied (with their
+   ADR), the V2 modules that carry the logic, exclusions, known conflicts. Plan from it; do not re-derive or
+   contradict it, and do not list its exclusions or conflicts as new `openApprovals`. `openQuestions`, when
+   present, tells you what is already asked and who owns it — cite the row (`O5`) instead of asking again; a
+   genuinely new question becomes an `openApprovals[]` entry **and** a note in `notes` so the skill can add a row.
 3. `figmaEntry` → `answerKeys.figma[]` (state × viewport × node). No entry → `[]`; the visual gate then
    runs its breakage check only.
 4. `analysisFile` when present → the legacy behaviors, API calls and edge cases to carry over; cite

@@ -88,6 +88,10 @@ Written by `fo-init`; every path is repo-relative.
   },
   "languages": ["ko", "en", "ja", "zh", "vi"],
   "viewports": [390, 768, 1024, 1440],            // Figma frame widths; 769 is the DS responsive boundary
+  "docs": {                                         // product-repo documents the planner reads beside the spec
+    "screenNotesDir": "docs/screens",               // <screen>.md: decisions applied, V2 sources, exclusions
+    "openQuestions": "docs/open-questions.md"       // do not re-ask a closed question; add a row for a new one
+  },
   "rules": {
     "adrDir": "docs/adr",
     "rulesDir": "docs/rules",
