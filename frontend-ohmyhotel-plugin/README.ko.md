@@ -41,6 +41,11 @@
   `fo-gen`·`fo-review`·`fo-fix`·`fo-visual`·`fo-contract`·`fo-seo`는 `workflows/`의 스크립트,
   `fo-verify`·`fo-progress`·`fo-cutover`는 `bin/` 스크립트, 승인(계획 서명, 고칠 리뷰 클러스터 선택)은
   실행 사이에 있습니다.
+- **e2e 트리는 하나.** `templates/e2e-playwright.md`가 `<app.dir>/e2e/`를 고정합니다(`fixtures.ts`, `support/*.ts`,
+  `support/auth.setup.ts`, `support/pages/<screen>.ts`, `screens/<screen>/<TS-id>.spec.ts`,
+  `visual/<screen>.spec.ts`, `seo/<screen>.<aspect>.spec.ts`). 폴더가 역할을, 파일명이 시나리오 id를 정하고
+  테스트 접미사는 `.spec.ts` 하나, 실행 산출물과 `storageState`는 `e2e/` 밖. V2 monorepo의 `e2e/`는 규칙이 "기존 스펙을 따르라"뿐이어서 접미사 십여 종과 커밋된 산출물
+  349개로 흩어졌습니다. 여기서는 `fo-verify-run`의 `e2e-layout` 검사가 트리 밖의 파일에 게이트를 실패시킵니다.
 - **해시 정의는 하나.** `bin/fo-screen-hash`가 화면 증거의 범위(화면 폴더에서 `<Screen>.spec.md` 제외,
   라우트 모듈, ui-kit 갭, 패키지 추가분)를 정합니다. 생산자·소비자 모두 이걸 호출합니다. 자기 Playwright
   스펙을 쓰는 게이트는 그 해시를 따로 기록(`--spec-path`)하므로 뒤 게이트가 앞 게이트를 stale로 만들지
@@ -133,7 +138,7 @@ echo '{"ticket":"OMH-715","comment":"<코멘트 id>"}'          | fo-evidence --
 
 | 게이트 | 커맨드 | 실행 | 검사 | 실패 시 |
 | --- | --- | --- | --- | --- |
-| verify | `fo-verify` | `bin/fo-verify-run` | `react-router typegen` + `tsc`, API 패키지 자체 `tsc`/`vitest`(추가분), ESLint, 화면 Vitest, i18n 키 커버리지. `--only`는 진단용(`partial`, 미등록) | `fo-fix --from verify` |
+| verify | `fo-verify` | `bin/fo-verify-run` | `react-router typegen` + `tsc`, API 패키지 자체 `tsc`/`vitest`(추가분), ESLint, 화면 Vitest, i18n 키 커버리지, `e2e-layout`(e2e 트리 위치 검사·추적된 산출물 없음). `--only`는 진단용(`partial`, 미등록) | `fo-fix --from verify` |
 | visual | `fo-visual` | 워크플로 | 상태 × 뷰포트 × 언어별 Playwright 캡처 + 깨짐 검사(오버플로·콘솔 오류·깨진 이미지·잘린 텍스트·769 경계), 프레임 있는 조합은 Figma 병렬 비교 | `fo-review` / `fo-fix --from visual` |
 | e2e | `fo-e2e` | 에이전트 | 스펙 TS 시나리오를 Playwright 스펙으로, 시나리오별 trace 경로 | `fo-fix --from e2e` |
 | contract | `fo-contract` | 워크플로 | 규칙 목록별 워커(`externalUrls`·`webviewContract`·`sensitiveQueryKeys`·`requestConventions`) + 텔레메트리. 빈 목록은 보고되는 갭 | `fo-fix --from contract` 또는 담당자가 항목 추가 |

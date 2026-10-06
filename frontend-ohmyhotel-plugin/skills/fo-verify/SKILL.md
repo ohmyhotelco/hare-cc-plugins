@@ -1,7 +1,7 @@
 ---
 name: fo-verify
-description: Run the technical gate for one generated screen — route typegen + tsc, the API package's own tsc/vitest for additions, eslint, the screen's vitest suite, the i18n key-coverage spec — through the deterministic fo-verify-run script, write docs/gates/<app>/<screen>/verify.json with a tree hash, and report. Use after fo-gen and after every fo-fix.
-argument-hint: "--app <name> --screen <id> [--only typecheck,lint,unit,package,i18n]"
+description: Run the technical gate for one generated screen — route typegen + tsc, the API package's own tsc/vitest for additions, eslint, the screen's vitest suite, the i18n key-coverage spec, and the e2e-layout check (every e2e/ file in the fixed tree, no tracked run output) — through the deterministic fo-verify-run script, write docs/gates/<app>/<screen>/verify.json with a tree hash, and report. Use after fo-gen and after every fo-fix.
+argument-hint: "--app <name> --screen <id> [--only typecheck,lint,unit,package,i18n,e2e-layout]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -10,7 +10,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 Every check here is a command with an exit code, so the gate is a script, not an agent:
 `fo-verify-run` (on `PATH` while the plugin is enabled) runs the checks in parallel, applies one result
-taxonomy, writes the evidence file and prints it. This skill reads the result, explains it and updates
+taxonomy, writes the evidence file and prints it. The `e2e-layout` check needs no toolchain: it walks
+`<app.dir>/e2e/` against the tree in `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` and asks git
+for tracked run output; its full `misplaced`/`trackedRunOutput` lists are in the evidence for `fo-fix`. This skill reads the result, explains it and updates
 the tracker. Nothing here fixes code — that is `fo-fix`'s job with a failure report in hand.
 
 Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
@@ -36,7 +38,7 @@ registered as the gate (skip Step 2) — only a full run stands as `verify`.
 |---|---|---|
 | `pass` | ran, passed | — |
 | `fail` | ran, failed; `tail` holds the last lines | `fo-fix` with this evidence |
-| `skipped` | deliberately not applicable (no package additions, no eslint config, no key-coverage spec) | nothing; shown so a missing check is visible |
+| `skipped` | deliberately not applicable (no package additions, no eslint config, no key-coverage spec, no `e2e/` yet) | nothing; shown so a missing check is visible |
 | `not-run` | should have run but could not (tool missing, dir missing, timeout) | fix the environment, run again |
 
 `skipped` and `not-run` are different: one is "nothing to check", the other is "could not check". Do

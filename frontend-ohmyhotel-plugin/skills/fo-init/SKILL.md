@@ -75,8 +75,12 @@ Everything else takes the defaults from the design document §3 (`seo`, `gates`,
    - `<gates.evidenceDir>/<app>/progress.json` as `{ "app": "<name>", "screens": {}, "updatedAt": "<ISO>" }`
    - `specs/MANIFEST.md` from `${CLAUDE_PLUGIN_ROOT}/templates/specs-manifest.md` (header only)
    - `.claude/frontend-ohmyhotel/.gitignore` containing `*` (run state is per machine)
-3. Make the repo root `.gitignore` carry `.claude/frontend-ohmyhotel/` and `.claude/settings.local.json`
-   (append only missing lines, with a leading newline so nothing glues onto the last line).
+3. Make the repo root `.gitignore` carry `.claude/frontend-ohmyhotel/` and `.claude/settings.local.json`,
+   and for every configured app the Playwright run-output lines `<app.dir>/test-results/`,
+   `<app.dir>/playwright-report/`, `<app.dir>/.auth/`, `<app.dir>/e2e/**/.artifacts/` (append only
+   missing lines, with a leading newline so nothing glues onto the last line). The V2 monorepo committed
+   349 run-output files because this rule was prose only; here `fo-verify-run` also fails on tracked
+   run output.
 4. Repo `CLAUDE.md`: if it does not mention `docs/rules/`, append the block from
    `${CLAUDE_PLUGIN_ROOT}/templates/claude-md-rules-block.md`. This is how every agent — the plugin's
    and anyone else's — learns where the product rules are; the plugin never carries them.

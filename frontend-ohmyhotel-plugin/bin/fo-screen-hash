@@ -13,7 +13,7 @@ reasons that have nothing to do with the code. This script owns that set:
   + plan api.additions[].file              package code the screen added
 
   Not included, on purpose:
-  - <app.dir>/e2e/**                       the Playwright specs are WRITTEN BY the visual/e2e/seo gates;
+  - <app.dir>/e2e/**                       (tree fixed by templates/e2e-playwright.md) the Playwright specs are WRITTEN BY the visual/e2e/seo gates;
                                            hashing them would make every earlier gate stale the moment a
                                            later gate runs. Each of those gates records its own spec paths
                                            in its evidence instead.

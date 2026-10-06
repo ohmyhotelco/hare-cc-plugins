@@ -268,3 +268,51 @@ confirmed the three worst defects; everything confirmed was fixed in this round.
   under the lock; fixes from other gates leave `review.*` alone.
 - `fo-evidence --spec-path` dropped missing paths silently, so a mistyped path produced a `pass` with
   no watched specs. A pass with a missing or unhashable spec path is now refused (exit 6).
+
+### e2e tree fixed (2026-10-06)
+
+Why: the V2 monorepo has one `e2e/` per app but inside them a dozen file suffixes (`.e2e.ts`,
+`.parity.e2e.ts`, `.baseline.ts`, `.fixtures.ts`, `.po.ts`, `.page.ts`, `nonvisual-*.mjs`, `.sh`, `.py`),
+helpers in four places (`support/`, `helpers/`, `page-objects/`, `legacy/`) and 349 run-output files
+committed under `e2e/.artifacts/`. The migration plugin's rules were a suffix, "follow the existing
+specs" and a prose rule about keeping run output in another tree — no folder structure, no role
+vocabulary, no check. "Follow the repo" copied whatever the first spec looked like, and each gate
+invented its own suffix.
+
+What changed here: `templates/e2e-playwright.md` § The e2e tree fixes the layout (folder = role,
+file = id, one suffix, run output and `storageState` outside `e2e/`); `foundation-generator` scaffolds
+it with Playwright projects by directory; `e2e-test-runner` writes `screens/<screen>/<TS>.spec.ts` and
+one page object at `support/pages/<screen>.ts`; "follow the repo" is narrowed to code style; `fo-init`
+writes the run-output `.gitignore` lines; and `fo-verify-run` gained `e2e-layout`, which fails on any
+file outside the tree (tracked or not) and on tracked run output. Tested: misplaced `.e2e.ts`/`.mjs`
+files and a tracked `.artifacts/` file fail; a conforming tree passes.
+
+### Dual audit of the e2e tree (PR #72, 2026-10-06) — Codex 2 high / 3 medium, Claude 10 confirmed / 5 suspected
+
+- **The setup project had no legal file**: the template put login in `fixtures.ts` (an export module
+  that cannot hold a `test()`), and `testMatch: '**/*.spec.ts'` would never find it. Now
+  `support/auth.setup.ts` is the setup test (`testDir: 'e2e/support', testMatch: /.*\.setup\.ts/`,
+  the other projects depend on it), allowed by the check; `storageState` resolves from `__dirname` to
+  `<app.dir>/.auth/`.
+- **Run output was judged by extension across the whole app** (`.zip`/`.webm` anywhere failed verify;
+  a `components/test-results/` folder too). Now by location only: `test-results/`, `playwright-report/`,
+  `.auth/`, `**/.artifacts/`, plus Playwright artifact names under `e2e/`. Tracked `public/hero.webm`
+  and `public/guide.zip` pass.
+- **A failed `git ls-files` passed silently** → `not-run` with stderr; the gate runs from the repo root
+  wherever it was invoked (`fo-verify-run` chdirs to `git rev-parse --show-toplevel`).
+- **A layout pass stayed current forever** because the shared screen hash leaves `e2e/**` out on
+  purpose. The evidence now carries `e2eLayoutFingerprint` (e2e file list + tracked run output);
+  `fo-progress-report` recomputes it and marks verify stale when it changes. Reproduced: adding a stray
+  `e2e/bad.e2e.ts` after a verify run → `stale`.
+- Regex grammar aligned with the ids the repo uses: spec files must be `TS-nnn(-n)`/`E2E-nnn`
+  (`HELPER.spec.ts` no longer passes), helpers accept camelCase (`storageState.ts`) but not a leading
+  digit (a screen id in `support/` is a page object in the wrong place), `tsconfig.json` and
+  `*.setup.ts`/`global-setup.ts` allowed, `README.md` at the root not (the template forbids it),
+  three-digit screen ids accepted like `fo-screen-hash`.
+- Full `misplaced[]`/`trackedRunOutput[]` lists are recorded (the 12-line `tail` truncated them) and
+  `fo-fix --from verify` builds one finding per path from them. `snapshotPathTemplate` is top-level so a
+  `toHaveScreenshot` baseline never lands beside a spec. One `.gitignore` owner (`fo-init`);
+  `foundation-generator` only checks. Old `e2e/<screen>` reference in the runner's example fixed;
+  design-doc sentence that said the screen hash includes Playwright specs corrected.
+- Shared logic (`E2E_ALLOWED`, run-output rules, inventory, fingerprint) lives in `bin/fo_lib.py` so
+  the producer and the consumer cannot drift.

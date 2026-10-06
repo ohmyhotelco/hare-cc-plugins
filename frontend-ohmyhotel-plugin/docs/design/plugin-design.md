@@ -118,7 +118,7 @@ State and evidence:
 | What | Where | Committed |
 |---|---|---|
 | transient run state (`generation-state.json`, locks, workflow run ids) | `.claude/frontend-ohmyhotel/<app>/<screen>/` | no |
-| gate evidence (per gate: payload, result, tree hash from `bin/fo-screen-hash` — the screen folder minus `<Screen>.spec.md`, package additions, the screen's Playwright specs — recordedAt) | `docs/gates/<app>/<screen>/` | yes — reviewed in the screen PR |
+| gate evidence (per gate: payload, result, tree hash from `bin/fo-screen-hash` — the screen folder minus `<Screen>.spec.md`, route modules, ui-kit gaps, package additions; the gates' own Playwright specs are hashed separately per gate — recordedAt) | `docs/gates/<app>/<screen>/` | yes — reviewed in the screen PR |
 | progress tracker | `docs/gates/<app>/progress.json` | yes |
 | cutover ledger | `docs/gates/<app>/cutover-ledger.json` | yes |
 | screen implementation spec (5 blocks, V3 plan D9) | `<screensDir>/<screen>/<Screen>.spec.md` | yes |

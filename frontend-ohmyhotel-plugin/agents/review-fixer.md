@@ -33,7 +33,7 @@ E2E patterns `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`.
 3. Keep edits inside the cluster's files and the tests that cover them; a needed change elsewhere is
    reported as `outOfCluster` for the skill to raise, not made.
 4. Run the checks the cluster touched: `vitest run` on the affected test files, `tsc`, and for E2E
-   clusters the failed spec(s) (`npx playwright test e2e/<screen>/<TS-id>`). Record every run.
+   clusters the failed spec(s) (`npx playwright test e2e/screens/<screen>/<TS-id>`). Record every run.
 5. Return the result; the skill updates the tracker and re-runs gates.
 
 ## Output

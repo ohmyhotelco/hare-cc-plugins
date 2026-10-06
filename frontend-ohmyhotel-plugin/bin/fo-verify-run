@@ -7,7 +7,7 @@ calls this, reads the JSON it prints, and reports.
 
 USAGE
   fo-verify-run --app <name> --screen <id> [--config .claude/frontend-ohmyhotel-plugin.json]
-                [--only typecheck,lint,unit,package,i18n] [--timeout 600] [--no-write]
+                [--only typecheck,lint,unit,package,i18n,e2e-layout] [--timeout 600] [--no-write]
 
   --only runs a subset for diagnosis: the result is forced to `partial`, written to verify-partial.json
   (never to verify.json), and the exit code is 1 — a subset can never stand in for the gate.
@@ -19,6 +19,16 @@ CHECKS (each → pass | fail | skipped | not-run, with a reason for the last two
   lint        eslint over the screen dir (+ package additions) when an eslint config exists
   unit        npx vitest run <screenDir> in the app dir
   i18n        npx vitest run <appDir>/__tests__/i18n-key-coverage.test.ts when that spec exists
+  e2e-layout  every file under <app.dir>/e2e/ sits where templates/e2e-playwright.md § The e2e tree
+              allows (fixtures.ts · tsconfig.json · support/*.ts · support/*.setup.ts · support/pages/<screen>.ts ·
+              screens/<screen>/<TS|E2E-nnn>.spec.ts · visual/<screen>.spec.ts · visual/__snapshots__/** ·
+              seo/<screen>.<aspect>.spec.ts), nothing else; and no run output is tracked by git — judged by
+              location (test-results/, playwright-report/, .auth/, **/.artifacts/, and Playwright artifact
+              names under e2e/), never by extension across the app. Skipped when the app has no e2e/ yet;
+              not-run when git cannot be consulted. The e2e file list + tracked run output are fingerprinted
+              into the evidence so fo-progress-report can stale a pass when they change (the shared screen
+              hash leaves e2e/** out on purpose). The lists are recorded in full (`misplaced`,
+              `trackedRunOutput`) for fo-fix.
 
 EVIDENCE  <gates.evidenceDir>/<app>/<screen>/verify.json:
   { gate, app, screen, planVersion, recordedAt, treeHash, result, checks: { name: { result, command,
@@ -27,7 +37,7 @@ EVIDENCE  <gates.evidenceDir>/<app>/<screen>/verify.json:
 """
 import argparse, json, os, re, shutil, subprocess, sys, time
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from fo_lib import sibling
+from fo_lib import sibling, repo_root, e2e_inventory, e2e_layout_fingerprint
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -69,6 +79,9 @@ def main():
     ap.add_argument("--only", default=None); ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--no-write", action="store_true")
     a = ap.parse_args()
+    root = repo_root()
+    if root and os.path.realpath(os.getcwd()) != os.path.realpath(root):
+        os.chdir(root)   # every path in the config is repo-relative; the gate runs from the root wherever it was invoked
 
     cfg = load(a.config)
     app = next((x for x in cfg["apps"] if x["name"] == a.app), None)
@@ -157,7 +170,25 @@ def main():
         if err: return record("i18n", "not-run", cmd, app_root, None, dur, err)
         record("i18n", "pass" if code == 0 else "fail", cmd, app_root, code, dur, out=out)
 
-    jobs = {"typecheck": do_typecheck, "package": do_package, "lint": do_lint, "unit": do_unit, "i18n": do_i18n}
+    layout = {"fingerprint": None}
+
+    def do_e2e_layout():
+        e2e = os.path.join(app_root, "e2e")
+        files, misplaced, leaked, err = e2e_inventory(app_root)
+        if err: return record("e2e-layout", "not-run", "git ls-files", ".", None, 0, f"cannot consult git: {err}")
+        layout["fingerprint"] = e2e_layout_fingerprint(files, leaked)
+        if not os.path.isdir(e2e) and not leaked: return record("e2e-layout", "skipped", reason="no e2e/ under the app yet")
+        out = "\n".join([f"misplaced: {b}" for b in misplaced] + [f"tracked run output: {l}" for l in leaked])
+        if misplaced or leaked:
+            record("e2e-layout", "fail", "layout check (templates/e2e-playwright.md § The e2e tree)", app_root, 1, 0, None, out)
+            checks["e2e-layout"]["summary"] = f"{len(misplaced)} misplaced file(s), {len(leaked)} tracked run-output file(s)"
+        else:
+            record("e2e-layout", "pass", "layout check (templates/e2e-playwright.md § The e2e tree)", app_root, 0, 0, None, "")
+            checks["e2e-layout"]["summary"] = "tree matches templates/e2e-playwright.md"
+        checks["e2e-layout"]["misplaced"] = misplaced
+        checks["e2e-layout"]["trackedRunOutput"] = leaked
+
+    jobs = {"typecheck": do_typecheck, "package": do_package, "lint": do_lint, "unit": do_unit, "i18n": do_i18n, "e2e-layout": do_e2e_layout}
     selected = [n for n in jobs if not only or n in only]
     with ThreadPoolExecutor(max_workers=len(selected)) as ex:
         list(ex.map(lambda n: jobs[n](), selected))
@@ -173,6 +204,7 @@ def main():
         "gate": "verify", "app": a.app, "screen": a.screen, "planVersion": plan.get("planVersion"),
         "recordedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "treeHash": tree, "treeHashError": None if tree else (err or tail(out, 2)),
+        "e2eLayoutFingerprint": layout["fingerprint"],   # fo-progress-report recomputes it: a verify pass goes stale when e2e/ files or tracked run output change
         "result": overall, "checks": checks,
     }
     out_path = os.path.join(cfg.get("gates", {}).get("evidenceDir", "docs/gates"), a.app, a.screen, "verify-partial.json" if only else "verify.json")

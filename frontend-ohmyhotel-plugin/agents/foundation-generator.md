@@ -41,8 +41,16 @@ implemented here; the TDD stages do that against failing tests.
    - Vitest test infra: `<appDir>/mocks/server.ts` (`setupServer` for tests) and the global
      `<appDir>/mocks/handlers.ts` aggregator; `<appDir>/mocks/node.ts` for dev-time SSR loader
      interception when the app runs mock-first.
-   - Playwright harness per `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`:
-     `<app.dir>/playwright.config.ts` and `<app.dir>/e2e/fixtures.ts`.
+   - Playwright harness per `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` § The e2e tree:
+     `<app.dir>/playwright.config.ts` (projects by directory: setup · functional · visual · seo;
+     `testMatch: '**/*.spec.ts'`; `outputDir: 'test-results'`), `<app.dir>/e2e/fixtures.ts`,
+     `e2e/support/{auth,mocks,locale}.ts`, the empty `e2e/support/pages/` and the `screens/`, `visual/`,
+     `seo/` directories (each with a `.gitkeep`), and `support/auth.setup.ts` (the setup project's test
+     that logs in and saves `storageState`). The run-output `.gitignore` lines are `fo-init`'s (repo root);
+     check they exist and report if not — do not write a second set. Run output and `storageState` live
+     outside `e2e/`; the `e2e-layout` check fails on anything under `e2e/` that is not in the tree, tracked
+     or not. The tree is fixed; do not
+     mirror an older layout found elsewhere.
    - i18n key-coverage spec per `${CLAUDE_PLUGIN_ROOT}/templates/i18n-key-coverage.md` at
      `<appDir>/__tests__/i18n-key-coverage.test.ts`, with its `CONFIG_FINGERPRINT` built from
      `config.languages` and the resource pattern; regenerate when the fingerprint no longer matches the

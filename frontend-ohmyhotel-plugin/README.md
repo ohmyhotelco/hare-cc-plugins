@@ -44,6 +44,12 @@ It wraps screen generation with the five things the V3 build needs:
   an agent returns in the same turn: `fo-gen`, `fo-review`, `fo-fix`, `fo-visual`, `fo-contract`,
   `fo-seo` are workflow scripts in `workflows/`; `fo-verify`, `fo-progress`, `fo-cutover` are
   scripts in `bin/`; approvals (plan sign-off, which review clusters to fix) sit between runs.
+- **One e2e tree.** `templates/e2e-playwright.md` fixes `<app.dir>/e2e/` (`fixtures.ts`, `support/*.ts`,
+  `support/auth.setup.ts`, `support/pages/<screen>.ts`, `screens/<screen>/<TS-id>.spec.ts`,
+  `visual/<screen>.spec.ts`, `seo/<screen>.<aspect>.spec.ts`); the folder names the role, the file name
+  is the scenario id, `.spec.ts` is the only test suffix, run output and `storageState` live outside. The V2 monorepo's `e2e/` drifted into a dozen suffixes and
+  349 committed run-output files because its rule was "follow the existing specs"; here
+  `fo-verify-run`'s `e2e-layout` check fails the gate on anything outside the tree.
 - **One hash definition.** `bin/fo-screen-hash` says what a screen's evidence covers (the screen
   folder minus `<Screen>.spec.md`, its route modules, ui-kit gaps and package additions). Every
   producer and consumer calls it. A gate that writes its own Playwright specs records their hash
@@ -171,7 +177,7 @@ closes only then.
 
 | Gate | Command | Runs as | Checks | On fail |
 | --- | --- | --- | --- | --- |
-| verify | `fo-verify` | `bin/fo-verify-run` | `react-router typegen` + `tsc`, the API package's own `tsc`/`vitest` for additions, ESLint, the screen's Vitest suite, the i18n key-coverage spec; `--only` is diagnosis only (`partial`, never registered) | `fo-fix --from verify` |
+| verify | `fo-verify` | `bin/fo-verify-run` | `react-router typegen` + `tsc`, the API package's own `tsc`/`vitest` for additions, ESLint, the screen's Vitest suite, the i18n key-coverage spec, and `e2e-layout` (every file under `e2e/` where the fixed tree allows it, no tracked run output); `--only` is diagnosis only (`partial`, never registered) | `fo-fix --from verify` |
 | visual | `fo-visual` | workflow | one Playwright capture per state × viewport × language with breakage checks (overflow, console errors, broken images, clipped text, 769 boundary); Figma frame comparison in parallel where frames exist | `fo-review` / `fo-fix --from visual` |
 | e2e | `fo-e2e` | agent | the spec's TS scenarios as Playwright specs through the harness; per-scenario trace paths | `fo-fix --from e2e` (opens traces) |
 | contract | `fo-contract` | workflow | one worker per product rule list (`externalUrls`, `webviewContract`, `sensitiveQueryKeys`, `requestConventions`) + telemetry events; an empty list is a reported gap | `fo-fix --from contract`, or the list's owner adds entries |
