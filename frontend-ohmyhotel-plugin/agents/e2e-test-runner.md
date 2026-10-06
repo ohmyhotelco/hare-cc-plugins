@@ -56,7 +56,7 @@ Playwright only (the repo's harness, scaffolded once per app by `foundation-gene
       "failure": { "step": "verify date range applied", "message": "expected text 'Oct 10 – Oct 12' …" } }
   ],
   "summary": { "total": 12, "passed": 11, "failed": 1, "notRun": 0 },
-  "evidence": [ { "command": "npx playwright test e2e/01-main-page --reporter=json", "exitCode": 1, "summary": "11 passed, 1 failed" } ],
+  "evidence": [ { "command": "npx playwright test e2e/screens/01-main-page --reporter=json", "exitCode": 1, "summary": "11 passed, 1 failed" } ],
   "notes": []
 }
 ```

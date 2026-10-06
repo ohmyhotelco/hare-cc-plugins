@@ -51,3 +51,56 @@ def read_stdin_json():
 def utcnow():
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# ---- e2e layout (shared by fo-verify-run and fo-progress-report) -------------------------------
+import hashlib, re, subprocess
+
+E2E_ALLOWED = [
+    re.compile(r"^fixtures\.ts$"),
+    re.compile(r"^tsconfig\.json$"),
+    re.compile(r"^support/[a-z][A-Za-z0-9-]*\.ts$"),                      # cross-screen helpers (no leading digit: not a screen id)
+    re.compile(r"^support/[a-z][A-Za-z0-9-]*\.setup\.ts$"),                # Playwright setup tests (auth.setup.ts)
+    re.compile(r"^support/pages/\d{2,3}[a-z]?-[a-z0-9-]+\.ts$"),            # one page object per screen
+    re.compile(r"^screens/\d{2,3}[a-z]?-[a-z0-9-]+/(?:TS|E2E)-\d{3}(?:-\d+)*\.spec\.ts$"),
+    re.compile(r"^visual/\d{2,3}[a-z]?-[a-z0-9-]+\.spec\.ts$"),
+    re.compile(r"^visual/__snapshots__/.+\.(?:png|jpg|webp)$"),
+    re.compile(r"^seo/\d{2,3}[a-z]?-[a-z0-9-]+\.[a-zA-Z]+\.spec\.ts$"),
+    re.compile(r"^(?:support/pages|screens|visual|seo)/(?:.*/)?\.gitkeep$"),
+]
+# run output is judged by LOCATION, never by extension across the app (a hotel site ships .webm and .zip assets)
+RUN_OUTPUT_DIRS = re.compile(r"^(?:test-results|playwright-report|\.auth)(/|$)|(^|/)\.artifacts(/|$)")
+RUN_OUTPUT_NAMES_IN_E2E = re.compile(r"(^|/)(?:test-failed-.*\.png|trace\.zip|video\.webm|error-context\.md|\.last-run\.json)$")
+
+def repo_root():
+    r = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    return r.stdout.strip() if r.returncode == 0 else None
+
+def e2e_inventory(app_root):
+    """→ (files, misplaced, leaked, error). files/misplaced are e2e-relative; leaked are app-relative tracked
+    run-output paths. error is set when git could not be consulted (the caller records not-run)."""
+    e2e = os.path.join(app_root, "e2e")
+    files, misplaced = [], []
+    if os.path.isdir(e2e):
+        for root, dirs, names in os.walk(e2e):
+            dirs[:] = [d for d in dirs if d != "node_modules"]
+            for n in names:
+                if n == ".DS_Store": continue
+                rel = os.path.relpath(os.path.join(root, n), e2e)
+                files.append(rel)
+                if not any(rx.match(rel) for rx in E2E_ALLOWED): misplaced.append(rel)
+    r = subprocess.run(["git", "ls-files", "--", app_root], capture_output=True, text=True)
+    if r.returncode != 0:
+        return sorted(files), sorted(misplaced), [], (r.stderr.strip() or f"git ls-files exited {r.returncode}")
+    leaked = []
+    for t in r.stdout.splitlines():
+        rel = os.path.relpath(t, app_root)
+        if RUN_OUTPUT_DIRS.search(rel) or (rel.startswith("e2e/") and RUN_OUTPUT_NAMES_IN_E2E.search(rel)):
+            leaked.append(rel)
+    return sorted(files), sorted(misplaced), sorted(leaked), None
+
+def e2e_layout_fingerprint(files, leaked):
+    h = hashlib.sha256()
+    for f in files: h.update(b"f:" + f.encode() + b"\0")
+    for l in leaked: h.update(b"l:" + l.encode() + b"\0")
+    return h.hexdigest()[:16]

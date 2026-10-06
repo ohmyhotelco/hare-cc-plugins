@@ -44,10 +44,10 @@ It wraps screen generation with the five things the V3 build needs:
   an agent returns in the same turn: `fo-gen`, `fo-review`, `fo-fix`, `fo-visual`, `fo-contract`,
   `fo-seo` are workflow scripts in `workflows/`; `fo-verify`, `fo-progress`, `fo-cutover` are
   scripts in `bin/`; approvals (plan sign-off, which review clusters to fix) sit between runs.
-- **One e2e tree.** `templates/e2e-playwright.md` fixes `<app.dir>/e2e/` (`fixtures.ts`, `support/`,
-  `support/pages/<screen>.ts`, `screens/<screen>/<TS-id>.spec.ts`, `visual/<screen>.spec.ts`,
-  `seo/<screen>.<aspect>.spec.ts`); the folder names the role, the file name is the id, `.spec.ts` is
-  the only suffix, run output lives outside. The V2 monorepo's `e2e/` drifted into a dozen suffixes and
+- **One e2e tree.** `templates/e2e-playwright.md` fixes `<app.dir>/e2e/` (`fixtures.ts`, `support/*.ts`,
+  `support/auth.setup.ts`, `support/pages/<screen>.ts`, `screens/<screen>/<TS-id>.spec.ts`,
+  `visual/<screen>.spec.ts`, `seo/<screen>.<aspect>.spec.ts`); the folder names the role, the file name
+  is the scenario id, `.spec.ts` is the only test suffix, run output and `storageState` live outside. The V2 monorepo's `e2e/` drifted into a dozen suffixes and
   349 committed run-output files because its rule was "follow the existing specs"; here
   `fo-verify-run`'s `e2e-layout` check fails the gate on anything outside the tree.
 - **One hash definition.** `bin/fo-screen-hash` says what a screen's evidence covers (the screen

@@ -23,7 +23,7 @@ USAGE
 """
 import argparse, json, os, subprocess, sys
 sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
-from fo_lib import read_json, sibling
+from fo_lib import read_json, sibling, e2e_inventory, e2e_layout_fingerprint
 
 GATES = ["verify", "visual", "e2e", "contract", "seo", "review", "designerReview", "planningAcceptance"]
 MANUAL = {"designerReview": "fo-evidence --gate designerReview (manual)", "planningAcceptance": "fo-evidence --gate planningAcceptance (manual)"}
@@ -38,7 +38,7 @@ def spec_hash(paths):
     r = subprocess.run([sibling("fo-tree-hash"), "--", *paths], capture_output=True, text=True)
     return r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else None
 
-def gate_state(gate, screen, entry, now):
+def gate_state(gate, screen, entry, now, app_root=None):
     """→ (state, detail) where state ∈ current | skipped | stale | unverifiable | blocked | missing.
     The tracker entry is an index; the evidence file is the record. They must agree on gate, screen,
     result and hash, or the entry is unverifiable (an interrupted gate can leave the two apart)."""
@@ -53,6 +53,10 @@ def gate_state(gate, screen, entry, now):
     if ev.get("specPaths"):
         cur = spec_hash(ev["specPaths"])
         if cur is None or cur != ev.get("specHash"): return "stale", "the gate's own test files changed"
+    if gate == "verify" and ev.get("e2eLayoutFingerprint") is not None and app_root is not None:
+        files, _, leaked, err = e2e_inventory(app_root)
+        if err: return "unverifiable", f"cannot consult git for the e2e layout: {err}"
+        if e2e_layout_fingerprint(files, leaked) != ev["e2eLayoutFingerprint"]: return "stale", "e2e/ files or tracked run output changed since the layout check"
     res = entry.get("result")
     if res == "pass": return "current", None
     if res == "skipped" and (ev.get("reason") or ev.get("skipped")): return "skipped", ev.get("reason") or ev.get("skipped")
@@ -92,7 +96,7 @@ def main():
         gates, blockers = {}, []
         for g in GATES:
             e = (sc.get("gates") or {}).get(g)
-            st, detail = gate_state(g, sid, e, now)
+            st, detail = gate_state(g, sid, e, now, app["dir"])
             gates[g] = {"result": (e or {}).get("result"), "state": st, "recordedAt": (e or {}).get("recordedAt"),
                         "evidence": (e or {}).get("evidence"), "detail": detail}
         # review is a gate like the others (a failed, stale or unverifiable review blocks until a new

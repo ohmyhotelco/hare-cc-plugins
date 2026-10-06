@@ -45,8 +45,9 @@ implemented here; the TDD stages do that against failing tests.
      `<app.dir>/playwright.config.ts` (projects by directory: setup · functional · visual · seo;
      `testMatch: '**/*.spec.ts'`; `outputDir: 'test-results'`), `<app.dir>/e2e/fixtures.ts`,
      `e2e/support/{auth,mocks,locale}.ts`, the empty `e2e/support/pages/` and the `screens/`, `visual/`,
-     `seo/` directories (each with a `.gitkeep`), and the run-output lines in the app `.gitignore`
-     (`test-results/`, `playwright-report/`, `.auth/`, `**/.artifacts/`). Run output and `storageState` live
+     `seo/` directories (each with a `.gitkeep`), and `support/auth.setup.ts` (the setup project's test
+     that logs in and saves `storageState`). The run-output `.gitignore` lines are `fo-init`'s (repo root);
+     check they exist and report if not — do not write a second set. Run output and `storageState` live
      outside `e2e/`; the `e2e-layout` check fails on anything under `e2e/` that is not in the tree, tracked
      or not. The tree is fixed; do not
      mirror an older layout found elsewhere.

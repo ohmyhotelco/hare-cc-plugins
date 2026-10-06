@@ -27,8 +27,11 @@ applies to code style inside a file, never to where a file goes or what it is ca
 <app.dir>/playwright.config.ts            projects by directory: functional · visual · seo (+ setup); testMatch = **/*.spec.ts
 <app.dir>/e2e/
   fixtures.ts                             the harness: test/expect extensions, storageState per role, mock reset hook
+  tsconfig.json                           optional, e2e-scoped TS config
   support/
-    auth.ts · mocks.ts · locale.ts        shared helpers — only here
+    auth.setup.ts                         the setup project's test: log in per role, save storageState (the only *.setup.ts kind)
+    auth.ts · mocks.ts · locale.ts        shared helpers — only here (lower-case first letter; a screen id here is a page object in the wrong place)
+    global-setup.ts                       optional Playwright globalSetup
     pages/<screen>.ts                     one page object per screen — only here (e.g. pages/01-main-page.ts)
   screens/<screen>/<TS-id>.spec.ts        functional scenarios from the spec snapshot (fo-e2e)
   visual/<screen>.spec.ts                 capture + breakage spec (fo-visual)
@@ -38,7 +41,8 @@ applies to code style inside a file, never to where a file goes or what it is ca
 ```
 
 What is **not** allowed under `e2e/`: any other extension (`.mjs`, `.sh`, `.py`, `.js`, `.e2e.ts`,
-`.baseline.ts`, `.fixtures.ts` …), any file at the root other than `fixtures.ts`, any directory other
+`.baseline.ts`, `.fixtures.ts` …), a spec whose name is not a scenario id (`TS-nnn`, `TS-nnn-n`,
+`E2E-nnn`), any file at the root other than `fixtures.ts` and `tsconfig.json`, any directory other
 than `support/`, `screens/`, `visual/`, `seo/`, tracked run output (`.artifacts/`, `.auth/`,
 `test-results/`, traces, `test-failed-*.png`), captures or reports — those belong under
 `docs/gates/<app>/<screen>/` (captures, reports: committed) and `.claude/frontend-ohmyhotel/`
@@ -49,16 +53,26 @@ Each gate writes only in its own folder and records that folder's hash with `fo-
 (`fo-screen-hash`) can leave `e2e/**` out.
 
 ## Harness (scaffolded once per app by `foundation-generator`)
-- `playwright.config.ts` — `testMatch: '**/*.spec.ts'`, four projects: `setup` (`e2e/fixtures.ts`
-  login → `storageState` under `<app.dir>/.auth/`, outside `e2e/`, ignored), `functional` (`testDir: 'e2e/screens'`), `visual`
-  (`testDir: 'e2e/visual'`, `snapshotPathTemplate` inside `e2e/visual/__snapshots__/`), `seo`
-  (`testDir: 'e2e/seo'`); `outputDir: 'test-results'` written down explicitly; `trace:
-  'retain-on-first-failure'`; `webServer` runs `npx react-router dev --port {devPort}` with
-  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` — which trusts whatever already answers on that
-  port, so set `devPort` when 5173 is taken.
-- `e2e/fixtures.ts` — `test`/`expect` extended with auth/state-setup fixtures and the mock reset hook.
+- `playwright.config.ts` — top level: `testMatch: '**/*.spec.ts'`, `outputDir: 'test-results'`
+  (written down so nobody moves it), `snapshotPathTemplate:
+  '{testDir}/__snapshots__/{testFileName}/{arg}{-projectName}{-snapshotSuffix}{ext}'` (so a
+  `toHaveScreenshot` anywhere lands in that project's `__snapshots__/`, never beside the spec),
+  `trace: 'retain-on-first-failure'`, `webServer` running `npx react-router dev --port {devPort}` with
+  `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (which trusts whatever already answers on that
+  port — set `devPort` when 5173 is taken). Projects:
+  `{ name: 'setup', testDir: 'e2e/support', testMatch: /.*\.setup\.ts/ }` — the only project whose
+  `testMatch` differs; `{ name: 'functional', testDir: 'e2e/screens', dependencies: ['setup'] }`,
+  `{ name: 'visual', testDir: 'e2e/visual', dependencies: ['setup'] }`, `{ name: 'seo', testDir: 'e2e/seo' }`.
+  `toHaveScreenshot` baselines are a `visual` project concern; functional specs assert behaviour, not pixels.
+- `e2e/support/auth.setup.ts` — the setup test: logs in per role and saves `storageState` to
+  `path.resolve(__dirname, '../../.auth/<role>.json')` (= `<app.dir>/.auth/`, outside `e2e/`, ignored);
+  a cwd-relative `.auth/` would land wherever Playwright was launched from.
+- `e2e/fixtures.ts` — `test`/`expect` extended with auth/state-setup fixtures (loading that
+  `storageState`) and the mock reset hook. It exports; it holds no `test()` of its own.
 - `e2e/support/{auth,mocks,locale}.ts` and an empty `e2e/support/pages/` — created so the first screen
   has an obvious place to put its page object.
+- The run-output `.gitignore` lines are written by `fo-init` at the repo root (one owner);
+  `foundation-generator` checks they exist.
 
 ## Spec realization
 - One spec per scenario: `<app.dir>/e2e/screens/<screen>/<TS-nnn>.spec.ts` (`app.dir` = the app package, e.g. `apps/www`, where `playwright.config.ts` lives; not `appDir` = `apps/www/app`), tagged with the scenario name + TS id; the screen's page object at `e2e/support/pages/<screen>.ts`. - Step mapping: `navigate`→`page.goto`; `fill`→`getByLabel`/`getByRole().fill`; `click`→`getByRole().click`;
@@ -75,8 +89,9 @@ browser path via MSW (`VITE_ENABLE_MOCKS=true`) and the server (loader) path via
 hit a real external dependency.
 
 ## Auth & state setup
-- **Reuse `storageState`.** Log in once via a Playwright **setup project** that saves `storageState` to
-  `<app.dir>/.auth/<role>.json` (outside `e2e/`, ignored); specs load it instead of logging in per test. Multi-role pages get one state per
+- **Reuse `storageState`.** Log in once in `support/auth.setup.ts` (the setup project) and save
+  `storageState` to `<app.dir>/.auth/<role>.json` (resolved from `__dirname`, outside `e2e/`, ignored);
+  specs load it through the fixture instead of logging in per test. Multi-role pages get one state per
   role.
 - **Start at the branch under test.** Pre-seed prerequisite state via API / `storageState` so a scenario
   begins where it verifies — don't replay shared prefixes in every test (Playwright's independence

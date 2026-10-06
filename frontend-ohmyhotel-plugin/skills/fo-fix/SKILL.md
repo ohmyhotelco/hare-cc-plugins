@@ -23,7 +23,7 @@ Config, `--app`/`--screen`, plan. Source of clusters by `--from` (default `revie
 
 Clusters built here from a gate report get `source: "<gate>"`, `id`, `title`, `files[]`, `findings[]`
 (the fixer branches on `source`).
-| `verify` | one cluster per failed check in `verify.json` (`tail` as the finding) | ask once: fix now? |
+| `verify` | one cluster per failed check in `verify.json` (`tail` as the finding; for `e2e-layout` the full `misplaced[]` and `trackedRunOutput[]` lists — one finding per path, fix = move to the tree's location or `git rm --cached`) | ask once: fix now? |
 | `visual` | one cluster per capture with breakage, plus one per compared frame with `critical` findings | ask once |
 | `e2e` | one cluster per failed scenario in `e2e/e2e-report.json` (with its `trace`) | ask once |
 | `contract` / `seo` | one cluster per failed check/aspect with its findings | ask once |
