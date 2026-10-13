@@ -28,7 +28,7 @@ The skill will provide these parameters in the prompt:
 0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md`
 2. Read `templates/tdd-rules.md`
-3. Read `templates/tool-conventions.md` and `templates/contract-snapshot.md` (and the project's `config.descriptionConvention` document when set)
+3. Read `templates/tool-conventions.md`, `templates/scope-rules.md` and `templates/contract-snapshot.md` (and the project's `config.descriptionConvention` document when set)
 4. Read `reportFile` — parse the full review report JSON
 5. Extract all issues sorted by severity (critical first, then warning, then suggestion)
 6. Read `config` to extract: `gradleCommand` (absent → `./gradlew`), `buildCommand`, `testCommand`, `basePackage`, `toolsPackage`, `sourceDir`, `testDir`, `readOnly`, `contractSnapshot`, `contractTest`, `contractActual`, `contractChangelog`
@@ -52,6 +52,12 @@ Dimension-specific rules:
 - `tool_contract` rename of a published tool → **escalated** (a breaking change ships as a new tool; the decision is the user's)
 - `spec_compliance` missing tool → **escalated** (needs a work document and a full `mcp-code` cycle); missing parameter/error/test → **tdd-required**
 - `upstream_integration` missing timeout/retry configuration → **tdd-required** when a client test can pin it, else **direct-fix** with a YAML sanity test added
+- `scope` (business logic in the server, `templates/scope-rules.md` § 3) → the fix is to **delete the logic and return the upstream value** (or add the parameter to the upstream call instead of filtering locally); never re-implement it elsewhere, never move it into a helper, `common/`, the client, a config class or another tool (the same logic, relocated, is still a violation):
+  - logic with no effect on the published contract (a local filter, sort, extra upstream call whose result is not exposed, business default, own state) → **tdd-required**: a pass-through test first (the result equals the upstream value / exactly one upstream call), then delete
+  - removes or changes a field, parameter, tool or annotation that is in the committed snapshot at `HEAD` (`git show HEAD:{contractSnapshot}`) → **escalated** (breaking; the replacement is an upstream endpoint or a new tool — a product decision), with the issue's `upstreamAsk` in the reason
+  - same, but the tool or field is not in the `HEAD` snapshot (never published) → **contract-fix**, accepting exactly that removal through the snapshot procedure
+  - the whole tool is the business logic → **escalated**, never partially "simplified"
+  - a write tool without opt-in or not a pure pass-through → **escalated**
 
 ### Phase 2: Apply Fixes
 
@@ -178,6 +184,7 @@ Write the fix report to `fixReportFile` — never another path; `mcp-fix` reads 
 - Never modify test expectations to make them pass — fix the production code. The contract snapshot is the one bounded exception, only through `templates/contract-snapshot.md` § 2 and only for the tool and fields the issue names
 - Never skip or disable tests; never add `@SuppressWarnings` to silence issues
 - Never add a mutating upstream call when `config.readOnly == true`
+- Never fix any issue by adding or moving business logic into the server (calculation, derived field, aggregation, second upstream call, business rule, own state): a fix that needs it is **escalated**
 - For TDD fixes: strict RED-GREEN; for direct fixes: verify compilation after each edit
 - Maximum 3 attempts per TDD fix before escalating
 - Every Gradle run goes through `run-gradle.sh --lock`, which refreshes the pipeline lock (never write the lock file by hand); its exit 3 means the lock is no longer this run's — stop editing and report it

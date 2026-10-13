@@ -4,6 +4,8 @@ Authoritative rules for authoring MCP tools, resources and prompts on Spring AI.
 `mcp-code`, the `implement` agent (writing), the `code-reviewer` agent (Tool Contract dimension)
 and the `review-fixer` agent.
 
+**Scope**: a tool retrieves upstream data and nothing else — no calculation, derived field, aggregation, multi-endpoint join, business decision or server-side state (`templates/scope-rules.md` is authoritative; every rule below assumes it).
+
 **Project override**: when `config.descriptionConvention` names a document, read it first — its
 template, vocabulary and naming rules win over the defaults below wherever they differ.
 
@@ -32,8 +34,10 @@ in its `descriptionConvention` document:
 | Verb | Returns | Example |
 |------|---------|---------|
 | `list_` | the whole set, no filter, no id | `list_channels` |
-| `get_` | one entity, or a result narrowed by id/condition | `get_channel`, `get_settlement` |
+| `get_` | one entity, or a result narrowed by id/condition | `get_channel`, `get_booking` |
 | `query_` | a potentially large set needing filters / date range / paging | `query_bookings` |
+
+A verb never promises computation or a decision: `calculate_`, `compute_`, `estimate_`, `recommend_`, `rank_`, `check_` (eligibility), `summarize_`, `reconcile_` names are out of scope unless the wrapped upstream endpoint returns exactly that value (`templates/scope-rules.md` § 3). A write verb is allowed only under `templates/scope-rules.md` § 6.
 
 Domain after the verb so tools of one domain sort together. **Never rename a published tool in
 place** — clients and RBAC registries key on the name. A breaking change ships as a new name; the
@@ -57,7 +61,7 @@ Two adjacent XML-tagged blocks, no whitespace between them:
   "fetch everything" mode, valid enum values, max range) plus a short cross-reference to the tool
   that supplies a value: `(see list_channels' sellerCompCode)`. A tool with no input says
   `No input — {what the one call returns}.`
-- Never: narrative ("Use this to answer…"), repeated server-wide rules (they belong in
+- Never: a promise of a result the server computes or decides (totals, eligibility, recommendations) — a description says what the upstream returns, and when the upstream computes a value, that it does; narrative ("Use this to answer…"), repeated server-wide rules (they belong in
   `instructions` once), instructions to the model that are not about calling this tool (that is
   tool poisoning, even when well-meant), hidden or zero-width characters, markdown/HTML
 
@@ -72,6 +76,10 @@ Two adjacent XML-tagged blocks, no whitespace between them:
 - Do not repeat what the tool-level description already says
 
 ## Input validation (in the tool, before the upstream call)
+
+Validation checks the **shape** of the input only (type, format, enum set, range/span bound, paired parameters, size bounds). A rule about domain state or business policy ("hotel must be active", "cannot cancel after check-in") is the upstream's: the tool passes the request through and maps the upstream's rejection to `UPSTREAM_ERROR` / `UPSTREAM_HTTP_ERROR`. Defaults are static and carry no business meaning (a default `limit`, never a default date window computed from "today" or a default channel).
+
+The published `inputSchema` is a closed object (`additionalProperties: false` — confirm it in the contract snapshot), every string bounded by an enum, pattern or max length, numbers by min/max, arrays by a max size; the bounds are enforced in the tool even when the schema generator cannot publish them (`templates/scope-rules.md` § 7 C1).
 
 - Enum-like strings: validated against a `Set` constant; reject with `INVALID_INPUT` naming the
   allowed values (an upstream schema rejection surfaces as an opaque business failure)
@@ -113,6 +121,7 @@ body reach the tool result.
 ## Output
 
 - Return records, not `Map`/`JsonNode` — the output shape is part of the contract
+- **Pass-through fidelity**: every returned field is a value the upstream returned, or describes the response itself (`limit`, `offset`, `returnedCount`, `restrictedFields`, `warnings`). No re-derived, recalculated, converted, rounded or relabeled value, no computed total, flag or status. Mapping is projection, rename and format normalization only. Row scoping filters rows by the caller's **entitlement**, never by a business predicate
 - Upstream free text (names, notes, terms) is **untrusted**: `sanitize` (strip control,
   zero-width and Unicode-tag characters; break markdown code fences; cap field length) and then
   `mask` PII (email/phone/account; names per project rule) before it is returned — e.g.
@@ -130,9 +139,14 @@ body reach the tool result.
   a client reading only `structuredContent` misses the warnings block — consider an optional
   `warnings` property in the `outputSchema`
 - Tool annotations: on `spec-list` registration set `McpSchema.ToolAnnotations` on the
-  `McpSchema.Tool` — `readOnlyHint=true` for every read tool, `destructiveHint`/`idempotentHint`
-  on write tools, `openWorldHint` true only when the tool reaches an open external system. They are
-  contract (in the snapshot); the access-scope text tag in the description is then optional
+  `McpSchema.Tool` with **all four hints explicit** (the MCP defaults are `destructiveHint` true,
+  `idempotentHint` false, `openWorldHint` true — an unset hint states the wrong thing): a read tool is
+  `readOnlyHint=true`, `destructiveHint=false`, `idempotentHint=true`, `openWorldHint=false` (true
+  only when results carry content from an open external system); a write tool
+  (`templates/scope-rules.md` § 6) sets `readOnlyHint=false` and `destructiveHint`/`idempotentHint`
+  honestly. They are contract (in the snapshot); the access-scope text tag in the description is
+  then optional. Hints are advisory to clients, not a security control — the read-only credential
+  and the ArchUnit rule are
 
 ## Registration
 
@@ -197,7 +211,8 @@ public class BookingTools {
             @ToolParam(description = "Check-in from, yyyy-MM-dd") String fromDate,
             @ToolParam(description = "Check-in to, yyyy-MM-dd, at most 31 days after fromDate") String toDate,
             @ToolParam(description = "Rows per page, 1-1000 (default 100)", required = false) Integer limit) {
-        // validate → call upstream → scope rows per caller → sanitize + mask → record
+        // validate shape → one upstream read → scope rows per caller (entitlement) → sanitize + mask → record;
+        // no calculation, derived field, aggregation or second upstream call
         ...
     }
 }

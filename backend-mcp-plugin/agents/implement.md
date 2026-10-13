@@ -1,13 +1,13 @@
 ---
 name: implement
-description: TDD-based MCP tool implementation from work documents, including the deliberate contract-snapshot update
+description: TDD-based MCP tool implementation from work documents (data retrieval only — stops on business logic), including the deliberate contract-snapshot update
 model: opus
 tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
 # Implement Agent
 
-Implements MCP tools using strict Test-Driven Development. Processes tool work documents with `- [ ]` test scenarios one at a time following the RED-GREEN cycle, and finishes each tool by accepting its contract change into the snapshot through the bounded procedure in `templates/contract-snapshot.md`.
+Implements MCP tools using strict Test-Driven Development. A tool only retrieves upstream data (`templates/scope-rules.md`); the agent never writes business logic and stops when a tool would need it. Processes tool work documents with `- [ ]` test scenarios one at a time following the RED-GREEN cycle, and finishes each tool by accepting its contract change into the snapshot through the bounded procedure in `templates/contract-snapshot.md`.
 
 ## Input Parameters
 
@@ -33,7 +33,7 @@ This phase runs once per agent invocation, even when `workDocuments` contains mu
 0. `templates/…` below is the plugin's own directory, not the project's: every such file is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
 1. Read `templates/core-conventions.md` for naming/coding conventions
 2. Read `templates/tdd-rules.md` for TDD methodology
-3. Read `templates/tool-conventions.md` for tool authoring rules; when `config.descriptionConvention` is set and the file exists under `{projectRoot}`, read it too — it overrides the template wherever they differ
+3. Read `templates/scope-rules.md` (data retrieval only: § 3 forbidden logic, § 4 scope test, § 7 compliance conditions) and `templates/tool-conventions.md` for tool authoring rules; when `config.descriptionConvention` is set and the file exists under `{projectRoot}`, read it too — it overrides the template wherever they differ
 4. Read `templates/upstream-client.md` when any work document in this run names an upstream client other than `none`
 5. Read `templates/contract-snapshot.md` (the deliberate-change procedure used by every tool's last scenario)
 6. Read `config` to extract: `gradleCommand` (absent → `./gradlew`), `buildCommand`, `testCommand`, `basePackage`, `toolsPackage`, `sourceDir`, `testDir`, `transports`, `toolRegistration`, `security`, `readOnly`, `contractSnapshot`, `contractTest`, `contractActual`, `contractChangelog`
@@ -79,6 +79,13 @@ This phase runs once per agent invocation, even when `workDocuments` contains mu
 2. Else if `workDocument` is provided: read it and find all `- [ ]` items.
 3. For the current document, read its `Tool class:` and `Upstream client:` lines and the Tool
    Specification section — every test and every production edit for this document follows them.
+   **Scope gate (before any test or code for this document):** apply `templates/scope-rules.md` § 4 to
+   the document's Scope Check, Upstream Call, Output and scenarios. A derived or computed output
+   field, a second upstream read, an aggregation, a branch on a domain value, a business default, a
+   rule duplicated from the upstream, own state, or a write tool without a `Write opt-in` row and
+   `config.readOnly == false` → write nothing for this document: report
+   `Scope conflict: {tool} — {BL-n}: {what}` and continue with the next document in the queue (or
+   stop when there is none)
 4. If no incomplete scenarios remain anywhere: report "All scenarios complete" (or, for
    `workDocuments`, "All work documents complete") and stop.
 
@@ -161,6 +168,11 @@ Run the test class per the test-run protocol above.
 1. Write the minimum production code to make the test pass
 2. Do not add code for other scenarios
 3. Do not add speculative features (no "just in case" parameters, no unused client methods)
+   and no business logic: the tool copies upstream values — no arithmetic on domain values, no
+   derived field, no branch on a domain value, no second upstream call, no filtering or sorting by a
+   business predicate. A scenario whose only way to go GREEN is such logic is a scope conflict, not a
+   coding problem: revert the scenario's changes (the Step 5 revert procedure), leave it unmarked and
+   report `Scope conflict: {tool} — {BL-n}: {what}`
 4. Keep the description and `@ToolParam` text exactly as the work document specifies — changing
    published text to make a test pass is a contract change the document did not ask for
 
@@ -214,7 +226,14 @@ Update the work document: change `- [ ]` to `- [x]` for the completed scenario.
 - Never write code not driven by a failing test (the Phase 0 item 8 test-logging block is build configuration, not production code)
 - Never skip the RED verification step
 - Never add a mutating upstream call when `config.readOnly == true` — a scenario that needs one is
-  reported back as a plan conflict, not implemented
+  reported back as a plan conflict, not implemented. On a non-read-only server a write tool is a pure
+  pass-through of one upstream endpoint with honest annotations and a recorded `Write opt-in`; without
+  them it is a scope conflict
+- Never implement business logic (`templates/scope-rules.md` § 3, `BL-1`..`BL-8`): no calculation,
+  derived field, aggregation, multi-endpoint join, business decision or default, duplicated upstream
+  rule, or state of the server's own. Stop and report a scope conflict instead — never "just a small
+  helper", and never hide the logic in `common/`, the client or a config class
+- Every tool sets all four annotation hints explicitly (a read tool: `readOnlyHint` true, `idempotentHint` true, `destructiveHint` false, `openWorldHint` false); a bounded, closed input schema (`templates/scope-rules.md` § 7 C1, C2)
 - Never forward the caller's token to the upstream; never log credentials, tokens or raw upstream bodies
 - On a `webmvc`/`stdio` server never introduce `Mono`/`Flux` into `src/main`
 - Every test run refreshes the pipeline lock through `run-gradle.sh --lock` (never write the lock file by hand); its exit 3 means the lock is no longer this run's — stop editing and report it — the skill holding it cannot while this agent runs, and a 30-minute-old lock is removed by the next skill
@@ -239,6 +258,7 @@ Files modified: {list}
 Test class: {fullTestClassName}
 Status: {PASS / FAIL with reason}
 Remaining: {count} scenarios in this document
+Scope conflict: {tool — BL-n: what}   <- only when the scope gate stopped a document or reverted a scenario
   {count} document(s) remaining in the queue   <- only when workDocuments was used
 ```
 

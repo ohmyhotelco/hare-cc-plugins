@@ -43,7 +43,7 @@ mcp-plan → mcp-code → mcp-verify → mcp-review ↔ mcp-fix → mcp-commit
 | `mcp-plan` | Jira 태스크 / 태스크 설명 / 업스트림 API 문서 / 스펙 → 도구 `plan.json` |
 | `mcp-code` | 도구 명세 + TDD 구현, 마지막에 통제된 contract snapshot 갱신 |
 | `mcp-verify` | 게이트: 컴파일, 테스트, contract(snapshot + changelog), 빌드, 선택적 checkstyle/coverage; `--fix`는 빌드 자동 수정 루프를 먼저 실행 |
-| `mcp-review` | 7개 차원 리뷰(도구 계약, 업스트림, 보안, 클린 코드, 로깅·감사, 테스트, 아키텍처) + 스펙 준수; `--dimension <key>`로 단일 차원 감사 |
+| `mcp-review` | 8개 차원 리뷰(도구 계약, 업스트림, 보안, 클린 코드, 로깅·감사, 테스트, 아키텍처, 범위 = 데이터 조회 전용·비즈니스 로직 금지) + 스펙 준수; `--dimension <key>`로 단일 차원 감사 |
 | `mcp-fix` | 리뷰 보고서 기반 수정 — 동작은 TDD, 기계적 수정은 직접, 계약 변경은 snapshot + changelog |
 | `mcp-commit` | 스테이징된 변경으로 커밋: 트리 검사, 시크릿 스캔, snapshot/changelog 쌍 검사 |
 | `mcp-debug` | 전송·업스트림 문제를 포함한 4단계 디버깅 |

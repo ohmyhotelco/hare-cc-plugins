@@ -94,14 +94,16 @@ migration, database, driver, and coverage-tool decision record.
 
 ---
 
-### [Backend MCP Plugin](./backend-mcp-plugin/) `v0.2.0`
+### [Backend MCP Plugin](./backend-mcp-plugin/) `v0.3.0`
 
 Develops Model Context Protocol servers on Spring AI (Spring Boot, `@Tool`/`@ToolParam`) with
 strict Test-Driven Development. Treats the tool description as a published contract (compact
 description template, contract snapshot + changelog), the calling model as a consumer of
 untrusted upstream text (sanitizing, PII masking, result caps with warnings), and the server as a
 deputy (OAuth2 resource server, per-tool RBAC, audit, no token passthrough, read-only enforced by
-ArchUnit).
+ArchUnit). The server is a thin data-retrieval adapter: business logic is forbidden and flagged
+for the upstream owner (planner out-of-scope list, scope conflict in `mcp-code`, critical Scope
+review dimension).
 
 **Pipeline**: `mcp-plan` -> `mcp-code` (TDD) -> `mcp-verify` -> `mcp-review` <-> `mcp-fix` -> `mcp-commit`
 
@@ -112,8 +114,9 @@ ArchUnit).
 - Tool specification + TDD in one skill, ending in a bounded contract-snapshot acceptance step
 - Verification gate (compile + tests + contract snapshot/changelog pairing + build, optional
   checkstyle/JaCoCo) recorded against a source-tree hash
-- 7-dimension review incl. an OWASP-MCP-Top-10-style security dimension, or one dimension as a
-  focused audit; TDD-disciplined fix loop
+- 8-dimension review incl. an OWASP-MCP-Top-10-style security dimension and a Scope dimension
+  (data retrieval only, no business logic), or one dimension as a focused audit; TDD-disciplined
+  fix loop
 - Upstream client conventions: timeouts, transport-only retry, rate limiting, circuit breaker,
   caching with per-caller RBAC re-applied
 - Java 21/25, Spring Boot 4.x, Spring AI MCP server, Gradle, JUnit 5, ArchUnit

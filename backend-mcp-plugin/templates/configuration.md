@@ -76,7 +76,7 @@ Resolved `config` shape (example — oh-ellis-mcp):
 - `transports`: array of `"webmvc"` | `"webflux"` | `"stdio"` — the MCP server starters present
 - `toolRegistration`: `"spec-list"` (hand-built `List<SyncToolSpecification>` beans — lets one choke point wrap every tool) | `"callback-provider"` (`ToolCallbackProvider` bean) | `"annotation-scanner"` (Spring AI annotation scanning) — where a new tool must be registered
 - `security`: `"oauth2-resource-server"` | `"spring-security"` | `"none"`
-- `readOnly`: `true` when the server must never issue a mutating upstream call (enforced by an ArchUnit rule — `templates/contract-snapshot.md`); `false` only for a server that deliberately exposes write tools
+- `readOnly`: `true` when the server must never issue a mutating upstream call (enforced by an ArchUnit rule — `templates/contract-snapshot.md`); `false` only for a server that deliberately exposes write tools. `false` alone is not consent: each write tool also needs a recorded opt-in and must be a pure pass-through of one upstream endpoint (`templates/scope-rules.md` § 6)
 - `contractSnapshot` / `contractTest` / `contractActual` / `contractChangelog`: the committed tool-manifest snapshot (paths relative to the project root, under `moduleDir` in a multi-module build), the test class that compares against it, the file that test writes the current manifest to, and the contract changelog — each `null` when the project has none (the Contract row of `mcp-verify` is then `SKIP`, and the review flags the missing gate)
 - `descriptionConvention`: project document that overrides the plugin's tool-description template, or `null`
 - `checkstyle` / `coverage`: `true` only when the Checkstyle / `jacoco` Gradle plugin is applied (default `false`; coverage is report-only)

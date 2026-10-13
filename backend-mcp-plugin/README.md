@@ -19,6 +19,11 @@ first-class:
   (no token passthrough), read-only enforced by ArchUnit, every call audited
 - **The upstream is someone else's system** — timeouts, transport-only retry, rate limiting,
   circuit breaking, caching with per-caller RBAC re-applied
+- **The server only retrieves data** — no business logic: no calculation, derived field,
+  aggregation, multi-endpoint join, business decision or state of its own. A requirement that needs
+  one is stopped and routed to the upstream owner (`plan.json` `outOfScopeRequirements`, a scope
+  conflict in `mcp-code`, a critical Scope finding in `mcp-review`). Read-only by default; a write
+  tool is a pure, explicitly opted-in pass-through (`templates/scope-rules.md`)
 
 Everything runs through a TDD pipeline with a verification gate recorded against a hash of the
 source tree, a multi-dimension review with an OWASP-MCP-style security dimension, and a
@@ -99,15 +104,15 @@ mcp-plan → mcp-code → mcp-verify → mcp-review ↔ mcp-fix → mcp-commit
 
 | Skill | Purpose |
 |-------|---------|
-| `mcp-plan` | Jira task / pasted task description / API inventory / spec → MCP tool `plan.json` |
+| `mcp-plan` | Jira task / pasted task description / API inventory / spec → MCP tool `plan.json` (data retrieval only; requirements needing business logic are listed as out of scope) |
 | `mcp-code` | Tool specification + TDD implementation, ending in the deliberate contract-snapshot update |
 | `mcp-verify` | Gate: compilation, tests, contract (snapshot + changelog pairing), build, optional checkstyle/coverage; `--fix` runs the build auto-fix loop first |
-| `mcp-review` | 7 dimensions (tool contract, upstream integration, security, clean code, logging & audit, tests, architecture) + spec compliance; `--dimension <key>` for a focused audit |
+| `mcp-review` | 8 dimensions (tool contract, upstream integration, security, clean code, logging & audit, tests, architecture, scope = data retrieval only) + spec compliance; `--dimension <key>` for a focused audit |
 | `mcp-fix` | Fixes from the review report — TDD for behavior, direct for mechanics, snapshot + changelog for contract changes |
 | `mcp-commit` | Validated commit from staged changes: tree check, secret scan, contract pairing check |
 | `mcp-debug` | 4-phase debugging (reproduce, hypothesize, test, confirm) incl. transport and upstream issues |
 | `mcp-progress` | Dashboard: pipeline state, scenarios, contract status, next command |
-| `mcp-recall` | Rules reference (`commit`, `tdd`, `build`, `coding`, `tool`, `security`, `upstream`) + violation scan |
+| `mcp-recall` | Rules reference (`commit`, `tdd`, `build`, `coding`, `tool`, `security`, `upstream`, `scope`) + violation scan |
 
 ### State machine
 
@@ -156,7 +161,7 @@ backend-mcp-plugin/
 ├── scripts/       detect-project.sh, session-init.sh, validate-build-state.sh, source-tree-hash.sh, pre-commit-check.sh, pipeline-state.sh, run-gradle.sh, junit-summary.sh, review-scope.sh
 ├── skills/        mcp-plan, mcp-code, mcp-verify, mcp-review, mcp-fix, mcp-commit, mcp-debug,
 │                  mcp-progress, mcp-recall
-└── templates/     core-conventions, tool-conventions, upstream-client, mcp-security,
+└── templates/     core-conventions, scope-rules, tool-conventions, upstream-client, mcp-security,
                    contract-snapshot, tdd-rules, work-document-template, plan-schema,
                    progress-schema, coverage-gate
 ```

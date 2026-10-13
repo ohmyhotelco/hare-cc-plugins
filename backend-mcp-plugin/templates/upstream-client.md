@@ -14,7 +14,9 @@ an upstream that is already struggling, and never to repeat a call that is not s
   class that holds the HTTP client. Tools call it; an ArchUnit rule forbids the tool layer from
   depending on `org.springframework.web.client..` / `org.springframework.web.reactive.function.client..`
 - Request/response records in `client/dto/`; the adapter boundary normalizes upstream quirks
-  (field renames, sentinel values, envelope unwrapping) so tools see one clean shape
+  (field renames, sentinel values, envelope unwrapping) so tools see one clean shape — normalization
+  never changes a value's meaning, and the client never combines endpoints or derives data
+  (`templates/scope-rules.md` § 3: one client method = one upstream read)
 - Configuration in `config/{Upstream}ClientConfig` + a `@ConfigurationProperties` class; base URL,
   timeouts and limits are properties per Spring profile, never literals in code
 
@@ -31,6 +33,14 @@ an upstream that is already struggling, and never to repeat a call that is not s
 - Every timeout comes from properties with a stated worst case: `connect + read × attempts +
   backoff` must stay below the MCP client's own tool-call timeout, or the model sees a hang
   instead of a classified error
+
+## Outbound destination
+
+- The base URL is a property per profile; no host, scheme, port or path prefix is ever taken from
+  model input or upstream response data (a `next` link in a payload is not followed blindly)
+- Redirects are not followed to a different host; the request factory is configured accordingly and a
+  client test pins it
+- The client reaches only the configured upstream — no generic "fetch this URL" capability
 
 ## Credentials
 

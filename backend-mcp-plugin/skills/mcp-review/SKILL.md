@@ -1,14 +1,14 @@
 ---
 name: mcp-review
-description: "Review an MCP server via the code-reviewer agent across 7 dimensions — tool contract & descriptions, upstream integration, security (OWASP MCP Top 10: tool poisoning, prompt injection via output, excessive scope, token passthrough, data exfiltration, RBAC, audit), clean code, logging & audit, test quality, architecture — plus spec compliance when a plan exists; produces a structured report mcp-fix consumes. With --dimension <key> it runs one dimension as a standalone focused audit that touches no pipeline state."
-argument-hint: "<feature-name or target-path> [--dimension tool_contract|upstream_integration|security|clean_code|logging|test_quality|architecture] [--full] [--yes]"
+description: "Review an MCP server via the code-reviewer agent across 8 dimensions — tool contract & descriptions, upstream integration, security (OWASP MCP Top 10: tool poisoning, prompt injection via output, excessive scope, token passthrough, data exfiltration, RBAC, audit), clean code, logging & audit, test quality, architecture, scope (data retrieval only: business logic in the server is critical) — plus spec compliance when a plan exists; produces a structured report mcp-fix consumes. With --dimension <key> it runs one dimension as a standalone focused audit that touches no pipeline state."
+argument-hint: "<feature-name or target-path> [--dimension tool_contract|upstream_integration|security|clean_code|logging|test_quality|architecture|scope] [--full] [--yes]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash(bash *scripts/detect-project.sh*), Bash(bash *scripts/pipeline-state.sh *), Bash(bash *scripts/review-scope.sh *), Bash(bash *scripts/source-tree-hash.sh*), Bash(git status*), Bash(git diff *), Bash(git ls-files *), Bash(date *), Agent
 ---
 
 # MCP Server Review
 
-Launch the `code-reviewer` agent for a full review (7 core dimensions + optional spec compliance) that gates the pipeline, or for a focused single-dimension audit that does not.
+Launch the `code-reviewer` agent for a full review (8 core dimensions + optional spec compliance) that gates the pipeline, or for a focused single-dimension audit that does not.
 
 **Done when:** the validated report is saved (`review-report-{feature}.json` or `audit-{key}-{scope}.json`) with `summary.verdict` PASS or FAIL, and — full review with a progress file — `pipeline.review` is written (with its `scope` and the review manifest) and `pipeline.status` is `done`, `reviewed` or `review-failed`, with the lock released.
 
@@ -28,7 +28,7 @@ A full review of a feature runs in one of two **scopes** (Step 2.8): `full` — 
 
 ### Step 1: Determine Mode and Target
 
-Strip a trailing `--yes` (answers the Step 2 re-review confirmation, and the Step 2.5 staleness prompt only while the work document has no `- [ ]` left). Strip `--full` (forces Step 2.8 to choose `full`). Strip `--dimension <key>`: the key must be one of `tool_contract`, `upstream_integration`, `security`, `clean_code`, `logging`, `test_quality`, `architecture` — anything else → stop and list the valid keys. Present → **focused audit**; absent → **full review**.
+Strip a trailing `--yes` (answers the Step 2 re-review confirmation, and the Step 2.5 staleness prompt only while the work document has no `- [ ]` left). Strip `--full` (forces Step 2.8 to choose `full`). Strip `--dimension <key>`: the key must be one of `tool_contract`, `upstream_integration`, `security`, `clean_code`, `logging`, `test_quality`, `architecture`, `scope` — anything else → stop and list the valid keys. Present → **focused audit**; absent → **full review**.
 
 The remaining argument:
 
@@ -93,7 +93,7 @@ If a feature name was provided:
 3. the previous report `pipeline.review.reportFile` exists and parses, and `{manifestFile}` exists
 4. `bash "{pluginRoot}/scripts/review-scope.sh" changed "{manifestFile}" {reviewPaths}` exits 0. Its lines (`M`/`A`/`D` + path) are `{changes}`; `{changedFiles}` = the `M`/`A` paths. More than 15 changed files → `full` (a delta that large saves little and loses the cross-file view)
 
-For `delta`, resolve `{deltaDimensions}`: every dimension with at least one issue in the previous report; plus `security` always (the highest-blast-radius dimension is never skipped); plus `test_quality` when a changed file is under `{testDir}`; plus `tool_contract` when a changed file is `config.contractSnapshot` or a `*Tools.java`; plus `architecture` when a file was added or deleted. `spec_compliance` only when it is in the previous report and had issues.
+For `delta`, resolve `{deltaDimensions}`: every dimension with at least one issue in the previous report; plus `security` and `scope` always (the highest-blast-radius dimension and the one a fix is most likely to break — a fixer relocating logic — are never skipped); plus `test_quality` when a changed file is under `{testDir}`; plus `tool_contract` when a changed file is `config.contractSnapshot` or a `*Tools.java`; plus `architecture` when a file was added or deleted. `spec_compliance` only when it is in the previous report and had issues.
 
 `{changes}` empty (nothing changed since the last review — a re-run on the same code): skip the agent. Re-save nothing; take the previous report's verdict for Step 6 exactly as it is (same `scope`), tell the user the review is unchanged since `{previous timestamp}`, release the lock, and stop after Step 7.
 
@@ -117,13 +117,13 @@ Launch the `code-reviewer` agent (`subagent_type: "backend-mcp-plugin:code-revie
 - `targetTool`: from Step 2.7 (full review with `specAvailable` and a `targetTool` only; omit otherwise) — scopes spec compliance to that tool, so tools of the same plan not yet built are not reported as missing
 - `changedFiles`, `baselineReport`: **delta scope only** — `{changedFiles}` and the previous report path; with them `dimensions` is `{deltaDimensions}`
 
-`agents/code-reviewer.md` Phase 1 is the single source of truth for each dimension's checks — do not restate or extend them here. The keys, for orchestration only: `tool_contract`, `upstream_integration`, `security`, `clean_code`, `logging`, `test_quality`, `architecture`, and `spec_compliance`.
+`agents/code-reviewer.md` Phase 1 is the single source of truth for each dimension's checks — do not restate or extend them here. The keys, for orchestration only: `tool_contract`, `upstream_integration`, `security`, `clean_code`, `logging`, `test_quality`, `architecture`, `scope`, and `spec_compliance`.
 
 ### Step 3.5: Validate Agent Output
 
 Do not trust the response as complete just because it returned. Check:
 
-1. **Dimension set** — full review: exactly the 7 core keys, plus `spec_compliance` iff `specAvailable`; delta scope: exactly `{deltaDimensions}`; focused audit: exactly `[{key}]`. A missing or extra key fails validation
+1. **Dimension set** — full review: exactly the 8 core keys, plus `spec_compliance` iff `specAvailable`; delta scope: exactly `{deltaDimensions}`; focused audit: exactly `[{key}]`. A missing or extra key fails validation
 2. **Numeric consistency** — `summary.totalIssues` equals the total entries across every `issues[]`; `summary.critical`/`warning`/`suggestion` match the actual severities
 3. **Score and verdict** — recompute `overallScore` as the mean of the scores present, rounded to 1 decimal; a dimension below 7 carries at least one issue; recompute the verdict (all ≥ 7 and zero critical → PASS) and compare
 4. **Agent failure** — errored, empty, or visibly truncated output (unterminated JSON) fails validation
@@ -171,6 +171,7 @@ Dimension Scores:
   Logging & Audit:       {score}/10
   Test Quality:          {score}/10
   Architecture:          {score}/10
+  Scope (data only):     {score}/10
   Spec Compliance:       {score}/10  (only when spec context exists)
 
 Overall: {score}/10 — {PASS | FAIL}
@@ -223,7 +224,7 @@ Release the lock if one was taken in Step 2.6 — release with `bash "{pluginRoo
 
 **Example 1 — full review, spec context**
 
-`/backend-mcp-plugin:mcp-review get-hotel-bookings`: status `verified`, tree matches → lock taken; the plan exists → `specAvailable`, `targetTool = get_hotel_bookings` (the plan's other two tools are not built yet and are not reported). The agent reviews `src/main/java/com/example/mcp/` with 8 dimensions; validation passes (8 keys, counts consistent, `filesReviewed` 61 = 38 main + 20 test + `application.yml` + snapshot + changelog). Security finds one warning (a tool without `@RateLimiter`), Tool Contract one suggestion. Verdict PASS → status `reviewed`; lock released; suggests `mcp-fix` or commit.
+`/backend-mcp-plugin:mcp-review get-hotel-bookings`: status `verified`, tree matches → lock taken; the plan exists → `specAvailable`, `targetTool = get_hotel_bookings` (the plan's other two tools are not built yet and are not reported). The agent reviews `src/main/java/com/example/mcp/` with 9 dimensions; validation passes (9 keys, counts consistent, `filesReviewed` 61 = 38 main + 20 test + `application.yml` + snapshot + changelog). Security finds one warning (a tool without `@RateLimiter`), Tool Contract one suggestion. Verdict PASS → status `reviewed`; lock released; suggests `mcp-fix` or commit.
 
 **Example 2 — focused security audit**
 
@@ -231,7 +232,7 @@ Release the lock if one was taken in Step 2.6 — release with `bash "{pluginRoo
 
 **Example 4 — delta re-review after a fix**
 
-Round 1 (full) failed: 1 critical in Security, 2 warnings in Test Quality. `mcp-fix` (round 1) changed `BookingTools.java` and `BookingToolsTest.java`; `mcp-verify` passed. `/backend-mcp-plugin:mcp-review get-hotel-bookings` → Step 2.8: `fix.round` 1, manifest present, 2 files changed → `scope = delta`, dimensions `security`, `test_quality`, `tool_contract` (a `*Tools.java` changed). The agent reads 2 files instead of 61. Merge: the 5 untouched dimensions are copied, the 3 re-judged ones take the agent's issues; verdict PASS with 0 issues → status `reviewed` (not `done`), and Step 7 suggests `--full` for the final pass.
+Round 1 (full) failed: 1 critical in Security, 2 warnings in Test Quality. `mcp-fix` (round 1) changed `BookingTools.java` and `BookingToolsTest.java`; `mcp-verify` passed. `/backend-mcp-plugin:mcp-review get-hotel-bookings` → Step 2.8: `fix.round` 1, manifest present, 2 files changed → `scope = delta`, dimensions `security`, `scope`, `test_quality`, `tool_contract` (a `*Tools.java` changed). The agent reads 2 files instead of 61. Merge: the 4 untouched dimensions are copied, the 4 re-judged ones take the agent's issues; verdict PASS with 0 issues → status `reviewed` (not `done`), and Step 7 suggests `--full` for the final pass.
 
 **Example 3 — validation failure**
 

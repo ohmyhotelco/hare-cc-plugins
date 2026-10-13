@@ -1,7 +1,7 @@
 ---
 name: mcp-recall
-description: "Recall the MCP server development rules (commit, TDD, build, coding, tool contract, security, upstream) and check recent work for concrete violations."
-argument-hint: "[commit | tdd | build | coding | tool | security | upstream]"
+description: "Recall the MCP server development rules (commit, TDD, build, coding, tool contract, security, upstream, scope = data retrieval only / no business logic) and check recent work for concrete violations."
+argument-hint: "[commit | tdd | build | coding | tool | security | upstream | scope]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash(bash *scripts/detect-project.sh*), Bash(git log *), Bash(git diff *)
 ---
@@ -32,6 +32,7 @@ Display development rules and scan recent work for concrete violations of them. 
 | `tool` | Tool contract & descriptions | templates/tool-conventions.md (+ the project's `descriptionConvention` document) + templates/contract-snapshot.md |
 | `security` | OWASP MCP Top 10 checklist | templates/mcp-security.md |
 | `upstream` | Upstream client rules | templates/upstream-client.md |
+| `scope` | Data retrieval only — no business logic, write-tool policy, MCP compliance conditions | templates/scope-rules.md |
 
 ### Step 2: Display Rules
 
@@ -77,6 +78,16 @@ State the scope before scanning. A scan that cannot run (not a git repo, directo
 - An inbound `Authorization` header read and set on an outbound request → violation
 - Literal secret values or non-empty secret defaults in `application*.yml` → violation
 - For judgment-heavy rows of `templates/mcp-security.md` (sanitizing coverage, masking coverage), point to `/backend-mcp-plugin:mcp-review --dimension security` rather than guessing here
+
+#### `scope`
+- Scope: `{toolsPackage}`, `client/`, `common/`, `config/` and `application*.yml`; the semantic judgment is `/backend-mcp-plugin:mcp-review --dimension scope`, this scan only surfaces candidates
+- Arithmetic or rounding on upstream amounts (`.multiply(`, `.divide(`, `.setScale(`, `.subtract(`) in `{toolsPackage}` or `client/` → violation candidate (BL-1)
+- `Collectors.summing`/`averaging`/`groupingBy`/`counting`, `.reduce(`, `.sum()` over result rows → violation candidate (BL-3)
+- A `{toolsPackage}` class importing a persistence, scheduling or messaging type (`jakarta.persistence`, `org.springframework.jdbc`, `org.springframework.data`, `@Scheduled`, `KafkaTemplate`) → violation (BL-6)
+- A package named `service`, `domain`, `rules`, `policy`, `calculator` or `repository` under the base package → violation (no home for business logic)
+- More than one distinct `{Upstream}Client` method called in one `@Tool` method → violation candidate (BL-4)
+- `readOnly: true` and a tool named `create_`/`update_`/`delete_`/`set_`/`cancel_`/`approve_`, or a mutating HTTP verb in `client/` → violation (BL-7)
+- `@Tool` without `ToolAnnotations` on a `spec-list` server → violation (`templates/scope-rules.md` § 7 C2)
 
 #### `upstream`
 - Scope: the `client/` and `config/` packages and `application*.yml`

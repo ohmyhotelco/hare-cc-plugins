@@ -44,7 +44,7 @@ mcp-plan → mcp-code → mcp-verify → mcp-review ↔ mcp-fix → mcp-commit
 | `mcp-plan` | Jira task / mô tả task / tài liệu API upstream / spec → `plan.json` cho các tool |
 | `mcp-code` | Đặc tả tool + triển khai TDD, kết thúc bằng cập nhật contract snapshot có kiểm soát |
 | `mcp-verify` | Gate: compile, test, contract (snapshot + changelog), build, checkstyle/coverage tuỳ chọn; `--fix` chạy vòng auto-fix build trước |
-| `mcp-review` | Review 7 chiều (tool contract, upstream, security, clean code, logging & audit, test, kiến trúc) + spec; `--dimension <key>` để audit riêng một chiều |
+| `mcp-review` | Review 8 chiều (tool contract, upstream, security, clean code, logging & audit, test, kiến trúc, scope = chỉ truy xuất dữ liệu, không business logic) + spec; `--dimension <key>` để audit riêng một chiều |
 | `mcp-fix` | Sửa theo report review — TDD cho hành vi, sửa trực tiếp cho lỗi cơ học, snapshot + changelog cho thay đổi contract |
 | `mcp-commit` | Commit từ thay đổi đã stage: kiểm tra tree, quét secret, kiểm tra cặp snapshot/changelog |
 | `mcp-debug` | Debug 4 pha, gồm cả lỗi transport và upstream |

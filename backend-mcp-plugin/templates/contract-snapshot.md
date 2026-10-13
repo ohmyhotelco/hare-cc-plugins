@@ -155,6 +155,9 @@ class ArchitectureTest {
 }
 ```
 
+Scope guards (no persistence/scheduler/messaging dependency from `tools..`, no `service`/`domain`/`rules`
+layer, one upstream call per tool) belong in the same class: `templates/scope-rules.md` § 8.
+
 For a `webflux` server, apply the same verbs to `WebClient` (`put()`, `patch()`, `delete()`,
 `method(HttpMethod)`) and use `org.springframework.web.reactive.function.client..` for the
 layering rule. A client that genuinely needs a dynamic verb narrows the `method` ban to its own
@@ -165,4 +168,6 @@ package and says why.
 - Server `instructions` size under the client display budget (reads the resolved property)
 - Tool registration: the registered tool names equal the snapshot's names (no tool registered
   twice, none missing)
+- Annotations: every snapshot entry has all four hints set; on a `readOnly` server every entry has
+  `readOnlyHint=true` (so a write tool can never slip in without a visible snapshot diff)
 - Dependency pinning: the lockfile is present and `lockAllConfigurations()` is on

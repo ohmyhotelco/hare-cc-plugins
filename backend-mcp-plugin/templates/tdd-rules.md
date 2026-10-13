@@ -136,10 +136,14 @@ The name states the behavior, not the method called.
 - Mockito for the upstream client and entitlement service; real `PiiMasker`/`OutputSanitizer`
   (their behavior is part of what the tool test pins)
 - `@ParameterizedTest` for enum sets and invalid-input tables
+- Pass-through test (every tool): the upstream mock returns a fixed result and the assertion is that
+  the tool result carries those values unchanged (apart from sanitizing/masking/entitlement), and
+  that the upstream was called exactly once — a tool test never asserts a value the server computed
 
 ## Anti-Patterns
 
 - Never assert only that the upstream mock was called — assert the tool's result or error
+- Never write a test whose expected value is computed, derived or aggregated by the server: that is a business-logic scenario, and it is stopped at the scope gate (`templates/scope-rules.md` § 5), not implemented
 - Never add test-only methods or setters to production classes
 - Never skip the RED phase — if the test passes immediately, find out why
 - Never run individual test methods — always the whole test class

@@ -9,7 +9,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash(bash *scripts/detect-project.
 
 # Implement MCP Tools with TDD
 
-Specify and implement MCP tools using strict Test-Driven Development. This skill orchestrates the whole workflow: tool specification (the published contract), scenario writing, and the RED-GREEN cycle executed by the `implement` agent.
+Specify and implement MCP tools using strict Test-Driven Development. This skill orchestrates the whole workflow: tool specification (the published contract), scenario writing, and the RED-GREEN cycle executed by the `implement` agent. A tool here only **retrieves upstream data** — it never implements business logic; a tool that would need it is stopped at the Step 2 scope check (`{pluginRoot}/templates/scope-rules.md`).
 
 **Done when:** each processed tool has its work document and `{workDocDir}/.progress/{feature}.json` with `pipeline.scenarios.completed` equal to the document's `- [x]` count and `pipeline.status` `implemented` (all scenarios `- [x]` and `{buildCommand}` exited 0) or `implementing`, the Step 6 report is grounded in `git status`, and the lock is released.
 
@@ -49,20 +49,21 @@ Validate every `feature-name` (however derived): reject and stop if it contains 
 
 ### Step 2: Gather Context
 
-1. Read `templates/core-conventions.md` and `templates/tool-conventions.md`; when `config.descriptionConvention` is set and the file exists, read it — the project's rules win
+1. Read `templates/core-conventions.md`, `templates/scope-rules.md` and `templates/tool-conventions.md`; when `config.descriptionConvention` is set and the file exists, read it — the project's rules win
 2. Scan `{sourceDir}` under `config.toolsPackage` for existing `@Tool(name = "…")` declarations and their classes, and the `client/` package for existing upstream methods
 3. **Existing tool check** — for every tool to process whose name is already declared: this run **changes** a published tool. Only additive changes are allowed in place (new optional parameter, new output field, clearer description with the same meaning, new error detail key). A rename, a removed/renamed parameter, a parameter that becomes required, or a removed output field is breaking → stop for that tool and tell the user a breaking change ships as a new tool name (`templates/contract-snapshot.md` § 3)
 4. **Contract gate check** — when `config.contractTest` is `null`, tell the user once: "No contract snapshot gate is configured: contract changes from this run will not be build-verified. `templates/contract-snapshot.md` § 1 has the test to add; the next skill run detects it (nothing to re-run)." Continue — the gate is the team's deliberate addition, never a side effect of implementing a tool
 5. **Read-only check** — `config.readOnly == true` and the tool needs a mutating upstream call (a write verb, `PUT`/`PATCH`/`DELETE`) → stop for that tool: it contradicts the server's read-only guarantee (an ArchUnit rule will fail the build). The user either changes the design or deliberately sets `"readOnly": false` in `.claude/backend-mcp-plugin.json` (`{pluginRoot}/templates/configuration.md`)
-6. **Registration** — `config.toolRegistration == "annotation-scanner"`: the `@McpTool` bean is discovered by the scanner (no registration edit); confirm the audit and rate-limit pointcuts cover `@McpTool` and tell the user when they do not
-7. `workDocMode`: read the document, extract `- [ ]` scenarios, and continue at Step 3.5
+6. **Scope check** (`templates/scope-rules.md` § 4) — for every tool to process, from the plan entry, the work document or the user's description: the tool must be obtainable from one upstream read plus field projection, derive no field, and apply no business rule. Any `BL-1`..`BL-8` match (a calculation, a computed or relabeled field, an aggregation, a second upstream call, a branch on a domain value, a business default, own state) → stop for that tool: tell the user `Scope conflict: {tool} — {BL-n}: {what}` and the option to ask the upstream owner to expose the endpoint; nothing is drafted, written or implemented for it. A write tool additionally needs `config.readOnly == false`, a pure pass-through of one endpoint, and the user's explicit opt-in: ask once ("`{tool}` will change data upstream ({what}). Opt in to this write tool?"), record the answer in the work document's `Write opt-in` row and `plan.json` `writeOptIn`; no answer, or `--yes` alone, is not an opt-in
+7. **Registration** — `config.toolRegistration == "annotation-scanner"`: the `@McpTool` bean is discovered by the scanner (no registration edit); confirm the audit and rate-limit pointcuts cover `@McpTool` and tell the user when they do not
+8. `workDocMode`: read the document, extract `- [ ]` scenarios, and continue at Step 3.5. A work document without the `Scope Check` section, or with a derived field, a second upstream read or a business rule in it, fails item 6 the same way
 
 ### Step 3: Write the Tool Work Document
 
 #### planMode, for each tool in `toolsWithoutWorkDoc`
 
 1. Read `templates/work-document-template.md`
-2. Generate `{workDocDir}/{kebab-tool}.md` from the plan entry: `Tool class:` and `Upstream client:` lines, Tool Specification (name, verb, access scope, RBAC permission, rate limiter), Description (`<tool_scope>{description.scope}</tool_scope><input>{description.input}</input>`), Parameters, Upstream Call, Output (including `Field-scoped (RBAC)` from `rbac.fieldScoped` and `Row scope` from `rbac.rowScope`), Errors, Contract, and Test Scenarios from `testScenarios[]` as `- [ ]` items with source references in comments (`<!-- TS-003 -->`), ending with the contract scenario
+2. Generate `{workDocDir}/{kebab-tool}.md` from the plan entry: `Tool class:` and `Upstream client:` lines, Tool Specification (name, verb, access scope, RBAC permission, rate limiter, annotations, write opt-in), Scope Check (from `scopeCheck`), Description (`<tool_scope>{description.scope}</tool_scope><input>{description.input}</input>`), Parameters, Upstream Call, Output (including `Field-scoped (RBAC)` from `rbac.fieldScoped` and `Row scope` from `rbac.rowScope`), Errors, Contract, and Test Scenarios from `testScenarios[]` as `- [ ]` items with source references in comments (`<!-- TS-003 -->`), ending with the contract scenario
 3. Present each generated document:
    > "Work document generated from plan.json for `{tool}`: {scenario count} scenarios. The description below is published on every tools/list — review it now:"
    > ```
@@ -78,11 +79,11 @@ Validate every `feature-name` (however derived): reject and stop if it contains 
    > "To specify `{tool_name}`:
    > 1. What does it return, in business terms? Any behavior a caller would misread (masked, access-scoped, partial)?
    > 2. Inputs: name, type, required?, format/enum/range for each
-   > 3. Upstream: which client and endpoint (method + path)? Is it safe to retry? Can the response be cached, and for how long?
+   > 3. Upstream: which client and endpoint (method + path) — does that endpoint already return every value the tool shows (no sums, flags or conversions done here)? Is it safe to retry? Can the response be cached, and for how long?
    > 4. Access: which permission gates it? Any fields only some callers may see? Row scoping (region/tenant)?
    > 5. Output: list or single object? Row cap? Which fields are free text or PII?
    > 6. Tool class: an existing `{Domain}Tools` or a new one?"
-3. Draft the work document: name the class (`--class` when given), write the description to the template — compact, business noun first, one gotcha, access-scope tag, `<input>` block — with a `<!-- manual -->` source comment on each scenario (or the reference the user names), and every scenario group (validation, behavior, access control when `config.security != "none"`, output safety for each free-text/PII field, upstream error mapping, and the final contract scenario). Mark uncertain scenarios with `?`
+3. Apply the Step 2 item 6 scope check to the answers before drafting anything (a value the endpoint does not return, or a rule the user wants applied, stops the tool there). Draft the work document: name the class (`--class` when given), write the description to the template — compact, business noun first, one gotcha, access-scope tag, `<input>` block — with a `<!-- manual -->` source comment on each scenario (or the reference the user names), and every scenario group (validation, behavior, access control when `config.security != "none"`, output safety for each free-text/PII field, upstream error mapping, and the final contract scenario). Mark uncertain scenarios with `?`
 4. Present the specification and scenarios:
    > "Here is the specification for `{tool_name}` — the description and parameter texts are the published contract:"
    > {document}

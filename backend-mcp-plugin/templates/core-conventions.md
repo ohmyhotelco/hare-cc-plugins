@@ -27,6 +27,19 @@ your Spring AI version dispatches synchronous tool calls on the webflux transpor
 on it, or use the async server type with `Mono`/`Flux`-returning tools and `WebClient`. Never call
 `.block()` in production code on this transport.
 
+## Scope (summary — `templates/scope-rules.md` is authoritative)
+
+- The server is a thin data-retrieval adapter: validate shape → one upstream read → project/normalize →
+  sanitize + mask → cap → return. Nothing else
+- No business logic: no calculation, derived field, aggregation, multi-endpoint join, business
+  decision/default/validation, server-side state, or rule duplicated from the upstream. A requirement
+  that needs it is stopped, flagged, and routed to the upstream owner — never implemented "just a little"
+- Read-only by default; a write tool is a pure pass-through of one upstream endpoint, explicitly opted in,
+  with honest annotations (`templates/scope-rules.md` § 6)
+- MCP compliance conditions C1–C13 (strict input schema, explicit annotations, typed bounded output,
+  deterministic errors, side-effect-free reads, least privilege, destination control, untrusted data,
+  resilience, audit, contract stability): `templates/scope-rules.md` § 7
+
 ## Naming Conventions
 
 Mirrors `CLAUDE.md` § Naming Conventions (change both together).
@@ -113,3 +126,5 @@ error count, test counts) → VERIFY it matches the claim → CLAIM the result c
 | "Only the description changed" | The description IS the contract. Snapshot + changelog, then verify. |
 | "The model will figure out the input" | If the description does not say it, the first call fails. Fix the description. |
 | "Upstream data is trusted" | It is untrusted input to an LLM. Sanitize and mask. |
+| "It's just a small calculation / total / flag in the tool" | That is business logic. Return the upstream value, or ask the upstream owner for an endpoint. |
+| "The model can't do the math, so the server should" | A server-computed number the upstream does not own is a second source of truth. Route it upstream. |

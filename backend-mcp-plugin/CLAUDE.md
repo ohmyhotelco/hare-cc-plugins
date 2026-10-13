@@ -8,13 +8,38 @@ resources and prompts) that an LLM client calls: `@Tool`/`@ToolParam` methods, a
 tool contract that must only change deliberately, an outbound client to the upstream system
 the tools read from, and the security controls an agent-facing server needs (inbound OAuth2,
 per-tool RBAC, audit, output sanitizing, result caps). There is no database layer in this
-plugin's conventions — an MCP server here is a thin, auditable adapter over an upstream API.
+plugin's conventions — an MCP server here is a thin, auditable adapter over an upstream API,
+and its scope is **data retrieval only** (see § Scope below).
 It is self-contained: using it does not require any other plugin in this repository.
 
 > **Maintainer documentation.** Claude Code does not load a plugin-root `CLAUDE.md` as context, so
 > nothing here is load-bearing for skills or agents. Every rule they follow lives in `templates/`
 > and is read explicitly at runtime: `pipeline-protocol.md` (lock, progress files, demotion,
-> tree hash), `commit-standards.md`, `configuration.md`, `architecture.md`. Change a rule there.
+> tree hash), `commit-standards.md`, `configuration.md`, `architecture.md`, `scope-rules.md` (data
+> retrieval only, write-tool policy, MCP compliance conditions). Change a rule there.
+
+## Scope: Data Retrieval Only
+
+The plugin forces every generated MCP server to be a thin data-retrieval adapter. The authoritative
+rules are `templates/scope-rules.md`; this is the summary the other documents point to.
+
+- A tool call is: validate input shape → one upstream read → project/normalize → sanitize + mask →
+  cap → return. The server owns transport, contract, safety and access; the **upstream owns every
+  business rule**
+- **No business logic** (`BL-1`..`BL-8`): no domain calculation, derived field, aggregation,
+  multi-endpoint join/orchestration, business decision/default/validation, server-side state or side
+  effect, or rule duplicated from the upstream. A requirement that needs it is **stopped and routed
+  upstream**: `mcp-plan` records it in `plan.json.outOfScopeRequirements` (with the upstream ask),
+  `mcp-code`/`implement` report a scope conflict and write nothing, `code-reviewer` rates it critical
+  (Scope dimension) and `review-fixer` deletes it instead of relocating it
+- **Read-only by default** (`config.readOnly`). A write tool needs `readOnly: false`, an explicit
+  per-tool opt-in, to be a pure pass-through of one upstream endpoint, and honest annotations
+- **MCP compliance conditions C1–C13** (strict input schema, explicit annotations, typed bounded
+  output, deterministic errors, side-effect-free idempotent reads, least privilege, outbound
+  destination control, untrusted upstream data, resilience, audit, contract stability) are enumerated
+  with their enforcement points in `templates/scope-rules.md` § 7
+- The plugin has no override flag for scope; widening it is a deliberate project decision made outside
+  the pipeline
 
 ## Tech Stack
 
@@ -81,7 +106,9 @@ The 13 rules `mcp-commit` writes by and `mcp-recall commit` checks: `templates/c
 mcp-plan (spec) → mcp-code (tool spec + TDD) → mcp-verify → mcp-review ↔ mcp-fix → mcp-commit
    ↕                      ↕                                     ↕
 mcp-planner agent    implement agent                     code-reviewer agent
-(spec → plan.json)   (RED → GREEN, contract snapshot)    (7 dimensions + optional spec)
+(spec → plan.json;   (RED → GREEN, contract snapshot;    (8 dimensions + optional spec)
+ out-of-scope →      scope conflict → stop)
+ upstream owner)
 
   mcp-plan is optional: without a spec, mcp-code takes a tool name and drafts the tool
   specification and scenarios with the user.
@@ -95,7 +122,7 @@ Interrupt skills (usable at any stage):
 
 Focused audits (standalone, no pipeline state):
   mcp-review --dimension <tool_contract | upstream_integration | security | clean_code |
-                          logging | test_quality | architecture>
+                          logging | test_quality | architecture | scope>
   mcp-fix --report <audit-file>   — fixes an audit's findings, no pipeline status change
 ```
 
@@ -141,30 +168,31 @@ Cost levers, kept on purpose: a Gradle run is one `run-gradle.sh` call (no raw l
 context); a re-review after `mcp-fix` is a **delta** review of the changed files only
 (`mcp-review` Step 2.8), and only a full review reaches `done`.
 
-- `mcp-planner` -- Reads a task description (Jira issue or pasted text), an upstream API inventory or a functional specification and produces an MCP tool plan (plan.json)
-- `implement` -- TDD-based tool implementation from work documents, including the deliberate contract-snapshot update
+- `mcp-planner` -- Reads a task description (Jira issue or pasted text), an upstream API inventory or a functional specification and produces an MCP tool plan (plan.json) of data-retrieval tools; requirements needing business logic go to `outOfScopeRequirements`
+- `implement` -- TDD-based tool implementation from work documents, including the deliberate contract-snapshot update; stops with a scope conflict instead of writing business logic
 - `build-doctor` -- Gradle build execution, failure diagnosis, and automatic fix with retry
-- `code-reviewer` -- Multi-dimension review (tool contract, upstream integration, security, clean code, logging, tests, architecture, + optional spec compliance); also one dimension as a focused audit
-- `review-fixer` -- TDD-disciplined fixer that reads review reports and applies targeted fixes
+- `code-reviewer` -- Multi-dimension review (tool contract, upstream integration, security, clean code, logging, tests, architecture, scope = data retrieval only, + optional spec compliance); also one dimension as a focused audit
+- `review-fixer` -- TDD-disciplined fixer that reads review reports and applies targeted fixes (business logic is deleted or escalated, never relocated)
 - `debugger` -- Systematic debugger using 4-phase methodology (reproduce, hypothesize, test, confirm)
 
 ## Skills
 
 | Skill | Purpose |
 |-------|---------|
-| `/backend-mcp-plugin:mcp-plan` | Jira task / task description / API inventory / spec → MCP tool plan.json |
+| `/backend-mcp-plugin:mcp-plan` | Jira task / task description / API inventory / spec → MCP tool plan.json (data-retrieval tools; business-logic requirements flagged out of scope) |
 | `/backend-mcp-plugin:mcp-code` | Tool specification + TDD implementation (manual or spec-driven) |
 | `/backend-mcp-plugin:mcp-verify` | Verification gate (compile + tests + contract + build + optional checkstyle/coverage); `--fix` runs the build auto-fix loop first |
 | `/backend-mcp-plugin:mcp-review` | Multi-dimension review, or one dimension as a focused audit (`--dimension`) |
 | `/backend-mcp-plugin:mcp-fix` | TDD-disciplined fix from a review report, or a focused-audit report (`--report`) |
 | `/backend-mcp-plugin:mcp-commit` | Smart commit from staged changes (secret scan + contract/changelog pairing check) |
 | `/backend-mcp-plugin:mcp-debug` | Systematic debugging (4-phase hypothesis-test) — utility |
-| `/backend-mcp-plugin:mcp-recall` | Rules reference and violation check — utility |
+| `/backend-mcp-plugin:mcp-recall` | Rules reference and violation check (incl. `scope`) — utility |
 | `/backend-mcp-plugin:mcp-progress` | Pipeline status dashboard — utility |
 
 ## Templates
 
-- `core-conventions.md` -- The single home of naming (mirror), coding standards, TDD process, build standards, verification philosophy and the tool-conventions summary (used by: mcp-code, mcp-recall, implement/code-reviewer/review-fixer/mcp-planner)
+- `core-conventions.md` -- The single home of naming (mirror), coding standards, TDD process, build standards, verification philosophy and the tool-conventions and scope summaries (used by: mcp-code, mcp-recall, implement/code-reviewer/review-fixer/mcp-planner)
+- `scope-rules.md` -- Data retrieval only: allowed shaping, forbidden business logic (BL-1..BL-8), scope test, stop-and-route-upstream procedure, write-tool policy, MCP compliance conditions C1–C13, ArchUnit scope guards (used by: mcp-planner, mcp-code, implement, code-reviewer, review-fixer, mcp-recall)
 - `tool-conventions.md` -- Tool authoring, description template, naming, error model, output sanitizing/masking, result limits, tool annotations, registration, resources/prompts, instructions budget (used by: mcp-code, implement, code-reviewer, review-fixer)
 - `upstream-client.md` -- Outbound client: timeouts, retry (transport-only, idempotent-only), rate limiting, circuit breaker, caching with per-caller RBAC, credentials, error classification (used by: implement, code-reviewer)
 - `mcp-security.md` -- OWASP MCP Top 10 (MCP01–MCP10) checklist, HTTP transport baseline, severity guide (used by: code-reviewer, mcp-recall)

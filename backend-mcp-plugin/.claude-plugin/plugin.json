@@ -1,7 +1,7 @@
 {
   "name": "backend-mcp-plugin",
-  "version": "0.2.0",
-  "description": "Spring AI MCP server development plugin: @Tool/@ToolParam authoring with a compact description convention, tool contract snapshot + changelog, upstream client resilience, OAuth2/RBAC/audit, OWASP MCP Top 10 security review, strict TDD, Gradle verification gate, and review-fix loop for Claude Code",
+  "version": "0.3.0",
+  "description": "Spring AI MCP server development plugin: @Tool/@ToolParam authoring with a compact description convention, tool contract snapshot + changelog, upstream client resilience, OAuth2/RBAC/audit, OWASP MCP Top 10 security review, data-retrieval-only scope guard (no business logic), strict TDD, Gradle verification gate, and review-fix loop for Claude Code",
   "author": {
     "name": "Daniel"
   },

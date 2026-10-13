@@ -14,6 +14,8 @@ Upstream client: `{basePackage}.client.{Upstream}Client`   <!-- or "none" for a 
 | Access scope | Read-only \| Finance-scoped \| {write: what it changes, idempotent?} |
 | RBAC permission | `@rbac.canCall('{tool_name}')` \| `{alias tool}` \| none (security disabled) |
 | Rate limiter | `mcpTools` \| `{bucket}` |
+| Annotations | readOnlyHint={}, destructiveHint={}, idempotentHint={}, openWorldHint={} (all four explicit; a read tool: true/false/true/false) |
+| Write opt-in | none (read tool) \| {who/when/why the user opted in — write tool only} |
 
 ### Description (the published contract)
 
@@ -37,11 +39,20 @@ Upstream client: `{basePackage}.client.{Upstream}Client`   <!-- or "none" for a 
 | Cache | `{cacheName}`, TTL {ttl} \| none (live data) |
 | Rate / circuit | `{limiter}` / `{circuitBreaker}` |
 
+### Scope Check (`templates/scope-rules.md` § 4)
+
+| Item | Value |
+|------|-------|
+| Upstream reads per call | 1 |
+| Derived / computed fields | none (every output field below is copied from the upstream response) |
+| Business rules applied in the tool | none (shape validation, caps, sanitizing, masking and entitlement scoping only) |
+
 ### Output
 
 | Item | Value |
 |------|-------|
 | Result type | `{Result}` record (`client/dto/` or tool-local) |
+| Field sources | `{resultField} <- {upstream.field}` for every field |
 | Shape | object \| list \| `{list, totalCount, limit, offset}` envelope |
 | Row cap | {n} (clamped in the tool) + the server-wide result limiter |
 | Sanitized fields | {free-text fields routed through the sanitizer} |
@@ -81,6 +92,7 @@ Write scenarios following these rules:
 ### Behavior
 
 - [ ] valid request returns {expected result}
+- [ ] result carries the upstream's values unchanged (no derived or recomputed field)
 - [ ] {not found condition} fails with NOT_FOUND
 
 ### Access control

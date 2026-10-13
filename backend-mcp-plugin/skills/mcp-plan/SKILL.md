@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Glob, Grep, Agent, Bash(bash *scripts/detect-project
 
 # MCP Tool Plan
 
-Analyze a specification and produce a structured tool plan (`plan.json`) that drives spec-aware work documents and TDD implementation in `mcp-code`.
+Analyze a specification and produce a structured tool plan (`plan.json`) that drives spec-aware work documents and TDD implementation in `mcp-code`. The plan contains **data-retrieval tools only**: any requirement that needs business logic (calculation, derived field, aggregation, multi-endpoint join, business decision, server-side state) is recorded in `outOfScopeRequirements` for the upstream owner, never planned (`{pluginRoot}/templates/scope-rules.md`).
 
 **Done when:** `docs/specs/{feature}/.implementation/mcp/plan.json` exists, parses, carries `tools` and `summary` (Step 4 check), and — planning-plugin source only — the spec progress file's `implementation.mcp.status` is `planned` with the same `planGeneratedAt`.
 
@@ -117,7 +117,8 @@ Agent(subagent_type: "backend-mcp-plugin:mcp-planner", prompt: "
 
 1. Read the generated `docs/specs/{feature}/.implementation/mcp/plan.json`
    - Missing, empty, or not valid JSON → report exactly: "Plan generation failed — plan.json not found or unreadable at docs/specs/{feature}/.implementation/mcp/plan.json. Not verified: tool counts." and stop (no Step 5)
-   - Parses but lacks required top-level fields (`tools`, `summary`) → report which fields are missing and stop
+   - Parses but lacks required top-level fields (`tools`, `summary`, `outOfScopeRequirements`) → report which fields are missing and stop
+   - Scope re-check (the plan is a generated artifact): any tool whose `scopeCheck.verdict` is not `in-scope`, whose `scopeCheck.upstreamReads` is not `1`, with a non-empty `scopeCheck.derivedFields`, or with an `output.fieldSources` gap → report it as a scope violation by tool name and stop; do not display the plan as ready
 2. Display the summary in the working language, sourcing every count and name from the file just read — never from the agent's chat output:
 
 ```
@@ -126,18 +127,19 @@ MCP Tool Plan for '{feature}':
   Source: {specDir} ({sourceKind}{, taskKey}{, status: specStatus})
   Read-only server: {readOnly}
 
-  Tools:            {count} ({tool names})
+  Tools:            {count} ({tool names}) — data retrieval only
   Tool classes:     {new/changed classes}
   Client methods:   {new client methods}
   Test Scenarios:   {count}
   Skipped:          {skippedRequirements count} ({one-line reasons})
+  Out of scope:     {outOfScopeRequirements count} — need business logic, route to the upstream owner ({one line per entry: BL id + upstreamAsk})
 
   Order: {toolOrder}
 
   Plan saved to: docs/specs/{feature}/.implementation/mcp/plan.json
 
   Next steps:
-    1. Review the plan — especially every tool description (it is published on every tools/list)
+    1. Review the plan — especially every tool description (it is published on every tools/list) and every out-of-scope requirement (each needs an upstream owner's answer, not a tool)
     2. /backend-mcp-plugin:mcp-code {feature}   (all tools, in order)
        or /backend-mcp-plugin:mcp-code <tool_name>   (one tool from the plan)
 ```
@@ -169,8 +171,8 @@ Feature `booking-reports`, planned from an upstream inventory: `/backend-mcp-plu
 
 1. Step 0.5: the document exists inside the project → `sourceKind = document`.
 2. Step 2: no existing plan.
-3. Step 3: the planner reads the inventory, finds three report endpoints and one `PUT` endpoint; the server is `readOnly`, so the `PUT` becomes a skipped requirement.
-4. Step 4 displays: Tools 3 (`get_hotel_bookings`, `get_hotel_booking_stats`, `get_settlement`), 1 new class (`SettlementTools`), 2 new client methods, 27 scenarios, Skipped 1 (write endpoint on a read-only server).
+3. Step 3: the planner reads the inventory, finds three report endpoints and one `PUT` endpoint; the server is `readOnly`, so the `PUT` becomes a skipped requirement. The note "also show total revenue per hotel" has no matching endpoint (it would mean summing booking rows in the server) → out of scope `BL-3`, `upstreamAsk`: "expose `GET /bookings/summary` with `totalAmount` per hotel", `closestInScopeTool`: `get_hotel_bookings`.
+4. Step 4 displays: Tools 3 (`get_hotel_bookings`, `get_hotel_booking_stats`, `get_settlement` — the upstream computes the stats and the settlement; the tools only wrap those endpoints), 1 new class (`SettlementTools`), 2 new client methods, 27 scenarios, Skipped 1 (write endpoint on a read-only server), Out of scope 1 (BL-3 total revenue).
 5. Step 5 is skipped (document source — no spec progress file).
 
 Task `ELS-2040`, planned straight from the ticket: `/backend-mcp-plugin:mcp-plan ELS-2040`

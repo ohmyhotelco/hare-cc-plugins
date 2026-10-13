@@ -10,7 +10,7 @@ Package roles and the tool call flow every MCP server built with this plugin fol
 {basePackage}/
 ├── {App}Application.java
 ├── tools/                      <- @Tool classes, one per business domain ({toolsPackage})
-│   └── {Domain}Tools.java          e.g. BookingTools: get_hotel_bookings, get_hotel_booking_stats
+│   └── {Domain}Tools.java          e.g. BookingTools: get_hotel_bookings, get_hotel_booking (thin: validate → client → project → sanitize/mask → cap)
 ├── client/                     <- Outbound client to the upstream system (the ONLY HTTP caller)
 │   ├── {Upstream}Client.java       e.g. EllisRestClient
 │   ├── {Upstream}ApiException.java
@@ -23,6 +23,8 @@ Package roles and the tool call flow every MCP server built with this plugin fol
 ├── common/                     <- Shared tool helpers (paging clamp, date parsing, free-text clean)
 └── error/                      <- McpToolException (structured tool error: code + message + details)
 ```
+
+There is deliberately no `service/`, `domain/`, `rules/`, `policy/`, `calculator/` or `repository/` package: the server holds no business logic and no state (`templates/scope-rules.md`); such a package appearing is a Scope finding.
 
 Not every server needs every package — a local STDIO server with `security: none` has no
 `security/` RBAC classes — but a package that exists holds only what its name says.
