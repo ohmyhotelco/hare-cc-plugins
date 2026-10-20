@@ -257,7 +257,7 @@ change is applied. Edge-first leaves already-loaded v2 clients soft-navigating t
 edge no longer serves (OMH-755 #312). The rollback PR's Migration notes state this order.
 
 ## Per-version S3 artifacts (recommended)
-Prod tars that overwrite a single key (`s3://<artifact-bucket>/<env>/<app>.tar`). Recommend per-version
+Where prod tars overwrite a single key (`s3://<artifact-bucket>/<env>/<app>.tar`), recommend per-version
 paths (`s3://<artifact-bucket>/<env>/<app>/<git-sha>/<app>.tar`) so a rollback can re-deploy a prior build
 without re-running CI. This is a deployment-owner improvement, not a blocker for the
 flag-based soft rollback above.

@@ -13,7 +13,7 @@
 // it use the app's own install:
 //   cp scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
 //   node {appDir}/.cascade-diff.tmp.mjs \
-//     --legacy-css http://localhost:4204/styles.css \
+//     --legacy-css http://localhost:4200/styles.css \
 //     --target-css http://localhost:3021/app/app.css \
 //     --markup "/abs/appDir/app/components/terms/__golden__/terms-100060-*.html" \
 //     --out /abs/path/docs/migration/mobile/privacy/cascade-diff.raw.json \
