@@ -131,12 +131,12 @@ Both are cheap to check and would have caught this before CI.
 ## 4. `fm-route` models one edge layer; mobile has two — `Medium`
 
 The skill describes the flip as happening "at the app's configured edge layer (nginx or
-CloudFront)". For **mobile** that is not the shape. `www` and `m` share one CloudFront distribution,
-so a mobile flip is **two** coordinated edits:
+CloudFront)". For **mobile** that is not the shape. The desktop and mobile hosts share one CloudFront
+distribution, so a mobile flip is **two** coordinated edits:
 
-1. the CloudFront viewer-request function's `MOBILE_*` arrays
-   (`infra/cloudfront/functions/omh-v2-router.js`), which tag a request `X-Origin-Route: v2`; and
-2. the ALB listener rule in `infra/alb/v2-mobile-routes.json`, which keeps its own `path-pattern`
+1. the CloudFront viewer-request function's route arrays
+   (`infra/cloudfront/functions/<router>.js`), which tag a request with an origin-route header; and
+2. the ALB listener rule in `infra/alb/<mobile-rule>.json`, which keeps its own `path-pattern`
    condition as a safeguard.
 
 `infra/cloudfront/v2-routes.json` — the natural place to look, and the file the single-layer model
