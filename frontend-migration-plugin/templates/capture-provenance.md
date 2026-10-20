@@ -34,7 +34,7 @@ it — `style-spec.json`, `*.probe.json`, `parity-report.json`, `e2e-report.json
 
 ```jsonc
 "provenance": {
-  "origin": "https://dev-newwww.ohmyhotel.com/en/my-page/delete-account",  // full URL, host:port included
+  "origin": "https://dev.example.com/en/my-page/delete-account",  // full URL, host:port included
   "side": "legacy",                  // legacy | v2 | unresolved   ← a resolution result, never an assertion
   "authState": "authenticated",      // anonymous | authenticated
   "renderSource": "live",            // live | source-fallback

@@ -79,9 +79,9 @@ leaves the page at `verified` and `fm-parity` at `e2e-passed` until the missing 
 
 ```
 edge flip point (per app: nginx OR CloudFront OR script — apps.{app}.flipMechanism, default nginx)
-  www.ohmyhotel.com  → legacy-pc :30210  | web-pc     :30220 (migrated paths, flag ON)
-  m.ohmyhotel.com    → legacy-mobile     | web-mobile :30221
-  hana.ohmyhotel.com → legacy-hana       | web-hana   :30321
+  www.ohmyhotel.com  → legacy-pc :3010  | web-pc     :3020 (migrated paths, flag ON)
+  m.ohmyhotel.com    → legacy-mobile     | web-mobile :3021
+  hana.ohmyhotel.com → legacy-hana       | web-hana   :3022
   /api/*             → backend (frozen contract)
 ```
 Each app flips at its configured edge layer — an app-layer / entry **nginx** routing block + flag,

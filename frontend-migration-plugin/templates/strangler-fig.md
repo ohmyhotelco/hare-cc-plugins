@@ -31,17 +31,17 @@ project-specific assignment.
 
 ```
         edge flip point (per app: nginx OR CloudFront OR project flip script)
-   www.ohmyhotel.com  → legacy-pc :30210   | web-pc     :30220 (if path migrated)
-   m.ohmyhotel.com    → legacy-mobile :30211 | web-mobile :30221 (if path migrated)
-   hana.ohmyhotel.com → legacy-hana :30311  | web-hana   :30321 (if path migrated)
+   www.ohmyhotel.com  → legacy-pc :3010   | web-pc     :3020 (if path migrated)
+   m.ohmyhotel.com    → legacy-mobile :3011 | web-mobile :3021 (if path migrated)
+   hana.ohmyhotel.com → legacy-hana :3012  | web-hana   :3022 (if path migrated)
    /api/*             → backend (unchanged, frozen contract)
 ```
 
 | App | domain | legacy port | new port |
 | --- | --- | --- | --- |
-| pc | www.ohmyhotel.com | 30210 | 30220 |
-| mobile | m.ohmyhotel.com | 30211 | 30221 |
-| hana | hana.ohmyhotel.com | 30311 | 30321 |
+| pc | www.ohmyhotel.com | 3010 | 3020 |
+| mobile | m.ohmyhotel.com | 3011 | 3021 |
+| hana | hana.ohmyhotel.com | 3012 | 3022 |
 
 The **flip point per app** is whatever `apps.{app}.flipMechanism` selects (an app-layer / entry
 nginx, CloudFront, or a project flip script). Ports above are illustrative of the new-app target; the edge that flips the
@@ -60,8 +60,8 @@ map $cookie_v2flags $route_booking_info {       # or a config-driven flag source
 }
 
 location = /hotel/booking-info {
-  if ($route_booking_info = v2) { proxy_pass http://127.0.0.1:30220; }   # web-pc
-  proxy_pass http://127.0.0.1:30210;                                     # legacy-pc
+  if ($route_booking_info = v2) { proxy_pass http://127.0.0.1:3020; }   # web-pc
+  proxy_pass http://127.0.0.1:3010;                                     # legacy-pc
 }
 ```
 
@@ -257,8 +257,8 @@ change is applied. Edge-first leaves already-loaded v2 clients soft-navigating t
 edge no longer serves (OMH-755 #312). The rollback PR's Migration notes state this order.
 
 ## Per-version S3 artifacts (recommended)
-Prod tars currently overwrite a single key (`s3://omh-data/prd/<app>.tar`). Recommend per-version
-paths (`s3://omh-data/prd/<app>/<git-sha>/<app>.tar`) so a rollback can re-deploy a prior build
+Where prod tars overwrite a single key (`s3://<artifact-bucket>/<env>/<app>.tar`), recommend per-version
+paths (`s3://<artifact-bucket>/<env>/<app>/<git-sha>/<app>.tar`) so a rollback can re-deploy a prior build
 without re-running CI. This is a deployment-owner improvement, not a blocker for the
 flag-based soft rollback above.
 

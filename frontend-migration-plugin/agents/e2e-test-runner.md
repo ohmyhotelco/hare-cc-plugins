@@ -151,11 +151,11 @@ there would be hashed as page code and committed with it). You do not edit `.git
                                // "legacy"/"new" are that leg's RESULT; each leg's origin/side/etc. go in
                                // its *Provenance object below — do not write provenance into these two
                                // per-leg provenance — templates/capture-provenance.md
-                               "legacyProvenance": { "origin": "http://localhost:30210/ko/login", "side": "legacy",
+                               "legacyProvenance": { "origin": "http://localhost:3010/ko/login", "side": "legacy",
                                                      "authState": "anonymous", "renderSource": "live",
                                                      "responseSource": "stubbed", "captureMode": "playwright-route-intercept",
                                                      "capturedAt": "ISO-8601" },
-                               "newProvenance":    { "origin": "http://localhost:30220/ko/login", "side": "v2", "…": "…" } },
+                               "newProvenance":    { "origin": "http://localhost:3020/ko/login", "side": "v2", "…": "…" } },
                   // one entry PER LANGUAGE the criteria cover — a single object cannot hold a
                   // multi-language matrix, and overwriting it would silently drop every language but the last
                   "copyParity": [{ "language": "KO",  // or "not-run" with a reason, when config has no i18n block
