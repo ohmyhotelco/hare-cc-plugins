@@ -24,7 +24,7 @@ native handlers unchanged.
 
 ### 3. Session tokens via storage
 Native ↔ web hand-off uses `sessionStorage` tokens (e.g. `cnoUser`, anchor
-`pages/hana-travel/.../hotel-payment.component.ts:381`) and the shared `.ohmyhotel.com` JWT
+`pages/hana-travel/.../hotel-payment.component.ts:381`) and the JWT shared on the parent domain,
 cookie `{hostname}_userToken`. The v2 web must read/write the **same keys** with the same domain
 attribute so native cookie persistence and token round-trips keep working.
 
