@@ -119,12 +119,12 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
 
 `nginx` and `cloudfront` each assume **one** artifact decides whether a path is served by v2. Some
 edges need two or more to move together, and editing one of them is worse than editing none. The
-case that forced this mechanism (OMH-837): `www` and `m` share one CloudFront distribution, so a
-**mobile** page is live only when
+case that forced this mechanism (OMH-837): the desktop and mobile hosts share one CloudFront
+distribution, so a **mobile** page is live only when
 
-1. the CloudFront viewer-request function lists it in its `MOBILE_*` arrays
-   (`infra/cloudfront/functions/omh-v2-router.js`), which tag the request `X-Origin-Route: v2`, **and**
-2. the ALB listener rule's `path-pattern` condition includes it (`infra/alb/v2-mobile-routes.json`) —
+1. the CloudFront viewer-request function lists it in its route arrays
+   (`infra/cloudfront/functions/<router>.js`), which tag the request with an origin-route header, **and**
+2. the ALB listener rule's `path-pattern` condition includes it (`infra/alb/<mobile-rule>.json`) —
    a safeguard the rule keeps because PC's per-page behaviors inject the same header host-blind.
 
 The PC behavior manifest `infra/cloudfront/v2-routes.json` — the file a single-artifact `cloudfront`
@@ -137,12 +137,12 @@ a flip script, and the config declares it:
 "mobile": {
   "flipMechanism": "script",
   // every artifact a flip of this app may edit — the diff check below enforces it
-  "flipArtifacts": ["infra/cloudfront/functions/omh-v2-router.js", "infra/alb/v2-mobile-routes.json"],
+  "flipArtifacts": ["infra/cloudfront/functions/<router>.js", "infra/alb/<mobile-rule>.json"],
   // run from the repo root; placeholders: {page} {app} {guardsPath} {flagKey}
   "flipCommands": {
     "flag-on": "node scripts/fm-route-page.mjs flag-on {page}",   // project adapter, below
     "revert":  "node scripts/fm-route-page.mjs revert {page}",
-    "status":  "node scripts/fm-route-mobile.mjs status"
+    "status":  "node scripts/<flip-script>.mjs status"
     // "flag-off" omitted: preparing a page here means authoring its ALB entry by hand (a quota
     // choice), so there is no command — see --flag-off below
   }
@@ -150,12 +150,12 @@ a flip script, and the config declares it:
 ```
 
 The commands are the project's adapter. Mapping `{page}` or `{guardsPath}` to whatever its script
-takes is the script's job, not the plugin's. OMH-837's `scripts/fm-route-mobile.mjs` takes
+takes is the script's job, not the plugin's. The project script behind OMH-837 takes
 `<flag-on|flag-off|revert> <value> [--kind page|section|prefix]`, not a page name. The adapter above
-looks the page up in `infra/alb/v2-mobile-routes.json` `paths[]` and calls
-`fm-route-mobile.mjs <action> --kind <match.kind> <match.value>`. Any project keys that script reads
-from the plugin config (there, `apps.mobile.routerFunction` / `albRuleIntent`) stay beside
-`flipMechanism`. A config note that forbids `script` because the plugin could not model a two-file
+looks the page up in `infra/alb/<mobile-rule>.json` `paths[]` and calls
+`<flip-script>.mjs <action> --kind <match.kind> <match.value>`. Any project keys that script reads
+from the plugin config (there, a router-function key and a rule-intent key under `apps.mobile`) stay
+beside `flipMechanism`. A config note that forbids `script` because the plugin could not model a two-file
 flip is obsolete from v1.5.0 and should be updated with the switch.
 
 Exit codes map onto the checks below. A missing `paths[]` entry, a revert of a page that is not

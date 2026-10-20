@@ -199,8 +199,8 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
     a PR the user opens — it **never pushes to AWS**.
   - `script` → `apps.*.flipArtifacts` + `apps.*.flipCommands`: for an edge where **one flip moves
     several artifacts together** and editing one alone is a half-flip. Mobile is the case that forced
-    it: `www` and `m` share one CloudFront distribution, so a mobile page is live only when both the
-    viewer-request function's `MOBILE_*` arrays and the ALB listener rule's `path-pattern` list it —
+    it: the desktop and mobile hosts share one CloudFront distribution, so a mobile page is live only when both the
+    viewer-request function's route arrays and the ALB listener rule's `path-pattern` list it —
     and the PC behavior manifest, where a `cloudfront` config would point, has no mobile entries.
     The project owns the flip script (it knows the pairing rules); `fm-route` runs it, then refuses
     unless it exited 0, made a non-empty change only inside `flipArtifacts`, and the project's
@@ -346,7 +346,7 @@ records and evidence rather than code. Two lanes cover the window. **Neither wri
   the fixer edits only the files the findings cite, their tests, and the page's own records, and it
   **stops** on any other path ("new surface — its own ticket and plan"), because unrequested changes
   in fix pushes kept opening new findings (OMH-840 #337 added new surfaces in rounds 3, 6, 7 and 8 of
-  twelve; the OMH-839 #396 reviewer: "each unrequested commit has cost a round"). Each finding closes as `fixed` (with a test that goes red when the fix is
+  twelve; on OMH-839 #396 the reviewer noted that every unrequested commit had cost a round). Each finding closes as `fixed` (with a test that goes red when the fix is
   reverted), `deferred` (with a ledger row) or `rejected` (with the basis) in
   `review-fix-report.json`, and the records sweep and gate impact of "Records Consistency" run before
   it reports. On a page **below** the flip it then behaves like any fix — the page returns to
