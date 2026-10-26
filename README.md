@@ -117,6 +117,12 @@ Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New 
 
 ---
 
+### [CC Usage Plugin](./cc-usage-plugin/) `v0.1.7`
+
+Hook-only usage ledger for Claude Code: records which repository, commands, skills, model and effort each session used and how many tokens, plus commit, PR and edit counts — never prompt text, tool arguments or file contents. Writes a local ledger and, when a receiver URL is configured, uploads it in batches from the async Stop hook (one developer and ISO week per batch, `X-Webhook-Token`, only `202` counts as delivered). Zero dependencies, Windows/macOS/Linux, Node ≥ 22.23.4.
+
+---
+
 ## How They Work Together
 
 ```
@@ -151,6 +157,7 @@ planning-plugin                 homepage-plugin
 - **backend-springboot-plugin**: Operates independently with its own work document system and TDD workflow. Does not require planning-plugin.
 - **backend-webflux-plugin**: Operates independently, same as backend-springboot-plugin. Separate plugin, separate stack (WebFlux + R2DBC/MyBatis vs MVC + JPA) -- see `backend-webflux-plugin/docs/decisions.md`.
 - **homepage-plugin**: Operates independently with its own interactive planning. Does not require planning-plugin.
+- **cc-usage-plugin**: Independent of the others; it only observes sessions through hooks.
 
 ## Installation
 
@@ -166,6 +173,7 @@ planning-plugin                 homepage-plugin
 /plugin install homepage-plugin@ohmyhotelco --scope project
 /plugin install frontend-migration-plugin@ohmyhotelco --scope project
 /plugin install frontend-ohmyhotel-plugin@ohmyhotelco --scope project
+/plugin install cc-usage-plugin@ohmyhotelco --scope user        # every session on the machine
 ```
 
 ## Management
