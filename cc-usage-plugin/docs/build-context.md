@@ -295,6 +295,14 @@ The round-2 mutants were run again: the 12 on code unchanged since are still cau
 replaced in round 3 no longer apply, and the rows above stand in for them. Not covered by a mutant: the
 check that the merge line ends at the previous HEAD, and the `send state not writable` line after `202`.
 
+### Headless run at `a0b4e59` (clean worktree, after round 3)
+
+Same command and receiver as before, plugin loaded from a detached worktree of `a0b4e59`: 1 turn,
+1.8 s, $0.0062, `result: "ok"`, `is_error: false`. One `202` upload with the same headers and query
+shape, body `session_open` + `prompt`; ledger `session_open`, `prompt`, `usage`, `session_close`, all
+`smoke-test`; `send/` empty; send state with a `gen`, `fails: 0`, `auth_block: null`,
+`config_block: null`; no `errors.log`. Data folder removed afterwards.
+
 ### Pull-request shape
 
 One PR for design documents and code (D10).
