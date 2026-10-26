@@ -234,6 +234,15 @@ parsed (`node --check`), so a failure is not a syntax error, and every mutant fa
 Not covered by a mutant: the exclusive-create fallback (needs a file system without hard links) and the
 `usage checkpoint not saved` log line.
 
+### Headless run at `0200485` (clean worktree, after round 2)
+
+Same command and receiver as before, plugin loaded from a detached worktree of `0200485`: 1 turn,
+1.7 s, $0.0062, `result: "ok"`, `is_error: false`. One `202` upload, query
+`<endpoint query>&developer=smoke-test&week=2026-W44&id=<first record id>`, `X-Webhook-Token` present,
+no `Authorization`, body `session_open` + `prompt`; ledger `session_open`, `prompt`, `usage`,
+`session_close`, all `smoke-test`; `send/` empty; send state `fails: 0`, `auth_block: null`,
+`config_block: null`; no `errors.log`. Data folder removed afterwards.
+
 ### Pull-request shape
 
 One PR for design documents and code (D10).
