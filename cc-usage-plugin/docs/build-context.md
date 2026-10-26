@@ -151,6 +151,14 @@ Two mutants needed a second attempt: the first session-lock mutant removed only 
 the lock in place, and the owner-check mutant survived until the mid-upload takeover case was written.
 A later mutation check should confirm a mutant changes behaviour before reading a pass as a gap.
 
+### Headless run at `ac6871d` (clean worktree, after round 1)
+
+Same command and receiver as the run at `2095203`, plugin loaded from a detached worktree of
+`ac6871d`: 1 turn, 1.8 s, $0.0062, `result: "ok"`, `is_error: false`. One `202` upload with the same
+headers and query shape, body `session_open` + `prompt`; ledger `session_open`, `prompt`, `usage`,
+`session_close`; `send/` empty; send state `fails: 0`, `auth_block: null`, `config_block: null`; no
+`errors.log`. Data folder removed afterwards.
+
 ### Pull-request shape
 
 One PR for design documents and code (D10).
