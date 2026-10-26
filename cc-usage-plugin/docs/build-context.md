@@ -74,6 +74,16 @@ usage and `session_close` were written by SessionEnd after Stop had uploaded (th
 flushed at Stop) and wait in the ledger for the next due upload, as D3 describes. No `errors.log`.
 Turns and cost were not captured; the run at the frozen commit below records them.
 
+### Headless run at `2095203` (clean worktree)
+
+Same command with `--output-format json`, plugin loaded from a detached worktree of `2095203`:
+1 turn, 1.6 s, $0.0062, `result: "ok"`, `is_error: false`. Receiver: one `202` upload, query
+`sig=example&developer=smoke-test&week=2026-W44&id=<first record id>`, `X-Webhook-Token` present,
+no `Authorization`, `Content-Type: application/x-ndjson`, body `session_open` + `prompt`. Ledger:
+`session_open`, `prompt`, `usage`, `session_close`, all `plugin: 0.1.7`; `send/` empty; send state
+`fails: 0`, `auth_block: null`, offset at the end of the uploaded lines; no `errors.log`. The data
+folder (`cc-usage-plugin-inline`) was removed afterwards.
+
 ### Pull-request shape
 
 One PR for design documents and code (D10).
