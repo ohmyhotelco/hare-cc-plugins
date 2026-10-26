@@ -119,7 +119,7 @@ Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New 
 
 ### [CC Usage Plugin](./cc-usage-plugin/) `v0.1.7`
 
-Hook-only usage ledger for Claude Code: records which repository, commands, skills, model and effort each session used and how many tokens, plus commit, PR and edit counts — never prompt text, tool arguments or file contents. Writes a local ledger and, when a receiver URL is configured, uploads it in batches from the async Stop hook (one developer and ISO week per batch, `X-Webhook-Token`, only `202` counts as delivered). Zero dependencies, Windows/macOS/Linux, Node ≥ 22.23.4.
+Hook-only usage ledger for Claude Code: records which repository, commands, skills, model and effort each session used and how many tokens, plus commit, PR and edit counts — never prompt text, tool arguments or file contents. Writes a local ledger and, when a receiver URL is configured, uploads it in batches from the async Stop hook (one developer and ISO week per batch, `X-Webhook-Token`, only `202` counts as delivered). Zero dependencies, Windows/macOS/Linux, Node 22.23.4+ / 24.22.1+ / 26.12.1+.
 
 ---
 

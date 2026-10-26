@@ -1,13 +1,24 @@
 #!/usr/bin/env node
 // cc-usage weekly report — aggregates the local ledger into one JSON (and a short text table).
-// Usage: node report.js [--days 7] [--json out.json]
+// Usage: node report.js [--days 7] [--json out.json] [--data-dir <plugin data folder>]
 'use strict';
 const fs = require('fs'); const os = require('os'); const path = require('path');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const days = Number(opt('--days', 7)); const outJson = opt('--json', null);
 const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-const dataDir = process.env.CLAUDE_PLUGIN_DATA || path.join(configDir, 'plugins', 'data', 'cc-usage-local');
+// Hooks get the data folder as CLAUDE_PLUGIN_DATA; a shell does not, so look for the installed plugin's
+// folder (plugins/data/cc-usage-plugin-<marketplace>, or -inline under --plugin-dir), newest ledger first.
+function findDataDir() {
+  const explicit = opt('--data-dir', null) || process.env.CLAUDE_PLUGIN_DATA;
+  if (explicit) return explicit;
+  const root = path.join(configDir, 'plugins', 'data');
+  const mtime = (d) => fs.statSync(path.join(d, 'ledger')).mtimeMs;
+  const found = (fs.existsSync(root) ? fs.readdirSync(root) : []).filter((d) => d.startsWith('cc-usage-plugin-'))
+    .map((d) => path.join(root, d)).filter((d) => fs.existsSync(path.join(d, 'ledger'))).sort((a, b) => mtime(b) - mtime(a));
+  return found[0] || path.join(root, 'cc-usage-local');
+}
+const dataDir = findDataDir();
 const ledgerDir = path.join(dataDir, 'ledger');
 const since = Date.now() - days * 864e5;
 
@@ -30,6 +41,9 @@ let who = null;
 let commits = 0, prs = [], edits = { count: 0, bytes: 0, files: 0, by_tool: {} };
 const agentTypeById = {}; // agent_id -> agent_type, from SubagentStop records
 for (const r of recs) if (r.kind === 'subagent' && r.agent_id && r.agent_type) agentTypeById[r.agent_id] = r.agent_type;
+// Only Stop's usage records carry the origin; SessionEnd and SubagentStop ones get it from their session.
+const repoBySession = {};
+for (const r of recs) if (r.session_id && r.repo && !repoBySession[r.session_id]) repoBySession[r.session_id] = r.repo;
 for (const r of recs) {
   if (r.session_id) sessions.add(r.session_id);
   if (r.kind === 'session_open' && !who) who = { developer: r.developer, email: r.email, team: r.team, host: r.host };
@@ -40,7 +54,7 @@ for (const r of recs) {
   if (r.kind === 'pr' && r.action) prs.push({ repo: r.repo || r.repo_dir, number: r.number, action: r.action, url: r.url });
   if (r.kind === 'edits') { edits.count += r.count || 0; edits.bytes += r.bytes || 0; edits.files += r.files || 0; for (const [k, v] of Object.entries(r.by_tool || {})) inc(edits.by_tool, k, v); }
   if (r.kind === 'usage') {
-    const repo = r.repo || r.repo_dir || '?';
+    const repo = r.repo || repoBySession[r.session_id] || r.repo_dir || '?';
     const agentType = r.agent_type || (r.agent_id && agentTypeById[r.agent_id]) || null;
     for (const m of r.by_model || []) {
       const total = m.input + m.output + m.cache_read + m.cache_create;

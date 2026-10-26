@@ -1,7 +1,7 @@
 {
   "hooks": {
     "SessionStart": [
-      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "SessionStart"], "timeout": 5 } ] }
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "SessionStart"], "timeout": 8 } ] }
     ],
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "UserPromptSubmit"], "timeout": 3 } ] }
@@ -10,7 +10,7 @@
       { "matcher": "^Skill$", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "PreToolUse"], "timeout": 3 } ] }
     ],
     "PostToolUse": [
-      { "matcher": "^(Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit)$", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "PostToolUse"], "timeout": 4 } ] }
+      { "matcher": "^(Bash|PowerShell|Edit|Write|MultiEdit|NotebookEdit)$", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "PostToolUse"], "timeout": 10 } ] }
     ],
     "SubagentStop": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "SubagentStop"], "timeout": 3 } ] }

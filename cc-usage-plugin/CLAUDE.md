@@ -13,6 +13,8 @@ way: `docs/decisions.md`; how it works inside: `docs/design/plugin-design.md`; r
   not disturb it; failures go to `errors.log` in the data folder.
 - Never write an endpoint URL, a token or a record body to `errors.log` — a status code or an error
   class only.
+- Advance local state — a transcript checkpoint, edit counters, a ledger offset — only after what it
+  describes has been written, and write state files with `writeAtomic` (D11).
 - Only the async Stop hook uploads. SessionStart and SessionEnd have short budgets and must not wait
   on the network. Claude Code does not enforce an async hook's timeout, so `SEND_TIMEOUT_MS` and
   `SEND_BUDGET_MS` bound the run.

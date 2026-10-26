@@ -1,7 +1,7 @@
 # cc-usage-plugin — design
 
 How the plugin works inside. What is recorded and the upload contract are in `README.md`; the reasons
-for each choice are in `docs/decisions.md` (cited as D1–D10).
+for each choice are in `docs/decisions.md` (cited as D1–D11).
 
 ## 1. Components
 
@@ -10,55 +10,62 @@ for each choice are in `docs/decisions.md` (cited as D1–D10).
 | `hooks/hooks.json` | seven `command` hooks, exec form (`node` + args), so no shell runs on any platform |
 | `scripts/collect.js` | the only hook entry point: reads the hook's JSON on stdin, writes records, uploads from Stop; prints nothing, exits 0 |
 | `scripts/report.js` | local weekly summary of the ledger; not run by any hook |
-| `tests/collect.test.js` | `node:test` suite that runs `collect.js` as a child process against a local receiver |
+| `tests/collect.test.js` | `node:test` suite that runs `collect.js` as a child process, the upload cases against a local receiver |
 
-| Hook | Matcher | Budget | Work |
+| Hook | Matcher | Hook timeout | Work |
 |---|---|---|---|
-| SessionStart | — | 5 s | `session_open`; HEAD baseline per cwd |
-| UserPromptSubmit | — | 3 s | `prompt` (command name only) |
+| SessionStart | — | 8 s | `session_open`; HEAD baseline per cwd; removes session state older than 30 days |
+| UserPromptSubmit | — | 3 s | `prompt` (slash-command name only) |
 | PreToolUse | `^Skill$` | 3 s | `skill` |
-| PostToolUse | `^(Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit)$` | 4 s | `commit` / `pr` from shell commands; edit counters in session state |
-| SubagentStop | — | 3 s | `subagent`; that agent's transcript delta under the session lock |
-| Stop | — (async) | self-bounded (D3) | session usage under the session lock, `edits`, then upload |
-| SessionEnd | — | 1 s | session usage under the session lock (300 ms wait), `edits`, `session_close` |
+| PostToolUse | `^(Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit)$` | 10 s | `commit` / `pr` from shell commands (up to six git calls of at most 1.5 s each); edit counters in session state |
+| SubagentStop | — | 3 s | `subagent`; that agent's transcript delta under the session lock (1 s wait) |
+| Stop | — (async) | not enforced; self-bounded (D3) | session usage under the session lock (5 s wait), `edits`, then upload |
+| SessionEnd | — | 1 s | session usage under the session lock (600 ms wait), `edits`, `session_close` |
 
 ## 2. Data folder (`${CLAUDE_PLUGIN_DATA}`)
 
 ```
-ledger/<YYYY-Www>.jsonl     every record, appended; one file per ISO week of the record's ts (UTC)
-state/<session>.json        transcript offset + seen request ids, per session
-state/<session>.<agent>.json   the same, per subagent transcript
-state/<session>.git.json    last HEAD seen per cwd
-state/<session>.edits.json  edit counters until the next Stop / SessionEnd
-state/<session>.lock        session lock (D8)
-state/_send.json            upload state (§4)
+ledger/<YYYY-Www>.jsonl          every record, appended; one file per ISO week of the record's ts (UTC)
+state/<session>.json             transcript checkpoint (offset + seen request ids), per session
+state/<session>.<agent>.json     the same, per subagent transcript
+state/<session>.git.json         last HEAD seen per cwd + commits already counted in the session
+state/<session>.edits.json       edit counters and hashed file names until the next Stop / SessionEnd
+state/<session>.lock             session lock (D8)
+state/_send.json                 upload state (§4); _send.json.bad when one could not be parsed
 send/<stamp>-<week>-<n>.ndjson   cut batches waiting for 202
-send.lock                   upload lock
-errors.log                  one line per failed upload (status only) or uncaught error
+send.lock                        upload lock
+errors.log                       one line per failure: a fixed label and a status or error code
 ```
 
 ## 3. Record path
 
-`record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, and appends one line
-to the ledger file of `ts`'s ISO week. `developer` is the normalized id (D6). When an endpoint is
-configured and `state/_send.json` does not exist yet, the first `record()` creates it with every
-existing ledger file's size as its offset (D5); the create uses `wx`, so two processes cannot both
-initialize it.
+`record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, appends one line to
+the ledger file of `ts`'s ISO week, and returns whether the append succeeded; callers advance their own
+state only on success (D11). `developer` is the normalized id (D6). The first `record()` of a process
+also checks upload tracking (D5): with an endpoint and no `state/_send.json`, it creates one with every
+existing ledger file's size as its offset (written to a tmp file and hard-linked into place, so two
+processes cannot both create it); without an endpoint, it removes an existing one.
 
 ## 4. Upload path (Stop only)
 
 ```
 flush()
-  no endpoint, no send state, or send.lock held  → return
-  auth_block == hash(endpoint, token)            → return            (401 until either changes)
-  auth_block set but credentials changed         → clear block, fails, next_try
+  no endpoint, no send state, or send.lock held        → return
+  send state unparsable                                → set aside as _send.json.bad, log, return
+  configuration refused (not https / reserved query /
+    no token / no developer)                           → log once per configuration, return
+  auth_block == hash(endpoint, token)                  → return            (401 until either changes)
+  auth_block set but credentials changed               → clear block, fails, next_try
   batches waiting in send/ ?
-    yes: now < next_try                          → return
-    no:  unsent < 64 KB and last_ok < flush_hours ago → return
+    yes: now < next_try                                → return
+    no:  unsent < 64 KB and last_ok < flush_hours ago  → return
+  save the send state                                  → on failure log, return (D11)
   cut:   for each ledger file in week order, read from its offset to the last newline,
          skip lines that do not parse or carry no id, group the rest by normalized developer,
-         write one batch file per group (tmp + rename), then save the new offset
-  send:  for each batch file in name order, while under the 40 s budget:
+         split each group at 1 MB, write one batch file per piece (tmp + rename), then save the
+         new offset; if a write or the save fails, remove that file's batches, log, return
+  send:  for each batch file in name order, until 40 s after the hook started:
+         read it (on failure log, stop — the file stays)
          POST (15 s timeout, redirect: error)
            202      → delete batch, last_ok = now, fails = 0, next_try = 0, continue
            401      → auth_block = hash(endpoint, token), stop
@@ -67,7 +74,7 @@ flush()
 ```
 
 `_send.json` fields: `offsets` (ledger file → bytes already cut), `last_ok`, `fails`, `next_try`,
-`auth_block`. It is rewritten with tmp + rename so a reader never sees half a file.
+`auth_block`, `config_block` (the refused configuration last logged).
 
 ## 5. Concurrency
 
@@ -75,9 +82,11 @@ flush()
 |---|---|
 | any hooks appending records | append-only writes of one line; the cutter stops at the last newline, so a line still being written waits for the next cut |
 | two Stops (two sessions) uploading | `send.lock` (`wx` create); the second returns at once |
-| Stop and SessionEnd, or SubagentStop and the Stop sweep, parsing one transcript | per-session lock with a bounded wait; the loser skips and the unchanged offset keeps the lines for the next parse |
-| a lock left by a killed process | taken over after 120 s (`send.lock`) or 30 s (session lock) |
-| parallel PostToolUse hooks of one session updating edit counters | not protected; an increment can be lost. Accepted: the counters are approximate by nature |
+| Stop and SessionEnd, or SubagentStop and the Stop sweep, parsing one transcript | per-session lock with a bounded wait; the loser skips and the unchanged checkpoint keeps the lines for the next parse (D8) |
+| a lock left by a killed process | taken over after 120 s (`send.lock`) or 30 s (session lock) by renaming it aside — only one contender's rename succeeds, and a lock found fresh after the rename is put back. A lock holds an owner tag and is removed only by its owner |
+| two first records creating the send state | tmp file + hard link; the second link fails and leaves the first |
+| parallel PostToolUse hooks of one session updating edit counters | not protected; an increment can be lost. Accepted: the counters are approximate |
+| parallel PostToolUse hooks of one session reading the HEAD baseline | not protected; both can see the same change and record it twice. Accepted: tool calls that run git in parallel are rare, and the counted-commit set narrows the window |
 
 ## 6. Failure paths
 
@@ -87,13 +96,26 @@ flush()
 | receiver stored the batch, `202` lost | batch sent again; duplicate removed downstream by `id` |
 | process killed during a request | batch stays; `send.lock` goes stale after 120 s |
 | crash after writing batch files, before saving the offset | the range is cut again into a duplicate batch; removed downstream by `id` |
-| endpoint or token wrong (`401`) | uploads stop; one `upload 401` line in `errors.log`; a configuration change resumes them |
+| endpoint or token wrong (`401`) | uploads stop; one `upload 401` line; a configuration change resumes them |
+| configuration refused | one `upload refused: <reason>` line; nothing until the configuration changes |
+| ledger not writable | `ledger write failed (<kind>)`; checkpoints and counters stay where they were |
+| send state not writable | `send state not writable`; no request is made |
+| batch file not readable | `batch unreadable <code>`; the file stays, later batches wait behind it |
+| checkpoint or send state unparsable | logged; the checkpoint restarts at the end of its transcript, the send state is set aside and restarted by the next record |
 | no Node on `PATH` | hooks fail to start; Claude Code continues the session |
 | transcript not yet flushed at Stop | the delta is picked up by the next Stop or SessionEnd of that session |
 
 ## 7. Tests
 
-`tests/collect.test.js` covers §3–§6 except the killed-process and crash rows: batches per week and
-developer, `202` / `401` / timeout handling and the backoff schedule, cadence, D5, the upload lock,
-the session lock, D6 and D7, and `report.js` de-duplication. The mutation check that showed each case
-fails when its behaviour is removed is recorded in `build-context.md`.
+`tests/collect.test.js` covers: batches per week and developer and the 1 MB split, `202` / `401` /
+timeout handling and the backoff schedule, cadence and `flush_hours` validation, D5 including an
+endpoint removed and added again, every refused configuration, an unreadable batch, the upload lock
+(concurrent Stops, stale and fresh locks, a lock taken over mid-upload), the session lock, the
+checkpoint after a failed ledger write, D6, D7, origin sanitizing, command and account fields, state
+pruning, and `report.js` (data folder discovery, de-duplication, one key per repository).
+
+Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
+unparsable checkpoint or send state, a partial ledger line at cut time, no Node on `PATH`, a transcript
+not yet flushed at Stop, and an upload that becomes due because `flush_hours` passed (only "not
+before" is tested). The mutation check that showed each covered case fails when its behaviour is
+removed is recorded in `build-context.md`.
