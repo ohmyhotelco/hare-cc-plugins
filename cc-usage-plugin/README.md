@@ -30,7 +30,7 @@ Installing asks for these options; with `endpoint` empty only the local ledger i
 
 | Option | Meaning |
 |---|---|
-| `developer` | Your own handle, assigned per person. Stamped on every record and sent as the upload's `developer` value after normalization: lowercased, letters a–z, digits, `.`, `_` and `-` kept, anything else turned into `-`; a value with nothing left becomes `u-<hash>`. Two spellings can normalize to one id (`Alex Kim`, `alex-kim`), so assign ids that stay distinct after normalization. Empty = OS login name, and no upload. Only records stamped with the id currently set are uploaded, so set it before the endpoint: records written without it, or under an earlier id, stay local |
+| `developer` | Your own handle, assigned per person. Stamped on every record and sent as the upload's `developer` value after normalization: lowercased, letters a–z, digits, `.`, `_` and `-` kept, anything else turned into `-`; a value with nothing left becomes `u-<hash>`. Two spellings can normalize to one id (`Alex Kim`, `alex-kim`), so assign ids that stay distinct after normalization. Empty = OS login name, and no upload. Only records stamped with the id currently set are uploaded, so set it before the endpoint: records stamped with another id — the OS login name before an id was set, or an earlier id — stay local. An assigned id equal to the OS login name is the same id, so records written under that name before are uploaded too |
 | `team` | Team label attached to every record |
 | `endpoint` | Receiver URL: HTTPS (plain `http` only to 127.0.0.1, localhost or [::1]), accepts POST of NDJSON, answers 202. Empty = no upload |
 | `token` | Shared receiver token, sent as `X-Webhook-Token` |
@@ -54,8 +54,8 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
 | `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id |
-| `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or a merge commit — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
-| `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command at the start of a command segment: `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--disable-auto` counts nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
+| `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or the merge commits of `merge` — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
+| `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command, read as shell words (so text in quotes or after `echo` is not a command): `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--help` and `--disable-auto` count nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
 | `session_close` | SessionEnd | end reason |
 
@@ -104,6 +104,8 @@ never upload, so a slow receiver never delays the session.
 - Records written while no endpoint is configured are never uploaded: upload tracking starts with the
   first record written with an endpoint, and the first record written without one ends it — after
   cutting what was recorded until then into `send/`, where it waits for the endpoint to be set again.
+  If an upload is running at that moment, or the cut fails, the records it had not cut stay in the
+  local ledger only.
 - Delivery is at-least-once (a batch the receiver stored but whose 202 never arrived is sent again),
   so de-duplicate by record `id` downstream.
 - `errors.log` in the data folder records the status of a failed upload or an error code, never the

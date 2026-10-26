@@ -87,8 +87,9 @@ function identity() {
 // A remote becomes https://host/owner/repo: user info, port, query and fragment are dropped, and a remote
 // that is not a network URL (a local path, file://) is not recorded at all.
 function cleanOrigin(url) {
-  // scp-like git@host:owner/repo or host:owner/repo; a one-letter host is a Windows drive (C:/repo)
-  const scp = /^(?:[\w.-]+@)?([^:/\\\s]{2,}):(?!\/\/)(.+)$/.exec(url);
+  if (/^file:/i.test(url)) return null;
+  // scp-like [user@]host:owner/repo; a one-letter host is a Windows drive (C:/repo)
+  const scp = /^(?:[^@/\\\s]+@)?([^@:/\\\s]{2,}):(?!\/\/)(.+)$/.exec(url);
   let host, p;
   if (scp) { host = scp[1]; p = scp[2]; } else {
     const u = safe(() => new URL(url), null);
@@ -121,9 +122,18 @@ function gitEmail(cwd) {
   return safe(() => execFileSync('git', ['-C', cwd, 'config', '--get', 'user.email'],
     { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }).trim(), '');
 }
-function gitIsMerge(cwd, sha) {
-  return safe(() => { execFileSync('git', ['-C', cwd, 'rev-parse', '--verify', '--quiet', `${sha}^2`],
-    { timeout: 1500, stdio: 'ignore' }); return true; }, false);
+// The merge commits a merge command made: HEAD's first-parent line back to the previous HEAD, every step a
+// merge commit. A fast-forward onto merges made elsewhere does not lead back to `from` that way.
+function gitMergeChain(cwd, from, to) {
+  const out = safe(() => execFileSync('git', ['-C', cwd, 'rev-list', '--first-parent', '--parents', `${from}..${to}`],
+    { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }), '');
+  const chain = []; let want = to;
+  for (const line of out.split('\n').filter(Boolean)) {
+    const [sha, first, second] = line.split(' ');
+    if (sha !== want || !second) return [];
+    chain.push(sha); want = first;
+  }
+  return want === from ? chain : [];
 }
 // Commits reachable from `to` but not `from`, committed after `sinceMs`, by `email` when it is known.
 function gitNewCommits(cwd, from, to, sinceMs, email) {
@@ -153,22 +163,53 @@ const GIT_HEAD_MOVING = /\bgit\b[^|;&\n]*?\b(commit|merge|rebase|cherry-pick|rev
 // Only these make commits of the developer's own; the others move HEAD over commits that already exist.
 const GIT_AUTHORING = ['commit', 'cherry-pick', 'revert', 'am', 'merge'];
 const PR_URL = /https:\/\/[^\s"']+\/(?:pull|merge_requests|pull-requests)\/(\d+)/;
-// gh / glab at the start of a command segment (so not `echo gh pr merge 7`), then its arguments.
-const PR_CMD = /(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*(?:gh\s+pr|glab\s+mr)\s+(create|merge)\b([^|;&\n]*)/;
 const PR_ERROR = /\b(error|failed|not mergeable|not accessible|could not|cannot|denied)\b|^(X |GraphQL:|HTTP \d{3}\b)/im;
-// `gh pr merge` options that take a value, so that value is not read as the PR number.
-const PR_VALUE_OPTS = ['-t', '--subject', '-b', '--body', '-F', '--body-file', '-A', '--author-email', '--match-head-commit', '-R', '--repo'];
-// The PR a merge command names: its first positional argument, a number or a PR URL (a branch name gives none).
-function prTarget(args) {
-  const words = Array.from(args.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g), (m) => m[1] ?? m[2] ?? m[3]);
-  for (let i = 0; i < words.length; i++) {
-    if (PR_VALUE_OPTS.includes(words[i])) { i++; continue; }
-    if (words[i].startsWith('-')) continue;
-    const m = PR_URL.exec(words[i]);
-    if (m) return { number: Number(m[1]), url: m[0] };
-    return /^#?\d+$/.test(words[i]) ? { number: Number(words[i].replace('#', '')), url: null } : null;
+const PR_TOOLS = { gh: 'pr', glab: 'mr' };
+// Options that take a value, per CLI (`-m` is a flag in gh, a message in glab), so the value is not read
+// as the PR number.
+const PR_VALUE_OPTS = {
+  gh: ['-t', '--subject', '-b', '--body', '-F', '--body-file', '-A', '--author-email', '--match-head-commit', '-R', '--repo'],
+  glab: ['-m', '--message', '--sha', '--squash-message', '-R', '--repo'],
+};
+// A command line as shell words, quotes removed, in segments split at unquoted ; & | ( ) and newlines —
+// enough to find a gh / glab command and its arguments without running a shell.
+function shellSegments(cmd) {
+  const segs = []; let words = [], w = null, q = null;
+  const endWord = () => { if (w !== null) words.push(w); w = null; };
+  const endSeg = () => { endWord(); if (words.length) segs.push(words); words = []; };
+  for (let i = 0; i < cmd.length; i++) {
+    const c = cmd[i];
+    if (q) { if (c === q) q = null; else if (c === '\\' && q === '"' && i + 1 < cmd.length) w += cmd[++i]; else w += c; }
+    else if (c === '"' || c === "'") { q = c; if (w === null) w = ''; }
+    else if (c === '\\' && i + 1 < cmd.length) w = (w || '') + cmd[++i];
+    else if (/[;&|()\n]/.test(c)) endSeg();
+    else if (/\s/.test(c)) endWord();
+    else w = (w || '') + c;
+  }
+  endSeg();
+  return segs;
+}
+// The first `gh pr` / `glab mr` create or merge in the command, with its arguments.
+function prCommand(cmd) {
+  for (const seg of shellSegments(cmd)) {
+    const words = seg.slice(seg.findIndex((x) => !/^\w+=/.test(x))); // VAR=value prefixes
+    const [tool, noun, action, ...args] = words;
+    if (PR_TOOLS[tool] && PR_TOOLS[tool] === noun && (action === 'create' || action === 'merge')) return { tool, action, args };
   }
   return null;
+}
+// The PR a merge command names: its first positional argument, a number or a PR URL (a branch name gives
+// none). `--help` shows help and `--disable-auto` merges nothing.
+function prTarget(tool, args) {
+  let target = null;
+  for (let i = 0; i < args.length; i++) {
+    if (['--help', '-h', '--disable-auto'].includes(args[i])) return null;
+    if (PR_VALUE_OPTS[tool].includes(args[i])) { i++; continue; }
+    if (!args[i].startsWith('-') && target === null) target = args[i]; // flags and --option=value are skipped
+  }
+  const m = target && PR_URL.exec(target);
+  if (m) return { number: Number(m[1]), url: m[0] };
+  return target && /^#?\d+$/.test(target) ? { number: Number(target.replace('#', '')), url: null } : null;
 }
 
 // ---------- files and locks ----------
@@ -244,7 +285,8 @@ function startUploads() {
   if (fs.existsSync(sendState)) return;
   const offsets = {};
   for (const f of ledgerFiles()) offsets[f] = safe(() => fs.statSync(path.join(ledgerDir, f)).size, 0);
-  const body = JSON.stringify({ offsets, last_ok: 0, fails: 0, next_try: 0, auth_block: null });
+  // gen marks this tracking period, so an upload that started in an earlier one cannot save over it
+  const body = JSON.stringify({ gen: randomUUID(), offsets, last_ok: 0, fails: 0, next_try: 0, auth_block: null });
   const tmp = `${sendState}.${process.pid}.tmp`;
   safe(() => {
     fs.writeFileSync(tmp, body);
@@ -255,7 +297,8 @@ function startUploads() {
   safe(() => fs.unlinkSync(path.join(dataDir, 'outbox.jsonl'))); // 0.1.6 queue, replaced by ledger offsets
 }
 // What was recorded while tracking was on is cut into send/ first, so it is still uploaded once an endpoint
-// is set again. An upload holding send.lock has cut already; it stops at its next save (saveSend).
+// is set again. When an upload holds send.lock, nothing is cut here: lines that upload has not cut stay in
+// the local ledger only, and the upload stops at its next save (saveSend).
 function stopUploads() {
   if (uploadsChecked) return;
   uploadsChecked = true;
@@ -366,9 +409,16 @@ function sessionUsage(sid, input, base, extra, waitMs) {
 // changes; a configuration that cannot be uploaded safely is refused once and logged. One process
 // uploads at a time (send.lock).
 function loadSend() { return safe(() => JSON.parse(fs.readFileSync(sendState, 'utf8')), null); }
-// Saves only over an existing send state: a record written without an endpoint may have ended tracking
-// meanwhile (D5), and an upload still running must not start it again.
-function saveSend(st) { return fs.existsSync(sendState) && safe(() => { writeAtomic(sendState, JSON.stringify(st)); return true; }, false); }
+// Saves only over the send state of the same tracking period: a record written without an endpoint may have
+// ended tracking meanwhile, and another one started it again (D5); an upload still running must neither
+// restore the old period nor write its offsets over the new one.
+function ownsSend(st) { const cur = loadSend(); return Boolean(cur) && cur.gen === st.gen; }
+function saveSend(st) { return ownsSend(st) && safe(() => { writeAtomic(sendState, JSON.stringify(st)); return true; }, false); }
+function keepSend(st) {
+  if (saveSend(st)) return true;
+  if (ownsSend(st)) logError('send state not writable');
+  return false;
+}
 function firstRecord(body) {
   for (const line of body.split('\n')) if (line.trim()) return safe(() => JSON.parse(line), null);
   return null;
@@ -481,7 +531,7 @@ async function flush() {
     const problem = configProblem();
     if (problem) {
       const tag = `${problem}:${configKey()}`;
-      if (st.config_block !== tag) { logError(`upload refused: ${problem}`); st.config_block = tag; saveSend(st); }
+      if (st.config_block !== tag) { logError(`upload refused: ${problem}`); st.config_block = tag; keepSend(st); }
       return;
     }
     st.config_block = null;
@@ -492,7 +542,7 @@ async function flush() {
     if (pendingBatches().length ? now < (st.next_try || 0)
       : unsentBytes(st) < FLUSH_MAX_BYTES && now - (st.last_ok || 0) < cfg.flushHours * 3600e3) return;
     // A send state that cannot be saved would forget a 401 or a backoff and resend on every Stop.
-    if (!saveSend(st)) { if (fs.existsSync(sendState)) logError('send state not writable'); return; }
+    if (!keepSend(st)) return;
     if (!cutBatches(st)) { logError('batch cut not saved'); return; }
     for (const f of pendingBatches()) {
       if (Date.now() - STARTED > SEND_BUDGET_MS) break;
@@ -511,7 +561,7 @@ async function flush() {
       if (status === 202) {
         safe(() => fs.unlinkSync(file));
         Object.assign(st, { last_ok: Date.now(), fails: 0, next_try: 0 });
-        if (!saveSend(st)) break; // tracking ended meanwhile, or the state is not writable: stop here
+        if (!keepSend(st)) break; // another tracking period began meanwhile, or the state is not writable
         continue;
       }
       logError(`upload ${status}`);
@@ -520,7 +570,7 @@ async function flush() {
         st.fails = (st.fails || 0) + 1;
         st.next_try = Date.now() + Math.min(RETRY_BASE_MS * 2 ** (st.fails - 1), RETRY_MAX_MS);
       }
-      if (!saveSend(st) && fs.existsSync(sendState)) logError('send state not writable');
+      keepSend(st);
       break;
     }
   } finally { unlock(sendLock); }
@@ -579,12 +629,15 @@ async function main() {
             // The commits of this command: new to HEAD, committed in the last COMMIT_WINDOW_MS by this repository's
             // git user, and not counted before in this session — so commits passed over by a checkout or pull in
             // the same command, and other people's recent commits, are left out. A command whose only authoring
-            // step is a merge made at most its merge commit; a fast-forward made none. Without a baseline for this
-            // cwd, trust git's own "[branch abc1234] message" line only.
+            // steps are merges made only its merge commits (gitMergeChain); a fast-forward made none. Without a
+            // baseline for this cwd, trust git's own "[branch abc1234] message" line only.
             const summary = /^\[[^\]\n]+ ([0-9a-f]{7,40})\]/m.exec(stdout);
             const counted = new Set(st._counted || []);
             let fresh = prev ? gitNewCommits(base.cwd, prev, head, Date.now() - COMMIT_WINDOW_MS, gitEmail(base.cwd)) : (summary ? [head] : []);
-            if (authoring.every((o) => o === 'merge')) fresh = fresh.includes(head) && gitIsMerge(base.cwd, head) ? [head] : [];
+            if (authoring.every((o) => o === 'merge')) {
+              const made = new Set(fresh);
+              fresh = prev ? gitMergeChain(base.cwd, prev, head).filter((s) => made.has(s)) : [];
+            }
             fresh = fresh.filter((s) => !counted.has(s));
             if (fresh.length) {
               recorded = record('commit', { ...base, repo_dir: repoName, ...place(),
@@ -596,18 +649,18 @@ async function main() {
           if (head && recorded) { st[base.cwd] = head; saveState(`${sid}.git.json`, st); }
         }
         // Pull requests: `create` prints the PR URL; `merge` prints nothing when not run in a terminal, so its
-        // number comes from the command, counted only when the output carries no error. `--disable-auto` merges
-        // nothing; `--auto` counts when it is requested.
-        const prc = PR_CMD.exec(cmd);
+        // number comes from the command, counted only when the output carries no error. `--auto` counts when
+        // it is requested.
+        const pc = prCommand(cmd);
         let number = null, url = null;
-        if (prc && prc[1] === 'create') {
-          const m = PR_URL.exec(stdout);
+        if (pc && pc.action === 'create') {
+          const m = !pc.args.some((a) => a === '--help' || a === '-h') && PR_URL.exec(stdout);
           if (m) { number = Number(m[1]); url = m[0]; }
-        } else if (prc && !/(^|\s)--disable-auto\b/.test(prc[2]) && !PR_ERROR.test(`${stdout}\n${stderr}`)) {
-          const t = prTarget(prc[2]);
+        } else if (pc && !PR_ERROR.test(`${stdout}\n${stderr}`)) {
+          const t = prTarget(pc.tool, pc.args);
           if (t) ({ number, url } = t);
         }
-        if (number) record('pr', { ...base, repo_dir: repoName, ...place(), number, url, action: prc[1] });
+        if (number) record('pr', { ...base, repo_dir: repoName, ...place(), number, url, action: pc.action });
       } else {
         // Edits: accumulate per session, emitted as one "edits" record at Stop. Files are kept as hashes,
         // only to count distinct files; no path is stored.

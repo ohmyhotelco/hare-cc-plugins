@@ -243,6 +243,58 @@ no `Authorization`, body `session_open` + `prompt`; ledger `session_open`, `prom
 `session_close`, all `smoke-test`; `send/` empty; send state `fails: 0`, `auth_block: null`,
 `config_block: null`; no `errors.log`. Data folder removed afterwards.
 
+### Audit round 3 — on `b55f649`
+
+One reviewer, `codex exec`, set up as in round 2 and limited to the round-2 changes (`d4cfc99..0200485`)
+and the documents they touched; it ran the suite (24 of 24 passed) and probes with the real functions.
+
+**round 3 — 14 findings (1 high / 9 medium / 4 low): 4 regressions from round 2, 8 incomplete round-2
+fixes, 2 pre-existing. Fix first.** Every finding was re-confirmed before the change by reading the
+code, and the origin, PR and merge cases also by running the round-2 code.
+
+Fixed:
+
+| Finding | Change |
+|---|---|
+| an upload that began before tracking ended and started again saved its old offsets over the new period, so records written without an endpoint were uploaded (high; needs the endpoint removed and set again within one upload) | each tracking period has an id (`gen`); the send state is saved only over the same period (D5) |
+| `alex+work@host:…` kept the user name, `git@x:…` kept `git@`, `file:/srv/…` became `https://file/srv/…` | `file:` refused; the scp form takes any user before `@` and no `@` in the host |
+| a fast-forward onto a recent merge commit made elsewhere counted one commit; two merges in one command counted one | the merge commits on HEAD's first-parent line back to the previous HEAD (D7) |
+| `--subject="fix 123" 11`, a subject containing `--disable-auto`, a quoted `"--disable-auto"`, `echo "…; gh pr merge 7"`, `glab mr merge --message 123 14` and `--help` were read wrongly | the command line is read as shell words in segments split at unquoted separators; value options per CLI; `--help` and `--disable-auto` checked on the words (D7) |
+| a failed save after `202` was not logged | logged as `send state not writable` while the period is current |
+| a `.DS_Store` in an old ledger folder made `report.js` choose that folder | only `.jsonl` file times count |
+
+Documented instead, code unchanged:
+
+- Tracking that ends while an upload holds `send.lock`, or whose final cut fails, leaves the lines not
+  yet cut in the local ledger only (D5 cost, design § 5–6). Closing it would need each period's end
+  stored until its lines are cut, for a case that needs the endpoint removed during an upload.
+- A commit baseline kept after a failed record holds only until the next HEAD move (D11 cost).
+- An assigned id equal to the OS login name makes the earlier records under that name eligible. The
+  rule compares ids, and the receiver's condition — the person a batch represents matches the sending
+  configuration — holds for the same id (README, D6).
+
+### Test suite after round 3
+
+24 tests, 24 pass, about 23 s, macOS Node 24.22.1. Cases added to existing tests: tracking ended and
+started again during one upload; an scp origin with `+` in the user and a `file:` origin; a fast-forward
+onto a merge commit and two merges in one command; six PR command forms; a `.DS_Store` in a trial
+ledger folder.
+
+Mutation check — each round-3 fix undone in a scratch copy (every mutant parsed); every mutant failed the
+named test:
+
+| Mutation | Test that failed |
+|---|---|
+| send state saved over another tracking period | an upload in flight neither restores tracking that ended nor overwrites tracking started again |
+| scp user limited to word characters / `file:` not refused | repository origins keep host and path only |
+| merge line limited to one commit / a non-merge step accepted in the merge line | commits count only commits the command made |
+| quotes not removed / glab value options removed / gh value options removed / `--help` counted / `--disable-auto` counted / `gh` found anywhere in a segment | PR records need … |
+| report reads every file's time / report picks by folder time | report.js finds the installed ledger … |
+
+The round-2 mutants were run again: the 12 on code unchanged since are still caught; the 6 on code
+replaced in round 3 no longer apply, and the rows above stand in for them. Not covered by a mutant: the
+check that the merge line ends at the previous HEAD, and the `send state not writable` line after `202`.
+
 ### Pull-request shape
 
 One PR for design documents and code (D10).

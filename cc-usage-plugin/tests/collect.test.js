@@ -263,22 +263,28 @@ test('records written while no endpoint is configured are never uploaded', async
   } finally { await r.close(); }
 });
 
-test('an upload in flight does not restore tracking that a record without an endpoint ended', async () => {
+test('an upload in flight neither restores tracking that ended nor overwrites tracking started again', async () => {
   const dir = tmp(); const r = await receiver();
   try {
-    const e = upload(r);
+    const e = upload(r), off = { CC_USAGE_DEVELOPER: 'alex' };
+    const prompt = (text, extra) => run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: text }, extra);
+    const inFlight = async (n) => { while (r.reqs.length < n) await new Promise((res) => setTimeout(res, 20)); };
     await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, e);
     r.set(202, 1500);
-    const stop = run(dir, 'Stop', { session_id: 's1' }, e);
-    while (r.reqs.length < 1) await new Promise((res) => setTimeout(res, 20));
-    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'local only' }, { CC_USAGE_DEVELOPER: 'alex' });
+    let stop = run(dir, 'Stop', { session_id: 's1' }, e);
+    await inFlight(1);
+    await prompt('local only', off);                       // tracking ends while the upload waits
     await stop;
     assert.ok(!fs.existsSync(data(dir, 'state', '_send.json')));
+    await prompt('again!', e);
+    stop = run(dir, 'Stop', { session_id: 's1' }, e);
+    await inFlight(2);
+    await prompt('offline', off); await prompt('back', e); // ends and starts again while the upload waits
+    await stop;
     r.set(202);
-    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'again!' }, e);
     await run(dir, 'Stop', { session_id: 's1' }, e);
-    assert.equal(r.reqs.length, 2);
-    assert.deepEqual(lines(r.reqs[1].body).map((x) => x.prompt_chars), [6]);
+    const sent = r.reqs.slice(1).flatMap((q) => lines(q.body).map((x) => x.prompt_chars));
+    assert.deepEqual(sent, [6, 4], 'records written without an endpoint stay local');
   } finally { await r.close(); }
 });
 
@@ -439,8 +445,16 @@ test('commits count only commits the command made, each once per session', async
   git('switch', '-q', '-c', 'theirs'); samGit('commit', '-q', '--allow-empty', '-m', 's1'); git('switch', '-q', 'main');
   git('merge', '-q', '--ff-only', 'theirs'); git('commit', '-q', '--allow-empty', '-m', 'c4');
   await bash('git merge --ff-only theirs && git commit -m c4');   // c4, not the other committer's s1: 1
+  git('switch', '-q', '-c', 'x'); git('commit', '-q', '--allow-empty', '-m', 'x1');
+  git('switch', '-q', '-c', 'merged', 'main'); git('commit', '-q', '--allow-empty', '-m', 'y1'); git('merge', '-q', '--no-ff', '-m', 'M', 'x');
+  git('switch', '-q', 'main'); git('merge', '-q', '--ff-only', 'merged');
+  await bash('git merge --ff-only merged');                       // onto a recent merge commit made elsewhere: 0
+  git('switch', '-q', '-c', 'a'); git('commit', '-q', '--allow-empty', '-m', 'a1');
+  git('switch', '-q', '-c', 'b', 'main'); git('commit', '-q', '--allow-empty', '-m', 'b1'); git('switch', '-q', 'main');
+  git('merge', '-q', '--no-ff', '-m', 'Ma', 'a'); git('merge', '-q', '--no-ff', '-m', 'Mb', 'b');
+  await bash('git merge --no-ff a && git merge --no-ff b');       // two merge commits: 2
   const recs = lines(ledger(dir)).filter((x) => x.kind === 'commit');
-  assert.deepEqual(recs.map((x) => [x.op, x.commits]), [['commit', 1], ['commit', 2], ['commit', 1], ['merge', 1], ['merge', 1]]);
+  assert.deepEqual(recs.map((x) => [x.op, x.commits]), [['commit', 1], ['commit', 2], ['commit', 1], ['merge', 1], ['merge', 1], ['merge', 2]]);
 });
 
 test('a commit whose record cannot be written is counted with the next one', { skip: NO_CHMOD }, async () => {
@@ -476,10 +490,16 @@ test('PR records need create with a URL in the output, or merge with a number an
   await bash('gh pr merge 12 --disable-auto');                      // merges nothing
   await bash('gh pr merge 13 --squash || true', '', 'GraphQL: Resource not accessible by integration (mergePullRequest)\n');
   await bash('cd app && gh pr merge 14 --auto');                    // counted when requested
+  await bash('gh pr merge --subject="fix 123" 21 --squash');         // --option=value with a space
+  await bash('gh pr merge 22 --subject "please --disable-auto later"'); // the flag only inside a value
+  await bash('gh pr merge 23 "--disable-auto"');                     // still the flag once quotes are removed
+  await bash('echo "text; gh pr merge 24 --squash"');                // a separator inside quotes
+  await bash('glab mr merge --message 125 25');                      // glab's own value option
+  await bash('gh pr merge 26 --squash --help');                      // help only
   const recs = lines(ledger(dir)).filter((x) => x.kind === 'pr');
   assert.deepEqual(recs.map((x) => [x.action, x.number, x.url]), [
     ['create', 7, 'https://github.com/acme/app/pull/7'], ['merge', 7, null], ['merge', 9, 'https://github.com/acme/app/pull/9'],
-    ['merge', 11, null], ['merge', 14, null]]);
+    ['merge', 11, null], ['merge', 14, null], ['merge', 21, null], ['merge', 22, null], ['merge', 25, null]]);
 });
 
 test('repository origins keep host and path only', async () => {
@@ -488,7 +508,9 @@ test('repository origins keep host and path only', async () => {
     ['git@example.com:acme/app.git', 'https://example.com/acme/app'],
     ['ssh://git@example.com:2222/acme/app.git', 'https://example.com/acme/app'],
     ['example.com:acme/app.git', 'https://example.com/acme/app'],
+    ['alex+work@example.com:acme/app.git', 'https://example.com/acme/app'],
     ['/srv/git/app.git', null],
+    ['file:/srv/git/app.git', null],
     ['C:/repos/app', null],
   ];
   for (const [origin, want] of cases) {
@@ -565,13 +587,16 @@ test('report.js finds the installed ledger, counts each record id once, and keep
   ];
   const text = recs.map((x) => JSON.stringify(x)).join('\n') + '\n';
   fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), text + text); // every record twice
-  // A trial ledger whose folder is newer but whose file was last written ten days ago is not the one read.
-  const stale = new Date(Date.now() - 10 * 864e5);
+  // A trial ledger is not the one read although its folder is newer and holds another file written just now:
+  // its ledger file was last written ten days ago.
+  const stale = new Date(Date.now() - 10 * 864e5), minute = new Date(Date.now() - 60e3);
+  fs.utimesSync(path.join(led, `${isoWeek(new Date())}.jsonl`), minute, minute);
   fs.utimesSync(led, stale, stale);
   const trial = path.join(dir, '.claude', 'plugins', 'data', 'cc-usage-plugin-inline', 'ledger');
   fs.mkdirSync(trial, { recursive: true });
   fs.writeFileSync(path.join(trial, `${isoWeek(new Date())}.jsonl`), JSON.stringify({ id: 't1', kind: 'usage', ts, by_model: m(100) }) + '\n');
   fs.utimesSync(path.join(trial, `${isoWeek(new Date())}.jsonl`), stale, stale);
+  fs.writeFileSync(path.join(trial, '.DS_Store'), ''); // a file browser's own file
   const out = path.join(dir, 'weekly.json');
   execFileSync(process.execPath, [REPORT, '--days', '7', '--json', out], { env: env(dir, { CLAUDE_PLUGIN_DATA: '' }), stdio: 'pipe' });
   const s = JSON.parse(fs.readFileSync(out, 'utf8'));

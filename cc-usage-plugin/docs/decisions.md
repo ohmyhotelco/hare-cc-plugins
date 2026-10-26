@@ -85,13 +85,18 @@ only success, `401` stops uploads until the endpoint or token changes, other fai
 **Decision:** upload tracking (the send state) is created by the first record written while an
 endpoint is set, with every ledger byte that existed before marked as already sent, and removed by the
 first record written without an endpoint. Removing it first cuts the lines not yet cut into `send/`,
-unless an upload holds `send.lock` (that upload has cut already). Batches in `send/` stay there and are
-sent once an endpoint is set again. An upload still running when tracking ends does not write the send
-state back: the state is saved only over an existing file.
+unless an upload holds `send.lock`. Batches in `send/` stay there and are sent once an endpoint is set
+again. Each tracking period has its own id (`gen`), and the send state is saved only over the state of
+the same period, so an upload still running when tracking ends neither restores it nor, if tracking
+has started again meanwhile, writes its offsets over the new period.
 
 **Why:** a machine used locally first, or disconnected for a while, should upload only what was
 recorded while the person had the upload configured — no less, which is why the uncut lines are cut
-before tracking ends, and no more, which is why a running upload cannot restore it.
+before tracking ends, and no more, which is why a running upload can save only within its own period.
+
+**Cost:** when tracking ends while an upload holds `send.lock`, or the cut at the end fails, the lines
+not yet cut stay in the local ledger and are not uploaded. Closing that would need the end of each
+period stored until its lines are cut; it happens only when the endpoint is removed during an upload.
 
 ## D6. Path-safe developer ids, assigned per person
 
@@ -100,9 +105,10 @@ both stamped on records and sent in the query: NFKC, lowercase, only `[a-z0-9._-
 characters, no leading or trailing `.`/`_`/`-`, no `_vti_`, a reserved device name (also before a
 dot, as in `con.txt`) prefixed `u-`, the 64-character cap applied last so that normalizing an id again
 changes nothing; a value with nothing left becomes `u-<8 hex of sha256>`. Uploads need an explicitly
-configured `developer`, and only records stamped with that id are uploaded: records written before an id
-was set (under the OS login name) or under an earlier id stay in the local ledger, and a batch already
-cut under an earlier id is set aside as `.held`.
+configured `developer`, and only records stamped with that id are uploaded: records stamped with another
+id — the OS login name before an id was set, or an earlier id — stay in the local ledger, and a batch
+already cut under an earlier id is set aside as `.held`. The test is the id itself, so an assigned id
+equal to the OS login name also makes the records written under that name before eligible.
 
 **Why:** the receiver uses the value as a folder name. Common document stores reject or rewrite
 characters outside that set, compare names case-insensitively, and reserve some names; normalizing on
@@ -118,12 +124,14 @@ folder no report reads — this replaces an earlier choice to send such batches 
 **Decision:** a `commit` record counts the commits a shell command made: after an authoring operation
 (`git commit`, `cherry-pick`, `revert`, `am`, `merge`), the commits new to HEAD since the session last
 saw it, committed in the last 15 minutes by the repository's `user.email`, and not counted before in
-the session. A command whose only authoring operation is `merge` counts its merge commit and nothing
-else, so a fast-forward counts none. Operations that only move HEAD (`pull`, `checkout`, `switch`,
-`reset`, `rebase`, `stash pop`) update the baseline without a record. A `pr` record needs a `gh pr` /
-`glab mr` command at the start of a command segment: `create` with the PR URL in the output, or `merge`
-whose first positional argument is the PR number or URL and whose output carries no error;
-`--disable-auto` counts nothing.
+the session. A command whose only authoring operations are merges counts the merge commits it made —
+those on HEAD's first-parent line back to the previous HEAD, every step a merge commit — so a
+fast-forward counts none, even onto merge commits made elsewhere. Operations that only move HEAD
+(`pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop`) update the baseline without a record. A
+`pr` record needs a `gh pr` / `glab mr` command, found by reading the command line as shell words in
+segments split at unquoted `;`, `&`, `|`, parentheses and newlines: `create` with the PR URL in the
+output, or `merge` whose first positional argument is the PR number or URL and whose output carries no
+error. The options that take a value are listed per CLI; `--help` and `--disable-auto` count nothing.
 
 **Why:** the record is meant to show what a session produced. 0.1.6 counted every HEAD move, so
 switching to a branch with fifty commits looked like fifty commits of work, and `gh pr view` looked
@@ -131,10 +139,12 @@ like a new PR. Range counting alone still counts commits passed over when one co
 and commits (`git checkout other && git commit`), and commits brought in by a merge. Commit time
 separates the command's own commits from history that already existed, and the committer separates
 them from someone else's recent commits; neither proves that a commit reached by a fast-forward was
-made by this command, hence the merge rule. The per-session set keeps a commit from counting again when
-a later command brings it to another branch. `gh pr merge` prints nothing on success outside a terminal,
-so the command's own argument is the only reliable number; option values (`--subject "…"`) and text
-such as `echo gh pr merge 7` are not arguments. `--auto` and merge queues count when the merge is
+made by this command, hence the merge rule: a merge commit the command made has the previous HEAD at
+the end of its first-parent line. The per-session set keeps a commit from counting again when a later
+command brings it to another branch. `gh pr merge` prints nothing on success outside a terminal, so the
+command's own argument is the only reliable number; option values (`--subject "…"`, `--message` in
+glab) and text such as `echo "…; gh pr merge 7"` are not arguments. Shell words cover the forms an
+agent writes; a command built at run time (a variable holding `gh`, an alias) is not seen. `--auto` and merge queues count when the merge is
 requested — the session's action — although the merge itself completes later or not at all.
 
 ## D8. One usage parse per session at a time
@@ -189,4 +199,6 @@ resumed after 30 days count its whole transcript again.
 
 **Cost:** the order chosen errs towards counting twice. A checkpoint that cannot be saved after its
 record was written leaves the delta to be counted again at the next parse; the `usage checkpoint not
-saved` line in `errors.log` marks when that happened.
+saved` line in `errors.log` marks when that happened. A commit baseline kept after a failed record
+holds only until the next HEAD move sets a new one (a `checkout`, a resumed session): commits whose
+record failed are then not counted.

@@ -29,7 +29,7 @@
 
 | 설정 | 뜻 |
 |---|---|
-| `developer` | 사람마다 배정한 본인 식별자. 모든 레코드에 찍히고 정규화한 값이 업로드의 `developer`가 된다. 소문자로 바꾸고 a–z·숫자·`.`·`_`·`-`만 남기며 나머지는 `-`로 바꾼다. 남는 글자가 없으면 `u-<해시>`. 표기 둘이 같은 값이 될 수 있으므로(`Alex Kim`, `alex-kim`) 정규화 뒤에도 서로 다른 값으로 배정한다. 비우면 OS 로그인 이름을 쓰고 업로드하지 않는다. 지금 설정된 값이 찍힌 레코드만 올리므로 endpoint보다 먼저 설정한다. 설정 전이나 이전 값으로 기록된 레코드는 로컬에만 남는다 |
+| `developer` | 사람마다 배정한 본인 식별자. 모든 레코드에 찍히고 정규화한 값이 업로드의 `developer`가 된다. 소문자로 바꾸고 a–z·숫자·`.`·`_`·`-`만 남기며 나머지는 `-`로 바꾼다. 남는 글자가 없으면 `u-<해시>`. 표기 둘이 같은 값이 될 수 있으므로(`Alex Kim`, `alex-kim`) 정규화 뒤에도 서로 다른 값으로 배정한다. 비우면 OS 로그인 이름을 쓰고 업로드하지 않는다. 지금 설정된 값이 찍힌 레코드만 올리므로 endpoint보다 먼저 설정한다. 다른 값이 찍힌 레코드 — 값을 설정하기 전의 OS 로그인 이름이나 이전 값 — 는 로컬에만 남는다. OS 로그인 이름과 같은 값을 배정하면 같은 값이므로, 그 이름으로 먼저 기록된 레코드도 올라간다 |
 | `team` | 모든 레코드에 붙는 팀 라벨 |
 | `endpoint` | 수신 URL. HTTPS(평문 `http`는 127.0.0.1·localhost·[::1]만), NDJSON POST를 받고 202로 답함. 비우면 업로드 안 함 |
 | `token` | 수신 측 공유 토큰, `X-Webhook-Token` 헤더로 보낸다 |
@@ -52,8 +52,8 @@
 | `skill` | PreToolUse(Skill) | 스킬 이름(`plugin:skill`) · 인자 글자 수 · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
 | `usage` | Stop(비동기) · SessionEnd · SubagentStop | transcript 증분 파싱 → 모델 × effort × query source별 요청 수와 input / output / cache-read / cache-create / thinking 토큰(request id 중복 제거) · 브랜치 · Claude Code 버전 · agent id |
-| `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 저장소의 `user.email`로 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
-| `pr` | PostToolUse(Bash, PowerShell) | 명령 구간의 맨 앞에 온 `gh pr` / `glab mr` 명령 중, 출력에 PR URL이 있는 `create`, 또는 인자로 PR 번호나 URL을 주었고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음). `--disable-auto`는 세지 않고, `--auto`와 merge queue는 merge를 요청한 시점에 센다 · 번호 · URL · action |
+| `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 `merge`가 만든 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 저장소의 `user.email`로 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
+| `pr` | PostToolUse(Bash, PowerShell) | 명령줄을 셸 단어로 읽어(따옴표 안이나 `echo` 뒤의 글은 명령이 아님) 찾은 `gh pr` / `glab mr` 명령 중, 출력에 PR URL이 있는 `create`, 또는 인자로 PR 번호나 URL을 주었고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음). `--help`와 `--disable-auto`는 세지 않고, `--auto`와 merge queue는 merge를 요청한 시점에 센다 · 번호 · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit의 도구별·확장자별 횟수 · 쓴 바이트 · 직전 Stop 이후 파일 수(해시로 셈, 경로 없음) |
 | `session_close` | SessionEnd | 종료 사유 |
 
@@ -98,7 +98,8 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
   `errors.log`에 한 줄만 남기고 설정이 바뀔 때까지 다시 시도하지 않는다.
 - endpoint 없이 기록된 레코드는 올리지 않는다. 업로드 추적은 endpoint가 있는 상태로 처음 기록할 때
   시작되고, endpoint 없이 처음 기록할 때 끝난다. 끝낼 때는 그때까지 기록된 것을 먼저 `send/`로
-  잘라 두며, 이것은 endpoint를 다시 설정하면 올라간다.
+  잘라 두며, 이것은 endpoint를 다시 설정하면 올라간다. 그 순간 업로드가 진행 중이었거나 자르기에
+  실패하면, 아직 잘리지 않은 레코드는 로컬 원장에만 남는다.
 - 전달은 최소 1회다(수신 측이 저장했지만 202가 오지 않은 배치는 다시 간다). 수신 이후 단계에서
   레코드 `id`로 중복을 제거한다.
 - 데이터 폴더의 `errors.log`에는 실패한 업로드의 상태 코드나 오류 코드만 남고 URL·토큰·레코드는

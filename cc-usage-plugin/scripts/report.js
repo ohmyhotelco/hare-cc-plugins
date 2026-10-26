@@ -14,7 +14,8 @@ function findDataDir() {
   const explicit = opt('--data-dir', null) || process.env.CLAUDE_PLUGIN_DATA;
   if (explicit) return explicit;
   const root = path.join(configDir, 'plugins', 'data');
-  const last = (d) => Math.max(0, ...fs.readdirSync(path.join(d, 'ledger')).map((f) => fs.statSync(path.join(d, 'ledger', f)).mtimeMs));
+  const last = (d) => Math.max(0, ...fs.readdirSync(path.join(d, 'ledger')).filter((f) => f.endsWith('.jsonl'))
+    .map((f) => fs.statSync(path.join(d, 'ledger', f)).mtimeMs));
   const found = (fs.existsSync(root) ? fs.readdirSync(root) : []).filter((d) => d.startsWith('cc-usage-plugin-'))
     .map((d) => path.join(root, d)).filter((d) => fs.existsSync(path.join(d, 'ledger')))
     .map((d) => [d, last(d)]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([d]) => d);
