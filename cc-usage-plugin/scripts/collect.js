@@ -40,8 +40,9 @@ function logError(msg) { safe(() => fs.appendFileSync(path.join(dataDir, 'errors
 function normalizeDeveloper(raw) {
   const src = String(raw || '').normalize('NFKC').trim();
   let s = src.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/_vti_/g, '-vti-')
-    .replace(/-{2,}/g, '-').slice(0, 64).replace(/^[._-]+|[._-]+$/g, '');
+    .replace(/-{2,}/g, '-').replace(/^[._-]+|[._-]+$/g, '');
   if (/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/.test(s)) s = `u-${s}`;
+  s = s.slice(0, 64).replace(/[._-]+$/, ''); // the cap last, so normalizing a normalized id changes nothing
   if (s) return s;
   return src ? `u-${sha(src).slice(0, 8)}` : 'unknown';
 }
@@ -86,7 +87,8 @@ function identity() {
 // A remote becomes https://host/owner/repo: user info, port, query and fragment are dropped, and a remote
 // that is not a network URL (a local path, file://) is not recorded at all.
 function cleanOrigin(url) {
-  const scp = /^[\w.-]+@([^:/\s]+):(.+)$/.exec(url); // git@host:owner/repo
+  // scp-like git@host:owner/repo or host:owner/repo; a one-letter host is a Windows drive (C:/repo)
+  const scp = /^(?:[\w.-]+@)?([^:/\\\s]{2,}):(?!\/\/)(.+)$/.exec(url);
   let host, p;
   if (scp) { host = scp[1]; p = scp[2]; } else {
     const u = safe(() => new URL(url), null);
@@ -115,21 +117,35 @@ function gitHead(cwd) {
   return safe(() => execFileSync('git', ['-C', cwd, 'rev-parse', 'HEAD'],
     { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }).trim(), null);
 }
-// Commits reachable from `to` but not `from`, committed after `sinceMs`.
-function gitNewCommits(cwd, from, to, sinceMs) {
-  const out = safe(() => execFileSync('git', ['-C', cwd, 'rev-list', `--since=@${Math.floor(sinceMs / 1000)}`, `${from}..${to}`],
+function gitEmail(cwd) {
+  return safe(() => execFileSync('git', ['-C', cwd, 'config', '--get', 'user.email'],
+    { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }).trim(), '');
+}
+function gitIsMerge(cwd, sha) {
+  return safe(() => { execFileSync('git', ['-C', cwd, 'rev-parse', '--verify', '--quiet', `${sha}^2`],
+    { timeout: 1500, stdio: 'ignore' }); return true; }, false);
+}
+// Commits reachable from `to` but not `from`, committed after `sinceMs`, by `email` when it is known.
+function gitNewCommits(cwd, from, to, sinceMs, email) {
+  const by = email ? ['--fixed-strings', `--committer=<${email}>`] : [];
+  const out = safe(() => execFileSync('git', ['-C', cwd, 'rev-list', `--since=@${Math.floor(sinceMs / 1000)}`, ...by, `${from}..${to}`],
     { encoding: 'utf8', timeout: 1500, stdio: ['ignore', 'pipe', 'ignore'] }), null);
   return out == null ? [] : out.split(/\s+/).filter(Boolean);
 }
 // Per-session small state (last seen HEAD, counted commits, pending edit counters) in the state dir.
 function loadState(name) { return safe(() => JSON.parse(fs.readFileSync(path.join(stateDir, name), 'utf8')), null) || {}; }
 function saveState(name, obj) { safe(() => writeAtomic(path.join(stateDir, name), JSON.stringify(obj))); }
+// A transcript checkpoint past the TTL is kept as its offset alone (a few bytes), so a session resumed later
+// does not count its earlier requests again; other session state past the TTL is removed.
 function pruneState() {
   const cutoff = Date.now() - STATE_TTL_MS;
   for (const f of safe(() => fs.readdirSync(stateDir), [])) {
     if (f === '_send.json') continue;
     const p = path.join(stateDir, f);
-    if (safe(() => fs.statSync(p).mtimeMs, Infinity) < cutoff) safe(() => fs.unlinkSync(p));
+    if (safe(() => fs.statSync(p).mtimeMs, Infinity) >= cutoff) continue;
+    const cp = /\.json$/.test(f) && !/\.(git|edits)\.json$/.test(f) && safe(() => JSON.parse(fs.readFileSync(p, 'utf8')), null);
+    if (cp && Number.isFinite(cp.offset)) { if (cp.seen && cp.seen.length) saveState(f, { offset: cp.offset, seen: [] }); }
+    else safe(() => fs.unlinkSync(p));
   }
 }
 
@@ -137,8 +153,23 @@ const GIT_HEAD_MOVING = /\bgit\b[^|;&\n]*?\b(commit|merge|rebase|cherry-pick|rev
 // Only these make commits of the developer's own; the others move HEAD over commits that already exist.
 const GIT_AUTHORING = ['commit', 'cherry-pick', 'revert', 'am', 'merge'];
 const PR_URL = /https:\/\/[^\s"']+\/(?:pull|merge_requests|pull-requests)\/(\d+)/;
-const PR_CMD = /\b(?:gh\s+pr|glab\s+mr)\s+(create|merge)\b([^|;&\n]*)/;
-const PR_ERROR = /\b(error|failed|not mergeable|could not|cannot)\b|^X /im;
+// gh / glab at the start of a command segment (so not `echo gh pr merge 7`), then its arguments.
+const PR_CMD = /(?:^|[;&|(\n])\s*(?:\w+=\S*\s+)*(?:gh\s+pr|glab\s+mr)\s+(create|merge)\b([^|;&\n]*)/;
+const PR_ERROR = /\b(error|failed|not mergeable|not accessible|could not|cannot|denied)\b|^(X |GraphQL:|HTTP \d{3}\b)/im;
+// `gh pr merge` options that take a value, so that value is not read as the PR number.
+const PR_VALUE_OPTS = ['-t', '--subject', '-b', '--body', '-F', '--body-file', '-A', '--author-email', '--match-head-commit', '-R', '--repo'];
+// The PR a merge command names: its first positional argument, a number or a PR URL (a branch name gives none).
+function prTarget(args) {
+  const words = Array.from(args.matchAll(/"([^"]*)"|'([^']*)'|(\S+)/g), (m) => m[1] ?? m[2] ?? m[3]);
+  for (let i = 0; i < words.length; i++) {
+    if (PR_VALUE_OPTS.includes(words[i])) { i++; continue; }
+    if (words[i].startsWith('-')) continue;
+    const m = PR_URL.exec(words[i]);
+    if (m) return { number: Number(m[1]), url: m[0] };
+    return /^#?\d+$/.test(words[i]) ? { number: Number(words[i].replace('#', '')), url: null } : null;
+  }
+  return null;
+}
 
 // ---------- files and locks ----------
 // tmp + rename, so a reader never sees half a file. Windows can refuse the rename for a moment while
@@ -213,19 +244,28 @@ function startUploads() {
   if (fs.existsSync(sendState)) return;
   const offsets = {};
   for (const f of ledgerFiles()) offsets[f] = safe(() => fs.statSync(path.join(ledgerDir, f)).size, 0);
+  const body = JSON.stringify({ offsets, last_ok: 0, fails: 0, next_try: 0, auth_block: null });
   const tmp = `${sendState}.${process.pid}.tmp`;
   safe(() => {
-    fs.writeFileSync(tmp, JSON.stringify({ offsets, last_ok: 0, fails: 0, next_try: 0, auth_block: null }));
-    // link creates the file only if no other process did it first; rename covers file systems without links
-    try { fs.linkSync(tmp, sendState); } catch (e) { if (e.code !== 'EEXIST') fs.renameSync(tmp, sendState); }
+    fs.writeFileSync(tmp, body);
+    // the link creates the file only if no other process did first; without links, an exclusive create does
+    try { fs.linkSync(tmp, sendState); } catch (e) { if (e.code !== 'EEXIST') fs.writeFileSync(sendState, body, { flag: 'wx' }); }
   });
   safe(() => fs.unlinkSync(tmp));
   safe(() => fs.unlinkSync(path.join(dataDir, 'outbox.jsonl'))); // 0.1.6 queue, replaced by ledger offsets
 }
+// What was recorded while tracking was on is cut into send/ first, so it is still uploaded once an endpoint
+// is set again. An upload holding send.lock has cut already; it stops at its next save (saveSend).
 function stopUploads() {
   if (uploadsChecked) return;
   uploadsChecked = true;
-  if (fs.existsSync(sendState)) safe(() => fs.unlinkSync(sendState));
+  if (!fs.existsSync(sendState)) return;
+  const locked = tryLock(sendLock, 120e3);
+  try {
+    const st = locked && loadSend();
+    if (st && !cutBatches({ ...st, offsets: st.offsets || {} })) logError('batch cut not saved');
+    safe(() => fs.unlinkSync(sendState));
+  } finally { if (locked) unlock(sendLock); }
 }
 
 // ---------- transcript usage (incremental) ----------
@@ -277,7 +317,8 @@ function usageDelta(stateKey, transcriptPath, opts = {}) {
     cwd = d.cwd || cwd; branch = d.gitBranch || branch; version = d.version || version;
   }
   const next = { offset: st.offset + Buffer.byteLength(text.slice(0, lastNl + 1), 'utf8'), seen: Array.from(seen).slice(-5000) };
-  const save = () => safe(() => writeAtomic(stPath, JSON.stringify(next)));
+  // A checkpoint that cannot be saved after its record was written lets the next parse count the delta again.
+  const save = () => { if (!safe(() => { writeAtomic(stPath, JSON.stringify(next)); return true; }, false)) logError('usage checkpoint not saved'); };
   return { delta: requests ? { requests, by_model: Object.values(agg), cwd, branch, claude_version: version, agent_id: agentId } : null, save };
 }
 
@@ -318,14 +359,20 @@ function sessionUsage(sid, input, base, extra, waitMs) {
 }
 
 // ---------- upload ----------
-// Policy (README § Upload contract): complete ledger lines are cut into batches of one developer and ISO
-// week (at most MAX_BATCH_BYTES) and kept in send/ until the receiver answers 202, then deleted. An upload
-// is due every flush_hours, or earlier once FLUSH_MAX_BYTES are waiting. A failed batch is retried after
+// Policy (README § Upload contract): complete ledger lines of the configured developer are cut into batches
+// of one ISO week (at most MAX_BATCH_BYTES) and kept in send/ until the receiver answers 202, then deleted. An
+// upload is due every flush_hours, or earlier once FLUSH_MAX_BYTES are waiting. A failed batch is retried after
 // 30 min, doubling per consecutive failure up to 6 h; a 401 stops uploads until the endpoint or token
 // changes; a configuration that cannot be uploaded safely is refused once and logged. One process
 // uploads at a time (send.lock).
 function loadSend() { return safe(() => JSON.parse(fs.readFileSync(sendState, 'utf8')), null); }
-function saveSend(st) { return safe(() => { writeAtomic(sendState, JSON.stringify(st)); return true; }, false); }
+// Saves only over an existing send state: a record written without an endpoint may have ended tracking
+// meanwhile (D5), and an upload still running must not start it again.
+function saveSend(st) { return fs.existsSync(sendState) && safe(() => { writeAtomic(sendState, JSON.stringify(st)); return true; }, false); }
+function firstRecord(body) {
+  for (const line of body.split('\n')) if (line.trim()) return safe(() => JSON.parse(line), null);
+  return null;
+}
 function pendingBatches() { return safe(() => fs.readdirSync(sendDir), []).filter((f) => f.endsWith('.ndjson')).sort(); }
 function authKey() { return sha(`${cfg.endpoint}\n${cfg.token}`).slice(0, 16); }
 function configKey() { return sha(`${cfg.endpoint}\n${cfg.token}\n${cfg.developerSet ? cfg.developer : ''}`).slice(0, 16); }
@@ -346,6 +393,7 @@ function chunks(lines) {
   const out = []; let cur = [], size = 0;
   for (const l of lines) {
     const n = Buffer.byteLength(l, 'utf8') + 1;
+    if (n > MAX_BATCH_BYTES) { logError('record over 1 MB not uploaded'); continue; } // records are a few KB at most
     if (cur.length && size + n > MAX_BATCH_BYTES) { out.push(cur.join('\n') + '\n'); cur = []; size = 0; }
     cur.push(l); size += n;
   }
@@ -366,17 +414,16 @@ function cutBatches(st) {
     const fd = fs.openSync(file, 'r'); try { fs.readSync(fd, buf, 0, buf.length, from); } finally { fs.closeSync(fd); }
     const end = buf.lastIndexOf(0x0a);
     if (end < 0) continue; // a line still being written
-    const groups = new Map(); // developer -> lines, in ledger order
+    // Only records of the configured developer: those written under an earlier or an unassigned id stay in
+    // the local ledger (D6), so a batch never represents anyone but the sending configuration.
+    const keep = [];
     for (const line of buf.subarray(0, end).toString('utf8').split('\n')) {
       const r = line.trim() && safe(() => JSON.parse(line), null);
-      if (!r || !r.id) continue;
-      const dev = r.developer ? normalizeDeveloper(r.developer) : cfg.developer;
-      if (!groups.has(dev)) groups.set(dev, []);
-      groups.get(dev).push(line);
+      if (r && r.id && r.developer === cfg.developer) keep.push(line);
     }
     const written = [];
     const ok = safe(() => {
-      for (const lines of groups.values()) for (const body of chunks(lines)) {
+      for (const body of chunks(keep)) {
         const p = path.join(sendDir, `${stamp}-${f.slice(0, 8)}-${String(n++).padStart(3, '0')}.ndjson`);
         writeAtomic(p, body); written.push(p);
       }
@@ -395,11 +442,10 @@ function cutBatches(st) {
 // file name without parsing the body. week = ISO week of the first record (shared by the whole batch),
 // id = that record's id. Existing query strings are kept byte for byte.
 function uploadUrl(body) {
-  let first = null;
-  for (const line of body.split('\n')) { if (line.trim()) { first = safe(() => JSON.parse(line), null); break; } }
+  const first = firstRecord(body);
   const ts = first && first.ts ? new Date(first.ts) : new Date();
   const q = new URLSearchParams({
-    developer: first && first.developer ? normalizeDeveloper(first.developer) : cfg.developer,
+    developer: (first && first.developer) || cfg.developer,
     week: isoWeek(isNaN(ts) ? new Date() : ts),
     id: (first && first.id) || '',
   }).toString();
@@ -446,7 +492,7 @@ async function flush() {
     if (pendingBatches().length ? now < (st.next_try || 0)
       : unsentBytes(st) < FLUSH_MAX_BYTES && now - (st.last_ok || 0) < cfg.flushHours * 3600e3) return;
     // A send state that cannot be saved would forget a 401 or a backoff and resend on every Stop.
-    if (!saveSend(st)) { logError('send state not writable'); return; }
+    if (!saveSend(st)) { if (fs.existsSync(sendState)) logError('send state not writable'); return; }
     if (!cutBatches(st)) { logError('batch cut not saved'); return; }
     for (const f of pendingBatches()) {
       if (Date.now() - STARTED > SEND_BUDGET_MS) break;
@@ -454,11 +500,18 @@ async function flush() {
       let body;
       try { body = fs.readFileSync(file, 'utf8'); } catch (e) { logError(`batch unreadable ${e.code || e.name}`); break; }
       if (!body.trim()) { safe(() => fs.unlinkSync(file)); continue; }
+      // A batch cut under an earlier developer id is not sent from this configuration (D6); it is set aside.
+      const first = firstRecord(body);
+      if (!first || first.developer !== cfg.developer) {
+        logError('upload held: batch of another developer');
+        safe(() => fs.renameSync(file, `${file}.held`));
+        continue;
+      }
       const status = await post(body);
       if (status === 202) {
         safe(() => fs.unlinkSync(file));
         Object.assign(st, { last_ok: Date.now(), fails: 0, next_try: 0 });
-        saveSend(st);
+        if (!saveSend(st)) break; // tracking ended meanwhile, or the state is not writable: stop here
         continue;
       }
       logError(`upload ${status}`);
@@ -467,7 +520,7 @@ async function flush() {
         st.fails = (st.fails || 0) + 1;
         st.next_try = Date.now() + Math.min(RETRY_BASE_MS * 2 ** (st.fails - 1), RETRY_MAX_MS);
       }
-      if (!saveSend(st)) logError('send state not writable');
+      if (!saveSend(st) && fs.existsSync(sendState)) logError('send state not writable');
       break;
     }
   } finally { unlock(sendLock); }
@@ -485,7 +538,9 @@ async function main() {
       record('session_open', { ...base, ...identity(), repo: gitOrigin(base.cwd), repo_dir: repoName, branch: gitBranch(base.cwd),
         model: input.model || null, source: input.source || null, permission_mode: input.permission_mode || null,
         entrypoint: process.env.CLAUDE_CODE_ENTRYPOINT || null });
-      { const h = gitHead(base.cwd); if (h) saveState(`${base.session_id || 'nosession'}.git.json`, { [base.cwd]: h }); }
+      { // a resumed or compacted session keeps its other baselines and the commits it already counted
+        const h = gitHead(base.cwd), name = `${base.session_id || 'nosession'}.git.json`;
+        if (h) saveState(name, { ...loadState(name), [base.cwd]: h }); }
       pruneState();
       break;
     case 'UserPromptSubmit': {
@@ -510,44 +565,49 @@ async function main() {
         const resp = input.tool_response;
         const stdout = typeof resp === 'string' ? resp : String((resp && (resp.stdout || resp.output)) || '');
         const stderr = typeof resp === 'string' ? '' : String((resp && resp.stderr) || '');
+        let where = null; // origin and branch, read once for both records (each git call can take 1.5 s)
+        const place = () => where || (where = { repo: gitOrigin(base.cwd), branch: gitBranch(base.cwd) });
         // Commits: compare HEAD with the last HEAD this session saw. A failed commit leaves HEAD unchanged.
         const ops = Array.from(cmd.matchAll(GIT_HEAD_MOVING), (m) => m[1].replace(/\s+/g, ' '));
         if (ops.length) {
           const st = loadState(`${sid}.git.json`);
           const head = gitHead(base.cwd);
           const prev = st[base.cwd];
-          const op = ops.find((o) => GIT_AUTHORING.includes(o));
-          if (head && head !== prev && op) {
-            // The commits of this command: new to HEAD, younger than COMMIT_WINDOW_MS and not counted before in
-            // this session — so commits passed over by a checkout, pull or fast-forward in the same command are
-            // left out. Without a baseline for this cwd, trust git's own "[branch abc1234] message" line only.
+          const authoring = ops.filter((o) => GIT_AUTHORING.includes(o));
+          let recorded = true;
+          if (head && head !== prev && authoring.length) {
+            // The commits of this command: new to HEAD, committed in the last COMMIT_WINDOW_MS by this repository's
+            // git user, and not counted before in this session — so commits passed over by a checkout or pull in
+            // the same command, and other people's recent commits, are left out. A command whose only authoring
+            // step is a merge made at most its merge commit; a fast-forward made none. Without a baseline for this
+            // cwd, trust git's own "[branch abc1234] message" line only.
             const summary = /^\[[^\]\n]+ ([0-9a-f]{7,40})\]/m.exec(stdout);
             const counted = new Set(st._counted || []);
-            const fresh = (prev ? gitNewCommits(base.cwd, prev, head, Date.now() - COMMIT_WINDOW_MS) : (summary ? [head] : []))
-              .filter((s) => !counted.has(s));
-            if (fresh.length && record('commit', { ...base, repo_dir: repoName, repo: gitOrigin(base.cwd), branch: gitBranch(base.cwd),
-              sha: head, from_sha: prev || null, commits: fresh.length, tool, op })) {
-              for (const s of fresh) counted.add(s);
-              st._counted = Array.from(counted).slice(-500);
+            let fresh = prev ? gitNewCommits(base.cwd, prev, head, Date.now() - COMMIT_WINDOW_MS, gitEmail(base.cwd)) : (summary ? [head] : []);
+            if (authoring.every((o) => o === 'merge')) fresh = fresh.includes(head) && gitIsMerge(base.cwd, head) ? [head] : [];
+            fresh = fresh.filter((s) => !counted.has(s));
+            if (fresh.length) {
+              recorded = record('commit', { ...base, repo_dir: repoName, ...place(),
+                sha: head, from_sha: prev || null, commits: fresh.length, tool, op: authoring[0] });
+              if (recorded) { for (const s of fresh) counted.add(s); st._counted = Array.from(counted).slice(-500); }
             }
           }
-          if (head) { st[base.cwd] = head; saveState(`${sid}.git.json`, st); }
+          // The baseline moves past these commits only once they are recorded (D11).
+          if (head && recorded) { st[base.cwd] = head; saveState(`${sid}.git.json`, st); }
         }
         // Pull requests: `create` prints the PR URL; `merge` prints nothing when not run in a terminal, so its
-        // number comes from the command, counted only when the output carries no error.
+        // number comes from the command, counted only when the output carries no error. `--disable-auto` merges
+        // nothing; `--auto` counts when it is requested.
         const prc = PR_CMD.exec(cmd);
         let number = null, url = null;
         if (prc && prc[1] === 'create') {
           const m = PR_URL.exec(stdout);
           if (m) { number = Number(m[1]); url = m[0]; }
-        } else if (prc) {
-          const tok = prc[2].trim().split(/\s+/).find((t) => /^#?\d+$/.test(t) || PR_URL.test(t));
-          if (tok && !PR_ERROR.test(`${stdout}\n${stderr}`)) {
-            const m = PR_URL.exec(tok);
-            number = Number(m ? m[1] : tok.replace('#', '')); url = m ? m[0] : null;
-          }
+        } else if (prc && !/(^|\s)--disable-auto\b/.test(prc[2]) && !PR_ERROR.test(`${stdout}\n${stderr}`)) {
+          const t = prTarget(prc[2]);
+          if (t) ({ number, url } = t);
         }
-        if (number) record('pr', { ...base, repo_dir: repoName, repo: gitOrigin(base.cwd), branch: gitBranch(base.cwd), number, url, action: prc[1] });
+        if (number) record('pr', { ...base, repo_dir: repoName, ...place(), number, url, action: prc[1] });
       } else {
         // Edits: accumulate per session, emitted as one "edits" record at Stop. Files are kept as hashes,
         // only to count distinct files; no path is stored.

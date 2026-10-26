@@ -29,7 +29,7 @@
 
 | 설정 | 뜻 |
 |---|---|
-| `developer` | 사람마다 배정한 본인 식별자. 모든 레코드에 찍히고 정규화한 값이 업로드의 `developer`가 된다. 소문자로 바꾸고 a–z·숫자·`.`·`_`·`-`만 남기며 나머지는 `-`로 바꾼다. 남는 글자가 없으면 `u-<해시>`. 표기 둘이 같은 값이 될 수 있으므로(`Alex Kim`, `alex-kim`) 정규화 뒤에도 서로 다른 값으로 배정한다. 비우면 OS 로그인 이름을 쓰고 업로드하지 않는다 |
+| `developer` | 사람마다 배정한 본인 식별자. 모든 레코드에 찍히고 정규화한 값이 업로드의 `developer`가 된다. 소문자로 바꾸고 a–z·숫자·`.`·`_`·`-`만 남기며 나머지는 `-`로 바꾼다. 남는 글자가 없으면 `u-<해시>`. 표기 둘이 같은 값이 될 수 있으므로(`Alex Kim`, `alex-kim`) 정규화 뒤에도 서로 다른 값으로 배정한다. 비우면 OS 로그인 이름을 쓰고 업로드하지 않는다. 지금 설정된 값이 찍힌 레코드만 올리므로 endpoint보다 먼저 설정한다. 설정 전이나 이전 값으로 기록된 레코드는 로컬에만 남는다 |
 | `team` | 모든 레코드에 붙는 팀 라벨 |
 | `endpoint` | 수신 URL. HTTPS(평문 `http`는 127.0.0.1·localhost·[::1]만), NDJSON POST를 받고 202로 답함. 비우면 업로드 안 함 |
 | `token` | 수신 측 공유 토큰, `X-Webhook-Token` 헤더로 보낸다 |
@@ -52,8 +52,8 @@
 | `skill` | PreToolUse(Skill) | 스킬 이름(`plugin:skill`) · 인자 글자 수 · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
 | `usage` | Stop(비동기) · SessionEnd · SubagentStop | transcript 증분 파싱 → 모델 × effort × query source별 요청 수와 input / output / cache-read / cache-create / thinking 토큰(request id 중복 제거) · 브랜치 · Claude Code 버전 · agent id |
-| `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
-| `pr` | PostToolUse(Bash, PowerShell) | 출력에 PR URL이 있는 `gh pr` / `glab mr` `create`, 또는 명령에 PR 번호나 URL이 있고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음) · 번호 · URL · action |
+| `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 저장소의 `user.email`로 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
+| `pr` | PostToolUse(Bash, PowerShell) | 명령 구간의 맨 앞에 온 `gh pr` / `glab mr` 명령 중, 출력에 PR URL이 있는 `create`, 또는 인자로 PR 번호나 URL을 주었고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음). `--disable-auto`는 세지 않고, `--auto`와 merge queue는 merge를 요청한 시점에 센다 · 번호 · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit의 도구별·확장자별 횟수 · 쓴 바이트 · 직전 Stop 이후 파일 수(해시로 셈, 경로 없음) |
 | `session_close` | SessionEnd | 종료 사유 |
 
@@ -69,7 +69,7 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 
 플러그인 폴더는 Claude Code가 설치한 위치(`~/.claude/plugins/cache/<마켓플레이스>/cc-usage-plugin/<버전>/`)
 나 이 저장소의 `cc-usage-plugin/`이다. 스크립트가 `~/.claude/plugins/data/cc-usage-plugin-*`에서 설치된
-원장을 찾는다(최근 것 먼저). 다른 원장은 `--data-dir <폴더>`나 `CLAUDE_PLUGIN_DATA`로 지정한다. 출력:
+원장을 찾는다(마지막으로 기록된 것). 다른 원장은 `--data-dir <폴더>`나 `CLAUDE_PLUGIN_DATA`로 지정한다. 출력:
 세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 저장소·모델·effort·query source별 ·
 명령·스킬 상위 · 플러그인 명령 비율 · 커밋·PR·편집. 레코드 `id`마다 한 번만 센다.
 
@@ -83,8 +83,10 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
   `X-Webhook-Token: <token>` 헤더, `Authorization` 헤더 없음. 사용자 정의 헤더가 다른 호스트로 따라가지
   않도록 리다이렉트는 거부한다.
 - **본문:** 원장 줄 그대로 — UTF-8, 한 줄에 JSON 레코드 하나, 마지막 줄바꿈 포함.
-- **배치:** developer 1명·ISO 주 1개(각 레코드 `ts`로 UTC에서 계산), 최대 1 MB. 주나 developer가
-  다르면 나눠서 보내고, 오래된 주부터 보낸다.
+- **배치:** developer 1명·ISO 주 1개(각 레코드 `ts`로 UTC에서 계산), 최대 1 MB. 주가 다르면 나눠서
+  보내고, 오래된 주부터 보낸다. 설정된 `developer`가 찍힌 레코드만 잘라 내고, 이전 값으로 잘라 둔
+  배치는 `send/`에 `.held`로 남겨 보내지 않는다. 그래서 배치가 보내는 설정과 다른 사람을 나타내는
+  일이 없다.
 - **성공은 `202`뿐이다.** 그때 배치를 `send/`에서 지운다. 그 밖의 경우 배치를 남겨 두고, 다음
   시도에 같은 배치를 그대로(같은 본문·같은 쿼리) 보낸다.
 - **`401`:** `endpoint`나 `token`이 바뀔 때까지 더 보내지 않는다.
@@ -95,7 +97,8 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
   `developer`·`week`·`id`가 있거나, 토큰이 없거나, `developer`가 설정되지 않았으면 올리지 않는다.
   `errors.log`에 한 줄만 남기고 설정이 바뀔 때까지 다시 시도하지 않는다.
 - endpoint 없이 기록된 레코드는 올리지 않는다. 업로드 추적은 endpoint가 있는 상태로 처음 기록할 때
-  시작되고, endpoint 없이 처음 기록할 때 끝난다.
+  시작되고, endpoint 없이 처음 기록할 때 끝난다. 끝낼 때는 그때까지 기록된 것을 먼저 `send/`로
+  잘라 두며, 이것은 endpoint를 다시 설정하면 올라간다.
 - 전달은 최소 1회다(수신 측이 저장했지만 202가 오지 않은 배치는 다시 간다). 수신 이후 단계에서
   레코드 `id`로 중복을 제거한다.
 - 데이터 폴더의 `errors.log`에는 실패한 업로드의 상태 코드나 오류 코드만 남고 URL·토큰·레코드는
@@ -124,10 +127,11 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 node --test cc-usage-plugin/tests/collect.test.js
 ```
 
-훅 스크립트를 자식 프로세스로 실행하고, 업로드 시험은 로컬 수신기에 보낸다. 주·developer별 배치와
-1 MB 상한, 202 / 401 / 타임아웃 처리와 재시도 간격, 업로드 주기, 거부하는 설정, 잠금, transcript
-체크포인트, 커밋·PR 판정, 레코드 필드, `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로
-약 25초 걸린다. 파일 권한을 쓰는 두 시험은 Windows와 root에서 건너뛴다.
+훅 스크립트를 자식 프로세스로 실행하고, 업로드 시험은 로컬 수신기에 보낸다. 설정된 developer의
+주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 재시도 간격, 업로드 주기, 업로드 추적의 종료와
+재시작, 거부하는 설정, 잠금, transcript 체크포인트, 커밋·PR 판정, 레코드 필드, 상태 정리,
+`report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는 세
+시험은 Windows와 root에서 건너뛴다.
 
 ## 파일
 

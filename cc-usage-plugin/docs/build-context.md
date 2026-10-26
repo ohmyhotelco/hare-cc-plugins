@@ -103,7 +103,8 @@ Not accepted, with the reason:
 
 - *Batches whose records name another developer than the current configuration are sent* (Codex) —
   each record carries the developer it was written under, and the batch query matches its records.
-  Holding such batches back would strand data recorded before a person corrected their id.
+  Holding such batches back would strand data recorded before a person corrected their id. *Reversed in
+  round 2 (below).*
 - *Changing only the endpoint lifts the 401 block* (Codex) — intended (D4): a signed endpoint can be
   regenerated with the same token, and a rejected signature also yields 401.
 - *The author field names a real person* (Codex) — the maintainer's attribution, the same in every
@@ -158,6 +159,80 @@ Same command and receiver as the run at `2095203`, plugin loaded from a detached
 headers and query shape, body `session_open` + `prompt`; ledger `session_open`, `prompt`, `usage`,
 `session_close`; `send/` empty; send state `fails: 0`, `auth_block: null`, `config_block: null`; no
 `errors.log`. Data folder removed afterwards.
+
+### Audit round 2 — on `d4cfc99`
+
+One reviewer, `codex exec` on a detached worktree of `d4cfc99`, told not to change it (it did not), with
+a sandbox that let it run the suite (21 of 21 passed there) and probes against a loopback receiver. Brief:
+the round-1 changes (`79237ed..ac6871d`) first, then the documents against the code; each finding marked
+as a regression from round 1, an incomplete round-1 fix, or pre-existing; an item not accepted in round
+1 raised again only with evidence that its reason does not hold. Same context as round 1.
+
+**round 2 — 18 findings (1 high / 14 medium / 3 low): 9 regressions from round 1, 8 incomplete round-1
+fixes, 1 raised again. Fix first.**
+
+Fixed (each re-confirmed by reading the code before the change):
+
+| Finding | Change |
+|---|---|
+| an upload still running when a record without an endpoint ended tracking wrote the send state back, so records written meanwhile were uploaded later (high) | the send state is saved only over an existing file; the upload stops at its next save |
+| ending tracking dropped records written with an endpoint but not yet cut | the lines not yet cut are cut into `send/` first, under `send.lock` taken without waiting |
+| the fallback for file systems without hard links could replace another process's new send state | exclusive create instead of rename |
+| records written under the OS login name before a developer was set were uploaded under that name once one was set (round-1 item raised again) | only records stamped with the configured id are cut; a batch cut under an earlier id is renamed `.held`. The round-1 reason covered a corrected id, not an unassigned login name, and the receiver requires the person a batch represents to match the sending configuration (D6) |
+| a fast-forward onto a recent commit made elsewhere counted as authored; a compound command counted other people's recent commits | the committer must be the repository's `user.email`; a command whose only authoring step is `merge` counts its merge commit only (D7) |
+| SessionStart (`compact`, `resume`) replaced the git state and lost the counted-commit set | the new baseline is merged into the existing state |
+| a commit baseline advanced although its record failed | it moves only after the record (D11) |
+| pruning a checkpoint made a session resumed after 30 days count its transcript again | a checkpoint past 30 days is kept as its offset |
+| a checkpoint that could not be saved went unnoticed | `usage checkpoint not saved` logged; the possible double count is stated as D11's cost |
+| `gh pr merge 12 --disable-auto`, `echo gh pr merge 7`, `--subject 123 11`, and a `GraphQL:` error behind `\|\| true` were merge records | the command must start a command segment; the first positional argument is read with option values skipped; `--disable-auto` counts nothing; gh error prefixes added. `--auto` counts at request (D7) |
+| a reserved-name prefix pushed a developer id past 64 characters, so normalizing it again changed it | the cap is applied last |
+| `report.js` chose a ledger by its folder's time, which appending does not change | by its ledger files' modification time, folder name as tie-break |
+| `report.js` used the folder name when the session's origin was recorded before the report window | session and agent maps are built from the whole ledger |
+| `example.com:acme/app.git` (scp form without a user) was not recorded | accepted; a one-letter host (a Windows drive) is not |
+| one line over 1 MB made a batch over the cap | the line is logged and left out of the upload |
+
+Found while fixing: the commit and PR records together could make eight git calls of up to 1.5 s in a
+10 s hook. Origin and branch are now read once per hook, so at most six.
+
+Not accepted, documented instead:
+
+- *Stale-lock takeover and release can still let two processes hold a lock* — true with three contenders
+  within the same takeover, or an owner still running past the stale age. Node has no advisory file lock
+  without a dependency; the window needs a killed lock holder plus contenders within milliseconds
+  (uploads end within 55 s, well inside the 120 s stale age), and the worst effect is a duplicate batch,
+  removed downstream by `id`, or one usage delta counted twice. Stated in design § 5.
+- *A 401 is forgotten when the send state becomes unwritable during the request* — true; it needs the
+  disk to fill or permissions to change between the pre-flight save and the response. Saving a
+  pessimistic backoff before every request would close it but also delay the retry after every `-p` run
+  killed mid-upload. Stated in design § 6.
+
+### Test suite after round 2
+
+`node --test cc-usage-plugin/tests/collect.test.js` on macOS, Node 24.22.1: 24 tests, 24 pass, about
+23 s. Three cases use file permissions and skip on Windows and as root. Changed expectations: one batch
+per week for the configured developer only (was one per developer), and the refused-configuration case
+now writes a record under the assigned id before expecting an upload.
+
+Mutation check — each round-2 fix undone in a scratch copy, the suite run against it; every mutant still
+parsed (`node --check`), so a failure is not a syntax error, and every mutant failed the named test:
+
+| Mutation | Test that failed |
+|---|---|
+| send state saved even when removed | an upload in flight does not restore tracking … |
+| ending tracking without cutting | records written while no endpoint is configured are never uploaded |
+| cut keeps every developer | cuts one batch per ISO week …; records of another developer id stay local |
+| held-batch check removed | a batch cut under an earlier developer id is held … |
+| merge-only rule removed / committer filter removed / SessionStart replaces the git state | commits count only commits the command made |
+| baseline advances after a failed record | a commit whose record cannot be written is counted with the next one |
+| pruning deletes checkpoints | session state older than 30 days … checkpoints shrink to their offset |
+| `--disable-auto` counted / command not anchored / option values read as the number / gh error prefixes removed | PR records need … |
+| length cap before the prefix | developer ids are path-safe … |
+| report: folder time / session map from the window only | report.js finds the installed ledger … |
+| scp form needs a user | repository origins keep host and path only |
+| oversized line batched | splits a cut above 1 MB into several batches |
+
+Not covered by a mutant: the exclusive-create fallback (needs a file system without hard links) and the
+`usage checkpoint not saved` log line.
 
 ### Pull-request shape
 

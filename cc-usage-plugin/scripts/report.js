@@ -8,29 +8,32 @@ const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] :
 const days = Number(opt('--days', 7)); const outJson = opt('--json', null);
 const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 // Hooks get the data folder as CLAUDE_PLUGIN_DATA; a shell does not, so look for the installed plugin's
-// folder (plugins/data/cc-usage-plugin-<marketplace>, or -inline under --plugin-dir), newest ledger first.
+// folder (plugins/data/cc-usage-plugin-<marketplace>, or -inline under --plugin-dir), the one whose ledger
+// file was written last (appending to a file does not touch its folder's time).
 function findDataDir() {
   const explicit = opt('--data-dir', null) || process.env.CLAUDE_PLUGIN_DATA;
   if (explicit) return explicit;
   const root = path.join(configDir, 'plugins', 'data');
-  const mtime = (d) => fs.statSync(path.join(d, 'ledger')).mtimeMs;
+  const last = (d) => Math.max(0, ...fs.readdirSync(path.join(d, 'ledger')).map((f) => fs.statSync(path.join(d, 'ledger', f)).mtimeMs));
   const found = (fs.existsSync(root) ? fs.readdirSync(root) : []).filter((d) => d.startsWith('cc-usage-plugin-'))
-    .map((d) => path.join(root, d)).filter((d) => fs.existsSync(path.join(d, 'ledger'))).sort((a, b) => mtime(b) - mtime(a));
+    .map((d) => path.join(root, d)).filter((d) => fs.existsSync(path.join(d, 'ledger')))
+    .map((d) => [d, last(d)]).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([d]) => d);
   return found[0] || path.join(root, 'cc-usage-local');
 }
 const dataDir = findDataDir();
 const ledgerDir = path.join(dataDir, 'ledger');
 const since = Date.now() - days * 864e5;
 
-const recs = [], ids = new Set(); // a record seen twice (re-sent batch, copied ledger) counts once
+const all = [], ids = new Set(); // a record seen twice (re-sent batch, copied ledger) counts once
 if (fs.existsSync(ledgerDir)) for (const f of fs.readdirSync(ledgerDir)) {
   if (!f.endsWith('.jsonl')) continue;
   for (const line of fs.readFileSync(path.join(ledgerDir, f), 'utf8').split('\n')) {
     if (!line) continue; let d; try { d = JSON.parse(line); } catch (_) { continue; }
     if (d.id) { if (ids.has(d.id)) continue; ids.add(d.id); }
-    if (Date.parse(d.ts) >= since) recs.push(d);
+    all.push(d);
   }
 }
+const recs = all.filter((d) => Date.parse(d.ts) >= since);
 // v0.1.6 recorded HEAD moves from pull/checkout/reset/switch/rebase as commits, and PRs from any gh
 // command that printed a PR URL; only authored commits and PR create/merge count.
 const AUTHORING = ['commit', 'cherry-pick', 'revert', 'am', 'merge'];
@@ -39,11 +42,13 @@ const sessions = new Set(), byRepo = {}, byModel = {}, byEffort = {}, bySource =
 let tot = { requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0 };
 let who = null;
 let commits = 0, prs = [], edits = { count: 0, bytes: 0, files: 0, by_tool: {} };
+// Both maps read the whole ledger: the record naming a session's origin or an agent's type can be older
+// than the reporting window.
 const agentTypeById = {}; // agent_id -> agent_type, from SubagentStop records
-for (const r of recs) if (r.kind === 'subagent' && r.agent_id && r.agent_type) agentTypeById[r.agent_id] = r.agent_type;
+for (const r of all) if (r.kind === 'subagent' && r.agent_id && r.agent_type) agentTypeById[r.agent_id] = r.agent_type;
 // Only Stop's usage records carry the origin; SessionEnd and SubagentStop ones get it from their session.
 const repoBySession = {};
-for (const r of recs) if (r.session_id && r.repo && !repoBySession[r.session_id]) repoBySession[r.session_id] = r.repo;
+for (const r of all) if (r.session_id && r.repo && !repoBySession[r.session_id]) repoBySession[r.session_id] = r.repo;
 for (const r of recs) {
   if (r.session_id) sessions.add(r.session_id);
   if (r.kind === 'session_open' && !who) who = { developer: r.developer, email: r.email, team: r.team, host: r.host };

@@ -30,7 +30,7 @@ Installing asks for these options; with `endpoint` empty only the local ledger i
 
 | Option | Meaning |
 |---|---|
-| `developer` | Your own handle, assigned per person. Stamped on every record and sent as the upload's `developer` value after normalization: lowercased, letters a–z, digits, `.`, `_` and `-` kept, anything else turned into `-`; a value with nothing left becomes `u-<hash>`. Two spellings can normalize to one id (`Alex Kim`, `alex-kim`), so assign ids that stay distinct after normalization. Empty = OS login name, and no upload |
+| `developer` | Your own handle, assigned per person. Stamped on every record and sent as the upload's `developer` value after normalization: lowercased, letters a–z, digits, `.`, `_` and `-` kept, anything else turned into `-`; a value with nothing left becomes `u-<hash>`. Two spellings can normalize to one id (`Alex Kim`, `alex-kim`), so assign ids that stay distinct after normalization. Empty = OS login name, and no upload. Only records stamped with the id currently set are uploaded, so set it before the endpoint: records written without it, or under an earlier id, stay local |
 | `team` | Team label attached to every record |
 | `endpoint` | Receiver URL: HTTPS (plain `http` only to 127.0.0.1, localhost or [::1]), accepts POST of NDJSON, answers 202. Empty = no upload |
 | `token` | Shared receiver token, sent as `X-Webhook-Token` |
@@ -54,8 +54,8 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
 | `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id |
-| `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or a merge commit — that are new to HEAD, younger than 15 minutes and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
-| `pr` | PostToolUse(Bash, PowerShell) | `gh pr` / `glab mr` `create` whose output has the PR URL, or `merge` with the PR number or URL in the command and no error in the output (gh prints nothing on success outside a terminal) · number · URL · action |
+| `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or a merge commit — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
+| `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command at the start of a command segment: `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--disable-auto` counts nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
 | `session_close` | SessionEnd | end reason |
 
@@ -72,7 +72,7 @@ node <plugin folder>/scripts/report.js --days 7 --json weekly.json
 The plugin folder is where Claude Code installed it
 (`~/.claude/plugins/cache/<marketplace>/cc-usage-plugin/<version>/`) or this repository's
 `cc-usage-plugin/`. The script finds the installed ledger under `~/.claude/plugins/data/cc-usage-plugin-*`
-(newest first); `--data-dir <folder>` or `CLAUDE_PLUGIN_DATA` picks another. Output: sessions,
+(the one written to last); `--data-dir <folder>` or `CLAUDE_PLUGIN_DATA` picks another. Output: sessions,
 requests, tokens (output / cache read / cache create / input), by repository, model, effort and query
 source, top commands and skills, plugin-command ratio, commits, PRs and edits. Each record `id`
 counts once.
@@ -88,7 +88,9 @@ never upload, so a slow receiver never delays the session.
   refused, because a custom header would follow them to another host.
 - **Body:** the ledger lines unchanged — UTF-8, one JSON record per line, final newline.
 - **Batch:** one developer and one ISO week (computed in UTC from each record's `ts`), at most 1 MB;
-  records of different weeks or developers go in separate batches, oldest week first.
+  records of different weeks go in separate batches, oldest week first. Only records stamped with the
+  configured `developer` are cut; a batch cut under an earlier id is kept in `send/` as `.held` and not
+  sent, so a batch never represents anyone but the sending configuration.
 - **Success is `202` only.** The batch is then deleted from `send/`. On anything else it stays, and
   the next attempt sends the same batch unchanged (same body, same query).
 - **`401`:** no further uploads until `endpoint` or `token` changes.
@@ -100,7 +102,8 @@ never upload, so a slow receiver never delays the session.
   host), already has `developer`, `week` or `id` in its query, no token is set, or no `developer` is
   set.
 - Records written while no endpoint is configured are never uploaded: upload tracking starts with the
-  first record written with an endpoint, and the first record written without one ends it.
+  first record written with an endpoint, and the first record written without one ends it — after
+  cutting what was recorded until then into `send/`, where it waits for the endpoint to be set again.
 - Delivery is at-least-once (a batch the receiver stored but whose 202 never arrived is sent again),
   so de-duplicate by record `id` downstream.
 - `errors.log` in the data folder records the status of a failed upload or an error code, never the
@@ -131,10 +134,10 @@ node --test cc-usage-plugin/tests/collect.test.js
 ```
 
 Runs the hook script as a child process, the upload cases against a local receiver: batching per week
-and developer and the 1 MB cap, 202 / 401 / timeout handling and backoff, cadence, refused
-configurations, locks, the transcript checkpoint, commit and PR detection, record fields, and
-`report.js`. About 25 s, because one case waits for the 15 s timeout. Two cases use file permissions
-and are skipped on Windows and as root.
+for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and backoff, cadence,
+ending and restarting upload tracking, refused configurations, locks, the transcript checkpoint, commit
+and PR detection, record fields, state pruning, and `report.js`. About 25 s, because one case waits for
+the 15 s timeout. Three cases use file permissions and are skipped on Windows and as root.
 
 ## Files
 

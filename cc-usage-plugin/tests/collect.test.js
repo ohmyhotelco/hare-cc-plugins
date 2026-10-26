@@ -109,7 +109,7 @@ test('uploads the ledger with X-Webhook-Token only, keeps the URL query, and emp
   } finally { await r.close(); }
 });
 
-test('cuts one batch per ISO week and per developer, oldest week first', async () => {
+test('cuts one batch per ISO week, oldest week first; records of another developer id stay local', async () => {
   const dir = tmp(); const r = await receiver();
   try {
     const e = upload(r);
@@ -117,18 +117,36 @@ test('cuts one batch per ISO week and per developer, oldest week first', async (
     const old = new Date(Date.now() - 21 * 864e5).toISOString();
     appendLedger(dir, { id: 'old-1', kind: 'prompt', ts: old, developer: 'alex' });
     appendLedger(dir, { id: 'old-2', kind: 'prompt', ts: old, developer: 'alex' });
-    appendLedger(dir, { id: 'sam-1', kind: 'prompt', ts: new Date().toISOString(), developer: 'Sam' });
+    appendLedger(dir, { id: 'sam-1', kind: 'prompt', ts: new Date().toISOString(), developer: 'sam' });
     await run(dir, 'Stop', { session_id: 's1' }, e);
-    assert.equal(r.reqs.length, 3);
+    assert.equal(r.reqs.length, 2);
     for (const q of r.reqs) {
       const recs = lines(q.body);
-      const week = q.url.searchParams.get('week'), dev = q.url.searchParams.get('developer');
-      assert.ok(recs.every((x) => isoWeek(new Date(x.ts)) === week), 'one week per batch');
-      assert.ok(recs.every((x) => x.developer.toLowerCase() === dev), 'one developer per batch');
+      assert.ok(recs.every((x) => isoWeek(new Date(x.ts)) === q.url.searchParams.get('week')), 'one week per batch');
+      assert.ok(recs.every((x) => x.developer === 'alex') && q.url.searchParams.get('developer') === 'alex');
       assert.equal(q.url.searchParams.get('id'), recs[0].id);
     }
     assert.equal(r.reqs[0].url.searchParams.get('week'), isoWeek(new Date(old)));
-    assert.deepEqual(r.reqs.map((q) => q.url.searchParams.get('developer')).slice(1).sort(), ['alex', 'sam']);
+    assert.ok(!r.reqs.some((q) => q.body.includes('sam-1')), 'a record of another developer id is not uploaded');
+  } finally { await r.close(); }
+});
+
+test('a batch cut under an earlier developer id is held, not sent from the new configuration', async () => {
+  const dir = tmp(); const r = await receiver();
+  try {
+    r.set(500);
+    await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, upload(r, 'tok-1', 'sam'));
+    await run(dir, 'Stop', { session_id: 's1' }, upload(r, 'tok-1', 'sam'));
+    assert.equal(pending(dir).length, 1);
+    r.set(202); patchState(dir, { next_try: 0 });
+    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'hi' }, upload(r));
+    await run(dir, 'Stop', { session_id: 's1' }, upload(r));
+    assert.equal(r.reqs.length, 2);
+    assert.equal(r.reqs[1].url.searchParams.get('developer'), 'alex');
+    assert.deepEqual(lines(r.reqs[1].body).map((x) => x.kind), ['prompt']);
+    assert.deepEqual(pending(dir), []);
+    assert.equal(fs.readdirSync(data(dir, 'send')).filter((f) => f.endsWith('.held')).length, 1);
+    assert.equal(count(errors(dir), 'upload held: batch of another developer'), 1);
   } finally { await r.close(); }
 });
 
@@ -139,10 +157,12 @@ test('splits a cut above 1 MB into several batches', async () => {
     await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, e);
     const ts = new Date().toISOString();
     for (let i = 0; i < 1200; i++) appendLedger(dir, { id: `big-${i}`, kind: 'prompt', ts, developer: 'alex', pad: 'x'.repeat(1000) });
+    appendLedger(dir, { id: 'huge', kind: 'prompt', ts, developer: 'alex', pad: 'x'.repeat(1100 * 1024) }); // no real record is this big
     await run(dir, 'Stop', { session_id: 's1' }, e);
     assert.ok(r.reqs.length >= 2);
     assert.ok(r.reqs.every((q) => Buffer.byteLength(q.body) <= 1024 * 1024));
     assert.equal(r.reqs.reduce((n, q) => n + lines(q.body).length, 0), 1201);
+    assert.match(errors(dir), /record over 1 MB not uploaded/);
   } finally { await r.close(); }
 });
 
@@ -227,16 +247,38 @@ test('records written while no endpoint is configured are never uploaded', async
   try {
     await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, { CC_USAGE_DEVELOPER: 'alex' });
     const e = upload(r);
-    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'hello' }, e);
+    const prompt = (text, extra) => run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: text }, extra);
+    await prompt('hello', e);
     await run(dir, 'Stop', { session_id: 's1' }, e);
     assert.equal(r.reqs.length, 1);
     assert.deepEqual(lines(r.reqs[0].body).map((x) => x.kind), ['prompt'], 'before the first configuration');
+    await prompt('kept', e); // recorded with an endpoint, not yet due
+    await prompt('local only', { CC_USAGE_DEVELOPER: 'alex' });
+    assert.ok(!fs.existsSync(data(dir, 'state', '_send.json')), 'removing the endpoint ends tracking');
+    assert.equal(pending(dir).length, 1, 'what was recorded with an endpoint is cut first');
+    await prompt('again!', e);
+    await run(dir, 'Stop', { session_id: 's1' }, e);
+    const sent = r.reqs.slice(1).flatMap((q) => lines(q.body).map((x) => x.prompt_chars));
+    assert.deepEqual(sent, [4, 6], 'the record written without an endpoint stays local');
+  } finally { await r.close(); }
+});
+
+test('an upload in flight does not restore tracking that a record without an endpoint ended', async () => {
+  const dir = tmp(); const r = await receiver();
+  try {
+    const e = upload(r);
+    await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, e);
+    r.set(202, 1500);
+    const stop = run(dir, 'Stop', { session_id: 's1' }, e);
+    while (r.reqs.length < 1) await new Promise((res) => setTimeout(res, 20));
     await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'local only' }, { CC_USAGE_DEVELOPER: 'alex' });
-    assert.ok(!fs.existsSync(data(dir, 'state', '_send.json')), 'removing the endpoint forgets the send state');
-    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'again' }, e);
+    await stop;
+    assert.ok(!fs.existsSync(data(dir, 'state', '_send.json')));
+    r.set(202);
+    await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'again!' }, e);
     await run(dir, 'Stop', { session_id: 's1' }, e);
     assert.equal(r.reqs.length, 2);
-    assert.deepEqual(lines(r.reqs[1].body).map((x) => x.prompt_chars), [5], 'the record written without an endpoint stays local');
+    assert.deepEqual(lines(r.reqs[1].body).map((x) => x.prompt_chars), [6]);
   } finally { await r.close(); }
 });
 
@@ -257,8 +299,12 @@ test('refuses an unsafe configuration, logs it once, and uploads once it is fixe
       assert.equal(r.reqs.length, 0, problem);
       assert.equal(count(errors(dir), `upload refused: ${problem}`), 1, problem);
       if (problem === 'no-developer') {
-        await run(dir, 'Stop', { session_id: 's1' }, upload(r));
+        const set = upload(r, 'tok-1', 'dev-assigned');
+        await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt: 'hi' }, set);
+        await run(dir, 'Stop', { session_id: 's1' }, set);
         assert.equal(r.reqs.length, 1, 'uploads once the developer is set');
+        assert.deepEqual(lines(r.reqs[0].body).map((x) => [x.kind, x.developer]), [['prompt', 'dev-assigned']],
+          'records written under the OS login name stay local');
       }
     }
   } finally { await r.close(); }
@@ -362,10 +408,12 @@ test('commits count only commits the command made, each once per session', async
   const dir = tmp();
   const repo = path.join(dir, 'repo'); fs.mkdirSync(repo);
   const OLD = { GIT_COMMITTER_DATE: '2020-01-01T00:00:00Z', GIT_AUTHOR_DATE: '2020-01-01T00:00:00Z' };
-  const git = (...a) => execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@example.com', ...a], { env: env(dir), stdio: 'pipe' }).toString();
-  const oldGit = (...a) => execFileSync('git', ['-C', repo, '-c', 'user.name=t', '-c', 'user.email=t@example.com', ...a], { env: env(dir, OLD), stdio: 'pipe' }).toString();
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { env: env(dir), stdio: 'pipe' }).toString();
+  const oldGit = (...a) => execFileSync('git', ['-C', repo, ...a], { env: env(dir, OLD), stdio: 'pipe' }).toString();
+  const samGit = (...a) => git('-c', 'user.name=sam', '-c', 'user.email=sam@example.com', ...a); // someone else, just now
   // existing history, committed long ago: other (3 commits), other2 (ends in a merge commit), other3
-  oldGit('init', '-q', '-b', 'main'); oldGit('commit', '-q', '--allow-empty', '-m', 'init');
+  oldGit('init', '-q', '-b', 'main'); git('config', 'user.name', 't'); git('config', 'user.email', 't@example.com');
+  oldGit('commit', '-q', '--allow-empty', '-m', 'init');
   oldGit('switch', '-q', '-c', 'other'); for (const m of ['o1', 'o2', 'o3']) oldGit('commit', '-q', '--allow-empty', '-m', m);
   oldGit('switch', '-q', '-c', 'y', 'main'); oldGit('commit', '-q', '--allow-empty', '-m', 'y1');
   oldGit('switch', '-q', '-c', 'other2', 'main'); oldGit('commit', '-q', '--allow-empty', '-m', 'x1'); oldGit('merge', '-q', '--no-ff', '-m', 'old merge', 'y');
@@ -383,9 +431,33 @@ test('commits count only commits the command made, each once per session', async
   git('switch', '-q', '-c', 'feat'); git('commit', '-q', '--allow-empty', '-m', 'f1');
   await bash('git switch -c feat && git commit -m f1');           // 1
   git('switch', '-q', 'main'); await bash('git switch main');
-  git('merge', '-q', '--ff-only', 'feat'); await bash('git merge --ff-only feat'); // f1 already counted: 0
+  await run(dir, 'SessionStart', { ...base, source: 'compact' });   // keeps the commits already counted
+  git('merge', '-q', '--ff-only', 'feat'); git('commit', '-q', '--allow-empty', '-m', 'c3');
+  await bash('git merge --ff-only feat && git commit -m c3');     // f1 already counted: 1
+  git('switch', '-q', '-c', 'mine'); git('commit', '-q', '--allow-empty', '-m', 'm1'); git('switch', '-q', 'main');
+  git('merge', '-q', '--ff-only', 'mine'); await bash('git merge --ff-only mine'); // a recent commit made elsewhere: 0
+  git('switch', '-q', '-c', 'theirs'); samGit('commit', '-q', '--allow-empty', '-m', 's1'); git('switch', '-q', 'main');
+  git('merge', '-q', '--ff-only', 'theirs'); git('commit', '-q', '--allow-empty', '-m', 'c4');
+  await bash('git merge --ff-only theirs && git commit -m c4');   // c4, not the other committer's s1: 1
   const recs = lines(ledger(dir)).filter((x) => x.kind === 'commit');
-  assert.deepEqual(recs.map((x) => [x.op, x.commits]), [['commit', 1], ['commit', 2], ['commit', 1]]);
+  assert.deepEqual(recs.map((x) => [x.op, x.commits]), [['commit', 1], ['commit', 2], ['commit', 1], ['merge', 1], ['merge', 1]]);
+});
+
+test('a commit whose record cannot be written is counted with the next one', { skip: NO_CHMOD }, async () => {
+  const dir = tmp();
+  const repo = path.join(dir, 'repo'); fs.mkdirSync(repo);
+  const git = (...a) => execFileSync('git', ['-C', repo, ...a], { env: env(dir), stdio: 'pipe' }).toString();
+  git('init', '-q', '-b', 'main'); git('config', 'user.name', 't'); git('config', 'user.email', 't@example.com');
+  git('commit', '-q', '--allow-empty', '-m', 'init');
+  const base = { session_id: 's1', cwd: repo };
+  const bash = (command) => run(dir, 'PostToolUse', { ...base, tool_name: 'Bash', tool_input: { command }, tool_response: { stdout: '' } });
+  await run(dir, 'SessionStart', base);
+  const [week] = fs.readdirSync(data(dir, 'ledger'));
+  fs.chmodSync(data(dir, 'ledger', week), 0o444);
+  git('commit', '-q', '--allow-empty', '-m', 'c1'); await bash('git commit -m c1');
+  fs.chmodSync(data(dir, 'ledger', week), 0o644);
+  git('commit', '-q', '--allow-empty', '-m', 'c2'); await bash('git commit -m c2');
+  assert.deepEqual(lines(ledger(dir)).filter((x) => x.kind === 'commit').map((x) => x.commits), [2]);
 });
 
 test('PR records need create with a URL in the output, or merge with a number and no error', async () => {
@@ -399,9 +471,15 @@ test('PR records need create with a URL in the output, or merge with a number an
   await bash('gh pr merge --squash 8', '', 'X Pull request #8 is not mergeable: the base branch policy prohibits the merge.\n');
   await bash('gh pr merge --squash');                              // no number: unknown PR
   await bash('gh pr merge https://github.com/acme/app/pull/9 --merge');
+  await bash('echo gh pr merge 3');                                 // text, not a command
+  await bash('gh pr merge --subject "fix 12 things" 11 --squash'); // an option value is not the number
+  await bash('gh pr merge 12 --disable-auto');                      // merges nothing
+  await bash('gh pr merge 13 --squash || true', '', 'GraphQL: Resource not accessible by integration (mergePullRequest)\n');
+  await bash('cd app && gh pr merge 14 --auto');                    // counted when requested
   const recs = lines(ledger(dir)).filter((x) => x.kind === 'pr');
   assert.deepEqual(recs.map((x) => [x.action, x.number, x.url]), [
-    ['create', 7, 'https://github.com/acme/app/pull/7'], ['merge', 7, null], ['merge', 9, 'https://github.com/acme/app/pull/9']]);
+    ['create', 7, 'https://github.com/acme/app/pull/7'], ['merge', 7, null], ['merge', 9, 'https://github.com/acme/app/pull/9'],
+    ['merge', 11, null], ['merge', 14, null]]);
 });
 
 test('repository origins keep host and path only', async () => {
@@ -409,7 +487,9 @@ test('repository origins keep host and path only', async () => {
     ['https://user:secret@example.com/acme/app.git?access_token=x#frag', 'https://example.com/acme/app'],
     ['git@example.com:acme/app.git', 'https://example.com/acme/app'],
     ['ssh://git@example.com:2222/acme/app.git', 'https://example.com/acme/app'],
+    ['example.com:acme/app.git', 'https://example.com/acme/app'],
     ['/srv/git/app.git', null],
+    ['C:/repos/app', null],
   ];
   for (const [origin, want] of cases) {
     const dir = tmp();
@@ -423,7 +503,8 @@ test('repository origins keep host and path only', async () => {
 // ---------- record fields ----------
 
 test('developer ids are path-safe, and non-Latin names stay distinct', async () => {
-  const cases = [['Alex Kim', 'alex-kim'], ['../x', 'x'], ['CON', 'u-con'], ['con.txt', 'u-con.txt'], ['a_vti_b', 'a-vti-b'], ['김민수', /^u-[0-9a-f]{8}$/], ['이민수', /^u-[0-9a-f]{8}$/]];
+  const cases = [['Alex Kim', 'alex-kim'], ['../x', 'x'], ['CON', 'u-con'], ['con.txt', 'u-con.txt'], ['a_vti_b', 'a-vti-b'], ['김민수', /^u-[0-9a-f]{8}$/], ['이민수', /^u-[0-9a-f]{8}$/],
+    [`con.${'a'.repeat(70)}`, `u-con.${'a'.repeat(58)}`]]; // 64 characters with the prefix
   const got = [];
   for (const [raw, want] of cases) {
     const dir = tmp();
@@ -449,15 +530,18 @@ test('account fields come from CLAUDE_CONFIG_DIR when it is set', async () => {
   assert.equal(lines(ledger(dir))[0].email, 'alex@example.com');
 });
 
-test('session state older than 30 days is removed at SessionStart; the send state is kept', async () => {
+test('session state older than 30 days is removed at SessionStart; checkpoints shrink to their offset', async () => {
   const dir = tmp();
   fs.mkdirSync(data(dir, 'state'), { recursive: true });
   const old = new Date(Date.now() - 40 * 864e5);
-  for (const f of ['old.json', '_send.json']) { fs.writeFileSync(data(dir, 'state', f), '{}'); fs.utimesSync(data(dir, 'state', f), old, old); }
+  const put = (f, v) => { fs.writeFileSync(data(dir, 'state', f), JSON.stringify(v)); fs.utimesSync(data(dir, 'state', f), old, old); };
+  put('old.json', { offset: 7, seen: ['r1'] }); put('old.git.json', { [dir]: 'abc' }); put('_send.json', { offsets: {} });
   fs.writeFileSync(data(dir, 'state', 'new.json'), '{}');
   // an endpoint is set, so the send state belongs to a live configuration (SessionStart never uploads)
   await run(dir, 'SessionStart', { session_id: 's1', cwd: dir }, { CC_USAGE_ENDPOINT: 'https://receiver.example/hook' });
-  assert.deepEqual(fs.readdirSync(data(dir, 'state')).sort(), ['_send.json', 'new.json']);
+  assert.deepEqual(fs.readdirSync(data(dir, 'state')).sort(), ['_send.json', 'new.json', 'old.json']);
+  assert.deepEqual(JSON.parse(fs.readFileSync(data(dir, 'state', 'old.json'), 'utf8')), { offset: 7, seen: [] },
+    'a session resumed later starts after the requests it already counted');
 });
 
 // ---------- report.js ----------
@@ -466,9 +550,11 @@ test('report.js finds the installed ledger, counts each record id once, and keep
   const dir = tmp();
   const led = path.join(dir, '.claude', 'plugins', 'data', 'cc-usage-plugin-acme', 'ledger');
   fs.mkdirSync(led, { recursive: true });
-  const ts = new Date().toISOString();
+  const ts = new Date().toISOString(), old = new Date(Date.now() - 8 * 864e5).toISOString();
   const m = (n) => [{ model: 'claude-x', input: n, output: 0, cache_read: 0, cache_create: 0, requests: 1 }];
   const recs = [
+    { id: 's2', kind: 'session_open', ts: old, session_id: 's2', repo: 'https://example.com/acme/lib', repo_dir: 'lib' },
+    { id: 'u3', kind: 'usage', ts, session_id: 's2', repo_dir: 'lib', by_model: m(4) }, // its session opened before the window
     { id: 's', kind: 'session_open', ts, session_id: 's1', repo: 'https://example.com/acme/app', repo_dir: 'app' },
     { id: 'u1', kind: 'usage', ts, session_id: 's1', repo: 'https://example.com/acme/app', repo_dir: 'app', by_model: m(1) },
     { id: 'u2', kind: 'usage', ts, session_id: 's1', repo_dir: 'app', by_model: m(2) }, // from SessionEnd: no origin
@@ -479,11 +565,18 @@ test('report.js finds the installed ledger, counts each record id once, and keep
   ];
   const text = recs.map((x) => JSON.stringify(x)).join('\n') + '\n';
   fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), text + text); // every record twice
+  // A trial ledger whose folder is newer but whose file was last written ten days ago is not the one read.
+  const stale = new Date(Date.now() - 10 * 864e5);
+  fs.utimesSync(led, stale, stale);
+  const trial = path.join(dir, '.claude', 'plugins', 'data', 'cc-usage-plugin-inline', 'ledger');
+  fs.mkdirSync(trial, { recursive: true });
+  fs.writeFileSync(path.join(trial, `${isoWeek(new Date())}.jsonl`), JSON.stringify({ id: 't1', kind: 'usage', ts, by_model: m(100) }) + '\n');
+  fs.utimesSync(path.join(trial, `${isoWeek(new Date())}.jsonl`), stale, stale);
   const out = path.join(dir, 'weekly.json');
   execFileSync(process.execPath, [REPORT, '--days', '7', '--json', out], { env: env(dir, { CLAUDE_PLUGIN_DATA: '' }), stdio: 'pipe' });
   const s = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.equal(s.totals.requests, 2);
-  assert.deepEqual(s.by_repo, { 'https://example.com/acme/app': 3 });
+  assert.equal(s.totals.requests, 3);
+  assert.deepEqual(s.by_repo, { 'https://example.com/acme/app': 3, 'https://example.com/acme/lib': 4 });
   assert.equal(s.commits, 2);
   assert.deepEqual(s.prs.map((p) => p.number), [7]);
 });
