@@ -1,0 +1,48 @@
+{
+  "name": "cc-usage-plugin",
+  "version": "0.1.7",
+  "description": "Claude Code usage ledger from hooks: per-session repository, model, skill, command and token metadata plus commit, PR and edit counts, never prompt content; optional batched upload to an HTTPS receiver. Windows/macOS/Linux, Node 22.23.4+ / 24.22.1+ / 26.12.1+, zero dependencies",
+  "author": {
+    "name": "Justin Choi"
+  },
+  "keywords": [
+    "usage",
+    "hooks",
+    "tokens",
+    "ledger",
+    "metadata",
+    "reporting"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/cc-usage-plugin",
+  "repository": "https://github.com/ohmyhotelco/hare-cc-plugins",
+  "userConfig": {
+    "developer": {
+      "type": "string",
+      "title": "Developer",
+      "description": "Your own handle, assigned per person and unique after normalization (e.g. alex); uploads need it. Stamped on every record and used as your folder name on the receiver: lowercased, with letters a-z, digits, '.', '_' and '-' kept and anything else turned into '-'; a value with nothing left becomes u-<hash>. Empty: the OS login name, local ledger only."
+    },
+    "team": {
+      "type": "string",
+      "title": "Team",
+      "description": "Team label attached to every record (e.g. platform)"
+    },
+    "endpoint": {
+      "type": "string",
+      "title": "Receiver URL (optional)",
+      "description": "HTTPS endpoint (plain http only to 127.0.0.1 or localhost) that accepts POST of NDJSON batches and answers 202. Leave empty to keep a local ledger only.",
+      "sensitive": true
+    },
+    "token": {
+      "type": "string",
+      "title": "Receiver token (optional)",
+      "description": "Shared token, sent as the X-Webhook-Token header",
+      "sensitive": true
+    },
+    "flush_hours": {
+      "type": "string",
+      "title": "Upload interval (hours)",
+      "description": "Upload about once per this many hours (default 24); earlier when 64 KB are waiting. A failed upload is retried on its own schedule (30 min, doubling to 6 h)."
+    }
+  }
+}

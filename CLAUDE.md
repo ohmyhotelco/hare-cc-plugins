@@ -12,6 +12,7 @@ frontend-ohmyhotel-plugin/    - Repo-scoped plugin for ohmyhotelco/ohmyhotel-fro
 homepage-plugin/              - Marketing homepage generation plugin (see homepage-plugin/CLAUDE.md)
 backend-springboot-plugin/    - Backend Spring Boot development plugin (see backend-springboot-plugin/CLAUDE.md)
 backend-webflux-plugin/       - Backend Spring WebFlux development plugin (see backend-webflux-plugin/CLAUDE.md)
+cc-usage-plugin/              - Hook-only Claude Code usage ledger with batched upload (see cc-usage-plugin/CLAUDE.md — maintainer notes; no skills or agents)
 .claude-plugin/                - Root marketplace manifest
 ```
 
