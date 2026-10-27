@@ -4,8 +4,8 @@ Records, from Claude Code hooks on a developer machine (Windows, macOS, Linux), 
 which commands and skills, which model and effort, and how many tokens** each session used, plus
 commit, PR and edit counts. Prompt text, tool arguments, file contents and file paths are never
 collected. Recording costs no model tokens: every hook is a `command` hook that exits without output.
-The one setup command, `/cc-usage-plugin:cc-init`, is hidden from the model and costs tokens only when
-you run it.
+The one setup command, `/cc-usage-plugin:cc-init`, is not shown to the model and costs tokens only
+when you run it.
 
 [한국어](./README.ko.md)
 
@@ -36,9 +36,9 @@ Then set the options, in this order:
    what the hooks have recorded, then saves your developer id, normalized as the receiver will see
    it, and your team. Without arguments it asks for them.
 2. Only if you were given a receiver URL and token: in a terminal outside Claude Code, run the
-   `node "…/scripts/init.js" secrets` command that step 1 prints. It asks for both without showing
-   them, checks the URL against the upload contract and saves them. It refuses until a developer id
-   is set. Never type the URL or token into the chat, where they would stay in the session transcript.
+   `node "…/scripts/init.js" secrets --plugin …` command that step 1 prints. It asks for both without
+   showing them, checks the URL against the upload contract and saves them. It refuses until a
+   developer id is set, and reads only from a terminal, never from a pipe or file. Never type the URL or token into the chat, where they would stay in the session transcript.
 3. Start a new Claude Code session: options apply from the next session. Run
    `/cc-usage-plugin:cc-init` again at any time to see the state, including uploads.
 
@@ -161,8 +161,10 @@ backoff, cadence, ending and restarting upload tracking, refused configurations,
 checkpoint, commit and PR detection, record fields, state pruning, and `report.js`. About 25 s, because
 one case waits for the 15 s timeout. Three cases use file permissions and are skipped on Windows and as
 root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
-install, saving the developer id and team, the endpoint checks, and that no endpoint or token value is
-printed.
+install, saving the developer id and team, and that no endpoint or token value is printed. Its
+`secrets` cases run on a pseudo-terminal from python3's `pty` module and are skipped without one
+(Windows): no echo, the endpoint checks, pasted lines, escape sequences, malformed UTF-8, and input
+typed during the save not reaching the shell.
 
 ## Files
 

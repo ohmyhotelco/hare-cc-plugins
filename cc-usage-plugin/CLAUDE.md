@@ -34,7 +34,8 @@ command hooks (`hooks/hooks.json`) that run `scripts/collect.js`, plus one setup
   the CLI's own output is not echoed.
 - Do not trust `CLAUDE_PLUGIN_DATA` here: a shell inside Claude Code can carry another plugin's value.
   The data folder is derived from the plugin id.
-- Keep `disable-model-invocation: true` on the skill: the model must not see or run it (D1).
+- Keep `disable-model-invocation: true` on the skill: the model is not shown it and cannot start it on
+  its own; it loads only when the user types it, and the model then follows its steps (D1).
 
 ## Versions
 

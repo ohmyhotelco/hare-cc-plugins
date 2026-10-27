@@ -346,7 +346,7 @@ repository added as a local marketplace), so the maintainer's own configuration 
   permission denial, and since the plugin was not installed from a marketplace in that
   configuration, the session showed init.js's message to install first and saved nothing.
 
-### init.js against the real CLI (same separate folder)
+### init.js against the real CLI (same separate folder, at `c33d7fe`)
 
 `set --developer "Alex Kim" --team platform` saved `alex-kim` and `platform` and pointed out that
 the previous id `test-dev` stays local. `secrets` with piped input refused `http://example.com/…`
@@ -356,12 +356,13 @@ folder. `status` after the next session showed the last record (`alex-kim`, plug
 upload tracking. Through a pseudo-terminal (`script`), typed input including two backspaces was
 saved while the terminal recording held only the prompts: no occurrence of either value.
 
-### Test suite
+### Test suite (at `c33d7fe`)
 
 `node --test 'cc-usage-plugin/tests/*.test.js'`: 30 tests (24 in `collect.test.js`, 6 in the new
 `init.test.js`), all pass on macOS, Node 24.22.1, about 26 s. `node --test <folder>` does not run a
 folder's files, hence the quoted glob. `collect.js` now takes the developer normalization and the
-upload refusal rules from `config.js`; the existing suite covers both unchanged.
+upload refusal rules from `config.js`; the existing suite covers both unchanged. Mutation check: 14
+mutants on `init.js` and 4 on `config.js` (the latter against `collect.test.js`), every one caught.
 
 ### Repository checks
 
@@ -369,6 +370,51 @@ upload refusal rules from `config.js`; the existing suite covers both unchanged.
 reported `allowed-tools: Bash(node:*)` as lacking Bash; the check now reads a scoped rule as
 declaring its tool (`Bash(…)` → `Bash`), and reports 0 findings for this plugin (the repository-wide
 6 are the pre-existing ones in `homepage-plugin` and `planning-plugin`).
+
+### Audit round 4 — on `c33d7fe`
+
+One reviewer, `codex exec` on a detached worktree of `c33d7fe`, told not to change it (it did not) and
+not to run the real `claude` CLI; it ran the suite (30 of 30) and probed `init.js` with its own fake
+CLI and pseudo-terminals. Verdict: fix first, eight findings, all introduced by `c33d7fe`, all
+re-confirmed against the code and accepted:
+
+| Finding | Fix |
+|---|---|
+| high: the first prompt appeared before raw mode was on, and echo came back between the answers and during the save, so type-ahead and a late paste were shown | raw mode from before the options load until after the save; input arriving during the save is read and dropped for 150 ms before echo returns, so it does not reach the shell |
+| a paste of the URL and token as two lines lost the token | answers come from one line queue |
+| an escape sequence split across reads, or malformed UTF-8, silently changed the saved value | escape sequences (CSI and SS3) are parsed across reads; input is decoded as strict UTF-8 and malformed input is refused with nothing saved |
+| `secrets` accepted piped input, so a value could come from a command line or a file | it refuses input that is not a terminal |
+| the printed `secrets` command lost a `--plugin` the user had chosen | every printed command carries the plugin id |
+| an id found by `claude plugin list` was not checked before becoming an argument (the shell on Windows) | every id is checked, found or given |
+| a positional team skipped the single-line check | the check runs on the resolved team; the fake CLI now refuses values that are not single-line strings |
+| the docs said the model "must not see or run" the command, but the model runs its steps once the user invokes it | D1, the maintainer notes, the READMEs and the design say it is not shown to the model and cannot be started by it |
+
+### Test suite after round 4
+
+34 tests (24 + 10), all pass, about 26 s. The `secrets` cases now run on a pseudo-terminal from
+python3's `pty` module (python3 is already the repository's tool for the consistency check); macOS
+`script(1)` refuses a socket or FIFO as its stdin, so it cannot be driven from `node:test`. A step
+types only after its prompt has appeared, as a person would. They cover the refusal of piped input,
+no echo of anything typed, an empty answer keeping a value, a pasted pair of lines, escape sequences
+split across reads, malformed UTF-8, Ctrl-C, and, with a shell reading the same terminal afterwards,
+that input typed during a slow save does not reach it.
+
+Mutation check: 25 mutants on `init.js`, each undoing one behaviour (the 14 of `c33d7fe`, adjusted to
+the changed code, and 11 for the round-4 fixes: echo back on between answers, no drain before echo
+returns, raw mode only after the options load, pasted lines dropped, the escape parser removed,
+non-strict UTF-8, `\r\n` read as two answers, piped input accepted, the printed command without
+`--plugin`, a found id not checked, a positional team not checked); every mutant failed a test. The
+drain mutant first survived — the process had exited before the late paste arrived, so nothing was
+left to see — until the case with a shell reading the terminal afterwards was added.
+
+### init.js against the real CLI after round 4
+
+In the separate configuration folder, `secrets` on a pseudo-terminal saved an endpoint and token
+through the real `claude plugin configure`: the terminal showed only the prompts and the result line,
+and no file of the folder held either value. Piped input was refused with exit 1.
+
+Not covered: keys typed before the first prompt while Node starts — the terminal echoes them before
+raw mode can be turned on; the prompt appears only after that.
 
 ### Not yet run
 

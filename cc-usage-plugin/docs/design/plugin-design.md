@@ -11,7 +11,7 @@ for each choice are in `docs/decisions.md` (cited as D1–D12).
 | `scripts/collect.js` | the only hook entry point: reads the hook's JSON on stdin, writes records, uploads from Stop; prints nothing, exits 0 |
 | `scripts/config.js` | option rules shared by `collect.js` and `init.js`: developer normalization, the endpoint check, the refusal reasons |
 | `scripts/init.js` | setup helper (§ 8): `status`, `set`, `secrets`, all through `claude plugin configure`; not run by any hook |
-| `skills/cc-init/SKILL.md` | the setup command, user-invoked only (`disable-model-invocation`), which runs `init.js status` and `init.js set` |
+| `skills/cc-init/SKILL.md` | the setup command (`disable-model-invocation`: not shown to the model, started only by the user), whose steps run `init.js status` and `init.js set` |
 | `scripts/report.js` | local weekly summary of the ledger; not run by any hook |
 | `tests/collect.test.js` | `node:test` suite that runs `collect.js` as a child process, the upload cases against a local receiver |
 | `tests/init.test.js` | `node:test` suite that runs `init.js` against a fake `claude` command |
@@ -141,20 +141,24 @@ pruning, and `report.js` (data folder discovery by ledger file time, de-duplicat
 repository, origins named before the report window).
 
 `tests/init.test.js` covers the status report (options, the hooks' data folder of this install
-rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step), finding the install by its path and
-stopping when it is ambiguous or missing, the `--plugin` id check, saving the normalized developer id
-and the team, the warning when the id changes, the secrets step's order and endpoint checks, an empty
-answer keeping a value, a failing CLI, and that no endpoint or token value is printed.
+rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step and the printed command with its plugin
+id), finding the install by its path and stopping when it is ambiguous, missing or malformed, the
+`--plugin` id check, saving the normalized developer id and the team (by flag or position, single-line
+only), the warning when the id changes, a failing CLI, and that no endpoint or token value is printed.
+The `secrets` cases run on a pseudo-terminal (python3's pty module; skipped where there is none, as on
+Windows): refusal of input that is not a terminal, the order and endpoint checks, no echo of anything
+typed, an empty answer keeping a value, a pasted pair of lines, escape sequences split across reads,
+malformed UTF-8, Ctrl-C, and input arriving during the save not reaching the shell afterwards.
 
 Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
 unparsable checkpoint or send state, a checkpoint that cannot be saved, a send state that becomes
 unwritable mid-upload, the final cut failing when tracking ends, a file system without hard links, the
 three-contender lock race (§5), a partial
 ledger line at cut time, no Node on `PATH`, a transcript not yet flushed at Stop, and an upload that
-becomes due because `flush_hours` passed (only "not before" is tested); for `init.js`, the prompt
-without echo (checked by hand through a pseudo-terminal), the real `claude plugin configure` (checked
-in a separate configuration folder) and `cc-init` in a signed-in session with a marketplace install
-(all in `build-context.md`). The mutation check that showed each covered case fails when its behaviour
+becomes due because `flush_hours` passed (only "not before" is tested); for `init.js`, the terminal
+step on Windows, keys typed before the first prompt while Node starts (echoed by the terminal before
+raw mode is on), the real `claude plugin configure` (checked in a separate configuration folder) and
+`cc-init` in a signed-in session with a marketplace install (all in `build-context.md`). The mutation check that showed each covered case fails when its behaviour
 is removed is recorded in `build-context.md`.
 
 ## 8. Setup (`cc-init`)
@@ -171,10 +175,13 @@ is removed is recorded in `build-context.md`.
   init.js set      developer (normalized, config.js) and team → `configure --values-stdin`;
                    a changed id is pointed out, because records under the old one stay local (D6)
 terminal: node <plugin>/scripts/init.js secrets
-                   refuses without a developer id (D6); asks for the endpoint and token without echo
-                   (raw-mode TTY; piped input reads one line each); an empty answer keeps the saved
-                   value; the endpoint is checked with config.js before anything is saved
-                   → `configure --values-stdin`
+                   refuses input that is not a terminal, and refuses without a developer id (D6);
+                   raw mode from before the options load until after the save, so nothing typed is
+                   echoed; strict UTF-8, escape sequences dropped across reads, a pasted pair of lines
+                   answers both prompts; an empty answer keeps the saved value; the endpoint is
+                   checked with config.js before anything is saved → `configure --values-stdin`;
+                   input that arrived during the save is read and dropped for 150 ms before echo
+                   returns, so it does not reach the shell
 ```
 
 Saved values apply from the next session. Values are passed to the CLI on stdin, the plugin id is

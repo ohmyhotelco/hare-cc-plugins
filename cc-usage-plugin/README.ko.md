@@ -3,8 +3,8 @@
 개발자 머신(Windows·macOS·Linux)의 Claude Code 훅으로, 세션마다 **어느 저장소에서 · 어떤 명령과
 스킬로 · 어느 모델과 effort로 · 토큰을 얼마나** 썼는지와 커밋·PR·편집 수를 기록한다. 프롬프트
 본문·도구 인자·파일 내용·파일 경로는 수집하지 않는다. 모든 훅이 출력 없이 끝나는 `command` 훅이라
-기록에는 모델 토큰을 쓰지 않는다. 설정 명령 하나(`/cc-usage-plugin:cc-init`)는 모델에게 보이지 않고,
-직접 실행할 때만 토큰을 쓴다.
+기록에는 모델 토큰을 쓰지 않는다. 설정 명령 하나(`/cc-usage-plugin:cc-init`)는 모델에게 목록으로
+보이지 않고, 직접 실행할 때만 토큰을 쓴다.
 
 [English](./README.md)
 
@@ -34,8 +34,9 @@
    기록했는지 보여 준 뒤, 수신 측이 볼 값으로 정규화한 developer와 team을 저장한다. 인자를 주지
    않으면 물어본다.
 2. 수신 URL과 토큰을 받은 경우에만: Claude Code 밖의 터미널에서 1단계가 출력한
-   `node "…/scripts/init.js" secrets` 명령을 실행한다. 두 값을 화면에 보이지 않게 입력받고, URL을
-   업로드 계약과 대조한 뒤 저장한다. developer를 설정하기 전에는 거부한다. URL과 토큰을 채팅에 쓰지
+   `node "…/scripts/init.js" secrets --plugin …` 명령을 실행한다. 두 값을 화면에 보이지 않게 입력받고,
+   URL을 업로드 계약과 대조한 뒤 저장한다. developer를 설정하기 전에는 거부하고, 파이프나 파일이
+   아니라 터미널에서만 입력받는다. URL과 토큰을 채팅에 쓰지
    않는다. 쓰면 세션 기록에 남는다.
 3. Claude Code 세션을 새로 시작한다. 설정은 다음 세션부터 적용된다. `/cc-usage-plugin:cc-init`을
    다시 실행하면 업로드를 포함한 상태를 언제든 볼 수 있다.
@@ -151,8 +152,10 @@ developer의 주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 �
 추적의 종료와 재시작, 거부하는 설정, 잠금, transcript 체크포인트, 커밋·PR 판정, 레코드 필드, 상태
 정리, `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는
 세 시험은 Windows와 root에서 건너뛴다. `init.test.js`는 가짜 `claude` 명령을 두고 `init.js`를
-실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint 확인, endpoint·token 값을 출력하지
-않는지를 확인한다.
+실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint·token 값을 출력하지 않는지를 확인한다.
+`secrets` 시험은 python3 `pty` 모듈이 만든 가상 터미널에서 돌고, 그것이 없으면(Windows) 건너뛴다.
+화면에 보이지 않는지, endpoint 확인, 여러 줄 붙여 넣기, escape 시퀀스, 잘못된 UTF-8, 저장하는 동안
+입력한 값이 셸로 넘어가지 않는지를 확인한다.
 
 ## 파일
 

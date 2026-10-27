@@ -7,8 +7,9 @@ Why the plugin is built the way it is. The upload contract itself is stated once
 ## D1. Hooks for recording — one setup command, no agents or workflows
 
 **Decision:** recording is seven `command` hooks running one Node script. Besides them the plugin
-ships one command, `cc-init` (D12), marked `disable-model-invocation` so that the model neither sees
-nor runs it. It ships no agent, workflow or MCP server.
+ships one command, `cc-init` (D12), marked `disable-model-invocation`: the model is not shown it and
+cannot start it on its own. It loads only when the user types it, and the model then follows its
+steps. It ships no agent, workflow or MCP server.
 
 **Why:** recording has to happen on every session without the model choosing to do it, and it must
 cost no model tokens. A command hook that prints nothing meets both; anything the model reads or runs
@@ -213,7 +214,8 @@ record failed are then not counted.
 **Decision:** `/cc-usage-plugin:cc-init` runs `scripts/init.js`, which reads and saves the plugin's
 options with `claude plugin configure` (`--json` to read, `--values-stdin` to save). In the chat it
 saves only the developer id, normalized by the function the hooks use (`scripts/config.js`), and the
-team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo.
+team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo;
+it refuses input that does not come from a terminal.
 That step refuses until a developer id is set and checks the URL with the rule the upload applies.
 No part of the setup prints an endpoint or token value.
 
