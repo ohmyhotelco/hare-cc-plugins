@@ -10,9 +10,12 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { randomUUID, createHash } = require('crypto');
+// The rules shared with init.js and report.js. A hook that cannot load them records that below and
+// exits 0, like every other failure.
+const config = (() => { try { return require('./config'); } catch (_) { return null; } })();
 
 const EVENT = process.argv[2] || 'unknown';
-const PLUGIN_VERSION = '0.1.7';
+const PLUGIN_VERSION = '0.1.8';
 const STARTED = Date.now();
 
 function safe(fn, fallback) { try { return fn(); } catch (_) { return fallback; } }
@@ -20,7 +23,7 @@ function sleep(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0
 function sha(s) { return createHash('sha256').update(String(s)).digest('hex'); }
 
 // ---------- paths ----------
-const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const configDir = config ? config.configDir() : (process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'));
 const dataDir = process.env.CLAUDE_PLUGIN_DATA
   || path.join(configDir, 'plugins', 'data', 'cc-usage-local');
 const ledgerDir = path.join(dataDir, 'ledger');
@@ -33,19 +36,10 @@ for (const d of [ledgerDir, stateDir, sendDir]) safe(() => fs.mkdirSync(d, { rec
 // Error lines carry a fixed label and a status or error code — never a URL, token, path or record body.
 function logError(msg) { safe(() => fs.appendFileSync(path.join(dataDir, 'errors.log'), `${new Date().toISOString()} ${EVENT} ${msg}\n`)); }
 
-// ---------- config (userConfig -> env, or plain env) ----------
-// The developer id becomes a folder name on the receiver, so it is kept to [a-z0-9._-]; a value with
-// nothing left (e.g. only non-Latin letters) becomes a hash of the original. Two spellings can still
-// normalize to one id, so ids are assigned per person after normalization (README § Install).
-function normalizeDeveloper(raw) {
-  const src = String(raw || '').normalize('NFKC').trim();
-  let s = src.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/_vti_/g, '-vti-')
-    .replace(/-{2,}/g, '-').replace(/^[._-]+|[._-]+$/g, '');
-  if (/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/.test(s)) s = `u-${s}`;
-  s = s.slice(0, 64).replace(/[._-]+$/, ''); // the cap last, so normalizing a normalized id changes nothing
-  if (s) return s;
-  return src ? `u-${sha(src).slice(0, 8)}` : 'unknown';
-}
+if (!config) { logError('config.js not loadable'); process.exit(0); }
+const { normalizeDeveloper, uploadProblem, WEEK_FILE } = config;
+
+// ---------- config (userConfig -> env, or plain env; rules in config.js) ----------
 const opt = (key, env) => String(process.env[`CLAUDE_PLUGIN_OPTION_${key}`] || process.env[env] || '').trim();
 const developerOpt = opt('DEVELOPER', 'CC_USAGE_DEVELOPER');
 const flushHours = Number(opt('FLUSH_HOURS', 'CC_USAGE_FLUSH_HOURS'));
@@ -65,13 +59,32 @@ const RETRY_BASE_MS = 30 * 60e3;     // first retry after a failed upload; doubl
 const RETRY_MAX_MS = 6 * 3600e3;
 const COMMIT_WINDOW_MS = 15 * 60e3;  // a commit made by the command just run is younger than this
 const STATE_TTL_MS = 30 * 864e5;     // per-session state older than this is removed at SessionStart
-const LOOPBACK = ['127.0.0.1', 'localhost', '[::1]'];
 
 // ---------- identity (account metadata, not credentials) ----------
-function identity() {
+// The signed-in account from .claude.json: {} when there is none, null when the file cannot be read or
+// parsed right now (Claude Code may be rewriting it), after one retry.
+function readAccount() {
   const file = [process.env.CLAUDE_CONFIG_DIR, os.homedir()].filter(Boolean)
     .map((d) => path.join(d, '.claude.json')).find((f) => fs.existsSync(f));
-  const acct = (file && safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount, null)) || {};
+  if (!file) return {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) sleep(50);
+    const acct = safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount || {}, null);
+    if (acct) return acct;
+  }
+  return null;
+}
+// The account signed in when a usage record is written: a person can switch accounts with /login in the
+// middle of a session, so the session's opening account is not enough to split usage by account. It is
+// the configuration folder's account, so a /login in one session also stamps the others running in the
+// same folder (D13). null: no account signed in; undefined (the field is left out): not readable now,
+// so the report falls back to the session's account.
+function accountEmail() {
+  const acct = readAccount();
+  return acct ? acct.emailAddress || null : undefined;
+}
+function identity() {
+  const acct = readAccount() || {};
   return {
     email: acct.emailAddress || null,
     account_uuid: acct.accountUuid || null,
@@ -262,7 +275,7 @@ function isoWeek(d) {
   const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   return `${t.getUTCFullYear()}-W${String(Math.ceil((((t - y0) / 864e5) + 1) / 7)).padStart(2, '0')}`;
 }
-function ledgerFiles() { return safe(() => fs.readdirSync(ledgerDir), []).filter((f) => /^\d{4}-W\d{2}\.jsonl$/.test(f)).sort(); }
+function ledgerFiles() { return safe(() => fs.readdirSync(ledgerDir), []).filter((f) => WEEK_FILE.test(f)).sort(); }
 // Returns whether the record reached the ledger, so callers advance their own state only after it did.
 function record(kind, body) {
   const now = new Date();
@@ -394,8 +407,10 @@ function flushEdits(sid, base, repoName) {
 function sessionLock(sid) { return path.join(stateDir, `${sid}.lock`); }
 function sessionUsage(sid, input, base, extra, waitMs) {
   withLock(sessionLock(sid), waitMs, () => {
+    let email; // read once, and only when there is usage to stamp: SessionEnd has a 1 s budget
+    const account = () => (email === undefined ? (email = accountEmail()) : email);
     for (const u of [usageDelta(sid, input.transcript_path), ...subagentDeltas(sid, input.transcript_path)]) {
-      if (u && (!u.delta || record('usage', { ...base, ...extra, ...u.delta }))) u.save();
+      if (u && (!u.delta || record('usage', { ...base, ...extra, email: account(), ...u.delta }))) u.save();
     }
     flushEdits(sid, base, extra.repo_dir);
   });
@@ -426,14 +441,7 @@ function firstRecord(body) {
 function pendingBatches() { return safe(() => fs.readdirSync(sendDir), []).filter((f) => f.endsWith('.ndjson')).sort(); }
 function authKey() { return sha(`${cfg.endpoint}\n${cfg.token}`).slice(0, 16); }
 function configKey() { return sha(`${cfg.endpoint}\n${cfg.token}\n${cfg.developerSet ? cfg.developer : ''}`).slice(0, 16); }
-function configProblem() {
-  const u = safe(() => new URL(cfg.endpoint), null);
-  if (!u || !(u.protocol === 'https:' || (u.protocol === 'http:' && LOOPBACK.includes(u.hostname)))) return 'endpoint-not-https';
-  if (['developer', 'week', 'id'].some((k) => u.searchParams.has(k))) return 'endpoint-has-developer-week-or-id';
-  if (!cfg.token) return 'no-token';
-  if (!cfg.developerSet) return 'no-developer';
-  return null;
-}
+function configProblem() { return uploadProblem(cfg); }
 function unsentBytes(st) {
   let n = 0;
   for (const f of ledgerFiles()) n += Math.max(0, safe(() => fs.statSync(path.join(ledgerDir, f)).size, 0) - (st.offsets[f] || 0));
@@ -684,8 +692,8 @@ async function main() {
       // Subagent tokens live in their own transcript; parse it now while the agent type is known.
       withLock(sessionLock(sid), 1000, () => {
         const u = usageDelta(`${sid}.${input.agent_id || 'agent'}`, input.agent_transcript_path, { query_source: 'subagent' });
-        if (u && (!u.delta || record('usage', { ...base, repo_dir: repoName, agent_type: input.agent_type || null, ...u.delta,
-          agent_id: u.delta.agent_id || input.agent_id || null }))) u.save();
+        if (u && (!u.delta || record('usage', { ...base, repo_dir: repoName, agent_type: input.agent_type || null,
+          email: accountEmail(), ...u.delta, agent_id: u.delta.agent_id || input.agent_id || null }))) u.save();
       });
       break;
     }

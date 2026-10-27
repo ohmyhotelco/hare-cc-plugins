@@ -343,18 +343,36 @@ def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]
     out = []
     for name, (path, text) in skills.items():
         fm = frontmatter(text)
-        allowed = {t.strip() for t in fm.get("allowed-tools", "").split(",") if t.strip()}
-        body = text[text.find("\n---", 3):]
+        rules = [t.strip() for t in fm.get("allowed-tools", "").split(",") if t.strip()]
+        # A scoped rule such as Bash(node:*) declares the tool, but only for the commands it covers.
+        allowed = {re.sub(r"\(.*\)$", "", t) for t in rules}
+        start = text.find("\n---", 3)
+        body = text[start:]
         for tool, pats in TOOL_EVIDENCE.items():
             if tool in allowed:
                 continue
             for pat in pats:
                 m = re.search(pat, body)
                 if m:
-                    out.append(Finding(str(path), lineno(text, text.find("\n---", 3) + m.start()),
+                    out.append(Finding(str(path), lineno(text, start + m.start()),
                                        "tool-permission",
                                        f"body uses {tool} (matched /{pat}/) but allowed-tools lacks it"))
                     break
+        scopes = [re.sub(r"(?::\*| \*)$", "", m.group(1)) for m in (re.fullmatch(r"Bash\((.*)\)", t) for t in rules) if m]
+        if scopes and "Bash" not in rules:
+            # Each command of a chained line is checked on its own, as the permission rules do; a
+            # command substitution cannot be checked against a prefix at all.
+            for block in re.finditer(r"```(?:bash|sh|shell|console|zsh)\r?\n(.*?)```", body, re.S):
+                for k, line in enumerate(block.group(1).splitlines()):
+                    cmd = re.sub(r"^\$\s+", "", line.strip())
+                    if not cmd or cmd.startswith("#"):
+                        continue
+                    parts = re.split(r"\s*(?:&&|\|\||;|\|)\s*", cmd)
+                    bad = "$(" in cmd or "`" in cmd or any(p and not any(p.startswith(s) for s in scopes) for p in parts)
+                    if bad:
+                        out.append(Finding(str(path), lineno(text, start + block.start(1)) + k,
+                                           "tool-permission",
+                                           f"bash command outside the allowed-tools scope: {cmd[:60]}"))
     return out
 
 

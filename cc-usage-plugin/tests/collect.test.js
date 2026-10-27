@@ -1,5 +1,5 @@
 'use strict';
-// Run from the repo root: node --test cc-usage-plugin/tests/collect.test.js
+// Run from the repo root: node --test 'cc-usage-plugin/tests/*.test.js' (this file alone: its path)
 // Most tests run the real hook script as a child process, the upload tests against a local receiver on
 // 127.0.0.1. The timeout test waits for the 15 s request timeout, so the whole file takes about 25 s.
 const test = require('node:test');
@@ -8,7 +8,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn, spawnSync, execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const COLLECT = path.join(ROOT, 'scripts', 'collect.js');
@@ -295,6 +295,7 @@ test('refuses an unsafe configuration, logs it once, and uploads once it is fixe
       ['endpoint-not-https', { CC_USAGE_ENDPOINT: 'http://receiver.example/hook', CC_USAGE_TOKEN: 't', CC_USAGE_DEVELOPER: 'alex' }],
       ['endpoint-has-developer-week-or-id', { ...upload(r), CC_USAGE_ENDPOINT: `${r.url}&week=2026-W01` }],
       ['no-token', upload(r, '')],
+      ['token-not-visible-ascii', upload(r, 'tok\u200b1')],
       ['no-developer', upload(r, 'tok-1', '')],
     ];
     for (const [problem, e] of cases) {
@@ -552,6 +553,52 @@ test('account fields come from CLAUDE_CONFIG_DIR when it is set', async () => {
   assert.equal(lines(ledger(dir))[0].email, 'alex@example.com');
 });
 
+test('usage records name the account signed in when they are written, also after a switch mid-session', async () => {
+  const dir = tmp();
+  const signIn = (email) => fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: email } }));
+  signIn('first@example.com');
+  await run(dir, 'SessionStart', { session_id: 's1', cwd: dir });
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1']) });
+  signIn('second@example.com'); // /login to another account, same session
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2', 'r3']) });
+  const agentTr = path.join(dir, 'agent.jsonl');
+  fs.copyFileSync(transcript(dir, ['a1']), agentTr);
+  await run(dir, 'SubagentStop', { session_id: 's1', cwd: dir, agent_id: 'ag1', agent_type: 'Explore', agent_transcript_path: agentTr });
+  const recs = lines(ledger(dir));
+  assert.equal(recs.find((x) => x.kind === 'session_open').email, 'first@example.com');
+  assert.deepEqual(recs.filter((x) => x.kind === 'usage').map((x) => [x.email, x.requests, x.agent_id || null]),
+    [['first@example.com', 1, null], ['second@example.com', 2, null], ['second@example.com', 1, 'ag1']]);
+});
+
+test('an unreadable account file leaves the account out of a usage record; no account signed in is null', async () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, '.claude.json'), '{"oauthAccount": {"emailAddress": "half'); // a write in progress
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1']) });
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ projects: {} }));
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2']) });
+  const usage = lines(ledger(dir)).filter((x) => x.kind === 'usage');
+  assert.equal(usage.length, 2);
+  assert.ok(!('email' in usage[0]), 'not readable: left out, so the report uses the session\'s account');
+  assert.equal(usage[1].email, null);
+});
+
+test('a hook that cannot load config.js records it and exits 0 without output', async () => {
+  const dir = tmp();
+  const copy = path.join(dir, 'plugin', 'scripts');
+  fs.mkdirSync(copy, { recursive: true });
+  fs.copyFileSync(COLLECT, path.join(copy, 'collect.js')); // no config.js next to it
+  const r = spawnSync(process.execPath, [path.join(copy, 'collect.js'), 'SessionStart'], { env: env(dir), input: '{}', encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout + r.stderr, '');
+  assert.match(errors(dir), /SessionStart config\.js not loadable/);
+});
+
+test('config.js: a token is visible ASCII, with spaces only inside it', () => {
+  const { tokenProblem } = require(path.join(ROOT, 'scripts', 'config.js'));
+  assert.deepEqual(['abc', 'abc def', '', ' abc', 'abc ', 'a\tb', 'tok\u200b1', 'tok\u00a01'].map(tokenProblem),
+    [null, null, 'no-token', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii']);
+});
+
 test('session state older than 30 days is removed at SessionStart; checkpoints shrink to their offset', async () => {
   const dir = tmp();
   fs.mkdirSync(data(dir, 'state'), { recursive: true });
@@ -604,4 +651,40 @@ test('report.js finds the installed ledger, counts each record id once, and keep
   assert.deepEqual(s.by_repo, { 'https://example.com/acme/app': 3, 'https://example.com/acme/lib': 4 });
   assert.equal(s.commits, 2);
   assert.deepEqual(s.prs.map((p) => p.number), [7]);
+});
+
+test('report.js splits usage by account and writes no session id', () => {
+  const dir = tmp();
+  const led = path.join(dir, 'data', 'ledger');
+  fs.mkdirSync(led, { recursive: true });
+  const at = (min) => new Date(Date.now() - 3600e3 + min * 60e3).toISOString();
+  const m = (n) => [{ model: 'claude-x', input: 0, output: n, cache_read: 0, cache_create: 0, requests: 1 }];
+  const recs = [
+    { id: 'o1', kind: 'session_open', ts: at(0), session_id: 'sess-ZZ01', email: 'a@example.com' },
+    { id: 'u1', kind: 'usage', ts: at(1), session_id: 'sess-ZZ01', by_model: m(5) }, // a 0.1.7 record: its session's account
+    { id: 'u2', kind: 'usage', ts: at(2), session_id: 'sess-ZZ01', email: 'b@example.com', by_model: m(7) }, // after /login
+    { id: 'u3', kind: 'usage', ts: at(3), session_id: 'sess-ZZ01', email: null, by_model: m(2) }, // 0.1.8, account unreadable
+    { id: 'o2', kind: 'session_open', ts: at(4), session_id: 'sess-ZZ02', email: 'c@example.com' }, // no usage yet
+    { id: 'u4', kind: 'usage', ts: at(5), session_id: 'sess-ZZ03', by_model: m(1) }, // its session_open is missing
+    { id: 'o5', kind: 'session_open', ts: at(6), session_id: 'sess-ZZ05', email: 'a@example.com' },
+    { id: 'u5', kind: 'usage', ts: at(7), session_id: 'sess-ZZ05', by_model: m(3) },
+    { id: 'o6', kind: 'session_open', ts: at(8), session_id: 'sess-ZZ05', email: 'b@example.com' }, // compact under b
+    { id: 'u6', kind: 'usage', ts: at(9), session_id: 'sess-ZZ05', by_model: m(4) },
+    { id: 'u7', kind: 'usage', ts: at(10), email: 'b@example.com', by_model: m(1) }, // no session id: no session counted
+  ];
+  fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
+  fs.writeFileSync(path.join(led, 'notes.jsonl'), JSON.stringify({ id: 'n1', kind: 'usage', ts: at(1), email: 'z@example.com', by_model: m(100) }) + '\n'); // not a week file
+  const out = path.join(dir, 'weekly.json');
+  const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
+  const s = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.deepEqual(s.accounts, ['a@example.com', 'b@example.com', 'c@example.com']);
+  assert.deepEqual(Object.fromEntries(Object.entries(s.by_account).map(([k, v]) => [k, [v.sessions, v.requests, v.output]])), {
+    'a@example.com': [2, 2, 8], // u1, u5
+    'b@example.com': [2, 3, 12], // u2, u6 (opened again under b), u7 (no session)
+    '(unknown)': [2, 2, 3], // u3 (email null), u4 (no session_open)
+  });
+  assert.equal(s.totals.output, 23);
+  assert.match(text, /3 account\(s\)/);
+  assert.match(text, /b@example\.com +sessions 2 · requests 3/);
+  assert.ok(!/sess-ZZ/.test(text + fs.readFileSync(out, 'utf8')), 'no session id in the text or the JSON');
 });

@@ -3,7 +3,9 @@
 Records, from Claude Code hooks on a developer machine (Windows, macOS, Linux), **which repository,
 which commands and skills, which model and effort, and how many tokens** each session used, plus
 commit, PR and edit counts. Prompt text, tool arguments, file contents and file paths are never
-collected. It costs no model tokens: every hook is a `command` hook that exits without output.
+collected. Recording costs no model tokens: every hook is a `command` hook that exits without output.
+The one setup command, `/cc-usage-plugin:cc-init`, is not shown to the model and costs tokens only
+when you run it.
 
 [한국어](./README.ko.md)
 
@@ -17,6 +19,8 @@ collected. It costs no model tokens: every hook is a `command` hook that exits w
   desktop app.
 - `git` on `PATH` for the repository, branch, commit and PR fields.
 - Windows needs no Git Bash: every hook is exec form (`node` + args), so no shell runs.
+- For the setup command: the `claude` command on `PATH`, which saves the options
+  (`claude plugin configure`, checked on 2.1.311).
 
 ## Install
 
@@ -26,7 +30,26 @@ collected. It costs no model tokens: every hook is a `command` hook that exits w
 ```
 
 User scope, because the plugin records every session on the machine rather than one project.
-Installing asks for these options; with `endpoint` empty only the local ledger is written.
+Then set the options, in this order:
+
+1. In Claude Code, `/cc-usage-plugin:cc-init <developer> [team]`. It shows which options are set and
+   what the hooks have recorded, then saves your developer id, normalized as the receiver will see
+   it, and your team. Without arguments it asks for them.
+2. Only if you were given a receiver URL and token: in a terminal outside Claude Code, run the
+   `node "…/scripts/init.js" secrets --plugin …` command that step 1 prints, exactly as printed (with a
+   non-default configuration folder it also carries `--config-dir`). It asks for both without
+   showing them, checks the URL and token against the upload contract and saves them. It refuses until a
+   developer id is set, and reads only from a terminal, never from a pipe or file. Never type the URL or token into the chat, where they would stay in the session transcript.
+3. Start a new Claude Code session: options apply from the next session. Run
+   `/cc-usage-plugin:cc-init` again at any time to see the state, including uploads.
+
+With `endpoint` empty only the local ledger is written. The same options can be edited without these
+checks with `/plugin configure cc-usage-plugin@ohmyhotelco` in Claude Code.
+
+Several Claude Code configuration folders (`CLAUDE_CONFIG_DIR`, for example one per account) each keep
+their own plugins, options and ledger: install the plugin and run `cc-init` with the same developer id
+in each, or the sessions of a folder without it are not recorded. Switching accounts with `/login` in
+one folder needs nothing extra.
 
 | Option | Meaning |
 |---|---|
@@ -37,9 +60,11 @@ Installing asks for these options; with `endpoint` empty only the local ledger i
 | `flush_hours` | Upload interval in hours, default 24 |
 
 `endpoint` and `token` are marked sensitive, so Claude Code keeps them in its secure credential
-storage rather than in `settings.json`. Each option can also come from an environment variable —
+storage rather than in `settings.json`; `init.js` saves through the same `claude plugin configure`
+and prints neither value. Each option can also come from an environment variable —
 `CC_USAGE_DEVELOPER`, `CC_USAGE_TEAM`, `CC_USAGE_ENDPOINT`, `CC_USAGE_TOKEN`, `CC_USAGE_FLUSH_HOURS` —
-which is also how to set them for a one-session trial with `claude --plugin-dir ./cc-usage-plugin`.
+which is also how to set them for a one-session trial with `claude --plugin-dir ./cc-usage-plugin`;
+`cc-init` counts a `CC_USAGE_DEVELOPER` as the developer id.
 Endpoint URLs and tokens never go into this repository.
 
 ## What is recorded (`ledger/<ISO week>.jsonl`)
@@ -53,7 +78,7 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 | `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · character count · permission mode · effort |
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
-| `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id |
+| `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id · the account email signed in when the record is written (so usage after a `/login` switch mid-session goes to the new account) |
 | `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or the merge commits of `merge` — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
 | `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command, read as shell words (so text in quotes or after `echo` is not a command): `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--help` and `--disable-auto` count nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
@@ -73,9 +98,12 @@ The plugin folder is where Claude Code installed it
 (`~/.claude/plugins/cache/<marketplace>/cc-usage-plugin/<version>/`) or this repository's
 `cc-usage-plugin/`. The script finds the installed ledger under `~/.claude/plugins/data/cc-usage-plugin-*`
 (the one written to last); `--data-dir <folder>` or `CLAUDE_PLUGIN_DATA` picks another. Output: sessions,
-requests, tokens (output / cache read / cache create / input), by repository, model, effort and query
-source, top commands and skills, plugin-command ratio, commits, PRs and edits. Each record `id`
-counts once.
+requests, tokens (output / cache read / cache create / input), the accounts signed in and the usage per
+account, by repository, model, effort and query source, top commands and skills, plugin-command
+ratio, commits, PRs and edits. Each record `id` counts once. Usage from a ledger written before 0.1.8
+counts under the account of its session's latest start (open, resume or compact) at or before it.
+No session id appears in the output. The JSON has `accounts` and `by_account` in place of the
+`who.email` of 0.1.7, which named only the first account.
 
 ## Upload contract (optional)
 
@@ -99,8 +127,10 @@ never upload, so a slow receiver never delays the session.
 - **Cadence:** an upload is due every `flush_hours`, or earlier once 64 KB are waiting.
 - **Refused configurations:** no upload — one line in `errors.log`, then nothing until the
   configuration changes — when the endpoint is not HTTPS (plain `http` is allowed only to a loopback
-  host), already has `developer`, `week` or `id` in its query, no token is set, or no `developer` is
-  set.
+  host), already has `developer`, `week` or `id` in its query, no token is set, the token has a
+  character other than visible ASCII — spaces inside it are fine — (an invisible character copied with
+  it, for example), or no
+  `developer` is set.
 - Records written while no endpoint is configured are never uploaded: upload tracking starts with the
   first record written with an endpoint, and the first record written without one ends it — after
   cutting what was recorded until then into `send/`, where it waits for the endpoint to be set again.
@@ -125,21 +155,31 @@ The query parameters let a receiver choose a folder and file name from the URL a
 - The plugin-command ratio counts only `plugin:skill` commands; project-local skills appear in the
   top commands only.
 - Tell the people whose machines run it what is collected, why, and where it goes before installing.
-- Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310: the test suite and one live session).
-  Windows and Cowork sessions have not been run yet; the code uses only cross-platform Node APIs,
-  but treat both as unverified until a first run there.
+- `report.js` reads the ledger of one configuration folder; with several (above), run it once per
+  folder with `CLAUDE_CONFIG_DIR` set, or combine them downstream.
+- The secrets step needs a terminal with the `claude` command. Where there is none, `/plugin configure`
+  sets the same options without the checks.
+- Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310 and 2.1.311: the test suites and live
+  sessions). Windows and Cowork sessions have not been run yet; the code uses only cross-platform Node
+  APIs, but treat both as unverified until a first run there.
 
 ## Tests
 
 ```bash
-node --test cc-usage-plugin/tests/collect.test.js
+node --test 'cc-usage-plugin/tests/*.test.js'
 ```
 
-Runs the hook script as a child process, the upload cases against a local receiver: batching per week
-for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and backoff, cadence,
-ending and restarting upload tracking, refused configurations, locks, the transcript checkpoint, commit
-and PR detection, record fields, state pruning, and `report.js`. About 25 s, because one case waits for
-the 15 s timeout. Three cases use file permissions and are skipped on Windows and as root.
+`collect.test.js` runs the hook script as a child process, the upload cases against a local receiver:
+batching per week for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and
+backoff, cadence, ending and restarting upload tracking, refused configurations, locks, the transcript
+checkpoint, commit and PR detection, record fields including the account on usage records, state
+pruning, and `report.js` (including usage per account). About 25 s, because
+one case waits for the 15 s timeout. Three cases use file permissions and are skipped on Windows and as
+root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
+install, saving the developer id and team, and that no endpoint or token value is printed. Its
+`secrets` cases run on a pseudo-terminal from python3's `pty` module and are skipped without one
+(Windows): no echo, the endpoint and token checks, pasted lines, escape sequences, malformed UTF-8,
+and input typed during the save, before an error or around Ctrl-C not reaching the shell.
 
 ## Files
 
@@ -147,8 +187,12 @@ the 15 s timeout. Three cases use file permissions and are skipped on Windows an
 cc-usage-plugin/
 ├── .claude-plugin/plugin.json   userConfig: developer · team · endpoint (sensitive) · token (sensitive) · flush_hours
 ├── hooks/hooks.json             7 hooks, all exec form (node)
+├── skills/cc-init/SKILL.md      setup command, run by the user only
 ├── scripts/collect.js           hook collector (stdin JSON → ledger → batches → POST)
+├── scripts/config.js            option rules shared by collect.js and init.js
+├── scripts/init.js              setup helper: status · set · secrets, through claude plugin configure
 ├── scripts/report.js            weekly summary (JSON + text)
-├── tests/collect.test.js        node:test suite
+├── tests/collect.test.js        node:test suite for the hooks
+├── tests/init.test.js           node:test suite for init.js
 └── docs/                        decisions.md · design/plugin-design.md · build-context.md
 ```

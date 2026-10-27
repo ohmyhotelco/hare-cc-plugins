@@ -4,14 +4,20 @@ Why the plugin is built the way it is. The upload contract itself is stated once
 `README.md` § Upload contract; the internals are in `design/plugin-design.md`; runs and audits are in
 `build-context.md`.
 
-## D1. Hooks only — no skills, agents or workflows
+## D1. Hooks for recording — one setup command, no agents or workflows
 
-**Decision:** the plugin is seven `command` hooks running one Node script. It ships no skill, agent,
-workflow or MCP server.
+**Decision:** recording is seven `command` hooks running one Node script. Besides them the plugin
+ships one command, `cc-init` (D12), marked `disable-model-invocation`: the model is not shown it and
+cannot start it on its own. It loads only when the user types it, and the model then follows its
+steps. It ships no agent, workflow or MCP server.
 
 **Why:** recording has to happen on every session without the model choosing to do it, and it must
 cost no model tokens. A command hook that prints nothing meets both; anything the model reads or runs
-does not.
+does not. The setup command does not record anything; a person runs it once per machine, and hidden
+from the model it adds nothing to other sessions. Checked in two `claude -p` sessions: asked whether a
+`cc-init` command was available, the model answered no with the flag and yes without it.
+`claude plugin details` shows about 80 always-on tokens for the skill either way; its estimate does
+not take the flag into account.
 
 **Consequence — parts of this repository's plugin method that do not apply:**
 
@@ -19,7 +25,7 @@ does not.
 |---|---|---|
 | a headless run through the plugin's pipeline, ending in a gate that reports pass with a tree hash | there is no pipeline and no gate | `node --test cc-usage-plugin/tests/collect.test.js` plus one `claude -p --plugin-dir` session against a local receiver, both recorded in `build-context.md` |
 | gate evidence written by scripts | the plugin records no gate evidence | the test suite is the executable check |
-| routing evals with `claude plugin eval` | no skill can fire, so there is nothing to route | none needed before 1.0 |
+| routing evals with `claude plugin eval` | the one skill cannot be invoked by the model, so there is nothing to route | none needed before 1.0 |
 | a preloaded `skills/<xx>-shared` skill for agent conventions | no agent exists to preload it into | the plugin-root `CLAUDE.md` holds maintainer notes only |
 
 ## D2. The ledger is the source; uploads are cut from it by offset
@@ -71,8 +77,9 @@ only success, `401` stops uploads until the endpoint or token changes, other fai
 - The token travels in a header, so a plain-HTTP endpoint would expose it; `fetch` strips
   `Authorization` on a cross-origin redirect but not a custom header, so a redirect could hand it to
   another host.
-- A missing token or developer, or an endpoint that already carries `developer`, `week` or `id`, makes
-  every request fail or become ambiguous at the receiver. Such configurations are refused before any
+- A missing token or developer, a token with a character a header cannot carry (fetch would throw,
+  which looks like a network failure), or an endpoint that already carries `developer`, `week` or `id`,
+  makes every request fail or become ambiguous at the receiver. Such configurations are refused before any
   request and logged once, so they are visible without filling the log.
 - One developer and one week per batch, with both in the query, lets a receiver choose a folder and
   file name from the URL alone. The 1 MB cap keeps a batch the same size however long the receiver was
@@ -165,8 +172,9 @@ makes that rare.
 `<name>-plugin` convention) and enters the repository at `0.1.7`. Versions 0.1.0–0.1.6 were developed
 outside this repository and are not carried over.
 
-**Consequences:** record kinds and fields are unchanged from 0.1.6 (each record names its `plugin`
-version), so `report.js` still reads an older ledger. The data folder follows the plugin name, so a
+**Consequences:** record kinds and fields are unchanged from 0.1.6 except for `email` on `usage`
+records from 0.1.8 (D13); each record names its `plugin` version, so `report.js` still reads an older
+ledger. The data folder follows the plugin name, so a
 ledger kept under the earlier name is not continued; a 0.1.6 `outbox.jsonl` in the data folder is
 removed when uploads start.
 
@@ -202,3 +210,65 @@ record was written leaves the delta to be counted again at the next parse; the `
 saved` line in `errors.log` marks when that happened. A commit baseline kept after a failed record
 holds only until the next HEAD move sets a new one (a `checkout`, a resumed session): commits whose
 record failed are then not counted.
+
+## D12. Setup through `claude plugin configure`, with the URL and token kept out of the chat
+
+**Decision:** `/cc-usage-plugin:cc-init` runs `scripts/init.js`, which reads and saves the plugin's
+options with `claude plugin configure` (`--json` to read, `--values-stdin` to save). In the chat it
+saves only the developer id, normalized by the function the hooks use (`scripts/config.js`), and the
+team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo;
+it refuses input that does not come from a terminal, refuses until a developer id is set, and checks
+the URL and token with the rules the upload applies. It edits like a password prompt (Backspace,
+Ctrl-U, Ctrl-W; Esc and arrow keys ignored). Every way out of that step, an error, Ctrl-C or an
+unexpected exception included, first reads and drops what is still arriving, so nothing typed is echoed or reaches the
+shell afterwards. The printed command names the install (`--plugin`) and a non-default configuration
+folder (`--config-dir`), because a new terminal has neither. No part of the setup prints an endpoint
+or token value.
+
+**Why:**
+- Writing the options as environment variables into `settings.json` would leave the token there in
+  plain text, and an option saved through the plugin's configuration takes precedence over an
+  environment variable, so a variable set later would be ignored. `claude plugin configure` writes
+  where the install does, sensitive values to Claude Code's secure storage (checked: after a save,
+  neither value appears in any file of the configuration folder).
+- A value typed into the chat stays in the session transcript and reaches the model, which the upload
+  contract rules out for the URL and token. A terminal prompt without echo keeps them out of the
+  transcript and out of the shell history.
+- Developer before endpoint is the order D6 needs: records stamped before an id is set are not
+  uploaded. The helper enforces the order instead of leaving it to the install guide.
+- The URL is checked when it is entered because it cannot be checked later: `configure --json`
+  returns sensitive values empty, so a mistyped URL would otherwise show only as an `upload refused`
+  line after the next session.
+
+**Cost:**
+- The setup needs the `claude` command on `PATH`, and the secrets step a terminal. `/plugin configure`
+  stays available as a fallback without the checks.
+- `claude plugin configure` reports an option saved as an empty string as configured, so the status
+  can say only that an endpoint or token is saved, not whether the saved value is empty. Clearing
+  them is left to `/plugin configure`.
+- Options apply from the next session: Claude Code reads them when a session starts.
+
+## D13. Usage is attributed to the account signed in when it is recorded
+
+**Decision:** every `usage` record carries `email`, the account in `.claude.json` when the record is
+written. `report.js` lists the accounts signed in during the window and the usage per account; a
+`usage` record without `email` (written before 0.1.8, or when `.claude.json` could not be read at that
+moment) counts under the account of its session's latest `session_open` at or before it — a session
+opens again on resume and compact, possibly under another account; `email: null` means no account was
+signed in. `who.email` of 0.1.7, which named the first account only, is replaced by `accounts`. The
+report output contains no session id.
+
+**Why:** one person can use several accounts in a week, and switches with `/login` in the middle of
+a session, typically when an account reaches its limit. Only `session_open` named an account, so
+all usage of a session went to the account it started with, and the report showed the first account
+of the week as if it were the only one. Reading the account at each record puts usage after a switch
+on the new account without matching records by session. The weekly report counts per developer and,
+for the quota view, per account; session-level detail is not shown.
+
+**Cost:** a record covers the transcript lines since the previous parse, so the lines of one Stop
+interval that span a switch all go to the account signed in at its end. The account is the
+configuration folder's, not the session's: with two sessions open in one folder, a `/login` in one
+also stamps the other's next records with the new account; the hook input names no account, so this
+is not avoidable from the plugin. Separate configuration
+folders per account are separate installs (README § Install); the email is metadata the notice already
+lists.
