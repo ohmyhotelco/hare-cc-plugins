@@ -1,7 +1,7 @@
 # cc-usage-plugin — design
 
 How the plugin works inside. What is recorded and the upload contract are in `README.md`; the reasons
-for each choice are in `docs/decisions.md` (cited as D1–D11).
+for each choice are in `docs/decisions.md` (cited as D1–D12).
 
 ## 1. Components
 
@@ -9,8 +9,12 @@ for each choice are in `docs/decisions.md` (cited as D1–D11).
 |---|---|
 | `hooks/hooks.json` | seven `command` hooks, exec form (`node` + args), so no shell runs on any platform |
 | `scripts/collect.js` | the only hook entry point: reads the hook's JSON on stdin, writes records, uploads from Stop; prints nothing, exits 0 |
+| `scripts/config.js` | option rules shared by `collect.js` and `init.js`: developer normalization, the endpoint check, the refusal reasons |
+| `scripts/init.js` | setup helper (§ 8): `status`, `set`, `secrets`, all through `claude plugin configure`; not run by any hook |
+| `skills/cc-init/SKILL.md` | the setup command, user-invoked only (`disable-model-invocation`), which runs `init.js status` and `init.js set` |
 | `scripts/report.js` | local weekly summary of the ledger; not run by any hook |
 | `tests/collect.test.js` | `node:test` suite that runs `collect.js` as a child process, the upload cases against a local receiver |
+| `tests/init.test.js` | `node:test` suite that runs `init.js` against a fake `claude` command |
 
 | Hook | Matcher | Hook timeout | Work |
 |---|---|---|---|
@@ -136,10 +140,43 @@ quoted, glab and help forms of PR commands), origin sanitizing, command and acco
 pruning, and `report.js` (data folder discovery by ledger file time, de-duplication, one key per
 repository, origins named before the report window).
 
+`tests/init.test.js` covers the status report (options, the hooks' data folder of this install
+rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step), finding the install by its path and
+stopping when it is ambiguous or missing, the `--plugin` id check, saving the normalized developer id
+and the team, the warning when the id changes, the secrets step's order and endpoint checks, an empty
+answer keeping a value, a failing CLI, and that no endpoint or token value is printed.
+
 Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
 unparsable checkpoint or send state, a checkpoint that cannot be saved, a send state that becomes
 unwritable mid-upload, the final cut failing when tracking ends, a file system without hard links, the
 three-contender lock race (§5), a partial
 ledger line at cut time, no Node on `PATH`, a transcript not yet flushed at Stop, and an upload that
-becomes due because `flush_hours` passed (only "not before" is tested). The mutation check that showed
-each covered case fails when its behaviour is removed is recorded in `build-context.md`.
+becomes due because `flush_hours` passed (only "not before" is tested); for `init.js`, the prompt
+without echo (checked by hand through a pseudo-terminal), the real `claude plugin configure` (checked
+in a separate configuration folder) and `cc-init` in a signed-in session with a marketplace install
+(all in `build-context.md`). The mutation check that showed each covered case fails when its behaviour
+is removed is recorded in `build-context.md`.
+
+## 8. Setup (`cc-init`)
+
+```
+/cc-usage-plugin:cc-init [developer] [team]        (skill, user-invoked only)
+  init.js status   plugin id ← `claude plugin list --json` (the install whose path is this plugin;
+                   the only install; or --plugin <id>)
+                   options  ← `claude plugin configure <id> --json` (sensitive values come back empty:
+                   endpoint and token show only as saved or not)
+                   hooks' data folder ← <config dir>/plugins/data/<id with @ → ->: last record,
+                   batches waiting or held, send state, last 3 errors.log lines
+                   next step: developer id, else the terminal command for the secrets
+  init.js set      developer (normalized, config.js) and team → `configure --values-stdin`;
+                   a changed id is pointed out, because records under the old one stay local (D6)
+terminal: node <plugin>/scripts/init.js secrets
+                   refuses without a developer id (D6); asks for the endpoint and token without echo
+                   (raw-mode TTY; piped input reads one line each); an empty answer keeps the saved
+                   value; the endpoint is checked with config.js before anything is saved
+                   → `configure --values-stdin`
+```
+
+Saved values apply from the next session. Values are passed to the CLI on stdin, the plugin id is
+checked against `name@marketplace` before it becomes an argument, and the CLI's own output is not
+passed on. `CLAUDE_PLUGIN_DATA` is not used: a shell inside Claude Code can carry another plugin's.

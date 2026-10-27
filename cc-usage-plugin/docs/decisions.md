@@ -4,14 +4,19 @@ Why the plugin is built the way it is. The upload contract itself is stated once
 `README.md` § Upload contract; the internals are in `design/plugin-design.md`; runs and audits are in
 `build-context.md`.
 
-## D1. Hooks only — no skills, agents or workflows
+## D1. Hooks for recording — one setup command, no agents or workflows
 
-**Decision:** the plugin is seven `command` hooks running one Node script. It ships no skill, agent,
-workflow or MCP server.
+**Decision:** recording is seven `command` hooks running one Node script. Besides them the plugin
+ships one command, `cc-init` (D12), marked `disable-model-invocation` so that the model neither sees
+nor runs it. It ships no agent, workflow or MCP server.
 
 **Why:** recording has to happen on every session without the model choosing to do it, and it must
 cost no model tokens. A command hook that prints nothing meets both; anything the model reads or runs
-does not.
+does not. The setup command does not record anything; a person runs it once per machine, and hidden
+from the model it adds nothing to other sessions. Checked in two `claude -p` sessions: asked whether a
+`cc-init` command was available, the model answered no with the flag and yes without it.
+`claude plugin details` shows about 80 always-on tokens for the skill either way; its estimate does
+not take the flag into account.
 
 **Consequence — parts of this repository's plugin method that do not apply:**
 
@@ -19,7 +24,7 @@ does not.
 |---|---|---|
 | a headless run through the plugin's pipeline, ending in a gate that reports pass with a tree hash | there is no pipeline and no gate | `node --test cc-usage-plugin/tests/collect.test.js` plus one `claude -p --plugin-dir` session against a local receiver, both recorded in `build-context.md` |
 | gate evidence written by scripts | the plugin records no gate evidence | the test suite is the executable check |
-| routing evals with `claude plugin eval` | no skill can fire, so there is nothing to route | none needed before 1.0 |
+| routing evals with `claude plugin eval` | the one skill cannot be invoked by the model, so there is nothing to route | none needed before 1.0 |
 | a preloaded `skills/<xx>-shared` skill for agent conventions | no agent exists to preload it into | the plugin-root `CLAUDE.md` holds maintainer notes only |
 
 ## D2. The ledger is the source; uploads are cut from it by offset
@@ -202,3 +207,35 @@ record was written leaves the delta to be counted again at the next parse; the `
 saved` line in `errors.log` marks when that happened. A commit baseline kept after a failed record
 holds only until the next HEAD move sets a new one (a `checkout`, a resumed session): commits whose
 record failed are then not counted.
+
+## D12. Setup through `claude plugin configure`, with the URL and token kept out of the chat
+
+**Decision:** `/cc-usage-plugin:cc-init` runs `scripts/init.js`, which reads and saves the plugin's
+options with `claude plugin configure` (`--json` to read, `--values-stdin` to save). In the chat it
+saves only the developer id, normalized by the function the hooks use (`scripts/config.js`), and the
+team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo.
+That step refuses until a developer id is set and checks the URL with the rule the upload applies.
+No part of the setup prints an endpoint or token value.
+
+**Why:**
+- Writing the options as environment variables into `settings.json` would leave the token there in
+  plain text, and an option saved through the plugin's configuration takes precedence over an
+  environment variable, so a variable set later would be ignored. `claude plugin configure` writes
+  where the install does, sensitive values to Claude Code's secure storage (checked: after a save,
+  neither value appears in any file of the configuration folder).
+- A value typed into the chat stays in the session transcript and reaches the model, which the upload
+  contract rules out for the URL and token. A terminal prompt without echo keeps them out of the
+  transcript and out of the shell history.
+- Developer before endpoint is the order D6 needs: records stamped before an id is set are not
+  uploaded. The helper enforces the order instead of leaving it to the install guide.
+- The URL is checked when it is entered because it cannot be checked later: `configure --json`
+  returns sensitive values empty, so a mistyped URL would otherwise show only as an `upload refused`
+  line after the next session.
+
+**Cost:**
+- The setup needs the `claude` command on `PATH`, and the secrets step a terminal. `/plugin configure`
+  stays available as a fallback without the checks.
+- `claude plugin configure` reports an option saved as an empty string as configured, so the status
+  can say only that an endpoint or token is saved, not whether the saved value is empty. Clearing
+  them is left to `/plugin configure`.
+- Options apply from the next session: Claude Code reads them when a session starts.

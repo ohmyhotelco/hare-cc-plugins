@@ -1,5 +1,5 @@
 'use strict';
-// Run from the repo root: node --test cc-usage-plugin/tests/collect.test.js
+// Run from the repo root: node --test 'cc-usage-plugin/tests/*.test.js' (this file alone: its path)
 // Most tests run the real hook script as a child process, the upload tests against a local receiver on
 // 127.0.0.1. The timeout test waits for the 15 s request timeout, so the whole file takes about 25 s.
 const test = require('node:test');

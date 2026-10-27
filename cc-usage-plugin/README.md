@@ -3,7 +3,9 @@
 Records, from Claude Code hooks on a developer machine (Windows, macOS, Linux), **which repository,
 which commands and skills, which model and effort, and how many tokens** each session used, plus
 commit, PR and edit counts. Prompt text, tool arguments, file contents and file paths are never
-collected. It costs no model tokens: every hook is a `command` hook that exits without output.
+collected. Recording costs no model tokens: every hook is a `command` hook that exits without output.
+The one setup command, `/cc-usage-plugin:cc-init`, is hidden from the model and costs tokens only when
+you run it.
 
 [한국어](./README.ko.md)
 
@@ -17,6 +19,8 @@ collected. It costs no model tokens: every hook is a `command` hook that exits w
   desktop app.
 - `git` on `PATH` for the repository, branch, commit and PR fields.
 - Windows needs no Git Bash: every hook is exec form (`node` + args), so no shell runs.
+- For the setup command: the `claude` command on `PATH`, which saves the options
+  (`claude plugin configure`, checked on 2.1.311).
 
 ## Install
 
@@ -26,7 +30,20 @@ collected. It costs no model tokens: every hook is a `command` hook that exits w
 ```
 
 User scope, because the plugin records every session on the machine rather than one project.
-Installing asks for these options; with `endpoint` empty only the local ledger is written.
+Then set the options, in this order:
+
+1. In Claude Code, `/cc-usage-plugin:cc-init <developer> [team]`. It shows which options are set and
+   what the hooks have recorded, then saves your developer id, normalized as the receiver will see
+   it, and your team. Without arguments it asks for them.
+2. Only if you were given a receiver URL and token: in a terminal outside Claude Code, run the
+   `node "…/scripts/init.js" secrets` command that step 1 prints. It asks for both without showing
+   them, checks the URL against the upload contract and saves them. It refuses until a developer id
+   is set. Never type the URL or token into the chat, where they would stay in the session transcript.
+3. Start a new Claude Code session: options apply from the next session. Run
+   `/cc-usage-plugin:cc-init` again at any time to see the state, including uploads.
+
+With `endpoint` empty only the local ledger is written. The same options can be edited without these
+checks with `/plugin configure cc-usage-plugin@ohmyhotelco` in Claude Code.
 
 | Option | Meaning |
 |---|---|
@@ -37,7 +54,8 @@ Installing asks for these options; with `endpoint` empty only the local ledger i
 | `flush_hours` | Upload interval in hours, default 24 |
 
 `endpoint` and `token` are marked sensitive, so Claude Code keeps them in its secure credential
-storage rather than in `settings.json`. Each option can also come from an environment variable —
+storage rather than in `settings.json`; `init.js` saves through the same `claude plugin configure`
+and prints neither value. Each option can also come from an environment variable —
 `CC_USAGE_DEVELOPER`, `CC_USAGE_TEAM`, `CC_USAGE_ENDPOINT`, `CC_USAGE_TOKEN`, `CC_USAGE_FLUSH_HOURS` —
 which is also how to set them for a one-session trial with `claude --plugin-dir ./cc-usage-plugin`.
 Endpoint URLs and tokens never go into this repository.
@@ -125,21 +143,26 @@ The query parameters let a receiver choose a folder and file name from the URL a
 - The plugin-command ratio counts only `plugin:skill` commands; project-local skills appear in the
   top commands only.
 - Tell the people whose machines run it what is collected, why, and where it goes before installing.
-- Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310: the test suite and one live session).
-  Windows and Cowork sessions have not been run yet; the code uses only cross-platform Node APIs,
-  but treat both as unverified until a first run there.
+- The secrets step needs a terminal with the `claude` command. Where there is none, `/plugin configure`
+  sets the same options without the checks.
+- Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310 and 2.1.311: the test suites and live
+  sessions). Windows and Cowork sessions have not been run yet; the code uses only cross-platform Node
+  APIs, but treat both as unverified until a first run there.
 
 ## Tests
 
 ```bash
-node --test cc-usage-plugin/tests/collect.test.js
+node --test 'cc-usage-plugin/tests/*.test.js'
 ```
 
-Runs the hook script as a child process, the upload cases against a local receiver: batching per week
-for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and backoff, cadence,
-ending and restarting upload tracking, refused configurations, locks, the transcript checkpoint, commit
-and PR detection, record fields, state pruning, and `report.js`. About 25 s, because one case waits for
-the 15 s timeout. Three cases use file permissions and are skipped on Windows and as root.
+`collect.test.js` runs the hook script as a child process, the upload cases against a local receiver:
+batching per week for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and
+backoff, cadence, ending and restarting upload tracking, refused configurations, locks, the transcript
+checkpoint, commit and PR detection, record fields, state pruning, and `report.js`. About 25 s, because
+one case waits for the 15 s timeout. Three cases use file permissions and are skipped on Windows and as
+root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
+install, saving the developer id and team, the endpoint checks, and that no endpoint or token value is
+printed.
 
 ## Files
 
@@ -147,8 +170,12 @@ the 15 s timeout. Three cases use file permissions and are skipped on Windows an
 cc-usage-plugin/
 ├── .claude-plugin/plugin.json   userConfig: developer · team · endpoint (sensitive) · token (sensitive) · flush_hours
 ├── hooks/hooks.json             7 hooks, all exec form (node)
+├── skills/cc-init/SKILL.md      setup command, run by the user only
 ├── scripts/collect.js           hook collector (stdin JSON → ledger → batches → POST)
+├── scripts/config.js            option rules shared by collect.js and init.js
+├── scripts/init.js              setup helper: status · set · secrets, through claude plugin configure
 ├── scripts/report.js            weekly summary (JSON + text)
-├── tests/collect.test.js        node:test suite
+├── tests/collect.test.js        node:test suite for the hooks
+├── tests/init.test.js           node:test suite for init.js
 └── docs/                        decisions.md · design/plugin-design.md · build-context.md
 ```

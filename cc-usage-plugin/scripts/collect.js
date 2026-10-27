@@ -10,9 +10,10 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { randomUUID, createHash } = require('crypto');
+const { normalizeDeveloper, uploadProblem } = require('./config');
 
 const EVENT = process.argv[2] || 'unknown';
-const PLUGIN_VERSION = '0.1.7';
+const PLUGIN_VERSION = '0.1.8';
 const STARTED = Date.now();
 
 function safe(fn, fallback) { try { return fn(); } catch (_) { return fallback; } }
@@ -33,20 +34,8 @@ for (const d of [ledgerDir, stateDir, sendDir]) safe(() => fs.mkdirSync(d, { rec
 // Error lines carry a fixed label and a status or error code — never a URL, token, path or record body.
 function logError(msg) { safe(() => fs.appendFileSync(path.join(dataDir, 'errors.log'), `${new Date().toISOString()} ${EVENT} ${msg}\n`)); }
 
-// ---------- config (userConfig -> env, or plain env) ----------
-// The developer id becomes a folder name on the receiver, so it is kept to [a-z0-9._-]; a value with
-// nothing left (e.g. only non-Latin letters) becomes a hash of the original. Two spellings can still
-// normalize to one id, so ids are assigned per person after normalization (README § Install).
-function normalizeDeveloper(raw) {
-  const src = String(raw || '').normalize('NFKC').trim();
-  let s = src.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/_vti_/g, '-vti-')
-    .replace(/-{2,}/g, '-').replace(/^[._-]+|[._-]+$/g, '');
-  if (/^(con|prn|aux|nul|com\d|lpt\d)(\.|$)/.test(s)) s = `u-${s}`;
-  s = s.slice(0, 64).replace(/[._-]+$/, ''); // the cap last, so normalizing a normalized id changes nothing
-  if (s) return s;
-  return src ? `u-${sha(src).slice(0, 8)}` : 'unknown';
-}
-const opt = (key, env) => String(process.env[`CLAUDE_PLUGIN_OPTION_${key}`] || process.env[env] || '').trim();
+// ---------- config (userConfig -> env, or plain env; rules in config.js) ----------
+const opt =(key, env) => String(process.env[`CLAUDE_PLUGIN_OPTION_${key}`] || process.env[env] || '').trim();
 const developerOpt = opt('DEVELOPER', 'CC_USAGE_DEVELOPER');
 const flushHours = Number(opt('FLUSH_HOURS', 'CC_USAGE_FLUSH_HOURS'));
 const cfg = {
@@ -65,7 +54,6 @@ const RETRY_BASE_MS = 30 * 60e3;     // first retry after a failed upload; doubl
 const RETRY_MAX_MS = 6 * 3600e3;
 const COMMIT_WINDOW_MS = 15 * 60e3;  // a commit made by the command just run is younger than this
 const STATE_TTL_MS = 30 * 864e5;     // per-session state older than this is removed at SessionStart
-const LOOPBACK = ['127.0.0.1', 'localhost', '[::1]'];
 
 // ---------- identity (account metadata, not credentials) ----------
 function identity() {
@@ -426,14 +414,7 @@ function firstRecord(body) {
 function pendingBatches() { return safe(() => fs.readdirSync(sendDir), []).filter((f) => f.endsWith('.ndjson')).sort(); }
 function authKey() { return sha(`${cfg.endpoint}\n${cfg.token}`).slice(0, 16); }
 function configKey() { return sha(`${cfg.endpoint}\n${cfg.token}\n${cfg.developerSet ? cfg.developer : ''}`).slice(0, 16); }
-function configProblem() {
-  const u = safe(() => new URL(cfg.endpoint), null);
-  if (!u || !(u.protocol === 'https:' || (u.protocol === 'http:' && LOOPBACK.includes(u.hostname)))) return 'endpoint-not-https';
-  if (['developer', 'week', 'id'].some((k) => u.searchParams.has(k))) return 'endpoint-has-developer-week-or-id';
-  if (!cfg.token) return 'no-token';
-  if (!cfg.developerSet) return 'no-developer';
-  return null;
-}
+function configProblem() { return uploadProblem(cfg); }
 function unsentBytes(st) {
   let n = 0;
   for (const f of ledgerFiles()) n += Math.max(0, safe(() => fs.statSync(path.join(ledgerDir, f)).size, 0) - (st.offsets[f] || 0));

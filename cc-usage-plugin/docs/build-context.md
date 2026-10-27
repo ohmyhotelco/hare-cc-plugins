@@ -310,3 +310,67 @@ One PR for design documents and code (D10).
 ### Not yet run
 
 Windows and Cowork sessions (README § Limits).
+
+## 2026-10-27 — v0.1.8 adds the `cc-init` setup command
+
+### Why
+
+0.1.7 left the options to the install prompt and the install guide: the person had to set the
+developer id before the endpoint (D6) by hand, and the URL and token had no checked way in. A setup
+command with a terminal step for the secrets replaces both (D12).
+
+### Platform facts checked (Claude Code 2.1.311)
+
+All in a separate configuration folder (`CLAUDE_CONFIG_DIR` pointing at a scratch folder, with this
+repository added as a local marketplace), so the maintainer's own configuration was not touched:
+
+- `claude plugin install` from the CLI asks for no options; it prints that five options are not set
+  and points at `/plugin configure`.
+- `claude plugin configure <id> --json` returns the schema, `inputs`, `configured` and
+  `unconfigured`. After a save, `inputs` returns `endpoint` and `token` empty while `configured`
+  lists them.
+- `claude plugin configure <id> --values-stdin` saved `developer` and `team` under
+  `pluginConfigs.<id>.options` in `settings.json`. The endpoint and token went to the system
+  credential store, under an entry named after that configuration folder; neither value appeared in
+  any file of the folder. The CLI prints "Configuration saved. Restart Claude Code to apply it."
+- A session started afterwards (not signed in, so it stopped before the first request) still ran
+  SessionStart: the ledger had `developer: alex-kim`, `team: platform`, and a send state was
+  created, so the hooks received both the plain and the sensitive values.
+- An option saved as an empty string is listed as configured (hence D12's cost).
+- `CLAUDE_PLUGIN_DATA` in the Bash tool of a running session held the data folder of another
+  installed plugin, so `init.js` derives the folder from the plugin id.
+- With `disable-model-invocation: true`, a `claude -p --plugin-dir` session asked whether a
+  `cc-init` command was available answered no; with the line removed, yes (D1).
+- `/cc-usage-plugin:cc-init alex platform` in a signed-in `claude -p --plugin-dir` session: the skill
+  loaded, `${CLAUDE_PLUGIN_ROOT}` was substituted, `Bash(node:*)` let `init.js` run with no
+  permission denial, and since the plugin was not installed from a marketplace in that
+  configuration, the session showed init.js's message to install first and saved nothing.
+
+### init.js against the real CLI (same separate folder)
+
+`set --developer "Alex Kim" --team platform` saved `alex-kim` and `platform` and pointed out that
+the previous id `test-dev` stays local. `secrets` with piped input refused `http://example.com/…`
+(`endpoint-not-https`) and an endpoint with `?id=` (`endpoint-has-developer-week-or-id`), then saved
+an `https://example.com/…?sig=…` endpoint and a token; neither value appeared in a file of the
+folder. `status` after the next session showed the last record (`alex-kim`, plugin 0.1.8) and the
+upload tracking. Through a pseudo-terminal (`script`), typed input including two backspaces was
+saved while the terminal recording held only the prompts: no occurrence of either value.
+
+### Test suite
+
+`node --test 'cc-usage-plugin/tests/*.test.js'`: 30 tests (24 in `collect.test.js`, 6 in the new
+`init.test.js`), all pass on macOS, Node 24.22.1, about 26 s. `node --test <folder>` does not run a
+folder's files, hence the quoted glob. `collect.js` now takes the developer normalization and the
+upload refusal rules from `config.js`; the existing suite covers both unchanged.
+
+### Repository checks
+
+`claude plugin validate cc-usage-plugin`: passed with the two expected warnings. `scripts/check-plugin-consistency.py`
+reported `allowed-tools: Bash(node:*)` as lacking Bash; the check now reads a scoped rule as
+declaring its tool (`Bash(…)` → `Bash`), and reports 0 findings for this plugin (the repository-wide
+6 are the pre-existing ones in `homepage-plugin` and `planning-plugin`).
+
+### Not yet run
+
+`cc-init` in a signed-in session against a marketplace install: the first install on a developer
+machine after this version is published. Windows and Cowork, as before.
