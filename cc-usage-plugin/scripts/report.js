@@ -2,11 +2,12 @@
 // cc-usage weekly report — aggregates the local ledger into one JSON (and a short text table).
 // Usage: node report.js [--days 7] [--json out.json] [--data-dir <plugin data folder>]
 'use strict';
-const fs = require('fs'); const os = require('os'); const path = require('path');
+const fs = require('fs'); const path = require('path');
+const { configDir: configFolder, WEEK_FILE } = require('./config');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const days = Number(opt('--days', 7)); const outJson = opt('--json', null);
-const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const configDir = configFolder();
 // Hooks get the data folder as CLAUDE_PLUGIN_DATA; a shell does not, so look for the installed plugin's
 // folder (plugins/data/cc-usage-plugin-<marketplace>, or -inline under --plugin-dir), the one whose ledger
 // file was written last (appending to a file does not touch its folder's time).
@@ -14,7 +15,7 @@ function findDataDir() {
   const explicit = opt('--data-dir', null) || process.env.CLAUDE_PLUGIN_DATA;
   if (explicit) return explicit;
   const root = path.join(configDir, 'plugins', 'data');
-  const last = (d) => Math.max(0, ...fs.readdirSync(path.join(d, 'ledger')).filter((f) => f.endsWith('.jsonl'))
+  const last = (d) => Math.max(0, ...fs.readdirSync(path.join(d, 'ledger')).filter((f) => WEEK_FILE.test(f))
     .map((f) => fs.statSync(path.join(d, 'ledger', f)).mtimeMs));
   const found = (fs.existsSync(root) ? fs.readdirSync(root) : []).filter((d) => d.startsWith('cc-usage-plugin-'))
     .map((d) => path.join(root, d)).filter((d) => fs.existsSync(path.join(d, 'ledger')))
@@ -27,7 +28,7 @@ const since = Date.now() - days * 864e5;
 
 const all = [], ids = new Set(); // a record seen twice (re-sent batch, copied ledger) counts once
 if (fs.existsSync(ledgerDir)) for (const f of fs.readdirSync(ledgerDir)) {
-  if (!f.endsWith('.jsonl')) continue;
+  if (!WEEK_FILE.test(f)) continue;
   for (const line of fs.readFileSync(path.join(ledgerDir, f), 'utf8').split('\n')) {
     if (!line) continue; let d; try { d = JSON.parse(line); } catch (_) { continue; }
     if (d.id) { if (ids.has(d.id)) continue; ids.add(d.id); }

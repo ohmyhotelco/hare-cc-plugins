@@ -5,24 +5,21 @@
 // in Claude Code's secure storage. It never prints, logs or passes on an endpoint or token value.
 //
 //   node init.js status                                   options set, upload state, next step
-//   node init.js set --developer <id> [--team <label>]    save the developer id (normalized) and team
+//   node init.js set [--developer <id>] [--team <label>]  save the developer id (normalized), the team, or both
 //   node init.js secrets                                  ask for endpoint and token without echo
 //
 // Every command takes --plugin <id> (e.g. cc-usage-plugin@acme) when the install cannot be found, and
 // --config-dir <folder> for a Claude Code configuration folder other than the default (CLAUDE_CONFIG_DIR).
 'use strict';
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { normalizeDeveloper, endpointProblem, tokenProblem } = require('./config');
+const { WEEK_FILE, configDir, normalizeDeveloper, endpointProblem, tokenProblem } = require('./config');
 
 const NAME = 'cc-usage-plugin';
 const ROOT = path.resolve(__dirname, '..');
 const SELF = path.join(ROOT, 'scripts', 'init.js');
 const NODE_MIN = { 22: [23, 4], 24: [22, 1], 26: [12, 1] }; // README § Requirements
-const WEEK_FILE = /^\d{4}-W\d{2}\.jsonl$/;
-const configDir = () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 
 // While secrets holds the terminal, an error must not give the terminal back with unread input in it:
 // the input would be echoed and handed to the shell. fail() then throws, and main() drains first.
@@ -74,7 +71,7 @@ function pluginId(flag) {
   // On Windows a missing claude is the shell's exit status, not a spawn error.
   if (r.status !== 0) fail(`claude plugin list exited ${r.status}; is Claude Code on PATH?`);
   const list = safe(() => JSON.parse(r.stdout), []);
-  const mine = (Array.isArray(list) ? list : []).filter((p) => String(p.id || '').startsWith(`${NAME}@`));
+  const mine = (Array.isArray(list) ? list : []).filter((p) => p && typeof p === 'object' && String(p.id || '').startsWith(`${NAME}@`));
   const real = (p) => safe(() => fs.realpathSync(p), p);
   const here = mine.find((p) => p.installPath && real(p.installPath) === real(ROOT));
   if (here) return checkedId(here.id);
@@ -138,13 +135,21 @@ function ledgerState(id) {
 
 function iso(ms) { return ms ? new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z') : '-'; }
 
+// The developer id the hooks use: the saved option, else CC_USAGE_DEVELOPER (README § Install).
+function developerOf(inputs) {
+  const saved = String(inputs.developer || '').trim();
+  if (saved) return { dev: saved, from: '' };
+  const env = String(process.env.CC_USAGE_DEVELOPER || '').trim();
+  return { dev: env, from: env ? ', from CC_USAGE_DEVELOPER' : '' };
+}
+
 function status(id) {
   const { inputs, configured } = readOptions(id);
-  const dev = String(inputs.developer || '').trim();
+  const { dev, from } = developerOf(inputs);
   // Sensitive options come back empty, so for them only "saved" is known, not the value.
-  const set = (k) => configured.has(k) && (k === 'endpoint' || k === 'token' || String(inputs[k] || '').trim() !== '');
+  const set = (k) => configured.has(k);
   out(`${id}`);
-  out(`  developer    ${dev ? `${dev}  (uploads as "${normalizeDeveloper(dev)}")` : 'not set — uploads need it'}`);
+  out(`  developer    ${dev ? `${dev}  (uploads as "${normalizeDeveloper(dev)}"${from})` : 'not set — uploads need it'}`);
   out(`  team         ${String(inputs.team || '').trim() || 'not set'}`);
   out(`  endpoint     ${set('endpoint') ? 'saved (value hidden)' : 'not set — local ledger only'}`);
   out(`  token        ${set('token') ? 'saved (value hidden)' : 'not set'}`);
@@ -170,23 +175,33 @@ function status(id) {
 // The id and a non-default configuration folder are printed too, so the command works as printed in a
 // new terminal, which has neither the session's CLAUDE_CONFIG_DIR nor a way to tell installs apart.
 function secretsCommand(id) {
-  const dir = process.env.CLAUDE_CONFIG_DIR ? ` --config-dir "${path.resolve(process.env.CLAUDE_CONFIG_DIR)}"` : '';
-  return `node "${SELF}" secrets --plugin ${id}${dir}`;
+  const dir = process.env.CLAUDE_CONFIG_DIR ? ` --config-dir ${shellArg(path.resolve(process.env.CLAUDE_CONFIG_DIR))}` : '';
+  return `node ${shellArg(SELF)} secrets --plugin ${id}${dir}`;
+}
+// A path as one shell word, to paste as printed: single quotes on POSIX shells ($, backticks and " stay
+// literal); double quotes on Windows, where a trailing backslash would escape the closing quote.
+function shellArg(s) {
+  if (process.platform === 'win32') return `"${s.replace(/\\$/, '\\.')}"`;
+  return `'${s.replace(/'/g, "'\\''")}'`;
 }
 
 function setIdentity(id, a) {
   const raw = String(a.developer ?? a._[1] ?? '').trim();
   const team = a.team ?? a._[2];
-  if (!raw) fail('--developer is required: the id assigned to you in the install guide');
+  if (!raw && team === undefined) fail('--developer or --team is required: the developer id assigned to you in the install guide, or a team');
   if (/[\r\n]/.test(raw) || (team !== undefined && /[\r\n]/.test(team))) fail('values must be single-line');
-  const developer = normalizeDeveloper(raw);
   const { inputs } = readOptions(id);
   const before = String(inputs.developer || '').trim();
-  const values = { developer };
+  const values = {};
+  if (raw) values.developer = normalizeDeveloper(raw);
   if (team !== undefined) values.team = String(team).trim();
   saveOptions(id, values);
-  out(`Saved developer "${developer}"${developer !== raw ? ` (from "${raw}")` : ''}${values.team !== undefined ? ` and team "${values.team}"` : ''}.`);
-  if (before && normalizeDeveloper(before) !== developer) {
+  const saved = [
+    values.developer !== undefined && `developer "${values.developer}"${values.developer !== raw ? ` (from "${raw}")` : ''}`,
+    values.team !== undefined && `team "${values.team}"`,
+  ].filter(Boolean);
+  out(`Saved ${saved.join(' and ')}.${values.developer === undefined && before ? ` The developer id stays "${before}".` : ''}`);
+  if (values.developer !== undefined && before && normalizeDeveloper(before) !== values.developer) {
     out(`The previous id was "${normalizeDeveloper(before)}"; records stamped with it stay in the local ledger (D6).`);
   }
   out('Changes apply from the next Claude Code session.');
@@ -208,15 +223,28 @@ function terminal() {
     try { text = decoder.decode(buf, { stream: true }); } catch (_) { bad = true; }
     for (const ch of text) {
       if (interrupted) break;
-      if (esc === 1) { esc = ch === '[' ? 2 : ch === 'O' ? 3 : 0; continue; } // ESC x, ESC [ … final, ESC O x
-      if (esc === 2) { if (ch >= '@' && ch <= '~') esc = 0; continue; }
-      if (esc === 3) { esc = 0; continue; }
+      // An escape sequence is ESC [ <parameters> <final> or ESC O <final>; a key that cannot continue it
+      // (Enter, Ctrl-C, or a lone Esc followed by a letter) ends it and is read as itself.
+      if (esc === 1) {
+        if (ch === '[') { esc = 2; continue; }
+        if (ch === 'O') { esc = 3; continue; }
+        esc = 0;
+      } else if (esc === 2) {
+        if (ch >= ' ' && ch <= '?') continue;
+        esc = 0;
+        if (ch >= '@' && ch <= '~') continue;
+      } else if (esc === 3) {
+        esc = 0;
+        if (ch >= '@' && ch <= '~') continue;
+      }
       if (ch === '\u001b') { esc = 1; continue; }
       if (ch === '\u0003') { interrupted = true; break; }
       const nl = ch === '\r' || ch === '\n';
       if (ch === '\n' && lastCR) { lastCR = false; continue; }    // \r\n is one Enter
       lastCR = ch === '\r';
       if (nl) { lines.push(cur); cur = ''; } else if (ch === '\u007f' || ch === '\b') cur = cur.slice(0, -1);
+      else if (ch === '\u0015') cur = '';                                      // Ctrl-U: the whole answer
+      else if (ch === '\u0017') cur = cur.replace(/\s+$/, '').replace(/\S+$/, ''); // Ctrl-W: the last word
       else if (ch >= ' ') cur += ch;
     }
     if (waiting && (bad || interrupted || lines.length)) { const w = waiting; waiting = null; w(); }
@@ -241,9 +269,9 @@ function terminal() {
       };
       if (bad || interrupted || lines.length) take(); else waiting = take;
     }),
-    close: () => new Promise((resolve) => setTimeout(() => {
+    close: () => (held ? new Promise((resolve) => setTimeout(() => {
       restore(); held = null; resolve();
-    }, 150)),
+    }, 150)) : Promise.resolve()),
   };
   return held;
 }
@@ -251,7 +279,7 @@ function terminal() {
 async function secrets(id, term) {
   const { inputs, configured } = readOptions(id);
   // Records are uploaded only under the id set now (D6), so the id comes before the endpoint.
-  if (!String(inputs.developer || '').trim()) fail('save your developer id first: /cc-usage-plugin:cc-init <developer> [team]');
+  if (!developerOf(inputs).dev) fail('save your developer id first: /cc-usage-plugin:cc-init <developer> [team]');
   const keep = (k) => (configured.has(k) ? ' (Enter keeps the current value)' : '');
   const endpoint = await term.ask(`Receiver URL, input hidden${keep('endpoint')}: `);
   const badEndpoint = endpoint && endpointProblem(endpoint);
@@ -286,13 +314,16 @@ async function main() {
   // A pipe or a file could carry the values from a command line or a log; the terminal prompt cannot.
   if (!process.stdin.isTTY) fail('run this in a terminal: it asks for the receiver URL and token itself and reads neither from a pipe or file');
   const term = terminal(); // before anything slow, so type-ahead is not echoed while the install is looked up
+  let failure = null;
   try {
     await secrets(pluginId(a.plugin), term);
   } catch (e) {
-    if (!(e instanceof Exit)) throw e;
-    await term.close();
-    fail(e.message, e.code);
+    failure = e;
+  } finally {
+    await term.close(); // whatever ended it, an unexpected error included
   }
+  if (failure instanceof Exit) fail(failure.message, failure.code);
+  if (failure) throw failure;
 }
 
 main();

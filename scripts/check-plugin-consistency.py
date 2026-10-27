@@ -360,10 +360,16 @@ def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]
                     break
         scopes = [re.sub(r"(?::\*| \*)$", "", m.group(1)) for m in (re.fullmatch(r"Bash\((.*)\)", t) for t in rules) if m]
         if scopes and "Bash" not in rules:
-            for block in re.finditer(r"```(?:bash|sh)\n(.*?)```", body, re.S):
+            # Each command of a chained line is checked on its own, as the permission rules do; a
+            # command substitution cannot be checked against a prefix at all.
+            for block in re.finditer(r"```(?:bash|sh|shell|console|zsh)\r?\n(.*?)```", body, re.S):
                 for k, line in enumerate(block.group(1).splitlines()):
-                    cmd = line.strip()
-                    if cmd and not cmd.startswith("#") and not any(cmd.startswith(s) for s in scopes):
+                    cmd = re.sub(r"^\$\s+", "", line.strip())
+                    if not cmd or cmd.startswith("#"):
+                        continue
+                    parts = re.split(r"\s*(?:&&|\|\||;|\|)\s*", cmd)
+                    bad = "$(" in cmd or "`" in cmd or any(p and not any(p.startswith(s) for s in scopes) for p in parts)
+                    if bad:
                         out.append(Finding(str(path), lineno(text, start + block.start(1)) + k,
                                            "tool-permission",
                                            f"bash command outside the allowed-tools scope: {cmd[:60]}"))

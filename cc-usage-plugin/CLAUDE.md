@@ -21,8 +21,10 @@ command hooks (`hooks/hooks.json`) that run `scripts/collect.js`, plus one setup
   `SEND_BUDGET_MS` bound the run.
 - The upload contract (README § Upload contract) is shared with a receiver that someone else
   operates. Change it only with a version bump and a README update in the same commit.
-- Option rules that `init.js` checks too (developer normalization, the endpoint check) live in
-  `scripts/config.js`, so the setup helper accepts exactly what the collector uploads with.
+- Option rules that `init.js` checks too (developer normalization, the endpoint and token checks) and
+  the shared layout (the week-file pattern, the configuration folder) live in `scripts/config.js`, so
+  the setup helper accepts exactly what the collector uploads with. `collect.js` loads it under a
+  guard: a missing or broken `config.js` is logged and the hook still exits 0 without output.
 
 ## Rules for `scripts/init.js` and `skills/cc-init`
 
@@ -32,8 +34,8 @@ command hooks (`hooks/hooks.json`) that run `scripts/collect.js`, plus one setup
 - Options are read and saved only through `claude plugin configure` (`--json`, `--values-stdin`), so
   sensitive values reach Claude Code's secure storage. Values travel on stdin, never in arguments, and
   the CLI's own output is not echoed.
-- Once `secrets` holds the terminal, leave only through `close()` (`fail()` throws there and `main()`
-  drains): giving the terminal back with unread input echoes it and hands it to the shell.
+- Once `secrets` holds the terminal, leave only through `close()` (`fail()` throws there, and `main()`
+  drains in a `finally`, also for an unexpected exception): giving the terminal back with unread input echoes it and hands it to the shell.
 - Do not trust `CLAUDE_PLUGIN_DATA` here: a shell inside Claude Code can carry another plugin's value.
   The data folder is derived from the plugin id.
 - Keep `disable-model-invocation: true` on the skill: the model is not shown it and cannot start it on

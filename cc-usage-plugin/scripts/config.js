@@ -1,9 +1,14 @@
 'use strict';
-// Configuration rules shared by the hook collector (collect.js) and the setup helper (init.js), so a
-// value the helper accepts is one the collector uploads with. Node built-ins only.
+// Configuration rules and layout shared by the hook collector (collect.js), the setup helper (init.js)
+// and the report (report.js), so a value the helper accepts is one the collector uploads with and all
+// three read the same files. Node built-ins only.
+const os = require('os');
+const path = require('path');
 const { createHash } = require('crypto');
 
 const LOOPBACK = ['127.0.0.1', 'localhost', '[::1]'];
+const WEEK_FILE = /^\d{4}-W\d{2}\.jsonl$/; // ledger/<ISO week>.jsonl
+function configDir() { return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'); }
 
 // The developer id becomes a folder name on the receiver, so it is kept to [a-z0-9._-]; a value with
 // nothing left (e.g. only non-Latin letters) becomes a hash of the original. Two spellings can still
@@ -30,10 +35,11 @@ function endpointProblem(endpoint) {
 
 // Why a token cannot be sent, or null. It travels as a header value, and fetch throws on characters a
 // header cannot carry, which would look like a network failure; an invisible character copied with
-// the token (U+200B, a non-breaking space) is the usual cause, so only visible ASCII is accepted.
+// the token (U+200B, a non-breaking space) is the usual cause. Visible ASCII is accepted, with spaces
+// inside it; a tab or a leading or trailing space is not, as the header would not carry it unchanged.
 function tokenProblem(token) {
   if (!token) return 'no-token';
-  return /^[\x21-\x7e]+$/.test(token) ? null : 'token-not-visible-ascii';
+  return /^[\x21-\x7e](?:[\x20-\x7e]*[\x21-\x7e])?$/.test(token) ? null : 'token-not-visible-ascii';
 }
 
 // Why an upload configuration is refused, or null (D4).
@@ -41,4 +47,4 @@ function uploadProblem({ endpoint, token, developerSet }) {
   return endpointProblem(endpoint) || tokenProblem(token) || (!developerSet && 'no-developer') || null;
 }
 
-module.exports = { LOOPBACK, normalizeDeveloper, endpointProblem, tokenProblem, uploadProblem };
+module.exports = { LOOPBACK, WEEK_FILE, configDir, normalizeDeveloper, endpointProblem, tokenProblem, uploadProblem };

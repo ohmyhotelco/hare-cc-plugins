@@ -477,6 +477,34 @@ Tests: 40 (26 + 14), all pass. Mutation check: 15 mutants for the review fixes (
 `config.js`, 3 on `report.js`) and the 25 earlier `init.js` mutants adjusted to the changed code;
 every mutant failed a test.
 
+### Second review of PR #78 (on `909d143`)
+
+The same review, asked to leave out what the first round fixed, raised 15 findings. Findings 1–3 were
+reproduced by the reviewer on a pseudo-terminal. None reopened a first-round fix; most came from code
+the first round added.
+
+| Finding | Disposition |
+|---|---|
+| an exception other than `Exit` after the terminal was taken (a null entry in the install list) skipped the drain; a URL typed during the lookup reached the next shell (reproduced) | fixed: `main()` drains in a `finally`; null entries are skipped |
+| after a lone Esc the next key was dropped, Enter and Ctrl-C included: Esc then `abcdef` saved `bcdef` (reproduced) | fixed: a key that cannot continue a sequence ends it and is read as itself |
+| Ctrl-U and Ctrl-W were ignored: `wrongtok`, Ctrl-U, `righttok` saved both (reproduced) | fixed: Ctrl-U erases the answer, Ctrl-W the last word |
+| an unreadable `.claude.json` stamped `email: null`, which the report does not attribute | fixed: one retry, then the field is left out so the report uses the session's account; null only when no account is signed in |
+| the token rule refused spaces inside a token, which a header carries | fixed: visible ASCII with inner spaces; a tab or a leading or trailing space is still refused |
+| `require('./config')` ran outside the hook's error handling, so a missing file exited 1 with a stack | fixed: loaded under a guard, logged as `config.js not loadable`, exit 0 |
+| the docs said older usage counts under the session's opening account | fixed: the latest start at or before the record, in the READMEs, D13 and the design |
+| `who.email` left the JSON without a note | documented: replaced by `accounts` and `by_account` (no consumer yet) |
+| the team could not be changed alone | fixed: `set --team` alone, and the skill asks for the team when the developer is kept |
+| printed paths were double-quoted without escaping (`$`, backticks, a Windows drive root) | fixed: single quotes on POSIX shells; on Windows a trailing backslash no longer escapes the quote |
+| a developer id from `CC_USAGE_DEVELOPER` was not seen by `status` and `secrets` | fixed: accepted, and `status` names the source |
+| the consistency check read only bash and sh fences with LF, by string prefix | partly: shell, console and zsh fences, CRLF, each command of a chained line, and command substitution reported; commands in prose are not checked |
+| the week-file pattern and the configuration folder were defined in three files | fixed: both in `config.js`, used by all three scripts |
+| a dead branch in the status helper | fixed |
+| `set` started the CLI again to find the install | partly: the skill passes the id from Step 1 as `--plugin`; the read for the changed-id warning stays |
+
+Tests: 46 (29 + 17), all pass. Mutation check: 14 mutants for these fixes (one, Ctrl-W ignored, first
+survived because the test's later Ctrl-U erased its effect; the keys are now tested apart), and the
+40 earlier ones re-run, 11 of them rewritten for the changed code; every mutant failed a test.
+
 ### Not yet run
 
 `cc-init` in a signed-in session against a marketplace install: the first install on a developer

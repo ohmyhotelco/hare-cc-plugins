@@ -218,8 +218,9 @@ options with `claude plugin configure` (`--json` to read, `--values-stdin` to sa
 saves only the developer id, normalized by the function the hooks use (`scripts/config.js`), and the
 team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo;
 it refuses input that does not come from a terminal, refuses until a developer id is set, and checks
-the URL and token with the rules the upload applies. Every way out of that step, an error or Ctrl-C
-included, first reads and drops what is still arriving, so nothing typed is echoed or reaches the
+the URL and token with the rules the upload applies. It edits like a password prompt (Backspace,
+Ctrl-U, Ctrl-W; Esc and arrow keys ignored). Every way out of that step, an error, Ctrl-C or an
+unexpected exception included, first reads and drops what is still arriving, so nothing typed is echoed or reaches the
 shell afterwards. The printed command names the install (`--plugin`) and a non-default configuration
 folder (`--config-dir`), because a new terminal has neither. No part of the setup prints an endpoint
 or token value.
@@ -251,7 +252,10 @@ or token value.
 
 **Decision:** every `usage` record carries `email`, the account in `.claude.json` when the record is
 written. `report.js` lists the accounts signed in during the window and the usage per account; a
-`usage` record without `email` (written before 0.1.8) counts under its session's opening account. The
+`usage` record without `email` (written before 0.1.8, or when `.claude.json` could not be read at that
+moment) counts under the account of its session's latest `session_open` at or before it — a session
+opens again on resume and compact, possibly under another account; `email: null` means no account was
+signed in. `who.email` of 0.1.7, which named the first account only, is replaced by `accounts`. The
 report output contains no session id.
 
 **Why:** one person can use several accounts in a week, and switches with `/login` in the middle of

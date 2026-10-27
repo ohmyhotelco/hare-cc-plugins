@@ -43,20 +43,20 @@ if (a[0] === 'plugin' && a[1] === 'configure') {
   const keys = ['developer', 'team', 'endpoint', 'token', 'flush_hours'];
   const inputs = {}; for (const k of keys) inputs[k] = ${JSON.stringify(SENSITIVE)}.includes(k) ? '' : (state.options[k] || '');
   const configured = keys.filter((k) => k in state.options);
-  process.stdout.write(JSON.stringify({ pluginId: a[2], inputs, configured, unconfigured: keys.filter((k) => !configured.includes(k)) }));
+  process.stdout.write(JSON.stringify({ pluginId: a[2], inputs, configured: state.badConfigured ? 5 : configured, unconfigured: keys.filter((k) => !configured.includes(k)) }));
   process.exit(0);
 }
 process.exit(9);
 `;
 
-function setup({ options = {}, list, fail = false, slow = false, slowRead = false, listFail = false } = {}) {
+function setup({ options = {}, list, fail = false, slow = false, slowRead = false, listFail = false, badConfigured = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-init-test-'));
   const bin = path.join(dir, 'bin');
   fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'claude'), FAKE, { mode: 0o755 });
   fs.writeFileSync(path.join(bin, 'claude.cmd'), '@node "%~dp0claude" %*\r\n');
   const installs = list || [{ id: ID, installPath: ROOT, scope: 'user' }];
-  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ list: installs, options, fail, slow, slowRead, listFail }));
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ list: installs, options, fail, slow, slowRead, listFail, badConfigured }));
   return dir;
 }
 function envFor(dir, extra = {}) {
@@ -84,10 +84,10 @@ const PTY = process.platform !== 'win32' && spawnSync('python3', ['-I', '-c', 'i
 const THEN_READ = 'node "$0" "$@"; echo "--exit:$?--"; IFS= read -r rest; printf "LEFTOVER:[%s]\\n" "$rest"';
 // Runs init.js on a pseudo-terminal. Each step waits until its prompt has appeared on the terminal,
 // then types its parts (a string or Buffer each), 120 ms apart. `out` is everything the terminal showed.
-function onTerminal(dir, args, steps, { thenRead = false } = {}) {
+function onTerminal(dir, args, steps, { thenRead = false, env: extra = {} } = {}) {
   return new Promise((resolve) => {
     const argv = thenRead ? ['sh', '-c', THEN_READ, INIT, ...args] : [process.execPath, INIT, ...args];
-    const p = spawn('python3', ['-I', '-c', PTY_PY, ...argv], { env: envFor(dir) });
+    const p = spawn('python3', ['-I', '-c', PTY_PY, ...argv], { env: envFor(dir, extra) });
     let shown = '', pos = 0, i = 0, busy = false;
     const next = () => {
       if (busy || i >= steps.length) return;
@@ -114,6 +114,8 @@ const saved = (dir) => {
   return fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
 };
 const dataDir = (dir) => path.join(dir, 'config', 'plugins', 'data', ID.replace('@', '-'));
+// A path as init.js prints it in a command: one shell word.
+const q = (s) => (process.platform === 'win32' ? `"${s}"` : `'${s}'`);
 
 test('status reports each option, hides sensitive values and names the next step', () => {
   let dir = setup();
@@ -128,7 +130,7 @@ test('status reports each option, hides sensitive values and names the next step
   r = run(dir, ['status']);
   assert.match(r.out, /developer +Alex Kim +\(uploads as "alex-kim"\)/);
   assert.match(r.out, /team +platform/);
-  assert.ok(r.out.includes(`node "${INIT}" secrets --plugin ${ID} --config-dir "${path.join(dir, 'config')}"`),
+  assert.ok(r.out.includes(`node ${q(INIT)} secrets --plugin ${ID} --config-dir ${q(path.join(dir, 'config'))}`),
     'points at this install\'s init.js, with its id and configuration folder');
 
   dir = setup({ options: { developer: 'alex', endpoint: 'https://example.com/h?sig=SECRET1', token: 'SECRET2' } });
@@ -171,7 +173,7 @@ test('the install is found by its path; ambiguous, missing or malformed installs
   r = run(dir, ['status', '--plugin', 'cc-usage-plugin@b']);
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^cc-usage-plugin@b$/m);
-  assert.match(r.out, /secrets --plugin cc-usage-plugin@b --config-dir "[^"]+"$/m, 'the printed command keeps the chosen install');
+  assert.match(r.out, /secrets --plugin cc-usage-plugin@b --config-dir ['"][^'"]+['"]$/m, 'the printed command keeps the chosen install');
   r = run(dir, ['status', '--plugin', 'cc-usage-plugin@b; rm -rf /']);
   assert.equal(r.code, 1);
   assert.match(r.err, /--plugin takes an id/);
@@ -194,7 +196,7 @@ test('set saves the normalized developer id and the team, and warns when the id 
   assert.deepEqual(saved(dir), [{ developer: 'alex-kim', team: 'platform' }]);
   assert.match(r.out, /Saved developer "alex-kim" \(from "Alex Kim"\) and team "platform"/);
   assert.match(r.out, /next Claude Code session/);
-  assert.match(r.out, /secrets --plugin cc-usage-plugin@acme --config-dir "[^"]+"$/m);
+  assert.match(r.out, /secrets --plugin cc-usage-plugin@acme --config-dir ['"][^'"]+['"]$/m);
 
   r = run(dir, ['set', '--developer', 'sam']);
   assert.equal(r.code, 0, r.err);
@@ -208,7 +210,7 @@ test('set saves the normalized developer id and the team, and warns when the id 
   dir = setup();
   r = run(dir, ['set']);
   assert.equal(r.code, 1);
-  assert.match(r.err, /--developer is required/);
+  assert.match(r.err, /--developer or --team is required/);
   for (const args of [['set', '--developer', 'a\nb'], ['set', 'alex', 'one\ntwo'], ['set', '--developer', 'alex', '--team', 'x\ry']]) {
     r = run(dir, args);
     assert.equal(r.code, 1, args.join(' '));
@@ -313,7 +315,7 @@ test('--config-dir reaches the CLI, the data folder and the printed command; a m
   assert.equal(r.code, 0, r.err);
   assert.deepEqual([...new Set(fs.readFileSync(path.join(dir, 'config-dirs.log'), 'utf8').trim().split('\n'))], [other]);
   assert.match(r.out, /last record +2026-10-27T02:00:00Z prompt/);
-  assert.ok(r.out.includes(`--config-dir "${other}"`));
+  assert.ok(r.out.includes(`--config-dir ${q(other)}`));
   r = run(dir, ['status'], '', { CLAUDE_CONFIG_DIR: null, HOME: dir, USERPROFILE: dir });
   assert.ok(!r.out.includes('--config-dir'), 'the default folder needs no flag');
 
@@ -370,6 +372,69 @@ test('secrets refuses a token a header cannot carry', tty, async () => {
   assert.equal(r.code, 1);
   assert.match(r.out, /nothing saved: token-not-visible-ascii/);
   assert.deepEqual(saved(dir), []);
+  assert.ok(!/SECRET/.test(r.out));
+});
+
+test('set changes the team alone; status and secrets accept a developer id from CC_USAGE_DEVELOPER', tty, async () => {
+  let dir = setup({ options: { developer: 'alex', team: 'old' }, list: [null, { id: ID, installPath: ROOT }] });
+  let r = run(dir, ['set', '--plugin', ID, '--team', 'platform']);
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual(saved(dir), [{ team: 'platform' }]);
+  assert.match(r.out, /Saved team "platform"\. The developer id stays "alex"\./);
+  r = run(dir, ['set', '--plugin', ID]);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /--developer or --team is required/);
+  r = run(dir, ['status']); // a null entry in the install list is skipped
+  assert.equal(r.code, 0, r.err);
+
+  dir = setup();
+  r = run(dir, ['status'], '', { CC_USAGE_DEVELOPER: 'Env Dev' });
+  assert.match(r.out, /developer +Env Dev +\(uploads as "env-dev", from CC_USAGE_DEVELOPER\)/);
+  assert.match(r.out, /Next, in a terminal/);
+  r = await onTerminal(dir, ['secrets'], [{ after: URL_PROMPT, type: '\r' }, { after: TOKEN_PROMPT, type: '\r' }], { env: { CC_USAGE_DEVELOPER: 'env-dev' } });
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /Nothing entered/);
+});
+
+test('editing keys: a lone Esc keeps the next key, Enter and Ctrl-C end an escape sequence, Ctrl-U and Ctrl-W erase', tty, async () => {
+  let dir = setup({ options: { developer: 'alex' } });
+  let r = await onTerminal(dir, ['secrets'], [
+    { after: URL_PROMPT, type: '\r' },
+    { after: TOKEN_PROMPT, type: ['\u001b', 'abcdef\r'] },
+  ]);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(saved(dir), [{ token: 'abcdef' }]);
+
+  dir = setup({ options: { developer: 'alex' } });
+  r = await onTerminal(dir, ['secrets'], [
+    { after: URL_PROMPT, type: '\r' },
+    { after: TOKEN_PROMPT, type: 'wrong tok\u0017ok\r' },
+  ]);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(saved(dir), [{ token: 'wrong ok' }], 'Ctrl-W erases the last word');
+
+  dir = setup({ options: { developer: 'alex' } });
+  r = await onTerminal(dir, ['secrets'], [
+    { after: URL_PROMPT, type: '\r' },
+    { after: TOKEN_PROMPT, type: 'mistake\u0015right\u001b[1\r' },
+  ]);
+  assert.equal(r.code, 0, r.out);
+  assert.deepEqual(saved(dir), [{ token: 'right' }], 'Ctrl-U erases the answer; Enter ends an unfinished sequence');
+
+  dir = setup({ options: { developer: 'alex' } });
+  r = await onTerminal(dir, ['secrets'], [{ after: URL_PROMPT, type: ['\u001b', '\u0003', 'x\r'] }]);
+  assert.equal(r.code, 130, r.out);
+  assert.deepEqual(saved(dir), []);
+});
+
+test('an unexpected error after the terminal is taken still drains what was typed', tty, async () => {
+  const dir = setup({ options: { developer: 'alex' }, slowRead: true, badConfigured: true });
+  const r = await onTerminal(dir, ['secrets'], [
+    { after: /(?:)/, type: 'https://example.com/SECRET12\r' },
+    { after: /--exit:\d+--/, type: '\r' },
+  ], { thenRead: true });
+  assert.doesNotMatch(r.out, /--exit:0--/);
+  assert.match(r.out, /LEFTOVER:\[\]/);
   assert.ok(!/SECRET/.test(r.out));
 });
 

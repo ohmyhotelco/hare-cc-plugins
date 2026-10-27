@@ -63,7 +63,8 @@ one folder needs nothing extra.
 storage rather than in `settings.json`; `init.js` saves through the same `claude plugin configure`
 and prints neither value. Each option can also come from an environment variable —
 `CC_USAGE_DEVELOPER`, `CC_USAGE_TEAM`, `CC_USAGE_ENDPOINT`, `CC_USAGE_TOKEN`, `CC_USAGE_FLUSH_HOURS` —
-which is also how to set them for a one-session trial with `claude --plugin-dir ./cc-usage-plugin`.
+which is also how to set them for a one-session trial with `claude --plugin-dir ./cc-usage-plugin`;
+`cc-init` counts a `CC_USAGE_DEVELOPER` as the developer id.
 Endpoint URLs and tokens never go into this repository.
 
 ## What is recorded (`ledger/<ISO week>.jsonl`)
@@ -100,7 +101,9 @@ The plugin folder is where Claude Code installed it
 requests, tokens (output / cache read / cache create / input), the accounts signed in and the usage per
 account, by repository, model, effort and query source, top commands and skills, plugin-command
 ratio, commits, PRs and edits. Each record `id` counts once. Usage from a ledger written before 0.1.8
-counts under its session's opening account. No session id appears in the output.
+counts under the account of its session's latest start (open, resume or compact) at or before it.
+No session id appears in the output. The JSON has `accounts` and `by_account` in place of the
+`who.email` of 0.1.7, which named only the first account.
 
 ## Upload contract (optional)
 
@@ -125,7 +128,8 @@ never upload, so a slow receiver never delays the session.
 - **Refused configurations:** no upload — one line in `errors.log`, then nothing until the
   configuration changes — when the endpoint is not HTTPS (plain `http` is allowed only to a loopback
   host), already has `developer`, `week` or `id` in its query, no token is set, the token has a
-  character other than visible ASCII (an invisible character copied with it, for example), or no
+  character other than visible ASCII — spaces inside it are fine — (an invisible character copied with
+  it, for example), or no
   `developer` is set.
 - Records written while no endpoint is configured are never uploaded: upload tracking starts with the
   first record written with an endpoint, and the first record written without one ends it — after

@@ -10,7 +10,9 @@ const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 const { randomUUID, createHash } = require('crypto');
-const { normalizeDeveloper, uploadProblem } = require('./config');
+// The rules shared with init.js and report.js. A hook that cannot load them records that below and
+// exits 0, like every other failure.
+const config = (() => { try { return require('./config'); } catch (_) { return null; } })();
 
 const EVENT = process.argv[2] || 'unknown';
 const PLUGIN_VERSION = '0.1.8';
@@ -21,7 +23,7 @@ function sleep(ms) { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0
 function sha(s) { return createHash('sha256').update(String(s)).digest('hex'); }
 
 // ---------- paths ----------
-const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const configDir = config ? config.configDir() : (process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'));
 const dataDir = process.env.CLAUDE_PLUGIN_DATA
   || path.join(configDir, 'plugins', 'data', 'cc-usage-local');
 const ledgerDir = path.join(dataDir, 'ledger');
@@ -34,8 +36,11 @@ for (const d of [ledgerDir, stateDir, sendDir]) safe(() => fs.mkdirSync(d, { rec
 // Error lines carry a fixed label and a status or error code — never a URL, token, path or record body.
 function logError(msg) { safe(() => fs.appendFileSync(path.join(dataDir, 'errors.log'), `${new Date().toISOString()} ${EVENT} ${msg}\n`)); }
 
+if (!config) { logError('config.js not loadable'); process.exit(0); }
+const { normalizeDeveloper, uploadProblem, WEEK_FILE } = config;
+
 // ---------- config (userConfig -> env, or plain env; rules in config.js) ----------
-const opt =(key, env) => String(process.env[`CLAUDE_PLUGIN_OPTION_${key}`] || process.env[env] || '').trim();
+const opt = (key, env) => String(process.env[`CLAUDE_PLUGIN_OPTION_${key}`] || process.env[env] || '').trim();
 const developerOpt = opt('DEVELOPER', 'CC_USAGE_DEVELOPER');
 const flushHours = Number(opt('FLUSH_HOURS', 'CC_USAGE_FLUSH_HOURS'));
 const cfg = {
@@ -56,18 +61,30 @@ const COMMIT_WINDOW_MS = 15 * 60e3;  // a commit made by the command just run is
 const STATE_TTL_MS = 30 * 864e5;     // per-session state older than this is removed at SessionStart
 
 // ---------- identity (account metadata, not credentials) ----------
-function oauthAccount() {
+// The signed-in account from .claude.json: {} when there is none, null when the file cannot be read or
+// parsed right now (Claude Code may be rewriting it), after one retry.
+function readAccount() {
   const file = [process.env.CLAUDE_CONFIG_DIR, os.homedir()].filter(Boolean)
     .map((d) => path.join(d, '.claude.json')).find((f) => fs.existsSync(f));
-  return (file && safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount, null)) || {};
+  if (!file) return {};
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) sleep(50);
+    const acct = safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount || {}, null);
+    if (acct) return acct;
+  }
+  return null;
 }
 // The account signed in when a usage record is written: a person can switch accounts with /login in the
 // middle of a session, so the session's opening account is not enough to split usage by account. It is
 // the configuration folder's account, so a /login in one session also stamps the others running in the
-// same folder (D13).
-function accountEmail() { return oauthAccount().emailAddress || null; }
+// same folder (D13). null: no account signed in; undefined (the field is left out): not readable now,
+// so the report falls back to the session's account.
+function accountEmail() {
+  const acct = readAccount();
+  return acct ? acct.emailAddress || null : undefined;
+}
 function identity() {
-  const acct = oauthAccount();
+  const acct = readAccount() || {};
   return {
     email: acct.emailAddress || null,
     account_uuid: acct.accountUuid || null,
@@ -258,7 +275,7 @@ function isoWeek(d) {
   const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
   return `${t.getUTCFullYear()}-W${String(Math.ceil((((t - y0) / 864e5) + 1) / 7)).padStart(2, '0')}`;
 }
-function ledgerFiles() { return safe(() => fs.readdirSync(ledgerDir), []).filter((f) => /^\d{4}-W\d{2}\.jsonl$/.test(f)).sort(); }
+function ledgerFiles() { return safe(() => fs.readdirSync(ledgerDir), []).filter((f) => WEEK_FILE.test(f)).sort(); }
 // Returns whether the record reached the ledger, so callers advance their own state only after it did.
 function record(kind, body) {
   const now = new Date();

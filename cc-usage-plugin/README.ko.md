@@ -60,7 +60,7 @@ Claude Code 설정 폴더를 여럿 쓰면(`CLAUDE_CONFIG_DIR`, 예: 계정마�
 `endpoint`와 `token`은 sensitive로 표시되어 있어 Claude Code가 `settings.json`이 아닌 보안 자격 증명
 저장소에 보관한다. `init.js`도 같은 `claude plugin configure`로 저장하고 두 값을 출력하지 않는다. 각 설정은 환경변수 `CC_USAGE_DEVELOPER`·`CC_USAGE_TEAM`·`CC_USAGE_ENDPOINT`·
 `CC_USAGE_TOKEN`·`CC_USAGE_FLUSH_HOURS`로도 줄 수 있다. `claude --plugin-dir ./cc-usage-plugin`으로 한
-세션만 시험할 때도 이 방법을 쓴다. 수신 URL과 토큰은 이 저장소에 넣지 않는다.
+세션만 시험할 때도 이 방법을 쓴다. `cc-init`은 `CC_USAGE_DEVELOPER`도 developer로 인정한다. 수신 URL과 토큰은 이 저장소에 넣지 않는다.
 
 ## 무엇이 기록되나 (`ledger/<ISO 주>.jsonl`)
 
@@ -94,7 +94,9 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 원장을 찾는다(마지막으로 기록된 것). 다른 원장은 `--data-dir <폴더>`나 `CLAUDE_PLUGIN_DATA`로 지정한다. 출력:
 세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 로그인한 계정과 계정별 사용량 ·
 저장소·모델·effort·query source별 · 명령·스킬 상위 · 플러그인 명령 비율 · 커밋·PR·편집. 레코드 `id`마다
-한 번만 센다. 0.1.8 이전 원장의 사용량은 그 세션을 시작한 계정으로 센다. 출력에 세션 id는 나오지 않는다.
+한 번만 센다. 0.1.8 이전 원장의 사용량은 그 기록 시점 이전에 세션이 마지막으로 시작된(시작·resume·compact)
+계정으로 센다. 출력에 세션 id는 나오지 않는다. JSON에서는 0.1.7의 `who.email`(첫 계정만 보였다) 대신
+`accounts`와 `by_account`를 쓴다.
 
 ## 업로드 계약 (선택)
 
@@ -117,7 +119,7 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
   실패마다 간격을 두 배로 늘려 최대 6시간까지 둔다. 성공하면 간격을 되돌린다.
 - **주기:** `flush_hours`마다, 또는 64 KB가 쌓이면 그 전에 보낸다.
 - **거부하는 설정:** endpoint가 HTTPS가 아니거나(평문 `http`는 루프백만 허용) 쿼리에 이미
-  `developer`·`week`·`id`가 있거나, 토큰이 없거나, 토큰에 보이는 ASCII가 아닌 문자가 있거나(함께 복사된
+  `developer`·`week`·`id`가 있거나, 토큰이 없거나, 토큰에 보이는 ASCII가 아닌 문자가 있거나(가운데 공백은 괜찮다. 함께 복사된
   보이지 않는 문자 등), `developer`가 설정되지 않았으면 올리지 않는다.
   `errors.log`에 한 줄만 남기고 설정이 바뀔 때까지 다시 시도하지 않는다.
 - endpoint 없이 기록된 레코드는 올리지 않는다. 업로드 추적은 endpoint가 있는 상태로 처음 기록할 때

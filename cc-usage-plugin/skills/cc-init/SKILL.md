@@ -29,16 +29,18 @@ message says what to do (for example, install the plugin from its marketplace fi
 
 - **Developer**: the first argument, if one was given. Otherwise ask the user for the id assigned to
   them in the install guide. Do not suggest one, and do not use the OS login name or the account
-  email. If Step 1 shows a developer already and no argument was given, ask whether to keep it; if
-  the user keeps it, go to Step 3.
-- **Team**: the second argument, if given. Otherwise ask, and accept an empty answer, which keeps the
-  current team.
+  email. If Step 1 shows a developer already and no argument was given, ask whether to keep it.
+- **Team**: the second argument, if given. Otherwise ask, also when the developer is kept, and accept
+  an empty answer, which keeps the current team.
 - A value that contains a single quote or a line break: ask for it again.
+- Nothing to change (developer kept, no team given): go to Step 3.
 
-Then run, with each value in single quotes and `--team` only when the user gave a team:
+Then run, with each value in single quotes, `--developer` only when the user gave a new id, `--team`
+only when the user gave a team, and `--plugin` set to the plugin id on the first line of Step 1's
+output:
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/init.js" set --developer '<developer>' --team '<team>'
+node "${CLAUDE_PLUGIN_ROOT}/scripts/init.js" set --plugin <plugin id> --developer '<developer>' --team '<team>'
 ```
 
 Show the output. If the saved id differs from what the user typed, point it out: the saved id is the

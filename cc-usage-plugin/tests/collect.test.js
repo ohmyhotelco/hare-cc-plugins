@@ -8,7 +8,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawn, execFileSync } = require('node:child_process');
+const { spawn, spawnSync, execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 const COLLECT = path.join(ROOT, 'scripts', 'collect.js');
@@ -570,6 +570,35 @@ test('usage records name the account signed in when they are written, also after
     [['first@example.com', 1, null], ['second@example.com', 2, null], ['second@example.com', 1, 'ag1']]);
 });
 
+test('an unreadable account file leaves the account out of a usage record; no account signed in is null', async () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, '.claude.json'), '{"oauthAccount": {"emailAddress": "half'); // a write in progress
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1']) });
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ projects: {} }));
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2']) });
+  const usage = lines(ledger(dir)).filter((x) => x.kind === 'usage');
+  assert.equal(usage.length, 2);
+  assert.ok(!('email' in usage[0]), 'not readable: left out, so the report uses the session\'s account');
+  assert.equal(usage[1].email, null);
+});
+
+test('a hook that cannot load config.js records it and exits 0 without output', async () => {
+  const dir = tmp();
+  const copy = path.join(dir, 'plugin', 'scripts');
+  fs.mkdirSync(copy, { recursive: true });
+  fs.copyFileSync(COLLECT, path.join(copy, 'collect.js')); // no config.js next to it
+  const r = spawnSync(process.execPath, [path.join(copy, 'collect.js'), 'SessionStart'], { env: env(dir), input: '{}', encoding: 'utf8' });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout + r.stderr, '');
+  assert.match(errors(dir), /SessionStart config\.js not loadable/);
+});
+
+test('config.js: a token is visible ASCII, with spaces only inside it', () => {
+  const { tokenProblem } = require(path.join(ROOT, 'scripts', 'config.js'));
+  assert.deepEqual(['abc', 'abc def', '', ' abc', 'abc ', 'a\tb', 'tok\u200b1', 'tok\u00a01'].map(tokenProblem),
+    [null, null, 'no-token', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii', 'token-not-visible-ascii']);
+});
+
 test('session state older than 30 days is removed at SessionStart; checkpoints shrink to their offset', async () => {
   const dir = tmp();
   fs.mkdirSync(data(dir, 'state'), { recursive: true });
@@ -644,6 +673,7 @@ test('report.js splits usage by account and writes no session id', () => {
     { id: 'u7', kind: 'usage', ts: at(10), email: 'b@example.com', by_model: m(1) }, // no session id: no session counted
   ];
   fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
+  fs.writeFileSync(path.join(led, 'notes.jsonl'), JSON.stringify({ id: 'n1', kind: 'usage', ts: at(1), email: 'z@example.com', by_model: m(100) }) + '\n'); // not a week file
   const out = path.join(dir, 'weekly.json');
   const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
   const s = JSON.parse(fs.readFileSync(out, 'utf8'));

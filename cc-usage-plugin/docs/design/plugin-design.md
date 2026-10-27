@@ -45,7 +45,8 @@ errors.log                       one line per failure: a fixed label and a statu
 ## 3. Record path
 
 `usage` records also carry `email`, the account signed in when the record is written (read from
-`.claude.json` each time, D13). `record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, appends one line to
+`.claude.json` when a usage record is written, with one retry; left out when the file cannot be read, null
+when no account is signed in, D13). `record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, appends one line to
 the ledger file of `ts`'s ISO week, and returns whether the append succeeded; callers advance their own
 state only on success (D11). `developer` is the normalized id (D6). The first `record()` of a process
 also checks upload tracking (D5): with an endpoint and no `state/_send.json`, it creates one with a new
@@ -126,6 +127,7 @@ new one. A save that fails while the period is still current is logged as `send 
 | a token with a character other than visible ASCII | `upload refused: token-not-visible-ascii`; nothing is sent until the token changes (`init.js secrets` refuses such a token at entry) |
 | a ledger line over 1 MB | `record over 1 MB not uploaded`; it stays in the ledger (records are a few KB at most) |
 | checkpoint or send state unparsable | logged; the checkpoint restarts at the end of its transcript, the send state is set aside and restarted by the next record |
+| `config.js` missing or failing to load | `config.js not loadable`; the hook exits 0 without output, as on every failure |
 | no Node on `PATH` | hooks fail to start; Claude Code continues the session |
 | transcript not yet flushed at Stop | the delta is picked up by the next Stop or SessionEnd of that session |
 
@@ -142,7 +144,7 @@ quoted, glab and help forms of PR commands), origin sanitizing, command and acco
 on usage records, also after a `/login` switch mid-session and from SubagentStop), state
 pruning, and `report.js` (data folder discovery by ledger file time, de-duplication, one key per
 repository, origins named before the report window, usage per account with older records falling back
-to their session's opening account, and no session id in the output).
+to the account of their session's latest start at or before them, and no session id in the output).
 
 `tests/init.test.js` covers the status report (options, the hooks' data folder of this install
 rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step and the printed command with its plugin
@@ -155,7 +157,9 @@ typed, an empty answer keeping a value, a pasted pair of lines, escape sequences
 malformed UTF-8, the token check, and input arriving during the save, before an error or around
 Ctrl-C not reaching the shell afterwards; also `--config-dir` reaching the CLI, the data folder and
 the printed command, a data folder whose name had other characters replaced, week files only, and a
-configuration refusal shown with its reason.
+configuration refusal shown with its reason, the team saved alone, a developer id from
+`CC_USAGE_DEVELOPER`, a null entry in the install list, the editing keys (a lone Esc, Ctrl-U,
+Ctrl-W, an unfinished sequence ended by Enter or Ctrl-C), and an unexpected exception still draining.
 
 Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
 unparsable checkpoint or send state, a checkpoint that cannot be saved, a send state that becomes
@@ -181,18 +185,22 @@ is removed is recorded in `build-context.md`.
                    uploads refused by the configuration (config_block) with the last refusal reason
                    next step: developer id, else the terminal command for the secrets, printed with
                    --plugin and, for a non-default folder, --config-dir
-  init.js set      developer (normalized, config.js) and team → `configure --values-stdin`;
-                   a changed id is pointed out, because records under the old one stay local (D6)
+  init.js set      developer (normalized, config.js), team, or either alone → `configure --values-stdin`;
+                   a changed id is pointed out, because records under the old one stay local (D6);
+                   the developer may also come from CC_USAGE_DEVELOPER (status and secrets accept it)
 terminal: node <plugin>/scripts/init.js secrets --plugin <id> [--config-dir <folder>]
                    refuses input that is not a terminal; raw mode before the install is looked up and
                    until the end, so nothing typed is echoed; refuses without a developer id (D6);
                    strict UTF-8, escape sequences dropped across reads, a pasted pair of lines answers
                    both prompts; an empty answer keeps the saved value; the endpoint and token are
                    checked with config.js before anything is saved → `configure --values-stdin`;
-                   every way out (done, an error, Ctrl-C) reads and drops what is still arriving for
-                   150 ms before echo returns, so it does not reach the shell
+                   Backspace, Ctrl-U (the answer) and Ctrl-W (the last word) edit; a lone Esc is
+                   dropped and the key after it kept; Enter or Ctrl-C ends an unfinished sequence;
+                   every way out (done, an error, Ctrl-C, an unexpected exception) reads and drops
+                   what is still arriving for 150 ms before echo returns, so it does not reach the shell
 ```
 
 Saved values apply from the next session. Values are passed to the CLI on stdin, the plugin id is
 checked against `name@marketplace` before it becomes an argument, and the CLI's own output is not
-passed on. `CLAUDE_PLUGIN_DATA` is not used: a shell inside Claude Code can carry another plugin's.
+passed on. Printed paths are one shell word each: single quotes on POSIX shells, double quotes on
+Windows with a trailing backslash kept from escaping the quote. `CLAUDE_PLUGIN_DATA` is not used: a shell inside Claude Code can carry another plugin's.
