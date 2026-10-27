@@ -50,9 +50,14 @@ for (const r of all) if (r.kind === 'subagent' && r.agent_id && r.agent_type) ag
 // Only Stop's usage records carry the origin; SessionEnd and SubagentStop ones get it from their session.
 const repoBySession = {};
 for (const r of all) if (r.session_id && r.repo && !repoBySession[r.session_id]) repoBySession[r.session_id] = r.repo;
+// Usage records name the account signed in when they were written (0.1.8); an older one takes its
+// session's opening account. Session ids are only matched here, never written to the output.
+const accountBySession = {};
+for (const r of all) if (r.kind === 'session_open' && r.session_id && r.email) accountBySession[r.session_id] = r.email;
+const byAccount = {}, accountSessions = {};
 for (const r of recs) {
   if (r.session_id) sessions.add(r.session_id);
-  if (r.kind === 'session_open' && !who) who = { developer: r.developer, email: r.email, team: r.team, host: r.host };
+  if (r.kind === 'session_open' && !who) who = { developer: r.developer, team: r.team, host: r.host };
   if (r.kind === 'prompt' && r.command) inc(cmds, r.command);
   if (r.kind === 'skill' && r.skill) inc(skills, r.skill);
   if (r.kind === 'subagent' && r.agent_type) inc(agents, r.agent_type);
@@ -62,19 +67,26 @@ for (const r of recs) {
   if (r.kind === 'usage') {
     const repo = r.repo || repoBySession[r.session_id] || r.repo_dir || '?';
     const agentType = r.agent_type || (r.agent_id && agentTypeById[r.agent_id]) || null;
+    const account = r.email || accountBySession[r.session_id] || '(unknown)';
+    const acc = byAccount[account] || (byAccount[account] = { sessions: 0, requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0 });
+    (accountSessions[account] || (accountSessions[account] = new Set())).add(r.session_id || r.id);
     for (const m of r.by_model || []) {
       const total = m.input + m.output + m.cache_read + m.cache_create;
       inc(byRepo, repo, total); inc(byModel, m.model, total); inc(byEffort, m.effort || 'n/a', total);
       inc(bySource, m.query_source || 'main', total);
       if ((m.query_source || 'main') === 'subagent') inc(byAgentType, agentType || '(unknown)', total);
-      for (const k of Object.keys(tot)) tot[k] += m[k] || 0;
+      for (const k of Object.keys(tot)) { tot[k] += m[k] || 0; acc[k] += m[k] || 0; }
     }
   }
 }
+for (const [account, set] of Object.entries(accountSessions)) byAccount[account].sessions = set.size;
+// Every account signed in during the window, also one whose sessions used no tokens.
+const accounts = [...new Set([...recs.filter((r) => r.kind === 'session_open' && r.email).map((r) => r.email),
+  ...Object.keys(byAccount).filter((a) => a !== '(unknown)')])].sort();
 const top = (o, n = 10) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
 const M = n => (n / 1e6).toFixed(1) + 'M';
-const summary = { generated: new Date().toISOString(), days, who, sessions: sessions.size, totals: tot,
-  by_repo: Object.fromEntries(top(byRepo, 20)), by_model: byModel, by_effort: byEffort,
+const summary = { generated: new Date().toISOString(), days, who, accounts, sessions: sessions.size, totals: tot,
+  by_account: byAccount, by_repo: Object.fromEntries(top(byRepo, 20)), by_model: byModel, by_effort: byEffort,
   by_query_source: bySource, subagent_tokens_by_agent_type: Object.fromEntries(top(byAgentType, 20)),
   commands: Object.fromEntries(top(cmds, 20)), skills: Object.fromEntries(top(skills, 20)), subagents: Object.fromEntries(top(agents, 20)),
   commits, prs, edits,
@@ -83,8 +95,11 @@ const promptCount = recs.filter(r => r.kind === 'prompt').length;
 const pluginPrompts = recs.filter(r => r.kind === 'prompt' && r.command && r.command.includes(':')).length;
 if (promptCount) summary.skill_or_plugin_prompt_ratio = +(pluginPrompts / promptCount).toFixed(3);
 if (outJson) fs.writeFileSync(outJson, JSON.stringify(summary, null, 2));
-console.log(`cc-usage · last ${days}d · ${who ? [who.developer, who.team, who.email].filter(Boolean).join(' · ') : ''} · sessions ${sessions.size} · requests ${tot.requests}`);
+console.log(`cc-usage · last ${days}d · ${who ? [who.developer, who.team].filter(Boolean).join(' · ') : ''} · ${accounts.length} account(s) · sessions ${sessions.size} · requests ${tot.requests}`);
 console.log(`tokens: output ${M(tot.output)} · cache_read ${M(tot.cache_read)} · cache_create ${M(tot.cache_create)} · input ${M(tot.input)}`);
+console.log('by account:'); for (const [k, v] of Object.entries(byAccount).sort((a, b) => b[1].output - a[1].output)) {
+  console.log(`  ${k}  sessions ${v.sessions} · requests ${v.requests} · output ${M(v.output)} · cache_read ${M(v.cache_read)}`);
+}
 console.log('by repo:'); for (const [k, v] of top(byRepo, 8)) console.log(`  ${k}  ${M(v)}`);
 console.log('by model:'); for (const [k, v] of top(byModel)) console.log(`  ${k}  ${M(v)}`);
 const srcTotal = Object.values(bySource).reduce((a, b) => a + b, 0) || 1;

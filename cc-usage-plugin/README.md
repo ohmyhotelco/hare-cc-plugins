@@ -45,6 +45,11 @@ Then set the options, in this order:
 With `endpoint` empty only the local ledger is written. The same options can be edited without these
 checks with `/plugin configure cc-usage-plugin@ohmyhotelco` in Claude Code.
 
+Several Claude Code configuration folders (`CLAUDE_CONFIG_DIR`, for example one per account) each keep
+their own plugins, options and ledger: install the plugin and run `cc-init` with the same developer id
+in each, or the sessions of a folder without it are not recorded. Switching accounts with `/login` in
+one folder needs nothing extra.
+
 | Option | Meaning |
 |---|---|
 | `developer` | Your own handle, assigned per person. Stamped on every record and sent as the upload's `developer` value after normalization: lowercased, letters a–z, digits, `.`, `_` and `-` kept, anything else turned into `-`; a value with nothing left becomes `u-<hash>`. Two spellings can normalize to one id (`Alex Kim`, `alex-kim`), so assign ids that stay distinct after normalization. Empty = OS login name, and no upload. Only records stamped with the id currently set are uploaded, so set it before the endpoint: records stamped with another id — the OS login name before an id was set, or an earlier id — stay local. An assigned id equal to the OS login name is the same id, so records written under that name before are uploaded too |
@@ -71,7 +76,7 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 | `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · character count · permission mode · effort |
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
-| `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id |
+| `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id · the account email signed in when the record is written (so usage after a `/login` switch mid-session goes to the new account) |
 | `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or the merge commits of `merge` — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
 | `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command, read as shell words (so text in quotes or after `echo` is not a command): `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--help` and `--disable-auto` count nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
@@ -91,9 +96,10 @@ The plugin folder is where Claude Code installed it
 (`~/.claude/plugins/cache/<marketplace>/cc-usage-plugin/<version>/`) or this repository's
 `cc-usage-plugin/`. The script finds the installed ledger under `~/.claude/plugins/data/cc-usage-plugin-*`
 (the one written to last); `--data-dir <folder>` or `CLAUDE_PLUGIN_DATA` picks another. Output: sessions,
-requests, tokens (output / cache read / cache create / input), by repository, model, effort and query
-source, top commands and skills, plugin-command ratio, commits, PRs and edits. Each record `id`
-counts once.
+requests, tokens (output / cache read / cache create / input), the accounts signed in and the usage per
+account, by repository, model, effort and query source, top commands and skills, plugin-command
+ratio, commits, PRs and edits. Each record `id` counts once. Usage from a ledger written before 0.1.8
+counts under its session's opening account. No session id appears in the output.
 
 ## Upload contract (optional)
 
@@ -143,6 +149,8 @@ The query parameters let a receiver choose a folder and file name from the URL a
 - The plugin-command ratio counts only `plugin:skill` commands; project-local skills appear in the
   top commands only.
 - Tell the people whose machines run it what is collected, why, and where it goes before installing.
+- `report.js` reads the ledger of one configuration folder; with several (above), run it once per
+  folder with `CLAUDE_CONFIG_DIR` set, or combine them downstream.
 - The secrets step needs a terminal with the `claude` command. Where there is none, `/plugin configure`
   sets the same options without the checks.
 - Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310 and 2.1.311: the test suites and live
@@ -158,7 +166,8 @@ node --test 'cc-usage-plugin/tests/*.test.js'
 `collect.test.js` runs the hook script as a child process, the upload cases against a local receiver:
 batching per week for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and
 backoff, cadence, ending and restarting upload tracking, refused configurations, locks, the transcript
-checkpoint, commit and PR detection, record fields, state pruning, and `report.js`. About 25 s, because
+checkpoint, commit and PR detection, record fields including the account on usage records, state
+pruning, and `report.js` (including usage per account). About 25 s, because
 one case waits for the 15 s timeout. Three cases use file permissions and are skipped on Windows and as
 root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
 install, saving the developer id and team, and that no endpoint or token value is printed. Its

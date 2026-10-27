@@ -1,7 +1,7 @@
 # cc-usage-plugin — design
 
 How the plugin works inside. What is recorded and the upload contract are in `README.md`; the reasons
-for each choice are in `docs/decisions.md` (cited as D1–D12).
+for each choice are in `docs/decisions.md` (cited as D1–D13).
 
 ## 1. Components
 
@@ -44,7 +44,8 @@ errors.log                       one line per failure: a fixed label and a statu
 
 ## 3. Record path
 
-`record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, appends one line to
+`usage` records also carry `email`, the account signed in when the record is written (read from
+`.claude.json` each time, D13). `record(kind, body)` builds `{ id, kind, ts, plugin, team, developer, ...body }`, appends one line to
 the ledger file of `ts`'s ISO week, and returns whether the append succeeded; callers advance their own
 state only on success (D11). `developer` is the normalized id (D6). The first `record()` of a process
 also checks upload tracking (D5): with an endpoint and no `state/_send.json`, it creates one with a new
@@ -136,9 +137,11 @@ upload still running while it is removed and set again, every refused configurat
 batch, the upload lock (concurrent Stops, stale and fresh locks, a lock taken over mid-upload), the
 session lock, the checkpoint after a failed ledger write, D6, D7 (including a resumed session's counted
 commits, a commit whose record failed, fast-forwards onto merge commits, two merges in one command, and
-quoted, glab and help forms of PR commands), origin sanitizing, command and account fields, state
+quoted, glab and help forms of PR commands), origin sanitizing, command and account fields (the account
+on usage records, also after a `/login` switch mid-session and from SubagentStop), state
 pruning, and `report.js` (data folder discovery by ledger file time, de-duplication, one key per
-repository, origins named before the report window).
+repository, origins named before the report window, usage per account with older records falling back
+to their session's opening account, and no session id in the output).
 
 `tests/init.test.js` covers the status report (options, the hooks' data folder of this install
 rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step and the printed command with its plugin

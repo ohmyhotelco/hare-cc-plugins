@@ -552,6 +552,23 @@ test('account fields come from CLAUDE_CONFIG_DIR when it is set', async () => {
   assert.equal(lines(ledger(dir))[0].email, 'alex@example.com');
 });
 
+test('usage records name the account signed in when they are written, also after a switch mid-session', async () => {
+  const dir = tmp();
+  const signIn = (email) => fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: email } }));
+  signIn('first@example.com');
+  await run(dir, 'SessionStart', { session_id: 's1', cwd: dir });
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1']) });
+  signIn('second@example.com'); // /login to another account, same session
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2', 'r3']) });
+  const agentTr = path.join(dir, 'agent.jsonl');
+  fs.copyFileSync(transcript(dir, ['a1']), agentTr);
+  await run(dir, 'SubagentStop', { session_id: 's1', cwd: dir, agent_id: 'ag1', agent_type: 'Explore', agent_transcript_path: agentTr });
+  const recs = lines(ledger(dir));
+  assert.equal(recs.find((x) => x.kind === 'session_open').email, 'first@example.com');
+  assert.deepEqual(recs.filter((x) => x.kind === 'usage').map((x) => [x.email, x.requests, x.agent_id || null]),
+    [['first@example.com', 1, null], ['second@example.com', 2, null], ['second@example.com', 1, 'ag1']]);
+});
+
 test('session state older than 30 days is removed at SessionStart; checkpoints shrink to their offset', async () => {
   const dir = tmp();
   fs.mkdirSync(data(dir, 'state'), { recursive: true });
@@ -604,4 +621,30 @@ test('report.js finds the installed ledger, counts each record id once, and keep
   assert.deepEqual(s.by_repo, { 'https://example.com/acme/app': 3, 'https://example.com/acme/lib': 4 });
   assert.equal(s.commits, 2);
   assert.deepEqual(s.prs.map((p) => p.number), [7]);
+});
+
+test('report.js splits usage by account and writes no session id', () => {
+  const dir = tmp();
+  const led = path.join(dir, 'data', 'ledger');
+  fs.mkdirSync(led, { recursive: true });
+  const ts = new Date().toISOString();
+  const m = (n) => [{ model: 'claude-x', input: 0, output: n, cache_read: 0, cache_create: 0, requests: 1 }];
+  const recs = [
+    { id: 'o1', kind: 'session_open', ts, session_id: 'sess-ZZ01', email: 'a@example.com' },
+    { id: 'u1', kind: 'usage', ts, session_id: 'sess-ZZ01', by_model: m(5) }, // a 0.1.7 record: its session's account
+    { id: 'u2', kind: 'usage', ts, session_id: 'sess-ZZ01', email: 'b@example.com', by_model: m(7) }, // after /login
+    { id: 'o2', kind: 'session_open', ts, session_id: 'sess-ZZ02', email: 'c@example.com' }, // no usage yet
+    { id: 'u3', kind: 'usage', ts, session_id: 'sess-ZZ03', by_model: m(1) }, // its session_open is missing
+  ];
+  fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
+  const out = path.join(dir, 'weekly.json');
+  const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
+  const s = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.deepEqual(s.accounts, ['a@example.com', 'b@example.com', 'c@example.com']);
+  assert.deepEqual(Object.fromEntries(Object.entries(s.by_account).map(([k, v]) => [k, [v.sessions, v.requests, v.output]])),
+    { 'a@example.com': [1, 1, 5], 'b@example.com': [1, 1, 7], '(unknown)': [1, 1, 1] });
+  assert.equal(s.totals.output, 13);
+  assert.match(text, /3 account\(s\)/);
+  assert.match(text, /b@example\.com +sessions 1 · requests 1/);
+  assert.ok(!/sess-ZZ/.test(text + fs.readFileSync(out, 'utf8')), 'no session id in the text or the JSON');
 });

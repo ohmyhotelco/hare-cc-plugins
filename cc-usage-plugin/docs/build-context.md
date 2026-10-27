@@ -416,6 +416,29 @@ and no file of the folder held either value. Piped input was refused with exit 1
 Not covered: keys typed before the first prompt while Node starts — the terminal echoes them before
 raw mode can be turned on; the prompt appears only after that.
 
+### Usage per account (after round 4)
+
+Question raised before release: one person using three accounts in a week. A ledger with three
+sessions under three accounts, run through `report.js` at `910323e`, printed the first account in its
+header (`alex · platform · acct-a@example.com`) and the three accounts' tokens as one total, with no
+per-account field in the JSON. Usage records carried no account, so usage after a `/login` switch in
+the middle of a session went to the account the session started with. Separate configuration folders
+per account are separate installs, each with its own ledger.
+
+Changes (D13): `usage` records from Stop, SessionEnd and SubagentStop carry `email`, read from
+`.claude.json` when the record is written; `report.js` adds `accounts` and `by_account` (sessions,
+requests and tokens per account; older records fall back to their session's opening account) and
+prints a `by account` table, and its output contains no session id; README § Install says to install
+and run `cc-init` in each configuration folder, and § Limits that `report.js` reads one folder.
+
+Tests: 36 (26 + 10), all pass. New: usage records before and after a switch mid-session and from
+SubagentStop name the right account; `report.js` per account with a 0.1.7 record and a session
+without `session_open`, and no session id in the text or the JSON. Mutation check: dropping the
+account from Stop's or SubagentStop's usage records, dropping the fallback, writing the session ids,
+and leaving out an account without usage — each failed a test. A fifth mutant, reading the account
+once when the hook process starts, behaves the same as the code (each hook is its own process) and
+is not a gap.
+
 ### Not yet run
 
 `cc-init` in a signed-in session against a marketplace install: the first install on a developer

@@ -56,10 +56,16 @@ const COMMIT_WINDOW_MS = 15 * 60e3;  // a commit made by the command just run is
 const STATE_TTL_MS = 30 * 864e5;     // per-session state older than this is removed at SessionStart
 
 // ---------- identity (account metadata, not credentials) ----------
-function identity() {
+function oauthAccount() {
   const file = [process.env.CLAUDE_CONFIG_DIR, os.homedir()].filter(Boolean)
     .map((d) => path.join(d, '.claude.json')).find((f) => fs.existsSync(f));
-  const acct = (file && safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount, null)) || {};
+  return (file && safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount, null)) || {};
+}
+// The account signed in when a usage record is written: a person can switch accounts with /login in the
+// middle of a session, so the session's opening account is not enough to split usage by account.
+function accountEmail() { return oauthAccount().emailAddress || null; }
+function identity() {
+  const acct = oauthAccount();
   return {
     email: acct.emailAddress || null,
     account_uuid: acct.accountUuid || null,
@@ -382,8 +388,9 @@ function flushEdits(sid, base, repoName) {
 function sessionLock(sid) { return path.join(stateDir, `${sid}.lock`); }
 function sessionUsage(sid, input, base, extra, waitMs) {
   withLock(sessionLock(sid), waitMs, () => {
+    const email = accountEmail();
     for (const u of [usageDelta(sid, input.transcript_path), ...subagentDeltas(sid, input.transcript_path)]) {
-      if (u && (!u.delta || record('usage', { ...base, ...extra, ...u.delta }))) u.save();
+      if (u && (!u.delta || record('usage', { ...base, ...extra, email, ...u.delta }))) u.save();
     }
     flushEdits(sid, base, extra.repo_dir);
   });
@@ -665,8 +672,8 @@ async function main() {
       // Subagent tokens live in their own transcript; parse it now while the agent type is known.
       withLock(sessionLock(sid), 1000, () => {
         const u = usageDelta(`${sid}.${input.agent_id || 'agent'}`, input.agent_transcript_path, { query_source: 'subagent' });
-        if (u && (!u.delta || record('usage', { ...base, repo_dir: repoName, agent_type: input.agent_type || null, ...u.delta,
-          agent_id: u.delta.agent_id || input.agent_id || null }))) u.save();
+        if (u && (!u.delta || record('usage', { ...base, repo_dir: repoName, agent_type: input.agent_type || null,
+          email: accountEmail(), ...u.delta, agent_id: u.delta.agent_id || input.agent_id || null }))) u.save();
       });
       break;
     }

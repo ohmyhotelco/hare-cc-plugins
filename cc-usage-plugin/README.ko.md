@@ -44,6 +44,10 @@
 `endpoint`를 비우면 로컬 원장만 쌓인다. 같은 설정은 Claude Code의
 `/plugin configure cc-usage-plugin@ohmyhotelco`로도 고칠 수 있지만, 이때는 위의 확인을 거치지 않는다.
 
+Claude Code 설정 폴더를 여럿 쓰면(`CLAUDE_CONFIG_DIR`, 예: 계정마다 하나) 폴더마다 플러그인·설정·원장이
+따로다. 폴더마다 플러그인을 설치하고 같은 developer로 `cc-init`을 실행한다. 설치하지 않은 폴더의 세션은
+기록되지 않는다. 한 폴더 안에서 `/login`으로 계정을 바꾸는 경우는 따로 할 일이 없다.
+
 | 설정 | 뜻 |
 |---|---|
 | `developer` | 사람마다 배정한 본인 식별자. 모든 레코드에 찍히고 정규화한 값이 업로드의 `developer`가 된다. 소문자로 바꾸고 a–z·숫자·`.`·`_`·`-`만 남기며 나머지는 `-`로 바꾼다. 남는 글자가 없으면 `u-<해시>`. 표기 둘이 같은 값이 될 수 있으므로(`Alex Kim`, `alex-kim`) 정규화 뒤에도 서로 다른 값으로 배정한다. 비우면 OS 로그인 이름을 쓰고 업로드하지 않는다. 지금 설정된 값이 찍힌 레코드만 올리므로 endpoint보다 먼저 설정한다. 다른 값이 찍힌 레코드 — 값을 설정하기 전의 OS 로그인 이름이나 이전 값 — 는 로컬에만 남는다. OS 로그인 이름과 같은 값을 배정하면 같은 값이므로, 그 이름으로 먼저 기록된 레코드도 올라간다 |
@@ -68,7 +72,7 @@
 | `prompt` | UserPromptSubmit | 슬래시 명령 이름만(`/review`, 본문 없음. 경로로 시작하는 프롬프트는 기록하지 않음) · 글자 수 · permission mode · effort |
 | `skill` | PreToolUse(Skill) | 스킬 이름(`plugin:skill`) · 인자 글자 수 · agent type |
 | `subagent` | SubagentStop | agent type · agent id |
-| `usage` | Stop(비동기) · SessionEnd · SubagentStop | transcript 증분 파싱 → 모델 × effort × query source별 요청 수와 input / output / cache-read / cache-create / thinking 토큰(request id 중복 제거) · 브랜치 · Claude Code 버전 · agent id |
+| `usage` | Stop(비동기) · SessionEnd · SubagentStop | transcript 증분 파싱 → 모델 × effort × query source별 요청 수와 input / output / cache-read / cache-create / thinking 토큰(request id 중복 제거) · 브랜치 · Claude Code 버전 · agent id · 기록 시점에 로그인된 계정 이메일(세션 도중 `/login`으로 바꾸면 그 뒤 사용량은 새 계정에 붙는다) |
 | `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 `merge`가 만든 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 저장소의 `user.email`로 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
 | `pr` | PostToolUse(Bash, PowerShell) | 명령줄을 셸 단어로 읽어(따옴표 안이나 `echo` 뒤의 글은 명령이 아님) 찾은 `gh pr` / `glab mr` 명령 중, 출력에 PR URL이 있는 `create`, 또는 인자로 PR 번호나 URL을 주었고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음). `--help`와 `--disable-auto`는 세지 않고, `--auto`와 merge queue는 merge를 요청한 시점에 센다 · 번호 · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit의 도구별·확장자별 횟수 · 쓴 바이트 · 직전 Stop 이후 파일 수(해시로 셈, 경로 없음) |
@@ -87,8 +91,9 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 플러그인 폴더는 Claude Code가 설치한 위치(`~/.claude/plugins/cache/<마켓플레이스>/cc-usage-plugin/<버전>/`)
 나 이 저장소의 `cc-usage-plugin/`이다. 스크립트가 `~/.claude/plugins/data/cc-usage-plugin-*`에서 설치된
 원장을 찾는다(마지막으로 기록된 것). 다른 원장은 `--data-dir <폴더>`나 `CLAUDE_PLUGIN_DATA`로 지정한다. 출력:
-세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 저장소·모델·effort·query source별 ·
-명령·스킬 상위 · 플러그인 명령 비율 · 커밋·PR·편집. 레코드 `id`마다 한 번만 센다.
+세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 로그인한 계정과 계정별 사용량 ·
+저장소·모델·effort·query source별 · 명령·스킬 상위 · 플러그인 명령 비율 · 커밋·PR·편집. 레코드 `id`마다
+한 번만 센다. 0.1.8 이전 원장의 사용량은 그 세션을 시작한 계정으로 센다. 출력에 세션 id는 나오지 않는다.
 
 ## 업로드 계약 (선택)
 
@@ -135,6 +140,8 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 - Node가 없으면 훅이 조용히 시작에 실패한다. 세션 자체에는 영향이 없다.
 - 플러그인 명령 비율은 `plugin:skill` 형식 명령만 센다. 프로젝트 로컬 스킬은 명령 상위에만 나온다.
 - 설치하기 전에, 기록되는 사람에게 수집 항목·목적·보관처를 알린다.
+- `report.js`는 설정 폴더 하나의 원장만 읽는다. 폴더가 여럿이면(위) 폴더마다 `CLAUDE_CONFIG_DIR`을
+  지정해 한 번씩 실행하거나, 수신 측에서 합친다.
 - 비밀값 단계에는 `claude` 명령이 있는 터미널이 필요하다. 터미널이 없으면 `/plugin configure`로 같은
   설정을 넣을 수 있지만 확인은 거치지 않는다.
 - 지금까지는 macOS에서만 실행했다(Node 24.22.1, Claude Code 2.1.310·2.1.311: 시험 전체와 실세션).
@@ -149,8 +156,8 @@ node --test 'cc-usage-plugin/tests/*.test.js'
 
 `collect.test.js`는 훅 스크립트를 자식 프로세스로 실행하고, 업로드 시험은 로컬 수신기에 보낸다. 설정된
 developer의 주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 재시도 간격, 업로드 주기, 업로드
-추적의 종료와 재시작, 거부하는 설정, 잠금, transcript 체크포인트, 커밋·PR 판정, 레코드 필드, 상태
-정리, `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는
+추적의 종료와 재시작, 거부하는 설정, 잠금, transcript 체크포인트, 커밋·PR 판정, 사용량 기록의 계정을
+포함한 레코드 필드, 상태 정리, 계정별 사용량을 포함한 `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는
 세 시험은 Windows와 root에서 건너뛴다. `init.test.js`는 가짜 `claude` 명령을 두고 `init.js`를
 실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint·token 값을 출력하지 않는지를 확인한다.
 `secrets` 시험은 python3 `pty` 모듈이 만든 가상 터미널에서 돌고, 그것이 없으면(Windows) 건너뛴다.

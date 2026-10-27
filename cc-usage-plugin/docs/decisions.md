@@ -171,8 +171,9 @@ makes that rare.
 `<name>-plugin` convention) and enters the repository at `0.1.7`. Versions 0.1.0–0.1.6 were developed
 outside this repository and are not carried over.
 
-**Consequences:** record kinds and fields are unchanged from 0.1.6 (each record names its `plugin`
-version), so `report.js` still reads an older ledger. The data folder follows the plugin name, so a
+**Consequences:** record kinds and fields are unchanged from 0.1.6 except for `email` on `usage`
+records from 0.1.8 (D13); each record names its `plugin` version, so `report.js` still reads an older
+ledger. The data folder follows the plugin name, so a
 ledger kept under the earlier name is not continued; a 0.1.6 `outbox.jsonl` in the data folder is
 removed when uploads start.
 
@@ -241,3 +242,22 @@ No part of the setup prints an endpoint or token value.
   can say only that an endpoint or token is saved, not whether the saved value is empty. Clearing
   them is left to `/plugin configure`.
 - Options apply from the next session: Claude Code reads them when a session starts.
+
+## D13. Usage is attributed to the account signed in when it is recorded
+
+**Decision:** every `usage` record carries `email`, the account in `.claude.json` when the record is
+written. `report.js` lists the accounts signed in during the window and the usage per account; a
+`usage` record without `email` (written before 0.1.8) counts under its session's opening account. The
+report output contains no session id.
+
+**Why:** one person can use several accounts in a week, and switches with `/login` in the middle of
+a session, typically when an account reaches its limit. Only `session_open` named an account, so
+all usage of a session went to the account it started with, and the report showed the first account
+of the week as if it were the only one. Reading the account at each record puts usage after a switch
+on the new account without matching records by session. The weekly report counts per developer and,
+for the quota view, per account; session-level detail is not shown.
+
+**Cost:** a record covers the transcript lines since the previous parse, so the lines of one Stop
+interval that span a switch all go to the account signed in at its end. Separate configuration
+folders per account are separate installs (README § Install); the email is metadata the notice already
+lists.
