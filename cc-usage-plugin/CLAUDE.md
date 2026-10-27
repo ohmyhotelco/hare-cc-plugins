@@ -32,6 +32,8 @@ command hooks (`hooks/hooks.json`) that run `scripts/collect.js`, plus one setup
 - Options are read and saved only through `claude plugin configure` (`--json`, `--values-stdin`), so
   sensitive values reach Claude Code's secure storage. Values travel on stdin, never in arguments, and
   the CLI's own output is not echoed.
+- Once `secrets` holds the terminal, leave only through `close()` (`fail()` throws there and `main()`
+  drains): giving the terminal back with unread input echoes it and hands it to the shell.
 - Do not trust `CLAUDE_PLUGIN_DATA` here: a shell inside Claude Code can carry another plugin's value.
   The data folder is derived from the plugin id.
 - Keep `disable-model-invocation: true` on the skill: the model is not shown it and cannot start it on

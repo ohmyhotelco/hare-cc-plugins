@@ -22,11 +22,16 @@ const fs = require('fs'); const path = require('path');
 const dir = process.env.FAKE_CLAUDE_DIR;
 const state = JSON.parse(fs.readFileSync(path.join(dir, 'state.json'), 'utf8'));
 const a = process.argv.slice(2);
-if (a[0] === 'plugin' && a[1] === 'list') { process.stdout.write(JSON.stringify(state.list)); process.exit(0); }
+fs.appendFileSync(path.join(dir, 'config-dirs.log'), (process.env.CLAUDE_CONFIG_DIR || '-') + '\\n');
+const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+if (a[0] === 'plugin' && a[1] === 'list') {
+  if (state.listFail) process.exit(1);
+  process.stdout.write(JSON.stringify(state.list)); process.exit(0);
+}
 if (a[0] === 'plugin' && a[1] === 'configure') {
   if (state.fail) { process.stderr.write('boom'); process.exit(2); }
   if (a.includes('--values-stdin')) {
-    if (state.slow) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 500);
+    if (state.slow) sleep(500);
     const values = JSON.parse(fs.readFileSync(0, 'utf8'));
     if (Object.values(values).some((v) => typeof v !== 'string' || /[\\r\\n]/.test(v))) process.exit(3);
     fs.appendFileSync(path.join(dir, 'saved.jsonl'), JSON.stringify(values) + '\\n');
@@ -34,6 +39,7 @@ if (a[0] === 'plugin' && a[1] === 'configure') {
     fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify(state));
     process.stdout.write('Configuration saved. Restart Claude Code to apply it.\\n'); process.exit(0);
   }
+  if (state.slowRead) sleep(700);
   const keys = ['developer', 'team', 'endpoint', 'token', 'flush_hours'];
   const inputs = {}; for (const k of keys) inputs[k] = ${JSON.stringify(SENSITIVE)}.includes(k) ? '' : (state.options[k] || '');
   const configured = keys.filter((k) => k in state.options);
@@ -43,25 +49,26 @@ if (a[0] === 'plugin' && a[1] === 'configure') {
 process.exit(9);
 `;
 
-function setup({ options = {}, list, fail = false, slow = false } = {}) {
+function setup({ options = {}, list, fail = false, slow = false, slowRead = false, listFail = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cc-init-test-'));
   const bin = path.join(dir, 'bin');
   fs.mkdirSync(bin);
   fs.writeFileSync(path.join(bin, 'claude'), FAKE, { mode: 0o755 });
   fs.writeFileSync(path.join(bin, 'claude.cmd'), '@node "%~dp0claude" %*\r\n');
   const installs = list || [{ id: ID, installPath: ROOT, scope: 'user' }];
-  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ list: installs, options, fail, slow }));
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({ list: installs, options, fail, slow, slowRead, listFail }));
   return dir;
 }
 function envFor(dir, extra = {}) {
   const env = { ...process.env };
   for (const k of Object.keys(env)) if (/^(CLAUDE_PLUGIN_|CC_USAGE_)/.test(k)) delete env[k];
-  return {
-    ...env, ...extra,
+  const out = {
+    ...env, CLAUDE_CONFIG_DIR: path.join(dir, 'config'), ...extra,
     PATH: `${path.join(dir, 'bin')}${path.delimiter}${process.env.PATH}`,
     FAKE_CLAUDE_DIR: dir,
-    CLAUDE_CONFIG_DIR: path.join(dir, 'config'),
   };
+  for (const [k, v] of Object.entries(out)) if (v === null) delete out[k]; // null in extra removes a variable
+  return out;
 }
 function run(dir, args, input = '', extra = {}) {
   const r = spawnSync(process.execPath, [INIT, ...args], { env: envFor(dir, extra), input, encoding: 'utf8' });
@@ -74,7 +81,7 @@ const PTY_PY = 'import os,pty,sys\nsys.exit(os.waitstatus_to_exitcode(pty.spawn(
 const PTY = process.platform !== 'win32' && spawnSync('python3', ['-I', '-c', 'import pty, os; os.waitstatus_to_exitcode']).status === 0;
 // After init.js, a shell reads one more line from the same terminal and shows it: whatever init.js
 // left unread would reach a person's shell the same way.
-const THEN_READ = 'node "$0" "$@"; IFS= read -r rest; printf "LEFTOVER:[%s]\\n" "$rest"';
+const THEN_READ = 'node "$0" "$@"; echo "--exit:$?--"; IFS= read -r rest; printf "LEFTOVER:[%s]\\n" "$rest"';
 // Runs init.js on a pseudo-terminal. Each step waits until its prompt has appeared on the terminal,
 // then types its parts (a string or Buffer each), 120 ms apart. `out` is everything the terminal showed.
 function onTerminal(dir, args, steps, { thenRead = false } = {}) {
@@ -93,6 +100,7 @@ function onTerminal(dir, args, steps, { thenRead = false } = {}) {
       setTimeout(() => { busy = false; next(); }, 60 + parts.length * 120);
     };
     p.stdout.on('data', (d) => { shown += d; next(); });
+    setTimeout(next, 300); // a step that waits for nothing types while init.js is still starting
     const timer = setTimeout(() => p.kill(), 20e3);
     p.on('close', (code) => { clearTimeout(timer); resolve({ code, out: shown }); });
   });
@@ -120,7 +128,8 @@ test('status reports each option, hides sensitive values and names the next step
   r = run(dir, ['status']);
   assert.match(r.out, /developer +Alex Kim +\(uploads as "alex-kim"\)/);
   assert.match(r.out, /team +platform/);
-  assert.ok(r.out.includes(`node "${INIT}" secrets --plugin ${ID}`), 'points at this install\'s init.js, with its id');
+  assert.ok(r.out.includes(`node "${INIT}" secrets --plugin ${ID} --config-dir "${path.join(dir, 'config')}"`),
+    'points at this install\'s init.js, with its id and configuration folder');
 
   dir = setup({ options: { developer: 'alex', endpoint: 'https://example.com/h?sig=SECRET1', token: 'SECRET2' } });
   r = run(dir, ['status']);
@@ -162,7 +171,7 @@ test('the install is found by its path; ambiguous, missing or malformed installs
   r = run(dir, ['status', '--plugin', 'cc-usage-plugin@b']);
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /^cc-usage-plugin@b$/m);
-  assert.match(r.out, /secrets --plugin cc-usage-plugin@b$/m, 'the printed command keeps the chosen install');
+  assert.match(r.out, /secrets --plugin cc-usage-plugin@b --config-dir "[^"]+"$/m, 'the printed command keeps the chosen install');
   r = run(dir, ['status', '--plugin', 'cc-usage-plugin@b; rm -rf /']);
   assert.equal(r.code, 1);
   assert.match(r.err, /--plugin takes an id/);
@@ -185,7 +194,7 @@ test('set saves the normalized developer id and the team, and warns when the id 
   assert.deepEqual(saved(dir), [{ developer: 'alex-kim', team: 'platform' }]);
   assert.match(r.out, /Saved developer "alex-kim" \(from "Alex Kim"\) and team "platform"/);
   assert.match(r.out, /next Claude Code session/);
-  assert.match(r.out, /secrets --plugin cc-usage-plugin@acme$/m);
+  assert.match(r.out, /secrets --plugin cc-usage-plugin@acme --config-dir "[^"]+"$/m);
 
   r = run(dir, ['set', '--developer', 'sam']);
   assert.equal(r.code, 0, r.err);
@@ -290,6 +299,76 @@ test('secrets reads a pasted pair of lines, drops escape sequences across reads 
 
   r = await onTerminal(dir, ['secrets'], [{ after: URL_PROMPT, type: 'https://example.com/SECRET6\u0003' }]);
   assert.equal(r.code, 130);
+  assert.deepEqual(saved(dir), []);
+  assert.ok(!/SECRET/.test(r.out));
+});
+
+test('--config-dir reaches the CLI, the data folder and the printed command; a missing CLI says so', () => {
+  let dir = setup({ options: { developer: 'alex' } });
+  const other = path.join(dir, 'other-config');
+  const d = path.join(other, 'plugins', 'data', 'cc-usage-plugin-acme', 'ledger');
+  fs.mkdirSync(d, { recursive: true });
+  fs.writeFileSync(path.join(d, '2026-W44.jsonl'), `${JSON.stringify({ ts: '2026-10-27T02:00:00Z', kind: 'prompt', developer: 'alex', plugin: '0.1.8' })}\n`);
+  let r = run(dir, ['status', '--config-dir', other], '', { CLAUDE_CONFIG_DIR: null });
+  assert.equal(r.code, 0, r.err);
+  assert.deepEqual([...new Set(fs.readFileSync(path.join(dir, 'config-dirs.log'), 'utf8').trim().split('\n'))], [other]);
+  assert.match(r.out, /last record +2026-10-27T02:00:00Z prompt/);
+  assert.ok(r.out.includes(`--config-dir "${other}"`));
+  r = run(dir, ['status'], '', { CLAUDE_CONFIG_DIR: null, HOME: dir, USERPROFILE: dir });
+  assert.ok(!r.out.includes('--config-dir'), 'the default folder needs no flag');
+
+  dir = setup({ listFail: true });
+  r = run(dir, ['status']);
+  assert.equal(r.code, 1);
+  assert.match(r.err, /claude plugin list exited 1; is Claude Code on PATH\?/);
+});
+
+test('status reads a data folder whose name had other characters replaced, week files only, and shows a refused configuration', () => {
+  const id = 'cc-usage-plugin@acme.tools';
+  const dir = setup({ options: { developer: 'alex' }, list: [{ id, installPath: ROOT }] });
+  const d = path.join(dir, 'config', 'plugins', 'data', 'cc-usage-plugin-acme-tools');
+  fs.mkdirSync(path.join(d, 'ledger'), { recursive: true });
+  fs.mkdirSync(path.join(d, 'state'), { recursive: true });
+  fs.writeFileSync(path.join(d, 'ledger', '2026-W44.jsonl'), `${JSON.stringify({ ts: '2026-10-27T03:00:00Z', kind: 'usage', developer: 'alex', plugin: '0.1.8' })}\n`);
+  fs.writeFileSync(path.join(d, 'ledger', 'notes.jsonl'), `${JSON.stringify({ ts: '1999-01-01T00:00:00Z', kind: 'stray' })}\n`);
+  fs.writeFileSync(path.join(d, 'state', '_send.json'), JSON.stringify({ gen: 'g', offsets: {}, last_ok: 0, fails: 0, next_try: 0, auth_block: null, config_block: 'k' }));
+  fs.writeFileSync(path.join(d, 'errors.log'), ['x Stop upload refused: endpoint-not-https', 'x Stop upload network', 'x Stop upload network', 'x Stop upload network'].join('\n') + '\n');
+  const r = run(dir, ['status']);
+  assert.equal(r.code, 0, r.err);
+  assert.match(r.out, /last record +2026-10-27T03:00:00Z usage/);
+  assert.match(r.out, /uploads +refused by the configuration \(endpoint-not-https\)/, 'the reason survives later log lines');
+});
+
+test('an error or Ctrl-C after the terminal is taken drains what was typed: nothing is shown or left for the shell', tty, async () => {
+  let dir = setup({ slowRead: true }); // no developer id: refused after a slow options load
+  let r = await onTerminal(dir, ['secrets'], [
+    { after: /(?:)/, type: 'https://example.com/SECRET8\r' },
+    { after: /--exit:\d+--/, type: '\r' },
+  ], { thenRead: true });
+  assert.match(r.out, /save your developer id first/);
+  assert.match(r.out, /--exit:1--/);
+  assert.match(r.out, /LEFTOVER:\[\]/);
+  assert.ok(!/SECRET/.test(r.out), 'typed during the load, not echoed when the error gave the terminal back');
+
+  dir = setup({ options: { developer: 'alex' } });
+  r = await onTerminal(dir, ['secrets'], [
+    { after: URL_PROMPT, type: ['https://example.com/SECRET9\u0003', 'SECRET10'] },
+    { after: /--exit:\d+--/, type: '\r' },
+  ], { thenRead: true });
+  assert.match(r.out, /--exit:130--/);
+  assert.match(r.out, /LEFTOVER:\[\]/);
+  assert.ok(!/SECRET/.test(r.out));
+  assert.deepEqual(saved(dir), []);
+});
+
+test('secrets refuses a token a header cannot carry', tty, async () => {
+  const dir = setup({ options: { developer: 'alex' } });
+  const r = await onTerminal(dir, ['secrets'], [
+    { after: URL_PROMPT, type: 'https://example.com/h\r' },
+    { after: TOKEN_PROMPT, type: 'tok\u200bSECRET11\r' },
+  ]);
+  assert.equal(r.code, 1);
+  assert.match(r.out, /nothing saved: token-not-visible-ascii/);
   assert.deepEqual(saved(dir), []);
   assert.ok(!/SECRET/.test(r.out));
 });

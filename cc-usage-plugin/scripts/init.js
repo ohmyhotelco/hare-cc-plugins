@@ -8,24 +8,32 @@
 //   node init.js set --developer <id> [--team <label>]    save the developer id (normalized) and team
 //   node init.js secrets                                  ask for endpoint and token without echo
 //
-// Every command takes --plugin <id> (e.g. cc-usage-plugin@acme) when the install cannot be found.
+// Every command takes --plugin <id> (e.g. cc-usage-plugin@acme) when the install cannot be found, and
+// --config-dir <folder> for a Claude Code configuration folder other than the default (CLAUDE_CONFIG_DIR).
 'use strict';
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { normalizeDeveloper, endpointProblem } = require('./config');
+const { normalizeDeveloper, endpointProblem, tokenProblem } = require('./config');
 
 const NAME = 'cc-usage-plugin';
 const ROOT = path.resolve(__dirname, '..');
 const SELF = path.join(ROOT, 'scripts', 'init.js');
 const NODE_MIN = { 22: [23, 4], 24: [22, 1], 26: [12, 1] }; // README § Requirements
-const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+const WEEK_FILE = /^\d{4}-W\d{2}\.jsonl$/;
+const configDir = () => process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
 
-let restoreTerminal = () => {}; // set while secrets holds the terminal in raw mode
-process.on('exit', () => restoreTerminal());
+// While secrets holds the terminal, an error must not give the terminal back with unread input in it:
+// the input would be echoed and handed to the shell. fail() then throws, and main() drains first.
+class Exit extends Error { constructor(message, code = 1) { super(message); this.code = code; } }
+let held = null; // the terminal, while secrets has it in raw mode
 function out(line = '') { process.stdout.write(`${line}\n`); }
-function fail(msg) { restoreTerminal(); process.stderr.write(`cc-init: ${msg}\n`); process.exit(1); }
+function fail(msg, code = 1) {
+  if (held) throw new Exit(msg, code);
+  if (msg) process.stderr.write(`cc-init: ${msg}\n`);
+  process.exit(code);
+}
 function safe(fn, fallback) { try { return fn(); } catch (_) { return fallback; } }
 
 function parseArgs(argv) {
@@ -40,7 +48,8 @@ function parseArgs(argv) {
 }
 
 // The claude CLI is the only writer of plugin options; Windows resolves it as claude.cmd or claude.exe
-// through the shell. Arguments are fixed strings and a checked plugin id; values travel on stdin.
+// through the shell. Arguments are fixed strings and a checked plugin id; values travel on stdin. The
+// CLI reads CLAUDE_CONFIG_DIR from the environment, so --config-dir reaches it that way.
 function claude(args, input) {
   const r = spawnSync('claude', args, {
     input, encoding: 'utf8', timeout: 60e3, windowsHide: true, shell: process.platform === 'win32',
@@ -52,7 +61,7 @@ function claude(args, input) {
 // Every id becomes a CLI argument (through the shell on Windows), so every id is checked, found or given.
 const ID = /^[A-Za-z0-9._-]+@[A-Za-z0-9._-]+$/;
 function checkedId(id) {
-  if (!ID.test(id)) fail(`the installed plugin id is not of the form cc-usage-plugin@<marketplace>; pass --plugin <id>`);
+  if (!ID.test(id)) fail('the installed plugin id is not of the form cc-usage-plugin@<marketplace>; pass --plugin <id>');
   return id;
 }
 
@@ -62,6 +71,8 @@ function pluginId(flag) {
     return flag;
   }
   const r = claude(['plugin', 'list', '--json']);
+  // On Windows a missing claude is the shell's exit status, not a spawn error.
+  if (r.status !== 0) fail(`claude plugin list exited ${r.status}; is Claude Code on PATH?`);
   const list = safe(() => JSON.parse(r.stdout), []);
   const mine = (Array.isArray(list) ? list : []).filter((p) => String(p.id || '').startsWith(`${NAME}@`));
   const real = (p) => safe(() => fs.realpathSync(p), p);
@@ -70,8 +81,9 @@ function pluginId(flag) {
   const ids = [...new Set(mine.map((p) => p.id))];
   if (ids.length === 1) return checkedId(ids[0]);
   if (ids.length > 1) fail(`more than one install (${ids.join(', ')}); pass --plugin <id>`);
-  fail(`${NAME} is not installed from a marketplace, so its options cannot be saved. Install it first ` +
-    `(README § Install); for a one-session trial with --plugin-dir use the CC_USAGE_* environment variables.`);
+  fail(`${NAME} is not installed from a marketplace in ${configDir()}, so its options cannot be saved. ` +
+    'Install it first (README § Install), or pass --config-dir for another configuration folder; for a ' +
+    'one-session trial with --plugin-dir use the CC_USAGE_* environment variables.');
 }
 
 // { inputs, configured, unconfigured }; inputs come back empty for sensitive options.
@@ -96,23 +108,32 @@ function nodeOk(v = process.versions.node) {
 }
 
 // From the id, not CLAUDE_PLUGIN_DATA: a shell inside Claude Code can carry another plugin's value.
-function dataDir(id) { return path.join(configDir, 'plugins', 'data', id.replace('@', '-')); }
+// "@" becomes "-" (seen); other characters an id may hold might be replaced too, so either spelling is
+// taken, whichever exists.
+function dataDir(id) {
+  const root = path.join(configDir(), 'plugins', 'data');
+  const names = [id.replace('@', '-'), id.replace(/[^A-Za-z0-9_-]/g, '-')];
+  return path.join(root, names.find((n) => fs.existsSync(path.join(root, n))) || names[0]);
+}
 
 // What the hooks have done so far: the last record, batches waiting, the send state, recent errors.
 function ledgerState(id) {
   const dir = dataDir(id);
-  const ledger = safe(() => fs.readdirSync(path.join(dir, 'ledger')).filter((f) => f.endsWith('.jsonl')).sort(), []);
+  const ledger = safe(() => fs.readdirSync(path.join(dir, 'ledger')).filter((f) => WEEK_FILE.test(f)).sort(), []);
   let last = null;
   if (ledger.length) {
     const text = safe(() => fs.readFileSync(path.join(dir, 'ledger', ledger[ledger.length - 1]), 'utf8'), '');
     const line = text.trimEnd().split('\n').pop();
     last = safe(() => JSON.parse(line), null);
   }
-  const waiting = safe(() => fs.readdirSync(path.join(dir, 'send')).filter((f) => f.endsWith('.ndjson')).length, 0);
-  const held = safe(() => fs.readdirSync(path.join(dir, 'send')).filter((f) => f.endsWith('.held')).length, 0);
+  const sent = safe(() => fs.readdirSync(path.join(dir, 'send')), []);
   const send = safe(() => JSON.parse(fs.readFileSync(path.join(dir, 'state', '_send.json'), 'utf8')), null);
-  const errors = safe(() => fs.readFileSync(path.join(dir, 'errors.log'), 'utf8'), '').trimEnd().split('\n').filter(Boolean).slice(-3);
-  return { last, waiting, held, send, errors };
+  const log = safe(() => fs.readFileSync(path.join(dir, 'errors.log'), 'utf8'), '').trimEnd().split('\n').filter(Boolean);
+  const refused = log.map((l) => /upload refused: (\S+)/.exec(l)).filter(Boolean).pop();
+  return {
+    last, send, errors: log.slice(-3), refused: refused && refused[1],
+    waiting: sent.filter((f) => f.endsWith('.ndjson')).length, held: sent.filter((f) => f.endsWith('.held')).length,
+  };
 }
 
 function iso(ms) { return ms ? new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z') : '-'; }
@@ -132,9 +153,10 @@ function status(id) {
   const st = ledgerState(id);
   out(`  last record  ${st.last ? `${st.last.ts} ${st.last.kind}, developer "${st.last.developer}", plugin ${st.last.plugin}` : 'none yet — starts with the next session'}`);
   if (st.send) {
+    const refused = st.send.config_block ? `refused by the configuration (${st.refused || 'see errors.log'})` : null;
     const block = st.send.auth_block ? 'stopped by 401 until the endpoint or token changes' : null;
     const backoff = st.send.next_try > Date.now() ? `retrying after ${iso(st.send.next_try)} (${st.send.fails} failed)` : null;
-    out(`  uploads      ${block || backoff || 'tracking'}; last 202 ${iso(st.send.last_ok)}; ${st.waiting} batch(es) waiting${st.held ? `, ${st.held} held` : ''}`);
+    out(`  uploads      ${refused || block || backoff || 'tracking'}; last 202 ${iso(st.send.last_ok)}; ${st.waiting} batch(es) waiting${st.held ? `, ${st.held} held` : ''}`);
   } else {
     out(`  uploads      not tracking${st.waiting ? `; ${st.waiting} batch(es) waiting for an endpoint` : ''}`);
   }
@@ -145,8 +167,12 @@ function status(id) {
   else out('All options are set. Changes apply from the next Claude Code session.');
 }
 
-// The id is printed too, so the command works as printed even when several installs exist.
-function secretsCommand(id) { return `node "${SELF}" secrets --plugin ${id}`; }
+// The id and a non-default configuration folder are printed too, so the command works as printed in a
+// new terminal, which has neither the session's CLAUDE_CONFIG_DIR nor a way to tell installs apart.
+function secretsCommand(id) {
+  const dir = process.env.CLAUDE_CONFIG_DIR ? ` --config-dir "${path.resolve(process.env.CLAUDE_CONFIG_DIR)}"` : '';
+  return `node "${SELF}" secrets --plugin ${id}${dir}`;
+}
 
 function setIdentity(id, a) {
   const raw = String(a.developer ?? a._[1] ?? '').trim();
@@ -167,76 +193,78 @@ function setIdentity(id, a) {
   out(`Next, for the receiver URL and token, in a terminal (not in Claude Code): ${secretsCommand(id)}`);
 }
 
-// Answers typed in the terminal, never shown: raw mode is on before the first prompt and stays on until
-// the values are saved, so neither type-ahead nor a late paste is echoed. Keys are decoded as strict
-// UTF-8, escape sequences (arrow keys and the like) are dropped even when split across reads, and a
-// paste of several lines answers the questions in order.
+// Answers typed in the terminal, never shown: raw mode is on before anything else runs and stays on until
+// the end, so neither type-ahead nor a late paste is echoed. Keys are decoded as strict UTF-8, escape
+// sequences (arrow keys and the like) are dropped even when split across reads, and a paste of several
+// lines answers the questions in order. Every way out — done, an error, Ctrl-C — goes through close(),
+// which reads and drops what is still arriving before echo comes back.
 function terminal() {
   const stdin = process.stdin;
   const decoder = new TextDecoder('utf-8', { fatal: true });
   const lines = [];
-  let cur = '', esc = 0, lastCR = false, bad = false, waiting = null;
+  let cur = '', esc = 0, lastCR = false, bad = false, interrupted = false, waiting = null;
   const onData = (buf) => {
     let text = '';
     try { text = decoder.decode(buf, { stream: true }); } catch (_) { bad = true; }
     for (const ch of text) {
+      if (interrupted) break;
       if (esc === 1) { esc = ch === '[' ? 2 : ch === 'O' ? 3 : 0; continue; } // ESC x, ESC [ … final, ESC O x
       if (esc === 2) { if (ch >= '@' && ch <= '~') esc = 0; continue; }
       if (esc === 3) { esc = 0; continue; }
       if (ch === '\u001b') { esc = 1; continue; }
-      if (ch === '\u0003') { restoreTerminal(); process.stderr.write('\n'); process.exit(130); }
+      if (ch === '\u0003') { interrupted = true; break; }
       const nl = ch === '\r' || ch === '\n';
       if (ch === '\n' && lastCR) { lastCR = false; continue; }    // \r\n is one Enter
       lastCR = ch === '\r';
       if (nl) { lines.push(cur); cur = ''; } else if (ch === '\u007f' || ch === '\b') cur = cur.slice(0, -1);
       else if (ch >= ' ') cur += ch;
     }
-    if (waiting && (bad || lines.length)) { const w = waiting; waiting = null; w(); }
+    if (waiting && (bad || interrupted || lines.length)) { const w = waiting; waiting = null; w(); }
   };
   stdin.setRawMode(true);
   stdin.on('data', onData);
   stdin.resume();
-  restoreTerminal = () => {
-    restoreTerminal = () => {};
+  const restore = () => {
     stdin.removeListener('data', onData);
     safe(() => stdin.setRawMode(false));
     stdin.pause();
   };
-  return {
-    ask: (question) => new Promise((resolve) => {
+  process.on('exit', restore); // a last resort; every planned exit drains first
+  held = {
+    ask: (question) => new Promise((resolve, reject) => {
       process.stderr.write(question);
       const take = () => {
         process.stderr.write('\n');
-        if (bad) fail('the input is not valid UTF-8; nothing saved');
-        resolve(lines.shift().trim());
+        if (interrupted) reject(new Exit('', 130));
+        else if (bad) reject(new Exit('the input is not valid UTF-8; nothing saved'));
+        else resolve(lines.shift().trim());
       };
-      if (bad || lines.length) take(); else waiting = take;
+      if (bad || interrupted || lines.length) take(); else waiting = take;
     }),
-    // Input that arrived while the values were being saved is read and dropped before echo comes back.
-    close: () => new Promise((resolve) => setTimeout(() => { restoreTerminal(); resolve(); }, 150)),
+    close: () => new Promise((resolve) => setTimeout(() => {
+      restore(); held = null; resolve();
+    }, 150)),
   };
+  return held;
 }
 
-async function secrets(id) {
-  // A pipe or a file could carry the values from a command line or a log; the terminal prompt cannot.
-  if (!process.stdin.isTTY) fail('run this in a terminal: it asks for the receiver URL and token itself and reads neither from a pipe or file');
-  const term = terminal(); // before anything else, so type-ahead is not echoed while the options load
+async function secrets(id, term) {
   const { inputs, configured } = readOptions(id);
   // Records are uploaded only under the id set now (D6), so the id comes before the endpoint.
   if (!String(inputs.developer || '').trim()) fail('save your developer id first: /cc-usage-plugin:cc-init <developer> [team]');
   const keep = (k) => (configured.has(k) ? ' (Enter keeps the current value)' : '');
   const endpoint = await term.ask(`Receiver URL, input hidden${keep('endpoint')}: `);
-  if (endpoint) {
-    const problem = endpointProblem(endpoint);
-    if (problem) { await term.close(); fail(`endpoint not saved: ${problem} (README § Upload contract)`); }
-  }
+  const badEndpoint = endpoint && endpointProblem(endpoint);
+  if (badEndpoint) fail(`endpoint not saved: ${badEndpoint} (README § Upload contract)`);
   const token = await term.ask(`Receiver token, input hidden${keep('token')}: `);
-  if (!endpoint && !token) { await term.close(); out('Nothing entered; nothing changed.'); return; }
+  const badToken = token && tokenProblem(token);
+  if (badToken) fail(`nothing saved: ${badToken} — retype the token rather than pasting it from a document or chat`);
   const values = {};
   if (endpoint) values.endpoint = endpoint;
   if (token) values.token = token;
-  saveOptions(id, values);
+  if (Object.keys(values).length) saveOptions(id, values);
   await term.close();
+  if (!endpoint && !token) { out('Nothing entered; nothing changed.'); return; }
   out(`Saved ${Object.keys(values).join(' and ')} in Claude Code's secure storage. Changes apply from the next Claude Code session.`);
   if (!token && !configured.has('token')) out('No token is set yet, so uploads stay refused (no-token) until one is saved.');
   if (!endpoint && !configured.has('endpoint')) out('No endpoint is set yet, so nothing is uploaded until one is saved.');
@@ -246,10 +274,25 @@ async function main() {
   const a = parseArgs(process.argv.slice(2));
   const cmd = a._[0] || 'status';
   if (!['status', 'set', 'secrets'].includes(cmd)) fail(`unknown command "${cmd}" (status, set, secrets)`);
-  const id = pluginId(a.plugin);
-  if (cmd === 'status') status(id);
-  else if (cmd === 'set') setIdentity(id, a);
-  else await secrets(id);
+  if (a['config-dir'] !== undefined) {
+    if (!a['config-dir']) fail('--config-dir takes a folder');
+    process.env.CLAUDE_CONFIG_DIR = path.resolve(a['config-dir']);
+  }
+  if (cmd !== 'secrets') {
+    const id = pluginId(a.plugin);
+    if (cmd === 'status') status(id); else setIdentity(id, a);
+    return;
+  }
+  // A pipe or a file could carry the values from a command line or a log; the terminal prompt cannot.
+  if (!process.stdin.isTTY) fail('run this in a terminal: it asks for the receiver URL and token itself and reads neither from a pipe or file');
+  const term = terminal(); // before anything slow, so type-ahead is not echoed while the install is looked up
+  try {
+    await secrets(pluginId(a.plugin), term);
+  } catch (e) {
+    if (!(e instanceof Exit)) throw e;
+    await term.close();
+    fail(e.message, e.code);
+  }
 }
 
 main();

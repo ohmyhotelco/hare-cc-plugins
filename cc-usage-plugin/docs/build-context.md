@@ -439,6 +439,44 @@ and leaving out an account without usage — each failed a test. A fifth mutant,
 once when the hook process starts, behaves the same as the code (each hook is its own process) and
 is not a gap.
 
+### Review of PR #78 (on `05b1605`)
+
+A review of the pull request (`/code-review`) raised 15 findings. The second was reproduced by the
+reviewer on a pseudo-terminal, the rest came from reading. Each was checked against the code:
+
+| Finding | Disposition |
+|---|---|
+| `fail()` and Ctrl-C gave the terminal back without draining: a URL typed while the options loaded was echoed and reached the next shell (reproduced) | fixed: once the terminal is taken, `fail()` throws and `main()` drains through `close()`; Ctrl-C rejects the pending prompt the same way |
+| the printed `secrets` command dropped `CLAUDE_CONFIG_DIR`, so a new terminal saved into the default folder | fixed: `--config-dir`, passed to the CLI through the environment and printed with the command for a non-default folder |
+| a token with a character a header cannot carry made fetch throw, logged as `network`, retried forever | fixed: `token-not-visible-ascii`, refused by the collector and at entry |
+| older usage took the session's last `session_open`; a session opens again on resume and compact | fixed: the latest `session_open` at or before the record |
+| a 0.1.8 record with `email: null` fell back to the session's account | fixed: the fallback applies only when the field is absent |
+| per-account session counts included records without a session id | fixed |
+| the status said "tracking" while the configuration was refused | fixed: shows the refusal with the last reason in `errors.log` |
+| `.claude.json` was read on every Stop and SessionEnd, also with nothing to stamp | fixed: read once, only when a usage record is written (147 KB, about 1 ms, on the maintainer's machine) |
+| `claude plugin list` ran before raw mode in `secrets` | fixed: the terminal is taken first |
+| on Windows a missing `claude` is an exit status, not a spawn error, and was reported as "not installed" | fixed: the list's exit status is checked |
+| `allowed-tools: Bash(node:*)` let the model run any `node` command during the skill | fixed: `Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/init.js":*)` |
+| the consistency check read `Bash(node:*)` as full `Bash` | fixed: with a scoped rule, every line of a bash block must start with a declared prefix (an added `git status` line was reported) |
+| the data folder took only `@` → `-` | partly: either spelling is taken, whichever exists; how Claude Code replaces other characters was not checked |
+| `init.js` re-implements ledger helpers, with a looser file filter | partly: the filter is the week-file pattern; moving the helpers into `config.js` is left out, because it would rework the tested collector |
+| a `/login` in one session restamps the other sessions of the same folder | documented (D13 cost): the hook input names no account |
+
+The narrowed `allowed-tools` rule was checked in `claude -p --plugin-dir` sessions with
+`--permission-mode default --setting-sources project`, so that the maintainer's own permission
+settings did not apply:
+
+| Rule | Command | Denials |
+|---|---|---|
+| narrowed rule | `init.js` | 0 (so `${CLAUDE_PLUGIN_ROOT}` is substituted in the rule) |
+| no rule | `init.js` | 1 |
+| narrowed rule | `node -e …` | 1 |
+| `Bash(node:*)` | `node -e …` | 0 |
+
+Tests: 40 (26 + 14), all pass. Mutation check: 15 mutants for the review fixes (11 on `init.js`, 1 on
+`config.js`, 3 on `report.js`) and the 25 earlier `init.js` mutants adjusted to the changed code;
+every mutant failed a test.
+
 ### Not yet run
 
 `cc-init` in a signed-in session against a marketplace install: the first install on a developer

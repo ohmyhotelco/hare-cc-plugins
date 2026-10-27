@@ -34,8 +34,9 @@
    기록했는지 보여 준 뒤, 수신 측이 볼 값으로 정규화한 developer와 team을 저장한다. 인자를 주지
    않으면 물어본다.
 2. 수신 URL과 토큰을 받은 경우에만: Claude Code 밖의 터미널에서 1단계가 출력한
-   `node "…/scripts/init.js" secrets --plugin …` 명령을 실행한다. 두 값을 화면에 보이지 않게 입력받고,
-   URL을 업로드 계약과 대조한 뒤 저장한다. developer를 설정하기 전에는 거부하고, 파이프나 파일이
+   `node "…/scripts/init.js" secrets --plugin …` 명령을 출력된 그대로 실행한다(기본이 아닌 설정 폴더면
+   `--config-dir`도 붙어 있다). 두 값을 화면에 보이지 않게 입력받고,
+   URL과 토큰을 업로드 계약과 대조한 뒤 저장한다. developer를 설정하기 전에는 거부하고, 파이프나 파일이
    아니라 터미널에서만 입력받는다. URL과 토큰을 채팅에 쓰지
    않는다. 쓰면 세션 기록에 남는다.
 3. Claude Code 세션을 새로 시작한다. 설정은 다음 세션부터 적용된다. `/cc-usage-plugin:cc-init`을
@@ -116,7 +117,8 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
   실패마다 간격을 두 배로 늘려 최대 6시간까지 둔다. 성공하면 간격을 되돌린다.
 - **주기:** `flush_hours`마다, 또는 64 KB가 쌓이면 그 전에 보낸다.
 - **거부하는 설정:** endpoint가 HTTPS가 아니거나(평문 `http`는 루프백만 허용) 쿼리에 이미
-  `developer`·`week`·`id`가 있거나, 토큰이 없거나, `developer`가 설정되지 않았으면 올리지 않는다.
+  `developer`·`week`·`id`가 있거나, 토큰이 없거나, 토큰에 보이는 ASCII가 아닌 문자가 있거나(함께 복사된
+  보이지 않는 문자 등), `developer`가 설정되지 않았으면 올리지 않는다.
   `errors.log`에 한 줄만 남기고 설정이 바뀔 때까지 다시 시도하지 않는다.
 - endpoint 없이 기록된 레코드는 올리지 않는다. 업로드 추적은 endpoint가 있는 상태로 처음 기록할 때
   시작되고, endpoint 없이 처음 기록할 때 끝난다. 끝낼 때는 그때까지 기록된 것을 먼저 `send/`로
@@ -161,8 +163,8 @@ developer의 주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 �
 세 시험은 Windows와 root에서 건너뛴다. `init.test.js`는 가짜 `claude` 명령을 두고 `init.js`를
 실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint·token 값을 출력하지 않는지를 확인한다.
 `secrets` 시험은 python3 `pty` 모듈이 만든 가상 터미널에서 돌고, 그것이 없으면(Windows) 건너뛴다.
-화면에 보이지 않는지, endpoint 확인, 여러 줄 붙여 넣기, escape 시퀀스, 잘못된 UTF-8, 저장하는 동안
-입력한 값이 셸로 넘어가지 않는지를 확인한다.
+화면에 보이지 않는지, endpoint·토큰 확인, 여러 줄 붙여 넣기, escape 시퀀스, 잘못된 UTF-8, 그리고 저장하는
+동안이나 오류·Ctrl-C 직전에 입력한 값이 셸로 넘어가지 않는지를 확인한다.
 
 ## 파일
 

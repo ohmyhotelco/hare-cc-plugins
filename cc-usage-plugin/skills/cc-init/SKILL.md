@@ -4,7 +4,7 @@ description: Set up cc-usage-plugin after installing it — show which options a
 argument-hint: "[developer] [team]"
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Bash(node:*)
+allowed-tools: Bash(node "${CLAUDE_PLUGIN_ROOT}/scripts/init.js":*)
 ---
 
 # cc-init — set up cc-usage-plugin
@@ -48,8 +48,9 @@ one the receiver sees.
 
 Never ask for the receiver URL or the token, and never put either in a command. If Step 1 shows
 either as not set and the user has been given them, tell the user to run the `node … secrets`
-command printed by Step 1 or Step 2 in a terminal outside Claude Code: it asks for both without
-showing them and checks the URL before saving. If the user pastes a URL or token into the chat anyway,
+command printed by Step 1 or Step 2 in a terminal outside Claude Code, exactly as printed (its
+`--plugin` and `--config-dir` name this install): it asks for both without showing them and checks
+the URL and token before saving. If the user pastes a URL or token into the chat anyway,
 do not repeat it and do not save it; tell them it is now in this session's transcript and that the
 terminal command is still the way to save it.
 

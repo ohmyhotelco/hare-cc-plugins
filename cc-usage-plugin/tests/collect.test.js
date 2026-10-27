@@ -295,6 +295,7 @@ test('refuses an unsafe configuration, logs it once, and uploads once it is fixe
       ['endpoint-not-https', { CC_USAGE_ENDPOINT: 'http://receiver.example/hook', CC_USAGE_TOKEN: 't', CC_USAGE_DEVELOPER: 'alex' }],
       ['endpoint-has-developer-week-or-id', { ...upload(r), CC_USAGE_ENDPOINT: `${r.url}&week=2026-W01` }],
       ['no-token', upload(r, '')],
+      ['token-not-visible-ascii', upload(r, 'tok\u200b1')],
       ['no-developer', upload(r, 'tok-1', '')],
     ];
     for (const [problem, e] of cases) {
@@ -627,24 +628,33 @@ test('report.js splits usage by account and writes no session id', () => {
   const dir = tmp();
   const led = path.join(dir, 'data', 'ledger');
   fs.mkdirSync(led, { recursive: true });
-  const ts = new Date().toISOString();
+  const at = (min) => new Date(Date.now() - 3600e3 + min * 60e3).toISOString();
   const m = (n) => [{ model: 'claude-x', input: 0, output: n, cache_read: 0, cache_create: 0, requests: 1 }];
   const recs = [
-    { id: 'o1', kind: 'session_open', ts, session_id: 'sess-ZZ01', email: 'a@example.com' },
-    { id: 'u1', kind: 'usage', ts, session_id: 'sess-ZZ01', by_model: m(5) }, // a 0.1.7 record: its session's account
-    { id: 'u2', kind: 'usage', ts, session_id: 'sess-ZZ01', email: 'b@example.com', by_model: m(7) }, // after /login
-    { id: 'o2', kind: 'session_open', ts, session_id: 'sess-ZZ02', email: 'c@example.com' }, // no usage yet
-    { id: 'u3', kind: 'usage', ts, session_id: 'sess-ZZ03', by_model: m(1) }, // its session_open is missing
+    { id: 'o1', kind: 'session_open', ts: at(0), session_id: 'sess-ZZ01', email: 'a@example.com' },
+    { id: 'u1', kind: 'usage', ts: at(1), session_id: 'sess-ZZ01', by_model: m(5) }, // a 0.1.7 record: its session's account
+    { id: 'u2', kind: 'usage', ts: at(2), session_id: 'sess-ZZ01', email: 'b@example.com', by_model: m(7) }, // after /login
+    { id: 'u3', kind: 'usage', ts: at(3), session_id: 'sess-ZZ01', email: null, by_model: m(2) }, // 0.1.8, account unreadable
+    { id: 'o2', kind: 'session_open', ts: at(4), session_id: 'sess-ZZ02', email: 'c@example.com' }, // no usage yet
+    { id: 'u4', kind: 'usage', ts: at(5), session_id: 'sess-ZZ03', by_model: m(1) }, // its session_open is missing
+    { id: 'o5', kind: 'session_open', ts: at(6), session_id: 'sess-ZZ05', email: 'a@example.com' },
+    { id: 'u5', kind: 'usage', ts: at(7), session_id: 'sess-ZZ05', by_model: m(3) },
+    { id: 'o6', kind: 'session_open', ts: at(8), session_id: 'sess-ZZ05', email: 'b@example.com' }, // compact under b
+    { id: 'u6', kind: 'usage', ts: at(9), session_id: 'sess-ZZ05', by_model: m(4) },
+    { id: 'u7', kind: 'usage', ts: at(10), email: 'b@example.com', by_model: m(1) }, // no session id: no session counted
   ];
   fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
   const out = path.join(dir, 'weekly.json');
   const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
   const s = JSON.parse(fs.readFileSync(out, 'utf8'));
   assert.deepEqual(s.accounts, ['a@example.com', 'b@example.com', 'c@example.com']);
-  assert.deepEqual(Object.fromEntries(Object.entries(s.by_account).map(([k, v]) => [k, [v.sessions, v.requests, v.output]])),
-    { 'a@example.com': [1, 1, 5], 'b@example.com': [1, 1, 7], '(unknown)': [1, 1, 1] });
-  assert.equal(s.totals.output, 13);
+  assert.deepEqual(Object.fromEntries(Object.entries(s.by_account).map(([k, v]) => [k, [v.sessions, v.requests, v.output]])), {
+    'a@example.com': [2, 2, 8], // u1, u5
+    'b@example.com': [2, 3, 12], // u2, u6 (opened again under b), u7 (no session)
+    '(unknown)': [2, 2, 3], // u3 (email null), u4 (no session_open)
+  });
+  assert.equal(s.totals.output, 23);
   assert.match(text, /3 account\(s\)/);
-  assert.match(text, /b@example\.com +sessions 1 · requests 1/);
+  assert.match(text, /b@example\.com +sessions 2 · requests 3/);
   assert.ok(!/sess-ZZ/.test(text + fs.readFileSync(out, 'utf8')), 'no session id in the text or the JSON');
 });

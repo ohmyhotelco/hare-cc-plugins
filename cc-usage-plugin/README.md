@@ -36,8 +36,9 @@ Then set the options, in this order:
    what the hooks have recorded, then saves your developer id, normalized as the receiver will see
    it, and your team. Without arguments it asks for them.
 2. Only if you were given a receiver URL and token: in a terminal outside Claude Code, run the
-   `node "…/scripts/init.js" secrets --plugin …` command that step 1 prints. It asks for both without
-   showing them, checks the URL against the upload contract and saves them. It refuses until a
+   `node "…/scripts/init.js" secrets --plugin …` command that step 1 prints, exactly as printed (with a
+   non-default configuration folder it also carries `--config-dir`). It asks for both without
+   showing them, checks the URL and token against the upload contract and saves them. It refuses until a
    developer id is set, and reads only from a terminal, never from a pipe or file. Never type the URL or token into the chat, where they would stay in the session transcript.
 3. Start a new Claude Code session: options apply from the next session. Run
    `/cc-usage-plugin:cc-init` again at any time to see the state, including uploads.
@@ -123,8 +124,9 @@ never upload, so a slow receiver never delays the session.
 - **Cadence:** an upload is due every `flush_hours`, or earlier once 64 KB are waiting.
 - **Refused configurations:** no upload — one line in `errors.log`, then nothing until the
   configuration changes — when the endpoint is not HTTPS (plain `http` is allowed only to a loopback
-  host), already has `developer`, `week` or `id` in its query, no token is set, or no `developer` is
-  set.
+  host), already has `developer`, `week` or `id` in its query, no token is set, the token has a
+  character other than visible ASCII (an invisible character copied with it, for example), or no
+  `developer` is set.
 - Records written while no endpoint is configured are never uploaded: upload tracking starts with the
   first record written with an endpoint, and the first record written without one ends it — after
   cutting what was recorded until then into `send/`, where it waits for the endpoint to be set again.
@@ -172,8 +174,8 @@ one case waits for the 15 s timeout. Three cases use file permissions and are sk
 root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
 install, saving the developer id and team, and that no endpoint or token value is printed. Its
 `secrets` cases run on a pseudo-terminal from python3's `pty` module and are skipped without one
-(Windows): no echo, the endpoint checks, pasted lines, escape sequences, malformed UTF-8, and input
-typed during the save not reaching the shell.
+(Windows): no echo, the endpoint and token checks, pasted lines, escape sequences, malformed UTF-8,
+and input typed during the save, before an error or around Ctrl-C not reaching the shell.
 
 ## Files
 

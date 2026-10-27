@@ -50,10 +50,22 @@ for (const r of all) if (r.kind === 'subagent' && r.agent_id && r.agent_type) ag
 // Only Stop's usage records carry the origin; SessionEnd and SubagentStop ones get it from their session.
 const repoBySession = {};
 for (const r of all) if (r.session_id && r.repo && !repoBySession[r.session_id]) repoBySession[r.session_id] = r.repo;
-// Usage records name the account signed in when they were written (0.1.8); an older one takes its
-// session's opening account. Session ids are only matched here, never written to the output.
-const accountBySession = {};
-for (const r of all) if (r.kind === 'session_open' && r.session_id && r.email) accountBySession[r.session_id] = r.email;
+// Usage records name the account signed in when they were written (0.1.8). One without the field
+// (older) takes the account of its session's latest session_open at or before it: a session opens again
+// on resume and compact, possibly under another account. Session ids are only matched here, never
+// written to the output.
+const opensBySession = {};
+for (const r of all) {
+  if (r.kind === 'session_open' && r.session_id && r.email) (opensBySession[r.session_id] || (opensBySession[r.session_id] = [])).push([r.ts, r.email]);
+}
+for (const list of Object.values(opensBySession)) list.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+function sessionAccount(sid, ts) {
+  const list = opensBySession[sid];
+  if (!list) return null;
+  let found = list[0][1];
+  for (const [t, email] of list) if (t <= ts) found = email;
+  return found;
+}
 const byAccount = {}, accountSessions = {};
 for (const r of recs) {
   if (r.session_id) sessions.add(r.session_id);
@@ -67,9 +79,10 @@ for (const r of recs) {
   if (r.kind === 'usage') {
     const repo = r.repo || repoBySession[r.session_id] || r.repo_dir || '?';
     const agentType = r.agent_type || (r.agent_id && agentTypeById[r.agent_id]) || null;
-    const account = r.email || accountBySession[r.session_id] || '(unknown)';
+    // A 0.1.8 record with email null could not read the account then; it is not the session's.
+    const account = ('email' in r ? r.email : sessionAccount(r.session_id, r.ts)) || '(unknown)';
     const acc = byAccount[account] || (byAccount[account] = { sessions: 0, requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0 });
-    (accountSessions[account] || (accountSessions[account] = new Set())).add(r.session_id || r.id);
+    if (r.session_id) (accountSessions[account] || (accountSessions[account] = new Set())).add(r.session_id);
     for (const m of r.by_model || []) {
       const total = m.input + m.output + m.cache_read + m.cache_create;
       inc(byRepo, repo, total); inc(byModel, m.model, total); inc(byEffort, m.effort || 'n/a', total);

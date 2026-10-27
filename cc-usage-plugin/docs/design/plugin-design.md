@@ -62,7 +62,7 @@ flush()
   no endpoint, no send state, or send.lock held        → return
   send state unparsable                                → set aside as _send.json.bad, log, return
   configuration refused (not https / reserved query /
-    no token / no developer)                           → log once per configuration, return
+    no token / token not visible ASCII / no developer) → log once per configuration, return
   auth_block == hash(endpoint, token)                  → return            (401 until either changes)
   auth_block set but credentials changed               → clear block, fails, next_try
   batches waiting in send/ ?
@@ -123,6 +123,7 @@ new one. A save that fails while the period is still current is logged as `send 
 | transcript checkpoint not saved after its record | `usage checkpoint not saved`; the next parse counts that delta again (D11) |
 | batch file not readable | `batch unreadable <code>`; the file stays, later batches wait behind it |
 | batch cut under an earlier developer id | `upload held: batch of another developer`; renamed `.held`, not sent (D6) |
+| a token with a character other than visible ASCII | `upload refused: token-not-visible-ascii`; nothing is sent until the token changes (`init.js secrets` refuses such a token at entry) |
 | a ledger line over 1 MB | `record over 1 MB not uploaded`; it stays in the ledger (records are a few KB at most) |
 | checkpoint or send state unparsable | logged; the checkpoint restarts at the end of its transcript, the send state is set aside and restarted by the next record |
 | no Node on `PATH` | hooks fail to start; Claude Code continues the session |
@@ -151,7 +152,10 @@ only), the warning when the id changes, a failing CLI, and that no endpoint or t
 The `secrets` cases run on a pseudo-terminal (python3's pty module; skipped where there is none, as on
 Windows): refusal of input that is not a terminal, the order and endpoint checks, no echo of anything
 typed, an empty answer keeping a value, a pasted pair of lines, escape sequences split across reads,
-malformed UTF-8, Ctrl-C, and input arriving during the save not reaching the shell afterwards.
+malformed UTF-8, the token check, and input arriving during the save, before an error or around
+Ctrl-C not reaching the shell afterwards; also `--config-dir` reaching the CLI, the data folder and
+the printed command, a data folder whose name had other characters replaced, week files only, and a
+configuration refusal shown with its reason.
 
 Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
 unparsable checkpoint or send state, a checkpoint that cannot be saved, a send state that becomes
@@ -174,17 +178,19 @@ is removed is recorded in `build-context.md`.
                    endpoint and token show only as saved or not)
                    hooks' data folder ← <config dir>/plugins/data/<id with @ → ->: last record,
                    batches waiting or held, send state, last 3 errors.log lines
-                   next step: developer id, else the terminal command for the secrets
+                   uploads refused by the configuration (config_block) with the last refusal reason
+                   next step: developer id, else the terminal command for the secrets, printed with
+                   --plugin and, for a non-default folder, --config-dir
   init.js set      developer (normalized, config.js) and team → `configure --values-stdin`;
                    a changed id is pointed out, because records under the old one stay local (D6)
-terminal: node <plugin>/scripts/init.js secrets
-                   refuses input that is not a terminal, and refuses without a developer id (D6);
-                   raw mode from before the options load until after the save, so nothing typed is
-                   echoed; strict UTF-8, escape sequences dropped across reads, a pasted pair of lines
-                   answers both prompts; an empty answer keeps the saved value; the endpoint is
+terminal: node <plugin>/scripts/init.js secrets --plugin <id> [--config-dir <folder>]
+                   refuses input that is not a terminal; raw mode before the install is looked up and
+                   until the end, so nothing typed is echoed; refuses without a developer id (D6);
+                   strict UTF-8, escape sequences dropped across reads, a pasted pair of lines answers
+                   both prompts; an empty answer keeps the saved value; the endpoint and token are
                    checked with config.js before anything is saved → `configure --values-stdin`;
-                   input that arrived during the save is read and dropped for 150 ms before echo
-                   returns, so it does not reach the shell
+                   every way out (done, an error, Ctrl-C) reads and drops what is still arriving for
+                   150 ms before echo returns, so it does not reach the shell
 ```
 
 Saved values apply from the next session. Values are passed to the CLI on stdin, the plugin id is

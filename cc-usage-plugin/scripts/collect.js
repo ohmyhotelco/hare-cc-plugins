@@ -62,7 +62,9 @@ function oauthAccount() {
   return (file && safe(() => JSON.parse(fs.readFileSync(file, 'utf8')).oauthAccount, null)) || {};
 }
 // The account signed in when a usage record is written: a person can switch accounts with /login in the
-// middle of a session, so the session's opening account is not enough to split usage by account.
+// middle of a session, so the session's opening account is not enough to split usage by account. It is
+// the configuration folder's account, so a /login in one session also stamps the others running in the
+// same folder (D13).
 function accountEmail() { return oauthAccount().emailAddress || null; }
 function identity() {
   const acct = oauthAccount();
@@ -388,9 +390,10 @@ function flushEdits(sid, base, repoName) {
 function sessionLock(sid) { return path.join(stateDir, `${sid}.lock`); }
 function sessionUsage(sid, input, base, extra, waitMs) {
   withLock(sessionLock(sid), waitMs, () => {
-    const email = accountEmail();
+    let email; // read once, and only when there is usage to stamp: SessionEnd has a 1 s budget
+    const account = () => (email === undefined ? (email = accountEmail()) : email);
     for (const u of [usageDelta(sid, input.transcript_path), ...subagentDeltas(sid, input.transcript_path)]) {
-      if (u && (!u.delta || record('usage', { ...base, ...extra, email, ...u.delta }))) u.save();
+      if (u && (!u.delta || record('usage', { ...base, ...extra, email: account(), ...u.delta }))) u.save();
     }
     flushEdits(sid, base, extra.repo_dir);
   });

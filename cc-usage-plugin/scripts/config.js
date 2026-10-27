@@ -28,9 +28,17 @@ function endpointProblem(endpoint) {
   return null;
 }
 
-// Why an upload configuration is refused, or null (D4).
-function uploadProblem({ endpoint, token, developerSet }) {
-  return endpointProblem(endpoint) || (!token && 'no-token') || (!developerSet && 'no-developer') || null;
+// Why a token cannot be sent, or null. It travels as a header value, and fetch throws on characters a
+// header cannot carry, which would look like a network failure; an invisible character copied with
+// the token (U+200B, a non-breaking space) is the usual cause, so only visible ASCII is accepted.
+function tokenProblem(token) {
+  if (!token) return 'no-token';
+  return /^[\x21-\x7e]+$/.test(token) ? null : 'token-not-visible-ascii';
 }
 
-module.exports = { LOOPBACK, normalizeDeveloper, endpointProblem, uploadProblem };
+// Why an upload configuration is refused, or null (D4).
+function uploadProblem({ endpoint, token, developerSet }) {
+  return endpointProblem(endpoint) || tokenProblem(token) || (!developerSet && 'no-developer') || null;
+}
+
+module.exports = { LOOPBACK, normalizeDeveloper, endpointProblem, tokenProblem, uploadProblem };

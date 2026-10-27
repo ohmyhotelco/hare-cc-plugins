@@ -77,8 +77,9 @@ only success, `401` stops uploads until the endpoint or token changes, other fai
 - The token travels in a header, so a plain-HTTP endpoint would expose it; `fetch` strips
   `Authorization` on a cross-origin redirect but not a custom header, so a redirect could hand it to
   another host.
-- A missing token or developer, or an endpoint that already carries `developer`, `week` or `id`, makes
-  every request fail or become ambiguous at the receiver. Such configurations are refused before any
+- A missing token or developer, a token with a character a header cannot carry (fetch would throw,
+  which looks like a network failure), or an endpoint that already carries `developer`, `week` or `id`,
+  makes every request fail or become ambiguous at the receiver. Such configurations are refused before any
   request and logged once, so they are visible without filling the log.
 - One developer and one week per batch, with both in the query, lets a receiver choose a folder and
   file name from the URL alone. The 1 MB cap keeps a batch the same size however long the receiver was
@@ -216,9 +217,12 @@ record failed are then not counted.
 options with `claude plugin configure` (`--json` to read, `--values-stdin` to save). In the chat it
 saves only the developer id, normalized by the function the hooks use (`scripts/config.js`), and the
 team. The receiver URL and token are entered only in a terminal, by `init.js secrets`, without echo;
-it refuses input that does not come from a terminal.
-That step refuses until a developer id is set and checks the URL with the rule the upload applies.
-No part of the setup prints an endpoint or token value.
+it refuses input that does not come from a terminal, refuses until a developer id is set, and checks
+the URL and token with the rules the upload applies. Every way out of that step, an error or Ctrl-C
+included, first reads and drops what is still arriving, so nothing typed is echoed or reaches the
+shell afterwards. The printed command names the install (`--plugin`) and a non-default configuration
+folder (`--config-dir`), because a new terminal has neither. No part of the setup prints an endpoint
+or token value.
 
 **Why:**
 - Writing the options as environment variables into `settings.json` would leave the token there in
@@ -258,6 +262,9 @@ on the new account without matching records by session. The weekly report counts
 for the quota view, per account; session-level detail is not shown.
 
 **Cost:** a record covers the transcript lines since the previous parse, so the lines of one Stop
-interval that span a switch all go to the account signed in at its end. Separate configuration
+interval that span a switch all go to the account signed in at its end. The account is the
+configuration folder's, not the session's: with two sessions open in one folder, a `/login` in one
+also stamps the other's next records with the new account; the hook input names no account, so this
+is not avoidable from the plugin. Separate configuration
 folders per account are separate installs (README § Install); the email is metadata the notice already
 lists.
