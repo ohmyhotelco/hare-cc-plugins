@@ -589,6 +589,8 @@ async function flush() {
 }
 
 // ---------- main ----------
+// The hook input's prompt id joins a prompt to the commands it expanded (D14); an id, never text.
+function promptId(input) { return /^[\w-]{1,100}$/.test(String(input.prompt_id || '')) ? input.prompt_id : null; }
 async function main() {
   let input = {};
   try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch (_) { logError('hook input not JSON'); }
@@ -609,7 +611,7 @@ async function main() {
       const p = String(input.prompt || '');
       const m = p.match(/^\s*(\/[\w:-]+)(?=\s|$)/); // a slash command, not a path such as /Users/…
       // No effort here: Claude Code passes it only to events in a tool-use context; usage records carry it.
-      record('prompt', { ...base, repo_dir: repoName, command: m ? m[1] : null, prompt_chars: p.length,
+      record('prompt', { ...base, repo_dir: repoName, prompt_id: promptId(input), command: m ? m[1] : null, prompt_chars: p.length,
         permission_mode: input.permission_mode || null });
       break;
     }
@@ -617,7 +619,7 @@ async function main() {
       // A typed command as Claude Code resolved it: `/cc-init` typed is a plugin command although the prompt
       // record shows no `plugin:` prefix. The arguments are prompt text, so only their length is kept.
       const name = String(input.command_name || '');
-      record('expansion', { ...base, repo_dir: repoName, expansion_type: input.expansion_type || null,
+      record('expansion', { ...base, repo_dir: repoName, prompt_id: promptId(input), expansion_type: input.expansion_type || null,
         command_name: name && name.length <= 200 && !/[\r\n]/.test(name) ? name : null,
         command_source: input.command_source || null, args_chars: String(input.command_args || '').length });
       break;
@@ -719,13 +721,17 @@ async function main() {
       await flush(); // the only upload point: async, so a slow receiver never blocks the session
       break;
     }
-    case 'StopFailure':
-      // A turn ended by an API error fires this instead of Stop. Only the error type is kept — its details
-      // and the shown message are left out — with the account, since usage limits are per account. The
-      // turn's usage is counted by the next Stop or SessionEnd.
+    case 'StopFailure': {
+      // A turn ended by an API error fires this instead of Stop. Its successful requests are recorded first,
+      // while the account that ran them is still signed in: after a usage limit people switch with /login,
+      // and the next Stop would stamp them with the new account. Then only the error type is kept — its
+      // details and the shown message are left out — with the account, since usage limits are per account.
+      const sid = base.session_id || 'nosession';
+      sessionUsage(sid, input, base, { repo_dir: repoName }, 1000); // the hook timeout is 3 s (hooks.json)
       record('stop_failure', { ...base, repo_dir: repoName, email: accountEmail(),
         error: /^[a-z_]{1,40}$/.test(String(input.error || '')) ? input.error : 'unknown' });
       break;
+    }
     case 'SessionEnd': {
       const sid = base.session_id || 'nosession';
       sessionUsage(sid, input, base, { repo_dir: repoName }, 600); // the hook timeout is 1 s (hooks.json)

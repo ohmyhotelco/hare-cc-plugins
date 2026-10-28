@@ -550,18 +550,21 @@ test('hooks.json registers exactly the events collect.js handles, each as exec-f
   const handled = Array.from(fs.readFileSync(COLLECT, 'utf8').matchAll(/^ {4}case '(\w+)':/gm), (m) => m[1]);
   assert.deepEqual(Object.keys(hooks).sort(), handled.slice().sort());
   for (const [event, groups] of Object.entries(hooks)) {
-    for (const h of groups.flatMap((g) => g.hooks)) assert.deepEqual([h.command, h.args[1]], ['node', event]);
+    for (const h of groups.flatMap((g) => g.hooks)) {
+      assert.deepEqual([h.type, h.command, h.args], ['command', 'node', ['${CLAUDE_PLUGIN_ROOT}/scripts/collect.js', event]], event);
+    }
   }
 });
 
 test('a typed command is recorded as Claude Code resolved it, without its arguments', async () => {
   const dir = tmp();
-  await run(dir, 'UserPromptSubmit', { session_id: 's1', cwd: dir, prompt: '/cc-init alex platform', effort: { level: 'high' } });
-  await run(dir, 'UserPromptExpansion', { session_id: 's1', cwd: dir, expansion_type: 'slash_command', command_name: 'cc-init',
+  await run(dir, 'UserPromptSubmit', { session_id: 's1', prompt_id: 'pr-1', cwd: dir, prompt: '/cc-init alex platform', effort: { level: 'high' } });
+  await run(dir, 'UserPromptExpansion', { session_id: 's1', prompt_id: 'pr-1', cwd: dir, expansion_type: 'slash_command', command_name: 'cc-init',
     command_args: 'alex platform', command_source: 'plugin', prompt: '/cc-init alex platform' });
-  await run(dir, 'UserPromptExpansion', { session_id: 's1', cwd: dir, expansion_type: 'slash_command', command_name: 'two\nlines', command_source: 'project' });
+  await run(dir, 'UserPromptExpansion', { session_id: 's1', prompt_id: 'not an id', cwd: dir, expansion_type: 'slash_command', command_name: 'two\nlines', command_source: 'project' });
   const [prompt, exp, bad] = lines(ledger(dir));
   assert.equal(prompt.command, '/cc-init', 'the prompt record keeps what was typed');
+  assert.deepEqual([prompt.prompt_id, exp.prompt_id, bad.prompt_id], ['pr-1', 'pr-1', null], 'the prompt id joins them; anything but an id is dropped');
   assert.ok(!('effort' in prompt), 'a prompt carries no effort: Claude Code passes it only in a tool-use context');
   assert.deepEqual([exp.kind, exp.expansion_type, exp.command_name, exp.command_source, exp.args_chars],
     ['expansion', 'slash_command', 'cc-init', 'plugin', 13]);
@@ -578,7 +581,19 @@ test('a turn ended by an API error records its type and the account, never its m
   const recs = lines(ledger(dir));
   assert.deepEqual(recs.map((x) => [x.kind, x.error, x.email]),
     [['stop_failure', 'rate_limit', 'alex@example.com'], ['stop_failure', 'unknown', 'alex@example.com'], ['stop_failure', 'unknown', 'alex@example.com']]);
-  assert.ok(!/429|API Error|retry in/.test(ledger(dir)), 'no error details, message or free text');
+  // Phrases, not a bare "429": record ids and timestamps are random enough to contain those digits.
+  assert.ok(!/Too Many Requests|API Error|retry in/.test(ledger(dir)), 'no error details, message or free text');
+});
+
+test('a rate-limited turn\'s usage is recorded under the account that ran it, before a /login switch', async () => {
+  const dir = tmp();
+  const signIn = (email) => fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: email } }));
+  signIn('a@example.com');
+  await run(dir, 'StopFailure', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2', 'r3', 'r4']), error: 'rate_limit' });
+  signIn('b@example.com'); // the person switches account after the limit
+  await run(dir, 'Stop', { session_id: 's1', cwd: dir, transcript_path: transcript(dir, ['r1', 'r2', 'r3', 'r4', 'r5']) });
+  assert.deepEqual(lines(ledger(dir)).map((x) => [x.kind, x.email, x.requests || null]),
+    [['usage', 'a@example.com', 4], ['stop_failure', 'a@example.com', null], ['usage', 'b@example.com', 1]]);
 });
 
 test('session_open records the plan tier and no permission mode', async () => {
@@ -747,36 +762,42 @@ test('report.js splits usage by account and writes no session id', () => {
   assert.ok(!/sess-ZZ/.test(text + fs.readFileSync(out, 'utf8')), 'no session id in the text or the JSON');
 });
 
-test('report.js counts a short plugin command through its expansion, and rate limits per account with the plan tier', () => {
+test('report.js counts a prompt as a plugin command once, through its prompt id, and rate limits per account with the plan tier', () => {
   const dir = tmp();
   const led = path.join(dir, 'data', 'ledger');
   fs.mkdirSync(led, { recursive: true });
   const at = (min) => new Date(Date.now() - 3600e3 + min * 60e3).toISOString();
+  const eightDays = new Date(Date.now() - 8 * 864e5).toISOString();
   const recs = [
     { id: 'o1', kind: 'session_open', ts: at(0), session_id: 'n1', email: 'a@example.com', org_rate_limit_tier: 'default_claude_max_5x' },
     { id: 'o2', kind: 'session_open', ts: at(1), session_id: 'n1', email: 'a@example.com', org_rate_limit_tier: 'default_claude_max_20x' }, // later: this tier
-    { id: 'p1', kind: 'prompt', ts: at(2), session_id: 'n1', command: '/cc-init' },
-    { id: 'e1', kind: 'expansion', ts: at(2), session_id: 'n1', command_name: 'cc-init', command_source: 'plugin' },
-    { id: 'p2', kind: 'prompt', ts: at(3), session_id: 'n1', command: '/acme:review' },
-    { id: 'e2', kind: 'expansion', ts: at(3), session_id: 'n1', command_name: 'acme:review', command_source: 'plugin' }, // counted once, not twice
-    { id: 'p3', kind: 'prompt', ts: at(4), session_id: 'n1', command: '/notes' },
-    { id: 'e3', kind: 'expansion', ts: at(4), session_id: 'n1', command_name: 'notes', command_source: 'project' },
-    { id: 'p4', kind: 'prompt', ts: at(5), session_id: 'n1', command: null },
-    { id: 'o3', kind: 'session_open', ts: at(6), session_id: 'old', email: 'b@example.com', org_rate_limit_tier: 'default_claude_max_20x', user_rate_limit_tier: 'seat_premium' },
-    { id: 'p5', kind: 'prompt', ts: at(7), session_id: 'old', command: '/acme:plan' }, // before 0.1.9: the typed form decides
-    { id: 'p6', kind: 'prompt', ts: at(8), session_id: 'old', command: '/plan' },
-    { id: 'f1', kind: 'stop_failure', ts: at(9), session_id: 'n1', email: 'a@example.com', error: 'rate_limit' },
-    { id: 'f2', kind: 'stop_failure', ts: at(10), session_id: 'old', error: 'rate_limit' }, // account unreadable: its session's
-    { id: 'f3', kind: 'stop_failure', ts: at(11), session_id: 'n1', email: 'a@example.com', error: 'overloaded' },
+    { id: 'p1', kind: 'prompt', ts: at(2), session_id: 'n1', prompt_id: 'q1', command: '/cc-init' }, // a short name
+    { id: 'e1', kind: 'expansion', ts: at(2), session_id: 'n1', prompt_id: 'q1', command_name: 'cc-init', command_source: 'plugin' },
+    { id: 'p2', kind: 'prompt', ts: at(3), session_id: 'n1', prompt_id: 'q2', command: '/acme:review' }, // two commands stacked: counted once
+    { id: 'e2', kind: 'expansion', ts: at(3), session_id: 'n1', prompt_id: 'q2', command_name: 'acme:review', command_source: 'plugin' },
+    { id: 'e2b', kind: 'expansion', ts: at(3), session_id: 'n1', prompt_id: 'q2', command_name: 'acme:plan', command_source: 'plugin' },
+    { id: 'p3', kind: 'prompt', ts: at(4), session_id: 'n1', prompt_id: 'q3', command: '/notes' },
+    { id: 'e3', kind: 'expansion', ts: at(4), session_id: 'n1', prompt_id: 'q3', command_name: 'notes', command_source: 'project' },
+    { id: 'p4', kind: 'prompt', ts: at(5), session_id: 'n1', prompt_id: 'q4', command: null },
+    { id: 'p5', kind: 'prompt', ts: at(6), session_id: 'up', plugin: '0.1.8', command: '/acme:plan' }, // before 0.1.9, no id: typed form
+    { id: 'p6', kind: 'prompt', ts: at(7), session_id: 'up', prompt_id: 'q6', command: '/cc-init' }, // same session, resumed on 0.1.9
+    { id: 'e6', kind: 'expansion', ts: at(7), session_id: 'up', prompt_id: 'q6', command_name: 'cc-init', command_source: 'plugin' },
+    { id: 'p7', kind: 'prompt', ts: at(8), session_id: 'up', command: '/plan' }, // no id sent: a short name is missed
+    { id: 'p8', kind: 'prompt', ts: eightDays, session_id: 'far', prompt_id: 'q8', command: '/acme:x' }, // before the window
+    { id: 'e8', kind: 'expansion', ts: at(9), session_id: 'far', prompt_id: 'q8', command_name: 'acme:x', command_source: 'plugin' }, // its expansion inside it
+    { id: 'o3', kind: 'session_open', ts: at(10), session_id: 'old', email: 'b@example.com', org_rate_limit_tier: 'default_claude_max_20x', user_rate_limit_tier: 'seat_premium' },
+    { id: 'f1', kind: 'stop_failure', ts: at(11), session_id: 'n1', email: 'a@example.com', error: 'rate_limit' },
+    { id: 'f2', kind: 'stop_failure', ts: at(12), session_id: 'old', error: 'rate_limit' }, // account unreadable: its session's
+    { id: 'f3', kind: 'stop_failure', ts: at(13), session_id: 'n1', email: 'a@example.com', error: 'overloaded' },
   ];
   fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
   const out = path.join(dir, 'weekly.json');
   const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
   const s = JSON.parse(fs.readFileSync(out, 'utf8'));
-  assert.equal(s.skill_or_plugin_prompt_ratio, 0.5, 'p1, p2 through their expansions and p5 by its prefix: 3 of 6');
-  assert.deepEqual(s.command_sources, { plugin: 2, project: 1 });
-  assert.deepEqual(s.commands_resolved, { 'cc-init': 1, 'acme:review': 1, notes: 1 });
-  assert.match(text, /commands as resolved: cc-init×1 acme:review×1 notes×1/);
+  assert.equal(s.skill_or_plugin_prompt_ratio, 0.571, 'p1, p2 (once), p6 through their prompt ids and p5 by its prefix: 4 of 7 prompts in the window');
+  assert.deepEqual(s.command_sources, { plugin: 5, project: 1 });
+  assert.deepEqual(s.commands_resolved, { 'cc-init': 2, 'acme:review': 1, 'acme:plan': 1, notes: 1, 'acme:x': 1 });
+  assert.match(text, /commands as resolved: cc-init×2 acme:review×1 acme:plan×1 notes×1 acme:x×1/);
   assert.deepEqual(s.stop_failures, { rate_limit: 2, overloaded: 1 });
   assert.deepEqual([s.by_account['a@example.com'].rate_limits, s.by_account['b@example.com'].rate_limits], [1, 1]);
   assert.deepEqual(s.account_tiers, { 'a@example.com': 'default_claude_max_20x', 'b@example.com': 'seat_premium' });

@@ -76,12 +76,12 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 | kind | When | Fields |
 |---|---|---|
 | `session_open` | SessionStart | account email, account/org uuid, seat tier, billing type, organization type and rate-limit tiers (organization and user: a personal plan names its tier on the organization) from `.claude.json` `oauthAccount` (not credentials) · host · OS · OS user · repository origin (host and path only) · repository folder name · branch · model · start source · entrypoint |
-| `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · character count · permission mode. Effort is on `usage` records: Claude Code passes it only in a tool-use context |
-| `expansion` | UserPromptExpansion | a typed command as Claude Code resolved it: command name, with its plugin (`acme:review`, also when `/review` was typed) · source (`plugin`, …) · expansion type (`slash_command`, `mcp_prompt`) · argument character count (no arguments, no prompt text) |
+| `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · prompt id (the hook's, joining the prompt to the commands it expanded) · character count · permission mode. Effort is on `usage` records: Claude Code passes it only in a tool-use context |
+| `expansion` | UserPromptExpansion | a typed command as Claude Code resolved it: command name, with its plugin (`acme:review`, also when `/review` was typed) · source (`plugin`, …) · expansion type (`slash_command`, `mcp_prompt`) · argument character count (no arguments, no prompt text) · prompt id |
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
 | `subagent` | SubagentStop | agent type · agent id. Not for Claude Code's own agents (prompt suggestions, `/btw`), which end with an empty agent type |
 | `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id · the account email signed in when the record is written (so usage after a `/login` switch mid-session goes to the new account) |
-| `stop_failure` | StopFailure | a turn an API error ended (Stop does not fire then): the error type only — `rate_limit`, `overloaded`, `billing_error` and the rest of Claude Code's list, anything else `unknown` — never its details or message · the account email signed in. The turn's usage is counted by the next Stop or SessionEnd |
+| `stop_failure` | StopFailure | a turn an API error ended (Stop does not fire then): the error type only — `rate_limit`, `overloaded`, `billing_error` and the rest of Claude Code's list are short lower-case identifiers and are kept as given, any other value is written as `unknown` — never its details or message · the account email signed in. The failed turn's usage is recorded just before it, under the same account |
 | `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or the merge commits of `merge` — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
 | `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command, read as shell words (so text in quotes or after `echo` is not a command): `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--help` and `--disable-auto` count nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
@@ -105,9 +105,10 @@ requests, tokens (output / cache read / cache create / input), the accounts sign
 account with its plan tier and rate-limit stops, by repository, model, effort and query source, top
 commands (as typed and as Claude Code resolved them), command sources and skills, plugin-command ratio,
 turns ended by an API error, commits, PRs and edits. Each record `id` counts once. The plugin-command
-ratio is the share of prompts that ran a plugin command: in a session recorded from 0.1.9 its resolved
-commands decide, so a plugin command typed by its short name counts; before, only the typed
-`plugin:skill` form did. Usage from a ledger written before 0.1.8
+ratio is the share of prompts that ran a plugin command. A prompt recorded from 0.1.9 carries the hook's
+prompt id and counts when an expansion with that id came from a plugin, so a plugin command typed by its
+short name counts, and a prompt counts once however many commands it expanded; the prompt's own time puts
+it in the window. A prompt without a prompt id counts by its typed `plugin:skill` form. Usage from a ledger written before 0.1.8
 counts under the account of its session's latest start (open, resume or compact) at or before it.
 No session id appears in the output. The JSON has `accounts` and `by_account` in place of the
 `who.email` of 0.1.7, which named only the first account.
@@ -161,8 +162,10 @@ The query parameters let a receiver choose a folder and file name from the URL a
   commit and PR detection reads the session's working directory.
 - Edit counters can miss an increment when tool calls of one session run in parallel.
 - Without Node the hooks fail to start, silently; the session itself is unaffected.
-- Sessions recorded before 0.1.9 have no resolved commands: there the plugin-command ratio counts only
-  typed `plugin:skill` commands and misses a plugin command typed by its short name.
+- Prompts recorded without a prompt id — before 0.1.9, or by a Claude Code that sends none — count by
+  their typed `plugin:skill` form, so a plugin command typed by its short name is missed there.
+- After a turn an API error ended, the StopFailure hook records that turn's usage before the session goes
+  on: up to about a second of waiting for the session lock, plus the transcript read.
 - Claude Code's own agents (prompt suggestions, for example) have left no subagent transcript in the
   runs so far, so their tokens are not counted.
 - Tell the people whose machines run it what is collected, why, and where it goes before installing.

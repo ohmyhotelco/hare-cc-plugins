@@ -450,9 +450,11 @@ test('a failing claude CLI stops with its exit status and nothing else', () => {
 });
 
 // A cmd.exe stand-in, so the Windows branch runs here: with the platform reported as win32, Node runs
-// `cmd /d /s /c "<command line>"` for shell: true, and this runs the line with /bin/sh.
+// `cmd /d /s /c "<command line>"` for shell: true, and this runs the line with /bin/sh. It logs what it
+// was given, so a branch that skips the shell (claude.cmd cannot start without one) fails the test.
 const CMD = `#!/usr/bin/env node
 const a = process.argv.slice(2);
+require('fs').appendFileSync(process.env.CMD_LOG, JSON.stringify(a) + '\\n');
 const line = a.slice(a.indexOf('/c') + 1).join(' ').replace(/^"([\\s\\S]*)"$/, '$1');
 const r = require('child_process').spawnSync('/bin/sh', ['-c', line], { stdio: 'inherit' });
 process.exit(r.status == null ? 1 : r.status);
@@ -462,7 +464,8 @@ test('on Windows the CLI runs as one command line through the shell, without a d
   fs.writeFileSync(path.join(dir, 'bin', 'cmd'), CMD, { mode: 0o755 });
   const win32 = path.join(dir, 'win32.js');
   fs.writeFileSync(win32, "Object.defineProperty(process, 'platform', { value: 'win32' });\n");
-  const runWin = (args) => spawnSync(process.execPath, ['--require', win32, INIT, ...args], { env: envFor(dir, { comspec: 'cmd' }), encoding: 'utf8' });
+  const log = path.join(dir, 'cmd.log');
+  const runWin = (args) => spawnSync(process.execPath, ['--require', win32, INIT, ...args], { env: envFor(dir, { comspec: 'cmd', CMD_LOG: log }), encoding: 'utf8' });
   let r = runWin(['status']);
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /developer +alex/);
@@ -470,4 +473,7 @@ test('on Windows the CLI runs as one command line through the shell, without a d
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(saved(dir), [{ team: 'platform' }], 'the values still travel on stdin through the shell');
   assert.doesNotMatch(r.stderr, /DEP0190|DeprecationWarning/);
+  const calls = fs.readFileSync(log, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.ok(calls.every((c) => c.length === 4 && c.slice(0, 3).join(' ') === '/d /s /c'), 'every CLI call went through the shell as one line');
+  assert.ok(calls.some((c) => c[3] === `"claude plugin configure ${ID} --values-stdin"`), 'the save is one quoted command line');
 });

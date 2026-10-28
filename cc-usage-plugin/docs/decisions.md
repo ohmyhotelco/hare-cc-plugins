@@ -173,7 +173,9 @@ makes that rare.
 outside this repository and are not carried over.
 
 **Consequences:** record kinds and fields are unchanged from 0.1.6 except for `email` on `usage`
-records from 0.1.8 (D13); each record names its `plugin` version, so `report.js` still reads an older
+records from 0.1.8 (D13) and, from 0.1.9, the `expansion` and `stop_failure` kinds, `prompt_id` on
+`prompt` and `expansion`, the tier fields on `session_open`, and the removal of
+`session_open.permission_mode` and `prompt.effort` (D14–D16); each record names its `plugin` version, so `report.js` still reads an older
 ledger. The data folder follows the plugin name, so a
 ledger kept under the earlier name is not continued; a 0.1.6 `outbox.jsonl` in the data folder is
 removed when uploads start.
@@ -283,9 +285,9 @@ lists.
 **Decision:** a `UserPromptExpansion` hook writes an `expansion` record for each typed command that
 expands into a prompt: the command name as Claude Code resolved it (`acme:review` for a plugin command,
 also when `/review` was typed), its source (`plugin`, …), the expansion type and the argument length.
-The `prompt` record keeps what was typed. `report.js` decides the plugin-command ratio from the
-`expansion` records in a session that has them, and from the typed `plugin:skill` form in a session
-recorded before 0.1.9.
+The `prompt` record keeps what was typed. Both records carry the hook input's `prompt_id`.
+`report.js` counts a prompt as a plugin command when an `expansion` with its `prompt_id` came from a
+plugin, and a prompt without one (before 0.1.9) by its typed `plugin:skill` form.
 
 **Why:** the first week of real data showed a plugin command typed by its short name — Claude Code
 accepts one when it is unambiguous — recorded as `/cc-init`, which the ratio counted as no plugin
@@ -294,24 +296,31 @@ project, user and plugin commands; the hook input already carries its answer. A 
 the aggregation side cannot tell a project command from a plugin command of the same name.
 
 **Cost:** one more hook per typed command, and a record that duplicates part of the `prompt` record.
-The two are not joined by id: the ratio counts plugin `expansion` records against `prompt` records.
-The arguments are prompt text, so only their length is kept.
+The two are joined by `prompt_id` — both hooks receive the same value (checked in a live session) — so
+a prompt counts once however many commands it expanded, and the prompt's own timestamp puts it in the
+report window. The first version of this rule decided per session instead, and dropped the earlier
+commands of a session resumed after an upgrade from 0.1.8. A prompt without a `prompt_id` still misses a
+short name. The arguments are prompt text, so only their length is kept.
 
 ## D15. Turns ended by an API error are recorded by type only
 
 **Decision:** a `StopFailure` hook writes a `stop_failure` record with the error type Claude Code
 names (`rate_limit`, `overloaded`, `billing_error`, …) and the account signed in. A value that is not a
 short lower-case identifier is written as `unknown`. The error details and the message shown are not
-recorded. `report.js` counts the types and the rate-limit stops per account.
+recorded. Before that record, the session's usage is recorded under the session lock, as at Stop, so
+the failed turn's successful requests go to the account that ran them. `report.js` counts the types and
+the rate-limit stops per account.
 
 **Why:** why an account runs out is part of what the weekly report has to answer, and nothing recorded
 before showed a limit being reached: a turn ended by an API error fires StopFailure instead of Stop,
 so it left no trace. Usage limits are per account, hence the account on the record. The details and
 the message can carry text the plugin has no reason to keep.
 
-**Cost:** a limit reached while no turn is running (between turns, or in a subagent) is not seen. The
-usage of the failed turn is counted by the next Stop or SessionEnd, so it can appear under a later
-interval.
+**Cost:** a limit reached while no turn is running (between turns, or in a subagent) is not seen.
+StopFailure is a synchronous hook, so recording the usage — up to 1 s waiting for the session lock, plus
+the transcript read — comes after a failed turn, and pending edit counters are written then too.
+Without it, the next Stop counted the failed turn and stamped it with the account signed in by then,
+which after a `/login` switch is not the one that ran out.
 
 ## D16. Plan tier recorded; fields that never fill and Claude Code's own agents left out
 

@@ -72,9 +72,12 @@ const byAccount = {}, accountSessions = {};
 const accountOf = (r) => ('email' in r ? r.email : sessionAccount(r.session_id, r.ts)) || '(unknown)';
 const accountEntry = (account) => byAccount[account]
   || (byAccount[account] = { sessions: 0, requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0, rate_limits: 0 });
-// Typed commands as Claude Code resolved them (0.1.9). In a session that has them, they decide which
-// prompts were plugin commands; elsewhere the typed `plugin:skill` form does, missing a short name.
-const expanded = new Set(recs.filter((r) => r.kind === 'expansion' && r.session_id).map((r) => r.session_id));
+// A prompt ran a plugin command when an expansion with the same prompt id came from a plugin (0.1.9, D14):
+// each prompt counts once however many commands it expanded, and the prompt's own timestamp puts it in the
+// window, so the expansions are looked up in the whole ledger. A prompt without an id (before 0.1.9, or
+// from a Claude Code that sends none) counts by its typed `plugin:skill` form, missing a short name.
+const pluginPromptIds = new Set(all.filter((r) => r.kind === 'expansion' && r.prompt_id && r.command_source === 'plugin').map((r) => r.prompt_id));
+const isPluginPrompt = (r) => (r.prompt_id ? pluginPromptIds.has(r.prompt_id) : Boolean(r.command && r.command.includes(':')));
 const commandSources = {}, resolvedCmds = {}, stopFailures = {}, tierAt = {};
 let pluginPrompts = 0;
 for (const r of recs) {
@@ -84,11 +87,10 @@ for (const r of recs) {
   const tier = r.kind === 'session_open' && r.email && (r.user_rate_limit_tier || r.org_rate_limit_tier);
   if (tier && !(tierAt[r.email] && tierAt[r.email][0] > r.ts)) tierAt[r.email] = [r.ts, tier];
   if (r.kind === 'prompt' && r.command) inc(cmds, r.command);
-  if (r.kind === 'prompt' && r.command && r.command.includes(':') && !expanded.has(r.session_id)) pluginPrompts++;
+  if (r.kind === 'prompt' && isPluginPrompt(r)) pluginPrompts++;
   if (r.kind === 'expansion') {
     inc(commandSources, r.command_source || '(unknown)');
-    if (r.command_name) inc(resolvedCmds, r.command_name); // a plugin command carries its plugin: `acme:review`
-    if (r.command_source === 'plugin') pluginPrompts++;
+    if (r.command_name) inc(resolvedCmds, r.command_name);
   }
   if (r.kind === 'stop_failure') {
     inc(stopFailures, r.error || 'unknown');
