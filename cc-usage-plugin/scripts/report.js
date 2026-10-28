@@ -68,10 +68,34 @@ function sessionAccount(sid, ts) {
   return found;
 }
 const byAccount = {}, accountSessions = {};
+// A 0.1.8 record with email null could not read the account then; it is not the session's.
+const accountOf = (r) => ('email' in r ? r.email : sessionAccount(r.session_id, r.ts)) || '(unknown)';
+const accountEntry = (account) => byAccount[account]
+  || (byAccount[account] = { sessions: 0, requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0, rate_limits: 0 });
+// A prompt ran a plugin command when an expansion with the same prompt id came from a plugin (0.1.9, D14):
+// each prompt counts once however many commands it expanded, and the prompt's own timestamp puts it in the
+// window, so the expansions are looked up in the whole ledger. A prompt without an id (before 0.1.9, or
+// from a Claude Code that sends none) counts by its typed `plugin:skill` form, missing a short name.
+const pluginPromptIds = new Set(all.filter((r) => r.kind === 'expansion' && r.prompt_id && r.command_source === 'plugin').map((r) => r.prompt_id));
+const isPluginPrompt = (r) => (r.prompt_id ? pluginPromptIds.has(r.prompt_id) : Boolean(r.command && r.command.includes(':')));
+const commandSources = {}, resolvedCmds = {}, stopFailures = {}, tierAt = {};
+let pluginPrompts = 0;
 for (const r of recs) {
   if (r.session_id) sessions.add(r.session_id);
   if (r.kind === 'session_open' && !who) who = { developer: r.developer, team: r.team, host: r.host };
+  // The plan tier of each account, from its latest session start in the window.
+  const tier = r.kind === 'session_open' && r.email && (r.user_rate_limit_tier || r.org_rate_limit_tier);
+  if (tier && !(tierAt[r.email] && tierAt[r.email][0] > r.ts)) tierAt[r.email] = [r.ts, tier];
   if (r.kind === 'prompt' && r.command) inc(cmds, r.command);
+  if (r.kind === 'prompt' && isPluginPrompt(r)) pluginPrompts++;
+  if (r.kind === 'expansion') {
+    inc(commandSources, r.command_source || '(unknown)');
+    if (r.command_name) inc(resolvedCmds, r.command_name);
+  }
+  if (r.kind === 'stop_failure') {
+    inc(stopFailures, r.error || 'unknown');
+    if (r.error === 'rate_limit') accountEntry(accountOf(r)).rate_limits++;
+  }
   if (r.kind === 'skill' && r.skill) inc(skills, r.skill);
   if (r.kind === 'subagent' && r.agent_type) inc(agents, r.agent_type);
   if (r.kind === 'commit' && (!r.op || AUTHORING.includes(r.op))) commits += r.commits || 1;
@@ -80,9 +104,8 @@ for (const r of recs) {
   if (r.kind === 'usage') {
     const repo = r.repo || repoBySession[r.session_id] || r.repo_dir || '?';
     const agentType = r.agent_type || (r.agent_id && agentTypeById[r.agent_id]) || null;
-    // A 0.1.8 record with email null could not read the account then; it is not the session's.
-    const account = ('email' in r ? r.email : sessionAccount(r.session_id, r.ts)) || '(unknown)';
-    const acc = byAccount[account] || (byAccount[account] = { sessions: 0, requests: 0, input: 0, output: 0, cache_read: 0, cache_create: 0, thinking: 0 });
+    const account = accountOf(r);
+    const acc = accountEntry(account);
     if (r.session_id) (accountSessions[account] || (accountSessions[account] = new Set())).add(r.session_id);
     for (const m of r.by_model || []) {
       const total = m.input + m.output + m.cache_read + m.cache_create;
@@ -97,22 +120,24 @@ for (const [account, set] of Object.entries(accountSessions)) byAccount[account]
 // Every account signed in during the window, also one whose sessions used no tokens.
 const accounts = [...new Set([...recs.filter((r) => r.kind === 'session_open' && r.email).map((r) => r.email),
   ...Object.keys(byAccount).filter((a) => a !== '(unknown)')])].sort();
+const accountTiers = Object.fromEntries(Object.entries(tierAt).map(([email, [, tier]]) => [email, tier]));
 const top = (o, n = 10) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n);
 const M = n => (n / 1e6).toFixed(1) + 'M';
-const summary = { generated: new Date().toISOString(), days, who, accounts, sessions: sessions.size, totals: tot,
+const summary = { generated: new Date().toISOString(), days, who, accounts, account_tiers: accountTiers, sessions: sessions.size, totals: tot,
   by_account: byAccount, by_repo: Object.fromEntries(top(byRepo, 20)), by_model: byModel, by_effort: byEffort,
   by_query_source: bySource, subagent_tokens_by_agent_type: Object.fromEntries(top(byAgentType, 20)),
-  commands: Object.fromEntries(top(cmds, 20)), skills: Object.fromEntries(top(skills, 20)), subagents: Object.fromEntries(top(agents, 20)),
+  commands: Object.fromEntries(top(cmds, 20)), commands_resolved: Object.fromEntries(top(resolvedCmds, 20)),
+  command_sources: commandSources, skills: Object.fromEntries(top(skills, 20)),
+  subagents: Object.fromEntries(top(agents, 20)), stop_failures: stopFailures,
   commits, prs, edits,
   skill_or_plugin_prompt_ratio: null };
 const promptCount = recs.filter(r => r.kind === 'prompt').length;
-const pluginPrompts = recs.filter(r => r.kind === 'prompt' && r.command && r.command.includes(':')).length;
 if (promptCount) summary.skill_or_plugin_prompt_ratio = +(pluginPrompts / promptCount).toFixed(3);
 if (outJson) fs.writeFileSync(outJson, JSON.stringify(summary, null, 2));
 console.log(`cc-usage · last ${days}d · ${who ? [who.developer, who.team].filter(Boolean).join(' · ') : ''} · ${accounts.length} account(s) · sessions ${sessions.size} · requests ${tot.requests}`);
 console.log(`tokens: output ${M(tot.output)} · cache_read ${M(tot.cache_read)} · cache_create ${M(tot.cache_create)} · input ${M(tot.input)}`);
 console.log('by account:'); for (const [k, v] of Object.entries(byAccount).sort((a, b) => b[1].output - a[1].output)) {
-  console.log(`  ${k}  sessions ${v.sessions} · requests ${v.requests} · output ${M(v.output)} · cache_read ${M(v.cache_read)}`);
+  console.log(`  ${k}${accountTiers[k] ? ` (${accountTiers[k]})` : ''}  sessions ${v.sessions} · requests ${v.requests} · output ${M(v.output)} · cache_read ${M(v.cache_read)}${v.rate_limits ? ` · rate limits ${v.rate_limits}` : ''}`);
 }
 console.log('by repo:'); for (const [k, v] of top(byRepo, 8)) console.log(`  ${k}  ${M(v)}`);
 console.log('by model:'); for (const [k, v] of top(byModel)) console.log(`  ${k}  ${M(v)}`);
@@ -120,6 +145,8 @@ const srcTotal = Object.values(bySource).reduce((a, b) => a + b, 0) || 1;
 console.log('by query source:', Object.entries(bySource).map(([k, v]) => `${k} ${(100 * v / srcTotal).toFixed(0)}%`).join(' · ') || '-');
 console.log('subagent tokens by agent type:', top(byAgentType, 6).map(([k, v]) => `${k} ${M(v)}`).join(' · ') || '-');
 console.log('commands:', top(cmds, 8).map(([k, v]) => `${k}×${v}`).join(' ') || '-');
+console.log('commands as resolved:', top(resolvedCmds, 8).map(([k, v]) => `${k}×${v}`).join(' ') || '-');
 console.log('skills:', top(skills, 8).map(([k, v]) => `${k}×${v}`).join(' ') || '-');
 console.log('plugin-command prompt ratio:', summary.skill_or_plugin_prompt_ratio);
+console.log('turns ended by an API error:', top(stopFailures).map(([k, v]) => `${k}×${v}`).join(' ') || '-');
 console.log(`outcomes: commits ${commits} · PRs ${prs.length}${prs.length ? ' (' + prs.map(p => '#' + p.number + ' ' + (p.action || '')).join(', ') + ')' : ''} · edits ${edits.count} (${edits.files} files, ${(edits.bytes / 1024).toFixed(0)} KB)`);

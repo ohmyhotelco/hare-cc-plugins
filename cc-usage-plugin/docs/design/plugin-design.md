@@ -1,13 +1,13 @@
 # cc-usage-plugin — design
 
 How the plugin works inside. What is recorded and the upload contract are in `README.md`; the reasons
-for each choice are in `docs/decisions.md` (cited as D1–D13).
+for each choice are in `docs/decisions.md` (cited as D1–D16).
 
 ## 1. Components
 
 | Piece | Role |
 |---|---|
-| `hooks/hooks.json` | seven `command` hooks, exec form (`node` + args), so no shell runs on any platform |
+| `hooks/hooks.json` | nine `command` hooks, exec form (`node` + args), so no shell runs on any platform |
 | `scripts/collect.js` | the only hook entry point: reads the hook's JSON on stdin, writes records, uploads from Stop; prints nothing, exits 0 |
 | `scripts/config.js` | option rules shared by `collect.js` and `init.js`: developer normalization, the endpoint check, the refusal reasons |
 | `scripts/init.js` | setup helper (§ 8): `status`, `set`, `secrets`, all through `claude plugin configure`; not run by any hook |
@@ -19,11 +19,13 @@ for each choice are in `docs/decisions.md` (cited as D1–D13).
 | Hook | Matcher | Hook timeout | Work |
 |---|---|---|---|
 | SessionStart | — | 8 s | `session_open`; HEAD baseline per cwd (other baselines and counted commits kept); prunes session state older than 30 days |
-| UserPromptSubmit | — | 3 s | `prompt` (slash-command name only) |
+| UserPromptSubmit | — | 3 s | `prompt` (slash-command name only, prompt id) |
+| UserPromptExpansion | — | 3 s | `expansion`: the typed command as resolved, its source, the argument length, prompt id (D14) |
 | PreToolUse | `^Skill$` | 3 s | `skill` |
 | PostToolUse | `^(Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit)$` | 10 s | `commit` / `pr` from shell commands (up to six git calls of at most 1.5 s each: HEAD, `user.email`, new commits, first-parent merge line, origin, branch); edit counters in session state |
-| SubagentStop | — | 3 s | `subagent`; that agent's transcript delta under the session lock (1 s wait) |
+| SubagentStop | — | 3 s | `subagent` unless the agent type is empty (D16); that agent's transcript delta under the session lock (1 s wait) |
 | Stop | — (async) | not enforced; self-bounded (D3) | session usage under the session lock (5 s wait), `edits`, then upload |
+| StopFailure | — | 3 s | session usage under the session lock (1 s wait), `edits`, then `stop_failure`: error type and account (D15) |
 | SessionEnd | — | 1 s | session usage under the session lock (600 ms wait), `edits`, `session_close` |
 
 ## 2. Data folder (`${CLAUDE_PLUGIN_DATA}`)
@@ -145,6 +147,12 @@ on usage records, also after a `/login` switch mid-session and from SubagentStop
 pruning, and `report.js` (data folder discovery by ledger file time, de-duplication, one key per
 repository, origins named before the report window, usage per account with older records falling back
 to the account of their session's latest start at or before them, and no session id in the output).
+From 0.1.9 also: the resolved-command and API-error records without their text, the prompt id on both
+prompt and expansion, a rate-limited turn's usage recorded under its account before a `/login` switch,
+the plan tier without a permission mode, Claude Code's own agents, `hooks.json` registering exactly
+the handled events with their type and script path, and `report.js` counting a prompt once through its
+prompt id (stacked commands, a session resumed after the upgrade, a prompt before the window whose
+expansion is inside it, prompts without an id) with rate limits and plan tier per account.
 
 `tests/init.test.js` covers the status report (options, the hooks' data folder of this install
 rather than `CLAUDE_PLUGIN_DATA`, upload state, the next step and the printed command with its plugin
@@ -159,7 +167,9 @@ Ctrl-C not reaching the shell afterwards; also `--config-dir` reaching the CLI, 
 the printed command, a data folder whose name had other characters replaced, week files only, and a
 configuration refusal shown with its reason, the team saved alone, a developer id from
 `CC_USAGE_DEVELOPER`, a null entry in the install list, the editing keys (a lone Esc, Ctrl-U,
-Ctrl-W, an unfinished sequence ended by Enter or Ctrl-C), and an unexpected exception still draining.
+Ctrl-W, an unfinished sequence ended by Enter or Ctrl-C), an unexpected exception still draining, and
+the Windows command line: with the platform reported as `win32`, a `cmd` stand-in that logs its
+arguments shows every CLI call going through the shell as one quoted line, with no DEP0190 warning.
 
 Not covered by a test: a killed process, a crash between cut and offset save, a lost `202`, an
 unparsable checkpoint or send state, a checkpoint that cannot be saved, a send state that becomes

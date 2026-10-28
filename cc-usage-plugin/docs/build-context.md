@@ -509,3 +509,114 @@ survived because the test's later Ctrl-U erased its effect; the keys are now tes
 
 `cc-init` in a signed-in session against a marketplace install: the first install on a developer
 machine after this version is published. Windows and Cowork, as before.
+
+## 2026-10-28 — v0.1.9 fixes what the first real week showed
+
+### Why
+
+The first uploads from two machines (macOS, and Windows 11 with 0.1.8) were read back and summarized
+with `report.js`. Six things were wrong or missing for the weekly report:
+
+| Seen | Fix |
+|---|---|
+| a plugin command typed by its short name (`/cc-init`, 8 characters) was recorded as typed, so the plugin-command ratio was 0 although the transcript names `/cc-usage-plugin:cc-init` | `expansion` record from UserPromptExpansion (D14) |
+| no trace of a usage limit being reached anywhere | `stop_failure` record from StopFailure (D15) |
+| `seat_tier` empty on all 11 `session_open` records, while `.claude.json` names `organizationRateLimitTier` | tier fields (D16) |
+| `prompt.effort` empty on 27 of 27, `session_open.permission_mode` on 11 of 11 | both removed (D16) |
+| 23 `subagent` records with an empty agent type and no transcript, none a subagent the session started | not recorded (D16) |
+| Node's DEP0190 warning on every Windows run of `init.js secrets` | one command line through the shell (D12) |
+
+### Platform facts checked
+
+From the hooks reference: UserPromptExpansion receives `expansion_type`, `command_name`,
+`command_args`, `command_source` and the original `prompt`; StopFailure fires instead of Stop when a
+turn ends by an API error and receives `error` (a fixed list of types), optional `error_details` and
+`last_assistant_message`; SubagentStop also fires for Claude Code's own agents (prompt suggestions,
+`/btw`) with an empty `agent_type` when the session runs as no named agent; `effort` is an object
+with `level`, given to events in a tool-use context; in `-p` mode Claude Code cancels async hooks
+still running at exit, which is why a Windows `-p` run left its batch in `send/` until the next
+session (the batch arrived with it, nothing lost). The same reference fetched with Claude Code 2.1.306
+already listed both new events.
+
+Live, Claude Code 2.1.312, the installed 0.1.8 disabled for the run with
+`--settings '{"enabledPlugins":{…:false}}'` and this folder loaded with `--plugin-dir` (the installed
+ledger stayed at 94 lines with no record of either session):
+
+- `claude -p --plugin-dir … --plugin-dir <a throwaway plugin with a skill "ping"> "/ping"` (Haiku,
+  $0.0062): `prompt.command` `/ping`, and an `expansion` record with `command_name: "pingplug:ping"`,
+  `command_source: "plugin"`, `args_chars: 0`. The resolved name carries the plugin.
+- `session_open` of the same run: `org_type: "claude_max"`, `org_rate_limit_tier:
+  "default_claude_max_20x"`, `user_rate_limit_tier: null`, no `permission_mode`; `prompt` without
+  `effort`.
+- `claude -p --model claude-nonexistent-9-9 …` (no request made, $0): a `stop_failure` record with
+  `error: "model_not_found"` and the account email.
+
+### Test suite (on the working tree before the commit)
+
+`node --test 'cc-usage-plugin/tests/*.test.js'`: 53 tests (35 + 18), all pass on macOS, Node 24.22.1,
+about 26 s. New: the resolved-command record without argument text, the API-error record without its
+details or message, the plan tier without a permission mode, Claude Code's own agents, the
+`hooks.json` wiring against the events `collect.js` handles, the report's ratio before and from 0.1.9
+with rate limits and tier per account, and `init.js` on Windows. The Windows case reports the platform
+as `win32` to the child process and puts a `cmd` stand-in on `PATH`, since Node runs
+`cmd /d /s /c "<line>"` for `shell: true` there; it checks the CLI still gets the values on stdin and
+no DEP0190 warning is printed. Mutation check: 14 mutants, every one caught (each new field or rule
+removed, the argument text kept, the error message kept, the expansion double-counted, the tier
+preference reversed, the rate-limit account fallback removed, a hook missing from `hooks.json`, the
+argument array restored on Windows).
+
+### Repository checks
+
+`claude plugin validate cc-usage-plugin`: passed with the two expected warnings (plugin-root
+`CLAUDE.md`, no icon). `scripts/check-plugin-consistency.py cc-usage-plugin`: 0 findings.
+
+### Dual audit on `8e408f7`, and a check of the merged review
+
+Two reviewers with one brief on a detached worktree of `8e408f7`: `codex exec` (read-only sandbox,
+reasoning high; the sandbox refused temporary folders, so it reproduced in memory instead of running the
+suite) and a fresh Claude agent (ran the suite: 53 pass). The two outputs shared a folder, and the brief
+named the areas to examine, so a finding both raised is not counted as independent evidence. The
+findings were merged, each reproduced on a copy of the PR head, and the merged review was then checked by
+another fresh Claude agent against the raw audits, the code and the reproductions; it caught a wrong fix
+in the review (a shorthand that would have thrown a ReferenceError and lost the `stop_failure` record), a
+proposed pattern that let file paths through, and severity reasons that did not hold.
+
+**Codex 10 (high 8 / medium 2), Claude 7 (medium 4 / low 3) → 14 after merging and re-rating
+(medium 6 / low 8, no high: every reproduction needed input Claude Code does not send or had a narrow
+reach).** Fixed in this PR:
+
+| Finding | Fix |
+|---|---|
+| the ratio decided per session: a session resumed after the upgrade from 0.1.8 lost its earlier plugin commands (0.5 instead of 1) | `prompt_id` on `prompt` and `expansion`; a prompt counts when an expansion with its id came from a plugin, once per prompt, windowed by the prompt's time; a prompt without an id by its typed form (D14) |
+| the numerator counted expansion records, so the ratio could pass 1 (records without a session id, a window edge between the two writes, possibly stacked commands in interactive mode — `claude -p "/ping /pong"` expanded only the first) | same change |
+| a rate-limited turn's usage was stamped with the account signed in at the next Stop, so after a `/login` switch it landed on the new account (reproduced: `usage b requests=5` instead of 4 on a and 1 on b) | StopFailure records the session's usage under the session lock first (D15) |
+| the Windows test passed with the shell removed | the `cmd` stand-in logs its arguments; the test asserts `/d /s /c` and one quoted command line |
+| the `hooks.json` test passed with a wrong hook type or script path | it asserts the type and the full `args` |
+| README said "anything else `unknown`" for the error type, unlike D15 and the code | README (EN / KO) follows D15 |
+| D9 still said no record changes since 0.1.8; design § 7 listed none of the new tests | both updated |
+
+Not in this PR (low): the README's promise that a resolved name always carries its plugin (seen on
+2.1.312, not guaranteed by the reference); looser checks on the other `expansion` fields; a non-string
+`error` kept as given; `command_sources` missing from the text output; aggregation objects that break on
+names like `constructor`; plan tier only from session starts inside the window; an account seen only on
+a non-rate-limit failure left out of `accounts`; the session-account fallback picking a later start
+(since 0.1.8).
+
+Checked live on Claude Code 2.1.312: `UserPromptSubmit` and `UserPromptExpansion` receive the same
+`prompt_id`.
+
+The API-error test asserted that the ledger contained no `429`; record ids and timestamps contain those
+digits by chance, which made it fail about one run in forty. It now looks for phrases instead (60 runs,
+no failure).
+
+### Test suite after the audit
+
+54 tests (36 + 18), all pass on macOS, Node 24.22.1. Mutation check: 9 mutants for these fixes (the
+prompt id ignored, expansions counted again, the prompt-id check removed, no prompt id on the prompt,
+the StopFailure usage removed or moved after the record, the shell removed on Windows, a wrong hook type,
+a wrong script path) and the 13 earlier ones that still apply; every mutant failed a test.
+
+### Not yet run
+
+On Windows: `init.js` after the command-line change, and the two new hooks on Claude Code 2.1.309,
+including whether it sends `prompt_id`. A real `rate_limit` StopFailure. Cowork, as before.

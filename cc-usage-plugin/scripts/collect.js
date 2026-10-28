@@ -15,7 +15,7 @@ const { randomUUID, createHash } = require('crypto');
 const config = (() => { try { return require('./config'); } catch (_) { return null; } })();
 
 const EVENT = process.argv[2] || 'unknown';
-const PLUGIN_VERSION = '0.1.8';
+const PLUGIN_VERSION = '0.1.9';
 const STARTED = Date.now();
 
 function safe(fn, fallback) { try { return fn(); } catch (_) { return fallback; } }
@@ -91,6 +91,10 @@ function identity() {
     org_uuid: acct.organizationUuid || null,
     seat_tier: acct.seatTier || null,
     billing_type: acct.billingType || null,
+    // The plan's usage limits: a personal plan names its tier on the organization (seatTier is empty there).
+    org_type: acct.organizationType || null,
+    org_rate_limit_tier: acct.organizationRateLimitTier || null,
+    user_rate_limit_tier: acct.userRateLimitTier || null,
     host: os.hostname(),
     os_user: safe(() => os.userInfo().username, null),
     os: `${process.platform}/${os.release()}`,
@@ -585,6 +589,8 @@ async function flush() {
 }
 
 // ---------- main ----------
+// The hook input's prompt id joins a prompt to the commands it expanded (D14); an id, never text.
+function promptId(input) { return /^[\w-]{1,100}$/.test(String(input.prompt_id || '')) ? input.prompt_id : null; }
 async function main() {
   let input = {};
   try { input = JSON.parse(fs.readFileSync(0, 'utf8') || '{}'); } catch (_) { logError('hook input not JSON'); }
@@ -594,7 +600,7 @@ async function main() {
   switch (EVENT) {
     case 'SessionStart':
       record('session_open', { ...base, ...identity(), repo: gitOrigin(base.cwd), repo_dir: repoName, branch: gitBranch(base.cwd),
-        model: input.model || null, source: input.source || null, permission_mode: input.permission_mode || null,
+        model: input.model || null, source: input.source || null,
         entrypoint: process.env.CLAUDE_CODE_ENTRYPOINT || null });
       { // a resumed or compacted session keeps its other baselines and the commits it already counted
         const h = gitHead(base.cwd), name = `${base.session_id || 'nosession'}.git.json`;
@@ -604,8 +610,18 @@ async function main() {
     case 'UserPromptSubmit': {
       const p = String(input.prompt || '');
       const m = p.match(/^\s*(\/[\w:-]+)(?=\s|$)/); // a slash command, not a path such as /Users/…
-      record('prompt', { ...base, repo_dir: repoName, command: m ? m[1] : null, prompt_chars: p.length,
-        permission_mode: input.permission_mode || null, effort: input.effort && input.effort.level || null });
+      // No effort here: Claude Code passes it only to events in a tool-use context; usage records carry it.
+      record('prompt', { ...base, repo_dir: repoName, prompt_id: promptId(input), command: m ? m[1] : null, prompt_chars: p.length,
+        permission_mode: input.permission_mode || null });
+      break;
+    }
+    case 'UserPromptExpansion': {
+      // A typed command as Claude Code resolved it: `/cc-init` typed is a plugin command although the prompt
+      // record shows no `plugin:` prefix. The arguments are prompt text, so only their length is kept.
+      const name = String(input.command_name || '');
+      record('expansion', { ...base, repo_dir: repoName, prompt_id: promptId(input), expansion_type: input.expansion_type || null,
+        command_name: name && name.length <= 200 && !/[\r\n]/.test(name) ? name : null,
+        command_source: input.command_source || null, args_chars: String(input.command_args || '').length });
       break;
     }
     case 'PreToolUse':
@@ -688,7 +704,9 @@ async function main() {
     }
     case 'SubagentStop': {
       const sid = base.session_id || 'nosession';
-      record('subagent', { ...base, repo_dir: repoName, agent_type: input.agent_type || null, agent_id: input.agent_id || null });
+      // Claude Code's own agents (prompt suggestions, /btw) fire SubagentStop too, with an empty agent type
+      // when the session runs as no named agent; they are not subagents the session started.
+      if (input.agent_type) record('subagent', { ...base, repo_dir: repoName, agent_type: input.agent_type, agent_id: input.agent_id || null });
       // Subagent tokens live in their own transcript; parse it now while the agent type is known.
       withLock(sessionLock(sid), 1000, () => {
         const u = usageDelta(`${sid}.${input.agent_id || 'agent'}`, input.agent_transcript_path, { query_source: 'subagent' });
@@ -701,6 +719,17 @@ async function main() {
       const sid = base.session_id || 'nosession';
       sessionUsage(sid, input, base, { repo_dir: repoName, repo: gitOrigin(base.cwd) }, 5000);
       await flush(); // the only upload point: async, so a slow receiver never blocks the session
+      break;
+    }
+    case 'StopFailure': {
+      // A turn ended by an API error fires this instead of Stop. Its successful requests are recorded first,
+      // while the account that ran them is still signed in: after a usage limit people switch with /login,
+      // and the next Stop would stamp them with the new account. Then only the error type is kept — its
+      // details and the shown message are left out — with the account, since usage limits are per account.
+      const sid = base.session_id || 'nosession';
+      sessionUsage(sid, input, base, { repo_dir: repoName }, 1000); // the hook timeout is 3 s (hooks.json)
+      record('stop_failure', { ...base, repo_dir: repoName, email: accountEmail(),
+        error: /^[a-z_]{1,40}$/.test(String(input.error || '')) ? input.error : 'unknown' });
       break;
     }
     case 'SessionEnd': {

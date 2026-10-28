@@ -1,6 +1,6 @@
 {
   "name": "cc-usage-plugin",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Claude Code usage ledger from hooks: per-session repository, model, skill, command and token metadata plus commit, PR and edit counts, never prompt content; optional batched upload to an HTTPS receiver. Windows/macOS/Linux, Node 22.23.4+ / 24.22.1+ / 26.12.1+, zero dependencies",
   "author": {
     "name": "Justin Choi"

@@ -1,7 +1,7 @@
 # cc-usage-plugin
 
 개발자 머신(Windows·macOS·Linux)의 Claude Code 훅으로, 세션마다 **어느 저장소에서 · 어떤 명령과
-스킬로 · 어느 모델과 effort로 · 토큰을 얼마나** 썼는지와 커밋·PR·편집 수를 기록한다. 프롬프트
+스킬로 · 어느 모델과 effort로 · 토큰을 얼마나** 썼는지와 커밋·PR·편집 수, API 오류(사용 한도 등)로 끝난 턴을 기록한다. 프롬프트
 본문·도구 인자·파일 내용·파일 경로는 수집하지 않는다. 모든 훅이 출력 없이 끝나는 `command` 훅이라
 기록에는 모델 토큰을 쓰지 않는다. 설정 명령 하나(`/cc-usage-plugin:cc-init`)는 모델에게 목록으로
 보이지 않고, 직접 실행할 때만 토큰을 쓴다.
@@ -10,7 +10,8 @@
 
 ## 요구 사항
 
-- exec form 훅 `args`를 지원하는 Claude Code(지금까지 2.1.310에서 실행).
+- exec form 훅 `args`와 `UserPromptExpansion`·`StopFailure` 훅 이벤트를 지원하는 Claude Code(지금까지
+  2.1.310–2.1.312에서 실행).
 - Node.js 22.23.4 / 24.22.1 / 26.12.1 이상(권장 24 LTS). 2026-10-21 Node.js 보안 릴리스 이전 버전은
   먼저 올린다. 18·20·25는 지원이 끝나 패치가 없다. 확인: `node --version`. Node는 Claude Code가 보는
   `PATH`에 있어야 한다. 셸용 버전 관리자로만 설치한 Node는 데스크톱 앱에서 시작한 세션에서 보이지
@@ -69,11 +70,13 @@ Claude Code 설정 폴더를 여럿 쓰면(`CLAUDE_CONFIG_DIR`, 예: 계정마�
 
 | kind | 시점 | 필드 |
 |---|---|---|
-| `session_open` | SessionStart | `.claude.json` `oauthAccount`의 계정 이메일·account/org uuid·seat tier·billing type(자격 증명 아님) · host · OS · OS 사용자 · 저장소 origin(호스트와 경로만) · 저장소 폴더 이름 · 브랜치 · 모델 · 시작 방식 · permission mode · 진입점 |
-| `prompt` | UserPromptSubmit | 슬래시 명령 이름만(`/review`, 본문 없음. 경로로 시작하는 프롬프트는 기록하지 않음) · 글자 수 · permission mode · effort |
+| `session_open` | SessionStart | `.claude.json` `oauthAccount`의 계정 이메일·account/org uuid·seat tier·billing type·조직 유형·사용 한도 등급(조직·사용자. 개인 요금제는 조직 쪽에 등급이 있다)(자격 증명 아님) · host · OS · OS 사용자 · 저장소 origin(호스트와 경로만) · 저장소 폴더 이름 · 브랜치 · 모델 · 시작 방식 · 진입점 |
+| `prompt` | UserPromptSubmit | 슬래시 명령 이름만(`/review`, 본문 없음. 경로로 시작하는 프롬프트는 기록하지 않음) · prompt id(훅이 주는 값. 프롬프트와 그 프롬프트가 펼친 명령을 잇는다) · 글자 수 · permission mode. effort는 `usage` 레코드에 있다(Claude Code가 도구 사용 맥락에서만 넘긴다) |
+| `expansion` | UserPromptExpansion | 입력한 명령을 Claude Code가 해석한 결과: 플러그인을 포함한 명령 이름(`/review`로 입력해도 `acme:review`) · 출처(`plugin` 등) · 펼침 유형(`slash_command`, `mcp_prompt`) · 인자 글자 수(인자·프롬프트 본문 없음) · prompt id |
 | `skill` | PreToolUse(Skill) | 스킬 이름(`plugin:skill`) · 인자 글자 수 · agent type |
-| `subagent` | SubagentStop | agent type · agent id |
+| `subagent` | SubagentStop | agent type · agent id. Claude Code 자체 에이전트(프롬프트 제안, `/btw`)는 agent type이 빈 값으로 끝나므로 기록하지 않음 |
 | `usage` | Stop(비동기) · SessionEnd · SubagentStop | transcript 증분 파싱 → 모델 × effort × query source별 요청 수와 input / output / cache-read / cache-create / thinking 토큰(request id 중복 제거) · 브랜치 · Claude Code 버전 · agent id · 기록 시점에 로그인된 계정 이메일(세션 도중 `/login`으로 바꾸면 그 뒤 사용량은 새 계정에 붙는다) |
+| `stop_failure` | StopFailure | API 오류로 끝난 턴(이때는 Stop이 불리지 않음): 오류 종류만 — `rate_limit`·`overloaded`·`billing_error` 등 Claude Code 목록의 값은 짧은 소문자 식별자라 그대로 남기고, 그 밖의 값은 `unknown` — 세부 내용과 메시지는 기록하지 않음 · 로그인된 계정 이메일. 실패한 턴의 사용량은 바로 앞에 같은 계정으로 기록한다 |
 | `commit` | PostToolUse(Bash, PowerShell) | 그 명령이 만든 커밋 — `git commit`·`cherry-pick`·`revert`·`am`이나 `merge`가 만든 merge 커밋 — 중 HEAD에 새로 들어왔고 15분 안에 저장소의 `user.email`로 만들어졌으며 이 세션에서 아직 세지 않은 것. `pull`·`checkout`·`switch`·`reset`·`rebase`·`stash pop`과 fast-forward merge로 움직인 HEAD는 세지 않음 · 수 · sha · 이전 sha · 브랜치 · op |
 | `pr` | PostToolUse(Bash, PowerShell) | 명령줄을 셸 단어로 읽어(따옴표 안이나 `echo` 뒤의 글은 명령이 아님) 찾은 `gh pr` / `glab mr` 명령 중, 출력에 PR URL이 있는 `create`, 또는 인자로 PR 번호나 URL을 주었고 출력에 오류가 없는 `merge`(gh는 터미널 밖에서 성공해도 아무것도 출력하지 않음). `--help`와 `--disable-auto`는 세지 않고, `--auto`와 merge queue는 merge를 요청한 시점에 센다 · 번호 · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit의 도구별·확장자별 횟수 · 쓴 바이트 · 직전 Stop 이후 파일 수(해시로 셈, 경로 없음) |
@@ -92,9 +95,13 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 플러그인 폴더는 Claude Code가 설치한 위치(`~/.claude/plugins/cache/<마켓플레이스>/cc-usage-plugin/<버전>/`)
 나 이 저장소의 `cc-usage-plugin/`이다. 스크립트가 `~/.claude/plugins/data/cc-usage-plugin-*`에서 설치된
 원장을 찾는다(마지막으로 기록된 것). 다른 원장은 `--data-dir <폴더>`나 `CLAUDE_PLUGIN_DATA`로 지정한다. 출력:
-세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 로그인한 계정과 계정별 사용량 ·
-저장소·모델·effort·query source별 · 명령·스킬 상위 · 플러그인 명령 비율 · 커밋·PR·편집. 레코드 `id`마다
-한 번만 센다. 0.1.8 이전 원장의 사용량은 그 기록 시점 이전에 세션이 마지막으로 시작된(시작·resume·compact)
+세션 수 · 요청 수 · 토큰(출력 / 캐시 읽기 / 캐시 생성 / 입력) · 로그인한 계정과 계정별 사용량·요금제
+등급·한도 도달 · 저장소·모델·effort·query source별 · 명령 상위(입력한 그대로와 Claude Code가 해석한 이름)
+· 명령 출처 · 스킬 상위 · 플러그인 명령 비율 · API 오류로 끝난 턴 · 커밋·PR·편집. 레코드 `id`마다
+한 번만 센다. 플러그인 명령 비율은 플러그인 명령을 실행한 프롬프트의 비율이다. 0.1.9부터 기록된
+프롬프트는 훅의 prompt id를 갖고, 같은 id의 expansion이 플러그인에서 왔으면 센다. 그래서 짧은 이름으로
+입력한 플러그인 명령도 세고, 명령을 여러 개 펼친 프롬프트도 한 번만 센다. 집계 기간은 프롬프트 자신의
+시각으로 판단한다. prompt id가 없는 프롬프트는 `plugin:skill`로 입력했는지로 센다. 0.1.8 이전 원장의 사용량은 그 기록 시점 이전에 세션이 마지막으로 시작된(시작·resume·compact)
 계정으로 센다. 출력에 세션 id는 나오지 않는다. JSON에서는 0.1.7의 `who.email`(첫 계정만 보였다) 대신
 `accounts`와 `by_account`를 쓴다.
 
@@ -137,20 +144,28 @@ node <플러그인 폴더>/scripts/report.js --days 7 --json weekly.json
 
 - 토큰은 이 머신의 transcript 기준이다. 클라우드 세션과 다른 머신은 빠진다. Stop 시점에
   transcript가 덜 써졌으면 다음 Stop이나 SessionEnd에서 따라잡는다.
-- `claude -p`(SDK) 세션은 `entrypoint: sdk-cli`로 기록된다.
+- `claude -p`(SDK) 세션은 `entrypoint: sdk-cli`로 기록된다. `-p` 모드에서는 Claude Code가 종료할 때
+  아직 돌고 있는 비동기 훅을 취소하므로, 그런 세션 끝의 업로드가 끊길 수 있다. 배치는 `send/`에 남아
+  다음 세션의 Stop에서 올라간다.
 - `git -C <다른 저장소>`나 다른 저장소로 `cd`한 뒤 만든 커밋은 보지 못한다. 커밋·PR 판정은 세션의
   작업 폴더를 읽는다.
 - 한 세션의 도구 호출이 병렬로 돌면 편집 카운터가 하나씩 빠질 수 있다.
 - Node가 없으면 훅이 조용히 시작에 실패한다. 세션 자체에는 영향이 없다.
-- 플러그인 명령 비율은 `plugin:skill` 형식 명령만 센다. 프로젝트 로컬 스킬은 명령 상위에만 나온다.
+- prompt id 없이 기록된 프롬프트 — 0.1.9 이전, 또는 그 값을 보내지 않는 Claude Code — 는
+  `plugin:skill`로 입력했는지로 세므로, 짧은 이름으로 입력한 플러그인 명령은 빠진다.
+- API 오류로 끝난 턴 뒤에는 StopFailure 훅이 그 턴의 사용량을 먼저 기록한다. 세션 잠금을 최대 1초쯤
+  기다리고 transcript를 읽는 만큼 세션이 늦게 이어진다.
+- Claude Code 자체 에이전트(프롬프트 제안 등)는 지금까지 실행에서 서브에이전트 transcript를 남기지
+  않았으므로 그 토큰은 세지 않는다.
 - 설치하기 전에, 기록되는 사람에게 수집 항목·목적·보관처를 알린다.
 - `report.js`는 설정 폴더 하나의 원장만 읽는다. 폴더가 여럿이면(위) 폴더마다 `CLAUDE_CONFIG_DIR`을
   지정해 한 번씩 실행하거나, 수신 측에서 합친다.
 - 비밀값 단계에는 `claude` 명령이 있는 터미널이 필요하다. 터미널이 없으면 `/plugin configure`로 같은
   설정을 넣을 수 있지만 확인은 거치지 않는다.
-- 지금까지는 macOS에서만 실행했다(Node 24.22.1, Claude Code 2.1.310·2.1.311: 시험 전체와 실세션).
-  Windows와 Cowork 세션은 아직 실행하지 않았다. 코드는 플랫폼 공통 Node API만 쓰지만, 그곳에서 처음
-  실행해 보기 전까지는 미검증으로 본다.
+- 지금까지 macOS(Node 24.22.1, Claude Code 2.1.310–2.1.312: 시험 전체와 실세션)와, 0.1.8 기준으로
+  Windows 11 PC 한 대(Node 24.22.1, Claude Code 2.1.309: 설치·비밀값·업로드·시험 전체, 가상 터미널
+  시험은 건너뜀)에서 실행했다. 0.1.9에서 바꾼 `init.js`의 Windows 명령줄은 아직 `cmd` 대역으로만
+  실행했다. Cowork 세션은 아직 실행하지 않았다.
 
 ## 시험
 
@@ -161,9 +176,11 @@ node --test 'cc-usage-plugin/tests/*.test.js'
 `collect.test.js`는 훅 스크립트를 자식 프로세스로 실행하고, 업로드 시험은 로컬 수신기에 보낸다. 설정된
 developer의 주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 재시도 간격, 업로드 주기, 업로드
 추적의 종료와 재시작, 거부하는 설정, 잠금, transcript 체크포인트, 커밋·PR 판정, 사용량 기록의 계정을
-포함한 레코드 필드, 상태 정리, 계정별 사용량을 포함한 `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는
+포함한 레코드 필드, 본문 없는 해석된 명령·API 오류 레코드, Claude Code 자체 에이전트, `hooks.json` 연결,
+상태 정리, 계정별 사용량·한도 도달·요금제 등급과 0.1.9 전후 플러그인 명령 비율을 포함한 `report.js`를 확인한다. 한 시험이 15초 타임아웃을 기다리므로 약 25초 걸린다. 파일 권한을 쓰는
 세 시험은 Windows와 root에서 건너뛴다. `init.test.js`는 가짜 `claude` 명령을 두고 `init.js`를
-실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint·token 값을 출력하지 않는지를 확인한다.
+실행한다. 상태 보고, 설치 찾기, developer·team 저장, endpoint·token 값을 출력하지 않는지, `cmd` 대역을
+통한 Windows 명령줄이 Node의 DEP0190 경고 없이 도는지를 확인한다.
 `secrets` 시험은 python3 `pty` 모듈이 만든 가상 터미널에서 돌고, 그것이 없으면(Windows) 건너뛴다.
 화면에 보이지 않는지, endpoint·토큰 확인, 여러 줄 붙여 넣기, escape 시퀀스, 잘못된 UTF-8, 그리고 저장하는
 동안이나 오류·Ctrl-C 직전에 입력한 값이 셸로 넘어가지 않는지를 확인한다.
@@ -173,7 +190,7 @@ developer의 주별 배치와 1 MB 상한, 202 / 401 / 타임아웃 처리와 �
 ```
 cc-usage-plugin/
 ├── .claude-plugin/plugin.json   userConfig: developer · team · endpoint(sensitive) · token(sensitive) · flush_hours
-├── hooks/hooks.json             훅 7개, 전부 exec form(node)
+├── hooks/hooks.json             훅 9개, 전부 exec form(node)
 ├── skills/cc-init/SKILL.md      설정 명령, 사용자만 실행
 ├── scripts/collect.js           훅 수집기(stdin JSON → 원장 → 배치 → POST)
 ├── scripts/config.js            collect.js와 init.js가 함께 쓰는 설정 규칙

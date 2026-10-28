@@ -6,6 +6,9 @@
     "UserPromptSubmit": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "UserPromptSubmit"], "timeout": 3 } ] }
     ],
+    "UserPromptExpansion": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "UserPromptExpansion"], "timeout": 3 } ] }
+    ],
     "PreToolUse": [
       { "matcher": "^Skill$", "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "PreToolUse"], "timeout": 3 } ] }
     ],
@@ -17,6 +20,9 @@
     ],
     "Stop": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "Stop"], "async": true, "timeout": 60 } ] }
+    ],
+    "StopFailure": [
+      { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "StopFailure"], "timeout": 3 } ] }
     ],
     "SessionEnd": [
       { "hooks": [ { "type": "command", "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/collect.js", "SessionEnd"], "timeout": 1 } ] }

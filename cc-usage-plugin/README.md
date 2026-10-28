@@ -2,7 +2,7 @@
 
 Records, from Claude Code hooks on a developer machine (Windows, macOS, Linux), **which repository,
 which commands and skills, which model and effort, and how many tokens** each session used, plus
-commit, PR and edit counts. Prompt text, tool arguments, file contents and file paths are never
+commit, PR and edit counts and the turns an API error ended (a usage limit, for example). Prompt text, tool arguments, file contents and file paths are never
 collected. Recording costs no model tokens: every hook is a `command` hook that exits without output.
 The one setup command, `/cc-usage-plugin:cc-init`, is not shown to the model and costs tokens only
 when you run it.
@@ -11,7 +11,8 @@ when you run it.
 
 ## Requirements
 
-- Claude Code with exec-form hook `args` (run so far on 2.1.310).
+- Claude Code with exec-form hook `args` and the `UserPromptExpansion` and `StopFailure` hook events
+  (run so far on 2.1.310–2.1.312).
 - Node.js 22.23.4 / 24.22.1 / 26.12.1 or later (24 LTS recommended). Versions before the 2026-10-21
   Node.js security release must be upgraded first; 18, 20 and 25 are end-of-life and get no fixes.
   Check with `node --version`. Node has to be on the `PATH` that Claude Code itself sees: a Node
@@ -74,11 +75,13 @@ Every record carries `id` (UUID), `kind`, `ts` (UTC), `plugin` (version), `team`
 
 | kind | When | Fields |
 |---|---|---|
-| `session_open` | SessionStart | account email, account/org uuid, seat tier and billing type from `.claude.json` `oauthAccount` (not credentials) · host · OS · OS user · repository origin (host and path only) · repository folder name · branch · model · start source · permission mode · entrypoint |
-| `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · character count · permission mode · effort |
+| `session_open` | SessionStart | account email, account/org uuid, seat tier, billing type, organization type and rate-limit tiers (organization and user: a personal plan names its tier on the organization) from `.claude.json` `oauthAccount` (not credentials) · host · OS · OS user · repository origin (host and path only) · repository folder name · branch · model · start source · entrypoint |
+| `prompt` | UserPromptSubmit | slash-command name only (`/review`, no text; a prompt starting with a path records none) · prompt id (the hook's, joining the prompt to the commands it expanded) · character count · permission mode. Effort is on `usage` records: Claude Code passes it only in a tool-use context |
+| `expansion` | UserPromptExpansion | a typed command as Claude Code resolved it: command name, with its plugin (`acme:review`, also when `/review` was typed) · source (`plugin`, …) · expansion type (`slash_command`, `mcp_prompt`) · argument character count (no arguments, no prompt text) · prompt id |
 | `skill` | PreToolUse(Skill) | skill name (`plugin:skill`) · argument character count · agent type |
-| `subagent` | SubagentStop | agent type · agent id |
+| `subagent` | SubagentStop | agent type · agent id. Not for Claude Code's own agents (prompt suggestions, `/btw`), which end with an empty agent type |
 | `usage` | Stop (async) · SessionEnd · SubagentStop | incremental transcript parse → requests and input / output / cache-read / cache-create / thinking tokens per model × effort × query source (request ids de-duplicated) · branch · Claude Code version · agent id · the account email signed in when the record is written (so usage after a `/login` switch mid-session goes to the new account) |
+| `stop_failure` | StopFailure | a turn an API error ended (Stop does not fire then): the error type only — `rate_limit`, `overloaded`, `billing_error` and the rest of Claude Code's list are short lower-case identifiers and are kept as given, any other value is written as `unknown` — never its details or message · the account email signed in. The failed turn's usage is recorded just before it, under the same account |
 | `commit` | PostToolUse(Bash, PowerShell) | commits the command made — by `git commit`, `cherry-pick`, `revert`, `am`, or the merge commits of `merge` — that are new to HEAD, committed in the last 15 minutes by the repository's `user.email`, and not counted before in the session. HEAD moves from `pull`, `checkout`, `switch`, `reset`, `rebase`, `stash pop` and fast-forward merges add none · count · sha · previous sha · branch · op |
 | `pr` | PostToolUse(Bash, PowerShell) | a `gh pr` / `glab mr` command, read as shell words (so text in quotes or after `echo` is not a command): `create` whose output has the PR URL, or `merge` naming the PR number or URL as its argument with no error in the output (gh prints nothing on success outside a terminal). `--help` and `--disable-auto` count nothing; `--auto` and merge queues count when the merge is requested · number · URL · action |
 | `edits` | Stop · SessionEnd | Edit / Write / MultiEdit / NotebookEdit count per tool and file extension · bytes written · distinct files since the previous Stop (counted by hash, no paths) |
@@ -99,8 +102,13 @@ The plugin folder is where Claude Code installed it
 `cc-usage-plugin/`. The script finds the installed ledger under `~/.claude/plugins/data/cc-usage-plugin-*`
 (the one written to last); `--data-dir <folder>` or `CLAUDE_PLUGIN_DATA` picks another. Output: sessions,
 requests, tokens (output / cache read / cache create / input), the accounts signed in and the usage per
-account, by repository, model, effort and query source, top commands and skills, plugin-command
-ratio, commits, PRs and edits. Each record `id` counts once. Usage from a ledger written before 0.1.8
+account with its plan tier and rate-limit stops, by repository, model, effort and query source, top
+commands (as typed and as Claude Code resolved them), command sources and skills, plugin-command ratio,
+turns ended by an API error, commits, PRs and edits. Each record `id` counts once. The plugin-command
+ratio is the share of prompts that ran a plugin command. A prompt recorded from 0.1.9 carries the hook's
+prompt id and counts when an expansion with that id came from a plugin, so a plugin command typed by its
+short name counts, and a prompt counts once however many commands it expanded; the prompt's own time puts
+it in the window. A prompt without a prompt id counts by its typed `plugin:skill` form. Usage from a ledger written before 0.1.8
 counts under the account of its session's latest start (open, resume or compact) at or before it.
 No session id appears in the output. The JSON has `accounts` and `by_account` in place of the
 `who.email` of 0.1.7, which named only the first account.
@@ -147,21 +155,28 @@ The query parameters let a receiver choose a folder and file name from the URL a
 
 - Token counts come from this machine's transcripts; cloud sessions and other machines are not
   included. If a transcript is still being written at Stop, the next Stop or SessionEnd catches up.
-- `claude -p` (SDK) sessions are recorded with `entrypoint: sdk-cli`.
+- `claude -p` (SDK) sessions are recorded with `entrypoint: sdk-cli`. In `-p` mode Claude Code cancels
+  async hooks still running when it exits, so the upload at the end of such a session can be cut off;
+  the batch stays in `send/` and goes with a later session's Stop.
 - Commits made with `git -C <other repo>` or after a `cd` into another repository are not seen;
   commit and PR detection reads the session's working directory.
 - Edit counters can miss an increment when tool calls of one session run in parallel.
 - Without Node the hooks fail to start, silently; the session itself is unaffected.
-- The plugin-command ratio counts only `plugin:skill` commands; project-local skills appear in the
-  top commands only.
+- Prompts recorded without a prompt id — before 0.1.9, or by a Claude Code that sends none — count by
+  their typed `plugin:skill` form, so a plugin command typed by its short name is missed there.
+- After a turn an API error ended, the StopFailure hook records that turn's usage before the session goes
+  on: up to about a second of waiting for the session lock, plus the transcript read.
+- Claude Code's own agents (prompt suggestions, for example) have left no subagent transcript in the
+  runs so far, so their tokens are not counted.
 - Tell the people whose machines run it what is collected, why, and where it goes before installing.
 - `report.js` reads the ledger of one configuration folder; with several (above), run it once per
   folder with `CLAUDE_CONFIG_DIR` set, or combine them downstream.
 - The secrets step needs a terminal with the `claude` command. Where there is none, `/plugin configure`
   sets the same options without the checks.
-- Run so far on macOS only (Node 24.22.1, Claude Code 2.1.310 and 2.1.311: the test suites and live
-  sessions). Windows and Cowork sessions have not been run yet; the code uses only cross-platform Node
-  APIs, but treat both as unverified until a first run there.
+- Run so far on macOS (Node 24.22.1, Claude Code 2.1.310–2.1.312: the test suites and live sessions)
+  and, for 0.1.8, on one Windows 11 PC (Node 24.22.1, Claude Code 2.1.309: install, secrets, uploads
+  and the test suites, pseudo-terminal cases skipped). The 0.1.9 Windows command line of `init.js` has
+  run only through a `cmd` stand-in so far. Cowork sessions have not been run yet.
 
 ## Tests
 
@@ -172,11 +187,14 @@ node --test 'cc-usage-plugin/tests/*.test.js'
 `collect.test.js` runs the hook script as a child process, the upload cases against a local receiver:
 batching per week for the configured developer and the 1 MB cap, 202 / 401 / timeout handling and
 backoff, cadence, ending and restarting upload tracking, refused configurations, locks, the transcript
-checkpoint, commit and PR detection, record fields including the account on usage records, state
-pruning, and `report.js` (including usage per account). About 25 s, because
+checkpoint, commit and PR detection, record fields including the account on usage records, resolved commands
+and API-error records without their text, Claude Code's own agents, the `hooks.json` wiring, state
+pruning, and `report.js` (including usage, rate limits and plan tier per account, and the plugin-command
+ratio before and from 0.1.9). About 25 s, because
 one case waits for the 15 s timeout. Three cases use file permissions and are skipped on Windows and as
 root. `init.test.js` runs `init.js` against a fake `claude` command: the status report, finding the
-install, saving the developer id and team, and that no endpoint or token value is printed. Its
+install, saving the developer id and team, that no endpoint or token value is printed, and the
+Windows command line through a `cmd` stand-in without Node's DEP0190 warning. Its
 `secrets` cases run on a pseudo-terminal from python3's `pty` module and are skipped without one
 (Windows): no echo, the endpoint and token checks, pasted lines, escape sequences, malformed UTF-8,
 and input typed during the save, before an error or around Ctrl-C not reaching the shell.
@@ -186,7 +204,7 @@ and input typed during the save, before an error or around Ctrl-C not reaching t
 ```
 cc-usage-plugin/
 ├── .claude-plugin/plugin.json   userConfig: developer · team · endpoint (sensitive) · token (sensitive) · flush_hours
-├── hooks/hooks.json             7 hooks, all exec form (node)
+├── hooks/hooks.json             9 hooks, all exec form (node)
 ├── skills/cc-init/SKILL.md      setup command, run by the user only
 ├── scripts/collect.js           hook collector (stdin JSON → ledger → batches → POST)
 ├── scripts/config.js            option rules shared by collect.js and init.js
