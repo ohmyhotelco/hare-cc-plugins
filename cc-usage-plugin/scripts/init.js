@@ -47,10 +47,15 @@ function parseArgs(argv) {
 // The claude CLI is the only writer of plugin options; Windows resolves it as claude.cmd or claude.exe
 // through the shell. Arguments are fixed strings and a checked plugin id; values travel on stdin. The
 // CLI reads CLAUDE_CONFIG_DIR from the environment, so --config-dir reaches it that way.
+// Through the shell the words go as one command line: Node deprecates an argument array with
+// `shell: true` (DEP0190) because it joins them unquoted. They need no quoting, which ARG checks.
+const ARG = /^[A-Za-z0-9._@:-]+$/;
 function claude(args, input) {
-  const r = spawnSync('claude', args, {
-    input, encoding: 'utf8', timeout: 60e3, windowsHide: true, shell: process.platform === 'win32',
-  });
+  const opts = { input, encoding: 'utf8', timeout: 60e3, windowsHide: true };
+  if (process.platform === 'win32' && !args.every((a) => ARG.test(a))) fail('internal: a claude CLI argument needs quoting');
+  const r = process.platform === 'win32'
+    ? spawnSync(['claude', ...args].join(' '), { ...opts, shell: true })
+    : spawnSync('claude', args, opts);
   if (r.error) fail(`could not run the claude CLI (${r.error.code || r.error.message}); is Claude Code on PATH?`);
   return r;
 }

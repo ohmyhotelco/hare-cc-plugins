@@ -1,13 +1,13 @@
 # cc-usage-plugin — design
 
 How the plugin works inside. What is recorded and the upload contract are in `README.md`; the reasons
-for each choice are in `docs/decisions.md` (cited as D1–D13).
+for each choice are in `docs/decisions.md` (cited as D1–D16).
 
 ## 1. Components
 
 | Piece | Role |
 |---|---|
-| `hooks/hooks.json` | seven `command` hooks, exec form (`node` + args), so no shell runs on any platform |
+| `hooks/hooks.json` | nine `command` hooks, exec form (`node` + args), so no shell runs on any platform |
 | `scripts/collect.js` | the only hook entry point: reads the hook's JSON on stdin, writes records, uploads from Stop; prints nothing, exits 0 |
 | `scripts/config.js` | option rules shared by `collect.js` and `init.js`: developer normalization, the endpoint check, the refusal reasons |
 | `scripts/init.js` | setup helper (§ 8): `status`, `set`, `secrets`, all through `claude plugin configure`; not run by any hook |
@@ -20,10 +20,12 @@ for each choice are in `docs/decisions.md` (cited as D1–D13).
 |---|---|---|---|
 | SessionStart | — | 8 s | `session_open`; HEAD baseline per cwd (other baselines and counted commits kept); prunes session state older than 30 days |
 | UserPromptSubmit | — | 3 s | `prompt` (slash-command name only) |
+| UserPromptExpansion | — | 3 s | `expansion`: the typed command as resolved, its source, the argument length (D14) |
 | PreToolUse | `^Skill$` | 3 s | `skill` |
 | PostToolUse | `^(Bash\|PowerShell\|Edit\|Write\|MultiEdit\|NotebookEdit)$` | 10 s | `commit` / `pr` from shell commands (up to six git calls of at most 1.5 s each: HEAD, `user.email`, new commits, first-parent merge line, origin, branch); edit counters in session state |
-| SubagentStop | — | 3 s | `subagent`; that agent's transcript delta under the session lock (1 s wait) |
+| SubagentStop | — | 3 s | `subagent` unless the agent type is empty (D16); that agent's transcript delta under the session lock (1 s wait) |
 | Stop | — (async) | not enforced; self-bounded (D3) | session usage under the session lock (5 s wait), `edits`, then upload |
+| StopFailure | — | 3 s | `stop_failure`: error type and account (D15) |
 | SessionEnd | — | 1 s | session usage under the session lock (600 ms wait), `edits`, `session_close` |
 
 ## 2. Data folder (`${CLAUDE_PLUGIN_DATA}`)

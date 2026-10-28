@@ -448,3 +448,26 @@ test('a failing claude CLI stops with its exit status and nothing else', () => {
   assert.equal(u.code, 1);
   assert.match(u.err, /unknown command "nope"/);
 });
+
+// A cmd.exe stand-in, so the Windows branch runs here: with the platform reported as win32, Node runs
+// `cmd /d /s /c "<command line>"` for shell: true, and this runs the line with /bin/sh.
+const CMD = `#!/usr/bin/env node
+const a = process.argv.slice(2);
+const line = a.slice(a.indexOf('/c') + 1).join(' ').replace(/^"([\\s\\S]*)"$/, '$1');
+const r = require('child_process').spawnSync('/bin/sh', ['-c', line], { stdio: 'inherit' });
+process.exit(r.status == null ? 1 : r.status);
+`;
+test('on Windows the CLI runs as one command line through the shell, without a deprecation warning', { skip: process.platform === 'win32' && 'the stand-in needs /bin/sh' }, () => {
+  const dir = setup({ options: { developer: 'alex' } });
+  fs.writeFileSync(path.join(dir, 'bin', 'cmd'), CMD, { mode: 0o755 });
+  const win32 = path.join(dir, 'win32.js');
+  fs.writeFileSync(win32, "Object.defineProperty(process, 'platform', { value: 'win32' });\n");
+  const runWin = (args) => spawnSync(process.execPath, ['--require', win32, INIT, ...args], { env: envFor(dir, { comspec: 'cmd' }), encoding: 'utf8' });
+  let r = runWin(['status']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /developer +alex/);
+  r = runWin(['set', '--team', 'platform']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(saved(dir), [{ team: 'platform' }], 'the values still travel on stdin through the shell');
+  assert.doesNotMatch(r.stderr, /DEP0190|DeprecationWarning/);
+});

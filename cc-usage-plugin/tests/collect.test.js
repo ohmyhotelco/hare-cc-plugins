@@ -545,6 +545,64 @@ test('only a slash command is recorded as a command, not a path', async () => {
   assert.deepEqual(lines(ledger(dir)).map((x) => x.command), [null, '/review', '/plugin:skill']);
 });
 
+test('hooks.json registers exactly the events collect.js handles, each as exec-form node', () => {
+  const hooks = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8')).hooks;
+  const handled = Array.from(fs.readFileSync(COLLECT, 'utf8').matchAll(/^ {4}case '(\w+)':/gm), (m) => m[1]);
+  assert.deepEqual(Object.keys(hooks).sort(), handled.slice().sort());
+  for (const [event, groups] of Object.entries(hooks)) {
+    for (const h of groups.flatMap((g) => g.hooks)) assert.deepEqual([h.command, h.args[1]], ['node', event]);
+  }
+});
+
+test('a typed command is recorded as Claude Code resolved it, without its arguments', async () => {
+  const dir = tmp();
+  await run(dir, 'UserPromptSubmit', { session_id: 's1', cwd: dir, prompt: '/cc-init alex platform', effort: { level: 'high' } });
+  await run(dir, 'UserPromptExpansion', { session_id: 's1', cwd: dir, expansion_type: 'slash_command', command_name: 'cc-init',
+    command_args: 'alex platform', command_source: 'plugin', prompt: '/cc-init alex platform' });
+  await run(dir, 'UserPromptExpansion', { session_id: 's1', cwd: dir, expansion_type: 'slash_command', command_name: 'two\nlines', command_source: 'project' });
+  const [prompt, exp, bad] = lines(ledger(dir));
+  assert.equal(prompt.command, '/cc-init', 'the prompt record keeps what was typed');
+  assert.ok(!('effort' in prompt), 'a prompt carries no effort: Claude Code passes it only in a tool-use context');
+  assert.deepEqual([exp.kind, exp.expansion_type, exp.command_name, exp.command_source, exp.args_chars],
+    ['expansion', 'slash_command', 'cc-init', 'plugin', 13]);
+  assert.deepEqual([bad.command_name, bad.command_source, bad.args_chars], [null, 'project', 0]);
+  assert.ok(!ledger(dir).includes('alex platform'), 'no argument or prompt text in the ledger');
+});
+
+test('a turn ended by an API error records its type and the account, never its message', async () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'alex@example.com' } }));
+  for (const error of ['rate_limit', 'Rate limit: retry in 5 min', undefined]) {
+    await run(dir, 'StopFailure', { session_id: 's1', cwd: dir, error, error_details: '429 Too Many Requests', last_assistant_message: 'API Error: Rate limit reached' });
+  }
+  const recs = lines(ledger(dir));
+  assert.deepEqual(recs.map((x) => [x.kind, x.error, x.email]),
+    [['stop_failure', 'rate_limit', 'alex@example.com'], ['stop_failure', 'unknown', 'alex@example.com'], ['stop_failure', 'unknown', 'alex@example.com']]);
+  assert.ok(!/429|API Error|retry in/.test(ledger(dir)), 'no error details, message or free text');
+});
+
+test('session_open records the plan tier and no permission mode', async () => {
+  const dir = tmp();
+  fs.writeFileSync(path.join(dir, '.claude.json'), JSON.stringify({ oauthAccount: { emailAddress: 'alex@example.com',
+    organizationType: 'claude_max', organizationRateLimitTier: 'default_claude_max_20x', userRateLimitTier: null, seatTier: null } }));
+  await run(dir, 'SessionStart', { session_id: 's1', cwd: dir, permission_mode: 'default' });
+  const [open] = lines(ledger(dir));
+  assert.deepEqual([open.org_type, open.org_rate_limit_tier, open.user_rate_limit_tier, open.seat_tier], ['claude_max', 'default_claude_max_20x', null, null]);
+  assert.ok(!('permission_mode' in open), 'SessionStart gets no permission mode; prompt records carry it');
+});
+
+test('Claude Code\'s own agents leave no subagent record, but their usage still counts', async () => {
+  const dir = tmp();
+  const agentTr = path.join(dir, 'agent.jsonl');
+  fs.copyFileSync(transcript(dir, ['a1']), agentTr);
+  await run(dir, 'SubagentStop', { session_id: 's1', cwd: dir, agent_id: 'in1', agent_type: '' }); // a prompt suggestion: no transcript
+  await run(dir, 'SubagentStop', { session_id: 's1', cwd: dir, agent_id: 'in2', agent_type: '', agent_transcript_path: agentTr });
+  await run(dir, 'SubagentStop', { session_id: 's1', cwd: dir, agent_id: 'ag1', agent_type: 'Explore', agent_transcript_path: transcript(dir, ['a2']) });
+  const recs = lines(ledger(dir));
+  assert.deepEqual(recs.filter((x) => x.kind === 'subagent').map((x) => [x.agent_type, x.agent_id]), [['Explore', 'ag1']]);
+  assert.deepEqual(recs.filter((x) => x.kind === 'usage').map((x) => [x.agent_id, x.agent_type]), [['in2', null], ['ag1', 'Explore']]);
+});
+
 test('account fields come from CLAUDE_CONFIG_DIR when it is set', async () => {
   const dir = tmp();
   fs.mkdirSync(path.join(dir, 'cfg'));
@@ -687,4 +745,41 @@ test('report.js splits usage by account and writes no session id', () => {
   assert.match(text, /3 account\(s\)/);
   assert.match(text, /b@example\.com +sessions 2 · requests 3/);
   assert.ok(!/sess-ZZ/.test(text + fs.readFileSync(out, 'utf8')), 'no session id in the text or the JSON');
+});
+
+test('report.js counts a short plugin command through its expansion, and rate limits per account with the plan tier', () => {
+  const dir = tmp();
+  const led = path.join(dir, 'data', 'ledger');
+  fs.mkdirSync(led, { recursive: true });
+  const at = (min) => new Date(Date.now() - 3600e3 + min * 60e3).toISOString();
+  const recs = [
+    { id: 'o1', kind: 'session_open', ts: at(0), session_id: 'n1', email: 'a@example.com', org_rate_limit_tier: 'default_claude_max_5x' },
+    { id: 'o2', kind: 'session_open', ts: at(1), session_id: 'n1', email: 'a@example.com', org_rate_limit_tier: 'default_claude_max_20x' }, // later: this tier
+    { id: 'p1', kind: 'prompt', ts: at(2), session_id: 'n1', command: '/cc-init' },
+    { id: 'e1', kind: 'expansion', ts: at(2), session_id: 'n1', command_name: 'cc-init', command_source: 'plugin' },
+    { id: 'p2', kind: 'prompt', ts: at(3), session_id: 'n1', command: '/acme:review' },
+    { id: 'e2', kind: 'expansion', ts: at(3), session_id: 'n1', command_name: 'acme:review', command_source: 'plugin' }, // counted once, not twice
+    { id: 'p3', kind: 'prompt', ts: at(4), session_id: 'n1', command: '/notes' },
+    { id: 'e3', kind: 'expansion', ts: at(4), session_id: 'n1', command_name: 'notes', command_source: 'project' },
+    { id: 'p4', kind: 'prompt', ts: at(5), session_id: 'n1', command: null },
+    { id: 'o3', kind: 'session_open', ts: at(6), session_id: 'old', email: 'b@example.com', org_rate_limit_tier: 'default_claude_max_20x', user_rate_limit_tier: 'seat_premium' },
+    { id: 'p5', kind: 'prompt', ts: at(7), session_id: 'old', command: '/acme:plan' }, // before 0.1.9: the typed form decides
+    { id: 'p6', kind: 'prompt', ts: at(8), session_id: 'old', command: '/plan' },
+    { id: 'f1', kind: 'stop_failure', ts: at(9), session_id: 'n1', email: 'a@example.com', error: 'rate_limit' },
+    { id: 'f2', kind: 'stop_failure', ts: at(10), session_id: 'old', error: 'rate_limit' }, // account unreadable: its session's
+    { id: 'f3', kind: 'stop_failure', ts: at(11), session_id: 'n1', email: 'a@example.com', error: 'overloaded' },
+  ];
+  fs.writeFileSync(path.join(led, `${isoWeek(new Date())}.jsonl`), recs.map((x) => JSON.stringify(x)).join('\n') + '\n');
+  const out = path.join(dir, 'weekly.json');
+  const text = execFileSync(process.execPath, [REPORT, '--data-dir', path.join(dir, 'data'), '--json', out], { env: env(dir), encoding: 'utf8' });
+  const s = JSON.parse(fs.readFileSync(out, 'utf8'));
+  assert.equal(s.skill_or_plugin_prompt_ratio, 0.5, 'p1, p2 through their expansions and p5 by its prefix: 3 of 6');
+  assert.deepEqual(s.command_sources, { plugin: 2, project: 1 });
+  assert.deepEqual(s.commands_resolved, { 'cc-init': 1, 'acme:review': 1, notes: 1 });
+  assert.match(text, /commands as resolved: cc-init×1 acme:review×1 notes×1/);
+  assert.deepEqual(s.stop_failures, { rate_limit: 2, overloaded: 1 });
+  assert.deepEqual([s.by_account['a@example.com'].rate_limits, s.by_account['b@example.com'].rate_limits], [1, 1]);
+  assert.deepEqual(s.account_tiers, { 'a@example.com': 'default_claude_max_20x', 'b@example.com': 'seat_premium' });
+  assert.match(text, /a@example\.com \(default_claude_max_20x\) +sessions 0 · requests 0 · output 0\.0M · cache_read 0\.0M · rate limits 1/);
+  assert.match(text, /turns ended by an API error: rate_limit×2 overloaded×1/);
 });

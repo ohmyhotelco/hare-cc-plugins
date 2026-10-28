@@ -509,3 +509,68 @@ survived because the test's later Ctrl-U erased its effect; the keys are now tes
 
 `cc-init` in a signed-in session against a marketplace install: the first install on a developer
 machine after this version is published. Windows and Cowork, as before.
+
+## 2026-10-28 — v0.1.9 fixes what the first real week showed
+
+### Why
+
+The first uploads from two machines (macOS, and Windows 11 with 0.1.8) were read back and summarized
+with `report.js`. Six things were wrong or missing for the weekly report:
+
+| Seen | Fix |
+|---|---|
+| a plugin command typed by its short name (`/cc-init`, 8 characters) was recorded as typed, so the plugin-command ratio was 0 although the transcript names `/cc-usage-plugin:cc-init` | `expansion` record from UserPromptExpansion (D14) |
+| no trace of a usage limit being reached anywhere | `stop_failure` record from StopFailure (D15) |
+| `seat_tier` empty on all 11 `session_open` records, while `.claude.json` names `organizationRateLimitTier` | tier fields (D16) |
+| `prompt.effort` empty on 27 of 27, `session_open.permission_mode` on 11 of 11 | both removed (D16) |
+| 23 `subagent` records with an empty agent type and no transcript, none a subagent the session started | not recorded (D16) |
+| Node's DEP0190 warning on every Windows run of `init.js secrets` | one command line through the shell (D12) |
+
+### Platform facts checked
+
+From the hooks reference: UserPromptExpansion receives `expansion_type`, `command_name`,
+`command_args`, `command_source` and the original `prompt`; StopFailure fires instead of Stop when a
+turn ends by an API error and receives `error` (a fixed list of types), optional `error_details` and
+`last_assistant_message`; SubagentStop also fires for Claude Code's own agents (prompt suggestions,
+`/btw`) with an empty `agent_type` when the session runs as no named agent; `effort` is an object
+with `level`, given to events in a tool-use context; in `-p` mode Claude Code cancels async hooks
+still running at exit, which is why a Windows `-p` run left its batch in `send/` until the next
+session (the batch arrived with it, nothing lost). The same reference fetched with Claude Code 2.1.306
+already listed both new events.
+
+Live, Claude Code 2.1.312, the installed 0.1.8 disabled for the run with
+`--settings '{"enabledPlugins":{…:false}}'` and this folder loaded with `--plugin-dir` (the installed
+ledger stayed at 94 lines with no record of either session):
+
+- `claude -p --plugin-dir … --plugin-dir <a throwaway plugin with a skill "ping"> "/ping"` (Haiku,
+  $0.0062): `prompt.command` `/ping`, and an `expansion` record with `command_name: "pingplug:ping"`,
+  `command_source: "plugin"`, `args_chars: 0`. The resolved name carries the plugin.
+- `session_open` of the same run: `org_type: "claude_max"`, `org_rate_limit_tier:
+  "default_claude_max_20x"`, `user_rate_limit_tier: null`, no `permission_mode`; `prompt` without
+  `effort`.
+- `claude -p --model claude-nonexistent-9-9 …` (no request made, $0): a `stop_failure` record with
+  `error: "model_not_found"` and the account email.
+
+### Test suite (on the working tree before the commit)
+
+`node --test 'cc-usage-plugin/tests/*.test.js'`: 53 tests (35 + 18), all pass on macOS, Node 24.22.1,
+about 26 s. New: the resolved-command record without argument text, the API-error record without its
+details or message, the plan tier without a permission mode, Claude Code's own agents, the
+`hooks.json` wiring against the events `collect.js` handles, the report's ratio before and from 0.1.9
+with rate limits and tier per account, and `init.js` on Windows. The Windows case reports the platform
+as `win32` to the child process and puts a `cmd` stand-in on `PATH`, since Node runs
+`cmd /d /s /c "<line>"` for `shell: true` there; it checks the CLI still gets the values on stdin and
+no DEP0190 warning is printed. Mutation check: 14 mutants, every one caught (each new field or rule
+removed, the argument text kept, the error message kept, the expansion double-counted, the tier
+preference reversed, the rate-limit account fallback removed, a hook missing from `hooks.json`, the
+argument array restored on Windows).
+
+### Repository checks
+
+`claude plugin validate cc-usage-plugin`: passed with the two expected warnings (plugin-root
+`CLAUDE.md`, no icon). `scripts/check-plugin-consistency.py cc-usage-plugin`: 0 findings.
+
+### Not yet run
+
+On Windows: `init.js` after the command-line change, and the two new hooks on Claude Code 2.1.309.
+A real `rate_limit` StopFailure. Cowork, as before.
