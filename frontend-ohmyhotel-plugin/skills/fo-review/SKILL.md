@@ -19,7 +19,7 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 
 Config, `--app`/`--screen`, plan, `screenDir` exists with generated files (`progress.json` `gen.status`
 `done` or `partial`; nothing generated → stop). A `verify` gate that never ran is allowed (review can
-precede it) but say so. Collect for the reviewers: `packageFiles` (plan `api.additions[].file`),
+precede it) but say so. Collect for the reviewers: `specDir` (`<answerKeys.spec.dir>/<screen>`), `packageFiles` (plan `api.additions[].file`),
 `packageTestFiles` (api-tdd `testFiles`), `routeFiles` (plan `routes[].file`), `e2eDir`,
 `figmaDir` (`<evidenceDir>/<app>/<screen>/figma` if present), `acceptedDeviations` (plan
 `openApprovals[]` with `status: approved` and a named owner). Lock `review.lock`.

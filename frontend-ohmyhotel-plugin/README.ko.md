@@ -165,7 +165,7 @@ echo '{"ticket":"OMH-715","comment":"<코멘트 id>"}'          | fo-evidence --
 | `fo-debug` · `fo-clean-code` · `fo-test-review` · `fo-security` · `fo-audit-codex` | 디버깅, 독립 감사, Codex 2차 의견 | 에이전트 1씩 |
 
 워크플로(`workflows/`): `fo-probe`(스모크 테스트 — 모든 에이전트가 런타임에서 해석되는지; 에이전트
-추가·Claude Code 업그레이드 뒤 실행), `fo-gen-run`·`fo-visual-run`·`fo-contract-run`·`fo-seo-run`·`fo-review-run`·`fo-fix-run`(같은 이름의 스킬이 시작).
+추가·Claude Code 업그레이드 뒤 실행), `fo-gen-run`·`fo-visual-run`·`fo-contract-run`·`fo-seo-run`·`fo-review-run`·`fo-fix-run`(각각 `-run`을 뺀 이름의 스킬이 시작).
 
 ## 스크립트 (`bin/`, 플러그인 활성 시 `PATH`)
 
