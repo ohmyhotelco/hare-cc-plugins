@@ -16,8 +16,7 @@ Run build, checkstyle, tests, and coverage to produce a structured verification 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
-4. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
+3. Strip a trailing `--yes` flag from the argument (it is not part of the feature name). If feature argument provided:
    - If `{workDocDir}/.progress/{feature}.json` exists: read it for pipeline context
    - If not found: scan `{workDocDir}/.progress/*.json` (excluding `review-report-*.json` and `fix-report-*.json`) for files containing `specSource.feature == "{feature}"`. If matches found (multi-entity feature), list entity names and ask the user to select one. Set `feature` to the selected entity's kebab-case name and read its progress file.
    - If no matches: warn that no progress file exists for this feature and proceed without pipeline context (same as no-feature mode)
@@ -52,7 +51,7 @@ If a feature argument was provided **and its progress file exists** (Step 0 cont
    - The work document's mtime: `date -u -r {workDocPath} +%Y-%m-%dT%H:%M:%S` — `-r FILE` is
      the one mtime form BSD (macOS) and GNU `date` share; `stat -c %Y` and `date -d` are
      GNU-only and fail with `illegal option` on macOS
-   - The progress file's `updatedAt`: it must end in `Z` (`templates/progress-schema.md` — every
+   - The progress file's `updatedAt`: it must end in `Z` (`${CLAUDE_PLUGIN_ROOT}/templates/progress-schema.md` — every
      writer records UTC with a `Z`, whole seconds); take its first 19 characters. A value with any
      other offset is a writer bug, not a UTC instant in disguise — `…T18:00:00+09:00` truncates to
      `18:00:00` but is `09:00:00Z` — so on a non-`Z` suffix skip the check and report the malformed
@@ -97,7 +96,7 @@ command timed out after 600000ms"` or `"verification tooling error: ./gradlew:
 command not found"`), and continue to the remaining steps per the "always run all
 steps" rule in Constraints.
 
-Before 1.1, record the tree the gate is about to run against: `tree=$({pluginRoot}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). The script's contract: exit 0 and exactly one 40-hex id, or it failed — a non-zero exit, an empty or non-hex value, or a missing `{pluginRoot}` file is a tooling error: mark `Overall: FAIL` with reason `verification tooling error: source-tree-hash.sh …` and record no tree (an empty value compared to another empty value would read as "unchanged"). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
+Before 1.1, record the tree the gate is about to run against: `tree=$(${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh)` (src/, build and settings files, config/, gradle/ — content-hashed). The script's contract: exit 0 and exactly one 40-hex id, or it failed — a non-zero exit or an empty or non-hex value is a tooling error: mark `Overall: FAIL` with reason `verification tooling error: source-tree-hash.sh …` and record no tree (an empty value compared to another empty value would read as "unchanged"). Step 3 stores it as `pipeline.verification.tree`; `be-review`, `be-commit` and `be-jira-auto` recompute it and refuse a `verified` status whose tree has since changed — the status alone says nothing about the code it was earned on.
 
 `{config.gradleCommand}` below is the wrapper (`./gradlew`); a config written before the key existed
 has none — use `./gradlew`. Never append a task to `buildCommand`: it already runs `build`, so every
@@ -155,10 +154,10 @@ Note: Gradle caching ensures previously-passed tasks complete instantly. This st
 - **Skip**: if `config.coverage == false`
 - **1.3 FAILed**: run `{config.gradleCommand} jacocoTestReport -x test` instead — the report task reads the execution data 1.3 wrote; without `-x test` it re-runs the red suite first
 - Parse the line-coverage percentage from the XML report's top-level `<counter type="LINE">` element:
-  `linePercent = covered / (covered + missed) * 100`, rounded to 1 decimal place — see `templates/coverage-gate.md` for the exact XML shape
+  `linePercent = covered / (covered + missed) * 100`, rounded to 1 decimal place — see `${CLAUDE_PLUGIN_ROOT}/templates/coverage-gate.md` for the exact XML shape
 - **This percentage never gates PASS/FAIL in this sub-task.** A low percentage is
   reported, not failed. Do not add a threshold check here — see
-  `templates/coverage-gate.md` for why (report-only until a real coverage baseline
+  `${CLAUDE_PLUGIN_ROOT}/templates/coverage-gate.md` for why (report-only until a real coverage baseline
   is established)
 
 ### Step 2: Compile Report
@@ -231,9 +230,9 @@ Failures:
 7. Step 3 updates `pipeline.status` to `"verified"` and releases the lock.
 8. Step 4 suggests `/backend-webflux-plugin:be-review create-employee`.
 
-**Edge case — multi-entity disambiguation (Step 0 item 4)** — `/backend-webflux-plugin:be-verify hotel-onboarding`
+**Edge case — multi-entity disambiguation (Step 0 item 3)** — `/backend-webflux-plugin:be-verify hotel-onboarding`
 
-No file exists at `{workDocDir}/.progress/hotel-onboarding.json`. Step 0 item 4 scans
+No file exists at `{workDocDir}/.progress/hotel-onboarding.json`. Step 0 item 3 scans
 `{workDocDir}/.progress/*.json` and finds two progress files whose
 `specSource.feature` both equal `"hotel-onboarding"`: `hotel.json` (entity `Hotel`)
 and `hotel-room.json` (entity `HotelRoom`) — the spec produced two entities under one
@@ -282,7 +281,7 @@ If feature argument was provided and `{workDocDir}/.progress/{feature}.json` exi
    - `Overall: FAIL` — any of those rows FAIL, a Coverage row FAIL (report not produced/unparseable) included → `"verify-failed"`; `pipeline.verification.status` is `"fail"` in the same write
 4. Write back the progress file (read-modify-write: preserve all other fields). If the write fails (permissions, disk, a file that no longer parses), report the error and the Step 2 result — the gate ran; only its record did not land — and still release the lock below.
 
-If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety — on every exit from here on, the write failure included — but only if its `operation` is still `be-verify` (a lock another skill took after removing this one as stale is theirs: leave it and say so).
+If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety — on every exit from here on, the write failure included — but only if its `operation` is still `be-verify` (a lock another skill took after removing this one as stale is theirs: leave it and say so).
 
 ### Step 4: Suggest Next Action
 
@@ -295,5 +294,5 @@ If a lock was acquired in Step 0.7: release lock by deleting `{workDocDir}/.prog
 - **Read-only gate**: Do NOT modify any source code
 - Do NOT attempt to fix any issues — that is be-build's job
 - Always run all 5 steps even if earlier steps fail (collect all issues at once) — the one exception is 1.4 after a failed 1.3, which is FAIL by dependency without a run (see 1.4)
-- Never wire a coverage threshold/failure rule in this skill — see `docs/decisions.md` Decision 6. If the team confirms a threshold later, that is a separate, explicit change to this file and to `templates/coverage-gate.md`, not an implicit one
+- Never wire a coverage threshold/failure rule in this skill — see `docs/decisions.md` Decision 6. If the team confirms a threshold later, that is a separate, explicit change to this file and to `${CLAUDE_PLUGIN_ROOT}/templates/coverage-gate.md`, not an implicit one
 - Report in the working language from config

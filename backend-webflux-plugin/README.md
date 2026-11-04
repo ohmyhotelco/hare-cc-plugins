@@ -704,10 +704,7 @@ examples/        Sample generated service (see examples/employee-service/)
 scripts/         source-tree-hash.sh (the tree the gates certify), pre-commit-check.sh
                  (be-commit's secret scan), session-init.sh and validate-build-state.sh
                  (hooks)
-hooks/           hooks.json — SessionStart writes the plugin's install path to
-                 ~/.claude/plugins/data/backend-webflux-plugin/pluginRoot, which the
-                 skills read to find scripts/ and templates/ (a skill's shell never sees
-                 CLAUDE_PLUGIN_ROOT); PostToolUse nudges after build/migration edits
+hooks/           hooks.json — SessionStart reports the config state; PostToolUse nudges after build/migration edits
 ```
 
 ## Author

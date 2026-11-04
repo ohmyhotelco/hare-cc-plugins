@@ -89,7 +89,7 @@ Check each in-scope file against these rules. Every match found here is a
      drawing from — flag this even when each individual call is correctly wrapped
    - Fix: move multi-row writes to `Batch{Entity}Mapper` (MyBatis `<foreach>`) or
      `repository.saveAll(Flux<Entity>)` (R2DBC) — see
-     `templates/entity-conventions-mybatis.md` "Mapper Naming"
+     `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` "Mapper Naming"
 
 3. **Missing transaction boundary (R2DBC)**
    - CommandExecutor performs multiple sequential repository writes without
@@ -149,7 +149,7 @@ Check each in-scope file against these rules. Every match found here is a
    - A mapper XML `<select>` or R2DBC `@Query` uses `SELECT *` instead of an explicit
      column list — never use it; it defeats covering-index potential for that query
      and silently pulls in any large/BLOB/TEXT column added to the table later. See
-     `templates/entity-conventions-r2dbc.md` "Key Patterns"
+     `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` "Key Patterns"
 
 8. **Data Integrity**
    - Unique constraint violations handled with generic 500 instead of domain exception
@@ -234,14 +234,7 @@ positive, and which rule it violates.
   `unverified: confirm with EXPLAIN`, not a Warning asserted with full confidence.
   Do this instead of silently dropping the candidate or overstating certainty.
 
-Only true positives (and explicitly tagged unverified suggestions) proceed to
-Step 4. Excluded candidates are not reported — their exclusion reasoning does not
-need to appear in the final output, but you must have produced it before dropping
-the candidate. Retain every verification line (true positive, excluded, and
-unverified) instead of discarding it once Step 4 is produced — if the user asks
-"why did you flag this" or "why wasn't X flagged", show them the Step 3
-verification line for that candidate rather than re-deriving or guessing at the
-reasoning after the fact.
+True positives (and explicitly tagged unverified suggestions) proceed to Step 4 as findings. Excluded candidates go under `Excluded` in the Step 4 report, one line each with the reason; a reader can overrule an exclusion. If the user asks why something was flagged, show the Step 3 verification line for that candidate.
 
 ### Step 4: Report
 
@@ -272,7 +265,12 @@ Migration Issues ({count}):
 Suggestions ({count}):
   {file}:{line} — {description}
   Suggestion: {fix}
+
+Excluded ({count}):
+  {file}:{line} — {reason}
 ```
+
+Omit `Excluded` when it is empty.
 
 When a Suggestion carries an unverified index-fit finding (rule 6), prefix its
 description with `unverified: confirm with EXPLAIN —` so the reader can tell it

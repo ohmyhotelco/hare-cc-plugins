@@ -13,7 +13,7 @@ Generate a complete CRUD scaffold for a new entity following the project's CQRS 
 - **Manual mode** (default): `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
 - **Spec-driven mode**: `be-crud Employee` (when plan.json exists) or `be-crud --all employee-management`
 
-This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see plugin `CLAUDE.md` § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
+This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
 
 ## Examples
 
@@ -23,7 +23,7 @@ Input: `be-crud Employee email:String:unique:pattern=email displayName:String:ma
 
 1. Step 0 reads config: `dataProfile: "both"`, `webLayer: "functional"` → Step 1 asks for the data profile; user accepts the default, `r2dbc`.
 2. Step 2 asks for the domain; user answers `hr`.
-3. Step 4 generates `Employee.java` (excerpt — full template in `templates/entity-conventions-r2dbc.md`):
+3. Step 4 generates `Employee.java` (excerpt — full template in `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md`):
 
    ```java
    @Table("employee")
@@ -49,7 +49,7 @@ Input: `be-crud Employee email:String:unique:pattern=email displayName:String:ma
    }
    ```
 
-4. Step 4 also generates the router bean (excerpt — full template in `templates/web-layer-functional.md`):
+4. Step 4 also generates the router bean (excerpt — full template in `${CLAUDE_PLUGIN_ROOT}/templates/web-layer-functional.md`):
 
    ```java
    @Bean
@@ -136,7 +136,6 @@ These mechanical transforms recur across the steps below — apply them exactly 
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
 3. Read `config.architecture` — currently only `cqrs` is supported
 4. Read `config.dataProfile` (`"r2dbc" | "mybatis" | "both"`) and `config.webLayer` (`"functional" | "annotated"`) — these gate which templates are used in Step 4. See `docs/decisions.md` Decision 1 and Decision 2.
-5. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 0.5: Detect Plan Mode
 
@@ -160,7 +159,7 @@ Determine whether to use spec-driven or manual mode:
    - If plan.json does not exist:
      > "No backend plan found. Run `/backend-webflux-plugin:be-plan {feature}` first."
      - Stop here.
-   - Read `templates/plan-schema.md` for type mapping reference
+   - Read `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` for type mapping reference
 
 4. For `mode = "spec-all"`:
    - Read `entityDependencyOrder` from plan.json
@@ -189,7 +188,7 @@ Parse the argument:
   Without flags a field is a plain not-null column with no validator and no exception — the
   templates' `email`/`displayName` are the worked case of the flags, not defaults every entity gets.
 
-Validate `{EntityName}` before using it anywhere: it must match `^[A-Z][A-Za-z0-9]*$` (a PascalCase Java class name — `1Employee` is a path-safe string and an illegal class) and must not be a Java keyword or `Object`/`String`/`Record`. Reject and stop otherwise. Step 4 builds every output file path and every `class` line directly from this value (via the Shared Derivation Rules). Validate each field the same way: name `^[a-z][A-Za-z0-9]*$`, not a Java keyword (`class`, `default`, `int`, …), not one of the four standard fields every entity already has (`sequence`, `id`, `createdAt`, `updatedAt` — a second `id` is a duplicate member), **unique within the entity** (`email:String email:String` is a duplicate member), and — as its `snake_case` column, like the entity's `snake_case` table — not a MySQL reserved word (`order`, `group`, `key`, `rank`, `status` is fine, … the DDL is unquoted, so `Order` becomes `CREATE TABLE order`, a syntax error) and at most 64 characters (MySQL's identifier limit; `uk_{table}_{column}` must fit too) — it becomes a Java field and a column; type one of `String`, `Integer`, `Long`, `Boolean`, `BigDecimal`, `LocalDate`, `LocalDateTime`, `LocalTime`, `UUID` (the `templates/plan-schema.md` mapping — anything else has no column type); `max=N` a positive integer; `pattern=` one of `email|phone|url`.
+Validate `{EntityName}` before using it anywhere: it must match `^[A-Z][A-Za-z0-9]*$` (a PascalCase Java class name — `1Employee` is a path-safe string and an illegal class) and must not be a Java keyword or `Object`/`String`/`Record`. Reject and stop otherwise. Step 4 builds every output file path and every `class` line directly from this value (via the Shared Derivation Rules). Validate each field the same way: name `^[a-z][A-Za-z0-9]*$`, not a Java keyword (`class`, `default`, `int`, …), not one of the four standard fields every entity already has (`sequence`, `id`, `createdAt`, `updatedAt` — a second `id` is a duplicate member), **unique within the entity** (`email:String email:String` is a duplicate member), and — as its `snake_case` column, like the entity's `snake_case` table — not a MySQL reserved word (`order`, `group`, `key`, `rank`, `status` is fine, … the DDL is unquoted, so `Order` becomes `CREATE TABLE order`, a syntax error) and at most 64 characters (MySQL's identifier limit; `uk_{table}_{column}` must fit too) — it becomes a Java field and a column; type one of `String`, `Integer`, `Long`, `Boolean`, `BigDecimal`, `LocalDate`, `LocalDateTime`, `LocalTime`, `UUID` (the `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` mapping — anything else has no column type); `max=N` a positive integer; `pattern=` one of `email|phone|url`.
 
 If no fields are provided, ask the user:
 > "What fields should `{EntityName}` have? (format: `name:Type[:unique][:max=N][:pattern=email|phone|url][:nullable]`)"
@@ -205,9 +204,9 @@ If `config.dataProfile == "both"` and this is a new entity (no existing module t
 
 Extract from `plan.json.entities[]` where `name` matches the current entity:
 
-- **EntityName**: from `entities[].name` — validate with the same rule as manual mode (PascalCase Java class name, not a keyword) before using it, and validate every `entities[].fields[]` name and every `domain` with the manual-mode rules too — `plan.json` is a generated artifact, not a trusted one. A spec field's `javaType` is validated against `templates/plan-schema.md`'s mapping table, not the manual whitelist: that table also yields primitive `boolean` and a plan-defined enum type — a field with a non-empty `enumValues[]`, whose `javaType` is `{EntityName}{FieldName}` (`templates/plan-schema.md` § Enum Handling; each value must be a legal Java constant name, `^[A-Z][A-Z0-9_]*$`) — which are valid here and unavailable in manual mode. `plan.json` is generated by another agent from a spec file this skill does not control the provenance of, so it gets no more trust than direct user input. In `mode = "spec-all"`, a failing entity is skipped (per Step 0.5 point 4's skip-and-continue rule) rather than aborting the whole run; in `mode = "spec"`, stop.
+- **EntityName**: from `entities[].name` — validate with the same rule as manual mode (PascalCase Java class name, not a keyword) before using it, and validate every `entities[].fields[]` name and every `domain` with the manual-mode rules too — `plan.json` is a generated artifact, not a trusted one. A spec field's `javaType` is validated against `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md`'s mapping table, not the manual whitelist: that table also yields primitive `boolean` and a plan-defined enum type — a field with a non-empty `enumValues[]`, whose `javaType` is `{EntityName}{FieldName}` (`${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` § Enum Handling; each value must be a legal Java constant name, `^[A-Z][A-Z0-9_]*$`) — which are valid here and unavailable in manual mode. `plan.json` is generated by another agent from a spec file this skill does not control the provenance of, so it gets no more trust than direct user input. In `mode = "spec-all"`, a failing entity is skipped (per Step 0.5 point 4's skip-and-continue rule) rather than aborting the whole run; in `mode = "spec"`, stop.
 - **Fields**: from `entities[].fields[]` — map each field's `javaType` and `constraints`
-- **Enums**: for each field with `enumValues[]`, Step 4 also writes `{sourceDir}/{basePackage}/data/{EntityName}{FieldName}.java` — a plain `enum` with those constants, column `VARCHAR(50)`; no converter or type handler: both profiles map an enum by name out of the box (`templates/plan-schema.md` § Enum Handling)
+- **Enums**: for each field with `enumValues[]`, Step 4 also writes `{sourceDir}/{basePackage}/data/{EntityName}{FieldName}.java` — a plain `enum` with those constants, column `VARCHAR(50)`; no converter or type handler: both profiles map an enum by name out of the box (`${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` § Enum Handling)
 - **Indexes**: from `entities[].indexes[]`
 - **Commands**: from `plan.json.commands[]` where `entity` matches
 - **Queries**: from `plan.json.queries[]` where `entity` matches
@@ -278,27 +277,27 @@ Anything missing or on the wrong line → **release the lock from Step 2.6, then
 dependency lines to add, rather than generating sources that cannot compile (Step 7 will not run).
 
 Read these templates for code patterns:
-- `templates/cqrs-module.md` — package layout, and pointers to the profile/web-layer files below
-- `templates/entity-conventions.md` — shared DTO/exception/validator conventions
-- `templates/entity-conventions-r2dbc.md` or `templates/entity-conventions-mybatis.md` — matching this entity's resolved `dataProfile` (never read both for one entity)
-- `templates/web-layer-functional.md` or `templates/web-layer-annotated.md` — matching `config.webLayer`
-- `templates/checkstyle-config.md` — checkstyle rules (only when `config.checkstyle == true`)
-- `templates/coverage-gate.md` — JaCoco Gradle block (only when generating a new project's `build.gradle`, not per-entity)
+- `${CLAUDE_PLUGIN_ROOT}/templates/cqrs-module.md` — package layout, and pointers to the profile/web-layer files below
+- `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` — shared DTO/exception/validator conventions
+- `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` or `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` — matching this entity's resolved `dataProfile` (never read both for one entity)
+- `${CLAUDE_PLUGIN_ROOT}/templates/web-layer-functional.md` or `${CLAUDE_PLUGIN_ROOT}/templates/web-layer-annotated.md` — matching `config.webLayer`
+- `${CLAUDE_PLUGIN_ROOT}/templates/checkstyle-config.md` — checkstyle rules (only when `config.checkstyle == true`)
+- `${CLAUDE_PLUGIN_ROOT}/templates/coverage-gate.md` — JaCoco Gradle block (only when generating a new project's `build.gradle`, not per-entity)
 
 ### Step 3.5: Check Shared Classes
 
 Check if the following shared classes exist and generate them if missing:
 
 1. `{sourceDir}/{basePackage}/view/PageCarrier.java`
-   - If it does not exist: generate from the Generic Pagination Wrapper template in `templates/entity-conventions.md`
+   - If it does not exist: generate from the Generic Pagination Wrapper template in `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md`
 2. `{sourceDir}/{basePackage}/data/R2dbcConfig.java` (r2dbc entities only)
-   - If it does not exist: generate from the UUID Conversions template in `templates/entity-conventions-r2dbc.md` — the MySQL R2DBC driver cannot bind `java.util.UUID` on its own
+   - If it does not exist: generate from the UUID Conversions template in `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` — the MySQL R2DBC driver cannot bind `java.util.UUID` on its own
 3. `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (mybatis entities only)
-   - If it does not exist: generate from `templates/entity-conventions-mybatis.md`
+   - If it does not exist: generate from `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md`
 4. `{sourceDir}/{basePackage}/data/JdbcConfig.java` (mybatis entities in a project whose build file also has `spring-boot-starter-data-r2dbc` — `config.dataProfile` `both`)
-   - If it does not exist: generate from the JDBC DataSource template in `templates/entity-conventions-mybatis.md` — Boot's `DataSource` auto-configuration backs off beside an R2DBC `ConnectionFactory`, and the mappers would have no `DataSource`
+   - If it does not exist: generate from the JDBC DataSource template in `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` — Boot's `DataSource` auto-configuration backs off beside an R2DBC `ConnectionFactory`, and the mappers would have no `DataSource`
 
-There is no `BaseEntity` shared class in this plugin (no auditing-listener equivalent — see `templates/entity-conventions.md`). Do not generate one.
+There is no `BaseEntity` shared class in this plugin (no auditing-listener equivalent — see `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md`). Do not generate one.
 
 ### Step 4: Generate Files
 
@@ -319,9 +318,9 @@ File: `src/main/resources/migration/V{next}__create_{snake_case_entity}_table.sq
 
 #### 2. Entity / POJO
 
-**R2DBC**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — `@Table`/`@Column`-annotated class per `templates/entity-conventions-r2dbc.md` Entity Template.
+**R2DBC**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — `@Table`/`@Column`-annotated class per `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` Entity Template.
 
-**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler — **every** `UUID`-typed field gets the same `typeHandler=` on its `<result>` and on each `#{}` that binds it, not only `id`) and the `mybatis.mapper-locations: classpath:mapper/**/*.xml` entry in `application.yml` (without it the XML is never loaded — see the template).
+**MyBatis**: File: `{sourceDir}/{basePackage}/data/{EntityName}.java` — plain POJO, no annotations, per `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` Entity (POJO) Template. Also generate `{sourceDir}/{basePackage}/data/{EntityName}Mapper.java` (interface) and `src/main/resources/mapper/{EntityName}Mapper.xml` — every interface method with a bound statement — and, once per project, `{sourceDir}/{basePackage}/data/UuidTypeHandler.java` (the template's result map and `#{id}` parameters name it; MyBatis has no built-in UUID handler — **every** `UUID`-typed field gets the same `typeHandler=` on its `<result>` and on each `#{}` that binds it, not only `id`) and the `mybatis.mapper-locations: classpath:mapper/**/*.xml` entry in `application.yml` (without it the XML is never loaded — see the template).
 
 Both: Lombok `@Getter`, `@Setter` when `config.lombokEnabled == true`; otherwise emit a plain getter and setter per field — the executors and processors call `getId()`/`setEmail()`/…, so private fields alone do not compile.
 
@@ -331,7 +330,7 @@ File: `{sourceDir}/{basePackage}/data/{EntityName}Repository.java`
 
 - Extends `ReactiveCrudRepository<{EntityName}, Long>`
 - `findByExternalId(UUID id)` returning `Mono<{EntityName}>`, with the explicit `@Query` from
-  `templates/entity-conventions-r2dbc.md` — `findById(Long)` is already the sequence-PK lookup
+  `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` — `findById(Long)` is already the sequence-PK lookup
   `ReactiveCrudRepository` provides, and derivation cannot bind a differently named method to the
   `id` field
 - `existsBy{UniqueField}` returning `Mono<Boolean>` for unique fields
@@ -345,7 +344,7 @@ File: `{sourceDir}/{basePackage}/command/Create{EntityName}.java`
 File: `{sourceDir}/{basePackage}/commandmodel/Create{EntityName}CommandExecutor.java`
 
 - Command: record with fields from user input
-- Executor: `@Component` record returning `Mono<Void>` — R2DBC uses `flatMap`-chained repository calls (see `templates/entity-conventions-r2dbc.md` § Command Executor); MyBatis wraps mapper calls in `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())` (see `templates/entity-conventions-mybatis.md` § Command Executor). Includes validation, duplicate check, UUID v7 generation, explicit `createdAt`/`updatedAt` assignment, save/insert.
+- Executor: `@Component` record returning `Mono<Void>` — R2DBC uses `flatMap`-chained repository calls (see `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` § Command Executor); MyBatis wraps mapper calls in `Mono.fromCallable(...).subscribeOn(Schedulers.boundedElastic())` (see `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` § Command Executor). Includes validation, duplicate check, UUID v7 generation, explicit `createdAt`/`updatedAt` assignment, save/insert.
 
 **Spec-driven enhancements**: When `mode = "spec"` or `mode = "spec-all"`:
 - Generate all commands from `plan.json.commands[]` for this entity (not just Create — may include Update, Delete, or domain-specific actions)
@@ -394,7 +393,7 @@ Both styles: POST (201), GET list (200), GET single (200/404).
 #### 8. Validator and Exceptions
 
 File: `{sourceDir}/{basePackage}/{domain}/{EntityName}PropertyValidator.java` — `@Component`, one
-`validate{Field}` method per validated field, per `templates/entity-conventions.md` § Validation
+`validate{Field}` method per validated field, per `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` § Validation
 Utility Template. The command executor (Step 4 #4) injects it; a scaffold without it does not compile.
 File: `{sourceDir}/{basePackage}/{domain}/Invalid{Field}Exception.java` — one per validated field
 (the validator throws them; the handler/controller maps them to 400)
@@ -415,7 +414,7 @@ reviewer would flag as unmapped.
 
 File: `{workDocDir}/{kebab-case-entity}.md`
 
-- Generate from `templates/work-document-template.md`
+- Generate from `${CLAUDE_PLUGIN_ROOT}/templates/work-document-template.md`
 - Pre-fill entity fields, commands, queries, API endpoints
 - Record the resolved `dataProfile` for this entity at the top of the document
 - Generate test scenarios as `- [ ]` items
@@ -524,7 +523,7 @@ Otherwise, create `{workDocDir}/.progress/{kebab-case-entity}.json` (the directo
 
 ### Step 7: Release Lock
 
-Delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (only a lock whose `operation` is `be-crud`; a run that waited at a prompt past 30 minutes may find another skill's lock in its place).
+Delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety (only a lock whose `operation` is `be-crud`; a run that waited at a prompt past 30 minutes may find another skill's lock in its place).
 
 - **Single-entity mode**: release immediately after Step 6, or immediately after Step 5.2's report if Step 6 was skipped because `failed` was non-empty. A failed generation still must not leave the lock held.
 - **Spec-all mode**: release only after the last entity's Step 6 (or skipped-Step-6) is reached. Do not release between entities.

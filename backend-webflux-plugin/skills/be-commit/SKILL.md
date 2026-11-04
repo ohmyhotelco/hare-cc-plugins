@@ -16,7 +16,6 @@ Create a git commit from already-staged changes with a validated commit message 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Check Staged Changes
 
@@ -36,7 +35,7 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
    > "Warning: Feature '{feature}' is in '{status}' status — review/verification may not be complete."
    > "Continue with commit?"
    If the user declines, stop here.
-4. Compute `{pluginRoot}/scripts/source-tree-hash.sh --staged` once — the index is what this commit will contain (exit 0 and a 40-hex id, else a tooling error: report it and stop — an empty value must not be compared). For each `reviewed`/`done` feature that has not been committed since it was verified (`pipeline.verification.committed` is not `true`; Step 6.5 sets it), it must equal `pipeline.verification.tree`; different (or the field missing) — an unstaged edit, an untracked new file, or a change made after `be-verify` ran:
+4. Compute `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh --staged` once — the index is what this commit will contain (exit 0 and a 40-hex id, else a tooling error: report it and stop — an empty value must not be compared). For each `reviewed`/`done` feature that has not been committed since it was verified (`pipeline.verification.committed` is not `true`; Step 6.5 sets it), it must equal `pipeline.verification.tree`; different (or the field missing) — an unstaged edit, an untracked new file, or a change made after `be-verify` ran:
    > "Warning: the staged tree is not the tree feature '{feature}' was verified on — the review describes different code. Stage everything under src/ and the build files, or re-run be-verify and be-review."
    > "Continue with commit?"
    If the user declines, stop here. A feature already committed on the tree it was verified on is not re-checked: later tickets change the tree without invalidating its record.
@@ -49,7 +48,7 @@ Check if any feature progress files exist in `{workDocDir}/.progress/`:
 
 ### Step 3: Security Scan
 
-Run `{pluginRoot}/scripts/pre-commit-check.sh security` to scan staged changes for secrets and dangerous files (the scan is not optional).
+Run `${CLAUDE_PLUGIN_ROOT}/scripts/pre-commit-check.sh security` to scan staged changes for secrets and dangerous files (the scan is not optional).
 
 - If the script reports issues, show the findings and **abort the commit**
 - Do not proceed to message drafting until the security scan passes
@@ -65,7 +64,7 @@ From the staged diff, determine:
 
 ### Step 5: Draft Commit Message
 
-Follow CLAUDE.md commit standards:
+Follow ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md commit standards:
 
 1. **Subject line** (mandatory):
    - English, present tense, imperative mood ("Add", "Fix", "Update", not "Added", "Fixes")
@@ -114,7 +113,7 @@ Edge case: if the diff is a one-line change with no obvious "why" recoverable fr
 
 ### Step 6: Validate
 
-Check the draft message against commit message rules from CLAUDE.md:
+Check the draft message against commit message rules from ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md:
 
 - [ ] English (#1)
 - [ ] Present tense imperative (#2)
@@ -129,7 +128,7 @@ Check the draft message against commit message rules from CLAUDE.md:
 
 If validation fails, revise the message.
 
-Note: CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
+Note: ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
 
 ### Step 6.5: Close the Fix Cycle
 
@@ -137,8 +136,8 @@ Before the commit, for every feature progress file whose status is `reviewed` or
 `pipeline.fix.round` to `0` — and, when its `pipeline.verification.tree` equals the staged hash Step 1.5
 computed, `pipeline.verification.committed` to `true` (this commit consumes that verification; Step 1.5
 stops comparing it to later trees) — (read-modify-write, preserving everything else) under
-`{workDocDir}/.progress/.lock` (`operation: be-commit`, a fresh `runId`), taken and released (per CLAUDE.md § State File Safety) around the writes exactly as every other
-progress-file writer does (CLAUDE.md § State File Safety); if the lock is held by a live operation,
+`{workDocDir}/.progress/.lock` (`operation: be-commit`, a fresh `runId`), taken and released (per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety) around the writes exactly as every other
+progress-file writer does (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety); if the lock is held by a live operation,
 skip the reset and say so rather than wait. The counter bounds fix attempts within one review cycle;
 a commit ends that cycle. Left as is, a feature committed at `reviewed` with `round: 2` makes the
 next ticket's first `be-fix` round 3 — and `be-fix` Step 3 blocks on a prompt an unattended

@@ -17,7 +17,6 @@ The skill will provide these parameters in the prompt:
 - `specDir` -- path to spec markdown files (e.g., `docs/specs/{feature}/en/`)
 - `uiDslDir` -- path to UI DSL directory (e.g., `docs/specs/{feature}/ui-dsl/`)
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
-- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `projectRoot` -- project root path
 - `outputFile` -- path to write plan.json
 
@@ -25,10 +24,9 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Read Spec & UI DSL
 
-0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
-1. Read `templates/core-conventions.md` for naming/coding conventions and
-   architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md)
-2. Read `templates/plan-schema.md` for plan.json schema and type mapping reference
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/core-conventions.md` for naming/coding conventions and
+   architecture rules (a trimmed, execution-facing subset of ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md)
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` for plan.json schema and type mapping reference
 3. Read 3 spec files from `specDir`:
    - `{feature}-spec.md` -- extract FR-nnn (functional requirements), BR-nnn (business rules), AC-nnn (acceptance criteria), US-nnn (user stories)
    - `screens.md` -- extract screen definitions, user actions (to infer API endpoints), error codes (E-nnn with conditions, HTTP-like status, messages)
@@ -61,7 +59,7 @@ For each data entity referenced in the spec:
 1. Extract entity name (PascalCase)
 2. Determine table name (snake_case of entity name)
 3. Extract fields from `dataEntities` (UI DSL) or FR descriptions:
-   - Map each field to Java type using the type mapping table in `templates/plan-schema.md`
+   - Map each field to Java type using the type mapping table in `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md`
    - Determine column type for each field
    - Extract constraints: `not null`, `unique`, `max-length:{n}`, `pattern:{regex}`
    - Identify FK references to other entities (many-to-one relationships)
@@ -188,7 +186,7 @@ Identify screens that have no backend API requirements:
 
 ### Phase 3: Write plan.json
 
-Write the complete plan to `outputFile` following the schema defined in `templates/plan-schema.md`.
+Write the complete plan to `outputFile` following the schema defined in `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md`.
 
 The plan.json must include:
 - `feature` -- feature name

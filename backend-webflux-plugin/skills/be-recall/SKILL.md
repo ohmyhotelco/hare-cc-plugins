@@ -8,7 +8,7 @@ allowed-tools: Read, Glob, Grep, Bash
 
 # Recall Rules
 
-Display development rules from the plugin CLAUDE.md and scan recent work for
+Display development rules from ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md and scan recent work for
 concrete violations of them. Every check below names an exact scope (a git
 range, a directory, a file glob) — report results against that scope only,
 never as a claim about the whole codebase.
@@ -18,14 +18,13 @@ never as a claim about the whole codebase.
 ### Step 0: Validate Configuration
 
 1. Read `.claude/backend-webflux-plugin.json`.
-2. If missing: show general rules from the plugin CLAUDE.md only, and skip
+2. If missing: show general rules from ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md only, and skip
    Step 3 entirely. Report: "not verified: no
    `.claude/backend-webflux-plugin.json` found, so project-specific checks
    (webLayer, dataProfile) cannot be scoped correctly. Showing rules only."
    Guessing a profile instead of declaring it missing would risk scanning
    the wrong file shapes (see the `api`/`data` branching below).
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; the plugin CLAUDE.md is `{pluginRoot}/CLAUDE.md`; missing → stop: start a new session so the hook writes it.
-4. If present, read and hold onto two values — Step 3 branches on them so the
+3. If present, read and hold onto two values — Step 3 branches on them so the
    scan targets match what this project actually contains:
    - `webLayer` (default `"functional"` if absent)
    - `dataProfile` (default `"both"` if absent)
@@ -36,17 +35,17 @@ Map argument to section:
 
 | Argument | Section | Source |
 |----------|---------|--------|
-| (none) | All rules summary | CLAUDE.md (all sections) |
-| `commit` | Commit Standards | CLAUDE.md § Commit Standards |
-| `tdd` | TDD Process + Test Scenario Writing | CLAUDE.md § Test-Driven Development + templates/test-scenario-template.md |
-| `build` | Build Standards | CLAUDE.md § Build Standards |
-| `coding` | Coding Standards + Entity/DTO Conventions | CLAUDE.md § Coding Standards |
-| `api` | API Conventions + Naming | CLAUDE.md § API Conventions + Naming Conventions |
-| `data` | Entity/Repository/Mapper Conventions | templates/entity-conventions.md (shared) + templates/entity-conventions-r2dbc.md / -mybatis.md (profile-specific) |
+| (none) | All rules summary | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md (all sections) |
+| `commit` | Commit Standards | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Commit Standards |
+| `tdd` | TDD Process + Test Scenario Writing | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Test-Driven Development + ${CLAUDE_PLUGIN_ROOT}/templates/test-scenario-template.md |
+| `build` | Build Standards | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Build Standards |
+| `coding` | Coding Standards + Entity/DTO Conventions | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Coding Standards |
+| `api` | API Conventions + Naming | ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § API Conventions + Naming Conventions |
+| `data` | Entity/Repository/Mapper Conventions | ${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md (shared) + ${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md / -mybatis.md (profile-specific) |
 
 ### Step 2: Display Rules
 
-Read the relevant section(s) from the plugin CLAUDE.md and display them
+Read the relevant section(s) from ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md and display them
 clearly in the working language.
 
 For each rule, show:
@@ -83,7 +82,7 @@ say which one happened.
     contains none of `StepVerifier`, `assertThat`, `Assertions.`, or a
     `.verify*()` call
   - Test scenario format issues: a scenario list in a work document that
-    doesn't follow `templates/test-scenario-template.md` — one lowercase,
+    doesn't follow `${CLAUDE_PLUGIN_ROOT}/templates/test-scenario-template.md` — one lowercase,
     present-tense sentence per scenario, usable as a snake_case test name
     (there is no Given/When/Then shape in this plugin)
 
@@ -116,7 +115,7 @@ Branch on the `webLayer` value read in Step 0 — a check written for one web
 layer style finds nothing when run against the other, which reads as "no
 violations" even when the code is riddled with them. Run exactly one branch.
 
-- If `webLayer == "functional"` (the plugin default — see CLAUDE.md § Web
+- If `webLayer == "functional"` (the plugin default — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Web
   Layer): scan `*Router.java` / `*Handler.java` under each domain's `api/`
   directory for:
   - Non-kebab-case path strings in `RequestPredicates.path(...)` / route

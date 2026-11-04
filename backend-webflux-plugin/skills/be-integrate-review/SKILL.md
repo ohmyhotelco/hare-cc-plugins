@@ -9,7 +9,7 @@ allowed-tools: Read, Glob, Grep
 # Vendor Integration Pattern Audit
 
 Audit code that calls an external vendor/third-party HTTP API (a `{domain}/client/`
-package, see `templates/vendor-integration.md`) for the failure modes that only show
+package, see `${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md`) for the failure modes that only show
 up under load or during a vendor outage, not in a normal test run: ambiguous
 timeouts, blind retries on non-idempotent calls, a shared circuit breaker across
 vendors, and state left out of sync between this service and the vendor.
@@ -24,11 +24,10 @@ domain calling only its own database has nothing for this skill to check; use
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Determine Scope
 
-- Read `templates/vendor-integration.md` in full before scanning any code — its code
+- Read `${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md` in full before scanning any code — its code
   blocks (timeout, retry, ambiguous-timeout reconciliation, cancel, circuit breaker,
   fan-out, adapter-boundary normalization) are the canonical fix pattern behind every
   `Fix:` suggestion in Step 3. Scanning without reading it first produces vague or
@@ -64,7 +63,7 @@ the marker.
      `TimeoutException`/`ConnectException` resolves directly to a failure state
      (exception surfaced, or local record marked failed) without first calling
      `{Vendor}Client.retrieve(...)` to confirm what the vendor actually did — see
-     `templates/vendor-integration.md` "Ambiguous Timeout"
+     `${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md` "Ambiguous Timeout"
 
 3. **Cancel marks local state before vendor confirms**
    - A cancel CommandExecutor writes a "cancelled" state to the local
@@ -152,7 +151,7 @@ no confidence marker needed:
 Critical (1):
   AcmeClient.java:12 — book() has no independent .timeout() on the reactive chain
   Fix: add .timeout(Duration.ofSeconds(8)) after .bodyToMono(...), per
-       templates/vendor-integration.md "Timeout — two independent guards, never one"
+       ${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md "Timeout — two independent guards, never one"
 ```
 
 **Tricky case — Rule 2 (ambiguous timeout, incomplete reconciliation predicate)**
@@ -172,7 +171,7 @@ private boolean isAmbiguous(Throwable e) {
 ```
 
 At a glance this looks compliant — it does call `retrieve()` on an ambiguous
-outcome, matching the reconciliation pattern in `templates/vendor-integration.md`.
+outcome, matching the reconciliation pattern in `${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md`.
 The bug is narrower: this executor's `isAmbiguous` matches only `TimeoutException`,
 while the template's own `isAmbiguous` example matches both `TimeoutException` and
 `ConnectException`. A connection reset during `book()` falls straight through to a
@@ -186,7 +185,7 @@ Critical (1):
   CreateBookingCommandExecutor.java:8 — isAmbiguous() omits ConnectException, so a
   connection reset resolves as a hard failure instead of reconciling via retrieve()
   Fix: match ConnectException alongside TimeoutException in isAmbiguous(), per
-       templates/vendor-integration.md "Ambiguous Timeout" (needs manual
+       ${CLAUDE_PLUGIN_ROOT}/templates/vendor-integration.md "Ambiguous Timeout" (needs manual
        confirmation: verify book() can actually raise ConnectException on this
        WebClient's error-handling chain before treating this as certain)
 ```

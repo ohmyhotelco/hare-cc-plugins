@@ -1,5 +1,7 @@
 # Backend WebFlux Plugin
 
+This file is not loaded into any agent's context (plugin-root `CLAUDE.md` files are not injected). Skills and agents read it on demand at `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md`; `templates/core-conventions.md` is the subset agents read by default.
+
 A Claude Code plugin that applies tech stack and coding conventions for Spring
 WebFlux backend development with CQRS architecture and strict TDD methodology.
 
@@ -284,25 +286,7 @@ See `templates/tdd-rules.md` for the full WebFlux-adapted rules (`WebTestClient`
 
 A principle applied across all agents and skills: **"Evidence before claims, always."**
 
-5-Step Gate:
-1. **IDENTIFY** -- identify the target to verify
-2. **RUN** -- execute verification tool (build, test, checkstyle, coverage)
-3. **READ** -- review the full output (exit code, error count, coverage %)
-4. **VERIFY** -- determine whether the output matches the claim
-5. **CLAIM** -- report the result citing evidence
-
-Verification Red Flags -- these thoughts mean you are rationalizing:
-
-| Thought | Reality |
-|---------|---------|
-| "Should work" / "probably fine" | Run the build. Evidence or silence. |
-| "The change is small, no need to verify" | Small changes cause big bugs. Verify always. |
-| "I already verified this earlier" | Code changed since. Verify again. |
-| "Tests passed, so it's correct" | Tests cover what was written, not what was missed. Check the spec. |
-| "Compilation passed, so the build will too" | Compilation != checkstyle != tests. Different tools catch different errors. |
-| "I'll verify at the end" | Errors compound. Verify at each step. |
-| "The error is unrelated to my change" | Prove it. Run the verification. |
-| "It returned a value, so the reactive chain worked" | A `Mono` that's never subscribed to never runs. Verify with `StepVerifier` or an actual HTTP call, not by reading the code. |
+Report a check's result from its output in this run; a check that did not run is reported as not run. A `Mono` that is never subscribed to never runs, so verify reactive chains with `StepVerifier` or an actual HTTP call.
 
 ## Pipeline
 
@@ -479,7 +463,6 @@ Subagents never inherit session history. Coordinator skills construct only the p
 - `springBootVersion`: Spring Boot version (e.g., "4.0.2")
 - `buildTool`: `"gradle-kotlin"` | `"gradle-groovy"` — Gradle only; every gate row is a Gradle task, so `be-init` stops on a `pom.xml`
 - `gradleCommand`: the wrapper the task-level gate rows run (`./gradlew`; `gradle` when no wrapper). Absent in a config written before the key existed → `./gradlew`
-- (not a config key) the plugin's install directory is `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot`, rewritten by the SessionStart hook at every session start/resume — a skill's Bash never sees `${CLAUDE_PLUGIN_ROOT}`; `be-verify`, `be-review`, `be-commit` and `be-jira-auto` run `scripts/source-tree-hash.sh` / `pre-commit-check.sh` from it and stop when the file is absent
 - `buildCommand`: Full build command (default: `{gradleCommand} build`)
 - `testCommand`: Test-only command (default: `./gradlew test`)
 - `basePackage`: Root Java package (e.g., "com.example") — in a path such as `{sourceDir}/{basePackage}/` it stands for the package with `.` replaced by `/` (`src/main/java/com/example/`)

@@ -7,7 +7,7 @@ Data profile: `{r2dbc | mybatis}`   <!-- read by the implement agent to pick the
 ## Related Documents
 
 - CLAUDE.md (development rules)
-- Plugin CLAUDE.md (architecture and conventions)
+- `/backend-webflux-plugin:be-recall` (architecture and conventions)
 
 ## Entity
 

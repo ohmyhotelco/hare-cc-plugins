@@ -3,7 +3,7 @@
 Adapted from [obra/superpowers](https://github.com/obra/superpowers) for Spring
 WebFlux, Gradle, JUnit 5, and Project Reactor's `StepVerifier`.
 
-## Iron Law
+## Test First
 
 No production code without a failing test first.
 
