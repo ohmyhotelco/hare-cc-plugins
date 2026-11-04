@@ -5,7 +5,7 @@ This file is for people editing the plugin. It is **not loaded into any agent's 
 preloaded through each agent's `skills:` frontmatter. Do not put agent-facing rules here.
 
 - Plugin-relative paths in agent and skill bodies use `${CLAUDE_PLUGIN_ROOT}`; launches use
-  `subagent_type: "frontend-react-plugin:<agent>"`, because other plugins ship agents with the same names.
+  `subagent_type: "frontend-react-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
 - After editing: `claude plugin validate frontend-react-plugin` and `scripts/check-plugin-consistency.py frontend-react-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.
 
 ## App Profiles
@@ -38,7 +38,7 @@ existing branch changes. The full design and per-file spec is in
 - Routing: React Router v7 — mode is determined by the `routerMode` setting in `.claude/frontend-react-plugin.json` (default: declarative)
   - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>` (Vite SPA)
   - data: uses `createBrowserRouter`, `RouterProvider`, loader/action (Vite SPA)
-  - framework: file-based `routes.ts` + `react-router.config.ts`, per-route SSR/SSG/SPA (`react-router build`/`dev`, typegen). The ota-profile default. Build commands and test harness differ — see the **Router-mode command matrix** below.
+  - framework: file-based `routes.ts` + `react-router.config.ts`, per-route SSR/SSG/SPA (`react-router build`/`dev`, typegen). The ota-profile default. Build commands and test harness differ — see the **Router-mode command matrix** in `skills/fe-shared/SKILL.md`.
   - import: `react-router` (not `react-router-dom`)
   - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:fe-init`; `framework` → `react-router-framework-mode`)
 
@@ -62,7 +62,7 @@ existing branch changes. The full design and per-file spec is in
   - request interceptor: inject JWT Authorization header
   - response interceptor: 401 → logout/re-authenticate, 403 → sync permissions
   - **framework mode**: the Axios setup splits into a **base client** (baseURL + typed methods, no browser deps — loader/`entry.server`-safe) and a **browser wrapper** (adds the JWT/localStorage interceptors, client-only). Loaders import only the base client. `VITE_*` is client-public; server-only config uses non-`VITE_` `process.env`.
-- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes. Framework mode adds `{baseDir}/mocks/node.ts` for dev-time SSR-loader interception (see Mock-First below).
+- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes. Framework mode adds `{baseDir}/mocks/node.ts` for dev-time SSR-loader interception (see Mock-First Development in `skills/fe-shared/SKILL.md`).
 - Forms: determined by `formStack` (default `native`)
   - `native` — native form handling / manual validation (admin default, current behavior)
   - `rhf-zod` — react-hook-form + zod (`@hookform/resolvers`); zod schemas derived from spec validation rules, `zodResolver`, shadcn Form primitives, `t()` error messages (ota default)
@@ -200,7 +200,7 @@ Key files:
   5. `page-tdd` — page tests → pages (tdd-cycle-runner agent)
   6. `integration` — routes + i18n + MSW global + barrel (integration-generator agent)
 - Each TDD phase runs in a separate agent session for context isolation
-- Each phase runs isolated — see § Design Principles, "Subagent isolation"
+- Each phase runs isolated — see `skills/fe-shared/SKILL.md` § Design Principles, "Subagent isolation"
 - External skills loaded per-phase (not all at once): vitest for TDD phases, composition-patterns for components, react-best-practices for pages, router for integration
 - Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
 
@@ -348,7 +348,7 @@ An ota app that owns an external design system, a workspace data package and a f
 ```
 
 - `appProfile`: `"admin"` (default when absent) | `"ota"` — sets defaults for the knobs below; each stays overridable. See "App Profiles".
-- `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix).
+- `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix in `skills/fe-shared/SKILL.md`).
 - `serverState`: `"zustand-only"` (default when absent) | `"tanstack-query"` — server-state strategy.
 - `componentLibrary`: `"shadcn"` (default when absent) | `"external"` — with `externalComponents` (`package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`). Phase 2, D14/D18.
 - `apiLayer`: `"feature-local"` (default when absent) | `"workspace-package"` — with `apiPackage` (`package`, `dir`, `entry`, `clientImport`). Requires `tanstack-query`. Phase 2, D15.
@@ -362,5 +362,5 @@ An ota app that owns an external design system, a workspace data package and a f
 - `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*` / `react-router.config.ts`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip a `/src` **or** `/app` suffix from `baseDir` (`app/src` → `app`, `app/app` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
 - `devPort`: optional, default `5173` — the dev-server port `fe-e2e` uses and (in Playwright mode) foundation's Step 5c bakes into `playwright.config.ts` `webServer`. One value, one source: fe-gen and fe-e2e both read it from config with the same default, so the scaffolded config and the runner always agree. Set it when 5173 is taken — with `reuseExistingServer`, an unrelated service already on the port would otherwise be treated as the app under test.
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
-- `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate".
-- `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `fe-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage".
+- `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate" in `skills/fe-shared/SKILL.md`.
+- `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `fe-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage" in `skills/fe-shared/SKILL.md`.

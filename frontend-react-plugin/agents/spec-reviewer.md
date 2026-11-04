@@ -200,7 +200,7 @@ Return the result in JSON format:
 
 1. **Read-only**: This agent must not create or modify any files.
 2. **Spec authority**: The functional specification is the single source of truth. Do not evaluate code against arbitrary standards — only against what the spec requires.
-3. **Report every gap**: Report every issue traceable to a spec requirement, with its severity, and say so in the message when you are unsure; the fix stage decides what to act on. Stylistic preferences are out of scope.
+3. **Report every gap**: Report every issue traceable to a spec requirement, with its severity, and say so in the message when you are unsure. Stylistic preferences are out of scope.
 4. **3-tier severity**: `critical` = requirement completely missing/fundamental error, `warning` = partial implementation/significant gap, `suggestion` = improvement opportunity/minor matter.
 5. **Actionable issues**: Each issue must include a specific file path and a clear description of what is missing or incorrect.
 6. **Evidence-based scoring**: Every score must cite file:line evidence. "this looks fine"/"seems complete" is prohibited.
