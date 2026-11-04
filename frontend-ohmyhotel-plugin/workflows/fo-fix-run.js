@@ -1,10 +1,10 @@
-// fo-fix — one review-fixer per approved cluster, strictly one after another (they edit code in the
+// fo-fix-run — one review-fixer per approved cluster, strictly one after another (they edit code in the
 // same screen; parallel fixers would race on files). Stops at the first failed cluster so the skill
 // can re-run verify before the rest.
 // args: { app, screen, config, planFile, specDir, clusters: [ { id, title, source, findings } ] }
 
 export const meta = {
-  name: 'fo-fix',
+  name: 'fo-fix-run',
   description: 'Apply approved review/gate finding clusters to a screen, one fixer per cluster in sequence',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-fix after the user approves clusters; not run by hand',
   phases: [{ title: 'Fix', detail: 'one agent per cluster, sequential' }],

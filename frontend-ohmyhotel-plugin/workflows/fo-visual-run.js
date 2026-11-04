@@ -1,4 +1,4 @@
-// fo-visual — visual gate for one screen: capture every state × viewport × language, then compare
+// fo-visual-run — visual gate for one screen: capture every state × viewport × language, then compare
 // each capture that has a Figma frame against that frame, in parallel. Breakage findings come from the
 // capture; divergence findings from the comparisons; the skill writes the evidence from this result.
 //
@@ -6,7 +6,7 @@
 // result: pass | fail | not-run — render errors and breakage fail; a frame without a successful comparison is not-run
 
 export const meta = {
-  name: 'fo-visual',
+  name: 'fo-visual-run',
   description: 'Capture a screen at every viewport × language × state, check breakage, compare captures with their Figma frames',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-visual after fo-verify passes; not run by hand',
   phases: [{ title: 'Capture', detail: 'Playwright spec, breakage checks' }, { title: 'Compare', detail: 'one agent per Figma frame' }],

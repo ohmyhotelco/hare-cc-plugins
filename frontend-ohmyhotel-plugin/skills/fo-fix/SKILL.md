@@ -1,6 +1,6 @@
 ---
 name: fo-fix
-description: Apply approved finding clusters from the last fo-review (or a failed gate's report — verify, visual, e2e, contract, seo) to a generated screen through the fo-fix workflow, one review-fixer per cluster in sequence, then re-run fo-verify. Use after fo-review approves clusters or when a gate reports failures.
+description: Apply approved finding clusters from the last fo-review (or a failed gate's report — verify, visual, e2e, contract, seo) to a generated screen through the fo-fix-run workflow, one review-fixer per cluster in sequence, then re-run fo-verify. Use after fo-review approves clusters or when a gate reports failures.
 argument-hint: "--app <name> --screen <id> [--from review|verify|visual|e2e|contract|seo] [--cluster <id>]..."
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Workflow, AskUserQuestion
@@ -34,7 +34,7 @@ stale findings. No clusters → nothing to do. Lock `fix.lock`.
 
 ## Step 1 — Run and wait
 
-`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-fix"` and
+`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-fix-run"` and
 `args: { app, screen, config, planFile, specDir, clusters }`. Wait for the task notification.
 
 ## Step 2 — Re-verify

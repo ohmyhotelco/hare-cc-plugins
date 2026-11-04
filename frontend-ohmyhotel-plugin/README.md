@@ -44,7 +44,7 @@ It wraps screen generation with the five things the V3 build needs:
 - **Workflows for multi-agent chains, scripts for commands, skills for entry points and
   approvals.** In interactive sessions subagents run in the background, so a skill never assumes
   an agent returns in the same turn: `fo-gen`, `fo-review`, `fo-fix`, `fo-visual`, `fo-contract`,
-  `fo-seo` are workflow scripts in `workflows/`; `fo-verify`, `fo-progress`, `fo-cutover` are
+  `fo-seo` each start a `-run` workflow script in `workflows/`; `fo-verify`, `fo-progress`, `fo-cutover` are
   scripts in `bin/`; approvals (plan sign-off, which review clusters to fix) sit between runs.
 - **One e2e tree.** `templates/e2e-playwright.md` fixes `<app.dir>/e2e/` (`fixtures.ts`, `support/*.ts`,
   `support/auth.setup.ts`, `support/pages/<screen>.ts`, `screens/<screen>/<TS-id>.spec.ts`,
@@ -199,14 +199,14 @@ closes only then.
 | `fo-extract` | Shared-package candidates → `packages/shared-*` with TDD | agents in sequence (`package-extractor`) |
 | `fo-figma` | Frames (state × viewport) → `docs/figma-manifest.json`; PNG export with a token | one agent (`figma-extractor`) + `bin/fo-figma-export` |
 | `fo-plan` | Spec + answer keys + rule lists → plan and screen spec; delta on spec change; approval | one agent (`implementation-planner`) + `bin/fo-plan-hash` |
-| `fo-gen` | Five-stage TDD generation; resume; `--delta` | workflow `fo-gen` (`foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`) |
+| `fo-gen` | Five-stage TDD generation; resume; `--delta` | workflow `fo-gen-run` (`foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`) |
 | `fo-verify` | Technical gate | `bin/fo-verify-run` |
-| `fo-visual` | Visual gate | workflow `fo-visual` (`visual-verifier`) |
+| `fo-visual` | Visual gate | workflow `fo-visual-run` (`visual-verifier`) |
 | `fo-e2e` | E2E gate | one agent (`e2e-test-runner`) |
-| `fo-contract` | Contract gate | workflow `fo-contract` (`contract-verifier`) |
-| `fo-seo` | SEO gate | workflow `fo-seo` (`seo-verifier`) |
-| `fo-review` | Four reviewers → clusters → your choice | workflow `fo-review` |
-| `fo-fix` | One fixer per approved cluster, then re-verify | workflow `fo-fix` (`review-fixer`) |
+| `fo-contract` | Contract gate | workflow `fo-contract-run` (`contract-verifier`) |
+| `fo-seo` | SEO gate | workflow `fo-seo-run` (`seo-verifier`) |
+| `fo-review` | Four reviewers → clusters → your choice | workflow `fo-review-run` |
+| `fo-fix` | One fixer per approved cluster, then re-verify | workflow `fo-fix-run` (`review-fixer`) |
 | `fo-progress` | Screen × gate matrix, blockers, next command | `bin/fo-progress-report` |
 | `fo-cutover` | Cutover ledger: computed / list / manual items with evidence | `bin/fo-cutover-check` |
 | `fo-debug` | Reproduce → one hypothesis at a time → regression test → fix | one agent (`debugger`) |
@@ -214,8 +214,8 @@ closes only then.
 | `fo-audit-codex` | Independent Codex second opinion on a stage artifact (advisory) | one agent (`codex-auditor`) |
 
 Workflows (`workflows/`): `fo-probe` (smoke test — every agent resolves through the runtime; run
-after adding an agent or upgrading Claude Code), `fo-gen`, `fo-visual`, `fo-contract`, `fo-seo`,
-`fo-review`, `fo-fix`.
+after adding an agent or upgrading Claude Code), and `fo-gen-run`, `fo-visual-run`, `fo-contract-run`,
+`fo-seo-run`, `fo-review-run`, `fo-fix-run`, each started by the skill of the matching name.
 
 ## Scripts (`bin/`, on `PATH` while the plugin is enabled)
 

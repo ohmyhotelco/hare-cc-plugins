@@ -27,6 +27,10 @@ advances on completion notifications.
 Consequence: P4 stands without the fallback. `fo-probe` stays in the plugin as the smoke test to re-run
 after agent changes or Claude Code upgrades.
 
+### Workflows were renamed to `<skill>-run` (v0.2.2)
+
+Until v0.2.2 each of the six workflows shared its skill's name. A workflow's `meta.name` becomes `/plugin:name`, and that command won over the skill: `/frontend-ohmyhotel-plugin:fo-review` ran the workflow with the command's text as `args`, and the Skill tool reached the workflow too. The skill's preconditions, lock and approval never ran. The dry run above missed it because `fo-probe` has no skill of that name. Reproduced 2026-11-04 from an empty directory; `scripts/check-plugin-consistency.py` now flags it as `workflow-shadows-skill`. Sections below that name the old script files predate the rename.
+
 ### Why `bin/fo-tree-hash` is a byte-for-byte port
 
 `frontend-migration-plugin/scripts/gate-tree-hash.sh` encodes three rules learned from past evidence

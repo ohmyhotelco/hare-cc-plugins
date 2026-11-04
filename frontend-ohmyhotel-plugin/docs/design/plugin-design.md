@@ -162,7 +162,7 @@ backend/app contracts that `fo-contract` checks.
 ```
 skill fo-gen --app www --screen 01-main
   ├─ preflight (inline): config, lock, plan approved, spec hash matches plan
-  ├─ Workflow({ name: "frontend-ohmyhotel-plugin:fo-gen", args: {app, screen, planFile, stateFile, specDir, config, stages[], resumeFrom?} })
+  ├─ Workflow({ name: "frontend-ohmyhotel-plugin:fo-gen-run", args: {app, screen, planFile, stateFile, specDir, config, stages[], resumeFrom?} })
   │     stage foundation   agent(…, {agentType: "frontend-ohmyhotel-plugin:foundation-generator", effort: "medium"})
   │     stage api-tdd      agent(…, {agentType: "…:tdd-cycle-runner", effort: "medium"})
   │     stage component-tdd …
@@ -258,7 +258,7 @@ frontend-ohmyhotel-plugin/
 ├── skills/
 │   ├── fo-shared/                      preloaded via agents' `skills:` — locks, state files, evidence format, reporting format
 │   ├── fo-init/ … fo-cutover/          §4; each SKILL.md ≤ 500 lines + references/
-├── workflows/                          fo-probe.js · fo-gen.js · fo-visual.js · fo-contract.js · fo-seo.js · fo-review.js · fo-fix.js
+├── workflows/                          fo-probe.js · fo-gen-run.js · fo-visual-run.js · fo-contract-run.js · fo-seo-run.js · fo-review-run.js · fo-fix-run.js
 ├── templates/                          method templates only: tdd-rules, e2e-playwright, i18n-key-coverage, form-adapters,
 │                                       server-state, rule-lists (JSON shapes for docs/rules/*.json), screen-spec, implementation-plan, cutover-ledger, codex-audit
 ├── bin/                                fo-tree-hash · fo-screen-hash · fo-spec-import · fo-plan-hash · fo-verify-run · fo-evidence · fo-progress-report · fo-figma-export · fo-cutover-check (on PATH while the plugin is enabled)

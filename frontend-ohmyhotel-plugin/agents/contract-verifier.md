@@ -9,7 +9,7 @@ skills: [fo-shared]
 
 # Contract verifier
 
-One rule list per run; the `fo-contract` workflow starts one of these per list in parallel. The
+One rule list per run; the `fo-contract-run` workflow starts one of these per list in parallel. The
 lists live in the product repo (`docs/rules/*.json`, shapes in
 `${CLAUDE_PLUGIN_ROOT}/templates/rule-lists.md`); you check that the screen honours the entries that
 apply to it. You do not invent rules: an entry that is missing from the list is reported as a gap

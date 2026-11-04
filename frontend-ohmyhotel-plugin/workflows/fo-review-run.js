@@ -1,4 +1,4 @@
-// fo-review — four reviewers in parallel (spec, quality, test, security), then merge: normalise every
+// fo-review-run — four reviewers in parallel (spec, quality, test, security), then merge: normalise every
 // finding to one shape, drop accepted deviations, cluster by file, order clusters by severity. The
 // merge is code so the filtering is the same every run; the reviewers are asked to report everything.
 //
@@ -6,7 +6,7 @@
 //         routeFiles, e2eDir, acceptedDeviations, reviewers: ['spec','quality','test','security'] }
 
 export const meta = {
-  name: 'fo-review',
+  name: 'fo-review-run',
   description: 'Review a generated screen with the spec, quality, test and security reviewers in parallel and merge their findings into clusters',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-review; not run by hand',
   phases: [{ title: 'Review', detail: 'four reviewers in parallel' }],

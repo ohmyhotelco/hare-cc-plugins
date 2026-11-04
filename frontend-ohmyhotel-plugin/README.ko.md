@@ -38,7 +38,7 @@
   플러그인 릴리스는 필요 없습니다.
 - **다중 에이전트 체인은 워크플로, 명령은 스크립트, 진입점·승인은 스킬.** 대화형 세션에서 하위
   에이전트는 백그라운드로 돌기 때문에 스킬은 같은 턴에 에이전트가 돌아온다고 가정하지 않습니다.
-  `fo-gen`·`fo-review`·`fo-fix`·`fo-visual`·`fo-contract`·`fo-seo`는 `workflows/`의 스크립트,
+  `fo-gen`·`fo-review`·`fo-fix`·`fo-visual`·`fo-contract`·`fo-seo`는 `workflows/`의 `-run` 스크립트를 시작하고,
   `fo-verify`·`fo-progress`·`fo-cutover`는 `bin/` 스크립트, 승인(계획 서명, 고칠 리뷰 클러스터 선택)은
   실행 사이에 있습니다.
 - **e2e 트리는 하나.** `templates/e2e-playwright.md`가 `<app.dir>/e2e/`를 고정합니다(`fixtures.ts`, `support/*.ts`,
@@ -157,7 +157,7 @@ echo '{"ticket":"OMH-715","comment":"<코멘트 id>"}'          | fo-evidence --
 | `fo-extract` | 공용 패키지 후보 → `packages/shared-*` TDD | 에이전트 순차(`package-extractor`) |
 | `fo-figma` | 프레임(상태 × 뷰포트) → 매니페스트, 토큰 있으면 PNG | 에이전트 1(`figma-extractor`) + `bin/fo-figma-export` |
 | `fo-plan` | 스펙 + 답안지 + 규칙 목록 → 계획·화면 스펙, 스펙 변경 시 델타, 승인 | 에이전트 1(`implementation-planner`) + `bin/fo-plan-hash` |
-| `fo-gen` | 5단계 TDD 생성, 재개, `--delta` | 워크플로 `fo-gen` |
+| `fo-gen` | 5단계 TDD 생성, 재개, `--delta` | 워크플로 `fo-gen-run` |
 | `fo-verify` · `fo-visual` · `fo-e2e` · `fo-contract` · `fo-seo` | 게이트 | 스크립트 · 워크플로 · 에이전트 · 워크플로 · 워크플로 |
 | `fo-review` → `fo-fix` | 리뷰어 4 → 클러스터 → 선택 → 클러스터별 수정 → 재검증 | 워크플로 |
 | `fo-progress` | 화면 × 게이트 행렬, 차단 사유, 다음 커맨드 | `bin/fo-progress-report` |
@@ -165,8 +165,7 @@ echo '{"ticket":"OMH-715","comment":"<코멘트 id>"}'          | fo-evidence --
 | `fo-debug` · `fo-clean-code` · `fo-test-review` · `fo-security` · `fo-audit-codex` | 디버깅, 독립 감사, Codex 2차 의견 | 에이전트 1씩 |
 
 워크플로(`workflows/`): `fo-probe`(스모크 테스트 — 모든 에이전트가 런타임에서 해석되는지; 에이전트
-추가·Claude Code 업그레이드 뒤 실행), `fo-gen`, `fo-visual`, `fo-contract`, `fo-seo`, `fo-review`,
-`fo-fix`.
+추가·Claude Code 업그레이드 뒤 실행), `fo-gen-run`·`fo-visual-run`·`fo-contract-run`·`fo-seo-run`·`fo-review-run`·`fo-fix-run`(같은 이름의 스킬이 시작).
 
 ## 스크립트 (`bin/`, 플러그인 활성 시 `PATH`)
 

@@ -1,6 +1,6 @@
 ---
 name: fo-gen
-description: Generate one screen from its approved implementation plan through the fo-gen workflow (foundation → api-tdd → component-tdd → page-tdd → integration, TDD with recorded evidence), resume a stopped run, or apply a delta plan to an existing screen. Use after fo-plan is approved; follow with fo-verify.
+description: Generate one screen from its approved implementation plan through the fo-gen-run workflow (foundation → api-tdd → component-tdd → page-tdd → integration, TDD with recorded evidence), resume a stopped run, or apply a delta plan to an existing screen. Use after fo-plan is approved; follow with fo-verify.
 argument-hint: "--app <name> --screen <id> [--resume] [--delta] [--from <stage>]"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow, Agent
@@ -8,7 +8,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow, Agent
 
 # fo-gen — generate a screen
 
-The workflow `frontend-ohmyhotel-plugin:fo-gen` runs the five stages in order and stops at the first
+The workflow `frontend-ohmyhotel-plugin:fo-gen-run` runs the five stages in order and stops at the first
 failure; this skill owns everything around it: preconditions, the lock, the state file, the stage
 list, the report and the tracker. `--delta` applies a delta plan with one agent instead.
 
@@ -70,7 +70,7 @@ still holds together after the fix.
 
 ## Step 3 — Run
 
-Call the `Workflow` tool with `name: "frontend-ohmyhotel-plugin:fo-gen"` and
+Call the `Workflow` tool with `name: "frontend-ohmyhotel-plugin:fo-gen-run"` and
 `args: { app, screen, planFile, stateFile, specDir, config, stages, resumeFrom, effort? }` (`effort`
 is optional per-stage overrides `{ foundation, tdd, integration }`; omit to inherit the session effort). Tell the user which
 stages will run and that the result arrives as a task notification; then wait for it. Do not end the

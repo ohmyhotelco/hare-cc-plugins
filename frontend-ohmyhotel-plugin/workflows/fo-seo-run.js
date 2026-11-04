@@ -1,8 +1,8 @@
-// fo-seo — one seo-verifier per aspect, in parallel; merged in code.
+// fo-seo-run — one seo-verifier per aspect, in parallel; merged in code.
 // args: { app, screen, config, planFile, specDir, outDir, aspects: [ 'head', 'links', 'sitemap', 'structuredData', 'slugs' ] }
 
 export const meta = {
-  name: 'fo-seo',
+  name: 'fo-seo-run',
   description: 'Check a screen against the SEO spec: head meta, canonical/hreflang, sitemap/robots, structured data, slugs — in parallel',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-seo; not run by hand',
   phases: [{ title: 'Check', detail: 'one agent per aspect' }],
