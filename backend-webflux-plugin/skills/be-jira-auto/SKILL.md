@@ -307,3 +307,14 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/be-jira-auto/references/gate-and-commit.md` a
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/be-jira-auto/references/gate-and-commit.md` and follow this section there.
 
+## Gates (fail fast)
+
+Before any `NEEDS-INPUT` or `ABORTED` stop, read this section in `${CLAUDE_PLUGIN_ROOT}/skills/be-jira-auto/references/gate-and-commit.md`: every stop writes the run state it defines.
+
+## Anti-patterns
+
+Read this section in `${CLAUDE_PLUGIN_ROOT}/skills/be-jira-auto/references/gate-and-commit.md` before Step 3.
+
+## Output
+
+At the end of the run, read this section in `${CLAUDE_PLUGIN_ROOT}/skills/be-jira-auto/references/gate-and-commit.md` and follow it.
