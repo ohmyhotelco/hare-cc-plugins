@@ -701,7 +701,7 @@ agents/          Agent definitions (planner, foundation-generator, tdd-cycle-run
                  integration-generator, spec-reviewer, quality-reviewer, security-auditor,
                  test-reviewer, review-fixer, delta-modifier, e2e-test-runner, debugger)
 skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
-                 fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review)
+                 fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review, fe-shared)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,

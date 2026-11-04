@@ -3,6 +3,7 @@ name: e2e-test-runner
 description: Executes E2E test scenarios via the configured e2eTool (agent-browser or Playwright), driving user flows and verifying UI state against test-scenarios.md criteria
 model: opus
 tools: Read, Write, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # E2E Test Runner Agent
@@ -45,7 +46,7 @@ Read TWO sources for agent-browser knowledge:
    - Ref notation (`@eN`) and lifecycle
    - Session management (`--session` flag)
 
-2. **Plugin E2E template** — Read `templates/e2e-testing.md`
+2. **Plugin E2E template** — Read `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md`
    - MSW integration patterns
    - Scenario patterns (CRUD, form validation, navigation, error handling)
    - Assertion strategy
@@ -251,10 +252,10 @@ agent-browser close --session e2e-{feature}
 
 ## Playwright Mode (`e2eTool == playwright`)
 
-When `e2eTool == playwright` (ota-profile default), realize and run the scenarios as Playwright specs instead of driving agent-browser. **Reference `templates/e2e-playwright.md` for the full patterns** (spec structure, fixtures/auth, web-first assertions, SSR/loader mocking, mock-state reset, trace diagnostics) — do not duplicate them here. The **Output Format** and status determination (below) are shared with the agent-browser flow, so `e2e-report.json` is schema-identical; only `evidence` cites trace files instead of snapshots/screenshots.
+When `e2eTool == playwright` (ota-profile default), realize and run the scenarios as Playwright specs instead of driving agent-browser. **Reference `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` for the full patterns** (spec structure, fixtures/auth, web-first assertions, SSR/loader mocking, mock-state reset, trace diagnostics) — do not duplicate them here. The **Output Format** and status determination (below) are shared with the agent-browser flow, so `e2e-report.json` is schema-identical; only `evidence` cites trace files instead of snapshots/screenshots.
 
 ### P0: Load Context
-- Read `templates/e2e-playwright.md` (Playwright patterns).
+- Read `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` (Playwright patterns).
 - Read `planFile` → `e2eTests[]`, `routes.entries`, plus `serverState` / `routerMode` (SSR/loader awareness).
 - Spec context — **branch on the `standalone` input exactly as Step 0 item 3 does** (Playwright mode
   skips Steps 0–4, so that branch does not run for it; this one is P0's own):
@@ -276,7 +277,7 @@ One spec per scenario at `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts`, tagged with 
 
 - **Reuse `e2e/fixtures.ts`** for auth/state setup: load the saved `storageState` instead of logging in per test, and pre-seed prerequisite state so a scenario starts at the branch it verifies. Reuse/extract page objects + helpers under `e2e/` (read-modify-write; never clobber another feature's helpers).
 - **Dynamic route params** (`:id`): resolve to fixture ids before navigation — the **same rule** as agent-browser mode (§2.1.1): fixture-based (preferred) → scenario-chain → plan-specified. Never navigate to a literal `:id`.
-- **SSR / loader network (framework mode):** a page whose route module has a **loader** runs its fetches **server-side**, where the browser MSW worker does not intercept. Such scenarios need **both** mock paths active — the browser worker (`VITE_ENABLE_MOCKS=true`) **and** MSW-node (`{baseDir}/mocks/node.ts`, wired in `entry.server.tsx`). Only mock what you control; never let an E2E hit a real external dependency. (See `templates/e2e-playwright.md` § SSR / loader network.)
+- **SSR / loader network (framework mode):** a page whose route module has a **loader** runs its fetches **server-side**, where the browser MSW worker does not intercept. Such scenarios need **both** mock paths active — the browser worker (`VITE_ENABLE_MOCKS=true`) **and** MSW-node (`{baseDir}/mocks/node.ts`, wired in `entry.server.tsx`). Only mock what you control; never let an E2E hit a real external dependency. (See `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` § SSR / loader network.)
 
 ### P2: Run
 From `{appDir}` — `playwright.config.ts` `webServer` starts the mode-aware dev server (`VITE_ENABLE_MOCKS=true`, `reuseExistingServer`), so there is **no** manual start/stop:
@@ -286,7 +287,7 @@ npx playwright test e2e/{feature} 2>&1
 Prefix with `cd {appDir} &&` unless `appDir` is `"."`. If the run reports missing browser binaries, do **not** fail opaquely — report that `npx playwright install` must be run once (per D7/R6, never run it automatically).
 
 ### P3: Report (trace-first)
-`trace: 'retain-on-first-failure'` retains a trace for a scenario that fails on its first run (**not** `on-first-retry` — nothing configures retries, so that mode would record no trace at all; `templates/e2e-playwright.md`). For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `fe-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
+`trace: 'retain-on-first-failure'` retains a trace for a scenario that fails on its first run (**not** `on-first-retry` — nothing configures retries, so that mode would record no trace at all; `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`). For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `fe-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
 
 ## Output Format
 

@@ -3,6 +3,7 @@ name: test-reviewer
 description: Read-only agent that audits React/Vitest test quality across 7 dimensions including assertion quality, Testing Library best practices, and timing gates
 model: sonnet
 tools: Read, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # Test Reviewer Agent
@@ -46,7 +47,7 @@ Before scoring, check the collection:
   target, stop. Do not score.
 
 Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
-there is the silent-pass failure this plugin's verification philosophy exists to prevent (CLAUDE.md
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (fe-shared
 § Verification Philosophy: a statement about the state of the evidence is itself a claim).
 `unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 
@@ -54,7 +55,7 @@ there is the silent-pass failure this plugin's verification philosophy exists to
 
 Inspect test files for each dimension and produce a score (0-10) and issue list.
 
-Each issue MUST include:
+Each issue must include:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -103,7 +104,7 @@ Each issue MUST include:
   - Flag: missing `vi.restoreAllMocks()` or `vi.clearAllMocks()` in `afterEach` → severity: suggestion
 - **Test naming**: Descriptions should describe behavior, not implementation
   - Flag: test names referencing internal method names or implementation details → severity: suggestion
-- **Spec anchors** (`templates/tdd-rules.md` § Anchors): each test asserting spec'd behavior carries
+- **Spec anchors** (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § Anchors): each test asserting spec'd behavior carries
   `// TS-nnn — {spec file}:{line}`
   - Flag: an anchor pointing at `plan.json` or another generated artifact → severity: warning. It
     was written from the same reading the test was, so it corroborates nothing.
@@ -135,7 +136,7 @@ Cross-reference source files under `{baseDir}` against test files:
 This dimension requires running `npx vitest` to measure actual execution times. Only execute when the test infrastructure is available.
 
 1. Check vitest: `cd {projectRoot}/{appDir} && npx vitest --version 2>&1` (5-second timeout)
-2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath relative to appDir} 2>&1` (5-minute timeout, 300000ms). `targetPath` is repo-relative; strip the leading `{appDir}/` before passing it, or the command resolves `app/app/src/...` and finds nothing (CLAUDE.md § Build Command Working Directory).
+2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath relative to appDir} 2>&1` (5-minute timeout, 300000ms). `targetPath` is repo-relative; strip the leading `{appDir}/` before passing it, or the command resolves `app/app/src/...` and finds nothing (fe-shared § Build Command Working Directory).
 3. Parse test timing from output and flag:
    - Component tests (`*.test.tsx` in `components/`) taking > 200ms each → severity: suggestion
    - Unit tests (`*.test.ts` in `api/`, `stores/`) taking > 50ms each → severity: suggestion
@@ -230,7 +231,7 @@ If no issues found:
 
 ## Key Rules
 
-1. **Read-only**: This agent MUST NOT create or modify any files (except optional `npx vitest` execution for timing measurement).
+1. **Read-only**: This agent must not create or modify any files (except optional `npx vitest` execution for timing measurement).
 2. **Test-focused only**: Do not evaluate production code quality or spec compliance — focus only on test quality.
 3. **Evidence-based scoring**: All issues and pass/fail determinations require file:line evidence. "probably fine" is prohibited.
 4. **3-tier severity**: `critical` = tests testing nothing or missing entirely, `warning` = quality degradation, `suggestion` = minor improvement opportunity.

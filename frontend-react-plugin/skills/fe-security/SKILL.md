@@ -3,7 +3,7 @@ name: fe-security
 description: "Audit frontend code for security vulnerabilities: XSS, auth token storage, API key exposure, and client-side data safety."
 argument-hint: "[file-or-directory-path]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Task
+allowed-tools: Read, Glob, Grep, Agent
 ---
 
 # Security Audit
@@ -30,7 +30,7 @@ surface that verbatim — do not render it as a passing audit.
 ### Step 2: Launch Security Auditor
 
 ```
-Task(subagent_type: "security-auditor", prompt: "
+Agent(subagent_type: "frontend-react-plugin:security-auditor", prompt: "
   Audit frontend code for security vulnerabilities.
 
   Parameters:

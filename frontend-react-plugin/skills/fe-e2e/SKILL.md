@@ -10,7 +10,9 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 
 Run end-to-end tests on generated code. The runner is selected by `e2eTool` (default `agent-browser`): the **agent-browser** path starts a dev server with MSW mocks enabled and drives browser scenarios; the **playwright** path delegates the dev server to `playwright.config.ts` `webServer` and runs `npx playwright test`. Both realize the same tool-neutral `plan.json` `e2eTests[]` and write the same `e2e-report.json` schema.
 
-> **Tool choice**: This skill uses `Agent` (not `Task`) to launch the e2e-test-runner agent. E2E scenarios are sequential — each may depend on prior browser state — so `Agent` is used for synchronous execution with immediate result inspection.
+E2E scenarios run in order, because each may depend on prior browser state.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -25,9 +27,9 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 7. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-8. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+8. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
-**Tool branch (`e2eTool`).** The steps below are the **`agent-browser`** path (default). The only mode-aware element on that path is the dev-server launch (Step 3), which branches on `routerMode` per the **Router-mode command matrix** in the plugin CLAUDE.md. When **`e2eTool == playwright`**, `playwright.config.ts` `webServer` owns the dev server — follow the **Playwright mode** overrides marked inline in Steps 1, 2, 3, 3.5, 4, 5, 6, and 7; the lock, user confirmation, report save, and progress-update steps are shared and unchanged. Reference `templates/e2e-playwright.md` for the Playwright patterns.
+**Tool branch (`e2eTool`).** The steps below are the **`agent-browser`** path (default). The only mode-aware element on that path is the dev-server launch (Step 3), which branches on `routerMode` per the **Router-mode command matrix** in `fe-shared`. When **`e2eTool == playwright`**, `playwright.config.ts` `webServer` owns the dev server — follow the **Playwright mode** overrides marked inline in Steps 1, 2, 3, 3.5, 4, 5, 6, and 7; the lock, user confirmation, report save, and progress-update steps are shared and unchanged. Reference `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` for the Playwright patterns.
 
 ### Step 1: Validate Prerequisites
 
@@ -99,12 +101,12 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-e2e"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-e2e"`, per fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
-every later command refusing it (CLAUDE.md § Lock file).
+every later command refusing it (fe-shared § Lock file).
 
 ### Step 2: Confirm with User
 
@@ -146,7 +148,7 @@ If the user declines, release the lock and stop here.
      > "Options: 1. Use a different port  2. Kill the existing process  3. Cancel"
      - Adjust port accordingly or stop.
 
-2. Start the dev server in background (from `{appDir}`). The dev command is **mode-aware** — read the **Router-mode command matrix** in the plugin CLAUDE.md and branch on `routerMode`: `declarative` / `data` → `npx vite --port {port}`; `framework` → `npx react-router dev --port {port}`.
+2. Start the dev server in background (from `{appDir}`). The dev command is **mode-aware** — read the **Router-mode command matrix** in `fe-shared` and branch on `routerMode`: `declarative` / `data` → `npx vite --port {port}`; `framework` → `npx react-router dev --port {port}`.
    ```bash
    # {devCommand} = mode-aware dev command from the command matrix, incl. --port {port}:
    #   declarative / data:  npx vite --port {port}
@@ -215,7 +217,7 @@ Before launching the full E2E suite, verify the app loads without runtime errors
 ### Step 4: Launch E2E Test Runner Agent
 
 ```
-Agent(subagent_type: "e2e-test-runner", prompt: "
+Agent(subagent_type: "frontend-react-plugin:e2e-test-runner", prompt: "
   Execute E2E test scenarios for '{feature}'.
 
   Parameters:
@@ -235,9 +237,9 @@ Agent(subagent_type: "e2e-test-runner", prompt: "
   Follow the process defined in agents/e2e-test-runner.md.
   {If e2eTool == agent-browser:}
   Read .claude/skills/agent-browser/SKILL.md for agent-browser command reference.
-  Read templates/e2e-testing.md for plugin-specific E2E patterns.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md for plugin-specific E2E patterns.
   {If e2eTool == playwright:}
-  Read templates/e2e-playwright.md for Playwright spec realization, SSR/loader mocking, and trace-first reporting.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md for Playwright spec realization, SSR/loader mocking, and trace-first reporting.
   Realize e2eTests[] as Playwright specs under {appDir}/e2e/{feature}/ and run `npx playwright test e2e/{feature} 2>&1` from {appDir} (webServer-managed). On failure, record each failing scenario's trace path in the report evidence for fe-fix.
 ")
 ```

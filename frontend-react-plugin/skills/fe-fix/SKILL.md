@@ -3,20 +3,22 @@ name: fe-fix
 description: "Fix review issues with TDD discipline. Run after fe-review identifies issues."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # Fix Review Issues Skill
 
 Fixes issues found by fe-review with TDD discipline for behavioral changes and direct fixes for mechanical changes.
 
-> **Tool choice**: This skill uses `Task` to launch the review-fixer agent. The fix process runs as a single autonomous session.
+The fix process runs as a single autonomous session.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
 ### Step 0: Read Configuration
 
-1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`). If `sourceBaseDir` is missing, use default value `"src"`. Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (CLAUDE.md § Lock file).
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `e2eTool`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`). If `sourceBaseDir` is missing, use default value `"src"`. Keep it distinct from the plan-level `baseDir` read later, which is the **feature** directory — `review-fixer` needs the source root to recognize app-wide fix targets (fe-shared § Lock file).
 2. If `mockFirst` is missing, use default value `true`
 3. If `appDir` is missing, use default value `"."` (project root)
 4. If `e2eTool` is missing, use default value `"agent-browser"` (backward-compatible — existing configs behave exactly as before)
@@ -24,7 +26,7 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 5. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-6. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+6. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
 ### Step 1: Validate Prerequisites
 
@@ -131,12 +133,12 @@ Fixes issues found by fe-review with TDD discipline for behavioral changes and d
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-fix"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-fix"`, per fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
-every later command refusing it (CLAUDE.md § Lock file).
+every later command refusing it (fe-shared § Lock file).
 
 ### Step 2: Parse & Display Issue Summary
 
@@ -183,7 +185,7 @@ If the user declines, stop here.
 Run the review-fixer agent:
 
 ```
-Task(subagent_type: "review-fixer", prompt: "
+Agent(subagent_type: "frontend-react-plugin:review-fixer", prompt: "
   Fix {fixMode} issues for '{feature}'.
 
   Parameters:
@@ -210,9 +212,9 @@ Task(subagent_type: "review-fixer", prompt: "
   - clientStore: {clientStore}
 
   Follow the process defined in agents/review-fixer.md.
-  Read templates/tdd-rules.md for TDD rules.
-  {If fixMode is 'e2e' and e2eTool == 'agent-browser': Read templates/e2e-testing.md for E2E patterns. Failure evidence is the e2e-report.json per-scenario step logs and screenshots.}
-  {If fixMode is 'e2e' and e2eTool == 'playwright': Read templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code.}
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
+  {If fixMode is 'e2e' and e2eTool == 'agent-browser': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md for E2E patterns. Failure evidence is the e2e-report.json per-scenario step logs and screenshots.}
+  {If fixMode is 'e2e' and e2eTool == 'playwright': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code.}
   Save the fix report to docs/specs/{feature}/.implementation/frontend/fix-report.json.
 ")
 ```

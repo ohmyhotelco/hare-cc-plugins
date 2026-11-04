@@ -10,7 +10,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 Generates production React code based on the implementation plan (plan.json) using strict Test-Driven Development. Each phase runs in a separate agent session for context isolation.
 
-> **Tool choice**: This skill uses `Agent` (not `Task`) to launch sub-agents. TDD phases are strictly sequential — each depends on the previous phase's output — so `Agent` is used for synchronous execution with immediate result inspection.
+TDD phases run in order, because each depends on the previous phase's output: start a phase only after the previous agent has reported.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -24,7 +26,7 @@ Generates production React code based on the implementation plan (plan.json) usi
 6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
 **Empty-phase skip.** When `serverState="tanstack-query"`, the planner may emit **no** `stores[]` entry for a feature whose server data lives entirely in the query cache; under `clientStore="none"` it never emits one; under `apiLayer="workspace-package"` a feature fully covered by `api[].reuse[]` has no `additions[]`. A phase with no files to generate is skipped: if the plan has no store for the feature (empty `stores[]`), mark `store-tdd` as **`"skipped"`** in generation-state with **`skipKind: "auto"`** and `reason: "no store planned"`, and log "Skipping store-tdd (no client-only store)"; likewise mark `api-tdd` `skipped` / `skipKind: "auto"` / `reason: "no package additions"` when every `api[]` entry has `reuse[]` and no `additions[]`. Any other phase skipped for having no matching entries (Phase 2-5 "Skip if") records the same `skipKind: "auto"` and a reason — a skip without `skipKind` blocks the feature (Step 8). Use `"skipped"` — the status vocabulary is `completed` / `failed` / `skipped`, and a `"skip"` value matches no branch in the final-status logic, leaving a valid feature unable to reach `generated`. This is not an error — it is the expected shape under tanstack-query.
 
@@ -87,12 +89,12 @@ Generates production React code based on the implementation plan (plan.json) usi
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-gen"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-gen"`, per fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
-every later command refusing it (CLAUDE.md § Lock file).
+every later command refusing it (fe-shared § Lock file).
 
 **Then run Step 1.9 (Playwright Harness Preflight) immediately — every mode, before any branch.**
 The preflight's own heading says "every mode", but a heading routes nothing: the delta branch jumps
@@ -148,7 +150,7 @@ config may be user-owned, and clobbering it is worse than asking.)
 complete harness) → scaffold now, before any phases:
 
 ```
-Agent(subagent_type: "foundation-generator", prompt: "
+Agent(subagent_type: "frontend-react-plugin:foundation-generator", prompt: "
   Scaffold the Playwright harness only.
 
   Parameters:
@@ -274,7 +276,7 @@ Separate the phase's files into two groups:
 **For `foundation` phase** (all operations in a single call):
 
 ```
-Agent(subagent_type: "delta-modifier", prompt: "
+Agent(subagent_type: "frontend-react-plugin:delta-modifier", prompt: "
   Apply delta modifications for '{feature}' phase 'foundation'.
 
   Parameters:
@@ -301,7 +303,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - srcPath: {srcPath}
 
   Follow the process defined in agents/delta-modifier.md.
-  Read templates/tdd-rules.md for TDD rules.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
 ")
 ```
 
@@ -316,7 +318,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
 If `modifyRemoveFiles` is non-empty:
 
 ```
-Agent(subagent_type: "delta-modifier", prompt: "
+Agent(subagent_type: "frontend-react-plugin:delta-modifier", prompt: "
   Apply delta modifications for '{feature}' phase '{phase}'.
 
   Parameters:
@@ -343,7 +345,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
   - srcPath: {srcPath}
 
   Follow the process defined in agents/delta-modifier.md.
-  Read templates/tdd-rules.md for TDD rules.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
 ")
 ```
 
@@ -358,7 +360,7 @@ Agent(subagent_type: "delta-modifier", prompt: "
 If `createFiles` is non-empty AND the phase is a TDD phase (`api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`):
 
 ```
-Agent(subagent_type: "tdd-cycle-runner", prompt: "
+Agent(subagent_type: "frontend-react-plugin:tdd-cycle-runner", prompt: "
   Execute TDD cycle for '{feature}' phase '{phase}'.
 
   Parameters:
@@ -388,7 +390,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - clientStore: {clientStore}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
-  Read templates/tdd-rules.md for TDD rules.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
 
   IMPORTANT: Only generate stubs, tests, and implementations for the files listed
   in scopedFiles. Do NOT generate files outside this list. Existing files in the
@@ -547,7 +549,7 @@ Execute each phase sequentially. After each phase, update generation-state.json 
 Launch the foundation-generator agent:
 
 ```
-Agent(subagent_type: "foundation-generator", prompt: "
+Agent(subagent_type: "frontend-react-plugin:foundation-generator", prompt: "
   Generate test infrastructure for '{feature}'.
 
   Parameters:
@@ -609,7 +611,7 @@ Get the `skills` list from the corresponding `buildOrder` entry.
 Launch the tdd-cycle-runner agent:
 
 ```
-Agent(subagent_type: "tdd-cycle-runner", prompt: "
+Agent(subagent_type: "frontend-react-plugin:tdd-cycle-runner", prompt: "
   Execute TDD cycle for '{feature}' phase '{phase}'.
 
   Parameters:
@@ -637,7 +639,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
   - skills: {skills list from buildOrder}
 
   Follow the process defined in agents/tdd-cycle-runner.md.
-  Read templates/tdd-rules.md for TDD rules.
+  Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
 ")
 ```
 
@@ -685,7 +687,7 @@ Agent(subagent_type: "tdd-cycle-runner", prompt: "
 Launch the integration-generator agent:
 
 ```
-Agent(subagent_type: "integration-generator", prompt: "
+Agent(subagent_type: "frontend-react-plugin:integration-generator", prompt: "
   Generate integration layer for '{feature}'.
 
   Parameters:

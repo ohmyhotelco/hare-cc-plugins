@@ -2,13 +2,9 @@
 
 Reference document loaded by TDD cycle agents. Adapted from [obra/superpowers TDD skill](https://github.com/obra/superpowers) for React feature code generation with MSW, Vitest, and Testing Library.
 
-## The Iron Law
+## Test First
 
-```
-NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
-```
-
-Write code before the test? Delete it. Start over. No exceptions.
+Write a failing test before any production code. If code was written first, delete it and start from the test: a test shaped around existing code has not been shown to catch a defect.
 
 ## Red-Green-Refactor Cycle
 
@@ -30,9 +26,9 @@ export const entityApi = {} as Record<string, never>;
 
 Now the import resolves and the test fails on its assertion — the correct RED state.
 
-### VERIFY RED — Watch It Fail (MANDATORY)
+### VERIFY RED — Watch It Fail
 
-> Run from `{appDir}` — see CLAUDE.md § Build Command Working Directory.
+> Run from `{appDir}` — see fe-shared § Build Command Working Directory.
 
 ```bash
 npx vitest run {testFile} --reporter=verbose
@@ -51,11 +47,11 @@ The simplest code that passes. Replace the stub.
 - Follow plan.json exactly — no additions, no "improvements"
 - Do not refactor other code during GREEN
 
-### VERIFY GREEN — Watch It Pass (MANDATORY)
+### VERIFY GREEN — Watch It Pass
 
 Same command. Every test in the file passes and the output is pristine — no warnings, no unhandled errors. **Test fails? Fix the implementation, not the test.**
 
-### VERIFY THE TEST — Survive a Mutation (MANDATORY)
+### VERIFY THE TEST — Survive a Mutation
 
 Green proves the test and the code agree. It does not prove the test would notice if the code were wrong — and here they share an author, written from one reading of the spec in one session. A misreading produces a test and an implementation that agree with each other, and the phase goes green anyway.
 
@@ -106,7 +102,7 @@ expect(Object.keys(buildCreateBookingBody(input)).sort()).toEqual(
 `toEqual` on the sorted key set is the point — `toMatchObject` and per-field assertions both pass
 with an extra field present, which is the defect.
 
-## Testing Anti-Patterns (MUST AVOID)
+## Testing Anti-Patterns
 
 ### Anti-Pattern 1: Testing Mock Behavior
 
@@ -206,22 +202,6 @@ server.use(
 - [ ] No test-only methods in production code
 - [ ] Mock responses complete (all interface fields)
 
-## Rationalizations — the thought IS the warning
-
-| Excuse | Reality |
-|--------|---------|
-| "Too simple to test" | Simple code breaks. The test takes 30 seconds. |
-| "I'll write tests after" | A test that passes immediately proves nothing. RED is mandatory. |
-| "Already manually verified" | Ad-hoc ≠ systematic. No record, no re-run, no regression catch. |
-| "Deleting the implementation and restarting is wasteful" | Sunk cost. Unverified code is debt, not progress. |
-| "Keep it as reference, then write tests" | You will adapt the test to it. That is testing-after. Delete means delete. |
-| "Test is hard to write, skip it" | Hard to test = hard to use. Simplify the design instead. |
-| "TDD will slow me down" | TDD is faster than debugging. |
-| "plan.json is too complex for one-test-at-a-time" | Complex plans need more discipline, not less. |
-| "MSW setup is too heavy for this test" | MSW is the only acceptable mock boundary. Set it up. |
-| "It went green, so the test works" | Green means they agree. Mutate it and find out. |
-| "This is different because…" | No. That thought IS the rationalization. |
-
-**Violating the letter of the rules is violating the spirit of the rules.**
+## When to Start Over
 
 Stop and start over on any of: implementation written before its test; a test that passes on the first run; assertions on mock call counts instead of rendered output; mock setup longer than the test; production methods added "for testing"; a failure you cannot explain.

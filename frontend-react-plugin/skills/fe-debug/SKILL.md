@@ -3,14 +3,16 @@ name: fe-debug
 description: "Use when generated code has runtime errors, test failures, or build issues that need systematic diagnosis."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # Debug Skill
 
 Resolves issues in generated code using a systematic 4-phase debugging methodology.
 
-> **Tool choice**: This skill uses `Task` to launch the debugger agent. The debug session runs autonomously with its own hypothesis-test-fix cycle.
+The debug session runs autonomously with its own hypothesis-test-fix cycle.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -21,7 +23,7 @@ Resolves issues in generated code using a systematic 4-phase debugging methodolo
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -62,7 +64,7 @@ Collect the user's response as `problemDescription`.
 Run the debugger agent:
 
 ```
-Task(subagent_type: "debugger", prompt: "
+Agent(subagent_type: "frontend-react-plugin:debugger", prompt: "
   Debug the following issue in '{feature}'.
 
   Parameters:

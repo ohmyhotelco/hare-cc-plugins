@@ -20,6 +20,8 @@ The profile only sets **defaults** for the individual knobs below; every knob st
 overridable. Backward compatibility is a hard rule — an existing admin project reconfigured without
 touching the new questions behaves exactly as before.
 
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
+
 ## Instructions
 
 ### Step 1: Check Existing Configuration
@@ -89,7 +91,7 @@ Default: by profile — `declarative` for admin, `framework` for ota.
 
 Note: The router mode determines which React Router patterns, build commands, and constraints the plugin
 enforces. `declarative`/`data` are Vite SPA (RSC/SSR rules skipped); `framework` enables SSR/SSG (SSR
-rules apply). See the command matrix in `CLAUDE.md`.
+rules apply). See the command matrix in `fe-shared`.
 
 ### Step 2b: Ask for Mock-First Development
 
@@ -345,7 +347,7 @@ For each row:
 3. Verify installation succeeded
 
 Skip the Agent Browser row when `e2eTool == playwright` (Playwright ships no loadable skill — trace
-analysis is built into the CLI; see the E2E toolchain in `CLAUDE.md`).
+analysis is built into the CLI).
 
 ### Step 4a: Print New-Stack Dependency Commands (never auto-install)
 
@@ -370,7 +372,7 @@ When `routerMode == framework`, verify the RR framework app shell exists (glob):
 `{appDir}/react-router.config.ts`, `{baseDir}/root.tsx`, `{baseDir}/routes.ts`, `{baseDir}/entry.server.tsx`,
 `{baseDir}/entry.client.tsx`.
 - If all present → nothing to do.
-- If any absent → offer to scaffold them from `templates/framework-app-shell.md`, or point the user to
+- If any absent → offer to scaffold them from `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md`, or point the user to
   `npx create-react-router@latest`. Do not overwrite existing files.
 
 `react-router.config.ts` and the generated `.react-router/` types dir live in `{appDir}` (path-base rule);

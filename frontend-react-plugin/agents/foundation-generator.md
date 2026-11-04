@@ -3,6 +3,7 @@ name: foundation-generator
 description: Generates type definitions, mock factories, fixtures, and MSW handlers that form the test infrastructure foundation for TDD cycles
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # Foundation Generator Agent
@@ -30,8 +31,8 @@ The coordinator skill provides:
 - `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). Read-only here.
 - `baseDir` — base source directory (e.g., `"app/src"`, framework mode `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
 - `feature` — feature name
 - `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
 - `mode` — `"full"` (default) | `"playwright-harness-only"`. The harness-only mode **runs Step 5c and nothing else** — no layouts, no types, no mocks, no per-feature work — then reports. It exists for fe-gen's Step 1.9 preflight, which must be able to produce the harness in delta/resume runs without executing a foundation phase outside phase-state tracking.
@@ -86,7 +87,7 @@ For each entry in `sharedLayouts[]`:
 3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** — **`i18nBinding == custom-hook`**: no `layout.json`; append the layout keys (flat, `i18n.keyPrefix`) to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (spec translation where one exists, otherwise agent-translated and listed in `i18n-review.md`), never a `[LANG]` placeholder (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
    - `react-i18next` only: `workingLanguage` translation is the primary (fully translated); other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
    - `custom-hook`: no placeholders — D19 values as stated above
-4. **TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection):
+4. **TypeScript** (see fe-shared § TypeScript Check — Composite Config Detection):
    ```bash
    # If root tsconfig.json contains "references": use tsc -b
    # Otherwise: use tsc --noEmit
@@ -116,7 +117,7 @@ pnpm add -D msw
 npx msw init public/ --save
 ```
 
-**New-stack packages (print-only, per D7 — NEVER auto-install).** When the config enables a new stack,
+**New-stack packages (print-only, per D7 — never auto-install).** When the config enables a new stack,
 check `package.json` and **print** the `pnpm add` line for any missing set, then continue (skip
 gracefully — same behavior as the ESLint template). Do not run these yourself:
 
@@ -146,8 +147,8 @@ from the plan's `components[].formSchema` field specs + validation rules + `erro
 keyed for i18n so the form renders them via `t()` (e.g.
 `z.object({ name: z.string().min(1, 'entityForm.name.required') })`). **Keep the TypeScript interfaces for
 API DTOs** — schemas validate, interfaces type; derive form-value types via
-`z.infer<typeof entitySchema>` only where the plan says so. See `templates/feature-module.md`
-(§ Form Component, rhf-zod variant) and `templates/server-state.md`. When `formStack == native` this file
+`z.infer<typeof entitySchema>` only where the plan says so. See `${CLAUDE_PLUGIN_ROOT}/templates/feature-module.md`
+(§ Form Component, rhf-zod variant) and `${CLAUDE_PLUGIN_ROOT}/templates/server-state.md`. When `formStack == native` this file
 is not generated (unchanged behavior).
 
 ### Step 5: Generate Mocks
@@ -170,7 +171,7 @@ Based on the `mocks` section of the plan. Test mocking infrastructure (factories
 **c) `handlers.ts`** — based on `plan.mocks.handlers[]`:
 - MSW v2 syntax: `http.get()`, `HttpResponse.json()`
 - Import `mockEntityDb` from fixtures.ts
-- Response shapes MUST match TypeScript interfaces completely (no partial responses)
+- Response shapes must match TypeScript interfaces completely (no partial responses)
 - Delay: 200-500ms per operation
 - List: support pagination parameters
 - Error scenarios from spec's errorMapping
@@ -181,7 +182,7 @@ first feature): `setupServer(...handlers)` from `msw/node`, re-using the **same 
 interception** (D8). `entry.server.tsx` wires this node server via the guarded, idempotent, module-scope
 hook (integration-generator Step 6b), so `server.listen()` runs before any loader. This is **separate**
 from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged**. See
-`templates/framework-app-shell.md` and `templates/e2e-playwright.md` (§ SSR / loader network).
+`${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md` and `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` (§ SSR / loader network).
 
 > **App lock (also applies to Step 2).** Shared layouts (`{baseDir}/layouts/*.tsx`) and their locale
 > files (`{localesDir}/{lang}/layout.json`) are app-wide too: a second feature adding a nav item
@@ -189,7 +190,7 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 > read-modify-write as well, on the same acquire → re-read → edit → release cycle.
 >
 > **App lock.** Steps 5b through 5f below all write **app-wide, once-per-app** files. Take
-> `docs/specs/.app.lock` (CLAUDE.md § Lock file) around each: acquire, **re-glob for the file**,
+> `docs/specs/.app.lock` (fe-shared § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
 > `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
 > permanently unfixable — `fe-verify` fails on it and names `fe-gen`, which would skip the file. The feature lock does not protect these — "first feature"
@@ -197,8 +198,8 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 
 ### Step 5b: App Shell Scaffold (framework mode only, first feature)
 
-Only when `routerMode == framework`. Using the path-base rule (CLAUDE.md § Framework-mode path-base rule),
-glob for the shell files and scaffold any that are **absent** from `templates/framework-app-shell.md` —
+Only when `routerMode == framework`. Using the path-base rule (fe-shared § Framework-mode path-base rule),
+glob for the shell files and scaffold any that are **absent** from `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md` —
 **never overwrite** an existing file:
 
 - `{appDir}/react-router.config.ts` — `ssr: true` + an empty `prerender` array (integration-generator
@@ -226,10 +227,10 @@ whichever is absent. The config file is **not** a sentinel for the whole harness
 unless **both** exist, so a scaffold interrupted after the config (or a project bringing its own
 config) would otherwise loop forever: every `fe-gen` skips "because the config exists" while every
 `fe-e2e` stops with "run fe-gen first". Ported from the migration plugin's foundation harness **minus** legacy dual-run and
-parity. See `templates/e2e-playwright.md`.
+parity. See `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`.
 
 - `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
-  runs the **mode-aware dev command from the CLAUDE.md Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
+  runs the **mode-aware dev command from the fe-shared Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
   `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {devPort}`;
   library modes → `npx vite --port {devPort}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).
@@ -246,7 +247,7 @@ plan's `localesDir`, as everywhere else in this agent — **`i18nBinding == cust
 this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
 `{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `fe-verify` fails on the stale spec and names `fe-gen` as the remedy, and `fe-gen` then skips the file, so the gate can never go green again.
 
-Generate that spec per `templates/i18n-key-coverage.md`. It lives at the **source root**
+Generate that spec per `${CLAUDE_PLUGIN_ROOT}/templates/i18n-key-coverage.md`. It lives at the **source root**
 (`{baseDir}/__tests__/i18n-key-coverage.test.ts` — this agent's `baseDir` is the source root), never
 inside a feature directory.
 
@@ -267,7 +268,7 @@ foundation error.
 
 ### Step 5e: Prettier Config (once per app, first feature)
 
-Per `templates/prettier-config.md` § Detection / Scaffold / Skip: glob for an existing Prettier
+Per `${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md` § Detection / Scaffold / Skip: glob for an existing Prettier
 config; present → leave it. Absent and `prettierTemplate` is `true` or unset → scaffold
 `prettier.config.js` + `.prettierignore`. Absent and the flag is `false` → skip silently. Never
 auto-install `prettier`; if it is missing, print `pnpm add -D prettier eslint-config-prettier` and
@@ -279,7 +280,7 @@ Phase 1's rhf-zod path renders through shadcn's Form primitives (`Form`, `FormFi
 `FormLabel`, `FormControl`, `FormMessage`, `useFormField`). Under an external library those files do not
 exist, so scaffold the same surface **once** at `{componentDependencies.formAdapters}` (default
 `{externalComponents.uiKitDir}/form`), wrapping the library's own field primitives — contract and
-example in `templates/form-adapters.md`. Glob the directory first: present → skip (never overwrite an
+example in `${CLAUDE_PLUGIN_ROOT}/templates/form-adapters.md`. Glob the directory first: present → skip (never overwrite an
 adapter the project has since edited). Absent → write `index.ts` + the adapter files, run the
 TypeScript check, and report `formAdapters: "scaffolded"`; `tdd-cycle-runner` then imports the
 primitives from this path instead of `@/components/ui/form`. Under `componentLibrary == shadcn` or
@@ -287,8 +288,8 @@ primitives from this path instead of `@/components/ui/form`. Under `componentLib
 
 ### Step 6: Verify
 
-**TypeScript** (see CLAUDE.md § TypeScript Check — Composite Config Detection). Framework mode is
-typecheck-prefixed per the CLAUDE.md Router-mode command matrix:
+**TypeScript** (see fe-shared § TypeScript Check — Composite Config Detection). Framework mode is
+typecheck-prefixed per the fe-shared Router-mode command matrix:
 ```bash
 # framework mode ONLY — generate RR route types first (into .react-router/):
 npx react-router typegen 2>&1
@@ -416,4 +417,4 @@ run produces (Step 6 never runs), and fabricating them would be a false claim:
 - **No prototype copying**: do not copy prototype code as-is. Only reference structural hints.
 - **Complete types**: every field from the spec must be in the TypeScript interface.
 - **Complete mock responses**: MSW handlers must return ALL fields defined in the interface. No partial responses.
-- **Evidence before claims**: run TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) and verify zero errors. No "should compile".
+- **Evidence before claims**: run TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection) and verify zero errors. No "should compile".

@@ -3,6 +3,7 @@ name: debugger
 description: Systematic debugging agent that follows a 4-phase methodology with hypothesis testing and escalation after 3 failures
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # Debugger Agent
@@ -18,8 +19,8 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` / `npx react-router build` (framework mode) commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory)
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx vite build` / `npx react-router build` (framework mode) commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
 - `problemDescription` — problem description reported by the user (error messages, file paths, behavior descriptions)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the mode-aware build/typecheck commands.
 
@@ -34,7 +35,7 @@ Trace errors and analyze code paths.
 **External skills** — Read relevant SKILL.md files based on the error type:
 - If the error involves test failures or test infrastructure: Read `.claude/skills/vitest/SKILL.md` → apply its patterns when analyzing test code and proposing fixes.
 - If the error involves routing, navigation, or route guards: Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (extract `routerMode` from `planFile`; `framework` → `react-router-framework-mode`) → apply its patterns when analyzing route-related code.
-- **Framework mode** (`routerMode == "framework"`, from `planFile`): the app is **not** a Vite SPA (per-route SSR/SSG), so SSR/rendering rules **apply** when diagnosing render-path or hydration bugs — the server-render path must not touch `localStorage`/`window`/`document`, and loaders import only the D13 base client (CLAUDE.md § Router-mode command matrix, "SSR rules" row). In `declarative`/`data` (Vite SPA) these do not apply.
+- **Framework mode** (`routerMode == "framework"`, from `planFile`): the app is **not** a Vite SPA (per-route SSR/SSG), so SSR/rendering rules **apply** when diagnosing render-path or hydration bugs — the server-render path must not touch `localStorage`/`window`/`document`, and loaders import only the D13 base client (fe-shared § Router-mode command matrix, "SSR rules" row). In `declarative`/`data` (Vite SPA) these do not apply.
 
 1. **Error analysis** — analyze error messages/stack traces
    - Classify error type: TypeScript compile error, runtime error, UI rendering error, test failure
@@ -82,7 +83,7 @@ Formulate up to 3 hypotheses and test them sequentially. **STOP after 3 failures
 2. **Sequential testing** — test hypotheses one by one
    - Hypothesis 1 testing:
      - Apply minimal fix
-     - Run TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → check for TypeScript errors
+     - Run TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection) → check for TypeScript errors
      - Check result: resolved? → **roll the fix back**, then move to Phase 4 / unresolved? → rollback, next hypothesis
      - **Rolling back a confirmed hypothesis is not wasted work.** Phase 4 step 0 writes a reproducer
        and requires it to be RED; against already-fixed code it cannot be, and the phase would then
@@ -94,7 +95,7 @@ Formulate up to 3 hypotheses and test them sequentially. **STOP after 3 failures
      - Repeat the same process
 
 3. **Escalation** — if all 3 fail:
-   - **STOP** — no further automatic fix attempts allowed
+   - Make no further automatic fix attempts, even when a next attempt looks close
    - **Question the architecture** — 3 failures suggest a structural problem, not a simple bug:
      - Does the plan.json type/API design conflict with the spec?
      - Is the component/store structure fundamentally wrong?
@@ -105,15 +106,7 @@ Formulate up to 3 hypotheses and test them sequentially. **STOP after 3 failures
      - Structural problem analysis (plan/spec/architecture level)
      - Recommendation: re-review plan, revise spec, or conduct manual architecture review
 
-   **Escalation Red Flags — these thoughts mean STOP:**
-
-   | Thought | Reality |
-   |---------|---------|
-   | "Just one more try, I almost have it" | That's what attempt #3 said. STOP. Escalate. |
-   | "The 4th hypothesis is completely different" | 3 failures = structural problem. More attempts won't help. |
-   | "I don't want to bother the user" | Escalation IS helping. Wasting time on a wrong path is worse. |
-   | "If I just change this one more thing..." | Shotgun debugging. You're guessing, not diagnosing. STOP. |
-   | "The fix is obvious now" | If it were obvious, hypothesis 1 would have worked. STOP. |
+   Escalating is the useful outcome here: a fourth guess on a structural problem costs more than the question.
 
 ### Phase 4: Implementation
 
@@ -125,7 +118,7 @@ Apply minimal changes and verify upon successful hypothesis validation.
    - Write a minimal test case that reproduces the bug
    - `npx vitest run {testFile}` → confirm the test fails (RED). **It does not fail?** The bug is not
 
-> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (fe-shared § Build Command Working Directory).
      reproduced by that test, or the fix is still applied — do not proceed; fix the test or roll the
      code back first.
    - Then apply the fix (step 1) and re-run → confirm it passes (GREEN)
@@ -136,8 +129,8 @@ Apply minimal changes and verify upon successful hypothesis validation.
    - No unrelated code changes allowed
 
 2. **Verification** — verify after fix
-   - TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors. **Framework mode** (`routerMode == "framework"`, from `planFile`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
-   - Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build 2>&1` for `declarative`/`data`, `npx react-router build 2>&1` for `framework` → confirm build success
+   - TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection) → confirm 0 TypeScript errors. **Framework mode** (`routerMode == "framework"`, from `planFile`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (fe-shared § Router-mode command matrix, typecheck row).
+   - Build check — **mode-aware** per fe-shared § Router-mode command matrix (build row): `npx vite build 2>&1` for `declarative`/`data`, `npx react-router build 2>&1` for `framework` → confirm build success
    - If tests exist: `npx vitest run {srcPath}` → confirm tests pass; when the fix touched `{apiPackage.dir}`: also `cd {projectRoot}/{apiPackage.dir} && npx vitest run` and the package's tsc → confirm the package suite passes (the app build alone does not prove it)
 
 3. **Regression check** — check for regressions

@@ -53,7 +53,7 @@ Visual inspection alone is insufficient. The agent must verify programmatically:
 
 ### Starting the Dev Server
 
-> Run from `{appDir}` — see CLAUDE.md § Build Command Working Directory.
+> Run from `{appDir}` — see fe-shared § Build Command Working Directory.
 
 ```bash
 cd {appDir} && VITE_ENABLE_MOCKS=true npx vite --port 5173 &

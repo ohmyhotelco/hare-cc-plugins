@@ -37,7 +37,7 @@ export default {
 };
 ```
 
-`tabWidth: 2` matches the 2-space indentation convention in CLAUDE.md; `printWidth: 100` is wide
+`tabWidth: 2` matches the 2-space indentation convention in fe-shared; `printWidth: 100` is wide
 enough that Tailwind class lists and typed React props stay on one line.
 
 ## Ignore File
@@ -87,7 +87,7 @@ Uniform across `foundation-generator`, `integration-generator`, and `fe-verify`:
 3. Absent and `prettierTemplate` is `false` → skip silently.
 4. Dependencies missing → print the `pnpm add -D` command, skip, record `skipped`.
 
-Command, run from `{appDir}` (CLAUDE.md § Build Command Working Directory):
+Command, run from `{appDir}` (fe-shared § Build Command Working Directory):
 
 ```bash
 npx prettier --check . 2>&1
