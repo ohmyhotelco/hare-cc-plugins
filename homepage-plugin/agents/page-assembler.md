@@ -55,7 +55,7 @@ Only on first page generation:
      - `nav` → navigation container classes
      - `navLink` → individual nav link classes
      - `ctaButton` → CTA button classes (if present)
-   - If no `sharedComponents.Header` exists, use default styles from `section-catalog.md` HeaderSection pattern
+   - If no `sharedComponents.Header` exists, use default styles from `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` HeaderSection pattern
 
 3. **Footer.astro** — create `src/components/layout/Footer.astro`
    - Multi-column links from layout plan
@@ -66,7 +66,7 @@ Only on first page generation:
      - `linkGroupTitle` → link group heading classes
      - `link` → individual link classes
      - `socialIcon` → social icon wrapper classes (if present)
-   - If no `sharedComponents.Footer` exists, use default styles from `section-catalog.md` FooterSection pattern
+   - If no `sharedComponents.Footer` exists, use default styles from `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` FooterSection pattern
 
 4. **MobileNav.tsx** — create `src/components/islands/MobileNav.tsx`
    - If `docs/design-system/design-tokens.json` exists: use custom Dialog component from `${CLAUDE_PLUGIN_ROOT}/templates/custom-components.md` as the overlay panel

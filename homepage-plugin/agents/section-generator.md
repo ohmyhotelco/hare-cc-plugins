@@ -52,7 +52,7 @@ The skill will provide these parameters in the prompt:
    - Resolve `figmaStyles` using this priority:
      1. Section-specific styles from `component-map.json → pages.{pageName}.sections[].components.{ComponentName}.figmaStyles`
      2. Global styles from `component-map.json → globalComponents.{ComponentName}.figmaStyles`
-     3. Default styles from `design-token-extractor.md` Phase 8.3
+     3. Default styles from `${CLAUDE_PLUGIN_ROOT}/agents/design-token-extractor.md` Phase 8.3
    - Replace all `{component-map: ComponentName.figmaStyles.key}` placeholders with the resolved Tailwind class strings
    - Write to `src/components/ui/{component}.tsx` (uses `globalComponents` styles as the base)
    - If a section needs component styles that differ from the global version, apply overrides directly in the section's `.astro` or `.tsx` file using Tailwind classes from the section-specific `figmaStyles`, passed via the `className` prop

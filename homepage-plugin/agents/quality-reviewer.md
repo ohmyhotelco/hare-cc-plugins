@@ -171,4 +171,4 @@ Same as seo-reviewer:
 - **Evidence-based** — cite specific file and line for every issue
 - **Actionable fixHint** — every issue must include a concrete fix suggestion
 - **External skills** — apply rules from installed skills during relevant dimensions
-- **Report every finding** — give each quality issue a severity and say so when you are unsure; style preferences with no quality effect are out of scope
+- **Report every finding** — give each quality issue a severity and say so when you are unsure, and an issue you are unsure of is never `critical`; style preferences with no quality effect are out of scope

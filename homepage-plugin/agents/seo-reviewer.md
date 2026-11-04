@@ -146,5 +146,5 @@ Produce a review report with:
 - **Read-only** — never modify any files
 - **Evidence-based** — cite specific file and line for every issue
 - **Actionable fixHint** — every issue must include a concrete fix suggestion
-- **Report every finding** — give each SEO issue a severity and say so when you are unsure; a low-impact issue is `info`, not an omission
+- **Report every finding** — give each SEO issue a severity and say so when you are unsure; a low-impact issue is `info`, not an omission, and an issue you are unsure of is never `critical`
 - **Per-page analysis** — review each page independently, then aggregate

@@ -161,7 +161,7 @@ Determine overall verdict:
 - All stages pass → `reviewed`
 - Pass with warnings → `reviewed` (warnings noted)
 - Any stage fails (including visual fidelity score < 5) → `review-failed`
-- All stages pass, zero issues → `done` (skip fix step)
+- All stages pass, no `critical` or `warning` issue → `done` (skip fix step; `info` issues stay in the report)
 
 Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 ```json

@@ -60,7 +60,7 @@ For each section in the user's selection:
 For each page:
 
 1. **Page type** — classify (home, about, services, pricing, contact, blog-list, blog-post, faq)
-2. **Required schemas** — determine JSON-LD structured data types from seo-checklist.md
+2. **Required schemas** — determine JSON-LD structured data types from `${CLAUDE_PLUGIN_ROOT}/templates/seo-checklist.md`
 3. **Metadata** — infer title, description from page purpose
 4. **OG image** — determine if custom OG image is needed
 
