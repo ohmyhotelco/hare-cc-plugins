@@ -19,7 +19,7 @@ Run the project build. If it fails, automatically diagnose and fix issues with u
 
 ### Step 1: Launch Build Doctor
 
-Launch the `build-doctor` agent with:
+Launch the `build-doctor` agent (`subagent_type: "backend-springboot-plugin:build-doctor"`) with:
 
 - `config`: the parsed plugin config
 - `projectRoot`: current project root

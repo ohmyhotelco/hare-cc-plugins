@@ -45,7 +45,7 @@ If the argument is a feature name (not a file path):
 
 ### Step 2: Gather Context
 
-1. Read the plugin CLAUDE.md for architecture and conventions
+1. Read `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md` for architecture and conventions
 2. If the argument is a work document path:
    - Read the document
    - Extract `- [ ]` scenarios
@@ -73,7 +73,7 @@ If the argument is a feature name (not a file path):
 
 Auto-generate an enriched work document from plan.json for each entity that lacks one:
 
-1. Read `templates/work-document-template.md` for the document format
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/work-document-template.md` for the document format
 2. For each entity in plan.json that has no existing work document, generate `{workDocDir}/{kebab-case-entity}.md` with:
    - **Entity section**: fields table from `plan.json.entities[].fields[]` with types, constraints, and source references
    - **Commands section**: from `plan.json.commands[]` for this entity, including validation steps from BR-nnn
@@ -101,8 +101,8 @@ Auto-generate an enriched work document from plan.json for each entity that lack
 
 Follow the original manual flow:
 
-1. Read `templates/test-scenario-template.md` for the scenario format
-2. Draft test scenarios following CLAUDE.md scenario writing rules:
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/test-scenario-template.md` for the scenario format
+2. Draft test scenarios following the scenario writing rules in `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md`:
    - Single sentence, English, present tense
    - Start with lowercase (usable as snake_case method name)
    - Use `- [ ]` checkbox format
@@ -180,7 +180,7 @@ For each entity being processed, create or update `{workDocDir}/.progress/{kebab
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `implement` agent once per entity with:
+Launch the `implement` agent (`subagent_type: "backend-springboot-plugin:implement"`) once per entity with:
 
 - `workDocument`: path to the current entity's work document (`{workDocDir}/{kebab-case-entity}.md`)
 - `config`: the parsed plugin config

@@ -10,7 +10,7 @@ frontend-react-plugin/        - Frontend React development plugin (see frontend-
 frontend-migration-plugin/    - Angular 15 → React Router v7 migration plugin (see frontend-migration-plugin/CLAUDE.md)
 frontend-ohmyhotel-plugin/    - Repo-scoped plugin for ohmyhotelco/ohmyhotel-frontend (see frontend-ohmyhotel-plugin/CLAUDE.md — maintainer notes; agent rules live in skills/fo-shared)
 homepage-plugin/              - Marketing homepage generation plugin (see homepage-plugin/CLAUDE.md — maintainer notes; agent rules live in skills/hp-shared)
-backend-springboot-plugin/    - Backend Spring Boot development plugin (see backend-springboot-plugin/CLAUDE.md)
+backend-springboot-plugin/    - Backend Spring Boot development plugin (see backend-springboot-plugin/CLAUDE.md — maintainer notes; agent rules live in skills/be-spring-shared)
 backend-webflux-plugin/       - Backend Spring WebFlux development plugin (see backend-webflux-plugin/CLAUDE.md)
 cc-usage-plugin/              - Hook-only Claude Code usage ledger with batched upload (see cc-usage-plugin/CLAUDE.md — maintainer notes; hooks plus one user-invoked setup command, no agents)
 .claude-plugin/                - Root marketplace manifest

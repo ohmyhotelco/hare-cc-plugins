@@ -3,6 +3,7 @@ name: code-reviewer
 description: Multi-dimension code review combining API, JPA, clean code, logging, test quality, architecture, and optional spec compliance checks
 model: opus
 tools: Read, Glob, Grep, Bash
+skills: [be-spring-shared]
 ---
 
 # Code Reviewer Agent
@@ -23,7 +24,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. Read the plugin CLAUDE.md for conventions
+1. Apply the conventions in the preloaded `be-spring-shared` skill
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `database`, `checkstyle`, `lombokEnabled`
 3. Scan `targetPath` to identify all Java files for review
 4. Categorize files: entities, repositories, commands, executors, queries, processors, views, controllers, tests, exceptions, validators, configs
@@ -67,7 +68,7 @@ Evaluate each dimension and score 1-10:
 
 #### Dimension 3: Clean Code
 
-- Checkstyle compliance: when `config.checkstyle == true`, check line length, import ordering, and naming conventions per checkstyle rules. Reference `templates/checkstyle-config.md` for active rules.
+- Checkstyle compliance: when `config.checkstyle == true`, check line length, import ordering, and naming conventions per checkstyle rules. Reference `${CLAUDE_PLUGIN_ROOT}/templates/checkstyle-config.md` for active rules.
 - DRY violations: duplicate code blocks across classes
 - Long methods (>30 lines)
 - Deep nesting (>3 levels of indentation)
@@ -120,7 +121,7 @@ Evaluate each dimension and score 1-10:
   - Controllers live inside their domain's `api/` sub-package
   - Cross-domain communication goes through defined interfaces, not direct imports
   - Shared entities live in `data/`, domain-specific logic stays in domain packages
-- **Naming Conventions**: compliance per CLAUDE.md naming table
+- **Naming Conventions**: compliance per the naming table in `be-spring-shared`
 
 #### Dimension 7: Spec Compliance (only when `specAvailable = true`)
 

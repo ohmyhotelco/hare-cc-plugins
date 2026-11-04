@@ -15,7 +15,7 @@ Display development rules and check recent work for violations.
 ### Step 0: Validate Configuration
 
 1. Read `.claude/backend-springboot-plugin.json`
-2. If missing, show general rules from the plugin CLAUDE.md (no project-specific checks)
+2. If missing, show general rules from `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md` (no project-specific checks)
 
 ### Step 1: Parse Argument
 
@@ -23,17 +23,17 @@ Map argument to section:
 
 | Argument | Section | Source |
 |----------|---------|--------|
-| (none) | All rules summary | CLAUDE.md (all sections) |
-| `commit` | Commit Standards | CLAUDE.md § Commit Standards |
-| `tdd` | TDD Process + Test Scenario Writing | CLAUDE.md § TDD + Scenario Rules |
-| `build` | Build Standards | CLAUDE.md § Build Standards |
-| `coding` | Coding Standards + Entity/DTO Conventions | CLAUDE.md § Coding Standards |
-| `api` | API Conventions + Naming | CLAUDE.md § API Conventions + Naming Conventions |
-| `jpa` | Entity Conventions | templates/entity-conventions.md |
+| (none) | All rules summary | be-spring-shared (all sections) |
+| `commit` | Commit Standards | be-spring-shared § Commit Standards |
+| `tdd` | TDD Process + Test Scenario Writing | be-spring-shared § Test-Driven Development |
+| `build` | Build Standards | be-spring-shared § Build Standards |
+| `coding` | Coding Standards + Entity/DTO Conventions | be-spring-shared § Coding Standards |
+| `api` | API Conventions + Naming | be-spring-shared § API Conventions + Naming Conventions |
+| `jpa` | Entity Conventions | ${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md |
 
 ### Step 2: Display Rules
 
-Read the relevant section(s) from the plugin CLAUDE.md and display them clearly in the working language.
+Read the relevant section(s) from `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md` and display them clearly in the working language.
 
 For each rule, show:
 - The rule statement

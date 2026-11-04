@@ -88,7 +88,7 @@ docs/specs/{feature}/.implementation/backend/
 Launch the `backend-planner` agent with:
 
 ```
-Agent(subagent_type: "backend-planner", prompt: "
+Agent(subagent_type: "backend-springboot-plugin:backend-planner", prompt: "
   Analyze the functional specification for '{feature}' and produce a backend implementation plan.
 
   Parameters:

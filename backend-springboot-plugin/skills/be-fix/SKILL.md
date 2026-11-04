@@ -78,7 +78,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `review-fixer` agent with:
+Launch the `review-fixer` agent (`subagent_type: "backend-springboot-plugin:review-fixer"`) with:
 
 - `reportFile`: path to `review-report.json`
 - `config`: parsed plugin config

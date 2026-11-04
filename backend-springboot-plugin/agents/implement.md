@@ -3,6 +3,7 @@ name: implement
 description: TDD-based feature implementation from work documents or scenario lists
 model: opus
 tools: Bash, Read, Edit, Write, Grep, Glob
+skills: [be-spring-shared]
 ---
 
 # Implement Agent
@@ -22,10 +23,10 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. Read the plugin CLAUDE.md for conventions and architecture rules
-2. Read `templates/tdd-rules.md` for TDD methodology
-3. Read `templates/cqrs-module.md` for code structure patterns (if `config.architecture == "cqrs"`)
-4. Read `templates/entity-conventions.md` for entity and DTO patterns
+1. Apply the conventions and architecture rules in the preloaded `be-spring-shared` skill
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` for TDD methodology
+3. Read `${CLAUDE_PLUGIN_ROOT}/templates/cqrs-module.md` for code structure patterns (if `config.architecture == "cqrs"`)
+4. Read `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` for entity and DTO patterns
 5. Read `config` to extract: `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`, `architecture`
 
 ### Phase 1: Load Scenarios
@@ -108,7 +109,7 @@ Return to Phase 2 and select the next `- [ ]` item.
 - Request user review after 3 consecutive test failures
 - Do not add comments or Javadoc unless explicitly requested
 - Set Bash tool timeout to 600000ms (10 minutes) for all Gradle commands
-- Follow naming conventions from CLAUDE.md exactly
+- Follow the naming conventions in `be-spring-shared` exactly
 
 ## Output
 

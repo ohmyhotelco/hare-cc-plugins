@@ -635,7 +635,7 @@ agents/          Agent definitions (backend-planner, implement, build-doctor,
 skills/          Skill entry points (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review, be-security)
+                 be-test-review, be-security, be-spring-shared)
 templates/       Template files (plan-schema, tdd-rules, cqrs-module,
                  entity-conventions, test-scenario-template,
                  work-document-template, checkstyle-config, progress-schema)

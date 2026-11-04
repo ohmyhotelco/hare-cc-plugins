@@ -94,7 +94,7 @@ If a feature name was provided:
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `code-reviewer` agent with:
+Launch the `code-reviewer` agent (`subagent_type: "backend-springboot-plugin:code-reviewer"`) with:
 
 - `targetPath`: the resolved target path
 - `config`: parsed plugin config

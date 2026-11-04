@@ -72,7 +72,7 @@ Flag violations:
 #### Consistency
 
 - All controllers in the same domain should follow the same patterns
-- Naming should match the naming conventions table in CLAUDE.md
+- Naming should match the naming conventions table in `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md`
 - Controller should be a `record` class (for CQRS architecture)
 
 ### Step 3: Report

@@ -5,7 +5,7 @@
 ## Related Documents
 
 - CLAUDE.md (development rules)
-- Plugin CLAUDE.md (architecture and conventions)
+- `/backend-springboot-plugin:be-recall` (architecture and conventions)
 
 ## Entity
 

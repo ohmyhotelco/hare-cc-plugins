@@ -43,7 +43,7 @@ Determine whether to use spec-driven or manual mode:
    - If plan.json does not exist:
      > "No backend plan found. Run `/backend-springboot-plugin:be-plan {feature}` first."
      - Stop here.
-   - Read `templates/plan-schema.md` for type mapping reference
+   - Read `${CLAUDE_PLUGIN_ROOT}/templates/plan-schema.md` for type mapping reference
 
 4. For `mode = "spec-all"`:
    - Read `entityDependencyOrder` from plan.json
@@ -126,13 +126,13 @@ If `{workDocDir}/.progress/{kebab-case-entity}.json` exists:
 ### Step 3: Read Templates
 
 Read these templates for code patterns:
-- `templates/cqrs-module.md` — package layout and code templates
-- `templates/entity-conventions.md` — entity and DTO conventions
-- `templates/checkstyle-config.md` — checkstyle rules (only when `config.checkstyle == true`)
+- `${CLAUDE_PLUGIN_ROOT}/templates/cqrs-module.md` — package layout and code templates
+- `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` — entity and DTO conventions
+- `${CLAUDE_PLUGIN_ROOT}/templates/checkstyle-config.md` — checkstyle rules (only when `config.checkstyle == true`)
 
 ### Step 3.5: Check Shared Classes
 
-Check if the following shared classes exist and generate them from `templates/entity-conventions.md` if missing:
+Check if the following shared classes exist and generate them from `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` if missing:
 
 1. `{sourceDir}/{basePackage}/data/BaseEntity.java`
    - If it does not exist: generate from the BaseEntity template
@@ -231,7 +231,7 @@ File: `{sourceDir}/{basePackage}/{domain}/{EntityName}NotFoundException.java`
 
 File: `{workDocDir}/{kebab-case-entity}.md`
 
-- Generate from `templates/work-document-template.md`
+- Generate from `${CLAUDE_PLUGIN_ROOT}/templates/work-document-template.md`
 - Pre-fill entity fields, commands, queries, API endpoints
 - Generate test scenarios as `- [ ]` items
 
