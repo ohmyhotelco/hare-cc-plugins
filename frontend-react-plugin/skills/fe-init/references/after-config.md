@@ -59,6 +59,8 @@ When `routerMode == framework`, verify the RR framework app shell exists (glob):
 `react-router.config.ts` and the generated `.react-router/` types dir live in `{appDir}` (path-base rule);
 `routes.ts`/`root.tsx`/entry files live under `{baseDir}`.
 
+### Step 4c: E2E Permission and CLI Check
+
 **E2E permission setup** (after skill installation) — keyed on `e2eTool`:
 
 The e2e-test-runner agent runs the E2E tool via Bash in a sub-agent session. Sub-agents may not inherit

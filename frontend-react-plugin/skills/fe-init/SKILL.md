@@ -335,6 +335,10 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/fe-init/references/after-config.md` and follo
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/fe-init/references/after-config.md` and follow this section there.
 
+### Step 4c: E2E Permission and CLI Check
+
+Read `${CLAUDE_PLUGIN_ROOT}/skills/fe-init/references/after-config.md` and follow this section there.
+
 ### Step 5: Confirm
 
 Display:
