@@ -3,6 +3,7 @@ name: quality-reviewer
 description: Code quality reviewer agent that evaluates generated code across 6 quality dimensions for accessibility, responsiveness, and convention compliance
 model: sonnet
 tools: Read, Glob, Grep
+skills: [hp-shared]
 ---
 
 # Quality Reviewer Agent
@@ -22,7 +23,7 @@ The skill will provide these parameters in the prompt:
 ### Phase 0: Load Context
 
 1. **Page plan** — read `planFile` to understand expected component structure
-2. **Astro conventions** — read `templates/astro-conventions.md` for convention rules
+2. **Astro conventions** — read `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md` for convention rules
 3. **External skills** — read and apply rules from:
    - `.claude/skills/web-design-guidelines/SKILL.md` — accessibility and design audit rules
    - `.claude/skills/composition-patterns/SKILL.md` — composition rules (no boolean props, compound components)
@@ -170,4 +171,4 @@ Same as seo-reviewer:
 - **Evidence-based** — cite specific file and line for every issue
 - **Actionable fixHint** — every issue must include a concrete fix suggestion
 - **External skills** — apply rules from installed skills during relevant dimensions
-- **No over-flagging** — only flag genuine quality issues, not stylistic preferences
+- **Report every finding** — give each quality issue a severity and say so when you are unsure; style preferences with no quality effect are out of scope

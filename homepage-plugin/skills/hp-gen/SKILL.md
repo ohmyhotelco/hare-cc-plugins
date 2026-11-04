@@ -10,7 +10,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 Generates Astro pages, sections, and shared infrastructure from page plans (`page-plan.json`). Each phase runs in a separate agent session for context isolation.
 
-> **Tool choice**: This skill uses `Agent` (not `Task`) to launch sub-agents. Phases are strictly sequential — each depends on the previous phase's output.
+Phases run in order, because each depends on the previous phase's output: start a phase only after the previous agent has reported.
+
+Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
 
 ## Instructions
 
@@ -80,7 +82,7 @@ Ask user to confirm before proceeding.
 
 Determine if this is the first page being generated (no existing layout/shared components).
 
-Launch `page-assembler` agent with the following parameters:
+Launch the `page-assembler` agent (`subagent_type: "homepage-plugin:page-assembler"`) with the following parameters:
 - `pageName` — `"_infrastructure"` (special value for infrastructure phase)
 - `planFile` — path to the first page's `page-plan.json`
 - `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
@@ -111,7 +113,7 @@ Update `generation-state.json`:
 
 For each page (sequential):
 
-1. Launch `section-generator` agent with:
+1. Launch the `section-generator` agent (`subagent_type: "homepage-plugin:section-generator"`) with:
    - `pageName` — page identifier
    - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
    - `projectRoot` — project root path
@@ -124,7 +126,7 @@ For each page (sequential):
    - Skip sections marked as `reuse: true`
    - Generate React islands for interactive sections
 
-2. Launch `page-assembler` agent with:
+2. Launch the `page-assembler` agent (`subagent_type: "homepage-plugin:page-assembler"`) with:
    - `pageName` — page identifier
    - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
    - `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
@@ -159,7 +161,7 @@ Run verification checks:
 1. **TypeScript** — `npx tsc --noEmit`
 2. **ESLint** — `npx eslint .` (skip if no config and eslintTemplate is false)
    - If `eslintTemplate` is true and no ESLint config exists (no `.eslintrc*` or `eslint.config.*`):
-     1. Read the plugin's `templates/eslint-config.md`
+     1. Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
      2. Extract the JavaScript code block from the "Canonical Config" section
      3. Write it to `{projectRoot}/eslint.config.js` using the Write tool
      4. Check dependencies: `pnpm ls eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals 2>&1`

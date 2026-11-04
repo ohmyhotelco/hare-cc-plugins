@@ -3,6 +3,7 @@ name: section-generator
 description: Section generator agent that creates .astro sections and React island components from page plans
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_design_context, mcp__figma__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_metadata
+skills: [hp-shared]
 ---
 
 # Section Generator Agent
@@ -25,8 +26,8 @@ The skill will provide these parameters in the prompt:
 ### Phase 0: Load Context
 
 1. **Page plan** — read `planFile` to get section list, props, and island classification
-2. **Section catalog** — read `templates/section-catalog.md` for canonical patterns
-3. **Astro conventions** — read `templates/astro-conventions.md` for component patterns
+2. **Section catalog** — read `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` for canonical patterns
+3. **Astro conventions** — read `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md` for component patterns
 4. **Existing components** — scan `src/components/sections/` and `src/components/islands/` to detect already-generated sections
 5. **shadcn/ui inventory** — scan `src/components/ui/` to detect installed components
 6. **Design system** — read `docs/design-system/design-tokens.json` and `docs/design-system/component-map.json` if they exist. If both files are present and valid, set `useCustomComponents = true`. Also note `contentImages` data from each section in `component-map.json` for image import resolution in Phase 2.
@@ -44,7 +45,7 @@ The skill will provide these parameters in the prompt:
 **If `useCustomComponents === true` (design tokens exist):**
 
 1. **Skip shadcn/ui** — do NOT run `npx shadcn@latest add`
-2. **Read template** — read `templates/custom-components.md` for component code patterns
+2. **Read template** — read `${CLAUDE_PLUGIN_ROOT}/templates/custom-components.md` for component code patterns
 3. **Read component map** — read `docs/design-system/component-map.json` for Figma-derived styles
 4. **Generate custom components** — for each UI component required by the section plan:
    - Read the component template from `custom-components.md`

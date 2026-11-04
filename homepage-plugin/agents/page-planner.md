@@ -3,6 +3,7 @@ name: page-planner
 description: Page planner agent that synthesizes user page/section descriptions and optional Figma references into structured page plans
 model: opus
 tools: Read, Write, Glob, Grep
+skills: [hp-shared]
 ---
 
 # Page Planner Agent
@@ -28,7 +29,7 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Read Context
 
-1. **Section catalog** — read `templates/section-catalog.md` from the plugin directory to understand canonical section patterns, props interfaces, and static/island classification
+1. **Section catalog** — read `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` to understand canonical section patterns, props interfaces, and static/island classification
 2. **Layout plan** — read `layoutPlan` if it exists to understand shared header/footer structure
 3. **Existing pages** — scan `docs/pages/*/page-plan.json` to detect shared sections already generated and reuse opportunities
 4. **Project structure** — scan `src/components/sections/` and `src/components/islands/` to detect existing components

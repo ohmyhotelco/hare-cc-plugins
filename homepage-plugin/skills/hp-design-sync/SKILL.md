@@ -156,7 +156,7 @@ Read `docs/design-system/design-tokens.json` if it exists.
 
 ### Step 5: Launch Design Token Extractor Agent
 
-Launch the `design-token-extractor` agent with the following parameters:
+Launch the `design-token-extractor` agent (`subagent_type: "homepage-plugin:design-token-extractor"`) with the following parameters:
 
 - `fileKey` — the Figma file key from Step 1
 - `mcpToolPrefix` — the MCP tool name prefix identified in Step 2

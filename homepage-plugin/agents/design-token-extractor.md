@@ -3,6 +3,7 @@ name: design-token-extractor
 description: Extracts design tokens and component definitions from Figma via MCP tools
 model: opus
 tools: Read, Write, Glob, Grep, Bash, mcp__figma__get_variable_defs, mcp__figma__search_design_system, mcp__figma__get_metadata, mcp__figma__get_design_context, mcp__figma__get_screenshot, mcp__figma_desktop__get_variable_defs, mcp__figma_desktop__search_design_system, mcp__figma_desktop__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_screenshot, mcp__Figma__get_variable_defs, mcp__Figma__search_design_system, mcp__Figma__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_screenshot
+skills: [hp-shared]
 ---
 
 # Design Token Extractor Agent

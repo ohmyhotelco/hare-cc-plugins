@@ -3,7 +3,7 @@
 /**
  * Captures per-section screenshots from a running Astro preview server using Playwright.
  *
- * Usage:
+ * Usage (from the project root):
  *   node capture-screenshots.js --url <base-url> --output-dir <path> --sections '<json-array>'
  *
  * Arguments:
@@ -55,7 +55,8 @@ async function main() {
   // Check Playwright availability
   let chromium;
   try {
-    ({ chromium } = require("playwright"));
+    // Installed in the project, not beside this script: resolve from the working directory.
+    ({ chromium } = require(require.resolve("playwright", { paths: [process.cwd()] })));
   } catch {
     console.error(
       "Error: playwright is not installed.\n" +
