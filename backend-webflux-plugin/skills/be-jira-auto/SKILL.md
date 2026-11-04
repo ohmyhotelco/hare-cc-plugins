@@ -220,7 +220,7 @@ When Step 1 had to draft its own Proposed Solution:
 
 ### Step 2: Prepare the Branch
 
-1. `git status --porcelain -z` (NUL-separated, the form Step 9 diffs against). Paths under `{workDocDir}/.progress/` and `.claude/backend-webflux-plugin.json` are this plugin's own bookkeeping and never count as dirty (the run state above is written before any branch exists). Not clean otherwise -- stop with `NEEDS-INPUT`: ask the
+1. `git status --porcelain -z -uall` (NUL-separated, every untracked file listed: the form Step 9 diffs against). Paths under `{workDocDir}/.progress/` and `.claude/backend-webflux-plugin.json` are this plugin's own bookkeeping and never count as dirty (the run state above is written before any branch exists). Not clean otherwise -- stop with `NEEDS-INPUT`: ask the
    user to commit or stash their own in-progress work first. Never run
    `git stash` or `git checkout .` to clear it yourself. **Exception -- a
    resume of this ticket:** when the current branch already carries
@@ -230,11 +230,10 @@ When Step 1 had to draft its own Proposed Solution:
    `gradle.properties` / `gradlew` file (be-crud edits `application.yml`,
    `be-build` may edit the build) **and is in the run state's `dirty`
    list** (a path that is not was edited during the pause: stop with
-   `NEEDS-INPUT` naming it — two exceptions: the security fix a Step 7 stop
+   `NEEDS-INPUT` naming it and offering `notes: own-dirty` — two exceptions: the security fix a Step 7 stop
    asked for, when its paths lie under `{sourceDir}`, `{testDir}` or
    `src/main/resources/` (be-security's credential rules point at
-   `application*.yml`), and a resume with no run state or after a crash,
-   when `notes` says `own-dirty` — the user vouching that every dirty path
+   `application*.yml`), and `notes: own-dirty` — the user vouching that every dirty path
    is this pipeline's), the
    tree is this pipeline's own in-progress work left by a `NEEDS-INPUT` exit (a
    three-failure pause, a security finding, an escalation); keep it and

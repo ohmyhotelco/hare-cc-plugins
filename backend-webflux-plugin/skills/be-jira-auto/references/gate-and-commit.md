@@ -120,13 +120,12 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    nothing settles the tree; a pass in which a fix changed it is followed by
    at most **one** more pass -- two features whose fixes keep invalidating
    each other do not converge, so a third pass is `NEEDS-INPUT` naming both.
-1. Diff the current `git status --porcelain -z` (NUL-separated: a quoted
+1. Diff the current `git status --porcelain -z -uall` (NUL-separated: a quoted
    or renamed record is otherwise misread) against the Step 2 baseline
    (captured before any implementation work) to get the exact set of
    files this feature touched. On a resume, the baseline already held this
-   pipeline's own dirty files (Step 2's exception) -- add the paths the
-   run state's `dirty` list names (the pipeline's own files at the last
-   stop) as well, or the migration and entity from the first run are
+   pipeline's own dirty files (Step 2's exception) -- add the paths in the
+   run state's `dirty` list that the current status still lists as well, or the migration and entity from the first run are
    never staged and the commit is a partial feature. A dirty path under
    the Step 2 locations that is in neither set was edited by someone
    during the pause: stop with `NEEDS-INPUT` naming it rather than commit
@@ -175,14 +174,14 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
 Every early stop (`NEEDS-INPUT`/`ABORTED`) writes the run state to
 `{workDocDir}/.progress/jira/{jiraKey}.json` (`mkdir -p` first; no lock — the file is this run's alone, not a feature's
 progress file; a stop before Step 0 resolved `workDocDir` or `jiraKey`
-writes nothing — there is nothing to resume; a field not known yet is
+writes nothing — there is nothing to resume; a stop at or before Step 2 leaves an existing file as it is and otherwise writes `dirty` as `[]`; a field not known yet is
 `null`, `features` `[]`) — a
 subdirectory, so the
 `.progress/*.json` scans of be-commit and the other skills never read it
 as a progress file — `{ "step": "{N}", "status": "NEEDS-INPUT|ABORTED|
 committed|DONE", "feature": "{the entry being processed}", "features":
-[...], "dirty": ["{every path `git status --porcelain -z` lists under the
-Step 2 locations at this stop -- the pipeline's own files}"], "commit":
+[...], "dirty": ["{every path `git status --porcelain -z -uall` lists under the
+Step 2 locations at this stop}"], "commit":
 "{short hash, once be-commit returned it}", "timestamp": "{ISO 8601 Z}" }`. Step 9 item 4 writes `committed` with the hash the
 moment be-commit reports it (a crash before `DONE` must not replay the
 commit); the Output section writes `DONE`. Step 2 reads it whenever the
@@ -235,9 +234,9 @@ silently.
 
 ## Output
 
-Write `{workDocDir}/.progress/jira/{jiraKey}.json` with the final status (`DONE` closes the
-resume path: a later run on the same branch starts over at Step 3 only with the user's say-so),
-then report, in `workingLanguage`, starting with a status line:
+On `DONE`, write that status to `{workDocDir}/.progress/jira/{jiraKey}.json` (it closes the
+resume path: a later run on the same branch starts over at Step 3 only with the user's say-so).
+Then report, in `workingLanguage`, starting with a status line:
 
 ```
 Status: DONE | NEEDS-INPUT | ABORTED (stopped at Step N)
