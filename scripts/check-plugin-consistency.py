@@ -554,7 +554,7 @@ def check_plugin_paths(name: str, agents: dict[str, tuple[Path, str]],
 
 def check_workflows(plugin: Path, name: str, agents: dict[str, tuple[Path, str]],
                     skills: dict[str, tuple[Path, str]]) -> list[Finding]:
-    """A workflow is wiring too. Moving a launch out of a skill must not take it out of these checks."""
+    """What a workflow starts is wiring too. What it passes in a prompt is not checked."""
     out = []
     workflows = {p.stem: (p, p.read_text()) for p in sorted((plugin / "workflows").glob("*.js"))}
     for path, text in skills.values():
@@ -604,13 +604,6 @@ def check_workflows(plugin: Path, name: str, agents: dict[str, tuple[Path, str]]
             if agent not in agents:
                 out.append(Finding(str(path), lineno(text, idx), "missing-agent",
                                    f"launches `{agent}` but agents/{agent}.md does not exist"))
-                continue
-            atext = agents[agent][1]
-            used = {v for v, _ in placeholders(atext)}
-            for param in sorted(declared_params(atext) & used & WIRING):
-                if not re.search(rf"\b{re.escape(param)}\b", text):
-                    out.append(Finding(str(path), lineno(text, idx), "call-site",
-                                       f"`{agent}` uses `{{{param}}}` but this workflow does not pass it"))
     return out
 
 

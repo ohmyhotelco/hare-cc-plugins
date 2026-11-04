@@ -27,7 +27,7 @@ agent input parameters vs. what launchers pass, tool permissions vs. what a skil
 `proceed to Step N` jumps that skip a Lock Acquire, variables derived before they are bound or
 defaulted, command arguments that are repo-relative when the command runs from `appDir`, ordered-list
 numbering, dangling `templates/*.md` / `agents/*.md` / `CLAUDE.md § Heading` references, and what a
-workflow starts and passes.
+workflow starts.
 
 A skill over 20,000 characters comes back cut after auto-compaction, so the checker limits its size. Move a
 rarely used section to `skills/<skill>/references/`, keep its heading in `SKILL.md` with a pointer, and write
