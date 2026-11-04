@@ -40,13 +40,13 @@ For each page, check `docs/pages/{page-name}/.progress/{page-name}.json`:
 
 **Resume support**: If `generation-state.json` exists with incomplete phases, offer to resume from the last incomplete phase instead of starting over:
 1. Read `docs/pages/_shared/generation-state.json`
-2. If `phases.infrastructure.status === "completed"` → skip Phase 1
+2. If `phases.infrastructure.status === "completed"` and the layout still exists → skip Phase 1
 3. For Phase 2, check each page's status — skip pages already marked as `completed`, resume from first `pending` or `failed` page
 4. Ask user: "Resume from {phase/page}? Or restart from scratch?"
 
 ### Step 3: Acquire Lock
 
-Take a lock for every page in the run. Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
+Take a lock for every page in the run, and one for `_shared`, because every run writes `docs/pages/_shared/generation-state.json`. Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 
 **Lock file format** (JSON):
 ```json
@@ -64,7 +64,7 @@ Take a lock for every page in the run. Lock file path: `docs/pages/{page-name}/.
    - If age >= 30 minutes → delete stale lock, log warning, proceed to step 3
 3. Write new `.lock` file with `lockedBy: "hp-gen"`, `lockedAt: new Date().toISOString()`, `pageName`
 
-**Release**: Always delete `.lock` file on completion or failure (in Step 8 and on any early exit).
+**Release**: Always delete every `.lock` file this run took on completion or failure (in Step 8 and on any early exit).
 
 ### Step 4: Confirm with User
 
@@ -78,7 +78,7 @@ Ask user to confirm before proceeding.
 
 ### Step 5: Run the Workflow
 
-Make sure `docs/pages/_shared/generation-state.json` exists and lists every page in the run under `phases.pages` with status `pending`, keeping entries already there. `page-assembler` records each finished entry in this file, so progress survives a session that dies mid-run.
+Make sure `docs/pages/_shared/generation-state.json` exists and lists every page in the run under `phases.pages` with status `pending`, keeping entries already there. When this run passes `infrastructure`, set `phases.infrastructure` to `pending`, so a session that dies inside that stage runs it again. `page-assembler` records each finished entry in this file, so progress survives a session that dies mid-run.
 
 Call the `Workflow` tool with `name: "homepage-plugin:hp-gen-run"` and `args`:
 
@@ -86,7 +86,7 @@ Call the `Workflow` tool with `name: "homepage-plugin:hp-gen-run"` and `args`:
 - `config` — homepage-plugin configuration object
 - `stateFile` — `docs/pages/_shared/generation-state.json`
 - `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
-- `infrastructure` — `{ planFile }` with the first page's `page-plan.json` when this is the first page being generated (no existing layout or shared components) and `phases.infrastructure.status` is not `completed`; otherwise `null`
+- `infrastructure` — `{ planFile }` with the first page's `page-plan.json` when no layout or shared components exist, or when `phases.infrastructure` is recorded and not `completed`; otherwise `null`
 - `pages` — `[{ pageName, planFile }]` in order, leaving out pages a resume skips
 - `fileKey` — Figma file key from `.claude/homepage-plugin.json` (if available)
 - `mcpToolPrefix` — MCP tool prefix (auto-detect from available tools: `mcp__figma__*`, `mcp__figma_desktop__*`, or `mcp__Figma__*`)
@@ -141,7 +141,7 @@ For each page, update `docs/pages/{page-name}/.progress/{page-name}.json`:
 
 Record verification results and timestamps.
 
-Release the lock file.
+Release the locks.
 
 ### Step 9: Display Results
 

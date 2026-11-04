@@ -121,7 +121,7 @@ Each dimension scored 0-10:
 
 ### Phase 3: Output
 
-Return this report. The `hp-review-run` workflow computes the overall score, the verdict and the issue counts from `dimensions` and `issues`, so leave those out. Take each `weight` from the dimension's heading.
+Return this report. The `hp-review-run` workflow computes the overall score, the verdict and the issue counts from `dimensions` and `issues`, so leave those out. Take each `weight` from the dimension's heading, or from Dimension 7's list when `hasDesignSystem` is true.
 
 ```json
 {
