@@ -18,7 +18,7 @@ Input to `fm-gen`. All user-facing output in `workingLanguage` (default `ko`).
 > gates for that surface, and risks a partial re-migration. On OMH-749 the single largest cost was
 > the scope changing four times mid-flight. So resolve open scope questions with the requester here,
 > and record any deliberate reduction in `openApprovals[]` (never a silent default) — see the
-> coverage-preservation rules in `templates/migration-plan-schema.md`.
+> coverage-preservation rules in `${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`.
 
 ## Instructions
 
@@ -27,7 +27,7 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 (`--app`/`currentApp`), `targetDir`, `appDir`, `packagesDir`, `legacyDir` (Step 4b hands it to the
 Codex auditor), `workingLanguage`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Require analysis
 Check `docs/migration/{app}/{page}/analysis.json`. If missing:
@@ -38,12 +38,12 @@ Stop.
 Check `docs/migration/{app}/{page}/style-spec.json`. If missing:
 > "Run /frontend-migration-plugin:fm-style-spec {page} first."
 Stop. (The planner binds each component's style targets and the `visual` gate probe set to it —
-without it, generation eyeballs styles. See `templates/style-spec.md`.)
+without it, generation eyeballs styles. See `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md`.)
 
 ### Step 1c: Refuse a flipped, done, or flip-in-flight page
 If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
-tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
+tracker from the edge flag still serving production traffic (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine).
 
 **Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
 
@@ -52,16 +52,16 @@ tracker from the edge flag still serving production traffic (CLAUDE.md → Per-p
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
   point at `--revert`.
 - `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
-  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  (`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
   the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
   timestamp survives every read-modify-write, so the session hook later reads it and recommends
   `--confirm-live` on superseded code.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 3: Plan
-Launch `migration-planner` (Agent) with only its params: `app`, `page`, `analysisPath`,
+Launch `migration-planner` (`subagent_type: "frontend-migration-plugin:migration-planner"`) with only its params: `app`, `page`, `analysisPath`,
 `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`,
 `outPath` = `docs/migration/{app}/{page}/migration-plan.json`, `targetDir`, `appDir`,
 `packagesDir`, the config's `i18n` block (the planner writes `gateAcceptance.visual.languages` **and
@@ -71,10 +71,10 @@ omitting it makes Step 4.1 reject the plan in a loop the planner cannot break), 
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 1. Verify `migration-plan.json` exists, parses (`jq empty`), and has a `gateAcceptance` entry for
-   **every** gate in `requiredGates` (`templates/migration-plan-schema.md`) — any missing entry
+   **every** gate in `requiredGates` (`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`) — any missing entry
    makes the plan incomplete; re-run the planner before recording. Also confirm `requiredGates` names
    only gates an executor implements (`e2e`, `visual`, `contract`, `webview`, `telemetry`); a gate
    with no verifier cannot fail, so it would record a pass nobody evaluated. `gateAcceptance.visual`
@@ -92,7 +92,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    silently absent from both makes the plan incomplete — re-run the planner before recording (exactly
    like a missing `gateAcceptance` entry). A `failurePaths` entry must land in an `e2eScenario` that
    drives its branch and asserts the fire/no-fire (a happy-path suite never reaches it — see
-   `templates/migration-plan-schema.md` → Failure-path reconciliation). **The same check covers the
+   `${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md` → Failure-path reconciliation). **The same check covers the
    four behavior inventories** — `navigationSurface`, the request fields of `apiCalls` (`trigger`,
    `firesPerAction`, `fieldSources`, `identityScoped`), `storageSurface` and `stateSurface`: each
    `mustPreserve` entry is carried with the evidence the schema's "Legacy inventory reconciliation"
@@ -106,7 +106,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    or map module + `renderMode`) **or** recorded in `openApprovals[]` with a rationale and decision
    owner. Silently absent from both makes the plan incomplete — re-run the planner (same rule as
    above). This is what stops a generator from rendering the response `errorMessage`, which the
-   backend resolves in a hardcoded EN locale (OMH-784). See `templates/i18n-copy-parity.md`.
+   backend resolves in a hardcoded EN locale. See `${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`.
 4. **Answer-key sourcing.** For every `gateAcceptance` criterion that asserts a v2-side expected value
    (what the gate expects to *see*, not just what it compares), confirm `expectedValueSource` is
    present and names a real anchor — a prior page's `style-spec.json` `acceptedDeltas` or its
@@ -114,7 +114,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    shared-module commit (with the branch it lives on), a BE confirmation, or an explicit
    `"searched: …; no prior v2 decision found"`. Missing → the plan is incomplete; re-run the planner
    (same rule as above). A wrong expected value fails the gate on correct code, and that pressures the
-   executor into reinterpreting the criterion — see `templates/migration-plan-schema.md` → "The answer
+   executor into reinterpreting the criterion — see `${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md` → "The answer
    key is bound too". Corrections after the fact are the decision owner's `criterionAmendment`, not an
    executor's narrowing.
 5. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "planned"`,
@@ -122,11 +122,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    `fm-route --flag-off`.
 6. Release the lock.
 
-### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+### Step 4b: Codex audit (advisory) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
-`codex-auditor`
-(Agent) for the `plan` stage (params: `app`, `page`, `stage="plan"`, `appDir`, `legacyDir`,
+`codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `plan` stage (params: `app`, `page`, `stage="plan"`, `appDir`, `legacyDir`,
 `planPath` + `analysisPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Records `codex-audit.json` + tracker `codexAudit.plan`. Advisory — never
 changes the page status. Surface its verdict in the report.

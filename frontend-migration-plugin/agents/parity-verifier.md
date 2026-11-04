@@ -15,10 +15,10 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 `legacyDir` / legacy base URL, `outPath` (`parity-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip
 state (for `provenance.side` resolution), `workingLanguage`. Run only the
 gates the plan requires (always visual + contract; webview/telemetry when triggered). Read
-`templates/visual-parity-checklist.md` for the visual gate (always), `templates/style-spec.md` for
-the style baseline, `templates/capture-provenance.md` for how an artifact's side is resolved (always —
-it decides what counts as the legacy side at all), and `templates/webview-bridge.md`
-when the `webview` gate applies. (There is no `sso` gate — `templates/hana-sso.md` is a generation
+`${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md` for the visual gate (always), `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md` for
+the style baseline, `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md` for how an artifact's side is resolved (always —
+it decides what counts as the legacy side at all), and `${CLAUDE_PLUGIN_ROOT}/templates/webview-bridge.md`
+when the `webview` gate applies. (There is no `sso` gate — `${CLAUDE_PLUGIN_ROOT}/templates/hana-sso.md` is a generation
 contract and the `?ts` flow is verified through the page's `e2eScenarios`, so do not look for an
 `sso` entry in `requiredGates`.)
 
@@ -39,7 +39,7 @@ mis-authored (written from the legacy source while the v2 platform had already d
 then the gate fails on correct code. That is a `fail` plus an approval request naming the suspected
 authoring error and the evidence — it is not permission to read the criterion more narrowly. Amending
 belongs to the decision owner, who records `criterionAmendment` in the plan
-(`templates/migration-plan-schema.md`). When you then pass under an amended criterion, set
+(`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`). When you then pass under an amended criterion, set
 `amendedCriterion: true` on that gate entry and carry the pre-amendment reason as `priorWhy`, so the
 pass is never read as one under the original clause. Comparison baselines must be **symmetric**: same capture
 pattern, scope, and harness on both sides (never legacy full-page vs new content-area). Every
@@ -47,9 +47,9 @@ comparison claim in the report names the exact artifact pair it rests on.
 
 ## Gates
 
-### 1. visual (always) — read `templates/visual-parity-checklist.md` first
+### 1. visual (always) — read `${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md` first
 **Step 0 — resolve each artifact's side before comparing it** (checklist step 0,
-`templates/capture-provenance.md`). Read the recorded `provenance` of every artifact you are about to
+`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`). Read the recorded `provenance` of every artifact you are about to
 treat as the legacy or the v2 side and resolve `side` from `origin`'s host:port against config
 (`apps.*.legacyPort` / `apps.*.port` / the declared legacy host + whether `tracker.json` records the
 path as flipped — post-flip the production host serves v2). File names, directory layout, and a prior
@@ -83,7 +83,7 @@ the states each axis must be compared in (default + error-shown per failure surf
 expired + empty/zero-result). Drive the page into each one — symmetrically on both apps — before
 capturing. A state you never drove into is a state you never checked: error and session-expired copy
 are invisible to a default-only capture, which is how a literal `<br/>` shipped in a session-expired
-title (OMH-748). Run the matrix across `gateAcceptance.visual.languages` (= config `i18n.languages`);
+title. Run the matrix across `gateAcceptance.visual.languages` (= config `i18n.languages`);
 a narrowing must already exist in `openApprovals` — never decide it here.
 
 **Confirm the language axis has a premise before running it.** `gateAcceptance.visual.languages`
@@ -121,7 +121,7 @@ real regression):
   two files exist, the side-by-side runs, the probes pin values, the gate goes green. That is why
   step 0 (resolve provenance) comes before all of it.
 
-So the visual gate MUST, per `templates/visual-parity-checklist.md`:
+So the visual gate must, per `${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md`:
 0. **Resolve the provenance of both sides' artifacts** (above) — an unresolvable side is absent, so its
    axes are uncovered = incomplete gate = `fail`.
 1. **Side-by-side compare** the legacy and v2 renders axis by axis (the two *renders*, not each against
@@ -215,7 +215,7 @@ re-judged.
 
 **This premise gates only the response-DTO diff.** The request-body-against-the-live-backend check
 below does **not** depend on typed response DTOs — it still runs on every page that builds a request
-body (OMH-748). A write page whose response typing is `unknown` is never a reason to skip it; skipping
+body. A write page whose response typing is `unknown` is never a reason to skip it; skipping
 it there would re-open exactly the hole `request-schema fidelity` (v0.11.0) closed.
 
 Diff the new page's API request/response usage against the legacy DTOs (from the analysis): same
@@ -236,7 +236,7 @@ Origin: OMH-748 — a login body carried the root `stationTypeCode` a strict bac
 typecheck, MSW-vitest, and MSW/legacy e2e all passed green.
 
 ### 3. webview (mobile / hana, when triggered)
-Per `templates/webview-bridge.md`, verify the native round-trip is preserved: UA detection
+Per `${CLAUDE_PLUGIN_ROOT}/templates/webview-bridge.md`, verify the native round-trip is preserved: UA detection
 (`wv`/`ww`), `universal-link` schemes, `sessionStorage` tokens (e.g. `cnoUser`), and any explicit
 bridge (`window.ohmyhotelAndroid.*` / `window.webkit.messageHandlers.*` / `ohmyhotel://`). The
 native shell is unchanged — the new web must stay contract-compatible. (PC has no WebView; skip.)
@@ -265,7 +265,7 @@ branches is incomplete: record `missingEvents` / an over-fire as a **fail**, not
 {
   "page": "...",
   // The gate's own statement that it ran plan.gateAcceptance as written — the same slot
-  // e2e-report.json carries, and the field fm-parity Step 3 check 5 reads. deviations MUST be
+  // e2e-report.json carries, and the field fm-parity Step 3 check 5 reads. deviations must be
   // empty; a narrowed criterion is a gate failure, not a note.
   "criteriaCompliance": { "gate": "parity", "enforcedVerbatim": true, "deviations": [] },
   "gates": {
@@ -337,7 +337,7 @@ value means the gate runs to completion — never invent a number), and the capt
   finding a reviewer can check; "compared against `legacy-baseline.png`
   (`origin: https://www.ohmyhotel.com/ko/event`, `side: legacy` resolved from the declared legacy host,
   path not flipped)" is. An artifact you cannot attribute is absent, not legacy
-  (`templates/capture-provenance.md`).
+  (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`).
 - **A statement about the evidence is itself a claim.** "Both sides were measured", "only the KO leg
   was observable", "3 of 5 locales are covered" — enumerate the artifacts and quote the values. Never
   deduce what *could* have been measured from routing or deployment topology: routing decides what a

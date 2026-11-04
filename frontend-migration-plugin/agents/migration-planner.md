@@ -18,11 +18,11 @@ You receive from the coordinator (no session history): `app`, `page`, `analysisP
 e2e gate runs the `assertsCopy` dual-run per language and `e2e-test-runner` reads the set from the
 plan, exactly as `parity-verifier` does. You cannot derive it from the analysis or the style
 spec; **absent means the project has no `i18n` block**, in which case omit `languages` from both per
-`templates/migration-plan-schema.md`), and `workingLanguage`.
+`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`), and `workingLanguage`.
 
-Read `analysis.json`, `style-spec.json` (the legacy style answer key), `templates/style-spec.md`
-(its shape), `templates/angular-to-react-mapping.md` (idiom → React target), and
-`templates/migration-plan-schema.md` (the output shape + rendering decision table).
+Read `analysis.json`, `style-spec.json` (the legacy style answer key), `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md`
+(its shape), `${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md` (idiom → React target), and
+`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md` (the output shape + rendering decision table).
 
 ## What to decide
 
@@ -43,14 +43,14 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    plus `webview`/`telemetry` when triggered — those four plus `e2e` are the only gates an executor
    implements, so never add one `parity-verifier` has no check for). A `sso` entry in the analysis's
    `gateTriggers[]` is not a gate: emit an `e2eScenarios` entry covering the `?ts` SSO entry instead,
-   and build to `templates/hana-sso.md`. A `secret` trigger is Phase 0 posture (`fm-secret-audit`) plus
+   and build to `${CLAUDE_PLUGIN_ROOT}/templates/hana-sso.md`. A `secret` trigger is Phase 0 posture (`fm-secret-audit`) plus
    the hard `shared-domain` ESLint boundary — it needs nothing in the plan. A `payment` trigger is not a
-   gate either: plan the page to `templates/payment-flow-v2.md`, not to the legacy mechanism. Record each
+   gate either: plan the page to `${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`, not to the legacy mechanism. Record each
    legacy mechanism v2 does not port (client signing, the Express return legs, Eximbay) as an
    `openApprovals[]` entry with `status: "approved"` and its ticket, and emit the two-leg scenarios that
    template's Testing section names. Emit a `gateAcceptance` entry
    for **every** gate — what is compared, scope, symmetric artifacts, explicit exclusions — per
-   `templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
+   `${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`. Executors enforce these verbatim; a plan without
    `gateAcceptance` is incomplete (`fm-gen`/`fm-parity` reject it back to `fm-plan`).
    Coverage in `scope` defaults to the FULL supported matrix (every language/device/viewport
    the product serves); if sampling seems warranted, do NOT bake it into the criteria — record
@@ -59,8 +59,8 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    entries from the config `i18n.languages` you were given (omit it on both when there is no `i18n`
    block). `e2e` needs it as much as `visual` does: `e2e-test-runner` runs one `copyParity[]` entry
    per language and reads the set from the plan. For the `visual` gate,
-   `gateAcceptance.visual` MUST also enumerate the axes from
-   `templates/visual-parity-checklist.md` — frame, **inter-element spacing/gaps**, **icons/glyphs**,
+   `gateAcceptance.visual` must also enumerate the axes from
+   `${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md` — frame, **inter-element spacing/gaps**, **icons/glyphs**,
    alignment, control geometry, color/border, typography — so the verifier's probe set is required to
    cover every axis (not a subset), and note that legacy(Angular)↔v2(React) cannot pixel-diff (per-side
    baselines + computed-style probes, legacy is the reference, never the self-referential v2 baseline).
@@ -84,31 +84,31 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    `criterionAmendment` (schema template), never quietly narrowed by whoever hits it.
 6. **2-PR flag plan.** Define the feature-flag key and the path it guards (code-PR flag OFF, then
    the flag-ON PR that activates the page's **flip unit**: every edge entry keyed to the flag plus the
-   app-side switches — list both in `flagPlan.unit`, `templates/strangler-fig.md` → Flip unit). See the schema template. **A cluster has no route** — when
+   app-side switches — list both in `flagPlan.unit`, `${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → Flip unit). See the schema template. **A cluster has no route** — when
    `analysis.json.target.kind` is `cluster`, omit `flagPlan` entirely: it reaches `cluster-ready`,
-   not `flipped`, and its gates run against a harness, not a routed URL (CLAUDE.md → Component
+   not `flipped`, and its gates run against a harness, not a routed URL (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Component
    Clusters). Mark an `openApprovals[]` entry `blocksFlip: true` when the coverage it reduces must
    close **before the path flips** (a cutover-batch precondition, not a plan-time-only reduction) —
    `fm-route --flag-off` projects those into the cutover ledger, so give such an entry a real
-   `owner`/`ticket`, never `TBD` (`templates/cutover-ledger.md`).
+   `owner`/`ticket`, never `TBD` (`${CLAUDE_PLUGIN_ROOT}/templates/cutover-ledger.md`).
 7. **Copy bindings.** Carry every `analysis.json.copySources` entry into `copyBindings[]`: the
    mechanism (`localized-key` / `errorCode-map` / `empty-string` / `server-message`), the key or map
    module + codes, the `renderMode` (`text` vs `html` — a value carrying `<br/>`/`<a href>` must
    render as HTML), and the component that binds it. Never resolve a failure message to the response
    `errorMessage` unless a `server-message` entry explicitly says so — the backend resolves that
-   field in a hardcoded EN locale (OMH-784). A `mustPreserve` copy source not bound here must appear
-   in `openApprovals[]`, or `fm-plan` Step 4 rejects the plan. See `templates/i18n-copy-parity.md`.
+   field in a hardcoded EN locale. A `mustPreserve` copy source not bound here must appear
+   in `openApprovals[]`, or `fm-plan` Step 4 rejects the plan. See `${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`.
 8. **E2E scenarios.** Map the legacy user flows (from analysis) into an `e2eScenarios[]` list —
    names + steps + which are transactional (staging gateways). `fm-e2e` (AA-45) realizes these as
    Playwright specs; you only enumerate them. A transactional scenario's `gateway` is one of the v2
-   gateways — `nicePay`, `alipay`, `onePay` — never `eximbay` (`templates/payment-flow-v2.md`).
+   gateways — `nicePay`, `alipay`, `onePay` — never `eximbay` (`${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`).
    **Failure branches are not optional.** Happy-path-only scenario sets are why copy regressions
    reached production: a wrong error string never appears in a successful flow. Derive one scenario
    per `copySources` failure point — every place legacy sets a form error flag, opens an alert, or
    shows an inline message — and mark it `assertsCopy: true` so the dual-run compares the **displayed
    text**, not just navigation. Where those surfaces exist, at minimum: wrong password, OTP/
    verification-code failure, and blocked/duplicate email.
-   **Also derive a scenario per `analysis.json.failurePaths[]` entry** (`templates/migration-plan-schema.md`
+   **Also derive a scenario per `analysis.json.failurePaths[]` entry** (`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`
    → Failure-path reconciliation): drive the failed branch and assert the side-effect legacy gates —
    a `side-effect-gating` entry asserts the telemetry/navigation/alert does **not** fire (or fires with
    the correct value, not an invented full-amount default) on `succeedYn:false`; a `boundary-clamp`
@@ -118,7 +118,7 @@ Read `analysis.json`, `style-spec.json` (the legacy style answer key), `template
    independent check — a `mustPreserve` failure path bound only in a unit test is an incomplete plan.
 9. **Build order.** Order the TDD phases: `foundation → api → store → component → page →
    integration`, listing the files each phase creates and their test counts. **Every file you name in
-   `creates` is kebab-case** (CLAUDE.md → File Naming) — `components/traveler-form.tsx`,
+   `creates` is kebab-case** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → File Naming) — `components/traveler-form.tsx`,
    `stores/booking-form.ts`, `pages/booking-info-page.tsx`, never `TravelerForm.tsx` or
    `bookingForm.ts` — because the generators create exactly the names you write here. The
    `componentTree` node `name` stays the PascalCase component identifier (`TravelerForm`); only the
@@ -167,7 +167,7 @@ happy-path test reaches.
 
 ## Output
 
-Write `migration-plan.json` per `templates/migration-plan-schema.md`. Cross-reference analysis
+Write `migration-plan.json` per `${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`. Cross-reference analysis
 anchors so `fm-gen` and the gates can trace each decision. Record any coverage reduction in
 `openApprovals[]` — never silently drop a `mustPreserve` variant. Keep the final message short:
 component count, rendering mode, shared deps, gates, E2E scenario count, any blockers

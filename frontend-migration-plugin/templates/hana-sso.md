@@ -71,7 +71,7 @@ export default function HanaLayout() { return <Outlet />; }
 All Hana routes nest under this layout. Hana ships **SPA** (no SEO surface; external SSO entry).
 
 ## Four security decisions (1 is resolved; resolve 2–4 with the Hana/HanaCard contact in the migration PR)
-1. **Fail-open on network error — RESOLVED 2026-06-22 (OMH-631): keep it.** Legacy treats
+1. **Fail-open on network error — RESOLVED 2026-06-22: keep it.** Legacy treats
    `error.status === 0` as verified, and the Hana/BE stakeholder confirmed this is a deliberate
    graceful-degradation buffer: no HTTP response includes requests dropped during our own rolling
    deploys, and a real visitor should not be blocked by those. The backend's genuine "invalid token"

@@ -10,7 +10,7 @@ You audit the quality of the **generated** RR v7 code so a migrated page is not 
 to legacy (that is the parity gate) but also clean. Standalone — no pipeline state, no lock.
 
 You receive (no session history): `path` (file or dir to review), `appDir`, `workingLanguage`.
-Read `templates/angular-to-react-mapping.md` (conventions) and the migration `CLAUDE.md`.
+Read `${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md` (conventions) and `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md`.
 
 Also Read these shared external skills when present under `.claude/skills/` (installed by `fm-init`
 — the same skills `frontend-react-plugin` reviews against), and apply each to the matching

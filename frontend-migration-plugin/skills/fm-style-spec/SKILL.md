@@ -11,7 +11,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 Runs the `style-spec-extractor` agent to produce `style-spec.json` from a page's analysis — the
 legacy style values `fm-gen` reproduces and `fm-parity` re-probes (one truth source, front and
 back). Advances the page to `style-specced`. All user-facing output in `workingLanguage` (default
-`ko`). See `templates/style-spec.md`.
+`ko`). See `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md`.
 
 ## Instructions
 
@@ -20,7 +20,7 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 (`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, `workingLanguage`, and the app's
 `domain` + `stagingConfig.baseUrl` (for the legacy URL).
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Require analysis
 Check `docs/migration/{app}/{page}/analysis.json`. If missing:
@@ -41,7 +41,7 @@ The live render is the truth source (committed CSS can be stale). Resolve `legac
 ### Step 2a: Refuse a flipped, done, or flip-in-flight page
 If `tracker.json` shows the page at `flipped`, stop and point the user at
 `/frontend-migration-plugin:fm-route {page} --revert` — writing a new status here would desync the
-tracker from the edge flag still serving production traffic (CLAUDE.md → Per-page State Machine).
+tracker from the edge flag still serving production traffic (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine).
 
 **Warn before demoting.** If the page is already at `verified`, `e2e-passed` or `parity-passed`, this skill's Record step moves it backwards and discards that gate progress. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
 
@@ -50,7 +50,7 @@ tracker from the edge flag still serving production traffic (CLAUDE.md → Per-p
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
   point at `--revert`.
 - `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
-  (`CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
+  (`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → Per-page State Machine defines the field). Refuse and point at `fm-route --revert`,
   the only clearer: a rewrite underneath it leaves PR2 describing code that no longer exists, and the
   timestamp survives every read-modify-write, so the session hook later reads it and recommends
   `--confirm-live` on superseded code.
@@ -70,25 +70,25 @@ the answer key" premise (v0.9.0) is lost on the very first page and every downst
 against eyeballed values.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 4: Extract
-Launch `style-spec-extractor` (Agent) with only its params: `app`, `page`, `analysisPath`,
+Launch `style-spec-extractor` (`subagent_type: "frontend-migration-plugin:style-spec-extractor"`) with only its params: `app`, `page`, `analysisPath`,
 `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`, `targetDir`,
 `appDir`, the app's `legacyPort` / `port` / `domain` and the page's flip state (the extractor resolves
-each capture's `provenance.side` from those — `templates/capture-provenance.md`; without them the
+each capture's `provenance.side` from those — `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`; without them the
 side is `unresolved`, which counts as absent and fails the gate), `workingLanguage`.
 
 ### Step 5: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 1. Verify `style-spec.json` exists and parses (`jq empty`).
 2. Update `tracker.json` (Read-Modify-Write): `apps[app].pages[page].status = "style-specced"`,
    plus `styleSpec` = `{ side, renderSource, authState, elements, liveConfirmed, sourceDerived, assets }`
    — the first three copied from `legacySource.provenance`, not restated in prose
-   (`templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
+   (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`) — and `updatedAt`. A `side` of `unresolved` is recorded as such:
    it is a durable record for a human scanning the tracker; no skill reads it; the
    reusability decision itself is made from `style-spec.json`'s own `legacySource.provenance`
    (`fm-parity`, `parity-verifier`), never from here.

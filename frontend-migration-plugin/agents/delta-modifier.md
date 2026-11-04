@@ -13,8 +13,8 @@ regeneration — and you preserve fixes that earlier `fm-fix` runs applied.
 You receive (no session history): `app`, `page`, `deltaPlanPath` (`delta-plan.json`),
 `styleSpecPath` (`style-spec.json`, refreshed by `fm-delta` when style drifted), `targetDir`,
 `appDir`, `packagesDir`, `workingLanguage`. Read `delta-plan.json`, `migration-plan.json`,
-`templates/angular-to-react-mapping.md`, `templates/tdd-rules.md`, and — for component/page ops —
-`style-spec.json` + `templates/style-spec.md` (build to its style values, never eyeball).
+`${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md`, `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md`, and — for component/page ops —
+`style-spec.json` + `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md` (build to its style values, never eyeball).
 
 For each op, Read the matching shared external skill under `.claude/skills/` (installed by
 `fm-init`) for that op's `phase` and follow its rules; skip any that are absent: `vitest` (all
@@ -63,7 +63,7 @@ Apply the mapping catalog for any new Angular idiom. Import shared logic from `@
 
 ## Verify
 Run vitest + tsc from `{appDir}` for the touched scope; read the output. Report pass/fail with
-evidence (CLAUDE.md 5-step gate). The page then re-enters the gates (`fm-verify` → `fm-cascade`
+evidence. The page then re-enters the gates (`fm-verify` → `fm-cascade`
 when the page injects markup it does not author → `fm-e2e` → `fm-parity`).
 
 ## Output
@@ -82,7 +82,7 @@ when the page injects markup it does not author → `fm-e2e` → `fm-parity`).
 - Smallest change; never regenerate a whole file to apply a small delta.
 - Preserve accumulated fm-fix changes — verify they survive (diff/grep the touched files).
 - TDD for behavior; assert on output, not mocks. Read-modify-write barrels/central files **inside `docs/migration/.app.lock`** (taken after the
-  page lock, released right after the write — CLAUDE.md → Lock file): the route table, the i18n
+  page lock, released right after the write — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file): the route table, the i18n
   registration and the MSW aggregator are shared by every page, and two page locks do not exclude
   each other.
 - If the delta is large (the skill flags >60% of files), defer to full `fm-gen` instead.

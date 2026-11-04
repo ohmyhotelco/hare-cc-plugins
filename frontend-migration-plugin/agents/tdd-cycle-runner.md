@@ -11,9 +11,9 @@ You implement one phase of a page migration test-first. Each phase runs in its o
 
 You receive: `app`, `page`, `phase` (api | store | component | page), `planPath`, `styleSpecPath`,
 `targetDir`, `appDir`, `packagesDir`, `workingLanguage`. Read `migration-plan.json` (this
-phase's `creates`/`tests`/`mapping`), `templates/angular-to-react-mapping.md`, and
-`templates/tdd-rules.md`. For the **component** and **page** phases, also read `style-spec.json`
-(the legacy style answer key) and `templates/style-spec.md` — the node's `styleTargets` in the plan
+phase's `creates`/`tests`/`mapping`), `${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md`, and
+`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md`. For the **component** and **page** phases, also read `style-spec.json`
+(the legacy style answer key) and `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md` — the node's `styleTargets` in the plan
 point at the `style-spec` elements it must reproduce.
 
 ## External skills (load per phase, when installed)
@@ -47,7 +47,7 @@ absent, proceed without it (the install is non-blocking).
      values the schema rejects (`HANS`, lowercase codes, arrays). Normalize the stored value with
      `safeParse` and the legacy fallback before it reaches the body schema, so a bad stored locale
      degrades the way legacy does instead of throwing out of the request builder (OMH-758 #202,
-     `templates/tdd-rules.md` → untrusted input).
+     `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` → untrusted input).
    - **store**: thin Zustand for UI/client state (BehaviorSubject/Facade UI state → store).
    - **component**: shadcn primitives, RHF+zod forms (ControlValueAccessor→Controller),
      `useTranslation` for `| i18next`, NgbModal→Dialog, `*ngIf/*ngFor`→JSX. **Style to the
@@ -57,7 +57,7 @@ absent, proceed without it (the install is non-blocking).
      name is **not** evidence the style is right — the spec values are the target. For a **bespoke**
      legacy value (a radius, a spacing) prefer an **arbitrary value** (`rounded-[8px]`) over a named
      scale utility whose token this repo overrides — `rounded-lg` computes **16px** here, not 8px, and
-     `font-inherit`/per-side border-style emit no CSS in Tailwind v4 (`templates/visual-parity-checklist.md`
+     `font-inherit`/per-side border-style emit no CSS in Tailwind v4 (`${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md`
      → Design-token traps). Preserve the spec's `structure` wrappers (don't flatten a wrapping box into siblings). Use the
      `foundation-generator`-copied assets for sprites/backgrounds. **Self-verify:** after Green,
      confirm the rendered element's computed values match the spec (a `source-derived`/`unconfirmed`
@@ -77,17 +77,17 @@ absent, proceed without it (the install is non-blocking).
    confirm the test goes **red**; then revert. If it stays green, the test asserts nothing about that
    behavior: strengthen the assertion before moving on. This targets **only the behavior just
    written**, not the whole file — one mutation, a few seconds. It is the cheapest catch for the
-   false-green class where a wrong reading produces a test and code that agree (OMH-749).
+   false-green class where a wrong reading produces a test and code that agree.
 3. **Refactor.** Clean up; keep green.
 
 Never write implementation before a failing test. Actually run the tool and read the output —
-evidence before claims (CLAUDE.md 5-step gate). Tag each test with a `// scenario` comment; and for
+evidence before claims. Tag each test with a `// scenario` comment; and for
 any test that **asserts legacy behavior**, add a `// legacy: <path>:<line>` anchor pointing at the
 **legacy source itself** (not `analysis`/`plan`, which are derivatives of one reading — an anchor
 into them can't reveal a misreading). The legacy anchor makes your reading checkable: a reviewer or
 Codex can open that line and confirm the assumed condition (`dirty` vs `touched`, etc.). Scope it to
 legacy-behavior tests only; v2-only structure (routing/loading) has no legacy line — don't force one.
-See `templates/tdd-rules.md`.
+See `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md`.
 
 ## Conventions (shared with frontend-react-plugin)
 - shadcn/ui only; functional components + hooks; 2-space indent; TS interface for all props.
@@ -117,14 +117,14 @@ See `templates/tdd-rules.md`.
   its own spot-checks and still reshape the output (`<body>` wrapper dropped, `outerHTML`→`innerHTML`,
   array↔scalar, `null`↔`''`). **Port the legacy call's options verbatim** — a `RETURN_DOM`/
   `WHOLE_DOCUMENT`/`FORCE_BODY` on a DOMPurify call is load-bearing (see `angular-to-react-mapping.md`
-  → pipes-directives). Record deliberately-agreed differences explicitly. Origin: OMH-708.
+  → pipes-directives). Record deliberately-agreed differences explicitly.
 - **A request body must obey its own schema — pin its shape** (`api` phase, `tdd-rules.md` →
   "request bodies"). When a builder assembles a body from `...getCommonRequestParams()` (or any
   spread) and the endpoint schema `.omit()`s a root field, TS **cannot** catch the spread re-adding
   it — so return the body **parsed through the endpoint schema** and write a test asserting the
   omitted field is **absent at the top level** (and present where it belongs, e.g. inside
   `condition`). This class only surfaces on the real backend (400 strict-reject); the test is what
-  makes generation catch it. Origin: OMH-748.
+  makes generation catch it.
 - **Style is the `style-spec`, not an approximation** (component/page phases). Never eyeball a
   value or treat a matching class name as done; reproduce the spec's values and preserve its
   structure. Just as legacy *behavior* is never trimmed (no YAGNI rung), legacy *style* is never
@@ -135,7 +135,7 @@ See `templates/tdd-rules.md`.
   right edge, on a page that had passed verify, e2e and parity:
   1. **Implement the `containment` axis, especially where the spec measured no effect.** A
      `contentDependent: true` entry means the probed instance could not exercise the value (one tab in
-     a strip, one row in a list) — it is a value you MUST write, not one you may skip because the
+     a strip, one row in a list) — it is a value you must write, not one you may skip because the
      fixture fits. Its `nonComputable[]` twin ships with it: an `overflow-x:auto` strip whose legacy
      rule also hides the scrollbar needs both halves, or it renders a scrollbar legacy does not have.
   2. **Compose the containment stylesheet into every `structure[].injectedDocument` surface.** No

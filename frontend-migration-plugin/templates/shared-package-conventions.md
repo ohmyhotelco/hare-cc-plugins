@@ -20,7 +20,7 @@ packages/shared-domain/
     └── **/*.test.ts     # co-located Vitest tests
 ```
 
-**File names are kebab-case** (CLAUDE.md → File Naming), with a dotted role suffix where the package
+**File names are kebab-case** (plugin CLAUDE.md → File Naming), with a dotted role suffix where the package
 already uses one — the existing packages are consistent on this: `common-request-params.ts`,
 `session-interceptor.ts`, `booking.queries.ts`, `auth.service.ts`, `get-public-config.ts`. The file is
 kebab-case while the exported symbol keeps its own convention — `shared-domain/src/booking/mask-mobile.ts`
@@ -70,16 +70,16 @@ export default [{
       {
         // environment.eximbay.key, environment.nicePay.*.merchantKey, etc.
         selector: "MemberExpression[property.name=/^(merchantKey|key)$/][object.object.name='environment']",
-        message: "Secret read forbidden in shared-domain — move PG signing server-side (OMH-477)."
+        message: "Secret read forbidden in shared-domain — move PG signing server-side."
       },
       {
         selector: "MemberExpression[property.name='kakaoLoginSecretKey']",
-        message: "OAuth client_secret forbidden in shared-domain — exchange server-side (OMH-477)."
+        message: "OAuth client_secret forbidden in shared-domain — exchange server-side."
       },
       {
         // PG hash builders
         selector: "CallExpression[callee.name=/^(createFgkey|createNicePayData|createNpAlipayData|createEximbayData)$/]",
-        message: "PG hash builder forbidden in shared-domain — build server-side (OMH-477)."
+        message: "PG hash builder forbidden in shared-domain — build server-side."
       }
     ],
     "no-restricted-imports": ["error", {

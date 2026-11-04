@@ -89,7 +89,7 @@ toggles) → Zustand (thin). Anchors: `store/hotel/hotel.facade.ts`, `store/hote
 > `staleTime` (`app/lib/query-client.ts`, 60 s at review time), an identical key is answered from cache
 > with no request, and a window refocus refetches. Ported as-is, an A→B→A filter toggle sends no third
 > request and the wish heart reverts (OMH-935 #362 H1); a re-search refetches the pre-reset key
-> (booking-history L1); a refocus re-runs a read whose failure raises an alert (OMH-936 #339). So for
+> (booking-history L1); a refocus re-runs a read whose failure raises an alert. So for
 > each `apiCalls[]` entry read the analysis `firesPerAction` and set the policy to match it:
 > `staleTime: 0` — and no dedupe of an identical body — where legacy sends the request on every
 > action; `refetchOnWindowFocus: false` unless legacy re-reads on focus; invalidate exactly what legacy
@@ -147,7 +147,7 @@ See **http** and `templates/shared-package-spec.md` for where each lands.
 | --- | --- |
 | `apis/services` `POST_*`/`GET_*` (`ApiService.post`) | axios call in `shared-data/services` |
 | `usertoken` header injection | axios request interceptor |
-| `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor. **`handleError` is a user-visible failure path, not logging — and it differs per app, so read it in each app's `core/services/api.service.ts`.** On legacy-pc every failed call shows an alert ("Updating service. Please try again later." for a transport failure, `status 0`; a generic message otherwise) whose confirm runs `window.location.reload()`; it stays quiet only when the browser is offline (the network service alerts instead) and for endpoints on `isSilentErrorEndpoint`. Legacy-mobile's shows the alert with no reload, and as written it returns early — with no alert — whenever `error.url?.indexOf("/hana/session-user")` is truthy, which includes `-1`. A v2 page that turns a legacy-alerted failure into an empty list or a silent no-op has dropped this path (OMH-749 #191, OMH-936 #339) |
+| `timeout(environment.timeOut)` + `handleError` | axios timeout + error interceptor. **`handleError` is a user-visible failure path, not logging — and it differs per app, so read it in each app's `core/services/api.service.ts`.** On legacy-pc every failed call shows an alert ("Updating service. Please try again later." for a transport failure, `status 0`; a generic message otherwise) whose confirm runs `window.location.reload()`; it stays quiet only when the browser is offline (the network service alerts instead) and for endpoints on `isSilentErrorEndpoint`. Legacy-mobile's shows the alert with no reload, and as written it returns early — with no alert — whenever `error.url?.indexOf("/hana/session-user")` is truthy, which includes `-1`. A v2 page that turns a legacy-alerted failure into an empty list or a silent no-op has dropped this path |
 | `HttpHelperService` session-expiry (`'Invalid Session Token'`/`'Session Expired'` → remove token + LoginModal) | axios response interceptor with a UX callback (modal on PC / route on mobile) |
 | `getCommonRequestParams()` (localStorage `locale`) spread into body | `shared-data` request builder reading the locale store — **parse the assembled body through its endpoint `RqSchema` at runtime** (see note below) |
 | response envelope `{ succeedYn, errorMessage, result, transactionSetId, errorCode }` | typed in `shared-types` (zod); unwrap in the query layer — **`errorMessage` is not display copy** (see note) |
@@ -156,7 +156,7 @@ Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.servi
 `core/models/condition.model.ts:5` (`getCommonRequestParams`).
 
 > **The response `errorMessage` is not display copy — do not render it.** The backend resolves that
-> field against a **hardcoded EN locale** (OMH-784), so drawing it puts English on a Korean (or JA/
+> field against a **hardcoded EN locale**, so drawing it puts English on a Korean (or JA/
 > ZH/VI) screen. It sits right there in the unwrapped envelope, which is exactly why a generator
 > reaches for it — but legacy never displays it: its login call does not even carry the server
 > message back on failure (`auth.service.ts:144` returns `of(false)`). Legacy resolves failure copy
@@ -190,13 +190,13 @@ Anchors: `core/services/api.service.ts:65,100`, `apis/services/http-helper.servi
 > legacy page wrote arrive in shapes the zod types reject: `?userNo=1.5`, `?o-cur=usd`, a
 > legacy-written nation `HANS`, a lowercase language code. A builder that feeds them into `.parse()`
 > inside `useMemo`, a component or a loader turns one malformed value into a blank page, an SSR 500 or
-> a reload loop (OMH-934 #317, OMH-840 #337, OMH-1126 #408) — the body-shape rule above is the trigger
+> a reload loop — the body-shape rule above is the trigger
 > when its inputs are untrusted. Validate each untrusted input **at the boundary** with `safeParse`,
 > fall back to what legacy does with the same value (usually the default it would have used), and build
 > the body from the checked value; the body-shape `.parse()` then filters values that are already
 > valid. Apply a fix to every sibling builder that reads the same input. **Every route that loads data
 > exports an `ErrorBoundary`** that renders legacy's error copy — without one, any throw becomes the
-> framework's 500 and the localized alert is lost (OMH-935 #362, OMH-937 #345). A malformed-input test
+> framework's 500 and the localized alert is lost. A malformed-input test
 > per untrusted source is required (`tdd-rules.md`).
 
 ## routing
@@ -232,7 +232,7 @@ Anchors: `app-routing.module.ts:1`, `pages/hotel/hotel-routing.module.ts:9`,
 > `keepalive`/`sendBeacon`, or await it. Changing SPA vs full-load can also re-open an incident legacy
 > fixed on purpose: read the legacy file's git history before changing the mechanism (OMH-837 #261
 > re-introduced OMH-941, an iOS universal-link loop). Every redirect keeps the query string (`utm_*`,
-> `gclid`) unless legacy strips it (OMH-840 #337). The analysis lists each navigation in
+> `gclid`) unless legacy strips it. The analysis lists each navigation in
 > `navigationSurface[]`, the plan records the mechanism per target, and `fm-route` Step 1d re-checks
 > the targets at flip time.
 

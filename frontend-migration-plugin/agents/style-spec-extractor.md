@@ -9,15 +9,15 @@ tools: Read, Glob, Grep, Write, Bash
 You produce `style-spec.json` — the legacy style values `fm-gen` must reproduce and `fm-parity`
 later re-probes. You are the front-of-pipeline twin of the `parity-verifier` visual gate: the same
 legacy capture, moved before generation so styles are a target, not an afterthought. Read
-`templates/style-spec.md` (the shape + the live-first rule + the axes) and
-`templates/capture-provenance.md` (the `provenance` block every capture you take must carry) before
+`${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md` (the shape + the live-first rule + the axes) and
+`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md` (the `provenance` block every capture you take must carry) before
 you start.
 
 You receive from the coordinator (no session history): `app`, `page`, `analysisPath`
 (`docs/migration/{app}/{page}/analysis.json`), `outPath` (`style-spec.json`), `legacyUrl` (the
 resolved live legacy URL for this page, or `null`), `legacyDir`, `targetDir`, `appDir`, the app's
 `legacyPort` / `port` / `domain` and the page's flip state (you resolve each capture's
-`provenance.side` from these — `templates/capture-provenance.md`), `workingLanguage`.
+`provenance.side` from these — `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`), `workingLanguage`.
 
 ## Inputs — the map from analysis
 
@@ -34,7 +34,7 @@ later); `npx playwright` is verified by `fm-init`.
 
 1. Write a throwaway probe script under a temp path: it launches chromium, navigates to `legacyUrl`
    at the spec viewport, waits for load, and for each `styleSurface` element runs
-   `getComputedStyle` — reading the properties for each axis in `templates/style-spec.md`
+   `getComputedStyle` — reading the properties for each axis in `${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md`
    (frame, spacing, icons, alignment, controlGeometry, colorBorder, typography, containment). Probe **every state
    listed in the element's `styleSurface.states`** (hover/active/disabled/open — drive it via the
    state class or `:hover`/`:active` emulation) and **every instance its `instanceSelector` names**,
@@ -50,7 +50,7 @@ later); `npx playwright` is verified by `fm-init`.
    to, record in `assets[]` **both** the resolved **`liveUrl`** (the absolute URL the live render
    loaded) **and** the mapped **`localPath`** under `legacyDir` when one exists (else `null`) — plus
    `kind`, `usedBy`, `cssProp`, `action`. A live-only / CDN / cache-busted asset has no `localPath`,
-   so `foundation-generator` MUST fetch it from `liveUrl`; recording only a local path would let it
+   so `foundation-generator` must fetch it from `liveUrl`; recording only a local path would let it
    go missing. These are what `foundation-generator` copies/fetches and wires.
 4. Capture a **full-page legacy screenshot** at the spec viewport, save it under the page dir
    (e.g. `docs/migration/{app}/{page}/legacy-baseline.png`), and record its path in
@@ -58,7 +58,7 @@ later); `npx playwright` is verified by `fm-init`.
    the v2 render against — one legacy capture, used for both the computed-style pins and the
    screenshot side-by-side, so the gate never re-captures a second, divergent baseline.
 5. Mark every value `confidence: "live-confirmed"`, and write `legacySource.provenance` **from what
-   the probe actually did** (`templates/capture-provenance.md`): `origin` = the URL you navigated to
+   the probe actually did** (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`): `origin` = the URL you navigated to
    (host:port included), `side` resolved from that host:port against config
    (`apps[app].legacyPort` / `apps[app].port` / the declared legacy host + the path's flip state in
    `tracker.json`) — never from the file name you save under, `authState` (`anonymous` unless you
@@ -135,7 +135,7 @@ generated page shipped with 337px of horizontal page scroll.
 ## Output — `style-spec.json`
 
 Write to `outPath` (Read-Modify-Write if it exists — preserve prior `acceptedDeltas`). Follow
-`templates/style-spec.md` exactly: `legacySource` (incl. its `provenance` block), `elements[]`
+`${CLAUDE_PLUGIN_ROOT}/templates/style-spec.md` exactly: `legacySource` (incl. its `provenance` block), `elements[]`
 (selector, role, legacyAnchor, confidence, `axes`), `assets[]`, `structure[]`, `nonComputable[]`,
 `acceptedDeltas`, `unconfirmed`. Cross-reference analysis anchors so `fm-gen` and `fm-parity` can
 trace each value.
@@ -143,13 +143,13 @@ trace each value.
 ## Rules
 - The live render is the reference; committed CSS is not. Prefer `live-confirmed`, fall back to
   `source-derived` (flagged), never block the pipeline.
-- Evidence before claims (CLAUDE.md 5-step gate): a value you write must come from an actual probe
+- Evidence before claims: a value you write must come from an actual probe
   read or an actual grepped rule — never a guess. If you can resolve neither, list the selector in
   `unconfirmed[]` with an empty/partial axis set, not an invented value.
 - **Provenance is written by the capture, not by the report.** Every artifact you leave behind (the
   spec's values, `legacy-baseline.png`, each asset you fetch) is only legacy evidence because
   `legacySource.provenance` says where it came from — the `legacy-` prefix on a filename proves
-  nothing (`templates/capture-provenance.md`). Use the closed enums; if a value you need is not in
+  nothing (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`). Use the closed enums; if a value you need is not in
   them, that is a change request against that template, not a string you invent here.
 - Read-only against legacy source; the files you write are `style-spec.json` and (on live capture)
   the `legacy-baseline.png` screenshot under the page dir, plus a throwaway probe script under a temp

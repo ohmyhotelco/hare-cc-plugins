@@ -6,9 +6,9 @@ computed-style probes, request/response captures, dual-run baselines. `templates
 (legacy dual-run), `agents/style-spec-extractor.md`, and `agents/parity-verifier.md` all point here
 rather than restating it — one definition, so the fields cannot drift apart.
 
-## Why this exists — the 5-step gate covers commands, not objects
+## Why this exists — the evidence rule covers commands, not objects
 
-The evidence rule in `CLAUDE.md` ("Evidence before claims") assumes the thing being verified is a
+The evidence rule in the plugin `CLAUDE.md` ("Evidence before claims") assumes the thing being verified is a
 **command**: run it, and its exit code and counts prove their own origin. A captured artifact is a
 different kind of thing. `legacy-ko-1440.png` exists and opens, so "READ the output" is formally
 satisfied — but nothing in the file, and nothing in the old protocol, says whether that image is a

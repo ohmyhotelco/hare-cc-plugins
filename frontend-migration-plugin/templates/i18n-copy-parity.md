@@ -4,7 +4,7 @@ The copy axis of legacy parity: the words the user actually reads. Peer of
 `visual-parity-checklist.md` (style) and `tdd-rules.md` → "pure transforms" (logic) — same shape,
 different axis.
 
-Origin: OMH-748. After the login-modal migration, a Korean screen showed an English error, a
+ After the login-modal migration, a Korean screen showed an English error, a
 verification email's subject shipped the raw key `tl.login.otp-subject` (breaking password reset
 outright), a modal title rendered `<br/>` as literal text, and footer links lost their language
 prefix. Every gate — verify, e2e, parity — was green.
@@ -37,7 +37,7 @@ missing key must be caught at the **gate/generation** stage instead. Three layer
 | --- | --- | --- |
 | K1 missing key | key absent from the locales → the raw key renders | `tl.login.otp-subject`, `tl.non-member.otp-subject` |
 | K2 wrong copy source | legacy uses a localized key; v2 renders the backend `errorMessage` | login / OTP / password-reset failures |
-| K3 wrong render mode | markup- **or entity**-bearing copy rendered as plain text (or the reverse) | `<br/>` in the session-expired title (OMH-748); `&apos;` in `tl.bh-change-subscriber.phone-pattern` rendered literally (OMH-749) |
+| K3 wrong render mode | markup- **or entity**-bearing copy rendered as plain text (or the reverse) | `<br/>` in the session-expired title; `&apos;` in `tl.bh-change-subscriber.phone-pattern` rendered literally |
 | K4 path inside copy | an `<a href>` inside a copy value ignores the migration's path scheme | terms / privacy links |
 | K5 locale gap | key exists in some languages only → that language shows fallback or the raw key | not yet hit; structurally possible |
 | K6 missing parameter | `{{name}}` placeholder rendered with no value passed | not yet hit; structurally possible |
@@ -91,7 +91,7 @@ Where a screen's copy comes from is recorded by `angular-analyzer` as `analysis.
 and bound into `migration-plan.json`; a `mustPreserve` entry must survive into the plan or be
 recorded in `openApprovals[]` (the same reconciliation `behavioralVariants` uses). Mechanisms:
 
-| Mechanism | Meaning | Legacy anchor (OMH-748) |
+| Mechanism | Meaning | Legacy anchor |
 | --- | --- | --- |
 | `localized-key` | render a fixed i18n key; ignore any server text | login failure → form error flag → `tl.login.fail-message` |
 | `errorCode-map` | map the response `errorCode` to an i18n key via a lookup table | password errors → `password-error.util.ts` (6 codes) |
@@ -99,7 +99,7 @@ recorded in `openApprovals[]` (the same reconciliation `behavioralVariants` uses
 | `server-message` | render the server's text verbatim — **rare, must be explicit** | — |
 
 **The response `errorMessage` is not display copy.** The backend resolves that field against a
-hardcoded EN locale (OMH-784), so rendering it puts English on every non-English screen. Legacy
+hardcoded EN locale, so rendering it puts English on every non-English screen. Legacy
 never displays it — its login call does not even carry the server message back on failure
 (`auth.service.ts:144` returns `of(false)`). Treat `server-message` as a deliberate, recorded
 decision, never a default.

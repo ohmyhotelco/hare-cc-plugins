@@ -116,7 +116,7 @@ The flow has two legs. Test each one where it can be observed:
 2. **The real gateway.** One `transactional: true` scenario per gateway, run against the staging or dev
    test endpoints in `stagingConfig.paymentGateways`. When the sandbox cannot run it, record it `not-run`
    with the reason. Never run against production. Known blockers:
-   - OnePay's `mtf.onepay.vn` sandbox answers `INVALID_INVOICE` (OMH-795).
+   - OnePay's `mtf.onepay.vn` sandbox answers `INVALID_INVOICE`.
    - Legacy's `aliAuth` and `hana` NicePay accounts have no sandbox merchant in any legacy environment file.
      On v2, Alipay+ reaches the checkout page on dev, but a completed payment needs a NicePay Alipay+ test
      wallet (analysis.md, P4-E1).

@@ -19,7 +19,7 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 (`--app`/`currentApp`) and, from that app's entry, `appDir` and `targetDir`, plus `workingLanguage`.
 Both app-scoped paths must be resolved before Step 1 — the default review target is `targetDir`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve the target
 - If `[path]` is given, review it.
@@ -27,7 +27,7 @@ Both app-scoped paths must be resolved before Step 1 — the default review targ
   `targetDir` if a page is implied). Confirm the path.
 
 ### Step 2: Review
-Launch `quality-reviewer` (Agent) with `path`, `appDir`, `workingLanguage`. It reads the code and
+Launch `quality-reviewer` (`subagent_type: "frontend-migration-plugin:quality-reviewer"`) with `path`, `appDir`, `workingLanguage`. It reads the code and
 writes a report (no source or state changes).
 
 ### Step 3: Report

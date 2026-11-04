@@ -1,7 +1,7 @@
 # PR Contract (title, branch, commits, body)
 
 What `fm-route` emits for the two PRs it prepares (the **code PR** on `--flag-off` and the **flip PR**
-on `--flag-on` / `--cutover`). Committed `.md` and the PR text are English (CLAUDE.md → Design
+on `--flag-on` / `--cutover`). Committed `.md` and the PR text are English (plugin CLAUDE.md → Design
 Principles); only the skill's own summary is in `workingLanguage`.
 
 **Source of truth.** This mirrors the team's Git & Pull Request rules (§1 branch naming, §2 title, §3
@@ -40,7 +40,7 @@ verbatim at the top of the body:
 - **One surface per PR.** Files outside this page's plan belong to their own ticket and PR. A PR that
   also edits another page, the shared shell or a shared package must name each such file and the pages
   whose watch set it touches (see "Changed files"); an undisclosed shared-shell edit under a
-  "zero prod impact" claim is a review blocker (OMH-935 #362).
+  "zero prod impact" claim is a review blocker.
 
 ## Body — required fields, in this order
 
@@ -53,11 +53,11 @@ verbatim at the top of the body:
 | **Jira ticket(s)** | always | `- OMH-NNN: https://<jira-host>/browse/OMH-NNN` — a link, not a bare key. |
 | **Rebase confirmation** | always | `- [x] Branch rebased onto latest <base> as of YYYY-MM-DD`, true at this HEAD (Step 0b). If it is behind: `TODO(owner): rebase, then re-measure every number below`. |
 | **Rollback plan** | Risk = High | How to revert in production. For a flip PR: `fm-route <page> --revert` (nginx flag OFF / the CloudFront entries back to `active: false` / the project's `revert` command; soft rollback, target 5–10 min). Name the whole flip unit it reverts, and the order: the app-side switches deploy **before** the edge change is applied (`templates/strangler-fig.md` → Flip unit, Rollback order). For a code PR: revert the merge — the flag was OFF, so no live surface changes. |
-| **Migration notes** | DB / infra changes | **Required on every flip PR** — it edits the edge (CloudFront behavior manifest, ALB rule, nginx routing): the entries changed, who applies them and how (`apps.{app}.applyOwner`, else `TODO(owner)` — never a closed ticket), propagation time, whether it is zero-downtime, and the rollback steps. A flip PR without this section is rejected under §3 (OMH-935 #362). |
+| **Migration notes** | DB / infra changes | **Required on every flip PR** — it edits the edge (CloudFront behavior manifest, ALB rule, nginx routing): the entries changed, who applies them and how (`apps.{app}.applyOwner`, else `TODO(owner)` — never a closed ticket), propagation time, whether it is zero-downtime, and the rollback steps. A flip PR without this section is rejected under §3. |
 | **Gate evidence** | migration PRs | verify / e2e / parity results with the recorded `gateEvidence.{gate}` `commit`/`tree` and each gate's freshness **recomputed at this HEAD** (fresh / stale / unverifiable), plus answer-key freshness (`answerKeyEvidence`). The cited SHAs must be reachable from this branch. |
 | **Deferred items & flip-preconditions** | migration PRs | One line per open row of this page in `docs/migration/cutover-ledger.json` — `item · owner · ticket · blocksCutover`. Silence on a named gate item is a review blocker. Every "deferred", "follow-up" or "tracked separately" anywhere in the body names its ledger row or ticket. |
-| **Gate impact** | any PR touching `apps/web-*` or `packages/shared-*` | The output of `scripts/gate-impact.sh --base <target branch>`, not a hand-written list: every other page whose recorded watched rows this change moves (and whether it is in flight), files added under a shared package a plan depends on, and `UNWATCHED` app files no page's evidence covers. For each in-flight or flipped page listed, the re-gate plan (CLAUDE.md → Per-page State Machine → In-flight window). |
-| **Claims swept** | any PR that changes behavior, a decision, a count or a flip state | The records sweep (CLAUDE.md → Records Consistency): the old literals grepped and the hit count for each, and the result of `scripts/check-records.sh` (no findings, or each finding and its fix). |
+| **Gate impact** | any PR touching `apps/web-*` or `packages/shared-*` | The output of `scripts/gate-impact.sh --base <target branch>`, not a hand-written list: every other page whose recorded watched rows this change moves (and whether it is in flight), files added under a shared package a plan depends on, and `UNWATCHED` app files no page's evidence covers. For each in-flight or flipped page listed, the re-gate plan (plugin CLAUDE.md → Per-page State Machine → In-flight window). |
+| **Claims swept** | any PR that changes behavior, a decision, a count or a flip state | The records sweep (plugin CLAUDE.md → Records Consistency): the old literals grepped and the hit count for each, and the result of `scripts/check-records.sh` (no findings, or each finding and its fix). |
 
 ## Rules
 

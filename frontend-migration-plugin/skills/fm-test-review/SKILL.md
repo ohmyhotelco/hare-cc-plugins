@@ -17,7 +17,7 @@ no progress tracking, no lock, no feature context. All user-facing output in `wo
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `appDir`, and
 `workingLanguage`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and
 carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are
 scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than
 fail deep inside an agent on an unresolved path.
@@ -28,7 +28,7 @@ fail deep inside an agent on an unresolved path.
   dir). Confirm the path(s).
 
 ### Step 2: Review
-Launch `test-reviewer` (Agent) with `testPath`, `appDir`, `workingLanguage`. It reads the tests
+Launch `test-reviewer` (`subagent_type: "frontend-migration-plugin:test-reviewer"`) with `testPath`, `appDir`, `workingLanguage`. It reads the tests
 and writes a report (no test or state changes).
 
 ### Step 3: Report

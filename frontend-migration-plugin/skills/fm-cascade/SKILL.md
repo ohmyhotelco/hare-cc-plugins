@@ -11,7 +11,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 Runs the `cascade-differ` agent to produce `cascade-diff.json` — every computed-style divergence
 between legacy's global stylesheet and the migrated app's, measured on the page's own markup with the
 stylesheet as the **only** variable. All user-facing output in `workingLanguage` (default `ko`). See
-`templates/cascade-diff.md`.
+`${CLAUDE_PLUGIN_ROOT}/templates/cascade-diff.md`.
 
 **What this stage exists for.** `fm-style-spec` is element-indexed: it probes the elements
 `analysis.json.styleSurface` names. A page that injects foreign markup — CMS rich text, an i18n value
@@ -26,15 +26,13 @@ gate that covers this, and it needs both hosts live. This stage covers it with l
 ### Step 0: Config
 Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). Resolve `app`
 (`--app`/`currentApp`), `legacyDir`, `targetDir`, `appDir`, the app's `legacyPort` / `port`,
-`pluginRoot` (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never
-the shared config; where `scripts/cascade-diff.mjs` lives — absent → stop: the differ cannot
-run, and an unrun diff is `not-run`, never a pass), and `workingLanguage`. Resolve `viewport` as
+and `workingLanguage`. Resolve `viewport` as
 `{width}x{height}` from the page's `style-spec.json` → `legacySource.provenance.viewport` when the
 file exists **and** carries it (a source-fallback spec may omit it — capture-provenance records
 dimensions, never a device name); otherwise leave it unset and the differ uses its default device
 (`Pixel 7`). Say in the report which was used.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and
 carry the keys this stage reads. Config-file presence is not app presence — a `--app` naming an
 unconfigured app must stop here with a clear message rather than fail deep inside an agent on an
 unresolved path.
@@ -46,7 +44,7 @@ not been proven to compile and any diff describes a moving target. If lower:
 Stop.
 
 ### Step 1a: Refuse a flipped, done, or flip-in-flight page
-Same rule as every writing stage (CLAUDE.md → Per-page State Machine). `flipped` → point at
+Same rule as every writing stage (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine). `flipped` → point at
 `fm-route {page} --revert`. `done` → refuse, require manual intervention, do **not** point at
 `--revert`. `flipPrOpenedAt` present → refuse and point at `fm-route --revert`.
 
@@ -73,13 +71,12 @@ copy. Ensure **`.claude/settings.local.json`** `permissions.allow` covers the `n
 `appDir` expanded (e.g. `Bash(node /abs/path/apps/web-mobile/.cascade-diff.tmp.mjs *)`); if missing,
 add it (Read-Modify-Write) and note it in the report. **Never write it to the shared
 `.claude/settings.json`**: the rule carries this machine's absolute path, and the shared file is
-committed — that is how a developer's home path reached three reviewed PRs (OMH-934 #317, OMH-935
-#362, OMH-840 #337). The local file is per-machine and kept out of git (the SessionStart hook adds it
+committed — that is how a developer's home path reached three reviewed PRs. The local file is per-machine and kept out of git (the SessionStart hook adds it
 to `.git/info/exclude`; `fm-init` lists it in `.gitignore`). Without it the probe cannot launch and there is no
 partial-credit fallback here — an unrun cascade diff is `not-run`, never a pass.
 
 ### Step 3: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock
 file; age alone never breaks a live holder's lock). Then delete any leftover
 `cascade-diff.next.json`: any live run holds this lock, so a staging file here is an orphan from a
 crashed run — measured on a tree neither of Step 6's hashes describes — and Step 6 would promote
@@ -92,13 +89,12 @@ before writing leaves the pre-fix staging on disk, and Step 6's tree check (take
 would pass and promote a report the fixes have already invalidated.
 
 Then compute the **pre-run** `tree` hash over the page's watch-path union — same
-script and union as the gates (CLAUDE.md → Gate Result Accounting F). Step 6 compares against it.
+script and union as the gates (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting F). Step 6 compares against it.
 
-Launch `cascade-differ` (Agent) with only its params: `app`, `page`, `legacyCssPath`,
+Launch `cascade-differ` (`subagent_type: "frontend-migration-plugin:cascade-differ"`) with only its params: `app`, `page`, `legacyCssPath`,
 `targetCssPath`, `markupSource` (the page's captured documents if it has them — golden fixtures, MSW
 response fixtures — else the target-app URL to scrape the rendered container from), `viewport`,
-`propsOverride` (`--props`), `keepFonts` (`--keep-fonts`), `pluginRoot` (where
-`scripts/cascade-diff.mjs` lives), `outPath` =
+`propsOverride` (`--props`), `keepFonts` (`--keep-fonts`), `outPath` =
 `docs/migration/{app}/{page}/cascade-diff.next.json` (staging — Step 6 promotes it to
 `cascade-diff.json` only after the tree check, so `fm-route` can never read a report the check has
 not validated), `appDir`, `workingLanguage`.
@@ -107,7 +103,7 @@ not validated), `appDir`, `workingLanguage`.
 Read the agent's report and put **each** row in exactly one bucket — this is the stage's actual work,
 not the measurement:
 
-- **real** — a rule on one side and not the other. Fix it (`templates/cascade-diff.md` → *Fixing what
+- **real** — a rule on one side and not the other. Fix it (`${CLAUDE_PLUGIN_ROOT}/templates/cascade-diff.md` → *Fixing what
   it finds*: port the legacy rule, or scope a `revert`).
 - **consequence** — caused by another row (a border-width change shifts every `width` in that table).
   Do not fix separately; re-run after the cause is fixed and confirm it is gone.
@@ -130,7 +126,7 @@ tracker. Absence plus the `not-run` record is the honest state.
 ### Step 6: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around the `tracker.json` write below — after
-the page lock this stage already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+the page lock this stage already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 **Failed run (no staging file).** When the differ failed and wrote nothing, skip items 1–2 — there
 is nothing to check or promote. Item 3 records `cascade` as `{ runAt, notRun: true, reason }`
@@ -171,7 +167,7 @@ The lock is **not** released here — Step 7 still writes files and tracker stat
 ### Step 7: Turn the fix into a gate
 A diff run is evidence at a point in time. For each **real** divergence fixed, add a regression
 assertion to the page's e2e suite, written from the **invariant** rather than the observed number
-(`templates/cascade-diff.md` → *Turning a finding into a gate*). Then prove it is not vacuous:
+(`${CLAUDE_PLUGIN_ROOT}/templates/cascade-diff.md` → *Turning a finding into a gate*). Then prove it is not vacuous:
 disable the fix → the test must fail → restore → it must pass. Record both outcomes. A test that
 passes with the fix removed protects nothing, and the pipeline has no other way to know that.
 

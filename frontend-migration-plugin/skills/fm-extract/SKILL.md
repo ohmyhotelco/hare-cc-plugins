@@ -27,21 +27,21 @@ All user-facing output is in the configured `workingLanguage` (default `ko`).
 3. Resolve `contractsDir` (optional). If the config has `contractsDir`, confirm the directory
    exists (with `responses/`+`requests/`); if the key is absent, leave it unset. This is the
    **authoritative** zod schema source for `shared-types`/`shared-data` only — when unset those
-   packages fall back to legacy reverse-extraction (no regression). See CLAUDE.md →
+   packages fall back to legacy reverse-extraction (no regression). See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md →
    "Configuration".
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve candidates
 - If `--from <page>` is given, read `docs/migration/{app}/{page}/analysis.json` and take its
   `sharedCandidates`.
 - Else treat `<candidate-or-package>` as a candidate name (e.g. `UtilDateService`) or a target
   package (e.g. `shared-domain`) and gather matching candidates from existing analyses /
-  `templates/shared-package-spec.md`.
+  `${CLAUDE_PLUGIN_ROOT}/templates/shared-package-spec.md`.
 - Present the resolved candidate list (name → target package → purity) and confirm.
 
 ### Step 2: Acquire the lock
-Acquire a package-scope lock `docs/migration/.packages.lock` (stale only when its holder is gone — CLAUDE.md → Lock file). If held and
+Acquire a package-scope lock `docs/migration/.packages.lock` (stale only when its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). If held and
 fresh, report and stop.
 
 ### Step 2b: Resolve dependents, refuse in-flight flips, and clear once — BEFORE any write
@@ -56,14 +56,14 @@ and imported by all three apps, so the dependent set spans apps while this skill
   pages and require `fm-route {page} --app {app} --revert` on each. Refusing in Step 5 would refuse *after* the
   dependency it protects had already changed.
 - Otherwise apply Step 5.3's clear to each dependent now — **inside `docs/migration/.tracker.lock`**,
-  taken after `.packages.lock` and released right after the write (CLAUDE.md → Lock file); Step 5's
+  taken after `.packages.lock` and released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file); Step 5's
   lock paragraph is scoped to the writes *below* it and does not reach this one (this is the "clear it **before**" half of
   the double clear; Step 5.3 does the second). Stated only in Step 5, the first clear could never
   happen in time, and the race it exists to close stayed open.
 
 ### Step 3: Extract each candidate
 For each candidate (sequentially — packages may build on each other), launch the
-`package-extractor` agent (Agent tool) with only its needed params (subagent isolation):
+`package-extractor` agent (`subagent_type: "frontend-migration-plugin:package-extractor"`) with only its needed params (subagent isolation):
 `candidate`, `legacyDir`, `counterpartDirs`, `packagesDir`, `monorepoRoot`, `workingLanguage`,
 `eslintTemplate`.
 
@@ -71,8 +71,8 @@ For each candidate (sequentially — packages may build on each other), launch t
 `package` is `shared-types` or `shared-data` **and** `contractsDir` is resolved (Step 0.3), also
 pass `contractsDir` to the agent and instruct it explicitly:
 
-> The confirmed zod contracts under `{contractsDir}/responses/` (OMH-606) and
-> `{contractsDir}/requests/` (OMH-607) are the **authoritative** schema source — **transcribe**
+> The confirmed zod contracts under `{contractsDir}/responses/` and
+> `{contractsDir}/requests/` are the **authoritative** schema source — **transcribe**
 > the zod out of the Markdown `ts` code fences (they are zod-in-markdown, not `.ts` files), reusing
 > the two shared base schemas (`ResponseEnvelopeSchema`, `CommonRequestParamsRqSchema`) that each
 > per-endpoint `{Entity}RqSchema` / response schema `.extend()`s. **Do not** reverse-engineer the
@@ -96,7 +96,7 @@ React/Angular dependency (grep). Report exit codes as evidence.
 ### Step 5: Record state
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 1. Update `docs/migration/tracker.json` (Read-Modify-Write): under `packages`, set each
    extracted package/candidate to `{ "status": "extracted", "candidates": [...], "updatedAt": ISO }`
    — **only when the extraction actually passed**: `package-extractor` reports its own tsc/Vitest
@@ -118,7 +118,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    for this case, so reaching it here means the flip was opened mid-run. `--flag-on --confirm-live` requires
    only the status and that timestamp, so a rewritten package would otherwise reach production
    through a flip prepared against the old one — but `--confirm-live` and `--revert` are that
-   field's **only legal consumers** (CLAUDE.md → Gate Result Accounting), and clearing it here
+   field's **only legal consumers** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting), and clearing it here
    would leave PR2 open with nothing in the tracker recording the in-flight flip. **Release
    `.tracker.lock` and then `.packages.lock`** (innermost first), then stop before writing anything, name those pages, and require
    `fm-route {page} --app {app} --revert` on each first — without the release, Step 2's "held and fresh →
@@ -140,7 +140,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    This skill holds `.packages.lock`, not those pages' locks, so it cannot stop a gate mid-run.
    Invalidating on both sides is what this skill can do; it does **not** reach a gate that started
    before the first clear and finished after the second — that one is caught on the gate's side, by
-   the before/after `tree` comparison every gate makes (CLAUDE.md → Gate Result Accounting E).
+   the before/after `tree` comparison every gate makes (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting E).
 4. Release the lock.
 
 ### Step 6: Report

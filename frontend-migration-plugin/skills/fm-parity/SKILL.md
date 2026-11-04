@@ -16,16 +16,16 @@ API contract, native bridge, and analytics. All user-facing output in `workingLa
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`; under `--regate`, Step 0c instead) and
+gate-evidence hash), the app's `legacyPort` / `port` / `domain`, `workingLanguage`. Require the page at `e2e-passed` in `tracker.json` (else point to `fm-e2e`; under `--regate`, Step 0c instead) and
 `migration-plan.json` with `requiredGates` (absent → point to `fm-plan`); the per-gate
 `gateTriggers` anchors live in `analysis.json`, not the plan. Require `plan.gateAcceptance`
 (absent → the plan is incomplete; point to `fm-plan {page}` and stop). Require
 `docs/migration/{app}/{page}/style-spec.json` (the visual gate reuses its legacy baseline; absent →
 point to `fm-style-spec {page}` and stop).
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+### Step 0a: `--regate` (in-flight or flipped page) — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine → In-flight window
 With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`, **and**
 verify's and e2e's evidence fresh at HEAD (each `gateEvidence.{gate}.tree` equal to its recomputation,
 as `fm-route` Step 1a recomputes it) with no `regateFailed.verify` or `regateFailed.e2e`. Otherwise
@@ -35,11 +35,11 @@ writes the report, `parityPassedAt`, `gateEvidence.parity`, `answerKeyEvidence` 
 exactly as the pass branch does and deletes `regateFailed.parity`. A `fail`, a Step 3 override or a
 `not-run` writes `regateFailed.parity = { "at", "commit", "summary" }` instead of a status.
 
-### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
+### Step 0b: Approved exemption (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "parity"` **and** both
 `approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
 paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
-decided (CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
+decided (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
 Otherwise this run is the **exemption path**: take the lock (Step 1),
 re-verify under it that the entry is still approved and the status is still `e2e-passed`, write
 `parity-report.json` as
@@ -49,16 +49,16 @@ exemption — say so and run the gate normally. A single parity *sub-gate* that 
 this path: that is the plan's `requiredGates` plus an approved `openApprovals` entry.
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 2: Run the verifier
 Before launching the verifier, compute the **pre-run** `tree` hash — same script, same watch-path
 union as Step 4. Step 4 compares its record-time hash against this one: a gate may record a pass
-only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+only if its watch paths did not move while it ran (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting E).
 
-Launch `parity-verifier` (Agent) with only its params — including the app's `legacyPort` / `port` /
+Launch `parity-verifier` (`subagent_type: "frontend-migration-plugin:parity-verifier"`) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which the verifier needs to resolve each capture's
-`provenance.side` (`templates/capture-provenance.md`; an unresolved side counts as absent and fails
+`provenance.side` (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`; an unresolved side counts as absent and fails
 the gate): `app`, `page`, `planPath`,
 `analysisPath`, `styleSpecPath` = `docs/migration/{app}/{page}/style-spec.json`, `targetDir`,
 `appDir`, `legacyDir`/legacy base URL, `outPath` =
@@ -73,19 +73,19 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
 1. **Provenance of each cited artifact** — for every artifact the report rests on, read its recorded
    `provenance` and confirm `side` resolves from `origin`'s host:port against config
    (`apps.*.legacyPort` / `apps.*.port` / the declared legacy host + the path's flip state), per
-   `templates/capture-provenance.md`. A `legacy-*` filename, a `legacy-captures/` directory, and a
+   `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`. A `legacy-*` filename, a `legacy-captures/` directory, and a
    report sentence saying "legacy baseline" are **not** evidence of side. An artifact whose side does
    not resolve counts as absent: the axes it was to carry are uncovered → the gate is incomplete
    (**fail**), and re-capture is the fix. This check comes first because everything below compares
    those artifacts — a wrong-side baseline makes the remaining checks pass on the wrong pair, which is
-   how two gates issued passes that had to be retracted (OMH-758). New captures only: artifacts
+   how two gates issued passes that had to be retracted. New captures only: artifacts
    predating the rule stay origin-unknown and are not retro-filled or re-adjudicated.
 2. **Name vs compared surface** — check the report's what-was-compared against the gate's name
    and its `gateAcceptance` entry. A `visual` verdict must rest on a visual comparison of
    symmetric artifacts (same pattern/scope both apps); a content-structure/text match is not a
    visual pass.
 3. **Open the legacy and v2 screenshots SIDE BY SIDE** and compare them axis by axis against
-   `templates/visual-parity-checklist.md` — Read the *legacy* screenshot and the *v2* screenshot in
+   `${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md` — Read the *legacy* screenshot and the *v2* screenshot in
    the same pass and diff the two **renders** (not each against its own baseline). Walk every axis:
    frame, **inter-element spacing/gaps** (list↔pager, section, item — the most-missed), **icons/glyphs**
    (existence + faithful render + position + size + open/active state), alignment, control geometry,
@@ -104,7 +104,7 @@ Do not trust the verdict string. Read `parity-report.json` and, per gate:
    particular, a lift-out delta covers only the shed shell, NOT axis diffs (spacing/icon/alignment)
    inside the compared content-area.
 6. **Amended criteria** — a gate entry marked `amendedCriterion: true` is legitimate only if the plan's
-   criterion actually carries a `criterionAmendment` block (`templates/migration-plan-schema.md`) with
+   criterion actually carries a `criterionAmendment` block (`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`) with
    its `coverageUnchanged` statement and `priorDecisionLocation`. A pass claiming an amendment the plan
    does not record is a **fail**: that is a self-granted criterion change wearing the amendment's
    clothes. Check `priorDecisionLocation` in particular — a cited decision that has not reached the
@@ -114,16 +114,16 @@ Any failed check overrides the report: treat the gate (and the page) as failed.
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 Read `parity-report.json`. Update `tracker.json` (Read-Modify-Write). **Under `--regate`, apply Step 0a
 instead of every status write below:**
 - `result: pass` **and Step 3 clean** → `apps[app].pages[page].status = "parity-passed"` — **except a
   cluster** (`kind: "cluster"`), which has no flip stage after parity, so set its terminal
-  **`cluster-ready`** instead (CLAUDE.md → Component Clusters); `fm-route` refuses it and the
+  **`cluster-ready`** instead (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Component Clusters); `fm-route` refuses it and the
   consuming page's `--flag-off` reads `cluster-ready` to clear its flip-precondition. Then record
   `apps[app].pages[page].gateEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
-  exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
+  exactly as ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
   **running the script** once with `--manifest` and hashing its output — never by re-implementing
   its records with an inline pipeline:
@@ -132,7 +132,7 @@ instead of every status write below:**
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/parity.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/parity.tsv -- <watch path>... > "$MAN.tmp"
   TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
@@ -158,7 +158,7 @@ instead of every status write below:**
   If `git add` fails (the index lock held by a concurrent page, an ignored path), say so: the pass
   stands, the pair is unstaged, and `fm-route` Step 1a blocks until it is committed.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
+  Watch paths are the union of the three axes ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" F defines —
   all of axis 1, including `{appDir}/e2e/` (this gate runs after the specs exist, and a weakened
   spec must stale it), minus any untracked entry `git check-ignore -q` accepts (F);
   resolve `packagesDir` and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here.
@@ -170,14 +170,14 @@ instead of every status write below:**
   store the word `unverifiable`, and never store a hash the script did not print. Keep `parityPassedAt` for
   backward compatibility.
 
-  **Answer-key freshness (`answerKeyEvidence`, CLAUDE.md → "Gate Result Accounting" G).** The
+  **Answer-key freshness (`answerKeyEvidence`, ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" G).** The
   `gateEvidence.parity.tree` above hashes the **v2** side; it says nothing about whether the **legacy
   answer key** this gate compared against has since moved. So also record
   `apps[app].pages[page].answerKeyEvidence.parity = { "at": <ISO-8601>, "commit": <sha>, "legacyPaths": [...], "legacyTree": <hash> }`
   — `legacyPaths` the **specific legacy files** the answer key cites: the distinct legacy source paths
   (drop any `:line`) referenced by `style-spec.json` `legacyAnchor`/`legacySource` and the plan's
   `gateAcceptance.*.expectedValueSource` legacy anchors, resolved under `legacyDir`; `legacyTree` the
-  **same** `{pluginRoot}/scripts/gate-tree-hash.sh` (never an inline pipeline) over exactly those
+  **same** `${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh` (never an inline pipeline) over exactly those
   paths. Record the path **list** so `fm-progress` and `fm-route` recompute over the identical set —
   the consumer cannot re-derive the anchors and a different set never matches. Hash the cited files,
   **not** the whole `legacyDir` (that flags every page stale on any legacy change). If none resolve,
@@ -201,12 +201,11 @@ instead of every status write below:**
   failure to repair.
 Release the lock.
 
-### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+### Step 4b: Codex audit (advisory) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 Skip this step on the exemption path — nothing was compared, so there is no pass for Codex to test.
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
-`codex-auditor`
-(Agent) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
+`codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `parity` stage (params: `app`, `page`, `stage="parity"`, `appDir`, `legacyDir`,
 `parityReportPath` + `planPath` (→ `gateAcceptance`) + the legacy baseline,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Codex cross-checks for regressions passed off as parity. Advisory — never

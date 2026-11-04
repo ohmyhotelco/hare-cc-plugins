@@ -14,7 +14,7 @@ You receive (no session history): `app`, `page`, `planPath` (`migration-plan.jso
 standing containment-overload scenario), `targetDir`, `appDir`, `legacyDir` / legacy base URL, `stagingConfig`
 (payment-gateway test endpoints), `outPath` (`e2e-report.json`), the app's `legacyPort` / `port` / `domain` and the page's flip state
 (each dual-run leg resolves its `provenance.side` from these), `workingLanguage`. Read
-`templates/e2e-testing.md`, plus `templates/capture-provenance.md` for the `provenance` block each
+`${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md`, plus `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md` for the `provenance` block each
 dual-run leg records.
 
 ## Procedure
@@ -25,7 +25,7 @@ Before writing specs: reuse the harness's **auth setup project** — load `stora
 it verifies**, pre-seeding the prerequisite state via API / `storageState` instead of replaying
 shared prefixes (e.g. consent → phone-auth) in each test — independent, fast tests. Factor repeated
 selectors and flows into **page objects / helpers** under `e2e/` (create if missing, reuse if
-present; never clobber another page's). See `templates/e2e-testing.md` "Auth & state setup" and
+present; never clobber another page's). See `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` "Auth & state setup" and
 "Reuse: page objects & helpers".
 
 ### 2. Realize specs
@@ -34,7 +34,7 @@ the scenario's steps. Resolve dynamic route params (`:id`) to fixture ids before
 Tag each spec with the scenario name and its `legacyAnchor`. Use condition-based waits (never
 `waitForTimeout`) and semantic selectors. **Burn-in each newly written spec** (`--repeat-each=5`)
 before the gate run — a single failure across runs means it is flaky; fix it now. See
-`templates/e2e-testing.md` "Flakiness prevention".
+`${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` "Flakiness prevention".
 
 **Plus one standing scenario the plan does not have to list: the containment overload.** For every
 element `style-spec.json` (at `styleSpecPath`) flags `contentDependent: true`, write a spec that
@@ -59,14 +59,14 @@ too — it is one line and it catches overflow from elements no spec indexes. De
 - **non-transactional** → run against the new app with **MSW** intercepting the network
   (deterministic). Use `VITE_ENABLE_MOCKS=true` (or the app's flag).
 - **transactional** (`transactional: true`, payment funnel) → run against **staging** with the
-  real payment gateway test endpoints from `stagingConfig` (OMH-459). Never hit production.
+  real payment gateway test endpoints from `stagingConfig`. Never hit production.
   `stagingConfig.paymentGateways` is **scaffolded empty** by `fm-init` and filled in when the first
   transactional page is reached. If the gateway a scenario needs is empty or absent, record that
   scenario as `result: "not-run"` with `reason: "staging gateway not configured: <name>"` — never
   silently fall back to MSW, which would turn the one scenario that must exercise a real gateway
   into a mock run that always passes. The **storefront contract** of a payment page is a separate,
   non-transactional scenario the plan names: under MSW with a stub of the gateway SDK, it asserts the
-  prepare request, the form handed to the gateway and each landing hop (`templates/payment-flow-v2.md`
+  prepare request, the form handed to the gateway and each landing hop (`${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`
   → Testing). It does not stand in for the transactional scenario, and the transactional scenario
   does not fall back to it.
 
@@ -74,11 +74,11 @@ too — it is one line and it catches overflow from elements no spec indexes. De
 Run the same scenario against the legacy Angular app (its base URL) and the new RR v7 app, and
 compare the observable behavior (navigation, key outputs, success/failure paths). Record
 differences as failures — the legacy behavior is the reference. The one scoped exception is a payment
-page: dual-run the half `templates/payment-flow-v2.md` preserves (window model, form fields and order,
+page: dual-run the half `${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md` preserves (window model, form fields and order,
 alert copy, telemetry); the redesigned half (signing source, form `action`, return leg) is asserted
 against that template, and its divergence is the plan's approved `openApprovals` entry.
 
-**Each leg records its own `provenance`** (`templates/capture-provenance.md`): the spec writes
+**Each leg records its own `provenance`** (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`): the spec writes
 `origin` (the base URL it actually drove, host:port included), the `side` resolved by that
 template's **ordered rules** — run them in order, do not substitute a shortcut. A local host
 resolves by port (`apps[app].legacyPort` → `legacy`, `apps[app].port` → `v2`); the production
@@ -97,17 +97,17 @@ cannot be `match`), never as a dual-run on the strength of a label.
 **Copy assertions (`assertsCopy: true` scenarios).** For a scenario the plan marks `assertsCopy`,
 also capture and diff the **text the user sees** on both sides — the flow matching is not enough. A
 navigation-only comparison passes an English backend string on a Korean screen, a raw `tl.*` key, or
-a literal `<br/>`; that is precisely how those shipped (OMH-748). Run these in each language the
+a literal `<br/>`; that is precisely how those shipped. Run these in each language the
 plan lists in `gateAcceptance.e2e.languages` (the field, not the `scope` prose), one
 `copyParity[]` entry per language, and record the
 observed strings per side so a diff is inspectable rather than a bare fail.
 
 When config has **no `i18n` block** the plan omits `languages` by design
-(`templates/migration-plan-schema.md`), so there is no language set to iterate: run the copy
+(`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`), so there is no language set to iterate: run the copy
 assertions once at the app's single served locale and record that entry with
 `language: "not-run"` + `reason: "no i18n block configured"`. Do not invent a locale identifier and
 do not claim multi-language coverage — the same absent-`i18n` handling `fm-verify`,
-`foundation-generator`, and `parity-verifier` apply. See `templates/i18n-copy-parity.md`.
+`foundation-generator`, and `parity-verifier` apply. See `${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`.
 
 **This `language: "not-run"` does not make the scenario or the gate `not-run`.** The scenario ran;
 only the language *axis* had no set to iterate. The top-level `result` is driven by
@@ -116,7 +116,7 @@ mean different things.
 
 ### 4b. Enforce `gateAcceptance.e2e` verbatim
 The plan codifies this gate's criteria the same way it does the parity gates, and they bind you the
-same way (`templates/migration-plan-schema.md`; `parity-verifier` states the rule for its own gates).
+same way (`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md`; `parity-verifier` states the rule for its own gates).
 Execute `plan.gateAcceptance.e2e` **as written** — the scenario set, the languages, the dual-run
 scope, the exclusions. You may not narrow a criterion because a scenario is slow, an environment is
 awkward, or a flow looks equivalent: a criterion that cannot be met is a **fail or an explicit
@@ -129,9 +129,9 @@ Run Playwright from `{appDir}` with trace/screenshot/video retained on failure (
 `foundation-generator`). Read the full output (passed/failed counts, failing traces). For every
 failing scenario, capture the **artifact paths** (trace zip, video, screenshot) so `fm-fix`
 (e2e-fix) can open them — these are the agent's DevTools. Evidence before claims — do not report a
-pass you did not observe (CLAUDE.md 5-step gate).
+pass you did not observe.
 
-Those artifacts are **run output, not source** (`templates/e2e-testing.md` → "Run output is
+Those artifacts are **run output, not source** (`${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` → "Run output is
 disposable; baselines are source"). Never pass `--output` into a tree that holds baselines
 (`e2e/.artifacts/`, a snapshot dir, `docs/migration/`); leave it at the config's `test-results/`.
 Confirm each artifact path with `git check-ignore -q` and list every one git would **not** ignore
@@ -144,13 +144,13 @@ there would be hashed as page code and committed with it). You do not edit `.git
 {
   "page": "...", "tool": "playwright",
   "criteriaCompliance": { "gate": "e2e", "enforcedVerbatim": true, "deviations": [] },
-  // deviations MUST be empty; a narrowed criterion is a gate failure, not a note
+  // deviations must be empty; a narrowed criterion is a gate failure, not a note
   "scenarios": [{ "name": "...", "mode": "msw|staging", "result": "pass|fail|not-run",
                   "reason": null,   // required when result is "not-run" (e.g. "staging gateway not configured: nicePay")
                   "dualRun": { "legacy": "pass", "new": "pass", "parity": "match|diff",
                                // "legacy"/"new" are that leg's RESULT; each leg's origin/side/etc. go in
                                // its *Provenance object below — do not write provenance into these two
-                               // per-leg provenance — templates/capture-provenance.md
+                               // per-leg provenance — ${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md
                                "legacyProvenance": { "origin": "http://localhost:3010/ko/login", "side": "legacy",
                                                      "authState": "anonymous", "renderSource": "live",
                                                      "responseSource": "stubbed", "captureMode": "playwright-route-intercept",
@@ -185,7 +185,7 @@ vs legacy, and (on fail) a pointer to `fm-fix` (e2e-fix).
 
 ## Rules
 - Legacy behavior is the source of truth — fix the implementation, never weaken a scenario.
-- **New spec files are kebab-case with the directory's role suffix** (CLAUDE.md → File Naming) — the
+- **New spec files are kebab-case with the directory's role suffix** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → File Naming) — the
   repo's specs read `event-visual.e2e.ts`, `common-agreement.e2e.ts`; a new one is
   `booking-info.e2e.ts`, never `BookingInfo.e2e.ts`. Page objects and helpers you add follow the same
   rule. Never rename an existing spec to conform.

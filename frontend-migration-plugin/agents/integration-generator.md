@@ -19,7 +19,7 @@ plan's rendering modes alone.
 ## App lock
 Every Read-Modify-Write of an app-wide file — the RR v7 route table, the i18n namespace
 registration, the MSW handler aggregation — happens inside `docs/migration/.app.lock`, taken after
-the page lock the launching skill holds and released right after the write (CLAUDE.md → Lock file).
+the page lock the launching skill holds and released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 The page lock does not protect these: two pages migrating at once share every one of them.
 
 ## Tasks
@@ -62,12 +62,12 @@ add it rather than risk a broken edit.
 
 ## Rules
 - Read-modify-write central files; never clobber other features' routes/keys/handlers.
-- **New files are kebab-case** (CLAUDE.md → File Naming) — a route module is `booking-info.tsx`, not
+- **New files are kebab-case** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → File Naming) — a route module is `booking-info.tsx`, not
   `BookingInfo.tsx`. React Router's reserved names (`root.tsx`, `routes.ts`, `entry.client.tsx`) keep
   their exact names: RR v7 resolves them by name, so renaming one breaks the app. Never rename an
   existing file to conform.
 - Verify the app still type-checks after integration; report the result.
 - Lint the generated feature + the central files you modified: `npx eslint {generated paths}
-  {modified central files} 2>&1` (hard). Use the detection/scaffold/skip rule in CLAUDE.md →
+  {modified central files} 2>&1` (hard). Use the detection/scaffold/skip rule in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md →
   "Lint & Format Gate" (scaffold the config from the template if `eslintTemplate` ≠ false and none
   exists; skip with install hint if deps are missing). Prettier is advisory — out of scope here.

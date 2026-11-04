@@ -15,9 +15,7 @@ No production code without a failing test first.
 3. **Refactor** — clean up; keep green.
 
 ## Verify RED and GREEN are mandatory
-Actually run Vitest and read the summary line. Never skip, never assume. This is the CLAUDE.md
-"evidence before claims" 5-step gate applied to tests:
-IDENTIFY → RUN → READ → VERIFY → CLAIM.
+Run Vitest and read the summary line. This is the "evidence before claims" rule applied to tests.
 
 ## Green must survive a mutation (the test earns its green)
 After a unit goes green, break the **one behavior you just made pass** in the production code —
@@ -25,7 +23,7 @@ delete the guard, invert the condition, or stop passing the prop — rerun Vites
 goes **red**, then revert. A test that stays green asserts nothing about that behavior; strengthen
 the assertion before moving on. Scope is the just-written behavior only (one mutation, seconds), not
 the whole file. This is the cheapest defense against the false-green class where a wrong reading of
-the legacy source produces a test and an implementation that agree with each other (OMH-749).
+the legacy source produces a test and an implementation that agree with each other.
 
 ## Phase isolation
 Each TDD phase (`api → store → component → page`) runs in its own agent session. The
@@ -100,7 +98,7 @@ regression fails in ~50 ms at the line that broke.
   tests" and "produces the legacy output" are **different claims**; only the golden test proves the
   second. Port the legacy call's options verbatim (`angular-to-react-mapping.md` → **pipes-directives**),
   and record any deliberately-agreed difference (e.g. an `iframeResizer` script replaced by a React
-  binding) explicitly rather than letting it drift. Origin: OMH-708.
+  binding) explicitly rather than letting it drift.
 - **Request bodies must obey their own schema — pin the shape, don't trust the type** (`api` phase).
   A body assembled from `...getCommonRequestParams()` (or any spread) can carry a field the endpoint
   schema `.omit()`s from the root — TypeScript's excess-property check **only fires on object
@@ -130,7 +128,7 @@ regression fails in ~50 ms at the line that broke.
   export and drives it, and a safety prop defaults to its fail-safe value (OMH-756 #309, OMH-749 #335,
   OMH-839 #396 M17). A legacy-behavior helper with no route-reachable caller is not done, however green
   its own tests are (OMH-839 #396 H3: a load-time price alert implemented and never called).
-- **New files are kebab-case** (CLAUDE.md → File Naming). Name every file you create in kebab-case —
+- **New files are kebab-case** (plugin CLAUDE.md → File Naming). Name every file you create in kebab-case —
   `traveler-form.tsx` and its test `traveler-form.test.tsx`, never `TravelerForm.tsx` — while the
   exported identifier keeps its own convention (component/type PascalCase, function/hook camelCase:
   `use-faq-answer.ts` exports `useFaqAnswer`). A dotted role suffix follows the one the directory

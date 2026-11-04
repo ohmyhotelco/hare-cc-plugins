@@ -38,7 +38,7 @@ Minimum versions:
 - `prettier-plugin-tailwindcss` >= 0.6
 
 `prettier-plugin-tailwindcss` auto-sorts Tailwind class lists into the canonical order — included
-because Tailwind CSS is the styling choice (CLAUDE.md § Target Stack). Drop the plugin (and the
+because Tailwind CSS is the styling choice (plugin CLAUDE.md § Target Stack). Drop the plugin (and the
 `plugins` array) for any workspace that does not use Tailwind.
 
 **Do not add `prettier-plugin-organize-imports`** — import ordering is owned by ESLint's
@@ -138,5 +138,5 @@ unformatted file); `format` rewrites in place.
   no conflict.
 - **Verify gate.** `fm-verify` gates on build / tsc / Vitest / ESLint (hard); Prettier is already
   wired as an **advisory** check (`npx prettier --check .`, recorded under `formatWarnings`, never
-  failing the gate) — see CLAUDE.md → "Lint & Format Gate". Formatting is deliberately not a
+  failing the gate) — see plugin CLAUDE.md → "Lint & Format Gate". Formatting is deliberately not a
   hard check: a format-only diff never blocks a migration gate.

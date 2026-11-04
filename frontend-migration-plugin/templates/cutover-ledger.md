@@ -63,7 +63,7 @@ the batch-scoped projection of every unresolved item that gates a flip.
 ## Read-Modify-Write & lock
 
 The ledger is an app-wide file. Every write takes `docs/migration/.app.lock` then `.tracker.lock`
-around the read-modify-write, in that order (CLAUDE.md → State Files & Lock Convention), and merges —
+around the read-modify-write, in that order (plugin CLAUDE.md → State Files & Lock Convention), and merges —
 never overwrites — existing entries, keyed on `app` + `page` + `item`.
 
 ## Producers and consumers

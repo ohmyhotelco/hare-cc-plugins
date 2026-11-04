@@ -80,7 +80,7 @@ always carries a `gateAcceptance` entry). Add a trigger-gated gate when its trig
 **`requiredGates` may only name a gate `parity-verifier` implements** — `visual`, `contract`,
 `webview`, `telemetry` (plus `e2e`, which `fm-e2e` owns). A gate the verifier has no check and no
 report slot for cannot fail, so naming it would make the page record `pass` for a criterion nobody
-evaluated — a silent pass, which CLAUDE.md → Design Principles forbids outright.
+evaluated — a silent pass, which ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Design Principles forbids outright.
 
 Three triggers are therefore **detected but never promoted to a gate**. Record each in
 `gateTriggers[]` with its anchors, and route it to the consumer that actually acts on it:
@@ -90,26 +90,26 @@ Three triggers are therefore **detected but never promoted to a gate**. Record e
   `createFgkey()` / `createNicePayData()` / `createNpAlipayData()` / `createEximbayData()`.
   Consumed by **`fm-secret-audit`** (Phase 0 posture audit + relocation guidance) and enforced at
   generation time by the `shared-domain` ESLint secret boundary, which is a **hard** rejection (see
-  CLAUDE.md → Lint & Format Gate). A per-page parity gate would add nothing: there is no legacy-vs-v2
+  ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lint & Format Gate). A per-page parity gate would add nothing: there is no legacy-vs-v2
   comparison to make — a leaked key is wrong on both sides. The PG signers are not ported at all: oh-api
-  signs in v2 (`templates/payment-flow-v2.md`). Record the Eximbay builders and forms as dead code
+  signs in v2 (`${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`). Record the Eximbay builders and forms as dead code
   (`eximbayStart()` alerts and returns, OMH-1178), not as a flow to port.
 - **`payment`** — the page submits a payment-gateway form or consumes a gateway return: `goPay(`,
   `nicepaySubmit`/`nicepayClose`, a form posting to `v3Payment.jsp` / `pcRequest.jsp` /
   `smartRequest.jsp`, `/payment/onepay/getPaymentUrl`, a read of the `pgName` query a return leg
   carries, the `/payment/np-alipay/verify` / `/payment/np-verify` calls, or the booking-detail
   balance-payment modal. Consumed by `migration-planner` and the generators, which build to
-  `templates/payment-flow-v2.md` instead of porting the legacy mechanism, and by `fm-route` Step 1d.
+  `${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md` instead of porting the legacy mechanism, and by `fm-route` Step 1d.
   Not a gate: the flow is verified through `e2eScenarios` (the storefront contract under MSW, the real
   gateway on staging).
 - **`sso`** — `initApp()` `?ts` capture, `AuthHanaService`/`AuthHanaTSService`, `passAuth`,
   `POST_HANA_VERIFY_TIME`, fail-open `error.status === 0`. (hana only.) Consumed by
-  `templates/hana-sso.md` as the **generation** contract (the `?ts` flow ports to a `clientLoader`),
+  `${CLAUDE_PLUGIN_ROOT}/templates/hana-sso.md` as the **generation** contract (the `?ts` flow ports to a `clientLoader`),
   and verified as **behavior** through `e2eScenarios` — an SSO entry is a user flow, which is the
   `e2e` gate's job. Record the trigger so the planner emits the scenario; do not add a gate.
 
 ### 6. Shared-package candidates
-For each piece of logic, classify per `templates/shared-package-spec.md`:
+For each piece of logic, classify per `${CLAUDE_PLUGIN_ROOT}/templates/shared-package-spec.md`:
 - `shared-domain` — pure logic (validators, date math, coupon math) with no Angular/DI.
 - `shared-data` — axios client, DTO models, query hooks.
 - `shared-types` — DTO/zod, the response envelope, event enums.
@@ -143,13 +143,13 @@ source proves the branch is dead code. `fm-plan` reconciles the plan against thi
 For every point the legacy screen shows the user text — form error flags, alert/toast calls,
 inline messages, modal titles, and any string handed to a backend that selects a template (an OTP
 email subject) — record **where the copy comes from**, not just that it exists. Read
-`templates/i18n-copy-parity.md` first. Mechanisms:
+`${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md` first. Mechanisms:
 `localized-key` (a fixed i18n key) · `errorCode-map` (response `errorCode` → key via a lookup
 table; record the table's file and the code list) · `empty-string` (send nothing; the backend
 supplies its default) · `server-message` (render the server's text verbatim — rare, and never
 assume it).
 The response `errorMessage` is **not** display copy: the backend resolves it against a hardcoded
-EN locale (OMH-784), so rendering it puts English on every non-English screen — legacy does not
+EN locale, so rendering it puts English on every non-English screen — legacy does not
 display it (its login call returns `of(false)`, not the server message). Also note, per key, whether
 the copy value carries **markup** (`<br/>`, `<a href>`) — that decides the render mode and whether a
 path inside the value must follow the migration's route scheme.
@@ -186,7 +186,7 @@ fire/no-fire, not just the branch.
 Sections 11–14 are the rest of the page's behavioral contract: how it leaves itself, what it sends,
 what it stores and what state it keeps. Each is emitted as an array with `mustPreserve: true` unless
 the source proves the entry dead, and `fm-plan` reconciles the plan against every one of them exactly
-as it does `behavioralVariants` (`templates/migration-plan-schema.md` → Legacy inventory
+as it does `behavioralVariants` (`${CLAUDE_PLUGIN_ROOT}/templates/migration-plan-schema.md` → Legacy inventory
 reconciliation). They exist because the review record shows these four are where ported code drifted
 most while every gate stayed green.
 
@@ -214,7 +214,7 @@ most while every gate stayed green.
   per distinct `totalToScroll` (it stays latched at an unchanged height, so a failed page is not
   retried until the content grows), and never checks on init (`immediateCheck` is declared but not
   read). An `IntersectionObserver` port that fires on every intersection, or on mount, is a request
-  legacy never sent (OMH-935 #362).
+  legacy never sent.
 - `firesPerAction` — `every` when legacy sends it on each action (the effect POSTs and the reducer
   overwrites), `once` when the store is reused. This decides the TanStack Query cache policy
   (`angular-to-react-mapping.md` → state).
@@ -338,7 +338,7 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
 - Read-only against legacy source. The only file you write is `analysis.json`.
 - Evidence before claims: every entry carries an anchor. If you cannot find a pattern, say so
   in `openQuestions` — do not invent it.
-- Consult `templates/angular-to-react-mapping.md` for the canonical `react` target of each
+- Consult `${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md` for the canonical `react` target of each
   `angular` idiom; put the catalog section id in `catalogRef`.
 - Enumerate the **full** set for every conditional-render variant — the default-environment case
   (e.g. PC-KO) is not the full set. A variant you record only for the default locale/device is a
@@ -349,6 +349,6 @@ Write to `outPath` (Read-Modify-Write if it exists). Shape:
 - Copy is not "obvious": record `copySources[]` for every user-visible text point, especially on
   **failure** paths. "The response has an `errorMessage` field" is not evidence that legacy shows
   it — check what the legacy component actually renders (usually a localized key or an `errorCode`
-  map). An unrecorded copy rule is re-derived wrongly on every screen (`templates/i18n-copy-parity.md`).
+  map). An unrecorded copy rule is re-derived wrongly on every screen (`${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`).
 - Keep the final message to the coordinator short: target, risk, required gates, shared
   candidates count, and any open questions — in `workingLanguage`.

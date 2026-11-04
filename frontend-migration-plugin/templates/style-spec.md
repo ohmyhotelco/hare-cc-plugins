@@ -115,8 +115,8 @@ an empty description — say so:
                  "why": "probed seq 100226 has 1 city group; the strip cannot overflow at n=1" }
 ```
 
-`contentDependent: true` binds both downstream stages: `tdd-cycle-runner` MUST implement the value
-(it is not dismissible as "measured 0"), and the gate MUST drive the element with a **synthetic
+`contentDependent: true` binds both downstream stages: `tdd-cycle-runner` must implement the value
+(it is not dismissible as "measured 0"), and the gate must drive the element with a **synthetic
 overload** instead of the fixture's natural content. It is also the honest record of what the capture
 did and did not establish.
 
