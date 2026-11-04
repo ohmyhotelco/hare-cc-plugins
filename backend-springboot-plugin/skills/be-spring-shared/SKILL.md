@@ -180,7 +180,7 @@ public record EmployeeController(
 
 1. Select one incomplete test scenario (`- [ ]` item)
 2. If the minimum method signature is not defined, add only the method(s) needed for that scenario (empty body or default return). Do not add methods for other scenarios.
-3. If you defined a method signature in step 2, request a review
+3. In an interactive session, if you defined a method signature in step 2, request a review
 4. Convert the selected scenario into a concrete, executable test
 5. Run the test and check the result
 6. Confirm that the test fails. If it passes unexpectedly, stop and request review

@@ -355,7 +355,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **When to use**: To reference rules or check for violations in recent work.
 
-**What happens**: Displays rules from CLAUDE.md by section (commit, tdd, build, coding, api, jpa) and checks recent work for violations. Can auto-fix simple violations (e.g., missing final newline).
+**What happens**: Displays rules from the be-spring-shared skill by section (commit, tdd, build, coding, api, jpa) and checks recent work for violations. Can auto-fix simple violations (e.g., missing final newline).
 
 ---
 

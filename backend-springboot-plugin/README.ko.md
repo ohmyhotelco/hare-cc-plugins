@@ -355,7 +355,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **사용 시점**: 규칙 확인 또는 최근 작업의 위반 사항 검출 시.
 
-**동작**: CLAUDE.md에서 섹션별 규칙 표시 (commit, tdd, build, coding, api, jpa) 및 최근 작업의 위반 사항 검출. 간단한 위반(예: 최종 줄바꿈 누락)은 자동 수정 가능.
+**동작**: be-spring-shared 스킬에서 섹션별 규칙 표시 (commit, tdd, build, coding, api, jpa) 및 최근 작업의 위반 사항 검출. 간단한 위반(예: 최종 줄바꿈 누락)은 자동 수정 가능.
 
 ---
 

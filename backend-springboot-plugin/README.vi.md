@@ -355,7 +355,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **Khi nào dùng**: Tham khảo quy tắc hoặc kiểm tra vi phạm trong công việc gần đây.
 
-**Hoạt động**: Hiển thị quy tắc từ CLAUDE.md theo section (commit, tdd, build, coding, api, jpa) và kiểm tra vi phạm trong công việc gần đây. Có thể tự động sửa vi phạm đơn giản (ví dụ: thiếu newline cuối file).
+**Hoạt động**: Hiển thị quy tắc từ skill be-spring-shared theo section (commit, tdd, build, coding, api, jpa) và kiểm tra vi phạm trong công việc gần đây. Có thể tự động sửa vi phạm đơn giản (ví dụ: thiếu newline cuối file).
 
 ---
 

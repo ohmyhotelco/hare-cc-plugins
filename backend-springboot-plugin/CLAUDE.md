@@ -5,7 +5,7 @@ This file is for people editing the plugin. It is **not loaded into any agent's 
 preloaded through each agent's `skills:` frontmatter. Do not put agent-facing rules here.
 
 - Plugin-relative paths in agent and skill bodies use `${CLAUDE_PLUGIN_ROOT}`; launches use
-  `subagent_type: "backend-springboot-plugin:<agent>"`, because other plugins ship agents with the same names.
+  `subagent_type: "backend-springboot-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
 - After editing: `claude plugin validate backend-springboot-plugin` and `scripts/check-plugin-consistency.py backend-springboot-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.
 
 ## Pipeline
