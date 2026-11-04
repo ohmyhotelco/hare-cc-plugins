@@ -219,7 +219,7 @@ say why not); Jira as `KEY: link`; the **Rebase confirmation** checkbox with tod
 0b's verdict (or `TODO(owner): rebase + re-measure` when it could not be confirmed); **Rollback plan**
 when Risk is High; **Migration notes on every flip PR** — it edits the edge artifact, so name the
 entries changed, who applies them, propagation time, zero-downtime or not, and the `--revert` steps;
-Gate evidence with each gate's freshness **recomputed at this HEAD** (recipe: Step 1a in `${CLAUDE_PLUGIN_ROOT}/skills/fm-route/references/flag-on-gates.md`), never a stamp copied forward;
+Gate evidence with each gate's freshness **recomputed at this HEAD** (on `--flag-off`, the working-tree hash with no `--rev`: `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → "Gate Result Accounting"), never a stamp copied forward;
 Deferred items pointing at this page's `cutover-ledger.json` rows; **Gate impact** — the output of
 `${CLAUDE_PLUGIN_ROOT}/scripts/gate-impact.sh --base <Step 0b's base>`, with the re-gate plan for every
 in-flight page it lists; and **Claims swept** — the records sweep and the result of
