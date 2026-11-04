@@ -509,28 +509,37 @@ def check_references(plugin: Path, files: dict[str, tuple[Path, str]]) -> list[F
         shared = (sdir / "SKILL.md").read_text()
         heads = {m.group(1).strip() for m in re.finditer(r"^#{2,4}\s+(.+?)\s*$", shared, re.M)}
         heads |= {m.group(1).strip().rstrip(".") for m in re.finditer(r"^\*\*(.+?)\*\*[:.]?", shared, re.M)}
-        ref = re.compile(re.escape(sdir.name) + r"`?\s+§\s+([A-Za-z0-9 &'`\-]+?)(?=[,.;)|\n]|\s+—|\s+\(|\s+\|)")
+        ref = re.compile(re.escape(sdir.name) + r"`?\s+§\s+([A-Za-z0-9 &'`+\-]+?)(?=[,.:;)|\n]|\s+—|\s+\(|\s+\|)")
         for name, (path, text) in files.items():
             for m in ref.finditer(text):
-                hl = m.group(1).strip().lower()
-                if not any(hl in x.lower() or x.lower() in hl for x in heads):
-                    out.append(Finding(str(path), lineno(text, m.start()), "dangling-section",
-                                       f'references {sdir.name} § "{m.group(1).strip()}", which is not a heading there'))
+                for part in m.group(1).split("+"):
+                    hl = part.strip().lower()
+                    if not any(hl in x.lower() or x.lower() in hl for x in heads):
+                        out.append(Finding(str(path), lineno(text, m.start()), "dangling-section",
+                                           f'references {sdir.name} § "{part.strip()}", which is not a heading there'))
     return out
 
 
 def check_plugin_paths(name: str, agents: dict[str, tuple[Path, str]],
                        skills: dict[str, tuple[Path, str]]) -> list[Finding]:
     """Installed, the working directory is the user's project, so a bare `templates/x.md` finds nothing,
-    and an unqualified agent name can reach another plugin's agent of the same name."""
+    and the Agent tool rejects an unqualified plugin agent name, leaving the model to retry from a list."""
     out = []
     for path, text in [v for v in agents.values()] + [v for v in skills.values()]:
-        for m in re.finditer(r"(?<![/}\w.-])templates/[a-z0-9-]+\.(?:md|json)", text):
+        for m in re.finditer(r"(?<![/}\w.-])templates/(?:[a-z0-9-]+\.(?:md|json))?|(?<=[Rr]ead `)agents/[a-z0-9-]+\.md", text):
             out.append(Finding(str(path), lineno(text, m.start()), "bare-plugin-path",
                                f"{m.group(0)} resolves against the project; use ${{CLAUDE_PLUGIN_ROOT}}/{m.group(0)}"))
-        for m in re.finditer(r'(\bTask\()?subagent_type:\s*"([a-z0-9-]+)"', text):
+        for m in re.finditer(r'subagent_type:\s*"?([a-z0-9-]+)"?(?![a-z0-9:-])', text):
             out.append(Finding(str(path), lineno(text, m.start()), "unqualified-agent",
-                               f'launches "{m.group(2)}" without the `{name}:` qualifier'))
+                               f'launches "{m.group(1)}" without the `{name}:` qualifier'))
+    # The prose spellings name no subagent_type at all; a skill that qualifies the agent anywhere is fine.
+    prose = re.compile(r"[Ll]aunch(?: the| an?)? (?:`|\*\*)([a-z0-9-]+)(?:`|\*\*)|`([a-z0-9-]+)`(?: agent)?\s+\(Agent(?: tool)?\)")
+    for path, text in skills.values():
+        for m in prose.finditer(text):
+            agent = m.group(1) or m.group(2)
+            if agent in agents and f"{name}:{agent}" not in text:
+                out.append(Finding(str(path), lineno(text, m.start()), "unqualified-agent",
+                                   f'launches `{agent}` in prose without `subagent_type: "{name}:{agent}"`'))
     return out
 
 
