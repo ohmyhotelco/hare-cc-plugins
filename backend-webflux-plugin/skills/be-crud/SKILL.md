@@ -13,7 +13,7 @@ Generate a complete CRUD scaffold for a new entity following the project's CQRS 
 - **Manual mode** (default): `be-crud Employee email:String:unique:pattern=email displayName:String:max=20`
 - **Spec-driven mode**: `be-crud Employee` (when plan.json exists) or `be-crud --all employee-management`
 
-This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
+This skill has two layers: **file generation** (Steps 0–5 — deterministic templating from `${CLAUDE_PLUGIN_ROOT}/templates/`, no open-ended judgment) and **pipeline bookkeeping** (Steps 2.5, 2.6, 3.5, 6, 7 — lock/demotion/progress-file safety). The bookkeeping steps exist because this skill's output feeds `be-code` → `be-verify` → `be-review` later in the pipeline (see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Pipeline); a corrupted or silently-overwritten progress file breaks that chain for every skill that runs after this one. They are file-system safety guards, not optional prompt scaffolding — do not skip any of them.
 
 ## Examples
 

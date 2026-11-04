@@ -118,7 +118,7 @@ gateway, or both, and the exact tool name differs per setup (e.g.
 
 ### Step 1: Understand the Ticket
 
-Read `agents/backend-planner.md` first -- this step and Step 1.5 apply its
+Read `${CLAUDE_PLUGIN_ROOT}/agents/backend-planner.md` first -- this step and Step 1.5 apply its
 Phase 1 (existing-code scan) and Phase 2 (spec-to-CQRS mapping) rules by
 reference throughout; without reading it here those rules are not actually
 in context when this step needs to apply them, since a fresh agent
