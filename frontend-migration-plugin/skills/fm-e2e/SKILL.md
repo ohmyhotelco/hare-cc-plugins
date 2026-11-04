@@ -67,7 +67,7 @@ compared. Step 4 compares against both: this gate
 legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
 (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting E).
 
-Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
+Launch `e2e-test-runner` (`subagent_type: "frontend-migration-plugin:e2e-test-runner"`) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
 (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
 `app`, `page`, `planPath`, `styleSpecPath` =

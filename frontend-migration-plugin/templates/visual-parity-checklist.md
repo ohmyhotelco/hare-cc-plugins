@@ -151,7 +151,7 @@ repo may have moved:
 - **The rule.** For any axis whose legacy value is bespoke (a radius, a spacing, a font), the generation
   target is the style-spec's **computed value**, reproduced as an arbitrary value; a scale utility is
   acceptable only when its computed value equals the spec (verified, not assumed). A matching class name
-  is never evidence — plugin CLAUDE.md → the classname-≠-style-evidence rule and `templates/style-spec.md`.
+  is never evidence — `templates/style-spec.md` § Classname ≠ style evidence.
 
 This list is the plugin-owned twin of a project's own css-parity checklist: a project may carry more
 traps in `docs/migration/**/css-parity-checklist.md`; a generator reads both.
