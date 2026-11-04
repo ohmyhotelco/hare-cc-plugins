@@ -73,7 +73,7 @@ Update progress status to `"drafting"` when requirements gathering is complete.
 
 ### Step 3: Generate Draft
 
-Using the analyst's collected requirements and the 3 templates in `templates/`:
+Using the analyst's collected requirements and the 3 templates in `${CLAUDE_PLUGIN_ROOT}/templates/`:
 
 1. Read all 3 templates: `spec-overview.md`, `screens.md`, `test-scenarios.md`
 2. Fill in all sections with the gathered requirements

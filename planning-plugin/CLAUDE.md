@@ -3,7 +3,7 @@
 This file is for people editing the plugin. It is **not loaded into any agent's context** (plugin-root
 `CLAUDE.md` files are not injected); a rule an agent needs belongs in that agent or in the skill that launches it.
 Plugin-relative paths in agent and skill bodies use `${CLAUDE_PLUGIN_ROOT}`; launches use
-`subagent_type: "planning-plugin:<agent>"`, because other plugins ship agents with the same names.
+`subagent_type: "planning-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
 
 A Claude Code plugin that generates functional specifications through multi-agent collaboration.
 
