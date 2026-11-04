@@ -16,7 +16,7 @@ any agent's context, so nothing here may be assumed to exist anywhere else.
 |---|---|---|
 | Paths, apps, languages, viewports, rule-list locations | `.claude/frontend-ohmyhotel-plugin.json` in the product repo (written by `fo-init`) | this plugin's templates |
 | What a screen does | the spec snapshot under `apps[].answerKeys.spec.dir/<nn>-<screen>/` | memory of a previous screen |
-| Development and CTO decisions (WebView contract, external URLs, request conventions, token handling, hosts, payment) | the product repo's `rules.adrDir` and `rules.rulesDir` (`*.json` lists have fixed shapes, see `templates/rule-lists.md`) | this plugin |
+| Development and CTO decisions (WebView contract, external URLs, request conventions, token handling, hosts, payment) | the product repo's `rules.adrDir` and `rules.rulesDir` (`*.json` lists have fixed shapes, see `${CLAUDE_PLUGIN_ROOT}/templates/rule-lists.md`) | this plugin |
 | How to build and verify | this plugin's skills, agents and templates | — |
 
 The product repo's `CLAUDE.md` reaches every agent automatically; it points at `docs/rules/`. If a
@@ -41,7 +41,7 @@ judgement such as "looks complete"; if a gate did not run, the file says so (`"e
 Tree hash: `fo-screen-hash --app <app> --screen <screen>` (on `PATH` while the plugin is enabled) is the
 one definition of what a screen's evidence covers — the screen folder minus `<Screen>.spec.md`, the
 plan's route modules, ui-kit gap files and package additions. The gates' own Playwright specs
-(`e2e/**`, laid out as `templates/e2e-playwright.md` § The e2e tree fixes it) are **not** in it: the
+(`e2e/**`, laid out as `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` § The e2e tree fixes it) are **not** in it: the
 visual/e2e/seo gates write them, and hashing them would stale every
 earlier gate each time a later one runs. Every producer and consumer uses it; nothing hashes its own
 path list. A `pass` with no computable hash is refused by `fo-evidence` (manual gates excepted). A record whose `treeHash` equals the current value may be reused; otherwise it is

@@ -79,7 +79,7 @@ Everything else takes the defaults from the design document §3 (`seo`, `gates`,
      the envelope and an empty `entries` array, `source` set to `TBD`
    - `docs/adr/README.md` from `${CLAUDE_PLUGIN_ROOT}/templates/adr-readme.md` when `docs/adr/` has no README
    - `<docs.screenNotesDir>/README.md` and `<docs.openQuestions>` from `${CLAUDE_PLUGIN_ROOT}/templates/screen-notes-readme.md`
-     and `templates/open-questions.md` when absent (the notes themselves are written by people as decisions land)
+     and `${CLAUDE_PLUGIN_ROOT}/templates/open-questions.md` when absent (the notes themselves are written by people as decisions land)
    - `docs/figma-manifest.json` as `{ "fileKey": null, "screens": {} }` when configured and absent (`fo-figma` fills `fileKey`)
    - `<gates.evidenceDir>/<app>/progress.json` as `{ "app": "<name>", "screens": {}, "updatedAt": "<ISO>" }`
    - `specs/MANIFEST.md` from `${CLAUDE_PLUGIN_ROOT}/templates/specs-manifest.md` (header only)
