@@ -12,9 +12,9 @@ Read-only agent — inspects SEO compliance of generated pages across 6 dimensio
 
 ## Input Parameters
 
-The skill will provide these parameters in the prompt:
+The `hp-review-run` workflow passes these parameters in the prompt:
 
-- `pageName` — page identifier (or `"all"` for full site review)
+- `pageName` — page identifier
 - `planFile` — path to `page-plan.json`
 - `projectRoot` — project root path
 
@@ -96,25 +96,14 @@ Each dimension scored 0-10:
 - **4-6**: Some Critical issues
 - **0-3**: Multiple Critical issues
 
-Overall score = weighted average of all dimensions.
-
 ### Phase 3: Output
 
-Produce a review report with:
+Return this report. The `hp-review-run` workflow computes the overall score, the verdict and the issue counts from `dimensions` and `issues`, so leave those out. Take each `weight` from the dimension's heading.
 
 ```json
 {
-  "type": "seo",
-  "timestamp": "2026-03-23T...",
-  "overallScore": 8.5,
-  "verdict": "pass",
   "dimensions": [
-    {
-      "name": "metadata_completeness",
-      "score": 9,
-      "weight": 0.20,
-      "issues": []
-    }
+    { "name": "metadata_completeness", "score": 9, "weight": 0.20 }
   ],
   "issues": [
     {
@@ -125,21 +114,9 @@ Produce a review report with:
       "line": 15,
       "fixHint": "Add loading=\"eager\" to the hero <Image /> component"
     }
-  ],
-  "summary": {
-    "critical": 0,
-    "warning": 2,
-    "info": 1,
-    "total": 3
-  }
+  ]
 }
 ```
-
-### Verdict Logic
-
-- **pass**: overall score >= 7 AND critical issues == 0 AND warning count <= 3
-- **pass_with_warnings**: overall score >= 7 AND critical issues == 0 AND warning count > 3
-- **fail**: overall score < 7 OR critical issues >= 1
 
 ## Rules
 
@@ -147,4 +124,3 @@ Produce a review report with:
 - **Evidence-based** — cite specific file and line for every issue
 - **Actionable fixHint** — every issue must include a concrete fix suggestion
 - **Report every finding** — give each SEO issue a severity and say so when you are unsure; a low-impact issue is `info`, not an omission, and an issue you are unsure of is never `critical`
-- **Per-page analysis** — review each page independently, then aggregate

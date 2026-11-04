@@ -3,14 +3,12 @@ name: hp-gen
 description: "Generate Astro pages and sections from page plans. Run /homepage-plugin:hp-plan first."
 argument-hint: "[page-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 ---
 
 # Code Generation Skill (3-Phase Pipeline)
 
-Generates Astro pages, sections, and shared infrastructure from page plans (`page-plan.json`). Each phase runs in a separate agent session for context isolation.
-
-Phases run in order, because each depends on the previous phase's output: start a phase only after the previous agent has reported.
+Generates Astro pages, sections, and shared infrastructure from page plans (`page-plan.json`). The `homepage-plugin:hp-gen-run` workflow runs the agents and owns their order and stop rules; this skill owns what surrounds it: preconditions, locks, the user's confirmation, verification, progress and the summary.
 
 Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
 
@@ -41,14 +39,14 @@ For each page, check `docs/pages/{page-name}/.progress/{page-name}.json`:
 - Status `gen-failed` → check `generation-state.json` for resume opportunity
 
 **Resume support**: If `generation-state.json` exists with incomplete phases, offer to resume from the last incomplete phase instead of starting over:
-1. Read `docs/pages/{page-name}/.implementation/homepage/generation-state.json`
+1. Read `docs/pages/_shared/generation-state.json`
 2. If `phases.infrastructure.status === "completed"` → skip Phase 1
 3. For Phase 2, check each page's status — skip pages already marked as `completed`, resume from first `pending` or `failed` page
 4. Ask user: "Resume from {phase/page}? Or restart from scratch?"
 
 ### Step 3: Acquire Lock
 
-Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
+Take a lock for every page in the run. Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 
 **Lock file format** (JSON):
 ```json
@@ -62,11 +60,11 @@ Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 **Acquisition protocol**:
 1. Check if `.lock` file exists
 2. If exists → read `lockedAt` field → parse as ISO-8601 → compare with current time
-   - If age < 30 minutes → exit with "Another homepage-plugin operation is in progress"
+   - If age < 30 minutes → release any lock this run took and exit with "Another homepage-plugin operation is in progress"
    - If age >= 30 minutes → delete stale lock, log warning, proceed to step 3
 3. Write new `.lock` file with `lockedBy: "hp-gen"`, `lockedAt: new Date().toISOString()`, `pageName`
 
-**Release**: Always delete `.lock` file on completion or failure (in Step 8 and Error Handling).
+**Release**: Always delete `.lock` file on completion or failure (in Step 8 and on any early exit).
 
 ### Step 4: Confirm with User
 
@@ -78,68 +76,32 @@ Display the generation plan:
 
 Ask user to confirm before proceeding.
 
-### Step 5: Phase 1 — Infrastructure
+### Step 5: Run the Workflow
 
-Determine if this is the first page being generated (no existing layout/shared components).
+Make sure `docs/pages/_shared/generation-state.json` exists and lists every page in the run under `phases.pages` with status `pending`, keeping entries already there. `page-assembler` records each finished entry in this file, so progress survives a session that dies mid-run.
 
-Launch the `page-assembler` agent (`subagent_type: "homepage-plugin:page-assembler"`) with the following parameters:
-- `pageName` — `"_infrastructure"` (special value for infrastructure phase)
-- `planFile` — path to the first page's `page-plan.json`
-- `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
+Call the `Workflow` tool with `name: "homepage-plugin:hp-gen-run"` and `args`:
+
 - `projectRoot` — project root path
 - `config` — homepage-plugin configuration object
-- `isFirstPage` — `true`
+- `stateFile` — `docs/pages/_shared/generation-state.json`
+- `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
+- `infrastructure` — `{ planFile }` with the first page's `page-plan.json` when this is the first page being generated (no existing layout or shared components) and `phases.infrastructure.status` is not `completed`; otherwise `null`
+- `pages` — `[{ pageName, planFile }]` in order, leaving out pages a resume skips
+- `fileKey` — Figma file key from `.claude/homepage-plugin.json` (if available)
+- `mcpToolPrefix` — MCP tool prefix (auto-detect from available tools: `mcp__figma__*`, `mcp__figma_desktop__*`, or `mcp__Figma__*`)
 
-The agent generates:
-- MarketingLayout.astro
-- Header.astro + Footer.astro + MobileNav.tsx
-- SEO utilities (structured-data.ts)
-- i18n setup (utils.ts + translation files)
-- Global styles (globals.css)
-- Content Collection config (if MDX enabled)
+The workflow runs `page-assembler` for the infrastructure, then `section-generator` and `page-assembler` for each page in turn. Failed infrastructure stops the run. A failed page does not stop the next one.
 
-> ESLint config is generated later in Phase 3 (Step 7) when `eslintTemplate` is enabled and no config exists.
+Tell the user what will run. The result arrives as a task notification; continue at Step 6 when it does. If the call is refused or fails, release the locks and report it.
 
-Update `generation-state.json`:
-```json
-{
-  "phases": {
-    "infrastructure": { "status": "completed", "completedAt": "..." }
-  }
-}
-```
+### Step 6: Record Failures
 
-### Step 6: Phase 2 — Sections & Pages
+From the workflow result, update `generation-state.json`:
 
-For each page (sequential):
+- `stoppedAt: "infrastructure"` — set `phases.infrastructure` to `{ "status": "failed", "error": ... }`, skip Step 7, and treat every page in the run as failed
+- each entry in `pages` with `status: "failed"` — set `phases.pages.{page}` to `{ "status": "failed", "error": ... }` from its `failedAgent` and `failure`
 
-1. Launch the `section-generator` agent (`subagent_type: "homepage-plugin:section-generator"`) with:
-   - `pageName` — page identifier
-   - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
-   - `projectRoot` — project root path
-   - `config` — homepage-plugin configuration object
-   - `fileKey` — Figma file key from `.claude/homepage-plugin.json` (if available)
-   - `mcpToolPrefix` — MCP tool prefix (auto-detect from available tools: `mcp__figma__*`, `mcp__figma_desktop__*`, or `mcp__Figma__*`)
-
-   The agent will:
-   - Generate all sections for this page
-   - Skip sections marked as `reuse: true`
-   - Generate React islands for interactive sections
-
-2. Launch the `page-assembler` agent (`subagent_type: "homepage-plugin:page-assembler"`) with:
-   - `pageName` — page identifier
-   - `planFile` — path to `docs/pages/{page-name}/page-plan.json`
-   - `layoutPlanFile` — `docs/pages/_shared/layout-plan.json`
-   - `projectRoot` — project root path
-   - `config` — homepage-plugin configuration object
-   - `isFirstPage` — `false`
-
-   The agent will:
-   - Assemble page from generated sections
-   - Add SEO metadata + JSON-LD
-   - Wire i18n translations
-
-Update `generation-state.json` after each page:
 ```json
 {
   "phases": {
@@ -174,8 +136,8 @@ Run verification checks:
 
 For each page, update `docs/pages/{page-name}/.progress/{page-name}.json`:
 
-- All verifications pass → status: `generated`
-- Any verification fails → status: `gen-failed`
+- The page failed in the workflow, or any verification fails → status: `gen-failed`
+- Otherwise → status: `generated`
 
 Record verification results and timestamps.
 
@@ -195,9 +157,3 @@ Show:
 ## Communication Language
 
 Read `defaultLocale` from `.claude/homepage-plugin.json` for all user-facing output.
-
-## Error Handling
-
-- If an agent fails, record the failure in `generation-state.json` and continue to the next page
-- If infrastructure generation fails, abort all subsequent pages (infrastructure is a prerequisite)
-- Always release the lock file, even on failure

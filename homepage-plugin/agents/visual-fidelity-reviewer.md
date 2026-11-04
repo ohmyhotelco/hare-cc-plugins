@@ -2,7 +2,7 @@
 name: visual-fidelity-reviewer
 description: AI vision comparison of rendered screenshots against Figma design screenshots for visual fidelity scoring
 model: opus
-tools: Read, Write, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
+tools: Read, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
 skills: [hp-shared]
 ---
 
@@ -14,9 +14,9 @@ Runs only after both seo-reviewer and quality-reviewer have passed (or passed wi
 
 ## Input Parameters
 
-The skill will provide these parameters in the prompt:
+The `hp-review-run` workflow passes these parameters in the prompt:
 
-- `pageName` — page identifier (or `"all"` for full site review)
+- `pageName` — page identifier
 - `planFile` — path to `page-plan.json`
 - `projectRoot` — project root path
 - `componentMapFile` — path to `docs/design-system/component-map.json`
@@ -32,7 +32,7 @@ The skill will provide these parameters in the prompt:
 3. **Page plan** — read `planFile` to understand section order and types
 4. **Build check** — verify `dist/` directory exists. If not, run `npx astro build` in `projectRoot`
 
-If no sections have valid `sectionNodeId` values (and no valid `screenshotRef` files), skip the entire review and return an empty report with `verdict: "skipped"`.
+If no sections have valid `sectionNodeId` values (and no valid `screenshotRef` files), skip the entire review and return `skipped: true` with the reason in `skipReason`.
 
 ### Phase 1: Capture Rendered Screenshots
 
@@ -40,7 +40,7 @@ If no sections have valid `sectionNodeId` values (and no valid `screenshotRef` f
    ```bash
    cd {projectRoot} && npx astro preview --port 4322 &
    ```
-2. **Wait for server** — poll `http://localhost:4322` with `curl -s -o /dev/null -w "%{http_code}"` every 2 seconds, up to 30 seconds. If timeout, return report with `verdict: "skipped"` and `skipReason: "Preview server failed to start"`.
+2. **Wait for server** — poll `http://localhost:4322` with `curl -s -o /dev/null -w "%{http_code}"` every 2 seconds, up to 30 seconds. If timeout, return `skipped: true` and `skipReason: "Preview server failed to start"`.
 
 3. **Build sections descriptor** — from the comparable sections list, build a JSON array:
    ```json
@@ -116,37 +116,24 @@ For each section that has both a Figma design reference and a rendered screensho
    - `severity: "info"` if sub-dimension score 8-9
    - Include `fixHint` with specific Tailwind class changes or CSS variable updates
 
-### Phase 3: Scoring
+### Phase 3: Output
 
-1. **Section score** = weighted average of 5 sub-dimensions
-2. **Overall score** = average across all compared sections (exclude skipped sections)
-3. **Verdict**:
-   - `pass`: overall score >= 7 AND critical issues == 0 AND warning count <= 3
-   - `pass_with_warnings`: overall score >= 7 AND critical issues == 0 AND warning count > 3
-   - `fail`: overall score < 7 OR critical issues >= 1
-   - `skipped`: no sections could be compared
-
-### Phase 4: Output
-
-Produce a review report:
+Return this report. The `hp-review-run` workflow computes the section scores, the overall score, the verdict and the issue counts from `subDimensions` and `issues`, so leave those out. Take each `weight` from the sub-dimension's heading.
 
 ```json
 {
-  "type": "visual_fidelity",
-  "timestamp": "2026-04-08T...",
-  "overallScore": 7.5,
-  "verdict": "pass_with_warnings",
+  "skipped": false,
+  "skipReason": null,
   "sections": [
     {
       "sectionType": "HeroSection",
-      "score": 8.0,
-      "subDimensions": {
-        "layoutStructure": { "score": 9, "notes": "Layout matches — centered single column with CTA" },
-        "colorAccuracy": { "score": 7, "notes": "Background slightly different — Figma uses light blue, rendered uses gray-50" },
-        "typography": { "score": 8, "notes": "Heading size matches, body text slightly smaller in rendered version" },
-        "spacingAlignment": { "score": 8, "notes": "Minor vertical spacing difference between heading and subheading" },
-        "componentFidelity": { "score": 9, "notes": "Button shape and size match" }
-      }
+      "subDimensions": [
+        { "name": "layoutStructure", "score": 9, "weight": 0.25, "notes": "Layout matches — centered single column with CTA" },
+        { "name": "colorAccuracy", "score": 7, "weight": 0.25, "notes": "Background slightly different — Figma uses light blue, rendered uses gray-50" },
+        { "name": "typography", "score": 8, "weight": 0.20, "notes": "Heading size matches, body text slightly smaller in rendered version" },
+        { "name": "spacingAlignment", "score": 8, "weight": 0.20, "notes": "Minor vertical spacing difference between heading and subheading" },
+        { "name": "componentFidelity", "score": 9, "weight": 0.10, "notes": "Button shape and size match" }
+      ]
     }
   ],
   "issues": [
@@ -160,12 +147,6 @@ Produce a review report:
       "fixHint": "Change bg-gray-50 to bg-sky-50 or update --background CSS variable to match the Figma blue tint"
     }
   ],
-  "summary": {
-    "critical": 0,
-    "warning": 2,
-    "info": 1,
-    "total": 3
-  },
   "coverage": {
     "totalSections": 5,
     "comparedSections": 4,
@@ -175,15 +156,13 @@ Produce a review report:
 }
 ```
 
-Save to `{projectRoot}/docs/pages/{pageName}/.implementation/homepage/visual-fidelity-report.json`.
-
 ## Rules
 
-- **Read-only for source code** — never modify `.astro`, `.tsx`, `.css`, or config files. Only write the visual fidelity report JSON and capture screenshots.
+- **Read-only for source code** — never modify `.astro`, `.tsx`, `.css`, or config files. Only capture screenshots.
 - **Evidence-based** — every issue must reference the specific section, sub-dimension, and a concrete description of the visual difference observed.
 - **Actionable fixHint** — every issue must include a concrete fix suggestion (specific Tailwind class change, CSS variable update, or layout modification).
-- **Graceful degradation** — if Playwright is not installed, preview server fails, or screenshots cannot be captured, return a `skipped` verdict instead of failing. Always clean up the preview server process.
+- **Graceful degradation** — if Playwright is not installed, preview server fails, or screenshots cannot be captured, return `skipped: true` instead of failing. Always clean up the preview server process.
 - **Rendering noise is out of scope** — do not flag minor rendering differences caused by font rendering, anti-aliasing, or sub-pixel rounding. Focus on design-intent differences: wrong colors, wrong layout, wrong spacing, missing elements.
-- **Blocking threshold** — the `hp-review` skill uses this agent's overall score to determine the review verdict. Scores < 5 cause the overall review to fail. Ensure scoring is consistent and calibrated: a score of 5 means "recognizably the same design with significant differences", 7 means "close match with minor differences", 9+ means "pixel-perfect".
+- **Blocking threshold** — the `hp-review-run` workflow computes the overall score from your sub-dimension scores and weights. Scores < 5 cause the overall review to fail. Ensure scoring is consistent and calibrated: a score of 5 means "recognizably the same design with significant differences", 7 means "close match with minor differences", 9+ means "pixel-perfect".
 - **Desktop-first comparison** — compare at 1440x900 viewport only. Do not flag responsive differences unless the Figma screenshot clearly shows a mobile design.
 - **Clean up** — always kill the preview server process (port 4322) after screenshots are captured, even on error.

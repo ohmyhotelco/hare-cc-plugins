@@ -12,13 +12,14 @@ Assembles generated sections into complete Astro pages. Creates page files with 
 
 ## Input Parameters
 
-The skill will provide these parameters in the prompt:
+The `hp-gen-run` workflow passes these parameters in the prompt:
 
 - `pageName` — page identifier
 - `planFile` — path to `page-plan.json`
 - `layoutPlanFile` — path to `docs/pages/_shared/layout-plan.json`
 - `projectRoot` — project root path
 - `config` — homepage-plugin configuration object
+- `stateFile` — path to `generation-state.json`
 - `isFirstPage` — whether this is the first page being generated (creates shared infrastructure)
 
 **Special value**: When `pageName === "_infrastructure"`, only run Phase 1 (Shared Infrastructure). Skip Phases 2-5 entirely — the page file will be created in a subsequent invocation with the actual page name.
@@ -132,6 +133,12 @@ Only on first page generation:
 1. **TypeScript check** — `npx tsc --noEmit`
 2. **Build check** — `npx astro build` (verify zero errors)
 3. Report results
+
+## Result
+
+When you finish, set your entry in `stateFile` to `{ "status": "completed", "completedAt": <now> }`: `phases.infrastructure` for `_infrastructure`, otherwise `phases.pages.{pageName}`. Then return `status: "done"` with the files you wrote.
+
+Return `status: "failed"` with the reason in `failure` when a check in Phase 5 still fails or the page could not be assembled, and leave `stateFile` alone; the skill records failures.
 
 ## Page Assembly Pattern
 

@@ -201,7 +201,7 @@ Xác nhận cài đặt:
 **Quy trình**:
 1. Xác thực kế hoạch trang và kiểm tra trạng thái sinh mã hiện có (hỗ trợ tiếp tục)
 2. Lấy khóa để ngăn chặn thao tác đồng thời
-3. Thực hiện 3 phase tuần tự, mỗi phase trong một phiên agent riêng:
+3. Thực hiện 3 phase tuần tự, mỗi agent trong một phiên riêng, thứ tự và quy tắc dừng do workflow `hp-gen-run` quản lý:
 
 | Phase | Agent | Chức năng |
 |-------|-------|-----------|
@@ -209,7 +209,7 @@ Xác nhận cài đặt:
 | Sections & Pages | section-generator + page-assembler | .astro sections, React islands, lắp ráp trang (mỗi trang) |
 | Verification | (trực tiếp) | TypeScript, ESLint, Astro build |
 
-4. Theo dõi tiến trình phase trong `generation-state.json` để hỗ trợ tiếp tục
+4. Theo dõi tiến trình phase trong `docs/pages/_shared/generation-state.json` để hỗ trợ tiếp tục
 5. Giải phóng khóa và cập nhật tiến trình
 
 **Hỗ trợ tiếp tục**: Nếu quá trình sinh mã bị gián đoạn, chạy lại `hp-gen` sẽ phát hiện các phase đã hoàn thành và đề xuất tiếp tục từ phase/trang chưa hoàn thành cuối cùng.
@@ -242,13 +242,14 @@ Xác nhận cài đặt:
 2. **Giai đoạn 1 — Đánh giá SEO**: agent seo-reviewer kiểm tra tính đầy đủ metadata, dữ liệu có cấu trúc, hệ thống phân cấp heading, tối ưu hình ảnh, sitemap/robots, chỉ số hiệu suất (6 chiều, chấm điểm 0-10)
 3. **Giai đoạn 2 — Đánh giá chất lượng** (chỉ khi SEO đạt): agent quality-reviewer kiểm tra khả năng truy cập WCAG AA, thiết kế responsive, bố cục component, TypeScript strictness, tính đầy đủ i18n, quy ước Astro (6 chiều, +1 Design Token Consistency khi design system tồn tại, chấm điểm 0-10)
 4. **Giai đoạn 3 — Đánh giá độ trung thực thị giác** (có điều kiện, chặn có điều kiện): visual-fidelity-reviewer chụp ảnh màn hình đã render và so sánh với ảnh chụp section Figma bằng AI vision. Chấm điểm cấu trúc layout, độ chính xác màu sắc, typography, khoảng cách và độ trung thực component. Chỉ chạy khi SEO + Chất lượng đạt và ảnh chụp Figma tồn tại. Điểm < 5 gây thất bại đánh giá; điểm 5-6 buộc đạt với cảnh báo; điểm >= 7 chỉ tư vấn.
-5. Lưu báo cáo đánh giá hợp nhất với chi tiết vấn đề (severity, file, line, fixHint)
+5. Lưu báo cáo đánh giá hợp nhất với chi tiết vấn đề (severity, file, line, fixHint). Workflow `hp-review-run` tính điểm, kết luận và trạng thái từ báo cáo của các reviewer
 6. Giải phóng khóa và cập nhật tiến trình
 
 **Kết quả trạng thái**:
-- Cả hai đạt sạch → `done`
+- Đạt và không có vấn đề critical hoặc warning → `done`
 - Đạt với cảnh báo → `reviewed`
-- Một trong hai không đạt → `review-failed`
+- Bất kỳ giai đoạn nào không đạt → `review-failed`
+- Một reviewer không trả về kết quả → trạng thái không đổi, chạy lại đánh giá
 
 ---
 
@@ -502,13 +503,13 @@ Tệp trạng thái trong `docs/pages/{page-name}/`:
 |-----|----------|
 | `page-plan.json` | Kế hoạch trang với section, metadata SEO, cấu hình i18n (đầu vào cho hp-gen) |
 | `.progress/{page-name}.json` | Theo dõi tiến trình pipeline |
-| `.implementation/homepage/generation-state.json` | Tiến trình phase với timestamp (cho phép tiếp tục) |
 | `.implementation/homepage/review-report.json` | Kết quả đánh giá hợp nhất (SEO + chất lượng + độ trung thực thị giác khi có sẵn) |
-| `.implementation/homepage/visual-fidelity-report.json` | Kết quả so sánh độ trung thực thị giác (tùy chọn, tạo bởi giai đoạn 3) |
 | `.implementation/homepage/fix-report.json` | Kết quả sửa lỗi với theo dõi vòng |
 | `.implementation/homepage/.lock` | Ngăn chặn thực thi đồng thời (tự động hết hạn sau 30 phút) |
 
 Kế hoạch layout chung: `docs/pages/_shared/layout-plan.json`
+
+Trạng thái sinh mã chung: `docs/pages/_shared/generation-state.json` (tiến trình phase với timestamp, cho phép tiếp tục)
 
 ### Máy trạng thái tiến trình
 
@@ -534,7 +535,7 @@ Các chuyển trạng thái bổ sung:
 
 - **Cơ chế khóa**: Các skill thay đổi tệp trạng thái lấy `.lock` trước khi bắt đầu. Ngăn chặn thực thi đồng thời hp-gen/hp-fix/hp-review trên cùng một trang. Khóa cũ (>30 phút) được tự động xóa. Định dạng khóa: JSON với `lockedBy`, `lockedAt`, `pageName`.
 - **Quy tắc Read-Modify-Write**: Luôn đọc nội dung tệp mới nhất trước khi ghi. Chỉ hợp nhất các trường đã thay đổi — giữ nguyên tất cả trường hiện có.
-- **Hỗ trợ tiếp tục**: `generation-state.json` theo dõi phase/trang đã hoàn thành với timestamp để phát hiện chính xác điểm tiếp tục.
+- **Hỗ trợ tiếp tục**: `docs/pages/_shared/generation-state.json` theo dõi phase/trang đã hoàn thành với timestamp để phát hiện chính xác điểm tiếp tục.
 - **Phát hiện lỗi thời**: validate-pages.sh cảnh báo khi kế hoạch trang được chỉnh sửa sau khi sinh mã.
 
 ## Hooks

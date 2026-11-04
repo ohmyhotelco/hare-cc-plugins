@@ -201,7 +201,7 @@
 **동작 내용**:
 1. 페이지 계획을 검증하고 기존 생성 상태 확인 (재개 지원)
 2. 동시 실행 방지를 위한 잠금 획득
-3. 3개 단계를 순차적으로 실행, 각 단계는 별도 에이전트 세션에서 수행:
+3. 3개 단계를 순차적으로 실행, 각 에이전트는 별도 세션에서 수행하고 순서와 중단 규칙은 `hp-gen-run` 워크플로가 관리:
 
 | 단계 | 에이전트 | 수행 내용 |
 |-------|-------|-------------|
@@ -209,7 +209,7 @@
 | 섹션 및 페이지 | section-generator + page-assembler | .astro 섹션, React islands, 페이지 조립 (페이지별) |
 | 검증 | (직접) | TypeScript, ESLint, Astro build |
 
-4. `generation-state.json`에 단계별 진행 상태 기록 (재개 지원)
+4. `docs/pages/_shared/generation-state.json`에 단계별 진행 상태 기록 (재개 지원)
 5. 잠금 해제 및 진행 상태 업데이트
 
 **재개 지원**: 생성이 중단되면 `hp-gen`을 다시 실행하면 완료된 단계를 감지하고 마지막 미완료 단계/페이지부터 재개를 제안합니다.
@@ -242,13 +242,14 @@
 2. **1단계 — SEO 리뷰**: seo-reviewer 에이전트가 메타데이터 완전성, 구조화 데이터, 제목 계층구조, 이미지 최적화, sitemap/robots, 성능 지표를 검사 (6개 차원, 0-10점)
 3. **2단계 — 품질 리뷰** (SEO 통과 시에만): quality-reviewer 에이전트가 접근성 WCAG AA, 반응형 디자인, 컴포넌트 구성, TypeScript 엄격성, i18n 완전성, Astro 컨벤션을 검사 (6개 차원, 디자인 시스템 존재 시 +1 디자인 토큰 일관성, 0-10점)
 4. **3단계 — 시각적 충실도 리뷰** (조건부, 조건부 차단): visual-fidelity-reviewer가 렌더링된 스크린샷을 캡처하여 Figma 섹션 스크린샷과 AI 비전으로 비교. 레이아웃 구조, 색상 정확도, 타이포그래피, 간격, 컴포넌트 충실도를 점수화. SEO + 품질 통과 및 Figma 스크린샷 존재 시에만 실행. 점수 < 5는 리뷰 실패, 5-6은 경고와 함께 통과, >= 7은 자문용.
-5. 병합된 리뷰 보고서를 이슈 상세(심각도, 파일, 줄, fixHint)와 함께 저장
+5. 병합된 리뷰 보고서를 이슈 상세(심각도, 파일, 줄, fixHint)와 함께 저장. 점수, 판정, 상태는 `hp-review-run` 워크플로가 리뷰어 보고를 바탕으로 계산
 6. 잠금 해제 및 진행 상태 업데이트
 
 **상태 결과**:
-- 모두 깨끗하게 통과 → `done`
+- 통과하고 critical, warning 이슈 없음 → `done`
 - 경고와 함께 통과 → `reviewed`
 - 하나라도 실패 → `review-failed`
+- 리뷰어가 결과를 돌려주지 않음 → 상태 변경 없음, 리뷰 재실행
 
 ---
 
@@ -502,13 +503,13 @@ src/
 |------|---------|
 | `page-plan.json` | 섹션, SEO 메타데이터, i18n 설정을 포함한 페이지 계획 (hp-gen 입력) |
 | `.progress/{page-name}.json` | 파이프라인 진행 상태 추적 |
-| `.implementation/homepage/generation-state.json` | 타임스탬프 포함 단계별 진행 상태 (재개 지원) |
 | `.implementation/homepage/review-report.json` | 병합된 리뷰 결과 (SEO + 품질 + 가능한 경우 시각적 충실도) |
-| `.implementation/homepage/visual-fidelity-report.json` | 시각적 충실도 비교 결과 (선택사항, 3단계에서 생성) |
 | `.implementation/homepage/fix-report.json` | 라운드 추적 포함 수정 결과 |
 | `.implementation/homepage/.lock` | 동시 실행 방지 (30분 후 자동 만료) |
 
 공유 레이아웃 계획: `docs/pages/_shared/layout-plan.json`
+
+공유 생성 상태: `docs/pages/_shared/generation-state.json` (타임스탬프 포함 단계별 진행 상태, 재개 지원)
 
 ### 진행 상태 머신
 
@@ -534,7 +535,7 @@ planned → generated → verified → reviewed → done
 
 - **잠금 메커니즘**: 상태 파일을 수정하는 스킬은 시작 전에 `.lock`을 획득합니다. 같은 페이지에서 hp-gen/hp-fix/hp-review의 동시 실행을 방지합니다. 오래된 잠금(30분 초과)은 자동 제거됩니다. 잠금 형식: `lockedBy`, `lockedAt`, `pageName`을 포함한 JSON.
 - **Read-Modify-Write 규칙**: 쓰기 전에 항상 최신 파일 내용을 읽습니다. 변경된 필드만 병합 — 기존 필드를 모두 보존합니다.
-- **재개 지원**: `generation-state.json`이 완료된 단계/페이지를 타임스탬프와 함께 추적하여 정확한 재개 감지가 가능합니다.
+- **재개 지원**: `docs/pages/_shared/generation-state.json`이 완료된 단계/페이지를 타임스탬프와 함께 추적하여 정확한 재개 감지가 가능합니다.
 - **오래된 데이터 감지**: validate-pages.sh가 코드 생성 이후 페이지 계획이 수정되면 경고합니다.
 
 ## 훅
