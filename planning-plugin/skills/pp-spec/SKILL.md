@@ -3,7 +3,7 @@ name: pp-spec
 description: Use when starting a new feature or project that needs a functional specification before implementation.
 argument-hint: "[feature description]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # Functional Specification Generator
@@ -56,10 +56,10 @@ Follow these steps in order. After each major step, update the progress file.
 
 ### Step 2: Context Analysis & Requirements Gathering
 
-Launch the **analyst** agent using the Task tool:
+Launch the **analyst** agent using the Agent tool:
 
 ```
-Task(subagent_type: "analyst", prompt: "Analyze the project at {cwd} and gather requirements for the feature: {feature description}. Follow your two-phase process: first analyze the project context, then ask structured questions across all 8 categories. Communicate with the user in {workingLanguage_name}.")
+Agent(subagent_type: "planning-plugin:analyst", prompt: "Analyze the project at {cwd} and gather requirements for the feature: {feature description}. Follow your two-phase process: first analyze the project context, then ask structured questions across all 8 categories. Communicate with the user in {workingLanguage_name}.")
 ```
 
 **Important interaction pattern:**
@@ -109,7 +109,7 @@ After generating the 3 draft files, detect whether the feature uses a shared lay
 3. **If approved**:
    a. Create `docs/specs/_shared/en/` directory
    b. Generate `docs/specs/_shared/en/screens.md` using the analyst's layout data. Generation rules:
-      - Follow the same format as `templates/screens.md`
+      - Follow the same format as `${CLAUDE_PLUGIN_ROOT}/templates/screens.md`
       - Define **exactly one layout screen**
       - **Must include a `Slot` type component** (required by dsl-generator's layout-only mode)
       - ASCII diagram must show the content insertion point (e.g., `(Each screen renders here)`)
@@ -132,19 +132,19 @@ Update the metadata blockquote at the top of `{feature}-spec.md` in the {working
 
 Launch the **planner** agent:
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
+Agent(subagent_type: "planning-plugin:planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Evaluate user journey completeness, business logic clarity, error UX, integration consistency, and scope feasibility. Return your review as structured JSON.")
 ```
 
 **4b. Tester Review:**
 
 Launch the **tester** agent, including the planner's feedback:
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
+Agent(subagent_type: "planning-plugin:tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The specification is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. The planner agent already reviewed it and found: {planner_feedback_summary}. Focus on testability, edge cases, and areas the planner may have missed. Return your review as structured JSON.")
 ```
 
 **4c. Present Combined Feedback:**
 
-Read `templates/review-reception-rules.md` and apply the review reception discipline.
+Read `${CLAUDE_PLUGIN_ROOT}/templates/review-reception-rules.md` and apply the review reception discipline.
 
 Show the user a summary of both reviews:
 - Overall scores (planner: X/10, tester: Y/10)
@@ -219,17 +219,17 @@ If the user selects option 2 (skip), jump directly to Step 5.5 (Pre-Finalization
 
 If the user selects option 1 (translate and finalize):
 
-For each target language, launch a **translator** agent in parallel using the Task tool:
+For each target language, launch a **translator** agent in parallel using the Agent tool:
 
 ```
-Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
+Agent(subagent_type: "planning-plugin:translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
 ```
 
 After all complete, update the progress file's translation status with `synced: true` and timestamps.
 
 ### Step 5.5: Pre-Finalization Verification
 
-Read `templates/verification-rules.md` and execute the verification gate.
+Read `${CLAUDE_PLUGIN_ROOT}/templates/verification-rules.md` and execute the verification gate.
 
 1. Read the progress file and collect all issues with "Accept" or "Modify" decisions from ALL rounds
 2. For each collected issue, read the relevant spec file section and verify the change is present in the text
@@ -271,7 +271,7 @@ This gate supplements the convergence check — both must pass before finalizati
 2. Read progress file for existing Notion page data (`notion` field)
 3. For each language (working language + all target languages where `{feature}-spec.md` actually exists inside the language directory — skip languages whose directories are empty because translation was skipped), sequentially launch the **sync-notion** agent:
    ```
-   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+   Agent(subagent_type: "planning-plugin:sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
      feature: {feature}. lang: {lang}. langName: {langName}.
      specDir: docs/specs/{feature}/{lang}/.
      progressFile: docs/specs/{feature}/.progress/{feature}.json.

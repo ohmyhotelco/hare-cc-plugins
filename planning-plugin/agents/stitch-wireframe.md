@@ -70,7 +70,7 @@ Compose a `<design_system>` context block from the available data. If no design 
 
 ### Step 3: Create Stitch Project
 
-> **CRITICAL — Single-Project Rule**: The entire execution of this agent must use **exactly one** Stitch project. `create_project` may be called **at most once**. Once a project ID is obtained (whether by reuse or creation), it becomes the **locked project ID** — every subsequent Stitch API call (`generate_screen_from_text`, `get_screen`, `list_screens`) must reference this ID exclusively. If screen generation fails, retry within the same project. **Never** create a second project for any reason (retry, error recovery, naming variation, or quality concerns).
+> **Single-project rule**: The entire execution of this agent must use **exactly one** Stitch project. `create_project` may be called **at most once**. Once a project ID is obtained (whether by reuse or creation), it becomes the **locked project ID** — every subsequent Stitch API call (`generate_screen_from_text`, `get_screen`, `list_screens`) must reference this ID exclusively. If screen generation fails, retry within the same project. **Never** create a second project for any reason (retry, error recovery, naming variation, or quality concerns).
 
 1. Call `list_projects` to check for existing project named `"{feature} Wireframes"`
 2. If found, reuse the existing project — record the project ID as the **locked project ID**
@@ -81,7 +81,7 @@ Compose a `<design_system>` context block from the available data. If no design 
 
 ### Step 4: Convert DSL to Stitch Prompts (enhance-prompt logic)
 
-For each screen in the manifest, convert the DSL JSON into a natural-language Stitch prompt. Read `templates/stitch-prompt-template.md` for the template structure.
+For each screen in the manifest, convert the DSL JSON into a natural-language Stitch prompt. Read `${CLAUDE_PLUGIN_ROOT}/templates/stitch-prompt-template.md` for the template structure.
 
 **Layout shell composition** — when a screen has a `layout` property (i.e., it is a child of a layout screen):
 
@@ -132,7 +132,7 @@ For subsequent screens (after the first), inject the design system text in the p
 
 **Domain context**: Read `design-system/MASTER.md` if it exists to extract the domain (e.g., "B2B Admin", "Hotel & Travel"). If no design system exists, infer the domain from the spec overview (`{feature}-spec.md` section 1). Use this value to replace `{domain}` in the Style Constraints section of the prompt template.
 
-**Enhance-prompt pass** (after DSL-to-prompt conversion): Read `templates/stitch-keywords.md` and apply these refinements to each generated prompt:
+**Enhance-prompt pass** (after DSL-to-prompt conversion): Read `${CLAUDE_PLUGIN_ROOT}/templates/stitch-keywords.md` and apply these refinements to each generated prompt:
 1. **Component term substitution**: Replace generic component names with specific descriptive phrases from the Component Keywords table (e.g., "table" → "data grid with column headers, alternating row shading, and inline action icons")
 2. **Domain mood adjectives**: Select 2-3 adjectives from the Domain Adjective Palette matching the inferred domain. Insert them into the prompt's opening line
 3. **Color format unification**: Ensure all color references follow the "Descriptive Name (#hex) for role" format from the Color Role Terminology section
@@ -199,7 +199,7 @@ For each generated screen, use the `htmlCode.downloadUrl` and `screenshot.downlo
 Produce a single `DESIGN.md` in the open **Google DESIGN.md** format — YAML front-matter with
 machine-readable design tokens plus a Markdown body with human-readable rationale. This file is
 the **single source of truth for design tokens** (there is no separate `design-tokens.json`); the
-prototype generator reads tokens from its front-matter. Read `templates/design-md-schema.md` for
+prototype generator reads tokens from its front-matter. Read `${CLAUDE_PLUGIN_ROOT}/templates/design-md-schema.md` for
 the exact schema, token types, and a full example before generating.
 
 **7a. Extract tokens (front-matter)** — parse the generated HTML/CSS. Use the first-screen HTML
@@ -216,7 +216,7 @@ the exact schema, token types, and a full example before generating.
 4. **Spacing** → `spacing.{sm,md,lg,xl}` from unique margin/padding/gap values.
 5. **Components** (may be minimal in this phase) → seed `components.*` token maps from prominent
    UI elements (e.g. `button-primary`), referencing other tokens with `{path.to.token}`.
-6. **Merge and deduplicate** across all parsed HTML files. Front-matter values MUST reflect actual
+6. **Merge and deduplicate** across all parsed HTML files. Front-matter values must reflect actual
    parsed values — never fabricated.
 
 **7b. Write prose body (8 sections)** — synthesize from HTML/CSS analysis (primarily the first
@@ -232,7 +232,7 @@ planning-plugin requires all 8 for uniform downstream consumption:
 - **Typography**: headings / body / monospace in design terms; the type scale.
 - **Layout**: spacing rhythm, alignment, content width, navigation placement.
 - **Elevation & Depth**: shadow / layering language from parsed `box-shadow`.
-- **Shapes**: corner rounding & geometry — reference `templates/stitch-keywords.md` Shape & Geometry Translation table.
+- **Shapes**: corner rounding & geometry — reference `${CLAUDE_PLUGIN_ROOT}/templates/stitch-keywords.md` Shape & Geometry Translation table.
 - **Components**: visual character of cards, buttons, inputs, tables, badges; reference `components.*` tokens.
 - **Do's and Don'ts**: guardrails; seed from `design-system/MASTER.md` Critical / Recommended rules when present.
 
@@ -292,10 +292,10 @@ components:
 ```
 
 **Rules**:
-- Front-matter values MUST reflect actual values parsed from the generated HTML/CSS — never fabricated.
+- Front-matter values must reflect actual values parsed from the generated HTML/CSS — never fabricated.
 - Body prose uses descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`).
 - Token references (in prose or component tokens) use the `{path.to.token}` form and must resolve to a defined token.
-- Reference `templates/stitch-keywords.md` Shape & Geometry Translation table for terminology.
+- Reference `${CLAUDE_PLUGIN_ROOT}/templates/stitch-keywords.md` Shape & Geometry Translation table for terminology.
 - Every color entry in the Colors section must include descriptive name + hex + functional role.
 
 ### Step 8: Generate shadcn/ui Mapping Hints
@@ -420,7 +420,7 @@ Return a summary:
 - Call `get_project` after project creation/reuse to capture `designTheme` metadata
 - Call `get_screen` after each screen generation to capture resource path, width, height, `htmlCode.downloadUrl`, and `screenshot.downloadUrl`
 - Append `=w{width}` to Google CDN screenshot URLs for high-resolution downloads
-- Generate `DESIGN.md` in the Google DESIGN.md format — read `templates/design-md-schema.md` first. Front-matter carries machine-readable tokens; the body prose uses design language, not CSS values (reference `stitch-keywords.md` for terminology)
+- Generate `DESIGN.md` in the Google DESIGN.md format — read `${CLAUDE_PLUGIN_ROOT}/templates/design-md-schema.md` first. Front-matter carries machine-readable tokens; the body prose uses design language, not CSS values (reference `stitch-keywords.md` for terminology)
 - `DESIGN.md` is the single source of truth for design tokens — do NOT emit a separate `design-tokens.json`
 - Design tokens (front-matter) must reflect actual values from the generated HTML/CSS, not assumptions
 - shadcn/ui mapping hints are advisory — the prototype generator makes final component decisions

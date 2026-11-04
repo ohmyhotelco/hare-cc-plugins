@@ -5,7 +5,7 @@ Claude Code plugin monorepo.
 ## Repository Structure
 
 ```
-planning-plugin/              - Functional spec generation plugin (see planning-plugin/CLAUDE.md)
+planning-plugin/              - Functional spec generation plugin (see planning-plugin/CLAUDE.md — maintainer notes)
 frontend-react-plugin/        - Frontend React development plugin (see frontend-react-plugin/CLAUDE.md)
 frontend-migration-plugin/    - Angular 15 → React Router v7 migration plugin (see frontend-migration-plugin/CLAUDE.md)
 frontend-ohmyhotel-plugin/    - Repo-scoped plugin for ohmyhotelco/ohmyhotel-frontend (see frontend-ohmyhotel-plugin/CLAUDE.md — maintainer notes; agent rules live in skills/fo-shared)

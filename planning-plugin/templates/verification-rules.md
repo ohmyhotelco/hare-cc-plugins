@@ -2,11 +2,9 @@
 
 Reference document for the spec finalization process. Adapted from [obra/superpowers verification-before-completion](https://github.com/obra/superpowers) for specification review workflows.
 
-## The Iron Law
+## Rule
 
-```
-NO FINALIZATION WITHOUT VERIFICATION EVIDENCE
-```
+Finalize only with verification evidence.
 
 Convergence scores confirm that reviewers are satisfied with the current state. But scores alone do not guarantee that accepted changes were actually applied. Before marking a spec as FINALIZED, verify that every "Accept"ed and "Modify"ed issue from ALL review rounds is reflected in the spec text. Evidence before claims, always.
 
@@ -72,9 +70,9 @@ After all items are resolved, deferred, or dismissed, proceed with finalization.
 
 ## Important Rules
 
-- This is evidence-based: READ the actual spec text, do not assume changes were applied
+- This is evidence-based: read the actual spec text, do not assume changes were applied
 - "Modify" decisions must be checked against the user's modified version, not the original suggestion
-- Issues from ALL rounds must be checked, not just the latest round
+- Issues from all rounds must be checked, not just the latest round
 - Dismissed items must be recorded in the progress file with the user's explanation
 - If the same section was targeted by multiple issues across rounds, verify each one independently
 
@@ -86,11 +84,3 @@ After all items are resolved, deferred, or dismissed, proceed with finalization.
 | "Spec is complete" | All accepted issues verified | Convergence scores >= 8 |
 | "Ready to finalize" | Verification gate passed | User said "finalize" |
 | "Deferred properly" | Entry in Open Questions | Issue just dismissed verbally |
-
-## Red Flags — STOP
-
-- About to finalize without running this verification
-- Assuming changes were applied because the user said "Accept"
-- Skipping verification because scores are high
-- Checking only the latest round's issues
-- Treating "Dismiss" as a way to skip verification (require explanation)

@@ -189,7 +189,7 @@ For each screen to sync:
 
 Regenerate a single `DESIGN.md` in the open **Google DESIGN.md** format — YAML front-matter tokens
 plus an 8-section Markdown body. This file is the **single source of truth for design tokens**
-(there is no separate `design-tokens.json`). Read `templates/design-md-schema.md` for the exact
+(there is no separate `design-tokens.json`). Read `${CLAUDE_PLUGIN_ROOT}/templates/design-md-schema.md` for the exact
 schema and a full example before generating.
 
 **5a. Extract tokens (front-matter)** — parse all updated HTML files:
@@ -239,7 +239,7 @@ components:
 ```
 
 **Rules**:
-- Front-matter values MUST reflect actual values parsed from the updated HTML/CSS — never fabricated.
+- Front-matter values must reflect actual values parsed from the updated HTML/CSS — never fabricated.
 - Body prose uses descriptive design language, not CSS values (`"subtly rounded corners"` not `"border-radius: 8px"`).
 - Token references use the `{path.to.token}` form and must resolve to a defined token.
 - Every color entry in the Colors section must include descriptive name + hex + functional role.

@@ -94,7 +94,7 @@ canonical order; planning-plugin deliberately requires all 8.)
 
 ## Rules
 
-- Front-matter values MUST reflect actual values parsed from the generated Stitch HTML/CSS — never fabricated.
+- Front-matter values must reflect actual values parsed from the generated Stitch HTML/CSS — never fabricated.
 - Body prose uses design language, not raw CSS values (`"subtly rounded corners"`, not `"border-radius: 8px"`).
 - Token references (in prose or component tokens) use the `{path.to.token}` form and must resolve to a defined token.
 - All text content is in English regardless of the spec working language.

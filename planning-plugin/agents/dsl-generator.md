@@ -18,7 +18,7 @@ Read these files from `specDir`:
 2. `{feature}-spec.md` — Functional Requirements (for cross-referencing user actions)
 
 Also read the schema reference:
-- `templates/ui-dsl-schema.json` — structural reference for output format
+- `${CLAUDE_PLUGIN_ROOT}/templates/ui-dsl-schema.json` — structural reference for output format
 
 ## Output
 
@@ -324,8 +324,8 @@ Return a summary when complete:
 
 ## Important Rules
 
-- Always read the schema reference (`templates/ui-dsl-schema.json`) before generating output
-- Every screen MUST have all 4 states (loading, empty, error, success)
+- Always read the schema reference (`${CLAUDE_PLUGIN_ROOT}/templates/ui-dsl-schema.json`) before generating output
+- Every screen must have all 4 states (loading, empty, error, success)
 - Component IDs must be unique within each screen
 - Routes should follow RESTful conventions where applicable
 - Data shapes should be consistent with the screen definitions and functional requirements — infer realistically but do not add fields that have no basis in the spec
