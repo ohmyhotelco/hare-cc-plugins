@@ -22,7 +22,7 @@ re-run `fm-plan {page}`; stop). Require `docs/migration/{app}/{page}/style-spec.
 build to its style values. Read `targetDir`, `appDir`, `packagesDir`, `monorepoRoot`, `legacyDir`,
 `workingLanguage`, `eslintTemplate`, `prettierTemplate`, and the plan's `buildOrder` + `blockers`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Blockers
 If the plan has `blockers` (unextracted shared candidates), resolve each against
@@ -60,7 +60,7 @@ and 5.3) — so a successful extraction leaves the plan byte-identical.
   `parity-passed`. The path is serving production
   traffic, so regenerating it is a rewrite under live load — and the status reset would desync the
   two facts that must agree: the tracker's `flipped` and the edge flag `fm-route` owns. Provenance
-  resolves a capture's `side` from that status (`templates/capture-provenance.md`), so a demoted-but-
+  resolves a capture's `side` from that status (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`), so a demoted-but-
   still-flipped page makes a capture from the production domain — which is serving v2 — resolve as
   `legacy`. That is the wrong-side baseline the v0.14.0 provenance layer exists to stop, and unlike
   `unresolved` it is *accepted as evidence*.
@@ -74,10 +74,10 @@ is held and the Step 2 refusals have passed. Doing it in Step 2 would let a run 
 be refused destroy the ledger, and would reset the ledger of another session's generation already
 in progress. Without it, a `--force` run that dies in an early phase leaves the later phases still
 marked done, and the next plain resume skips them.
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 4: Run phases (sequential)
-For each phase in `buildOrder`, launch the right agent (Agent tool), passing **the agent's full
+For each phase in `buildOrder`, launch the right agent (`subagent_type: "frontend-migration-plugin:<agent>"`), passing **the agent's full
 parameter list from its own file** — not only the additions called out below (subagent isolation
 means an omitted param is simply missing, and the agent cannot ask). Inspect the result before the
 next:
@@ -110,7 +110,7 @@ modified code, with the Step 3 lock held for 30 minutes.
 ### Step 5: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 1. Set `generatedAt` and, if all phases succeeded, `tracker.json`
    `apps[app].pages[page].status = "generated"`; any skipped/failed phase → `gen-failed`.
@@ -129,7 +129,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
    evades every later freshness hash). This is the page's
    **axis 1** of its watch paths — axis 2 is the plan's `sharedDeps[]` mapped to
    `{packagesDir}/<package>` and axis 3 is the page's `migration-plan.json` itself, and every hash is
-   taken over the **union of all three** (CLAUDE.md → "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
+   taken over the **union of all three** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" F). `fm-route --flag-on` (Step 1a) and `fm-progress` hash that union to
    tell a still-fresh PASS from a stale one, and neither can derive axis 1 otherwise
    — `componentTree` carries component *names*, not paths. Rewrite the list on every run so a
    removed file leaves it.
@@ -155,10 +155,10 @@ after the lock this step already holds, released right after the write (CLAUDE.m
      clearing it on a `gen-failed` run would drop the record while the debt stands.
 4. Release the lock.
 
-### Step 5b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+### Step 5b: Codex audit (advisory) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled, this stage is in `codexAuditStages` (**absent → all seven**; the key
 narrows coverage, it never means "none"), and generation succeeded, after the
-lock is released spawn `codex-auditor` (Agent) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
+lock is released spawn `codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `gen` stage (params: `app`, `page`, `stage="gen"`,
 `appDir`, `legacyDir`, the generated diff + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). Codex checks mapping fidelity, RR v7 idioms, and secret-boundary violations.
 Advisory — never changes the page status. Surface its verdict in the report.

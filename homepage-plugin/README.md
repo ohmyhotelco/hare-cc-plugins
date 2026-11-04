@@ -432,6 +432,7 @@ The plugin uses `.claude/homepage-plugin.json` in the project directory (created
 | `eslintTemplate` | Auto-generate ESLint config when none exists | `true` |
 | `figmaFileKey` | (optional) Figma file key for design token extraction | — |
 | `figmaFileUrl` | (optional) Full Figma file URL for reference | — |
+| `figmaAccessToken` | (optional) Figma Personal Access Token; enables the REST API `/v1/images` fallback for 2x PNG export of vector nodes when MCP extraction fails | — |
 
 ## Generated Project Structure
 
@@ -607,7 +608,7 @@ agents/          Agent definitions (design-token-extractor, page-planner, sectio
                  page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
                  review-fixer)
 skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
-                 hp-review, hp-fix)
+                 hp-review, hp-fix, hp-shared)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config,

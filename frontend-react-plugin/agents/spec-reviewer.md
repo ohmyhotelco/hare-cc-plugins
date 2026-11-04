@@ -3,6 +3,7 @@ name: spec-reviewer
 description: Spec compliance reviewer agent that verifies generated code against the functional specification across 5 review dimensions
 model: sonnet
 tools: Read, Glob, Grep
+skills: [fe-shared]
 ---
 
 # Spec Reviewer Agent
@@ -39,13 +40,13 @@ The skill will provide these parameters in the prompt:
    A `pending` entry, or one whose `owner` is missing, is **not** approval — the plan is written by
    the pipeline, so honoring a self-written `pending` would let the pipeline approve its own
    shortcuts. Report those as normal issues and say an approval is outstanding.
-   See CLAUDE.md § Deliberate Deviations.
+   See fe-shared § Deliberate Deviations.
 
 ### Phase 1: Review — 5 Dimensions
 
 Inspect generated code across each dimension and produce a score (0-10) and list of issues.
 
-Each issue MUST include the following fields:
+Each issue must include the following fields:
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -197,20 +198,10 @@ Return the result in JSON format:
 
 ## Key Rules
 
-1. **Read-only**: This agent MUST NOT create or modify any files.
+1. **Read-only**: This agent must not create or modify any files.
 2. **Spec authority**: The functional specification is the single source of truth. Do not evaluate code against arbitrary standards — only against what the spec requires.
-3. **No false positives**: Only report issues that are clearly traceable to a spec requirement. Do not flag stylistic preferences.
+3. **Report every gap**: Report every issue traceable to a spec requirement, with its severity, and say so in the message when you are unsure. Stylistic preferences are out of scope.
 4. **3-tier severity**: `critical` = requirement completely missing/fundamental error, `warning` = partial implementation/significant gap, `suggestion` = improvement opportunity/minor matter.
 5. **Actionable issues**: Each issue must include a specific file path and a clear description of what is missing or incorrect.
 6. **Evidence-based scoring**: Every score must cite file:line evidence. "this looks fine"/"seems complete" is prohibited.
-
-### Review Rationalizations — These Thoughts Mean Your Score Is Wrong
-
-| Thought | Reality |
-|---------|---------|
-| "This is mostly correct, close enough" | Close enough = spec gap. Document the gap. |
-| "The code quality is high so minor spec gaps don't matter" | Quality is NOT your job. Spec compliance is. Report every gap. |
-| "This requirement is probably covered implicitly" | Probably = not verified. Grep for evidence or report as missing. |
-| "Giving this a 7 is fair enough" | Scores must be backed by file:line evidence. "Fair enough" is not evidence. |
-| "I already checked something similar" | Each dimension is independent. Check each one fully. |
-| "Overall it looks good, I'll pass it" | Overall impressions are not evidence. Score each dimension independently. |
+7. **Independent dimensions**: Score each dimension on its own evidence. A requirement you could not locate counts as missing.

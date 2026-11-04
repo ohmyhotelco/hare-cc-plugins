@@ -3,6 +3,7 @@ name: page-assembler
 description: Page assembler agent that composes sections into complete Astro pages with layout, SEO metadata, and i18n
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [hp-shared]
 ---
 
 # Page Assembler Agent
@@ -28,9 +29,9 @@ The skill will provide these parameters in the prompt:
 
 1. **Page plan** — read `planFile` for section composition, SEO metadata, i18n config
 2. **Layout plan** — read `layoutPlanFile` for shared header/footer structure
-3. **Page module template** — read `templates/page-module.md` for canonical page assembly patterns (layout integration, section composition, SEO metadata, JSON-LD, i18n, Content Collections)
-4. **Astro conventions** — read `templates/astro-conventions.md` for page patterns
-5. **SEO checklist** — read `templates/seo-checklist.md` for metadata requirements
+3. **Page module template** — read `${CLAUDE_PLUGIN_ROOT}/templates/page-module.md` for canonical page assembly patterns (layout integration, section composition, SEO metadata, JSON-LD, i18n, Content Collections)
+4. **Astro conventions** — read `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md` for page patterns
+5. **SEO checklist** — read `${CLAUDE_PLUGIN_ROOT}/templates/seo-checklist.md` for metadata requirements
 6. **Existing structure** — scan project for existing layout, pages, and components
 7. **Design tokens** — read `docs/design-system/design-tokens.json` if it exists. If present, use its `cssVariables` section for globals.css generation and `typography.fontFamily` for Tailwind config
 8. **Shared component styles** — read `docs/design-system/component-map.json` if it exists. If it contains `sharedComponents`, load the `figmaStyles` for Header and Footer to use in Phase 1 when generating layout components
@@ -54,7 +55,7 @@ Only on first page generation:
      - `nav` → navigation container classes
      - `navLink` → individual nav link classes
      - `ctaButton` → CTA button classes (if present)
-   - If no `sharedComponents.Header` exists, use default styles from `section-catalog.md` HeaderSection pattern
+   - If no `sharedComponents.Header` exists, use default styles from `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` HeaderSection pattern
 
 3. **Footer.astro** — create `src/components/layout/Footer.astro`
    - Multi-column links from layout plan
@@ -65,10 +66,10 @@ Only on first page generation:
      - `linkGroupTitle` → link group heading classes
      - `link` → individual link classes
      - `socialIcon` → social icon wrapper classes (if present)
-   - If no `sharedComponents.Footer` exists, use default styles from `section-catalog.md` FooterSection pattern
+   - If no `sharedComponents.Footer` exists, use default styles from `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md` FooterSection pattern
 
 4. **MobileNav.tsx** — create `src/components/islands/MobileNav.tsx`
-   - If `docs/design-system/design-tokens.json` exists: use custom Dialog component from `templates/custom-components.md` as the overlay panel
+   - If `docs/design-system/design-tokens.json` exists: use custom Dialog component from `${CLAUDE_PLUGIN_ROOT}/templates/custom-components.md` as the overlay panel
    - Otherwise: use Dialog component from shadcn/ui (install via `npx shadcn@latest add dialog`)
    - Navigation links matching header
 
@@ -86,8 +87,8 @@ Only on first page generation:
 
 7. **Global styles** — create `src/styles/globals.css`
    - Tailwind directives (`@tailwind base; @tailwind components; @tailwind utilities;`)
-   - If `docs/design-system/design-tokens.json` exists: generate `@layer base { :root { ... } }` by iterating **all** keys from `cssVariables[":root"]` in the tokens file — this includes the 17 semantic variables, `--radius`, and any extended color variables (e.g., `--primary-100`, `--neutral-50`, `--brand-blue`). If `cssVariables[".dark"]` is non-empty, also generate a `.dark { ... }` block. See `templates/astro-conventions.md` for the template pattern.
-   - Otherwise: use default shadcn/ui CSS variables (see `templates/astro-conventions.md`)
+   - If `docs/design-system/design-tokens.json` exists: generate `@layer base { :root { ... } }` by iterating **all** keys from `cssVariables[":root"]` in the tokens file — this includes the 17 semantic variables, `--radius`, and any extended color variables (e.g., `--primary-100`, `--neutral-50`, `--brand-blue`). If `cssVariables[".dark"]` is non-empty, also generate a `.dark { ... }` block. See `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md` for the template pattern.
+   - Otherwise: use default shadcn/ui CSS variables (see `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md`)
 
 8. **Content Collection config** (if `contentStrategy` includes mdx)
    - `src/content/config.ts` with blog collection schema

@@ -16,17 +16,15 @@ The skill will provide these parameters in the prompt:
 - `reportFile` — path to `review-report.json`
 - `config` — parsed contents of `.claude/backend-webflux-plugin.json`
 - `projectRoot` — project root path
-- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `feature` — feature name (optional, for progress tracking)
 
 ## Process
 
 ### Phase 0: Load Context
 
-0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
-1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
-   execution-facing subset of the plugin CLAUDE.md)
-2. Read `templates/tdd-rules.md` for TDD methodology
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/core-conventions.md` for naming/coding conventions (a trimmed,
+   execution-facing subset of ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md)
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` for TDD methodology
 3. Read `reportFile` — parse the full review report JSON
 4. Extract all issues sorted by severity (critical first, then warning, then suggestion)
 5. Read `config` to extract: `gradleCommand` (absent in a config written before it existed → `./gradlew`), `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`

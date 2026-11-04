@@ -17,11 +17,11 @@ You receive from the coordinator (no session history — only these params):
 - `legacyDir`, `counterpartDirs` (same logic in the other apps), `packagesDir`,
   `monorepoRoot`, `workingLanguage`, `eslintTemplate`.
 - `contractsDir` — **optional**, passed **only** for `shared-types` / `shared-data` candidates
-  when the project has confirmed backend contracts (OMH-604/606/607). When present, the contracts
+  when the project has confirmed backend contracts. When present, the contracts
   are the authoritative schema source (see step 0). When absent, extract from legacy as usual.
 
-Follow `templates/shared-package-spec.md` (placement + purity rules) and
-`templates/shared-package-conventions.md` (scaffolding, lint boundary, TDD discipline).
+Follow `${CLAUDE_PLUGIN_ROOT}/templates/shared-package-spec.md` (placement + purity rules) and
+`${CLAUDE_PLUGIN_ROOT}/templates/shared-package-conventions.md` (scaffolding, lint boundary, TDD discipline).
 
 ## Procedure
 
@@ -32,7 +32,7 @@ step entirely and extract from legacy as in steps 1–6 (no behavior change).
 
 The contracts under `{contractsDir}/` are the **authoritative** schema source (migration plan §5
 — the legacy `any` reverse-extraction is **retired** for the surface they cover):
-- `{contractsDir}/responses/` (OMH-606) and `{contractsDir}/requests/` (OMH-607) hold the
+- `{contractsDir}/responses/` and `{contractsDir}/requests/` hold the
   per-endpoint zod **inline in markdown** — read each file and lift the zod out of the Markdown
   `ts` code fences (these are zod-in-markdown, **not** `.ts` files). Read each subdirectory's `README.md`
   and the top-level `{contractsDir}/README.md` first to ground on the layout and conventions.
@@ -78,9 +78,9 @@ is a PG hash builder (`createFgkey`, `createNicePayData`, `createNpAlipayData`, 
 ### 4. Scaffold the package (if new)
 Create `packages/shared-*/` per conventions: `package.json` (name `@omh/shared-*`, type module),
 `tsconfig.json`, `vitest.config.ts`, `src/`. Add the package's `eslint.config.js` leaf composed
-from the root base (see `templates/eslint-config.md` + CLAUDE.md → "Lint & Format Gate"): framework-
+from the root base (see `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md` + ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Lint & Format Gate"): framework-
 agnostic packages use `core`; `shared-ui` uses `core + react`. For `shared-domain`, materialize the
-secret-boundary block from `templates/shared-package-conventions.md` as `eslint.secret-boundary.js`
+secret-boundary block from `${CLAUDE_PLUGIN_ROOT}/templates/shared-package-conventions.md` as `eslint.secret-boundary.js`
 and compose `core + secretBoundary` (the `no-restricted-imports` / `no-restricted-syntax` rule that
 blocks secret reads). If `eslintTemplate` is `false`, skip the leaf.
 

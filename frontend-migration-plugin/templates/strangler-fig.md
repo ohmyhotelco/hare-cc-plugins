@@ -119,7 +119,7 @@ plugin only relies on "one version-controlled entry per flipped path-pattern, pr
 
 `nginx` and `cloudfront` each assume **one** artifact decides whether a path is served by v2. Some
 edges need two or more to move together, and editing one of them is worse than editing none. The
-case that forced this mechanism (OMH-837): the desktop and mobile hosts share one CloudFront
+case that forced this mechanism: the desktop and mobile hosts share one CloudFront
 distribution, so a **mobile** page is live only when
 
 1. the CloudFront viewer-request function lists it in its route arrays
@@ -246,7 +246,7 @@ A page's flip is never one line. It is a **unit** that goes on together and come
   `migrated: true`), runtime flags, and the legacy anchors converted to document navigations for it.
 
 The flip PR lists the whole unit, and so does its rollback. Calling the flip PR "one-line" misled
-plans and PR bodies into saying the flip changes nothing but the edge (OMH-750 #330, OMH-749 #335).
+plans and PR bodies into saying the flip changes nothing but the edge.
 A per-page guard test pins the unit: for every entry keyed to the page, it asserts `origin`,
 `cachePolicy`, `active`, the exact pattern and the `.data` sibling, and it must go red when any
 entry is set to `origin: legacy` (OMH-935 #389: the guard would still pass with the page's two ads
@@ -254,7 +254,7 @@ entries set to `origin: legacy` and a cacheable policy).
 
 **Rollback order.** Deploy the app-side revert (`migrated: false`, the flags) **before** the edge
 change is applied. Edge-first leaves already-loaded v2 clients soft-navigating to a `.data` path the
-edge no longer serves (OMH-755 #312). The rollback PR's Migration notes state this order.
+edge no longer serves. The rollback PR's Migration notes state this order.
 
 ## Per-version S3 artifacts (recommended)
 Where prod tars overwrite a single key (`s3://<artifact-bucket>/<env>/<app>.tar`), recommend per-version
@@ -270,5 +270,5 @@ Per app, by `flipMechanism`:
   version-controlled mirror of the live distribution's v2-owned behaviors.
 - `script` → the files listed in `flipArtifacts`, edited by the project's `flipCommands`.
 
-Who applies it is `apps.{app}.applyOwner` (CLAUDE.md → Configuration) — not OMH-502, which earlier revisions named: that epic is closed and never covered the apply. `fm-route` edits the in-repo
+Who applies it is `apps.{app}.applyOwner` (plugin CLAUDE.md → Configuration) — not OMH-502, which earlier revisions named: that epic is closed and never covered the apply. `fm-route` edits the in-repo
 config for a PR the user opens; it does not deploy, reload, or push to AWS.

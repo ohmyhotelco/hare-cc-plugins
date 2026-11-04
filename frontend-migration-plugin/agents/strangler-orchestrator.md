@@ -31,13 +31,13 @@ admitted at any status carrying `flipPrOpenedAt`), **`routePrepared`** and **`fl
 `verifiedAt`, and the `e2e-report.json` / `parity-report.json` paths (under
 `docs/migration/{app}/{page}/`), `notApplicable` (the page's approved gate exemptions, `[]` when
 none), `workingLanguage`. See
-`templates/strangler-fig.md` for all three patterns.
+`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` for all three patterns.
 
 ## App lock
 The routing artifact (`infraDir` nginx block + flag entry, `cloudfrontDir/<manifest>`, or every file in
 `flipArtifacts`) is shared by every page. For `script`, "the write" is the flip command **and** its
 before/after checks: take the lock before the first snapshot and release it after the last check. Read-Modify-Write it inside `docs/migration/.app.lock`, taken after the page lock
-`fm-route` holds and released right after the write (CLAUDE.md → Lock file).
+`fm-route` holds and released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ## Actions (mechanism-independent semantics)
 
@@ -48,11 +48,11 @@ This is the state the code PR merges with.
 - `nginx`: ensure the routing block for `guardsPath` exists, gated by `flagPlan.key`, flag default
   OFF. Create the flag entry OFF if absent.
 - `cloudfront`: ensure the manifest has the page's entries — every path-pattern of its flip unit
-  (`templates/strangler-fig.md` → Flip unit), each mapped to the v2 origin and keyed to
+  (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → Flip unit), each mapped to the v2 origin and keyed to
   `flagPlan.key` — marked **not yet active** (prepared/off). Do not activate them.
 - `script`: run `flipCommands["flag-off"]` if declared. If it is not, **edit nothing** — report the
   `flipArtifacts` whose prepared-but-inactive entries the code PR authors by hand (see
-  `templates/strangler-fig.md` → "Project-script pattern").
+  `${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → "Project-script pattern").
 
 ### flag-on (the flip PR — the page's whole flip unit) — guarded
 **Precondition (hard):** confirm the page `status` is `parity-passed` in `tracker.json` (the
@@ -60,7 +60,7 @@ monotonic chain guarantees verify and e2e passed first — the single `status` f
 overwritten past `verified`/`e2e-passed`) and `verifiedAt` is present (verify's durable trace —
 verify records its pass as `verifiedAt`, not a report file), and that `e2e-report.json` and
 `parity-report.json` both have `result: pass` for this page — or `result: "not-applicable"` for a
-gate that has a matching entry in `notApplicable` carrying `approvedBy` and `approvedAt` (CLAUDE.md →
+gate that has a matching entry in `notApplicable` carrying `approvedBy` and `approvedAt` (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md →
 Gate Result Accounting H). If any is missing or failing, or a `not-applicable` report has no
 approved entry, **refuse** and report which gate blocks the flip — do not flip.
 When all pass, activate the prepared rule for `guardsPath` (on `domain`); unmatched paths still hit
@@ -75,7 +75,7 @@ the legacy app (`legacyPort`).
 **Precondition (hard):** the page must be at `flipped`, **or** have `flipPrOpenedAt` set at any
 status **except `done`**, **or** be at `parity-passed` with `routePrepared` set — i.e. there is a live or in-flight
 route change to undo. `flipPrOpenedAt` admits any status but `done` — the legacy page is deleted, so reverting the edge
-would route the path to nothing (CLAUDE.md -> Per-page State Machine) — because a concurrent `fm-extract` can
+would route the path to nothing (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md -> Per-page State Machine) — because a concurrent `fm-extract` can
 demote a page to `generated` while a flip is in flight, and `--revert` is the only exit every
 other rule points at. On any other status, **refuse**: there is nothing in rotation, and the caller would go on to write a
 gate-passed status no gate produced (`fm-route` Step 0a).
@@ -87,7 +87,7 @@ Return the path to the legacy app. This is the soft rollback.
   a page that was never flag-on (`parity-passed`, `routePrepared`, no `flipPrOpenedAt`, never
   `flipped`) has its prepared entries **removed** — that is the undo of `--flag-off`. Report the
   unit's app-side switches the rollback PR reverts, and that they deploy **before** the edge change
-  is applied (`templates/strangler-fig.md` → Rollback order).
+  is applied (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → Rollback order).
 - `script`: run `flipCommands.revert`. Absent → refuse and say the rollback must be done by hand in
   every file of `flipArtifacts` — never in some of them. **Exception — a page that was only prepared**
   (`status` `parity-passed`, never `flipped`; `routePrepared`; no `flipPrOpenedAt`; and the
@@ -97,7 +97,7 @@ Return the path to the legacy app. This is the soft rollback.
   before-snapshot blob, never to the index (template).
 
 ## Editing the artifact
-Read-modify-write per `templates/strangler-fig.md`; touch only this page's `guardsPath` rule, never
+Read-modify-write per `${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md`; touch only this page's `guardsPath` rule, never
 other paths'. Keep the change minimal and reversible.
 - **nginx** (`infraDir`): host-based (`www`/`m`/`hana`.ohmyhotel.com) + path-based `location` rules;
   migrated path → new app, else → legacy. `/api/*` → backend (unchanged).
@@ -108,7 +108,7 @@ other paths'. Keep the change minimal and reversible.
 - **script** (`flipArtifacts` via `flipCommands`): never hand-edit the artifacts — the pairing rules
   live in the project's script. Substitute `{page}` `{app}` `{guardsPath}` `{flagKey}`
   **shell-quoted**, and run the command from the repo root. Apply the before/after checks in
-  `templates/strangler-fig.md` → "Project-script pattern". Each failure is a refusal:
+  `${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → "Project-script pattern". Each failure is a refusal:
   - exit 0;
   - every changed path is in `flipArtifacts`. A delta outside them is refused and named, **never
     restored**, because the tree holds other work;
@@ -126,7 +126,7 @@ other paths'. Keep the change minimal and reversible.
 
 ## Rules
 - **Never flip flag-on unless verify + e2e + parity all pass** (or a gate carries an approved
-  exemption — CLAUDE.md → Gate Result Accounting H) — this is the load-bearing safety
+  exemption — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting H) — this is the load-bearing safety
   gate; a wrongful flip ships a regression. Identical for every mechanism.
 - Changes must be reversible (flag flip / behavior removal = rollback). Read-modify-write the
   artifact files; do not clobber other paths' rules.

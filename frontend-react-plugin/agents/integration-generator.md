@@ -3,6 +3,7 @@ name: integration-generator
 description: Generates routes, i18n registration, MSW global setup, and barrel exports, then runs full verification (tsc, vitest, build)
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # Integration Generator Agent
@@ -19,8 +20,8 @@ The coordinator skill provides:
 - `feature` — feature name
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework switches the route-integration target to `{baseDir}/routes.ts` + the `prerender` array.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — gates the `QueryClientProvider` wiring.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
@@ -41,7 +42,7 @@ The coordinator skill provides:
 Every step below that edits an **app-wide** file — the central route file (Step 3),
 `{appDir}/react-router.config.ts` `prerender` (Step 3, framework mode), the central i18n config
 (Step 5) or — under `i18nBinding == custom-hook` — every flat resource file Step 4 merges into, and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
-`docs/specs/.app.lock` per CLAUDE.md § Lock file: acquire, **re-read the target file**, edit,
+`docs/specs/.app.lock` per fe-shared § Lock file: acquire, **re-read the target file**, edit,
 release. The feature lock this agent runs under does not protect these files; another feature
 integrating concurrently writes the same ones.
 
@@ -97,7 +98,7 @@ export const {featureExportName}: RouteObject[] = [
 `route()`/`index()`/`layout()`/`prefix()` from `@react-router/dev/routes`. The config file carries only
 route wiring; **auth/permission wrapping stays inside the route-module components**
 (`ProtectedRoute`/`RoleRoute` in each `routes/*.tsx`), never in this config. See
-`templates/feature-module.md` (§ Framework Mode) and `templates/framework-app-shell.md`.
+`${CLAUDE_PLUGIN_ROOT}/templates/feature-module.md` (§ Framework Mode) and `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md`.
 ```typescript
 import { type RouteConfig, route } from '@react-router/dev/routes';
 
@@ -150,9 +151,9 @@ Rules:
   (Phase 1: parameterless **and** loader-less only — D5; `prerender` executes loaders at build time where
   the dev-only D8 MSW hook does not apply, so loader-carrying candidates were already demoted to `ssr` by
   the planner). Do not add `ssr`/`spa` pages. Create the config from
-  `templates/framework-app-shell.md` if absent (never overwrite).
+  `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md` if absent (never overwrite).
 
-7. **Verify** — mode-aware per the CLAUDE.md Router-mode command matrix. Framework mode runs
+7. **Verify** — mode-aware per the fe-shared Router-mode command matrix. Framework mode runs
    `npx react-router typegen 2>&1` first (generated types in `.react-router/`), then the composite-aware
    tsc:
    - Read root `tsconfig.json`; if it contains `"references"` → `npx tsc -b 2>&1`, otherwise → `npx tsc --noEmit 2>&1`
@@ -250,7 +251,7 @@ Only when `routerMode == framework` **and** `mockFirst`. The dev-server SSR-load
   `server.listen()` runs before any loader executes: gate on `import.meta.env.DEV &&
   import.meta.env.VITE_ENABLE_MOCKS === 'true'`, guard against Vite HMR re-evaluation with a `globalThis`
   flag (`__mswNodeStarted`), and `await import('./mocks/node')` then `server.listen({ onUnhandledRequest:
-  'bypass' })`. Guarded-edit an existing file; **create it from `templates/framework-app-shell.md` if
+  'bypass' })`. Guarded-edit an existing file; **create it from `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md` if
   absent**. Never weaken the guard — if the §8 interception assertion fails, apply the D8 fallback (move
   the bootstrap to a custom dev-server entry).
 - **`{baseDir}/entry.client.tsx`** — ensure it has **only** the browser MSW worker bootstrap
@@ -264,7 +265,7 @@ wire the root `QueryClientProvider` into `{baseDir}/main.tsx` using the **same g
 fallback** pattern as the MSW bootstrap (module-scope singleton `QueryClient` with the D9 `staleTime:
 60_000` default; wrap the app root). In **framework mode** the provider comes from the app-shell `root.tsx`
 (scaffolded by foundation-generator) — do **not** touch `main.tsx` (there is none). This closes the D1
-override matrix: any router mode may enable `tanstack-query`. See `templates/server-state.md`.
+override matrix: any router mode may enable `tanstack-query`. See `${CLAUDE_PLUGIN_ROOT}/templates/server-state.md`.
 
 ### Step 7: Barrel Export
 
@@ -278,7 +279,7 @@ export { default as EntityListPage } from './pages/EntityListPage';
 
 Run all verification checks:
 
-**a. TypeScript** — mode-aware per the CLAUDE.md Router-mode command matrix; detect composite tsconfig:
+**a. TypeScript** — mode-aware per the fe-shared Router-mode command matrix; detect composite tsconfig:
 
 1. **Framework mode only**: run `npx react-router typegen 2>&1` first (generated types in `.react-router/`).
 2. Read root `tsconfig.json` in the project directory
@@ -312,7 +313,7 @@ npx tsc --noEmit 2>&1
    a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
    b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
    c. If `eslintTemplate === true` or field absent (default: enabled):
-      - Read `templates/eslint-config.md` from the plugin directory → generate `eslint.config.js` at project root
+      - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md` → generate `eslint.config.js` at project root
       - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency missing → skip with install instructions
       - If all installed → run `npx eslint {srcPath}/features/{feature}/ {list of modified global files} 2>&1`
@@ -322,7 +323,7 @@ npx tsc --noEmit 2>&1
 npx vitest run {srcPath}/features/{feature}/ --reporter=verbose 2>&1
 ```
 
-**d. Build:** mode-aware per the CLAUDE.md Router-mode command matrix:
+**d. Build:** mode-aware per the fe-shared Router-mode command matrix:
 ```bash
 # library modes (declarative / data — Vite SPA):
 npx vite build 2>&1
@@ -429,7 +430,7 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 
 ### RSC/SSR Skip (conditional on `routerMode`)
 - [ ] Library modes (`declarative`/`data`, Vite SPA): ignore server component and SSR-related rules
-- [ ] Framework mode (SSR/SSG): SSR rules **apply** — do not skip them (CLAUDE.md command matrix)
+- [ ] Framework mode (SSR/SSG): SSR rules **apply** — do not skip them (fe-shared command matrix)
 
 ## Key Rules
 

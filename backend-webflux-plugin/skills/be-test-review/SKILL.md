@@ -49,7 +49,7 @@ afterward, not an autonomous verdict with irreversible consequences.
 
 - `@SpringBootTest` integration tests should use `WebTestClient` for HTTP-level testing, not a blocking HTTP client
 - `@DataR2dbcTest` tests (R2DBC profile) should focus on repository query behavior, asserted via `StepVerifier`
-- Mapper tests (MyBatis profile) call the mapper directly (blocking is fine at this layer — see `templates/tdd-rules.md`); the reactive wrapping is tested one layer up
+- Mapper tests (MyBatis profile) call the mapper directly (blocking is fine at this layer — see `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md`); the reactive wrapping is tested one layer up
 - Flag: `@SpringBootTest` tests that directly call executor/processor methods and `.block()` on the result instead of going through `WebTestClient` (defeats the purpose of the integration test)
 - Flag: tests that modify shared state without cleanup (`@AfterEach`, `@DirtiesContext`)
 
@@ -76,12 +76,12 @@ afterward, not an autonomous verdict with irreversible consequences.
   - Check if the error path is asserted via `StepVerifier.expectError(...)` (unit test) or `WebTestClient` status assertion (integration test), not just "the method didn't throw when called synchronously"
 
 **Matching convention** — match an entity/class to its test class by name, per the
-naming table in CLAUDE.md:
+naming table in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md:
   - `{Entity}` (R2DBC repository) → `{Entity}RepositoryTests`
   - `{Entity}` (MyBatis mapper) → `{Entity}MapperTests`
   - `{Command}CommandExecutor` → `{Command}CommandExecutorTests`
   - `{Query}QueryProcessor` → `{Query}QueryProcessorTests`
-  (plural `Tests`, as `templates/tdd-rules.md` and the sample write them)
+  (plural `Tests`, as `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` and the sample write them)
   - Router/handler endpoints → `{HttpMethod}Tests` referencing the entity's routes
     (e.g. `PostTests`, `GetTests` under the domain's test package)
 
@@ -162,7 +162,7 @@ the report shape above with real values instead of placeholders.
 ```
 Naming Issues (1):
   EmployeeCommandExecutorTest:testDuplicateEmail — camelCase method name;
-  rename to duplicate_email_returns_409_Conflict per CLAUDE.md's snake_case
+  rename to duplicate_email_returns_409_Conflict per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md's snake_case
   test-naming convention.
 ```
 

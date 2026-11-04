@@ -22,7 +22,6 @@ The skill will provide these parameters in the prompt:
   multi-entity mode), never launch this agent once per entity
 - `scenarios` -- (alternative) inline list of test scenarios
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
-- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `projectRoot` -- project root path
 
 ## Process
@@ -32,24 +31,23 @@ The skill will provide these parameters in the prompt:
 This phase runs once per agent invocation, even when `workDocuments` contains
 multiple documents — it is not repeated per document.
 
-0. `templates/…` and `skills/…` below are the plugin's own directories, not the project's: every such file is `{pluginRoot}/templates/<file>` / `{pluginRoot}/skills/<…>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
-1. Read `templates/core-conventions.md` for naming/coding conventions and
-   architecture rules (a trimmed, execution-facing subset of the plugin CLAUDE.md —
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/core-conventions.md` for naming/coding conventions and
+   architecture rules (a trimmed, execution-facing subset of ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md —
    see that file's own header for what it omits)
-2. Read `templates/tdd-rules.md` for TDD methodology
-3. Read `templates/cqrs-module.md` for package layout (if `config.architecture == "cqrs"`)
-4. Read `templates/entity-conventions.md` for the shared DTO/exception/validator
-   patterns, then read `templates/entity-conventions-r2dbc.md` and/or
-   `templates/entity-conventions-mybatis.md` matching the `dataProfile` recorded at
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` for TDD methodology
+3. Read `${CLAUDE_PLUGIN_ROOT}/templates/cqrs-module.md` for package layout (if `config.architecture == "cqrs"`)
+4. Read `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` for the shared DTO/exception/validator
+   patterns, then read `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` and/or
+   `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` matching the `dataProfile` recorded at
    the top of each work document in this run (`be-crud` records it there) — read only
    the profile file(s) actually needed across the document(s), never both for a
    single document's own implementation
-5. Read `config.webLayer` and read `templates/web-layer-functional.md` or
-   `templates/web-layer-annotated.md` to match
+5. Read `config.webLayer` and read `${CLAUDE_PLUGIN_ROOT}/templates/web-layer-functional.md` or
+   `${CLAUDE_PLUGIN_ROOT}/templates/web-layer-annotated.md` to match
 6. Read `config` to extract: `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`, `architecture`
 7. If writing any request-scoped logging (a filter, interceptor, or handler that sets a
    correlation/request ID for log lines), follow the MDC/Reactor context-propagation pattern
-   in `skills/be-logging/SKILL.md` rule 7 exactly — that file is the single source of truth
+   in `${CLAUDE_PLUGIN_ROOT}/skills/be-logging/SKILL.md` rule 7 exactly — that file is the single source of truth
    for this pattern; do not reimplement or reparaphrase the mechanism here
 
 ### Phase 1: Load Scenarios
@@ -99,7 +97,7 @@ If the minimum method signature required for this scenario does not exist:
 Run the test class:
 
 ```bash
-{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see templates/tdd-rules.md
+{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md
 ```
 
 - **Expected**: test FAILS on assertion (not compilation)
@@ -124,7 +122,7 @@ Run the test class:
 Run the entire test class:
 
 ```bash
-{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see templates/tdd-rules.md
+{testCommand} --tests {fullTestClassName}   # multi-module: {gradleCommand} :{module}:test --tests …, see ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md
 ```
 
 - **Expected**: ALL tests in the class pass
@@ -172,7 +170,7 @@ Update the work document: change `- [ ]` to `- [x]` for the completed scenario.
   every scenario that runs after it
 - Do not add comments or Javadoc unless explicitly requested
 - Set Bash tool timeout to 600000ms (10 minutes) for all Gradle commands
-- Follow naming conventions from CLAUDE.md exactly
+- Follow naming conventions from ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md exactly
 
 ## Output
 

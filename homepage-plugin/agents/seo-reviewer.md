@@ -3,6 +3,7 @@ name: seo-reviewer
 description: SEO reviewer agent that evaluates generated pages across 6 SEO dimensions for search engine optimization compliance
 model: sonnet
 tools: Read, Glob, Grep
+skills: [hp-shared]
 ---
 
 # SEO Reviewer Agent
@@ -22,7 +23,7 @@ The skill will provide these parameters in the prompt:
 ### Phase 0: Load Context
 
 1. **Page plan** — read `planFile` to understand expected SEO configuration
-2. **SEO checklist** — read `templates/seo-checklist.md` for requirements reference
+2. **SEO checklist** — read `${CLAUDE_PLUGIN_ROOT}/templates/seo-checklist.md` for requirements reference
 3. **Generated files** — scan `src/pages/`, `src/layouts/`, `src/lib/structured-data.ts`
 
 ### Phase 1: Review (6 Dimensions)
@@ -145,5 +146,5 @@ Produce a review report with:
 - **Read-only** — never modify any files
 - **Evidence-based** — cite specific file and line for every issue
 - **Actionable fixHint** — every issue must include a concrete fix suggestion
-- **No false positives** — only flag issues that genuinely affect SEO
+- **Report every finding** — give each SEO issue a severity and say so when you are unsure; a low-impact issue is `info`, not an omission, and an issue you are unsure of is never `critical`
 - **Per-page analysis** — review each page independently, then aggregate

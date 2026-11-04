@@ -3,6 +3,7 @@ name: review-fixer
 description: TDD-disciplined fixer that reads review reports and applies targeted fixes with appropriate methodology
 model: opus
 tools: Bash, Read, Edit, Write, Grep, Glob
+skills: [be-spring-shared]
 ---
 
 # Review Fixer Agent
@@ -22,8 +23,8 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-1. Read the plugin CLAUDE.md for conventions
-2. Read `templates/tdd-rules.md` for TDD methodology
+1. Apply the conventions in the preloaded `be-spring-shared` skill
+2. Read `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` for TDD methodology
 3. Read `reportFile` — parse the full review report JSON
 4. Extract all issues sorted by severity (critical first, then warning, then suggestion)
 5. Read `config` to extract: `buildCommand`, `testCommand`, `basePackage`, `sourceDir`, `testDir`

@@ -19,22 +19,19 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & plan
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), its `domain`,
 `port`, `legacyPort`, `appDir`, `legacyDir` (Step 4b hands both to the Codex auditor),
-`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives). **Absent → the freshness
-check cannot run at all**, so decide by what is recorded: if any gate has a `gateEvidence.{gate}.tree`,
-**block** — there is evidence that cannot be checked, which is not the same as no evidence; if no
-gate has one, treat it as `unverifiable` and acknowledge. Never improvise an inline pipeline. `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
+`monorepoRoot`, `packagesDir` (Step 1a maps `sharedDeps[]` through it), `workingLanguage`, and its **`flipMechanism`** (`apps.{app}.flipMechanism`;
 **absent → `nginx`** for backward compatibility). Then resolve the mechanism-specific artifact:
 - `nginx` → `infraDir` (default `infra/nginx`).
 - `cloudfront` → `cloudfrontDir` (default `infra/cloudfront`) + `manifest` (default `v2-routes.json`).
 - `script` → `flipArtifacts` (non-empty list of repo-relative files) + `flipCommands` (`flag-on` and
   `revert` required; `flag-off` and `status` optional). Either missing, or a listed artifact that does
   not exist → stop here and name the key: this app's flip spans several files, and guessing one of
-  them is the failure this mechanism exists to prevent (`templates/strangler-fig.md` →
+  them is the failure this mechanism exists to prevent (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` →
   "Project-script pattern").
 - Any other value → stop and name it. Never fall back to `nginx` or `cloudfront` for a value you do
   not recognise — a mechanism that resolves to the wrong artifact looks like a working flip.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 Read the page's `migration-plan.json` → `flagPlan` (`key`, `guardsPath` — the same path is the
 nginx `location` *and* the CloudFront path-pattern). Determine `action` from the flags — the per-page
@@ -51,7 +48,7 @@ and QA fixes and other pages' shared-file changes land inside it; reviewers foun
 evidence stale at exactly this point (OMH-1146 #448: "`--confirm-live` skips Step 1a, so tooling will
 not re-check any of this"). Step 1a used to be skipped because at `parity-passed` + `flipPrOpenedAt`
 no gate could re-run to clear it, which would have made `flipped` unreachable. `--regate` removes that
-premise (CLAUDE.md → Per-page State Machine → In-flight window): a stale gate, or any
+premise (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine → In-flight window): a stale gate, or any
 `regateFailed.{gate}` entry, blocks `--confirm-live` and names `fm-verify {page} --regate` (then e2e,
 then parity). Run the regates **before** the edge is applied, so the block is met while the page is
 still on legacy.
@@ -63,7 +60,7 @@ Step 0's config.
 
 **Refuse a cluster first.** If the target's `kind` in `tracker.json` is `cluster`, stop before any
 per-page action: a cluster owns no route, so there is nothing to flip — it reaches `cluster-ready`, not
-`flipped` (CLAUDE.md → Component Clusters). Point the user at the cluster's own gate chain (`fm-verify`
+`flipped` (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Component Clusters). Point the user at the cluster's own gate chain (`fm-verify`
 / `fm-parity` → `cluster-ready`); its readiness becomes a flip-precondition on the *consuming* page's
 `--flag-off`, below, not a flip of its own.
 
@@ -86,23 +83,23 @@ prescribed exit refusing the state it was prescribed for.
 **`--revert` never promotes a page.** From `flipped` it returns the page to `parity-passed` — the
 state it was in before the flip, and one it genuinely earned. From `parity-passed` it **keeps the
 current status** and only clears the route fields, undoing a `--flag-off` or a prepared-but-not-live
-flip (whether or not PR2 was actually opened — see the field's definition in CLAUDE.md).
+flip (whether or not PR2 was actually opened — see the field's definition in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md).
 
 **Tell the operator the rollback is not finished.** `--revert` edits the in-repo artifact; the
 edge returns to legacy when the rollback PR is merged and propagated — the soft rollback this
-plugin targets at 5–10 minutes (`templates/strangler-fig.md`). Step 4's clearing of `flippedAt`
-records that rollback, and `templates/capture-provenance.md` reads it that way, so the report must
+plugin targets at 5–10 minutes (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md`). Step 4's clearing of `flippedAt`
+records that rollback, and `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md` reads it that way, so the report must
 say plainly that the operator has to complete it, and must not start a fresh
 `--flag-off`/`--flag-on` cycle before it propagates or the two PRs race at the edge.
 It must never write `parity-passed` over any other status: `parity-passed` is a gate-passed state,
-and "only the gate issues its own passed state" (CLAUDE.md → Per-page State Machine) binds this
+and "only the gate issues its own passed state" (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine) binds this
 skill exactly as it binds `fm-fix`. Without this guard, `--revert` on a `generated` page (say, one
 `fm-delta` had just reset) would promote it, and since `--flag-off` merely re-arms `routePrepared`,
 the next `--flag-on` would find every precondition satisfied and flip code no gate has seen.
 
 ### Step 0b: Branch freshness (PR-preparing actions: `--flag-off`, `--flag-on`)
 Both PRs are graded against **flag-ON at merge** (the big-bang cutover model —
-`templates/pr-body.md` → Grading standard), so a branch behind its base ships and is graded on a tree
+`${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` → Grading standard), so a branch behind its base ships and is graded on a tree
 it was never validated against. This is the recurring merge-sync finding (OMH-936 PR #294 "BEHIND by
 43", OMH-938 PR #302) — catch it before the PR is prepared, not in review.
 
@@ -128,10 +125,10 @@ git -C {monorepoRoot} rev-list --count HEAD.."$BASE" 2>/dev/null   # commits on 
 ```
 
 - **> 0 → block.** The branch is behind its base. Tell the operator to **rebase** onto the base
-  (`templates/pr-body.md` → Branch: synced by rebase, never by merging the base in), then
+  (`${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` → Branch: synced by rebase, never by merging the base in), then
   **re-measure every gate stamp at the new HEAD** (Step 1a's freshness recompute, and the answer-key
   freshness of P0-A) before re-running this action — a stamp carried across a sync is the
-  stale-on-merge defect (`templates/pr-body.md` → Rules). Refuse; do not prepare the PR.
+  stale-on-merge defect (`${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` → Rules). Refuse; do not prepare the PR.
   **Sync, re-stamp, then ask for review — in one push.** On a repo that dismisses stale approvals on
   push, any sync after approval costs a re-approval. So rebase and re-stamp before requesting review,
   never as a separate last commit after approval (OMH-936 #354: re-stamping as the last commit before
@@ -154,7 +151,7 @@ guarantees `verified` and `e2e-passed` were reached first — the single `status
 overwritten to `parity-passed`), `verifiedAt` present (verify's durable trace — verify has no report
 file), and both reports show `result: pass` — or `result: "not-applicable"` for a gate whose
 `notApplicable` entry in the page's tracker record is **still present with `approvedBy` and
-`approvedAt`, and whose `grantedTree` equals `gateEvidence.{gate}.tree`** (CLAUDE.md → Gate Result
+`approvedAt`, and whose `grantedTree` equals `gateEvidence.{gate}.tree`** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result
 Accounting H). An exempted pass with no recorded `tree` cannot be bound to code: say so, and block
 it like a missing entry. A `not-applicable` report with no such entry
 blocks: the exemption was withdrawn or never granted, and the gate must run — send the user to
@@ -166,19 +163,19 @@ These three are the *durable* traces, and `fm-gen`/`fm-delta` clear `verifiedAt`
 would keep the fields this step reads while losing only the advisory one.
 
 ### Step 1-pre: Require the code PR first (flag-on only)
-`--flag-on` is the second PR of a mandatory two-PR flow (`templates/strangler-fig.md`), so refuse it
+`--flag-on` is the second PR of a mandatory two-PR flow (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md`), so refuse it
 unless `tracker.json` records `routePrepared: true` from a prior `--flag-off`. Without this the flip
 can be raised on a page whose code PR was never prepared, skipping the route-stage Codex audit that
 runs in `--flag-off` Step 4b. Point the user at `--flag-off` first.
 
-### Step 1a: Gate-evidence freshness (flag-on and --confirm-live) — see CLAUDE.md → "Gate Result Accounting"
+### Step 1a: Gate-evidence freshness (flag-on and --confirm-live) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting"
 A gate PASS proves nothing about code that changed after it. For each gate with a
 `gateEvidence.{gate}.tree` in `tracker.json`, **re-compute that hash now** and compare. Resolve the
 page's **watch paths** from three recorded sources — never by guessing which files belong to the page:
 
 1. **The page's own source** — `tracker.json` `apps[app].pages[page].sourcePaths[]`, the repo-relative
    files `fm-gen` recorded as generated (see `fm-gen` Step 5), minus any untracked entry
-   `git check-ignore -q` accepts (CLAUDE.md F — the script refuses an ignored watch path, and every
+   `git check-ignore -q` accepts (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md F — the script refuses an ignored watch path, and every
    producer drops the same entries).
 2. **Its shared-package dependencies** — `migration-plan.json` `sharedDeps[]`. Entries are
    `@omh/<package>:<symbol>` (e.g. `@omh/shared-data:useBookingDetail`), so map each to the package
@@ -192,7 +189,7 @@ page's **watch paths** from three recorded sources — never by guessing which f
    swapped from `/tested` to `/untested` would flip a path no report ever evaluated. **The three gate
    skills hash all three axes; hashing fewer here can never match, and Step 1a is a hard gate with no
    acknowledgement path — the flip would be unreachable for every page, permanently.** One per-gate
-   carve-out, CLAUDE.md F: for `verify`, drop every axis-1 entry under `{appDir}/e2e/` — `fm-verify`
+   carve-out, ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md F: for `verify`, drop every axis-1 entry under `{appDir}/e2e/` — `fm-verify`
    did — and hash all of it for `e2e` and `parity`.
 
 **Where this runs.** HEAD is what this step treats as shipping, so run `--flag-on` on the checkout
@@ -245,9 +242,9 @@ gate skills ran — never an inline pipeline — once against the committed tree
 working tree:
 
 ```sh
-{pluginRoot}/scripts/gate-tree-hash.sh --rev HEAD \
+${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh --rev HEAD \
     --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...   # what ships
-{pluginRoot}/scripts/gate-tree-hash.sh \
+${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh \
     --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...   # what is on disk
 ```
 
@@ -317,10 +314,10 @@ Two carve-outs, both honest-state rather than retro-judgment, and both **acknowl
 because there is nothing to compare against:
 - A gate whose `gateEvidence` is absent, or whose record has no `tree` (written before these fields
   existed), is **`unverifiable`** — surfaced for explicit acknowledgement, not blocked. No
-  retro-adjudication, the same principle as `templates/capture-provenance.md`.
+  retro-adjudication, the same principle as `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`.
 - A page with no `sourcePaths` (generated before that field existed) is `unverifiable` on axis 1;
   still hash axes 2 and 3, which need only the plan (axis 3 is the plan). Report which axis was covered rather than a bare
-  "fresh" — a freshness claim covering some of the three axes is a scope statement, and CLAUDE.md → Design
+  "fresh" — a freshness claim covering some of the three axes is a scope statement, and ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Design
   Principles makes evidence-scope statements claims in their own right.
 - A recompute that prints **`unverifiable`** (exit 2) is not a *mismatch*, but what it means depends
   on whether there was evidence to begin with:
@@ -366,7 +363,7 @@ gate table that shows `fm-verify: pass`.
 A `<sha>+dirty` value in `commit` is normal and means nothing here — `commit` is the audit trail and
 freshness is decided entirely by `tree`. Never pass a `+dirty` string to `git`.
 
-**Answer-key freshness (hard gate; CLAUDE.md → "Gate Result Accounting" G).** The recompute above
+**Answer-key freshness (hard gate; ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" G).** The recompute above
 covers the **v2** side. The gate also compared against a **legacy answer key**, and a master merge
 that changed legacy source rots it silently — the v2 hash still matches. So if the page records
 `answerKeyEvidence.parity.legacyTree`, recompute it now with the **same** `gate-tree-hash.sh` over the
@@ -386,10 +383,10 @@ the identical set — `fm-parity` Step 4), and compare against the stored `legac
 Re-check this under the lock in Step 2, exactly as the v2-side hashes are — a concurrent merge can move
 a cited legacy file between this read and the write.
 
-### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see CLAUDE.md → "Codex Independent Audit"
+### Step 1b: Codex audit acknowledgement (flag-on only; soft gate) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 Read `docs/migration/{app}/{page}/codex-audit.json`. Collect **unresolved high-severity** findings
 across all stages — **`unresolved` = a finding whose `adjudication` block is absent, or whose
-`adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `templates/codex-audit.md`.
+`adjudication.state` is `open`** (`closed`/`rejected` are resolved). See `${CLAUDE_PLUGIN_ROOT}/templates/codex-audit.md`.
 Read `e2e-report.json` too: list every scenario at `result: "not-run"` with its `reason`. On a
 report written under the current rule there should be none — a `not-run` scenario makes the gate's
 top-level `result` `not-run` and `fm-e2e` leaves the page at `verified`, so it never reaches this
@@ -419,7 +416,7 @@ finding rather than acknowledge it, re-run `fm-verify` (it accepts a gate-passed
 with a warning), which puts the page back on the chain a fixer can reach. If `codexAudit` is disabled or Codex is
 unavailable, skip only the Codex findings; the gate exemptions still need the acknowledgement.
 
-### Step 1c: Cutover-ledger preconditions (flag-on only; hard gate) — see `templates/cutover-ledger.md`
+### Step 1c: Cutover-ledger preconditions (flag-on only; hard gate) — see `${CLAUDE_PLUGIN_ROOT}/templates/cutover-ledger.md`
 Read `docs/migration/cutover-ledger.json` (absent → no ledger entries, not a block). Collect this
 page's entries with `blocksCutover: true`. Any at `status: "open"` **block the flip** — surfaced
 individually with `item · owner · ticket · evidence`, the same handling as an unresolved Codex `high`
@@ -434,7 +431,7 @@ an `open` entry — even when its ledger entry reads `resolved` or is absent, be
 exemptions can change after the code PR — unless an owner has `approved` that entry. The way out is
 the cluster's chain from `fm-verify`, or that approval.
 
-### Step 1d: Route resolution and navigation targets (flag-on only; hard gate) — see `templates/angular-to-react-mapping.md` → routing
+### Step 1d: Route resolution and navigation targets (flag-on only; hard gate) — see `${CLAUDE_PLUGIN_ROOT}/templates/angular-to-react-mapping.md` → routing
 The edge is about to send this page's paths to v2, so check that v2 can serve every one of them and
 that the page navigates correctly from the state the flip creates. Read the app's route config
 (`routes.ts`), the routing artifact entries for `flagPlan.guardsPath`, and the page's
@@ -443,15 +440,15 @@ that the page navigates correctly from the state the flip creates. Read the app'
   the locale-less legacy entry (served by a redirect route), and every legacy child path the pattern
   covers (a wildcard hands the whole subtree over). A path with no v2 route is a broken entry point
   after the flip (PR #236 B2: the main mobile `/hotel` entry). Where the project serves loader
-  data from sibling paths (`.data`), each loader route's sibling is covered too (OMH-934 #317).
-- **Every redirect keeps the query string** (`utm_*`, `gclid`) unless legacy strips it (OMH-840 #337).
+  data from sibling paths (`.data`), each loader route's sibling is covered too.
+- **Every redirect keeps the query string** (`utm_*`, `gclid`) unless legacy strips it.
 - **Every client navigation (`<Link>`, `navigate()`) in the page's code targets a v2-served route** —
   flipped, or in this same flip or cutover batch. A client navigation into a path legacy still serves
   lands on the error boundary; it must be a document navigation to the bare legacy path instead.
 - **Inbound producers**: the `navigationSurface[]` inbound entries are updated to the mechanism the
   flip calls for, or recorded as a ledger precondition with an owner.
 - **URLs other systems hold** — for a page whose `analysis.json` `gateTriggers[]` carries `payment`,
-  check what `templates/payment-flow-v2.md` → URLs other systems hold names:
+  check what `${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md` → URLs other systems hold names:
   - `/hotel/payment`, `/payment-complete` and `/booking-complete` are each one unprefixed route with no
     locale-redirect twin;
   - if the legacy path was excluded in the app's AASA, every URL shape v2 serves for the page is
@@ -487,7 +484,7 @@ either between the unlocked check and this lock. That is no longer a dead end: `
 **Any refusal here releases the lock first.** Step 4's release is on the success path and is not
 reached here (Step 3's orchestrator-refusal release is the other one) — stopping without releasing strands the page under a holder that has ended
 and refuses every recovery the refusal itself prescribes.
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 3: Orchestrate — skipped for `--flag-on --confirm-live`
 `--confirm-live` mutates no artifact: the routing rule was already activated by the `--flag-on` run
@@ -495,7 +492,7 @@ whose PR the operator has just watched merge and deploy. Re-running the orchestr
 an edit that is already live and, on `cloudfront`, rewrite a manifest entry the deployment owner has
 applied. Go straight to Step 4 and record only the tracker transition.
 
-For the other three actions, launch `strangler-orchestrator` (Agent) with only its params: `app`, `page`, `action`,
+For the other three actions, launch `strangler-orchestrator` (`subagent_type: "frontend-migration-plugin:strangler-orchestrator"`) with only its params: `app`, `page`, `action`,
 `flagPlan`, `domain`, `port`, `legacyPort`, **`flipMechanism`** and its artifact target
 (`infraDir` for `nginx`; `cloudfrontDir` + `manifest` for `cloudfront`; `flipArtifacts` +
 `flipCommands` for `script`), **the page's current
@@ -506,20 +503,20 @@ exemptions — Step 1 has already refused on any other; `[]` when none), `workin
 precondition tests the two route fields; naming only the flip-path gate state would hand it a
 status the page does not have and none of the fields it must check.
 
-**If the agent refuses, release the page lock before returning** (CLAUDE.md → Lock file): Step 4's
+**If the agent refuses, release the page lock before returning** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file): Step 4's
 release is on the success path. The agent picks the
 strategy from `flipMechanism`; the gate precondition is identical for all three.
 
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 Update `tracker.json` (Read-Modify-Write):
 - `--flag-off` → keep current status; record `routePrepared: true`, `flagKey` (= `flagPlan.key`).
   On `script` with no `flag-off` command nothing was edited: `routePrepared` then records that the
   code PR was prepared, and the hand-authored inactive entries are that PR's content. The project's
-  `flag-on` command must refuse a page they are missing from (`templates/strangler-fig.md`).
+  `flag-on` command must refuse a page they are missing from (`${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md`).
   Step 4c stages the evidence, after the route audit has written its part.
 - `--flag-on` (succeeded) → record `flipPrOpenedAt`; **do not set `flipped` yet.** This skill edits
   the in-repo routing artifact for PR2; **opening the PR is the user's step**, exactly as it is for
@@ -544,14 +541,14 @@ Update `tracker.json` (Read-Modify-Write):
   the page they just rolled back. On `cloudfront` the entries stay in the manifest at `active: false`
   after a revert of a flipped or in-flight page (`strangler-orchestrator`), but they describe a flip
   that was rolled back: another flip goes through a fresh `--flag-off`, which re-arms `routePrepared`
-  over the kept entries. Clearing `flippedAt` matters too: `templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
+  over the kept entries. Clearing `flippedAt` matters too: `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md` resolves `apps[app].domain` to `unresolved` whenever
   `flippedAt` is present without a `flipped` status, because that combination normally means the
   tracker and the edge have drifted. A completed revert is the one case where it does *not* — the
   edge really is serving legacy again — so leaving `flippedAt` behind would make the production host
   permanently unusable as legacy evidence for this page.
 Release the lock.
 
-### Step 4a: Project cutover-ledger entries (--flag-off only) — see `templates/cutover-ledger.md`
+### Step 4a: Project cutover-ledger entries (--flag-off only) — see `${CLAUDE_PLUGIN_ROOT}/templates/cutover-ledger.md`
 The code PR is where a page's deferrals become knowable to the cutover batch, so project them into
 `docs/migration/cutover-ledger.json` now. Read the page's `migration-plan.json` `openApprovals[]`;
 for every entry carrying `blocksFlip: true` (a coverage reduction that must close before the path
@@ -562,7 +559,7 @@ or update a ledger entry keyed on `app` + `page` + `item`: `kind: "flip-precondi
 with `owner: "TBD"` projects an entry whose owner is `TBD`, which is itself the blocker to surface, not
 a value to fill in. A plan with no `blocksFlip` approvals writes nothing.
 
-**Also project not-yet-ready consumed clusters (CLAUDE.md → Component Clusters).** Scan `tracker.json`
+**Also project not-yet-ready consumed clusters (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Component Clusters).** Scan `tracker.json`
 for entries with `kind: "cluster"` whose `consumedBy` contains this page and that are **not ready**. A
 cluster is ready when its status is `cluster-ready` **and** every gate its `gateEvidence` marks
 `notApplicable` still has an approved entry whose `grantedTree` equals that gate's `tree` (Step 1's
@@ -574,15 +571,15 @@ nothing (and a prior entry for it moves to `resolved`).
 
 This is an app-wide file:
 take `docs/migration/.app.lock` then `.tracker.lock` (in that order, under the page lock already held —
-CLAUDE.md → State Files & Lock Convention), Read-Modify-Write merging on the key, release both.
+${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → State Files & Lock Convention), Read-Modify-Write merging on the key, release both.
 Step 4c stages it with the rest of PR1's evidence.
 
-### Step 4b: Codex audit (advisory; --flag-off only) — see CLAUDE.md → "Codex Independent Audit"
+### Step 4b: Codex audit (advisory; --flag-off only) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 After preparing the code PR (`--flag-off`), if `codexAudit` is enabled and `route` is in
 `codexAuditStages` (**absent → all seven**; the key narrows coverage, it never means "none" — and
 this is the sign-off before the irreversible flip, so a silent skip here is the costliest of the
 seven),
-spawn `codex-auditor` (Agent) for the `route` stage (params: `app`, `page`, `stage="route"`,
+spawn `codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `route` stage (params: `app`, `page`, `stage="route"`,
 `appDir`, `legacyDir`, the full PR diff + all gate reports + `codex-audit.json`,
 `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`) — Codex's final
 independent sign-off of the whole page. Advisory; its high-severity findings are what the
@@ -620,7 +617,7 @@ block in `infraDir`, the CloudFront behavior manifest `cloudfrontDir/<manifest>`
 path/flag/app:port mapping, gate-guard result, and next step.
 
 **Emit the PR title and body (`--flag-off`, `--flag-on`, `--cutover`).** A PR-preparing action ends by
-printing a title and a complete body from `templates/pr-body.md` for the operator to paste — the code
+printing a title and a complete body from `${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` for the operator to paste — the code
 PR on `--flag-off`, the flip PR on `--flag-on` / `--cutover`. The title is `<type>(<scope>): <subject>`
 within 50 characters. Fill every required body field, in the template's order, from the artifacts
 already read: Summary and Changed files from `migration-plan.json` + `sourcePaths[]` (every changed
@@ -632,9 +629,9 @@ when Risk is High; **Migration notes on every flip PR** — it edits the edge ar
 entries changed, who applies them, propagation time, zero-downtime or not, and the `--revert` steps;
 Gate evidence with each gate's freshness **recomputed at this HEAD**, never a stamp copied forward;
 Deferred items pointing at this page's `cutover-ledger.json` rows; **Gate impact** — the output of
-`{pluginRoot}/scripts/gate-impact.sh --base <Step 0b's base>`, with the re-gate plan for every
+`${CLAUDE_PLUGIN_ROOT}/scripts/gate-impact.sh --base <Step 0b's base>`, with the re-gate plan for every
 in-flight page it lists; and **Claims swept** — the records sweep and the result of
-`{pluginRoot}/scripts/check-records.sh --base <Step 0b's base>` (CLAUDE.md → Records Consistency).
+`${CLAUDE_PLUGIN_ROOT}/scripts/check-records.sh --base <Step 0b's base>` (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Records Consistency).
 Run both before printing the body; a `check-records.sh` finding is fixed before the PR is opened, not
 listed. A field the skill cannot fill is
 emitted as `TODO(owner): …`, never as a plausible blank. The text is English (a committed artifact);
@@ -657,12 +654,12 @@ Next step:
   tier without the other is a half-flip — and, after a `--flag-off` with no `flag-off` command, list
   the entries the code PR must author by hand. Applying them at the edge is the deployment owner's
   step, as for the other two.
-- mark the page `done` by hand once the legacy page is deleted (CLAUDE.md → Per-page State Machine).
+- mark the page `done` by hand once the legacy page is deleted (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine).
 
 ## Batch cutover (`--cutover`) — the big-bang flip of all ready pages
 
 The confirmed cutover model flips **all ready pages together at merge**, not one page at a time
-(CLAUDE.md → "Cutover Ledger & PR Body" → Cutover model). `--cutover` is that batch action. It reuses
+(${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Cutover Ledger & PR Body" → Cutover model). `--cutover` is that batch action. It reuses
 the per-page code-PR preparation unchanged — every page still reaches `parity-passed` with
 `routePrepared` via its own `--flag-off` — and replaces the per-page `--flag-on` with one gated batch
 flip. It takes **no `<page>`**; it resolves its own set. Run it from the merged base checkout, the
@@ -700,9 +697,9 @@ page run `strangler-orchestrator` with its `action: "flag-on"` and its `flagPlan
 CloudFront behavior `active: true` / the project's `flag-on` command), editing the shared routing artifact **under `.app.lock`** (one
 lock across the whole batch — the artifact is app-wide), and record `flipPrOpenedAt` on each page's
 tracker row (each write under `.tracker.lock`, per-page `.lock` held while its row is written — lock
-order page → `.app.lock` → `.tracker.lock`, CLAUDE.md → State Files & Lock Convention). No page moves
+order page → `.app.lock` → `.tracker.lock`, ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → State Files & Lock Convention). No page moves
 to `flipped` yet — opening the batch PR is the operator's step, exactly as PR2 is per page. Emit **one**
-PR body from `templates/pr-body.md` covering the batch: the set, each page's gate evidence recomputed
+PR body from `${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` covering the batch: the set, each page's gate evidence recomputed
 at HEAD, and an empty Deferred-items section (an open item would have blocked C2).
 
 ### C4: `--cutover --confirm-live`

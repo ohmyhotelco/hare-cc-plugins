@@ -3,7 +3,7 @@ name: pp-design
 description: "Use when a functional specification is finalized and UI design artifacts (DSL, wireframes) are needed before implementation."
 argument-hint: "[feature-name] [--stage=dsl|stitch]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Task, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
 ---
 
 # Design Pipeline
@@ -111,12 +111,12 @@ If the `design` field already exists, preserve existing stage statuses for stage
 
 **If `feature` is `_shared`** (layout-only mode):
 ```
-Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the shared layout feature '_shared'. specDir: docs/specs/_shared/en/. feature: _shared. This is a SHARED LAYOUT feature — enter layout-only mode: only process screens with Slot components, set children=[] in layouts, skip data model inference and cross-referencing. Read screens.md from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/_shared/ui-dsl/.")
+Agent(subagent_type: "planning-plugin:dsl-generator", prompt: "Generate UI DSL JSON files for the shared layout feature '_shared'. specDir: docs/specs/_shared/en/. feature: _shared. This is a SHARED LAYOUT feature — enter layout-only mode: only process screens with Slot components, set children=[] in layouts, skip data model inference and cross-referencing. Read screens.md from the spec directory. Read ${CLAUDE_PLUGIN_ROOT}/templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/_shared/ui-dsl/.")
 ```
 
 **Otherwise** (normal feature):
 ```
-Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/en/. feature: {feature}. Read screens.md (screen definitions, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
+Agent(subagent_type: "planning-plugin:dsl-generator", prompt: "Generate UI DSL JSON files for the feature '{feature}'. specDir: docs/specs/{feature}/en/. feature: {feature}. Read screens.md (screen definitions, error handling) and {feature}-spec.md (functional requirements) from the spec directory. Read ${CLAUDE_PLUGIN_ROOT}/templates/ui-dsl-schema.json as the structural reference. Write output to docs/specs/{feature}/ui-dsl/.")
 ```
 
 3. On success, update progress (skip for `_shared` — no progress file):
@@ -148,7 +148,7 @@ Task(subagent_type: "dsl-generator", prompt: "Generate UI DSL JSON files for the
 3. Launch the **stitch-wireframe** agent:
 
 ```
-Task(subagent_type: "stitch-wireframe", prompt: "Generate Stitch wireframes for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Generate visual wireframes using Google Stitch MCP, extract design tokens and shadcn/ui mapping hints. Write outputs to docs/specs/{feature}/stitch-wireframes/.")
+Agent(subagent_type: "planning-plugin:stitch-wireframe", prompt: "Generate Stitch wireframes for the feature '{feature}'. dslDir: docs/specs/{feature}/ui-dsl/. feature: {feature}. Read manifest.json and all screen-*.json files. Generate visual wireframes using Google Stitch MCP, extract design tokens and shadcn/ui mapping hints. Write outputs to docs/specs/{feature}/stitch-wireframes/.")
 ```
 
 4. On success, update progress (skip for `_shared` — no progress file):

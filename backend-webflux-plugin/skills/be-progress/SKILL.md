@@ -52,7 +52,7 @@ Use Glob on `{workDocDir}/*.md` to enumerate work documents — do not rely on d
 
 For each `.md` file found:
 1. Extract feature name from filename (kebab-case to display name)
-2. Use Grep with pattern `- \[x\]` (count mode, case-insensitive — a hand-edited `- [X]` is done too) and `- \[ \]` (count mode) against the file to count completed and pending scenarios for the Summary View; for the Detail View's Completed/Remaining Scenarios lists, Read the file directly to pull the actual scenario text. **This checkbox count is the authoritative scenario source** — always use it for the Scenarios column, even though `{feature}.json` also carries a `pipeline.scenarios.total`/`pipeline.scenarios.completed` field (see `templates/progress-schema.md`). That JSON field is a snapshot written by `be-code` at its last update and can lag the work document; never substitute it for a fresh checkbox count.
+2. Use Grep with pattern `- \[x\]` (count mode, case-insensitive — a hand-edited `- [X]` is done too) and `- \[ \]` (count mode) against the file to count completed and pending scenarios for the Summary View; for the Detail View's Completed/Remaining Scenarios lists, Read the file directly to pull the actual scenario text. **This checkbox count is the authoritative scenario source** — always use it for the Scenarios column, even though `{feature}.json` also carries a `pipeline.scenarios.total`/`pipeline.scenarios.completed` field (see `${CLAUDE_PLUGIN_ROOT}/templates/progress-schema.md`). That JSON field is a snapshot written by `be-code` at its last update and can lag the work document; never substitute it for a fresh checkbox count.
 3. Read `{config.workDocDir}/.progress/{feature}.json` for pipeline status (see Step 1.6 if it fails to parse or is absent)
 4. Determine displayed status:
    - If progress file exists and parses: use `pipeline.status` (authoritative)
@@ -88,7 +88,7 @@ Pipeline legend: scaffolded → implementing → implemented → verified → re
 **Staleness Check**: Compare the work document's filesystem modification time against the progress file's `updatedAt` field.
 
 1. Get the work document's mtime via Bash as `YYYY-MM-DDTHH:MM:SS` UTC: `date -u -r {workDocDir}/{feature}.md +%Y-%m-%dT%H:%M:%S` (the one form BSD and GNU `date` share; `stat -c` is GNU-only). Do not infer staleness without checking this — a missing or unreadable mtime means the check is skipped, not assumed stale or fresh.
-2. Compare it as text against the first 19 characters of the top-level `updatedAt` field in `{feature}.json` (a sibling of `pipeline`, not nested inside it — see schema in `templates/progress-schema.md`). `updatedAt` must end in `Z`; any other offset is a writer bug — skip the check and report it rather than compare (`…+09:00` truncated is not UTC).
+2. Compare it as text against the first 19 characters of the top-level `updatedAt` field in `{feature}.json` (a sibling of `pipeline`, not nested inside it — see schema in `${CLAUDE_PLUGIN_ROOT}/templates/progress-schema.md`). `updatedAt` must end in `Z`; any other offset is a writer bug — skip the check and report it rather than compare (`…+09:00` truncated is not UTC).
 3. If the work document's mtime is newer than `updatedAt`, display:
    > "Warning: Work document modified after last pipeline update. Run `/backend-webflux-plugin:be-code {workDoc}` to pick up new scenarios."
 4. If the mtime check could not be performed (file stat failed, or `updatedAt` missing/unparseable), omit the warning and note `Staleness check: not verified` instead of silently skipping it.

@@ -355,7 +355,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **Khi nào dùng**: Tham khảo quy tắc hoặc kiểm tra vi phạm trong công việc gần đây.
 
-**Hoạt động**: Hiển thị quy tắc từ CLAUDE.md theo section (commit, tdd, build, coding, api, jpa) và kiểm tra vi phạm trong công việc gần đây. Có thể tự động sửa vi phạm đơn giản (ví dụ: thiếu newline cuối file).
+**Hoạt động**: Hiển thị quy tắc từ skill be-spring-shared theo section (commit, tdd, build, coding, api, jpa) và kiểm tra vi phạm trong công việc gần đây. Có thể tự động sửa vi phạm đơn giản (ví dụ: thiếu newline cuối file).
 
 ---
 
@@ -635,7 +635,7 @@ agents/          Định nghĩa agent (backend-planner, implement, build-doctor,
 skills/          Điểm vào skill (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review, be-security)
+                 be-test-review, be-security, be-spring-shared)
 templates/       File template (plan-schema, tdd-rules, cqrs-module,
                  entity-conventions, test-scenario-template,
                  work-document-template, checkstyle-config, progress-schema)

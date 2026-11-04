@@ -45,7 +45,7 @@ If config is available and feature context exists (`{workDocDir}/.progress/{feat
 
 **Subagent Isolation**: Pass only the specified parameters below. Do not include conversation history or user feedback from prior steps.
 
-Launch the `debugger` agent with:
+Launch the `debugger` agent (`subagent_type: "backend-springboot-plugin:debugger"`) with:
 
 - `problem`: the error description or context gathered
 - `config`: parsed plugin config (if available)

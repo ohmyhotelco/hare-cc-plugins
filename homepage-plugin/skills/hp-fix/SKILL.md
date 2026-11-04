@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 Fixes issues identified by the `hp-review` skill (SEO, quality, and visual fidelity issues) or verification failures from `hp-verify`. All fixes are direct (no TDD classification) since homepage sections are primarily presentational.
 
+Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -60,7 +62,7 @@ If there are **zero issues** (e.g., all issues were manually resolved between `h
 
 **4.1 If `review-report.json` exists** (normal flow — after `hp-review`):
 
-Launch `review-fixer` agent with:
+Launch the `review-fixer` agent (`subagent_type: "homepage-plugin:review-fixer"`) with:
 - `pageName` — page identifier
 - `planFile` — path to page-plan.json
 - `projectRoot` — project root

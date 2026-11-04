@@ -3,7 +3,7 @@ name: fe-clean-code
 description: "Audit frontend code for clean code principles: single responsibility, consistent patterns, error handling, TypeScript strictness, architecture, and simplicity/over-engineering."
 argument-hint: "[file-or-directory-path]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Task
+allowed-tools: Read, Glob, Grep, Agent
 ---
 
 # Clean Code Audit
@@ -30,7 +30,7 @@ surface that verbatim — do not render it as a passing audit.
 ### Step 2: Launch Quality Reviewer (Standalone Mode)
 
 ```
-Task(subagent_type: "quality-reviewer", prompt: "
+Agent(subagent_type: "frontend-react-plugin:quality-reviewer", prompt: "
   Review code quality in standalone mode.
 
   Parameters:

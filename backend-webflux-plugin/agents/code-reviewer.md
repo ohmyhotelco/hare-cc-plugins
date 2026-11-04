@@ -16,7 +16,6 @@ The skill will provide these parameters in the prompt:
 - `targetPath` -- file or directory to review (e.g., `src/main/java/com/example/hr/`)
 - `config` -- parsed contents of `.claude/backend-webflux-plugin.json`
 - `projectRoot` -- project root path
-- `pluginRoot` -- the plugin's install directory (the launching skill resolves it); `templates/` lives under it
 - `planFile` -- (optional) path to `plan.json` from backend-planner. When provided, enables Dimension 7 (Spec Compliance)
 - `specDir` -- (optional) path to spec markdown directory. When provided alongside `planFile`, enables source reference in issues
 
@@ -24,9 +23,8 @@ The skill will provide these parameters in the prompt:
 
 ### Phase 0: Load Context
 
-0. `templates/…` below is the plugin's own directory, not the project's: every template is `{pluginRoot}/templates/<file>`; if the file is missing, say so and stop — a guessed convention is not the plugin's.
-1. Read `templates/core-conventions.md` for naming/coding conventions (a trimmed,
-   execution-facing subset of the plugin CLAUDE.md)
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/core-conventions.md` for naming/coding conventions (a trimmed,
+   execution-facing subset of ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md)
 2. Read `config` to extract: `basePackage`, `sourceDir`, `testDir`, `architecture`, `dataProfile`, `webLayer`, `database`, `checkstyle`, `lombokEnabled`
 3. Scan `targetPath` to identify all Java files for review, **and the matching test tree under `config.testDir`** — the same path relative to `sourceDir`, so `{sourceDir}/{basePackage}/hr/` pairs with `{testDir}/{basePackage}/hr/` (Dimension 5 judges test naming, assertions and coverage — it cannot from production code alone), and — when the path is the base package — `src/main/resources/migration/*.sql` and `src/main/resources/mapper/*.xml` as well: the Data Layer dimension's migration and MyBatis checks are about those files, and a `targetPath` limited to `{domain}/` cannot see them. `filesReviewed` in the envelope is the count of exactly these files — production `.java` + test `.java` + resources — and `be-review` recomputes the same count
 4. Categorize files: entities, repositories/mappers, commands, executors, queries, processors, views, routers/handlers/controllers, tests, exceptions, validators, configs
@@ -50,7 +48,7 @@ Evaluate each dimension and score 1-10:
 - URL naming: kebab-case, plural resources
 - Request/response DTO naming consistency with conventions
 - Router/Handler pair present for functional style, or `@ResponseStatus`/`@ExceptionHandler` present for annotated style — flag whichever style is used but missing its own completeness requirement
-- Both `RouterFunction` and `@RestController` used for the same domain → **warning** (see CLAUDE.md web layer rule; only one style per domain)
+- Both `RouterFunction` and `@RestController` used for the same domain → **warning** (see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md web layer rule; only one style per domain)
 - Pagination pattern: max page size enforced, sensible defaults
 - Error response consistency
 - All handler/controller methods return `Mono`/`Flux`, never a materialized/blocking type
@@ -93,7 +91,7 @@ Apply the sub-checks matching `config.dataProfile` for each file (both sets when
 
 #### Dimension 3: Clean Code
 
-- Checkstyle compliance: when `config.checkstyle == true`, judge by the **project's** `config/checkstyle/checkstyle.xml` (read it — its modules are the active rules); `templates/checkstyle-config.md` is only the default `be-init` scaffolds when the project has none. Never flag a rule the project's file does not carry as a checkstyle violation.
+- Checkstyle compliance: when `config.checkstyle == true`, judge by the **project's** `config/checkstyle/checkstyle.xml` (read it — its modules are the active rules); `${CLAUDE_PLUGIN_ROOT}/templates/checkstyle-config.md` is only the default `be-init` scaffolds when the project has none. Never flag a rule the project's file does not carry as a checkstyle violation.
 - DRY violations: duplicate code blocks across classes
 - Long methods (>30 lines)
 - Deep nesting (>3 levels of indentation) — note that reactive chains often nest via
@@ -160,7 +158,7 @@ Apply the sub-checks matching `config.dataProfile` for each file (both sets when
   - Routers/Handlers/Controllers live inside their domain's `api/` sub-package
   - Cross-domain communication goes through defined interfaces, not direct imports
   - Shared entities live in `data/`, domain-specific logic stays in domain packages
-- **Naming Conventions**: compliance per CLAUDE.md naming table
+- **Naming Conventions**: compliance per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md naming table
 
 #### Dimension 7: Spec Compliance (only when `specAvailable = true`)
 

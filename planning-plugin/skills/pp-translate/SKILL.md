@@ -3,7 +3,7 @@ name: pp-translate
 description: Use after directly editing the working language spec to sync changes to other supported languages.
 argument-hint: "[feature-name] [--file=<name>]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Task
+allowed-tools: Read, Write, Edit, Glob, Agent
 ---
 
 # Manual Translation Sync
@@ -49,7 +49,7 @@ Read existing translations for target languages if they exist. Determine if this
 For each target language, launch a **translator** agent in parallel:
 
 ```
-Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. {full_or_partial_instruction}")
+Agent(subagent_type: "planning-plugin:translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. {full_or_partial_instruction}")
 ```
 
 For partial translations (`--file` specified), include: "Only translate the file `{file_name}.md`. Keep all other files from the existing translation directory unchanged."
@@ -71,7 +71,7 @@ Update the progress file's translation status for each target language:
 2. Read progress file for existing Notion page data (`notion` field)
 3. For each translated target language (not the working language), sequentially launch the **sync-notion** agent:
    ```
-   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+   Agent(subagent_type: "planning-plugin:sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
      feature: {feature}. lang: {lang}. langName: {langName}.
      specDir: docs/specs/{feature}/{lang}/.
      progressFile: docs/specs/{feature}/.progress/{feature}.json.

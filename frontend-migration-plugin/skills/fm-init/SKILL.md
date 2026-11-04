@@ -31,21 +31,6 @@ All user-facing output in this skill is in the configured `workingLanguage` (def
    gate skills and `fm-route`, while every other `docs/migration/` path is `monorepoRoot`-relative;
    a nested layout splits the two and the freshness gate false-blocks on every page. Refuse to write
    the config otherwise, and re-check after the user corrects paths in item 3.
-1a. **`pluginRoot` is written by the SessionStart hook, not here — and into the per-machine
-   `.claude/frontend-migration-plugin.local.json`, never into the shared config this skill writes.**
-   It is one developer's absolute, version-pinned path into their plugin cache; committed, it points
-   every other clone at a directory that does not exist there (a monorepo shipped
-   `/Users/<dev>/…/frontend-migration-plugin/1.2.0` in its shared config). **If the shared config
-   already carries a `pluginRoot` key** (a pre-1.4 hook wrote it there), remove it in Step 5's write
-   and tell the user to commit the removal. The six skills that shell out to the plugin's scripts
-   read it from the local file, but this skill cannot compute it: a
-   Claude Code plugin lives in the marketplace cache, so no path built from `monorepoRoot`
-   reaches it, and `${CLAUDE_PLUGIN_ROOT}` is expanded only for `hooks/hooks.json`, never in a
-   skill's shell. `scripts/session-init.sh` *is* inside the install, so it derives the value
-   from its own location and refreshes it on every session — which also survives the plugin
-   upgrades that would otherwise dead-end a once-written, version-pinned path. Do **not**
-   improvise a filesystem search here. If the key is still missing after the next session
-   start, report that the freshness gate will run as `unverifiable` and why.
 2. Glob for candidate app directories and shared packages:
    - Legacy Angular: directories containing `angular.json` or `src/app/` with Angular
      modules (e.g. `apps/legacy-pc`, `apps/legacy-mobile`).
@@ -72,7 +57,7 @@ For each surface (`pc`, `mobile`, `hana`), gather:
 - `webview` — `false` (PC) | `true` (Mobile) | `"unknown"` (Hana, pending confirmation)
 - `sso` — `true` (Hana) | `false`
 - `flipMechanism` — `nginx` (default) | `cloudfront` | `script`. The edge layer the Strangler Fig route flip
-  is prepared at for this app (see CLAUDE.md → "Configuration"). **Ask per app — do not assume.**
+  is prepared at for this app (see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Configuration"). **Ask per app — do not assume.**
   The mapping is project config, never plugin-baked, and a project can flip some apps at a CDN and
   others at nginx; guessing writes a `flipMechanism` that points `fm-route` at the wrong artifact
   for every page of that app. Fall back to `nginx` only when the user has no answer. Then record the mechanism-specific paths:
@@ -85,7 +70,7 @@ For each surface (`pc`, `mobile`, `hana`), gather:
     function plus a load-balancer rule, and similar multi-tier edges all answer yes, and a
     `cloudfront` answer there points `fm-route` at a manifest that may not carry this app at all.
     Confirm each artifact exists and each command's script exists; no defaults. See
-    `templates/strangler-fig.md` → "Project-script pattern".
+    `${CLAUDE_PLUGIN_ROOT}/templates/strangler-fig.md` → "Project-script pattern".
 
   Keep this **project-driven** — the plugin has no built-in per-app mapping, which is why the ask
   above is per app rather than a default with an escape hatch.
@@ -98,10 +83,10 @@ details — they can be refined when those phases begin.
 
 - `currentApp` — default `pc`.
 - `contractsDir` — **optional**. When `docs/migration/api-contracts/` was detected in Step 2
-  (OMH-604/606/607), record it (default `docs/migration/api-contracts`) as the **authoritative**
+ , record it (default `docs/migration/api-contracts`) as the **authoritative**
   zod schema source for `shared-types`/`shared-data` only. If the directory is absent, **omit the
   key** — `fm-extract` falls back to the existing legacy reverse-extraction (no regression). See
-  CLAUDE.md → "Configuration".
+  ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Configuration".
 - `workingLanguage` — `ko` (default) | `en` | `vi`. This is the language of **skill output**
   (summaries, questions) — it is *not* the set of languages the product serves. That set is `i18n`
   below; never conflate the two.
@@ -116,30 +101,30 @@ details — they can be refined when those phases begin.
   - `keyPrefix` — optional key convention (e.g. `tl.`) used to spot key-shaped literals.
 
   If `localesDir` cannot be found, **omit the whole `i18n` key** and warn that the i18n key-coverage
-  spec (`templates/i18n-copy-parity.md`) will be skipped — do not fail setup. See CLAUDE.md →
+  spec (`${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`) will be skipped — do not fail setup. See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md →
   "Configuration" and "i18n Copy Parity".
 - `externalSkills` — default `true` (install Playwright, Vitest, React Router skills in
   Step 6).
 - `eslintTemplate` — default `true`. When `true`, generators auto-scaffold `eslint.config.js`
-  from `templates/eslint-config.md` where none exists (ESLint is a hard verify check). `false`
-  skips ESLint. See CLAUDE.md → "Lint & Format Gate".
+  from `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md` where none exists (ESLint is a hard verify check). `false`
+  skips ESLint. See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Lint & Format Gate".
 - `prettierTemplate` — default `true`. When `true`, generators auto-scaffold `prettier.config.js`
-  from `templates/prettier-config.md` where none exists (Prettier is advisory only). `false`
+  from `${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md` where none exists (Prettier is advisory only). `false`
   skips formatting.
 - `codexAudit` — default `true`. When `true`, the pipeline runs an independent **Codex audit** of
   each audited stage's artifact (the seven, not fm-style-spec; advisory; auto-skips if Codex is
-  absent). See CLAUDE.md → "Codex
+  absent). See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex
   Independent Audit". Detect the Codex CLI/runtime here (e.g. `command -v codex`); if absent, warn
   that audits will be skipped (do not fail setup, record the flag regardless).
 - `codexAuditStages` — default all seven stages (`analyze`, `plan`, `gen`, `verify`, `e2e`,
   `parity`, `route`). Narrows which stages the in-loop Codex audit covers.
 - `stagingConfig` — the staging `baseUrl` + payment-gateway **test** endpoints (`nicePay` /
-  `alipay` / `onePay`, the v2 gateways — `templates/payment-flow-v2.md`) that `fm-e2e` hands to
+  `alipay` / `onePay`, the v2 gateways — `${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`) that `fm-e2e` hands to
   `e2e-test-runner` for transactional scenarios (never production). Scaffold it empty for PC-first;
   offer to fill it when a transactional page is reached. When reconfiguring a config whose
   `paymentGateways` still has the pre-1.4.0 `eximbay` / `kakaoPay` keys, write the v2 set in Step 5
   instead — carrying `nicePay`'s value across — and ask first if `eximbay` or `kakaoPay` holds a
-  non-empty value. See CLAUDE.md → "Configuration".
+  non-empty value. See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Configuration".
 - `apps.{app}.applyOwner` — optional. Ask who applies a merged routing artifact to the live edge for
   each app (a person, team or open ticket). Leave it unset rather than guess; every flip PR then says
   `TODO(owner): name the apply owner`, which is visible, where a wrong name is not.
@@ -149,7 +134,7 @@ details — they can be refined when those phases begin.
 ### Step 5: Write Config and Initialize Tracker
 
 1. Write `.claude/frontend-migration-plugin.json` with the gathered values (schema in the
-   plugin `CLAUDE.md` → "Configuration"). Include `contractsDir` **only when** the
+   `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → "Configuration"). Include `contractsDir` **only when** the
    `docs/migration/api-contracts/` directory was detected in Step 2; otherwise omit the key.
 2. Make `docs/migration/.gitignore` carry `.lock`, `.*.lock`, `*.tmp`, `*.next.json` — create it, or
    append whichever lines an existing one lacks (with a leading newline: a file that ends without
@@ -157,16 +142,15 @@ details — they can be refined when those phases begin.
    skills' pre-run manifests and `fm-delta`'s proposed baselines are transient; a page-directory
    `git add` (`fm-route --flag-off`) would otherwise stage a live lock into PR1. Commit it with the
    config (`fm-route` Step 4c also stages it). Make the repository root `.gitignore` carry
-   `.claude/frontend-migration-plugin.local.json` and `.claude/settings.local.json` the same way
-   (append only the lines it lacks, with a leading newline) — both hold per-machine state: this
-   plugin's `pluginRoot`, and the tool permissions the fm-* skills record (a Playwright command, the
-   cascade differ with this machine's absolute path). Neither may reach a commit. For every
+   `.claude/settings.local.json` the same way (append the line only if it lacks it, with a leading
+   newline) — it holds the per-machine tool permissions the fm-* skills record (a Playwright command,
+   the cascade differ with this machine's absolute path) and must not reach a commit. For every
    configured app whose `appDir` already exists, ensure (inside `docs/migration/.app.lock`, the
    app-wide-file lock) that its `.gitignore` carries the Playwright run-output block from
-   `templates/e2e-testing.md` → "Run output is disposable; baselines are source" (append missing
+   `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` → "Run output is disposable; baselines are source" (append missing
    lines only, same leading-newline rule) — `foundation-generator` re-ensures it on every page run,
    and this covers an app whose harness predates the plugin. Then create `docs/migration/tracker.json`
-   if absent, written per CLAUDE.md → Serialization (2-space indent, raw UTF-8, trailing newline):
+   if absent, written per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization (2-space indent, raw UTF-8, trailing newline):
    ```json
    {
      "apps": { "pc": { "pages": {} }, "mobile": { "pages": {} }, "hana": { "pages": {} } },
@@ -208,7 +192,7 @@ DevTools for `fm-fix` (e2e-fix), no install needed. Note: Playwright's own **tes
 `.claude/agents/` plus a Playwright MCP `.mcp.json` — they are a **separate subagent system, not a
 loadable skill**, and this plugin does **not** adopt them (it already has equivalents —
 `migration-planner` / `e2e-test-runner` / `migration-fixer` — plus the legacy dual-run the healer
-cannot do). See CLAUDE.md → "External Skills".
+cannot do). See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "External Skills".
 
 The agents load each SKILL.md **per phase**, guarded by existence (vitest → all TDD phases;
 `vercel-composition-patterns` → components; `vercel-react-best-practices` → pages, applied
@@ -217,11 +201,6 @@ routing/integration). If a skill or its CLI is missing, list it with its install
 fail setup — an absent skill is skipped, not an error.
 
 ### Step 7: Report
-
-**Tell the user to restart the session before running the gates.** `pluginRoot` is written by
-the SessionStart hook, which has already run for *this* session — so `fm-verify`/`fm-e2e`/
-`fm-parity` executed now would record no `tree` and the freshness gate would report
-`unverifiable` for those runs. Analysis and planning are unaffected.
 
 Summarize in `workingLanguage`:
 - Config path and key values (apps, currentApp, workingLanguage).

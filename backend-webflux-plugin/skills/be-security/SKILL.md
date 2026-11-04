@@ -34,7 +34,7 @@ the doubt, rather than silently dropping it.
 - If argument provided: audit the specified file or directory
   - If the path does not exist, report `Path not found: {path}` and stop — do not
     fall back to scanning the default scope
-- If no argument: audit all files in `{sourceDir}/{basePackage}/` (`basePackage` with `.` → `/`, CLAUDE.md § Configuration) **and** `src/main/resources/` (the Secrets & Configuration rules are about `application*.yml`/`.properties`, JSON/TOML and compose files, which live there, not in the package)
+- If no argument: audit all files in `{sourceDir}/{basePackage}/` (`basePackage` with `.` → `/`, ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Configuration) **and** `src/main/resources/` (the Secrets & Configuration rules are about `application*.yml`/`.properties`, JSON/TOML and compose files, which live there, not in the package)
   - If neither location holds a file to audit, report
     `No source files found in {sourceDir}/{basePackage}/ or src/main/resources/ — nothing to audit` and stop (a resources-only tree is still audited for secrets)
 - Include MyBatis XML mappers under `src/main/resources/mapper/` in scope whenever
@@ -148,12 +148,7 @@ stating whether it is a true positive or excluded, and why:
   - Already using the safe parameterized form (`#{param}`, `?`, `:param`) — a
     surface-level string match that isn't actually the vulnerable pattern
 
-Only true positives proceed to Step 4. Excluded candidates are not reported —
-their exclusion reasoning does not need to appear in the final output by default,
-but you must have produced it before dropping the candidate. If the user asks to
-see what was excluded and why (e.g. "show your reasoning" / "what did you rule
-out"), report the full candidate list with both true-positive and excluded lines —
-the reasoning is always available on request, just not printed unprompted.
+True positives proceed to Step 4 as findings. Excluded candidates go under `Excluded` in the Step 4 report, one line each with the reason; they do not count toward the Risk Level, and a reader can overrule an exclusion.
 
 ### Step 4: Report
 
@@ -181,7 +176,12 @@ Warnings ({count}):
 Suggestions ({count}):
   {file}:{line} — {description}
   Suggestion: {fix}
+
+Excluded ({count}):
+  {file}:{line} — {reason}
 ```
+
+Omit `Excluded` when it is empty.
 
 When all three counts are zero, set `Risk Level: NONE` and omit the three empty
 sections rather than printing empty headers — but always print the Scope / Files
@@ -260,7 +260,7 @@ Critical (1):
     mapper, and keep the ${} substitution confined to that pre-validated value.
 ```
 
-### Example 3 — excluded candidate (not reported)
+### Example 3 — excluded candidate (listed as excluded)
 
 Input code (`EmployeeMapperTest.java`, a test file):
 
@@ -272,7 +272,7 @@ Step 3 verification line:
 > Excluded — test file (`src/test/...`), not production code; `TEST_STATUS` is
 > also a compile-time constant, not request input.
 
-This candidate does not appear in the Step 4 report.
+This candidate appears only under `Excluded` in the Step 4 report.
 
 ## Red Flags
 

@@ -21,7 +21,7 @@ three to `style-spec-extractor` for provenance side-resolution, and an unresolve
 capture `unresolved`. The page should already be at `generated` or beyond (else this is
 a first migration → use `fm-analyze`/`fm-style-spec`/`fm-plan`/`fm-gen`).
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 **Refuse `fixing` and `escalated` too.** A fix is in progress or awaiting manual intervention;
 Step 5 resets the page to `generated`, which discards the accumulated repairs and the
@@ -40,7 +40,7 @@ this refusal would repeat with no exit. `--revert` is the rollback that returns 
 `parity-passed`. Step 5 resets the status to
 `generated` while the edge flag stays ON — nothing here touches routing — so the tracker would say
 "not flipped" while the production domain serves v2. Provenance resolves a capture's `side` from
-exactly that status (`templates/capture-provenance.md`), so the next capture from the production
+exactly that status (`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`), so the next capture from the production
 host would be labelled `legacy` and accepted as the legacy baseline. Beyond the provenance damage,
 applying a delta to a page under live traffic is a change in production; taking it out of rotation
 first is the correct order.
@@ -54,7 +54,7 @@ and promote a baseline describing a delta nobody applied — the same reason the
 them, which is the only abort path that was covered.
 
 ### Step 1: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file). If it is held and fresh, report who holds it and stop — do not delete anything, and do not wait.
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). If it is held and fresh, report who holds it and stop — do not delete anything, and do not wait.
 
 ### Step 2: Clear stale staging, then compute the delta (planner incremental mode)
 **Under the lock**, first **clear the page's gate authorization** — `gateEvidence`, the legacy
@@ -72,7 +72,7 @@ integrity check is that the staged pair *exists*, so an abandoned pair would oth
 through it and promote a baseline describing a delta nobody applied.
 
 Then launch the planner:
-Launch `migration-planner` (Agent) with only its params: `mode: "incremental"`, `app`, `page`,
+Launch `migration-planner` (`subagent_type: "frontend-migration-plugin:migration-planner"`) with only its params: `mode: "incremental"`, `app`, `page`,
 `analysisPath`, `planPath` (= `migration-plan.json`, the baseline), `legacyDir`,
 `outPath = docs/migration/{app}/{page}/delta-plan.json`, `workingLanguage`. It diffs the current
 legacy source against the `analysis.json` / `migration-plan.json` baseline and writes
@@ -106,18 +106,18 @@ after the user has chosen it.
      Playwright command (e.g. `Bash(npx playwright *)`) here, or the sub-agent probe cannot launch and
      the refresh silently degrades to `source-derived` — defeating the point of refreshing the answer
      key. When `styleDrift` was set,
-     launch `style-spec-extractor` (Agent) **directly**, resolving `legacyUrl` the way `fm-style-spec`
+     launch `style-spec-extractor` (`subagent_type: "frontend-migration-plugin:style-spec-extractor"`) **directly**, resolving `legacyUrl` the way `fm-style-spec`
      Step 2 does (config `stagingConfig.baseUrl` / app `domain` + `analysis.target.routePath` /
      `legacyUrlCandidates`, or `null` → source-cascade fallback), passing the extractor's own params
      (see `agents/style-spec-extractor.md`): `app`, `page`, `analysisPath` (now holding the patched
      surface), `outPath` = `docs/migration/{app}/{page}/style-spec.json`, `legacyUrl`, `legacyDir`,
      `targetDir`, `appDir`, the app's `legacyPort` / `port` / `domain` and the page's flip state
      (the extractor resolves each capture's `provenance.side` from those —
-     `templates/capture-provenance.md`; bypassing `fm-style-spec` bypasses its param list too, and an
+     `${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`; bypassing `fm-style-spec` bypasses its param list too, and an
      unresolved side counts as absent, so the refreshed baseline would be unusable by `fm-parity`),
      `workingLanguage`. It refreshes `style-spec.json` so the delta's style
      ops build to **fresh** values. (Skip when `styleDrift` is unset.)
-  2. Launch `delta-modifier` (Agent) with only its params: `app`, `page`, `deltaPlanPath` =
+  2. Launch `delta-modifier` (`subagent_type: "frontend-migration-plugin:delta-modifier"`) with only its params: `app`, `page`, `deltaPlanPath` =
      `docs/migration/{app}/{page}/delta-plan.json`, `styleSpecPath` =
      `docs/migration/{app}/{page}/style-spec.json`, `targetDir`, `appDir`, `packagesDir`,
      `workingLanguage` (create/style ops use `tdd-cycle-runner` semantics — build to the style-spec,
@@ -160,7 +160,7 @@ after the user has chosen it.
 ### Step 5: Record (incremental path only)
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 - **Promote the staged baseline.** `migration-planner` (incremental mode) wrote its proposal to
   `migration-plan.next.json` and `analysis.next.json`; verify both parse and reflect the applied ops
   rather than re-deriving them here (the `styleSurface` is already current from Step 4), then move
@@ -178,7 +178,7 @@ after the lock this step already holds, released right after the write (CLAUDE.m
   and must not read as fresh. Clearing `gateEvidence` alone leaves exactly the fields `fm-route`
   Step 1 hard-gates on (`verifiedAt` + both reports reading `pass`), which would re-authorize the
   flip. **Clear `routePrepared` and `flagKey` on the same pass**, or Step 1-pre still reads the page
-  as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (CLAUDE.md → "Gate Result
+  as code-PR-prepared and `--flag-on` skips the fresh `--flag-off` (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result
   Accounting"). **Do not clear `regenRequiredAt`** — it means a full `fm-gen`
   is owed, and the incremental branch runs `delta-modifier`, not the foundation phase that produces
   the i18n key-coverage spec.

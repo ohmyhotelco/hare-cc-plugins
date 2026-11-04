@@ -17,10 +17,10 @@ user-facing output in `workingLanguage` (default `ko`).
 Read config (absent → run `fm-init`; stop). Resolve `app` (`--app`/`currentApp`), `targetDir`,
 `appDir`, `packagesDir`, `workingLanguage`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 0b: Review mode (`--mode review`) — a separate lane
-`--mode review` fixes review findings or QA defects, not a failed gate (CLAUDE.md → Per-page State
+`--mode review` fixes review findings or QA defects, not a failed gate (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State
 Machine → In-flight window). It skips Steps 1–5 below and runs this lane instead:
 
 1. **Entry.** Require `--findings <file>` (the findings: id, text, cited files — the reviewer's list
@@ -28,13 +28,12 @@ Machine → In-flight window). It skips Steps 1–5 below and runs this lane ins
    `parity-passed` (with or without `flipPrOpenedAt`) or `flipped`. Refuse `done` (manual
    intervention), every `*-failed` state and `fixing`/`escalated` (a failed gate goes through the
    gate modes below — say which), and anything below `generated`.
-2. **Resolve** `pluginRoot` (`.claude/frontend-migration-plugin.local.json`; absent → stop, the
-   records check and gate impact cannot run and this lane exists for them) and the base branch the
+2. **Resolve** the base branch the
    PR targets, the same way `fm-route` Step 0b does (`--base`, config `defaultBaseBranch`,
    `origin/HEAD`).
 3. **Lock** as Step 2 does. Write **no** status here — this lane never writes `fixing`.
-4. **Run the fixer.** Launch `migration-fixer` (Agent) with `mode = "review-fix"`, `findingsPath`,
-   `baseRef`, `pluginRoot`, `app`, `page`, `targetDir`, `appDir`, `packagesDir`,
+4. **Run the fixer.** Launch `migration-fixer` (`subagent_type: "frontend-migration-plugin:migration-fixer"`) with `mode = "review-fix"`, `findingsPath`,
+   `baseRef`, `app`, `page`, `targetDir`, `appDir`, `packagesDir`,
    `outPath = docs/migration/{app}/{page}/review-fix-report.json`, `workingLanguage`.
 5. **Resolve.** Read `review-fix-report.json`.
    - `outOfScope[]` non-empty → the fixer stopped at a new surface. Report each path and that it
@@ -52,8 +51,8 @@ Machine → In-flight window). It skips Steps 1–5 below and runs this lane ins
 6. **Report** in `workingLanguage`: each finding and how it closed, the class sweep, the claims swept,
    the `check-records.sh` result, the `gate-impact.sh` output (other in-flight pages it lists need
    their own `--regate`), and the next step. Then **print the updated PR title and body** from
-   `templates/pr-body.md` — including Gate impact and Claims swept — for the operator to paste: a
-   body left unchanged across fix rounds is a finding of its own (`templates/pr-body.md` → Rules).
+   `${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` — including Gate impact and Claims swept — for the operator to paste: a
+   body left unchanged across fix rounds is a finding of its own (`${CLAUDE_PLUGIN_ROOT}/templates/pr-body.md` → Rules).
 
 ### Step 1: Detect fix mode
 **Entry precondition.** This skill only closes a failed gate, so it accepts exactly
@@ -64,7 +63,7 @@ fall-through below would pick `verify-fix`, Step 3 would write `fixing` over it,
 own redirect below.
 
 **`escalated` is accepted, not refused** — it is the state manual intervention exits *through*.
-`CLAUDE.md` → Per-page State Machine, `fm-progress`, and both hooks all route an escalated page here
+`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → Per-page State Machine, `fm-progress`, and both hooks all route an escalated page here
 after the human has intervened; refusing it would close the only exit and leave the operator running
 the command the hook keeps recommending, forever. On `escalated` the status no longer names a gate,
 so derive the mode the same way a `fixing` re-entry does — from `previousStatus` if recorded, else
@@ -102,18 +101,18 @@ live page, point at `--mode review` (Step 0b), which writes no status; to take t
   nothing to roll back to and `--revert` refuses it too. Require **manual intervention**; do not
   point at `--revert`.
 - `flipPrOpenedAt` present means the flip artifact was prepared and PR2 handed to the operator
-  (`CLAUDE.md` → Per-page State Machine defines the field). The gate modes refuse it: they write
+  (`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` → Per-page State Machine defines the field). The gate modes refuse it: they write
   `fixing` and then `generated`, which would demote a page whose flip is in flight. Point at the
   status-free lane instead — `fm-fix {page} --mode review --findings <file>` for a code fix, then
   `--regate` on the gates — or at `fm-route --revert` to abandon the flip.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file; JSON schema — `holder`/`pid`/ISO-8601 `acquiredAt` — in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 3: Mark fixing
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write
-**anywhere in this skill**, after the page lock (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+**anywhere in this skill**, after the page lock (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 Update `tracker.json` (Read-Modify-Write): set `apps[app].pages[page].status = "fixing"` and record
 `previousStatus` — the `*-failed` state this fix run entered from, which Step 5 restores on
@@ -129,7 +128,7 @@ saying "fix in progress" while this skill's own report tells the user to run `fm
 different next steps for one page. Preserve the existing value instead.
 
 ### Step 4: Run the fixer
-Launch `migration-fixer` (Agent) with only its params: `mode`, `reportPath` (the failing
+Launch `migration-fixer` (`subagent_type: "frontend-migration-plugin:migration-fixer"`) with only its params: `mode`, `reportPath` (the failing
 `e2e-report.json`/`parity-report.json`; omit for `verify-fix` — verify writes no report, its failing
 summary is in `tracker.json`), `app`, `page`, `targetDir`, `appDir`, `packagesDir`,
 `outPath` = `docs/migration/{app}/{page}/fix-report.json`, `workingLanguage`.
@@ -177,11 +176,11 @@ adjudication on that finding (Read-Modify-Write): `adjudication.state = "closed"
 `"rejected"` if judged not a defect), with `by: "fm-fix"`, `when` (ISO-8601), and a required `basis`
 — the commit/`file:line` that closed it, or why it is not a defect. This is what lets
 `fm-route --flag-on` (Step 1b) tell an already-fixed finding from a still-open one instead of
-re-surfacing every finding forever. See `templates/codex-audit.md`.
+re-surfacing every finding forever. See `${CLAUDE_PLUGIN_ROOT}/templates/codex-audit.md`.
 
 **Refresh `sourcePaths` from `fix-report.json`** (Read-Modify-Write: add every `filesChanged[]`
 entry, drop every `filesRemoved[]` entry — a rename appears in both; skip a path
-`git check-ignore -q` accepts, CLAUDE.md → Gate Result Accounting F). `sourcePaths[]` is axis 1 of the page's watch paths, and
+`git check-ignore -q` accepts, ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting F). `sourcePaths[]` is axis 1 of the page's watch paths, and
 only `fm-gen`/`fm-delta` used to maintain it — so a fixer refactor that renamed files left the
 gate watching paths that no longer exist and *not* watching the replacements. When every
 recorded path disappears that way, `fm-route` Step 1a blocks (correctly, but on a page nobody

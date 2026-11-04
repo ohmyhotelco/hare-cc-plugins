@@ -29,7 +29,7 @@ Check each router/handler pair or controller against these rules.
 
 #### Web-Layer Consistency (see Decision 2)
 
-- Both `RouterFunction` and `@RestController` used for the **same domain package** → **warning**: "mixed web-layer style in domain `{domain}` — pick one per CLAUDE.md's web layer rule"
+- Both `RouterFunction` and `@RestController` used for the **same domain package** → **warning**: "mixed web-layer style in domain `{domain}` — pick one per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md's web layer rule"
 - `@RestController` used anywhere while `config.webLayer == "functional"` and no documented exception is recorded for that domain → **suggestion**: confirm this is an intentional named exception (Decision 2), not a default drift
 - `RouterFunction` used anywhere while `config.webLayer == "annotated"` → same, inverted
 
@@ -88,7 +88,7 @@ Flag violations:
 #### Consistency
 
 - All routers/handlers or controllers in the same domain should follow the same patterns → **warning**
-- Naming should match the naming conventions table in CLAUDE.md (`{Name}Router`, `{Name}Handler`, or `{Name}Controller`) → **suggestion**
+- Naming should match the naming conventions table in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md (`{Name}Router`, `{Name}Handler`, or `{Name}Controller`) → **suggestion**
 - Handler should be a `record` class with constructor DI (matches CQRS conventions); Controller (annotated style) should also be a `record` class → **suggestion**
 
 ### Step 3: Report
@@ -152,7 +152,7 @@ Controllers reviewed: 1
 Endpoints reviewed: 2
 
 Issues:
-  warning | BookingLegacyController.java:12 | booking domain | Web-Layer Consistency — mixed web-layer style in domain `booking` (BookingRouter.java:18 uses RouterFunction, BookingLegacyController.java:12 uses @RestController); pick one per CLAUDE.md's web layer rule
+  warning | BookingLegacyController.java:12 | booking domain | Web-Layer Consistency — mixed web-layer style in domain `booking` (BookingRouter.java:18 uses RouterFunction, BookingLegacyController.java:12 uses @RestController); pick one per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md's web layer rule
   Suggestion: confirm with the team whether BookingLegacyController is an intentional named exception (Decision 2); if so, record it in docs/decisions.md, otherwise migrate it to RouterFunction
 
   warning | BookingLegacyController.java:12 | booking domain | URL Versioning — inconsistent API versioning in domain `booking` (BookingRouter.java:18 uses /v2/bookings, BookingLegacyController.java:12 uses /bookings with no version segment)

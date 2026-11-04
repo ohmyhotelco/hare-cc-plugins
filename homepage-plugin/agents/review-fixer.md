@@ -3,6 +3,7 @@ name: review-fixer
 description: Review fixer agent that applies direct fixes for SEO and quality review issues
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [hp-shared]
 ---
 
 # Review Fixer Agent
@@ -25,8 +26,8 @@ The skill will provide these parameters in the prompt:
 
 1. **Review report** — read `reviewReportFile` (merged report produced by hp-review skill). Structure: `{ seo: { score, verdict, issues[] }, quality: { score, verdict, issues[] }, visualFidelity?: { score, verdict, issues[], coverage }, overall: { verdict, totalIssues } }`. Extract all issues from `seo.issues`, `quality.issues`, and (if present) `visualFidelity.issues` arrays. Each issue has: severity, dimension, message, file, line (optional), fixHint.
 2. **Page plan** — read `planFile` for page structure context
-3. **SEO checklist** — read `templates/seo-checklist.md` for reference
-4. **Astro conventions** — read `templates/astro-conventions.md` for convention reference
+3. **SEO checklist** — read `${CLAUDE_PLUGIN_ROOT}/templates/seo-checklist.md` for reference
+4. **Astro conventions** — read `${CLAUDE_PLUGIN_ROOT}/templates/astro-conventions.md` for convention reference
 5. **Design system** — if `docs/design-system/design-tokens.json` exists, read it for CSS variable values and typography settings (needed for Design Token Consistency fixes and visual fidelity color fixes). If `docs/design-system/component-map.json` exists, read it for section-specific styles (needed for visual fidelity component fixes).
 
 ### Phase 1: Pre-Check

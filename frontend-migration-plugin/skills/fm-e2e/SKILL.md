@@ -16,14 +16,14 @@ All user-facing output in `workingLanguage`.
 ### Step 0: Config & prerequisites
 Read config (absent → run `fm-init`; stop). Resolve `app`, `appDir`, `targetDir`, `legacyDir`,
 `monorepoRoot`, `packagesDir` (Step 4 maps the plan's `sharedDeps[]` through them for the
-gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline), the app's `legacyPort` / `port` / `domain`,
+gate-evidence hash), the app's `legacyPort` / `port` / `domain`,
 `workingLanguage`, and `stagingConfig` (payment-gateway test endpoints). Require the page at
 `verified` in `tracker.json` and `migration-plan.json` with `e2eScenarios` (else point to
 `fm-verify`/`fm-plan`) — except under `--regate` (Step 0a).
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+### Step 0a: `--regate` (in-flight or flipped page) — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine → In-flight window
 With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`, **and**
 verify's evidence fresh at HEAD — `gateEvidence.verify.tree` equal to its recomputation, the way
 `fm-route` Step 1a recomputes it — with no `regateFailed.verify`. Otherwise refuse and name
@@ -33,11 +33,11 @@ the manifest exactly as the pass branch does and deletes `regateFailed.e2e`. A `
 writes `regateFailed.e2e = { "at", "commit", "summary" }` instead of a status — an unmeasured
 scenario does not clear an in-flight page any more than a failed one.
 
-### Step 0b: Approved exemption (CLAUDE.md → Gate Result Accounting H)
+### Step 0b: Approved exemption (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting H)
 If the page's tracker record has a `notApplicable` entry with `gate: "e2e"` **and** both
 `approvedBy` and `approvedAt`, first check it has not lapsed. If the entry carries `grantedTree`, compute the current `tree` first (same script, same watch
 paths as Step 4). If it differs, the approval has **lapsed**: the code changed after the owner
-decided (CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
+decided (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting H). Say so, name the entry, and run the gate normally.
 Otherwise this run is the **exemption path**: skip Step 1 and Step 3's runner,
 take the lock (Step 2) and re-verify under it that the entry is still approved and the status is
 still `verified`, then write `e2e-report.json` as
@@ -55,21 +55,21 @@ sub-agent probe — but check rather than assume: a page can reach this gate on 
 an earlier session or on another machine.
 
 ### Step 2: Lock
-Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — CLAUDE.md → Lock file).
+Acquire `docs/migration/{app}/{page}/.lock` (stale only when its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file).
 
 ### Step 3: Run the gate
 Before launching the runner, compute the **pre-run** manifest and `tree` hash — one `--manifest`
 execution saved to a temp pre-run manifest, hash via `git hash-object --no-filters` (the same one-execution
 rule as Step 4), over the same watch-path union — all of axis 1, this gate hashes the `{appDir}/e2e/`
-entries `verify` leaves out (CLAUDE.md → Gate Result Accounting F). Save it as `"$MAN.pre.tmp"` beside
+entries `verify` leaves out (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting F). Save it as `"$MAN.pre.tmp"` beside
 the manifest (the `*.tmp` suffix keeps it out of every commit) and delete it once Step 4 has
 compared. Step 4 compares against both: this gate
 legitimately **creates spec files**, so the comparison is manifest-aware, not a bare hash equality
-(CLAUDE.md → Gate Result Accounting E).
+(${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting E).
 
-Launch `e2e-test-runner` (Agent) with only its params — including the app's `legacyPort` / `port` /
+Launch `e2e-test-runner` (`subagent_type: "frontend-migration-plugin:e2e-test-runner"`) with only its params — including the app's `legacyPort` / `port` /
 `domain` and the page's flip state, which each dual-run leg needs to resolve its `provenance.side`
-(`templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
+(`${CLAUDE_PLUGIN_ROOT}/templates/capture-provenance.md`; an unresolved side counts as absent and fails the gate):
 `app`, `page`, `planPath`, `styleSpecPath` =
 `docs/migration/{app}/{page}/style-spec.json` (its `contentDependent` elements drive the runner's
 standing containment-overload scenario; absent → the runner reports that scenario `not-run`),
@@ -81,7 +81,7 @@ server the runner needs.
 ### Step 4: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 **Merge `filesChanged[]` whatever the result** — pass, fail, or `not-run`. The files exist in the
 tree now, and a later passing run that reuses them unchanged will not list them again; skipping
@@ -94,7 +94,7 @@ that narrowed one has not passed (mirrors `fm-parity` Step 3's report inspection
 write below:**
 - `result: pass` → `apps[app].pages[page].status = "e2e-passed"`, and record
   `apps[app].pages[page].gateEvidence.e2e = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
-  exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
+  exactly as ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
   **running the script** once with `--manifest` and hashing its output — never by re-implementing
   its records with an inline pipeline:
@@ -103,7 +103,7 @@ write below:**
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/e2e.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/e2e.tsv -- <watch path>... > "$MAN.tmp"
   TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
@@ -114,7 +114,7 @@ write below:**
   On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
   `unverifiable`), exit 1 is an error.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines —
+  Watch paths are the union of the three axes ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" F defines —
   all of axis 1, including the `{appDir}/e2e/` entries `verify` leaves out, minus any untracked
   entry `git check-ignore -q` accepts (F); resolve `packagesDir`
   and `monorepoRoot` in Step 0 and read the plan's `sharedDeps[]` here. **First merge the runner's
@@ -171,12 +171,11 @@ write below:**
   is read the same way: treat it as `not-run`, not as a pass.
 Release the lock.
 
-### Step 4b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+### Step 4b: Codex audit (advisory) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 Skip this step on the exemption path — no scenario ran, so there is no pass for Codex to test.
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
-`codex-auditor`
-(Agent) for the `e2e` stage (params: `app`, `page`, `stage="e2e"`, `appDir`, `legacyDir`,
+`codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `e2e` stage (params: `app`, `page`, `stage="e2e"`, `appDir`, `legacyDir`,
 `e2eReportPath` + `planPath`, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`). The Codex cross-check here targets **false passes** — whether the scenarios
 truly cover legacy parity. Advisory — never changes the page status. Surface its verdict below.
@@ -192,7 +191,7 @@ acknowledged; the next step is still `fm-parity`. Under `--regate`: on a pass,
 --findings <file>` with the failure as the finding, or `fm-route {page} --revert`.
 
 If the report's `runOutput.unignored` is non-empty, say so whatever the result, and name the files:
-they are traces or failure captures a commit would take (`templates/e2e-testing.md` → "Run output is
+they are traces or failure captures a commit would take (`${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` → "Run output is
 disposable; baselines are source"). Print the ignore lines that would cover them and tell the user
 not to stage those files. It does not change the gate result — the gate judges behavior — but a
 failing run is exactly when these files exist, and the next `git add` of the directory ships them.

@@ -20,14 +20,14 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 (`v2Dirs` — a migrated app is where carried-over secrets now live; none exist in Phase 0, so it is
 normally `[]` the first time), and `workingLanguage`.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve scope
 Locate `src/environments/*.ts` under the legacy dir(s) (or use `[env-path]` if given) and the
 `src/app/**` + `server.ts` readers.
 
 ### Step 2: Audit
-Launch `secret-auditor` (Agent) with `legacyDir`(s), `v2Dirs`, `outPath` =
+Launch `secret-auditor` (`subagent_type: "frontend-migration-plugin:secret-auditor"`) with `legacyDir`(s), `v2Dirs`, `outPath` =
 `docs/migration/secret-audit-report.json`, `workingLanguage`.
 
 ### Step 3: Report

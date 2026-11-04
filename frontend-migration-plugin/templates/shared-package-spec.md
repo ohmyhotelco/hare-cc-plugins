@@ -22,9 +22,9 @@ When the project has confirmed backend verification contracts (`contractsDir`, d
 schema source for **`shared-types` and `shared-data` only** — the legacy `any` DTOs under
 `apis/models` are **retired** for everything the contracts cover (migration plan §5). The
 contracts are **zod-in-markdown** (zod inside Markdown `ts` code fences, not `.ts` files):
-- `{contractsDir}/responses/` (OMH-606) — per-endpoint response zod, each `.extend()`ing the
+- `{contractsDir}/responses/` — per-endpoint response zod, each `.extend()`ing the
   shared `ResponseEnvelopeSchema`.
-- `{contractsDir}/requests/` (OMH-607) — per-endpoint `{Entity}RqSchema`, each `.extend()`ing
+- `{contractsDir}/requests/` — per-endpoint `{Entity}RqSchema`, each `.extend()`ing
   the shared `CommonRequestParamsRqSchema`.
 - Both base schemas (`ResponseEnvelopeSchema`, `CommonRequestParamsRqSchema`) are defined **once**
   in `shared-types`; every per-endpoint schema extends its base.

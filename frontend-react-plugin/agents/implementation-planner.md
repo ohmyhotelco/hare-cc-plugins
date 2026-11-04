@@ -3,6 +3,7 @@ name: implementation-planner
 description: Implementation planner agent that analyzes functional specifications and UI DSL to produce a structured implementation plan for production React code
 model: opus
 tools: Read, Write, Glob, Grep
+skills: [fe-shared]
 ---
 
 # Implementation Planner Agent
@@ -18,7 +19,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
 - `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
-- `routerMode` — `"declarative"` | `"data"` | `"framework"` (framework = per-route SSR/SSG/SPA; see the Router-mode command matrix in CLAUDE.md)
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (framework = per-route SSR/SSG/SPA; see the Router-mode command matrix in fe-shared)
 - `appProfile` — `"admin"` (default) | `"ota"` — copied into the plan so downstream agents need not re-read config
 - `serverState` — `"zustand-only"` (default) | `"tanstack-query"`
 - `formStack` — `"native"` (default) | `"rhf-zod"`
@@ -103,7 +104,7 @@ Identify existing project patterns so that generated code integrates naturally.
 
 3. **Existing feature module** — Read one existing feature module to identify patterns
    - File structure, import style, naming conventions
-   - If no existing modules, use the canonical structure from templates/feature-module.md
+   - If no existing modules, use the canonical structure from ${CLAUDE_PLUGIN_ROOT}/templates/feature-module.md
 
 4. **Route file** — Identify and analyze existing route file for auto-integration
    - **Library modes (declarative / data)**: locate `{baseDir}/App.tsx` or `{baseDir}/router.tsx` or `{baseDir}/routes/index.tsx`
@@ -358,7 +359,7 @@ Non-TDD phases (`tdd: false`) specify only `verify[]`.
 - `serverState == tanstack-query`: the `api-tdd` phase covers the axios service **and** `api/queries.ts` (query-key factory + queryOptions + hooks). If a page has no client-only state, the plan emits **no** store for it and the `store-tdd` phase is **skipped** (fe-gen already skips phases with no files — make it explicit: a feature with no `stores[]` entry has no `store-tdd` phase).
 - `formStack == rhf-zod`: `foundation` additionally emits `schemas/{entity}Schema.ts`; `component-tdd` forms use `zodResolver`.
 - **Phase 2** — `apiLayer == workspace-package`: the `api-tdd` phase carries `cwd: "{apiPackage.dir}"`, its `testFiles[]`/`implFiles[]` are the package paths from §2.2/§2.10, and its `verify[]` runs the **package's** Vitest (`npx vitest run` from `cwd`); a feature whose needs are fully covered by `reuse[]` has an empty `api-tdd` (skipped like `store-tdd`). `clientStore == none`: no `store-tdd` phase ever. `componentLibrary == external`: `foundation` scaffolds `formAdapters` when `rhf-zod`; `component-tdd` includes the `origin: "ui-kit"` gap components **first** in `implFiles[]` (feature components import them). `i18nBinding == custom-hook`: the `integration` phase lists the resource files it merges into (`{resourcesDir}/{resourceFile}` per language) and no `i18n.ts`.
-- `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the CLAUDE.md Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
+- `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the fe-shared Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
 
@@ -1193,7 +1194,7 @@ admin/library-mode default so all appear with default values):
 ```
 
 **`openApprovals[]`** (optional; omit when empty) records deliberate deviations from the spec so a
-reviewer stops re-raising a decision that has already been made — see CLAUDE.md § Deliberate
+reviewer stops re-raising a decision that has already been made — see fe-shared § Deliberate
 Deviations. This agent may write an entry only as **`status: "pending"` with `owner: null`**: a
 proposal, not an approval. Only a human sets `status: "approved"` with a named `owner`, and only an
 approved entry silences a reviewer. Writing `approved` here would let the pipeline authorize its own
@@ -1242,18 +1243,18 @@ Implementation Plan for '{feature}':
 
 ## Key Rules
 
-1. **Read-only**: This agent MUST NOT create any source code files. Only the plan.json output.
+1. **Read-only**: This agent must not create any source code files. Only the plan.json output.
 2. **Project-first**: Always match the existing project's patterns (naming, imports, directory structure). Do not impose new patterns.
 3. **No spec-absent features**: Do not add any features, endpoints, or UI elements not present in the spec.
 4. **Path alias compliance**: Use the project's `tsconfig.json` path aliases (e.g., `@/`) in all file references.
 5. **One component library**: under `componentLibrary == shadcn` plan only shadcn/ui components; under `external` plan only the configured package's exports plus `ui-kit` gap components. Never introduce a second component library in either mode.
 6. **Prototype reference only**: If a prototype exists, use it for layout hints. Never copy prototype code patterns into the plan.
-7. **4-state page pattern**: Every page MUST plan for all 4 states: loading, empty, error, success.
+7. **4-state page pattern**: Every page must plan for all 4 states: loading, empty, error, success.
 8. **UI DSL priority**: If UI DSL is available, extract data from componentTree, dataShape, validation, errorHandling, visibility directly. Do not guess.
 9. **Spec fallback**: If UI DSL is not available, infer types, fields, validation from spec markdown (FR, BR, AC sections).
-10. **Complete plan**: Every screen in the spec MUST have a corresponding page entry. Every FR MUST map to an API method. Every user-visible text MUST have an i18n key.
-11. **Test traceability**: Every TS-nnn in `test-scenarios.md` MUST map to at least one test case in the `tests[]` array. The `source` field provides this traceability link.
-12. **E2E scenario identification**: Multi-page user flows from `test-scenarios.md` should be captured as `e2eTests[]` entries. Single-component interactions are adequately covered by unit/component tests and MUST NOT be duplicated in E2E. If no multi-page flows exist, set `e2eTests` to `[]`.
+10. **Complete plan**: Every screen in the spec must have a corresponding page entry. Every FR must map to an API method. Every user-visible text must have an i18n key.
+11. **Test traceability**: Every TS-nnn in `test-scenarios.md` must map to at least one test case in the `tests[]` array. The `source` field provides this traceability link.
+12. **E2E scenario identification**: Multi-page user flows from `test-scenarios.md` should be captured as `e2eTests[]` entries. Single-component interactions are adequately covered by unit/component tests and must not be duplicated in E2E. If no multi-page flows exist, set `e2eTests` to `[]`.
 13. **Incremental mode — read-only for plan.json**: In incremental mode, do NOT modify the existing plan.json. Only produce delta-plan.json. The skill patches plan.json after delta execution.
 14. **Incremental mode — conservative cascade**: When cascade impact is ambiguous, include the file in the modify list. A no-op modification is safe; a missed modification causes drift.
-15. **Incremental mode — source traceability required**: Every entry in `affectedFiles` MUST have `specRefs[]` tracing back to the spec change that caused it. Entries without traceability cannot be verified.
+15. **Incremental mode — source traceability required**: Every entry in `affectedFiles` must have `specRefs[]` tracing back to the spec change that caused it. Entries without traceability cannot be verified.

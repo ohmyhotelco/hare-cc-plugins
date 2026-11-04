@@ -18,7 +18,6 @@ This skill holds an exclusive cross-skill lock (`{workDocDir}/.progress/.lock`) 
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Parse Argument
 
@@ -51,8 +50,8 @@ If the argument is a feature name (not a file path):
 
 ### Step 2: Gather Context
 
-1. Read `templates/core-conventions.md` for architecture and conventions (a trimmed,
-   execution-facing subset of the plugin CLAUDE.md — see that file's own header for
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/core-conventions.md` for architecture and conventions (a trimmed,
+   execution-facing subset of ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md — see that file's own header for
    what it omits)
 2. If the argument is a work document path:
    - Read the document
@@ -81,7 +80,7 @@ If the argument is a feature name (not a file path):
 
 Auto-generate an enriched work document from plan.json for each entity that lacks one:
 
-1. Read `templates/work-document-template.md` for the document format — including the `Data profile:` line at the top: resolve it as `be-crud` Step 1 does (`config.dataProfile`, or `r2dbc` when that is `both` and nothing says otherwise) and record it; the implement agent reads it to choose the entity-conventions file
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/work-document-template.md` for the document format — including the `Data profile:` line at the top: resolve it as `be-crud` Step 1 does (`config.dataProfile`, or `r2dbc` when that is `both` and nothing says otherwise) and record it; the implement agent reads it to choose the entity-conventions file
 2. For each entity in plan.json that has no existing work document, generate `{workDocDir}/{kebab-case-entity}.md` with:
    - **Entity section**: fields table from `plan.json.entities[].fields[]` with types, constraints, and source references
    - **Commands section**: from `plan.json.commands[]` for this entity, including validation steps from BR-nnn
@@ -109,8 +108,8 @@ Auto-generate an enriched work document from plan.json for each entity that lack
 
 Follow the original manual flow:
 
-1. Read `templates/test-scenario-template.md` for the scenario format
-2. Draft test scenarios following CLAUDE.md scenario writing rules:
+1. Read `${CLAUDE_PLUGIN_ROOT}/templates/test-scenario-template.md` for the scenario format
+2. Draft test scenarios following ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md scenario writing rules:
    - Single sentence, English, present tense
    - Start with lowercase (usable as snake_case method name)
    - Use `- [ ]` checkbox format
@@ -135,7 +134,7 @@ Follow the original manual flow:
 **Work-document mode** (file path, or a feature name with a work document and no plan): If `{workDocDir}/.progress/{feature-name}.json` exists:
 
 1. Read `pipeline.status`
-2. If status is anything past `"implementing"` — `"implemented"`, `"verified"`, `"verify-failed"`, `"reviewed"`, `"review-failed"`, `"fixing"`, `"resolved"`, `"escalated"`, `"done"` — (CLAUDE.md § Demotion Warning: any earlier-stage skill resetting a later status asks first):
+2. If status is anything past `"implementing"` — `"implemented"`, `"verified"`, `"verify-failed"`, `"reviewed"`, `"review-failed"`, `"fixing"`, `"resolved"`, `"escalated"`, `"done"` — (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Demotion Warning: any earlier-stage skill resetting a later status asks first):
    > "This feature is currently '{status}'. Re-running TDD implementation will reset the pipeline status to 'implementing', discarding verification/review progress."
    > "Continue?"
    If the user declines, stop here.
@@ -193,7 +192,7 @@ For each entity in `confirmedEntities` (plan-driven mode — a declined entity i
 
 **Multi-entity mode: initialize only the entities Step 3.6a confirmed.** This step writes
 `"implementing"`; a check that ran after it would read the status it just wrote, never warn, and
-demote a `done`/`verified` entity without the consent CLAUDE.md § Demotion Warning requires. An
+demote a `done`/`verified` entity without the consent ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Demotion Warning requires. An
 entity the user declined keeps its progress file untouched.
 
 ### Step 4: TDD Cycle
@@ -220,7 +219,6 @@ Launch the `implement` agent (`subagent_type: "backend-webflux-plugin:implement"
   `["{workDocDir}/leave-type.md", "{workDocDir}/leave-request.md"]`.
 - `config`: the parsed plugin config
 - `projectRoot`: current project root
-- `pluginRoot`: {pluginRoot}
 
 The implement agent loads its Phase 0 context once, then processes each document's
 scenarios in order (all of document 1's scenarios, then document 2's, ...):
@@ -309,7 +307,7 @@ update `{workDocDir}/.progress/{kebab-case-entity}.json`:
 5. Write back (read-modify-write — preserve all existing fields including `specSource`)
 
 After every entity's (or the single entity's) progress file is updated, release the
-lock: delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety.
+lock: delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety.
 
 Suggest next step:
 - **All entities implemented + build passes**: `/backend-webflux-plugin:be-verify {entity}` for each entity

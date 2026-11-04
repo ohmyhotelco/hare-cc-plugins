@@ -14,7 +14,6 @@ Set up the Backend WebFlux Plugin configuration for this project.
 
 ### Step 1: Check Existing Configuration
 
-0. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`. Missing → do **not** stop: initialization needs no template (only Step 2 item 9's optional checkstyle offer does — skip that offer); record that it is missing for Step 7.
 1. Check if `.claude/backend-webflux-plugin.json` already exists in the current project directory
 2. If it exists, read the current configuration and show it to the user:
    > "Backend WebFlux Plugin is already configured:"
@@ -41,11 +40,11 @@ Scan the project to detect settings automatically:
 6. **Web layer**: Check for `RouterFunction` bean definitions vs `@RestController` usage in existing source.
    - Project is empty (no source found yet) → default `"functional"`, no warning needed.
    - One style clearly dominates → that style wins, no warning needed.
-   - Both styles are present in meaningful numbers (mixed evenly) → do not silently default. Flag it in Step 3 as a warning: the existing source shows both `RouterFunction` and `@RestController` usage, and per this plugin's architecture rule a domain must never mix both styles (see `CLAUDE.md` § Web Layer) — ask the user which style to standardize on for new code rather than picking `"functional"` for them.
+   - Both styles are present in meaningful numbers (mixed evenly) → do not silently default. Flag it in Step 3 as a warning: the existing source shows both `RouterFunction` and `@RestController` usage, and per this plugin's architecture rule a domain must never mix both styles (see `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` § Web Layer) — ask the user which style to standardize on for new code rather than picking `"functional"` for them.
 7. **Database**: Check dependencies for `mysql-connector-j` / `io.asyncer:r2dbc-mysql` (mysql, default) or `h2` (the sample's stand-in). An `io.asyncer:r2dbc-mysql` below `1.4.2` is a Boot-3 line — warn in Step 3 (the same way item 5 warns on a 3.0.x MyBatis starter); `be-crud` Step 3 stops on it. Any other vendor's driver (PostgreSQL, MariaDB, …) → **stop, write no config**: `be-crud` emits MySQL DDL and requires the MySQL drivers, so the project would be configured and then given SQL its database rejects
 8. **Migration**: Check for a `src/main/resources/migration/` directory (manual-sql, default) or a migration-runner dependency (only if the project has explicitly opted into one). A runner changes nothing about generation — `be-crud` always writes plain SQL under `src/main/resources/migration/` and never registers it — so warn in Step 3: a Flyway project points its runner there (`spring.flyway.locations=classpath:migration`), a Liquibase project includes each file in its changelog itself
-9. **Checkstyle**: `true` when the `checkstyle` plugin is applied in the build file. If it is applied but `config/checkstyle/checkstyle.xml` is missing, offer to write the file from `templates/checkstyle-config.md` (that is the only place it is scaffolded; without it `checkstyleMain` fails on a missing config). A project that has its own file keeps it — the reviewer judges by the project's file
-10. **Coverage**: `true` only when the `jacoco` plugin is applied in the build file. Nothing in this plugin adds it, and with `coverage: true` on a project without it `be-verify`'s Coverage row fails (`jacocoTestReport` not found) and so does `Overall` — on every run. Absent → `false`, and tell the user in Step 3 how to enable it: the Gradle block in `templates/coverage-gate.md`, then re-run `be-init`
+9. **Checkstyle**: `true` when the `checkstyle` plugin is applied in the build file. If it is applied but `config/checkstyle/checkstyle.xml` is missing, offer to write the file from `${CLAUDE_PLUGIN_ROOT}/templates/checkstyle-config.md` (that is the only place it is scaffolded; without it `checkstyleMain` fails on a missing config). A project that has its own file keeps it — the reviewer judges by the project's file
+10. **Coverage**: `true` only when the `jacoco` plugin is applied in the build file. Nothing in this plugin adds it, and with `coverage: true` on a project without it `be-verify`'s Coverage row fails (`jacocoTestReport` not found) and so does `Overall` — on every run. Absent → `false`, and tell the user in Step 3 how to enable it: the Gradle block in `${CLAUDE_PLUGIN_ROOT}/templates/coverage-gate.md`, then re-run `be-init`
 11. **Lombok**: Check if `lombok` is in dependencies
 12. **Gradle command**: `./gradlew` when the wrapper exists, else `gradle` — the invocation every task-level gate row (`classes`, `checkstyleMain`, `jacocoTestReport`, `--tests`) is built on. **No build file at all** (fresh repository): `./gradlew` — Spring Initializr ships the wrapper, and a `gradle` baked in now would run the system Gradle (absent, or a different version) against the project created next. Appending a task to the *build* command would run the full `build` every time and misattribute one failure to every row
 13. **Build command**: `{gradleCommand} build`
@@ -133,7 +132,7 @@ Surface the conflict before presenting the confirmation table:
 
 > "Note: existing source under `src/main/java/` shows both `RouterFunction` beans
 > and `@RestController` classes in roughly equal numbers. This plugin's rule is
-> that a domain must never mix both styles (see `CLAUDE.md` § Web Layer). Which
+> that a domain must never mix both styles (see `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` § Web Layer). Which
 > style should new code use — `functional` or `annotated`?"
 
 Only after the user answers does `webLayer` get a value in the confirmation table;
@@ -167,11 +166,6 @@ Write `.claude/backend-webflux-plugin.json`:
 }
 ```
 
-(No `pluginRoot` key: the plugin's install directory is read by the gate skills from
-`${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot`, which the
-SessionStart hook rewrites at every session start — a copy here would go stale on upgrade. If that
-file is missing now, say so in Step 7.)
-
 After the Write tool call returns, read `.claude/backend-webflux-plugin.json` back and
 confirm its contents match what was just written. This is the evidence Step 7's
 success message relies on — do not skip it. If the write failed or the read-back
@@ -197,7 +191,6 @@ Only reached if the Step 4 read-back succeeded. Display final configuration summ
 > "Backend WebFlux Plugin initialized successfully."
 > "Configuration saved to `.claude/backend-webflux-plugin.json`."
 > "Data profile: {dataProfile}. Web layer: {webLayer}. See `docs/decisions.md` if you want the rationale behind these defaults before changing them."
-> {When `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` is missing: "The SessionStart hook has not recorded the plugin's install path — start a new session once before `be-verify`/`be-review`/`be-commit`."}
 >
 > "Available skills:"
 >

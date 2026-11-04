@@ -3,6 +3,7 @@ name: build-doctor
 description: Gradle build execution, failure diagnosis, and automatic fix with retry
 model: sonnet
 tools: Bash, Read, Edit, Grep, Glob
+skills: [be-spring-shared]
 ---
 
 # Build Doctor Agent

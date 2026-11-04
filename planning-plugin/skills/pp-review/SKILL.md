@@ -3,7 +3,7 @@ name: pp-review
 description: Use after manual spec edits to re-check quality, or when review scores need improvement before finalization.
 argument-hint: "[feature-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent
 ---
 
 # Manual Review
@@ -49,17 +49,17 @@ Also update the metadata blockquote at the top of `{feature}-spec.md` in the {wo
 
 **Planner review:**
 ```
-Task(subagent_type: "planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Return structured JSON review.")
+Agent(subagent_type: "planning-plugin:planner", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Return structured JSON review.")
 ```
 
 **Tester review** (with planner context):
 ```
-Task(subagent_type: "tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
+Agent(subagent_type: "planning-plugin:tester", prompt: "Review the functional specification at docs/specs/{feature}/{workingLanguage}/. The spec is split into multiple files — read all of them: {feature}-spec.md (overview, user stories, functional requirements, open questions), screens.md (screen definitions, error handling), test-scenarios.md. The spec is written in {workingLanguage_name}. Provide your review in {workingLanguage_name}. Planner feedback: {planner_summary}. Return structured JSON review focusing on areas the planner missed.")
 ```
 
 ### Step 4: Present Feedback
 
-Read `templates/review-reception-rules.md` and apply the review reception discipline.
+Read `${CLAUDE_PLUGIN_ROOT}/templates/review-reception-rules.md` and apply the review reception discipline.
 
 Show combined feedback with:
 - Scores from both reviewers
@@ -150,13 +150,13 @@ If the user selects option 1 (translate and finalize):
 2. Determine target languages: `supportedLanguages` minus `workingLanguage`
 3. For each target language, launch a **translator** agent in parallel:
    ```
-   Task(subagent_type: "translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
+   Agent(subagent_type: "planning-plugin:translator", prompt: "Translate the spec directory at docs/specs/{feature}/{workingLanguage}/ to {target_language_name}. Read each markdown file ({feature}-spec.md, screens.md, test-scenarios.md) and write translated versions to docs/specs/{feature}/{target_lang}/. Source language: {workingLanguage}. Full translation.")
    ```
 4. After all translators complete, update the progress file's `translations` field: set `synced: true` and `lastSyncedAt` to the current timestamp for each target language
 
 #### Step 6a.5: Pre-Finalization Verification (Finalize path)
 
-Read `templates/verification-rules.md` and execute the verification gate.
+Read `${CLAUDE_PLUGIN_ROOT}/templates/verification-rules.md` and execute the verification gate.
 
 1. Read the progress file and collect all issues with "Accept" or "Modify" decisions from ALL rounds
 2. For each collected issue, read the relevant spec file section and verify the change is present in the text
@@ -187,7 +187,7 @@ This gate supplements the convergence check — both must pass before finalizati
 2. Read progress file for existing Notion page data (`notion` field)
 3. For each language (working language + all target languages where `{feature}-spec.md` actually exists inside the language directory — skip languages whose directories are empty because translation was skipped), sequentially launch the **sync-notion** agent:
    ```
-   Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+   Agent(subagent_type: "planning-plugin:sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
      feature: {feature}. lang: {lang}. langName: {langName}.
      specDir: docs/specs/{feature}/{lang}/.
      progressFile: docs/specs/{feature}/.progress/{feature}.json.

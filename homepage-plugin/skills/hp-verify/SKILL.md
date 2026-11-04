@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 
 Runs verification gates on generated homepage code. Checks TypeScript, ESLint, Astro build, and Lighthouse CI.
 
+Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -46,7 +48,7 @@ Record: pass/fail, error count, error details.
 1. Check if ESLint config exists (`.eslintrc*` or `eslint.config.*`)
 2. If config exists → run `npx eslint . 2>&1`
 3. If no config and `eslintTemplate` is `true`:
-   1. Read the plugin's `templates/eslint-config.md`
+   1. Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
    2. Extract the JavaScript code block from the "Canonical Config" section
    3. Write it to `{projectRoot}/eslint.config.js` using the Write tool
    4. Check dependencies: `pnpm ls eslint @eslint/js typescript-eslint eslint-plugin-astro eslint-plugin-react-hooks globals 2>&1`

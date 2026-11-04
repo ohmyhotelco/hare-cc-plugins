@@ -432,6 +432,7 @@ Plugin sử dụng `.claude/homepage-plugin.json` trong thư mục dự án (đ�
 | `eslintTemplate` | Tự động sinh cấu hình ESLint khi chưa có | `true` |
 | `figmaFileKey` | (tùy chọn) Figma file key để trích xuất design token | — |
 | `figmaFileUrl` | (tùy chọn) URL đầy đủ của file Figma để tham chiếu | — |
+| `figmaAccessToken` | (tùy chọn) Figma Personal Access Token; dùng cho phương án dự phòng REST API `/v1/images` để xuất PNG 2x các node vector khi trích xuất bằng MCP thất bại | — |
 
 ## Cấu trúc dự án được tạo
 
@@ -607,7 +608,7 @@ agents/          Agent definitions (design-token-extractor, page-planner, sectio
                  page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
                  review-fixer)
 skills/          Skill entry points (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
-                 hp-review, hp-fix)
+                 hp-review, hp-fix, hp-shared)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       Template files (section-catalog, page-module, seo-checklist, eslint-config,

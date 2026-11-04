@@ -60,7 +60,7 @@ From the staged diff, determine:
 
 ### Step 5: Draft Commit Message
 
-Follow CLAUDE.md commit standards:
+Follow the commit standards in `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md`:
 
 1. **Subject line** (mandatory):
    - English, present tense, imperative mood ("Add", "Fix", "Update", not "Added", "Fixes")
@@ -80,7 +80,7 @@ Follow CLAUDE.md commit standards:
 
 ### Step 6: Validate
 
-Check the draft message against commit message rules from CLAUDE.md:
+Check the draft message against the commit message rules in those standards:
 
 - [ ] English (#1)
 - [ ] Present tense imperative (#2)
@@ -95,7 +95,7 @@ Check the draft message against commit message rules from CLAUDE.md:
 
 If validation fails, revise the message.
 
-Note: CLAUDE.md rules #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
+Note: commit standards #11-13 (staged-only, ensure staging, separate git commands) are workflow constraints enforced in Step 1 and the Constraints section, not message format rules.
 
 ### Step 7: Execute Commit
 

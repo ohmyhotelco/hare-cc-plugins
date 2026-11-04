@@ -41,7 +41,7 @@ If the app's harness is absent, scaffold it in `{appDir}`:
   'retain-on-failure' }` (or `trace: 'on-first-retry'` when `retries` is set). The harness is set
   up here; `fm-e2e`/`fm-parity` (AA-45/46) use it. Set `outputDir: 'test-results'` explicitly and
   keep `snapshotPathTemplate` and every spec-owned artifact dir outside it — run output and
-  baselines live in different trees (`templates/e2e-testing.md` → "Run output is disposable;
+  baselines live in different trees (`${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` → "Run output is disposable;
   baselines are source").
 - **Playwright auth + reuse scaffolding**: an **auth setup project** that logs in once and writes
   `storageState` to `.auth/<role>.json` (specs load it instead of logging in each time), and an
@@ -51,16 +51,16 @@ Do not auto-install npm deps — if packages are missing, list the `pnpm add -D 
 note it; scaffold the config regardless.
 
 **Run-output ignore block (every foundation-phase run, not only when the harness is absent).** Ensure
-`{appDir}/.gitignore` carries the Playwright run-output block from `templates/e2e-testing.md` →
+`{appDir}/.gitignore` carries the Playwright run-output block from `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md` →
 "Run output is disposable; baselines are source" — append each missing line, never rewrite existing
 ones. It is checked every run because the apps that most need it are the ones whose harness already
 exists and so skip the scaffold above. `.gitignore` is an app-wide file: edit it inside
-`docs/migration/.app.lock`, like the other app-wide files (CLAUDE.md → Lock file). **Do not list it
+`docs/migration/.app.lock`, like the other app-wide files (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). **Do not list it
 in `filesChanged`** — an ignore rule is not page code, and `fm-gen` would make it a watch path of
 this page, staling its gate evidence the next time any other page's run appends a line. Say in your
 final message whether you appended to it.
 
-### 3b. i18n key-coverage spec (once per app) — read `templates/i18n-copy-parity.md`
+### 3b. i18n key-coverage spec (once per app) — read `${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`
 If the config has an `i18n` block and the app has no key-coverage spec yet, generate one next to
 the harness. It collects the string-literal keys at every `i18n.lookupFns` call site in the app
 source and asserts each resolves in **all** `i18n.languages` resources under `i18n.localesDir`;
@@ -80,7 +80,7 @@ skip this spec and say so in the report (`fm-verify` records `skipped`).
 
 **Use `i18n.keyPrefix` to catch an unresolved key rendered as text.** The lookup never throws — it
 falls back to returning the key itself — so a missing translation reaches the screen as a literal
-`tl.login.otp-subject`, which is exactly how one shipped in an email subject (OMH-748). When
+`tl.login.otp-subject`, which is exactly how one shipped in an email subject. When
 `keyPrefix` is configured, assert that no rendered string matches it: a value starting with the
 prefix is an unresolved key, not copy. Without this the field was collected by `fm-init` and read by
 nothing.
@@ -135,21 +135,21 @@ App-wide, like 3b: `fm-verify`'s `npx vitest run` makes it hard on every page wi
 step. It checks only navigations the app performs itself — a legacy-owned path reached by a document
 navigation is correct by construction and never appears here.
 
-### 4. Lint & format config (scaffold-once; see CLAUDE.md → "Lint & Format Gate")
+### 4. Lint & format config (scaffold-once; see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Lint & Format Gate")
 Follow the detection/scaffold/skip rule there (glob existing config → generate from template if
 the flag is on → skip silently if off → never auto-install). You receive `eslintTemplate` and
 `prettierTemplate` flags.
 - **ESLint** (if `eslintTemplate` ≠ false): if `{monorepoRoot}/eslint.config.base.js` is absent,
-  generate it from `templates/eslint-config.md`; then ensure this app's
+  generate it from `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`; then ensure this app's
   `{appDir}/eslint.config.js` leaf (core + react) exists.
 - **Prettier** (if `prettierTemplate` ≠ false): if `{monorepoRoot}/prettier.config.js` is absent,
-  generate it plus `.prettierignore` from `templates/prettier-config.md` (single root config covers
+  generate it plus `.prettierignore` from `${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md` (single root config covers
   all workspaces — do not write per-app copies). The `.prettierignore` **must** list the legacy app
   dirs (every `apps.*.legacyDir` from config, e.g. `apps/legacy-pc`, `apps/legacy-mobile`) so a
   root-level Prettier run never reformats legacy source.
 - **Legacy stays out of scope.** Only `apps/web-*` and `packages/shared-*` get leaf configs; never
   write an `eslint.config.js`/`prettier.config.js` into a legacy app, and keep the shared ESLint
-  file named `eslint.config.base.js` (not a root `eslint.config.js`). See CLAUDE.md → "Lint &
+  file named `eslint.config.base.js` (not a root `eslint.config.js`). See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Lint &
   Format Gate" (Legacy is out of scope).
 - If required packages are missing for either, list the `pnpm add -D -w …` command and continue
   (scaffold the config files regardless; the run is `fm-verify`'s job).
@@ -185,10 +185,10 @@ closes). Do not re-encode or "optimize" — save the original bytes so the rende
 ## Rules
 - Output must `tsc`-compile. Verify with a quick typecheck and report the result.
 - MSW responses match full TypeScript interfaces (complete mocks only).
-- **New files are kebab-case** (CLAUDE.md → File Naming): `booking-traveler.types.ts`, never
+- **New files are kebab-case** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → File Naming): `booking-traveler.types.ts`, never
   `BookingTraveler.ts`; exported types keep PascalCase inside. Tool configs you scaffold keep their
   tool's exact name (`eslint.config.js`, `vitest.config.ts`); never rename an existing file.
 - Read-modify-write shared setup files (server.ts/handlers aggregator) **inside
   `docs/migration/.app.lock`** (taken after the page lock, released right after the write —
-  CLAUDE.md → Lock file), since two page locks do not exclude each other; never clobber other
+  ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file), since two page locks do not exclude each other; never clobber other
   features' handlers.

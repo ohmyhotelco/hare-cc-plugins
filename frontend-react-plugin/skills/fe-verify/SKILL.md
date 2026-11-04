@@ -8,7 +8,9 @@ allowed-tools: Read, Write, Glob, Grep, Bash
 
 # Verification Gate Skill
 
-Run TypeScript, ESLint, and build verification on generated code (build is mode-aware: `vite build` for declarative/data, `react-router build` for framework — see the CLAUDE.md Router-mode command matrix).
+Run TypeScript, ESLint, and build verification on generated code (build is mode-aware: `vite build` for declarative/data, `react-router build` for framework — see the fe-shared Router-mode command matrix).
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -19,7 +21,7 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 3. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-4. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+4. **Derive `srcPath`** — take `sourceBaseDir` (the config source root read above, **after its default is applied**) and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
 ### Step 1: Validate Files
 
@@ -67,12 +69,12 @@ Run TypeScript, ESLint, and build verification on generated code (build is mode-
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-verify"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-verify"`, per fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
-every later command refusing it (CLAUDE.md § Lock file).
+every later command refusing it (fe-shared § Lock file).
 
 ### Step 2: Run Verification
 
@@ -80,7 +82,7 @@ Run the following 3 verifications sequentially.
 
 #### 2.1 TypeScript Check
 
-**Framework mode (`routerMode == "framework"`)**: first run `npx react-router typegen 2>&1` to generate the RR route types (into `{appDir}/.react-router/`) **before** the composite-aware tsc — see CLAUDE.md § Router-mode command matrix (typecheck row: `react-router typegen` **then** the composite-aware tsc). Library modes (`declarative`/`data`) skip this step; their behavior is unchanged.
+**Framework mode (`routerMode == "framework"`)**: first run `npx react-router typegen 2>&1` to generate the RR route types (into `{appDir}/.react-router/`) **before** the composite-aware tsc — see fe-shared § Router-mode command matrix (typecheck row: `react-router typegen` **then** the composite-aware tsc). Library modes (`declarative`/`data`) skip this step; their behavior is unchanged.
 
 Detect composite tsconfig and use the correct command:
 
@@ -127,7 +129,7 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
    a. Read `.claude/frontend-react-plugin.json` → check `eslintTemplate`
    b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
    c. If `eslintTemplate === true` or field absent (default: enabled):
-      - Read `templates/eslint-config.md` from the plugin directory
+      - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
       - Generate `eslint.config.js` at the project root from the Canonical Config section
       - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency is missing → skip with message:
@@ -145,7 +147,7 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.3 Build Check
 
-Build command is **mode-aware** — branch on `routerMode` per CLAUDE.md § Router-mode command matrix (build row). Run from `{appDir}` (prefix with `cd {appDir} &&` when `appDir` is not `"."`).
+Build command is **mode-aware** — branch on `routerMode` per fe-shared § Router-mode command matrix (build row). Run from `{appDir}` (prefix with `cd {appDir} &&` when `appDir` is not `"."`).
 
 ```bash
 # declarative / data (Vite SPA):
@@ -178,7 +180,7 @@ Check `tests[]` in plan.json:
 
 #### 2.5 i18n Key Coverage
 
-Not a separate run — the app-wide spec (`templates/i18n-key-coverage.md`) is part of the 2.4 suite.
+Not a separate run — the app-wide spec (`${CLAUDE_PLUGIN_ROOT}/templates/i18n-key-coverage.md`) is part of the 2.4 suite.
 This step reads what that run produced:
 
 1. No `i18n` block in `.claude/frontend-react-plugin.json` → `skipped`, reason "no i18n config".
@@ -201,7 +203,7 @@ This step reads what that run produced:
 
 #### 2.6 Format Check (advisory)
 
-Per `templates/prettier-config.md`: glob for a Prettier config, scaffold from the template when
+Per `${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`: glob for a Prettier config, scaffold from the template when
 absent and `prettierTemplate` is `true`/unset, skip silently when it is `false`, and record
 `skipped` (printing the `pnpm add -D` line) when `prettier` is not installed. Then:
 
@@ -247,7 +249,7 @@ Verification Report for '{feature}':
 
 A `skipped` or `not-run` line always prints its reason next to it.
 
-Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`templates/prettier-config.md`).
+Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`).
 
 The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{feature}.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 

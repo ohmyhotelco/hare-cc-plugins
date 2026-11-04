@@ -3,12 +3,14 @@ name: fe-plan
 description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
 argument-hint: "<feature-name> [--standalone]"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
 
 # Implementation Plan Skill
 
 Analyzes a functional specification (planning-plugin output) or gathers requirements interactively (standalone mode) and produces an implementation plan for production React code.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -22,7 +24,7 @@ Analyzes a functional specification (planning-plugin output) or gathers requirem
 6. If the file does not exist:
    > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
    - Stop here.
-7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See CLAUDE.md § Build Command Working Directory.
+7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
 
 ### Lock Acquire
 
@@ -49,7 +51,7 @@ non-empty directory fails harmlessly, which is exactly the right outcome — som
 it now. A pre-existing directory is never removed.
 
 Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
-CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
+fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
 holder → report `holder` and `acquiredAt`, then stop.
 
 Everything from here to Step 5 runs under the lock — it is taken before Step 0.5 so that no branch (standalone, incremental, or full) can reach a write by jumping to Step 1, 1-S, 3, or 3-I. Release it on **every** exit below, including a
@@ -224,7 +226,7 @@ Only executed when `planMode = "incremental"`.
 Launch the implementation-planner agent in incremental mode:
 
 ```
-Task(subagent_type: "implementation-planner", prompt: "
+Agent(subagent_type: "frontend-react-plugin:implementation-planner", prompt: "
   Analyze spec changes for '{feature}' and produce a delta plan.
 
   Parameters:
@@ -314,7 +316,7 @@ docs/specs/{feature}/.implementation/frontend/
 Launch the implementation-planner agent:
 
 ```
-Task(subagent_type: "implementation-planner", prompt: "
+Agent(subagent_type: "frontend-react-plugin:implementation-planner", prompt: "
   Analyze the functional specification for '{feature}' and produce an implementation plan.
 
   Parameters:
@@ -426,5 +428,5 @@ Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
 
 Both Step 5 and Step 5-I end here — whichever branch ran, this is the last action. Release also on
 every early exit after Lock Acquire (a declined confirmation at Step 4 or 4-I, a planner failure),
-per CLAUDE.md § Lock file: the lock is taken before those prompts, so a refusal that just stops
+per fe-shared § Lock file: the lock is taken before those prompts, so a refusal that just stops
 leaves the feature locked and `fe-gen` refusing it.

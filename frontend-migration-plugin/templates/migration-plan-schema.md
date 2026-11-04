@@ -88,7 +88,7 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
       "coversCopyBinding": "login failure message",
       "steps": ["..."], "legacyAnchor": "login-password.component.ts:114" },
     { "name": "complete card payment", "transactional": true, "gateway": "nicePay",
-      // MUST match a key in config stagingConfig.paymentGateways verbatim (nicePay | alipay | onePay —
+      // must match a key in config stagingConfig.paymentGateways verbatim (nicePay | alipay | onePay —
       // the v2 gateways, templates/payment-flow-v2.md; Eximbay is dead and KakaoPay was never one);
       // no case normalization is performed, so "nicepay" reads as an unconfigured gateway
       "steps": ["..."] }
@@ -100,7 +100,7 @@ The plan `migration-planner` writes and `fm-gen` executes. One per page, at
     { "phase": "component",  "creates": ["components/traveler-form.tsx"], "tests": 8 },
     { "phase": "page",       "creates": ["pages/booking-info-page.tsx"], "tests": 5 },
     { "phase": "integration","creates": ["routes.ts", "i18n.ts"], "tests": 0 }
-    // file names are kebab-case (CLAUDE.md → File Naming); componentTree `name` stays the
+    // file names are kebab-case (plugin CLAUDE.md → File Naming); componentTree `name` stays the
     // PascalCase identifier. `routes.ts` is React Router's reserved route config — exact name.
   ]
 }
@@ -292,7 +292,7 @@ rationale and decision owner. A `mustPreserve` copy source silently absent from 
 
 Why it needs pinning: where a screen's text comes from is a **legacy rule**, not a generator choice.
 The response envelope carries an `errorMessage` field, so a generator with no recorded rule will
-naturally render it — and the backend resolves that field against a hardcoded EN locale (OMH-784),
+naturally render it — and the backend resolves that field against a hardcoded EN locale,
 putting English on every non-English screen. Legacy instead uses a fixed localized key or maps
 `errorCode` through a lookup table. Unrecorded, the same mistake is re-derived independently on every
 screen (it was, on three). `renderMode` is part of the binding: a value carrying markup (`<br/>`,
@@ -324,7 +324,7 @@ reason `e2eScenarios` failure branches are required for copy. In particular:
 
 A `mustPreserve` failure path bound only in a unit test, with no `e2eScenario`, is an incomplete plan:
 the unit test is authored from the same one reading as the implementation, so both can agree on a wrong
-branch (the self-confirmation bias — CLAUDE.md → Self-confirmation Hardening). The legacy dual-run is
+branch (the self-confirmation bias — plugin CLAUDE.md → Self-confirmation Hardening). The legacy dual-run is
 the independent check.
 
 ## Legacy inventory reconciliation (required)

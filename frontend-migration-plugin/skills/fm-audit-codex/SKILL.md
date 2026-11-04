@@ -11,7 +11,7 @@ allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 Runs Codex as an **independent auditor** of Claude's migration work for a page — a second opinion
 that cross-checks each audited stage, directly mitigating false-pass risk. Codex reads and evaluates only;
 it never migrates. This is the manual / re-run entry point for the same audit that the pipeline
-skills invoke in-loop (advisory). See CLAUDE.md → "Codex Independent Audit" and the design at
+skills invoke in-loop (advisory). See ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit" and the design at
 `docs/design/codex-audit-layer.md`.
 
 All user-facing output in `workingLanguage`.
@@ -25,10 +25,10 @@ Read `.claude/frontend-migration-plugin.json` (absent → run `fm-init`; stop). 
 step 1 detect the absence and record `verdict: "skipped"` for the stage under the page lock. Stopping
 here would leave `codex-audit.json` with no entry for that stage — indistinguishable from never
 having audited it, which is the state the persisted `skipped` verdict exists to rule out
-(CLAUDE.md → Codex Independent Audit). Surface the auditor's `skipped` verdict, with the install
+(${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Codex Independent Audit). Surface the auditor's `skipped` verdict, with the install
 hint, in the report.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
 ### Step 1: Resolve stages
 - `--stage <s>` → audit just that stage.
@@ -43,13 +43,13 @@ hint, in the report.
   app's `infraDir`/`cloudfrontDir` (for `flipMechanism: script`, with `routePrepared` set — its
   entries may be hand-authored), never on a page-directory file — an artifact-only filter makes
   `route` permanently unreachable from this entry point. Its **inputs are the full route-stage set**
-  `templates/codex-audit.md` specifies and `fm-route` Step 4b passes: the full PR diff **plus** all
+  `${CLAUDE_PLUGIN_ROOT}/templates/codex-audit.md` specifies and `fm-route` Step 4b passes: the full PR diff **plus** all
   gate reports (the `verify` summary, `e2e-report.json`, `parity-report.json`) **plus** the prior
   `codex-audit.json`. Handing Codex only the routing artifact and the flag diff would make this the
   one path where the final pre-flip sign-off reviews a one-line diff instead of the page.
 
 ### Step 2: Run the audit(s)
-For each resolved stage, launch the `codex-auditor` agent (Agent tool) with only its params
+For each resolved stage, launch the `codex-auditor` agent (`subagent_type: "frontend-migration-plugin:codex-auditor"`) with only its params
 (subagent isolation): `app`, `page`, `stage`, `appDir`, `legacyDir`, the stage's artifact/report
 paths, `outPath = docs/migration/{app}/{page}/codex-audit.json`, `workingLanguage`. Run stages
 sequentially. The agent handles the page lock and the Read-Modify-Write of `codex-audit.json`.
@@ -69,7 +69,7 @@ reads config only), so every FSM status reaches here:
    Every status writer refuses while a flip is live or in flight, `fm-verify` included, and Step 1
    admits the `route` stage at `parity-passed` *or beyond* — a state this skill routinely runs in.
 3. `fixing` or `escalated` → **`fm-fix {page}`.** Never a gate: "No gate accepts `fixing` as an
-   entry state … never by invoking a gate directly" (CLAUDE.md → Per-page State Machine), and
+   entry state … never by invoking a gate directly" (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine), and
    `escalated` re-enters through `fm-fix`/`fm-gen` after the manual work.
 4. `gen-failed` → **`fm-gen {page}`** (the resume). `fm-fix` refuses it by name — "`gen-failed` is
    not a fix mode" (`fm-fix` Step 1) — and it matches a bare `*-failed` wildcard, which is why every

@@ -52,7 +52,7 @@ Audit Java source code for clean code principles: DRY, KISS, YAGNI, naming, and 
 - Boolean variables without `is`/`has`/`can` prefix context
 - Methods that don't describe their action
 - Classes that don't describe their responsibility
-- Inconsistency with naming conventions table in CLAUDE.md
+- Inconsistency with naming conventions table in `${CLAUDE_PLUGIN_ROOT}/skills/be-spring-shared/SKILL.md`
 
 #### Structure
 

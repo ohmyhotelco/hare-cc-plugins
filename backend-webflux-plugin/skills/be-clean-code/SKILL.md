@@ -105,7 +105,7 @@ flagged even though they match the raw pattern. If a candidate is close to a thr
 - Boolean variables without `is`/`has`/`can` prefix context
 - Methods that don't describe their action
 - Classes that don't describe their responsibility
-- Inconsistency with the naming conventions table in CLAUDE.md
+- Inconsistency with the naming conventions table in ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md
 
 #### Structure
 

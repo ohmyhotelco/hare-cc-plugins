@@ -30,7 +30,6 @@ Read the review report produced by `be-review` and apply targeted fixes using TD
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 0.5: Resolve Feature
 
@@ -75,7 +74,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
    > "Continue?"
    If the user declines, stop here.
 
-Any other post-review status (`"review-failed"`, `"fixing"`, `"escalated"`) is the expected entry state for this skill and needs no confirmation — see the parent CLAUDE.md § Demotion Warning for why only completed/reviewed states require it.
+Any other post-review status (`"review-failed"`, `"fixing"`, `"escalated"`) is the expected entry state for this skill and needs no confirmation — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Demotion Warning for why only completed/reviewed states require it.
 
 ### Step 3: Check Fix Round
 
@@ -107,7 +106,6 @@ Launch the `review-fixer` agent (`subagent_type: "backend-webflux-plugin:review-
 - `reportFile`: path to `review-report.json`
 - `config`: parsed plugin config
 - `projectRoot`: current project root
-- `pluginRoot`: {pluginRoot}
 - `feature`: feature name
 
 The agent will:
@@ -119,11 +117,11 @@ The agent will:
 
 The agent's classification reasoning per issue is preserved in `fix-report.json`, keyed by `issueId` (`tddFixes[].implementation`, `directFixes[].change`, `escalated[].reason`) — if the user asks why a specific issue was classified or fixed a particular way, read that field and cite it rather than re-deriving a reason.
 
-**If the Agent call fails**: if the invocation errors, times out, or does not return a `fix-report.json` path, immediately release the lock (delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety), report the failure to the user together with whatever partial output the agent did produce, and stop — do not proceed to Step 5 or Step 6.
+**If the Agent call fails**: if the invocation errors, times out, or does not return a `fix-report.json` path, immediately release the lock (delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety), report the failure to the user together with whatever partial output the agent did produce, and stop — do not proceed to Step 5 or Step 6.
 
 ### Step 5: Display Fix Report
 
-**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check it against Step 2's issue set: the `issueId`s across `tddFixes[]`, `directFixes[]`, `alreadyResolved[]` and `escalated[]` are exactly the review's ids — each once, none missing, none invented — and `summary.total` equals their count (`fixed + alreadyResolved + escalated`); a total alone is satisfied by a report that lists one issue twice and drops another. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
+**Before displaying anything**: confirm `fix-report.json` exists at the path the agent returned, parse it, and check it against Step 2's issue set: the `issueId`s across `tddFixes[]`, `directFixes[]`, `alreadyResolved[]` and `escalated[]` are exactly the review's ids — each once, none missing, none invented — and `summary.total` equals their count (`fixed + alreadyResolved + escalated`); a total alone is satisfied by a report that lists one issue twice and drops another. If the file is missing, malformed, or the totals disagree, state "Fix report incomplete/unverifiable — {reason}" instead of the block below, **release the lock** (delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety — Step 6 is the only other place that does, and it will not run), and stop — do not update pipeline state (Step 6) from a report you could not verify.
 
 Show results in the working language:
 
@@ -176,7 +174,7 @@ If `{workDocDir}/.progress/{feature}.json` exists:
    - All escalated / build fails → `"escalated"`
 4. Write back (read-modify-write)
 
-Release lock: delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (always release — lock was acquired in Step 3.5).
+Release lock: delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety (always release — lock was acquired in Step 3.5).
 
 ### Step 7: Suggest Next Action
 

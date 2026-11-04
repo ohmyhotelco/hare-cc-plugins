@@ -3,14 +3,16 @@ name: fe-review
 description: "Run 2-stage code review (spec compliance → quality) on generated code for a feature."
 argument-hint: "<feature-name>"
 user-invocable: true
-allowed-tools: Read, Write, Glob, Grep, Bash, Task
+allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
 
 # Code Review Skill
 
 Run a 2-stage code review (spec review → quality review) on generated code.
 
-> **Tool choice**: This skill uses `Task` to launch reviewer agents. Each reviewer runs independently and returns a complete report.
+Each reviewer runs independently and returns a complete report.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
 
 ## Instructions
 
@@ -69,19 +71,19 @@ Run a 2-stage code review (spec review → quality review) on generated code.
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-review"`, per CLAUDE.md § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-review"`, per fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
 taken before the confirmation prompts, so a refusal that just stops leaves the feature locked and
-every later command refusing it (CLAUDE.md § Lock file).
+every later command refusing it (fe-shared § Lock file).
 
 ### Step 2: Spec Review
 
 Run the spec-reviewer agent:
 
 ```
-Task(subagent_type: "spec-reviewer", prompt: "
+Agent(subagent_type: "frontend-react-plugin:spec-reviewer", prompt: "
   Review generated code for '{feature}' against the functional specification.
 
   Parameters:
@@ -120,7 +122,7 @@ Task(subagent_type: "spec-reviewer", prompt: "
 Run the quality-reviewer agent:
 
 ```
-Task(subagent_type: "quality-reviewer", prompt: "
+Agent(subagent_type: "frontend-react-plugin:quality-reviewer", prompt: "
   Review code quality for '{feature}'.
 
   Parameters:

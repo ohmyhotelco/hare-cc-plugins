@@ -14,7 +14,7 @@ step to the plugin's own `be-*` skills via the `Skill` tool -- it never
 reimplements scaffold generation, TDD, verification, review, or fix logic
 itself. This skill is the automated counterpart of manually running
 `be-crud` -> `be-code` -> `be-verify` -> `be-review` -> `be-fix` ->
-`be-commit` in sequence (see `CLAUDE.md` § Pipeline).
+`be-commit` in sequence (see `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` § Pipeline).
 
 **A skill, not a subagent, on purpose.** `be-code`, `be-build`, `be-review` and `be-fix` each
 launch an agent (`implement`, `build-doctor`, `code-reviewer`, `review-fixer`) with the `Agent`
@@ -44,13 +44,11 @@ main session, where `Skill` and `Agent` both exist.
   design must be confirmed by the user before implementation starts (see
   Step 1.5) -- a self-drafted design is a proposal, not a mandate.
 - Never skip `be-verify` or `be-review`, even for a ticket that looks
-  small -- CLAUDE.md § Verification Philosophy explicitly rejects "the
-  change is small, no need to verify" as a rationalization, and this
-  agent is bound by the same rule. Tiering (see Step 1) only scales
+  small. Tiering (see Step 1) only scales
   whether the parallel `be-security` gate runs alongside `be-review` --
   it never skips `be-verify` or `be-review` themselves.
 - Never push, open a pull request, or comment on / transition the Jira
-  issue. The plugin's own pipeline (`CLAUDE.md` § Pipeline) ends at
+  issue. The plugin's own pipeline (`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` § Pipeline) ends at
   `be-commit` -- stay there. Push/PR/Jira-status is a manual decision for
   the user, made outside this skill.
 - Report in the working language read from
@@ -85,7 +83,6 @@ ticket.
 3. Record `buildCommand`, `testCommand`, `basePackage`, `sourceDir`,
    `testDir`, `workDocDir`, `dataProfile`, `webLayer`, `workingLanguage`
    for use in every later step.
-4. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing -- stop with `NEEDS-INPUT`: start a new session so the hook writes it.
 
 ### Step 0.5: Discover the Jira MCP Tool
 
@@ -121,7 +118,7 @@ gateway, or both, and the exact tool name differs per setup (e.g.
 
 ### Step 1: Understand the Ticket
 
-Read `agents/backend-planner.md` first -- this step and Step 1.5 apply its
+Read `${CLAUDE_PLUGIN_ROOT}/agents/backend-planner.md` first -- this step and Step 1.5 apply its
 Phase 1 (existing-code scan) and Phase 2 (spec-to-CQRS mapping) rules by
 reference throughout; without reading it here those rules are not actually
 in context when this step needs to apply them, since a fresh agent
@@ -150,7 +147,7 @@ Call the issue-lookup tool resolved in Step 0.5 with `{jiraKey}`.
      `agents/backend-planner.md` Phase 2's mapping rules only to fill in
      mechanical detail the approach left implicit (e.g. it says "add a
      `status` field" without naming a column type that
-     `templates/entity-conventions.md` already standardizes). Skip Step
+     `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md` already standardizes). Skip Step
      1.5 -- go straight to Step 2 once the extraction below is complete.
    - **Not found**: investigate the existing codebase yourself -- scan
      `{sourceDir}/{basePackage}/data/` for entities that already exist,
@@ -176,7 +173,7 @@ Call the issue-lookup tool resolved in Step 0.5 with `{jiraKey}`.
      their HTTP status, endpoints (method, path, status code).
    - Test scenarios: single sentence, present tense, lowercase first word
      (usable as a snake_case test method name), `- [ ]` checkbox format,
-     per `templates/test-scenario-template.md`.
+     per `${CLAUDE_PLUGIN_ROOT}/templates/test-scenario-template.md`.
    - **Tier** -- classify the ticket to scale the Step 7 gate:
      - `easy`: no new entity, no new public endpoint -- a logic/bug fix on
        code that already exists.
@@ -249,9 +246,9 @@ When Step 1 had to draft its own Proposed Solution:
    tree, `verification.committed`) is skipped, not replayed. Then,
    **capped at Step 6 when
    the code changed since it was verified**: a report naming Step 7, 8 or 9
-   re-enters at Step 6 instead whenever `{pluginRoot}/scripts/
+   re-enters at Step 6 instead whenever `${CLAUDE_PLUGIN_ROOT}/scripts/
    source-tree-hash.sh` (exit 0 and a 40-hex id, else `NEEDS-INPUT`: the
-   tooling is broken, or the `{pluginRoot}` file is missing -- start a new session)
+   tooling is broken)
    differs from the feature's
    `pipeline.verification.tree` (a manual security fix, an escalation
    resolved by hand: the review that may already have written `done`
@@ -322,8 +319,8 @@ its own right:
    more than one field.
 2. Edit the entity class (R2DBC: `@Column`-annotated field; MyBatis: plain
    field + the corresponding `<result>` mapping in `{EntityName}Mapper.xml`)
-   directly, following `templates/entity-conventions-r2dbc.md` or
-   `templates/entity-conventions-mybatis.md` conventions matching the entity's
+   directly, following `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-r2dbc.md` or
+   `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions-mybatis.md` conventions matching the entity's
    profile (Lombok `@Getter`/`@Setter` when `config.lombokEnabled == true`) -- so
    the class already compiles with the new field before `be-code`'s TDD
    cycle starts.
@@ -353,7 +350,7 @@ Step 3), so the work document must already exist and be final before Step
    (a ticket-specific business rule, a non-CRUD action).
 2. If it does not exist (editing an existing entity, no scaffold run):
    create `{workDocDir}/{feature}.md` from
-   `templates/work-document-template.md` with the scenario list decided
+   `${CLAUDE_PLUGIN_ROOT}/templates/work-document-template.md` with the scenario list decided
    in Step 1, `- [ ]` format, no `?` markers -- every uncertain scenario
    must already have been resolved in Step 1; nothing marked `?` reaches
    this file, since nobody is present to confirm or drop it.
@@ -532,7 +529,7 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    `be-fix`/`be-build` changed the tree every earlier feature was verified
    on. For each feature (in `features` order) whose
    `pipeline.verification.tree` differs from the current
-   `{pluginRoot}/scripts/source-tree-hash.sh`, run
+   `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh`, run
    `be-verify {feature} --yes` then `be-review {feature} --yes` (Step 7's
    freshness check applies); a FAIL goes
    through Step 8 for that feature (its bounds apply). A pass that changed
@@ -561,7 +558,7 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    calling `be-commit`. Its Step 1.5
    also prompts when a `reviewed`/`done` feature not yet
    `pipeline.verification.committed` has a `pipeline.verification.tree`
-   that differs from `{pluginRoot}/scripts/source-tree-hash.sh
+   that differs from `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh
    --staged` -- compute that once after item 2 and compare; after item 0 a
    mismatch here means item 2 missed a file: stage it (a file outside the
    Step 2 locations is not this feature's -- stop with `NEEDS-INPUT`).
@@ -573,7 +570,7 @@ Skill(skill: "backend-webflux-plugin:be-review", args: "{feature} --yes")
    and write it to the run state at once (`status: committed`, `commit`).
 5. **Do not push, do not open a pull request, do not transition or
    comment on the Jira issue.** This is the pipeline's final step, exactly
-   as `CLAUDE.md` § Pipeline defines it (`be-plan -> be-crud -> be-code ->
+   as `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` § Pipeline defines it (`be-plan -> be-crud -> be-code ->
    be-verify -> be-review <-> be-fix -> be-commit`, no push/PR step).
 
 ## Gates (fail fast)

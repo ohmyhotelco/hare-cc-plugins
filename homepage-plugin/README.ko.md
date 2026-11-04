@@ -432,6 +432,7 @@ Playwright를 사용하여 생성된 섹션의 렌더링 스크린샷을 캡처�
 | `eslintTemplate` | ESLint 설정이 없을 때 자동 생성 | `true` |
 | `figmaFileKey` | (선택사항) 디자인 토큰 추출을 위한 Figma 파일 키 | — |
 | `figmaFileUrl` | (선택사항) 참조용 전체 Figma 파일 URL | — |
+| `figmaAccessToken` | (선택사항) Figma Personal Access Token. MCP 추출 실패 시 벡터 노드를 REST API `/v1/images`로 2x PNG 내보내는 폴백에 사용 | — |
 
 ## 생성되는 프로젝트 구조
 
@@ -607,7 +608,7 @@ agents/          에이전트 정의 (design-token-extractor, page-planner, sect
                  page-assembler, seo-reviewer, quality-reviewer, visual-fidelity-reviewer,
                  review-fixer)
 skills/          스킬 진입점 (hp-init, hp-design-sync, hp-plan, hp-gen, hp-verify,
-                 hp-review, hp-fix)
+                 hp-review, hp-fix, hp-shared)
 hooks/           라이프사이클 훅 설정
 scripts/         훅 핸들러 스크립트 (session-init.sh, validate-pages.sh, capture-screenshots.js)
 templates/       템플릿 파일 (section-catalog, page-module, seo-checklist, eslint-config,

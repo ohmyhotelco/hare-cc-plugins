@@ -4,8 +4,8 @@ Trimmed, execution-facing subset of the plugin `CLAUDE.md` for subagents that
 generate or review code (`implement`, `code-reviewer`, `review-fixer`,
 `backend-planner`) and for `be-code` itself. Omits sections these do not act on
 directly — § Pipeline, § Commit Standards, § Build Standards, § Configuration
-reference, § Documentation Language, § Repository Structure. Read the full
-`CLAUDE.md` instead when a task actually needs one of those.
+reference, § Documentation Language, § Repository Structure. Read the full plugin
+`CLAUDE.md` (one directory above this file) instead when a task actually needs one of those.
 
 ## Tech Stack (need-to-know)
 
@@ -75,14 +75,5 @@ Both sides go through the same repository/mapper against the same tables. See
 
 ## Verification Philosophy
 
-"Evidence before claims, always." 5-Step Gate: IDENTIFY the target to verify → RUN
-the verification tool (build, test, checkstyle, coverage) → READ the full output →
-VERIFY it matches the claim → CLAIM the result citing evidence.
+Report a check's result from its output in this run; a check that did not run is reported as not run. A `Mono` that is never subscribed to never runs, so verify reactive chains with `StepVerifier` or an actual HTTP call.
 
-| Thought | Reality |
-|---------|---------|
-| "Should work" / "probably fine" | Run the build. Evidence or silence. |
-| "The change is small, no need to verify" | Small changes cause big bugs. Verify always. |
-| "Tests passed, so it's correct" | Tests cover what was written, not what was missed. Check the spec. |
-| "Compilation passed, so the build will too" | Compilation != checkstyle != tests. |
-| "It returned a value, so the reactive chain worked" | A `Mono` never subscribed to never runs. Verify with `StepVerifier` or a real call. |

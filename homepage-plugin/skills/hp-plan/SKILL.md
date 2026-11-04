@@ -12,6 +12,8 @@ Interactively gathers page and section definitions from the user, then launches 
 
 Pages and sections are NOT predefined — this skill collects definitions through conversation.
 
+Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -62,7 +64,7 @@ The user describes content in natural language. Examples:
 - "메인 슬로건과 CTA 버튼, 핵심 서비스 3개, 고객 후기, 상담 신청 유도"
 - "Hero with company vision, timeline of our history, team member cards, partner logos"
 
-Match descriptions to the section catalog (15 canonical types from `templates/section-catalog.md`):
+Match descriptions to the section catalog (15 canonical types from `${CLAUDE_PLUGIN_ROOT}/templates/section-catalog.md`):
 
 | User Description | Matched Section |
 |---|---|
@@ -157,7 +159,7 @@ Ask: "Do you have a Figma design for reference? (screenshot path or URL — opti
 
 ### Step 7: Launch Page Planner
 
-For each page defined, launch the `page-planner` agent with:
+For each page defined, launch the `page-planner` agent (`subagent_type: "homepage-plugin:page-planner"`) with:
 - `pageName` — page identifier
 - `pageDescription` — user's description
 - `sections` — matched section list with descriptions

@@ -3,6 +3,7 @@ name: visual-fidelity-reviewer
 description: AI vision comparison of rendered screenshots against Figma design screenshots for visual fidelity scoring
 model: opus
 tools: Read, Write, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
+skills: [hp-shared]
 ---
 
 # Visual Fidelity Reviewer Agent
@@ -52,12 +53,11 @@ If no sections have valid `sectionNodeId` values (and no valid `screenshotRef` f
 
 4. **Capture screenshots** — run the capture script:
    ```bash
-   node {pluginDir}/scripts/capture-screenshots.js \
+   cd {projectRoot} && node ${CLAUDE_PLUGIN_ROOT}/scripts/capture-screenshots.js \
      --url http://localhost:4322 \
      --output-dir {projectRoot}/docs/pages/{pageName}/.implementation/homepage/screenshots \
      --sections '{sectionsJson}'
    ```
-   Where `{pluginDir}` is the directory containing the homepage-plugin (resolve from the agent's own path).
 
 5. **Stop preview server**:
    ```bash
@@ -183,7 +183,7 @@ Save to `{projectRoot}/docs/pages/{pageName}/.implementation/homepage/visual-fid
 - **Evidence-based** — every issue must reference the specific section, sub-dimension, and a concrete description of the visual difference observed.
 - **Actionable fixHint** — every issue must include a concrete fix suggestion (specific Tailwind class change, CSS variable update, or layout modification).
 - **Graceful degradation** — if Playwright is not installed, preview server fails, or screenshots cannot be captured, return a `skipped` verdict instead of failing. Always clean up the preview server process.
-- **No false positives** — do not flag minor rendering differences caused by font rendering, anti-aliasing, or sub-pixel rounding. Focus on design-intent differences: wrong colors, wrong layout, wrong spacing, missing elements.
+- **Rendering noise is out of scope** — do not flag minor rendering differences caused by font rendering, anti-aliasing, or sub-pixel rounding. Focus on design-intent differences: wrong colors, wrong layout, wrong spacing, missing elements.
 - **Blocking threshold** — the `hp-review` skill uses this agent's overall score to determine the review verdict. Scores < 5 cause the overall review to fail. Ensure scoring is consistent and calibrated: a score of 5 means "recognizably the same design with significant differences", 7 means "close match with minor differences", 9+ means "pixel-perfect".
 - **Desktop-first comparison** — compare at 1440x900 viewport only. Do not flag responsive differences unless the Figma screenshot clearly shows a mobile design.
 - **Clean up** — always kill the preview server process (port 4322) after screenshots are captured, even on error.

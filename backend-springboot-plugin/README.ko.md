@@ -355,7 +355,7 @@ be-review → FAIL → be-fix → be-review → PASS → be-commit
 
 **사용 시점**: 규칙 확인 또는 최근 작업의 위반 사항 검출 시.
 
-**동작**: CLAUDE.md에서 섹션별 규칙 표시 (commit, tdd, build, coding, api, jpa) 및 최근 작업의 위반 사항 검출. 간단한 위반(예: 최종 줄바꿈 누락)은 자동 수정 가능.
+**동작**: be-spring-shared 스킬에서 섹션별 규칙 표시 (commit, tdd, build, coding, api, jpa) 및 최근 작업의 위반 사항 검출. 간단한 위반(예: 최종 줄바꿈 누락)은 자동 수정 가능.
 
 ---
 
@@ -635,7 +635,7 @@ agents/          에이전트 정의 (backend-planner, implement, build-doctor,
 skills/          스킬 진입점 (be-init, be-plan, be-crud, be-code, be-verify,
                  be-review, be-fix, be-commit, be-build, be-debug, be-recall,
                  be-progress, be-jpa, be-api-review, be-clean-code, be-logging,
-                 be-test-review, be-security)
+                 be-test-review, be-security, be-spring-shared)
 templates/       템플릿 파일 (plan-schema, tdd-rules, cqrs-module,
                  entity-conventions, test-scenario-template,
                  work-document-template, checkstyle-config, progress-schema)

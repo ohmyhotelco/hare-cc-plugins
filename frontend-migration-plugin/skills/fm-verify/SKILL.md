@@ -15,12 +15,12 @@ legacy parity is `fm-parity`.) All user-facing output in `workingLanguage`.
 
 ### Step 0: Config
 Read config (absent → run `fm-init`; stop). Resolve `app`, its `appDir`, `monorepoRoot`,
-`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash), **`pluginRoot`** (absolute, per-machine — read from `.claude/frontend-migration-plugin.local.json`, never the shared config; where `scripts/gate-tree-hash.sh` lives — absent → record no `tree` and report the freshness axis `unverifiable`, never an inline pipeline).
+`packagesDir` (Step 6 maps the plan's `sharedDeps[]` through it for the gate-evidence hash),
 `legacyDir` (Step 6b hands it to the Codex auditor), `workingLanguage`. Confirm the page is at least `generated` in `tracker.json` — **but refuse a page
 at `flipped` or `done`, and refuse while `flipPrOpenedAt` is present** (unless `--regate`, Step 0a, admits it): "at least `generated`" is a
 monotonic comparison and `flipped`/`done` both satisfy it, so
 without this guard a re-verify would write `verified` over a live page and desync the tracker from
-the edge flag (CLAUDE.md → Per-page State Machine). For `flipped` or a present `flipPrOpenedAt`,
+the edge flag (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine). For `flipped` or a present `flipPrOpenedAt`,
 point the user at `/frontend-migration-plugin:fm-verify {page} --regate` (Step 0a — re-gate without
 a status change), or at `/frontend-migration-plugin:fm-route {page} --revert` to abandon the flip.
 For **`done`, do not** — `--revert` refuses a `done` page (the legacy page is deleted, so there is no
@@ -34,9 +34,9 @@ the chain and reaches `--flag-on` with a `routePrepared` from before the change,
 satisfied by the stale `--flag-off` and the route-stage Codex audit that step exists to force never
 re-runs. This is the recovery `fm-route` Step 1a now names, so it is the path that reaches it. Say so and get confirmation first — the same courtesy `fm-gen` Step 2 extends. Without it, the documented recovery from a stale-evidence block (re-run the gates) silently destroys `parity-passed` on the way through.
 
-**Confirm `apps[app]` before using it** (CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
+**Confirm `apps[app]` before using it** (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Configuration): the app entry must exist and carry the keys this stage reads. Config-file presence is not app presence — `mobile`/`hana` are scaffolded, and a `--app` naming an unconfigured one must stop here with a clear message rather than fail deep inside an agent on an unresolved path.
 
-### Step 0a: `--regate` (in-flight or flipped page) — CLAUDE.md → Per-page State Machine → In-flight window
+### Step 0a: `--regate` (in-flight or flipped page) — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Per-page State Machine → In-flight window
 With `--regate`, require `flipPrOpenedAt` present (status `parity-passed`) or status `flipped`;
 refuse anything else and name the plain `fm-verify {page}` run, which is what advances a status.
 Run Steps 1–5 unchanged. Step 6 then records **evidence only**: it never writes `status`,
@@ -48,14 +48,14 @@ does, and deletes `regateFailed.verify`. On a failure it writes
 
 ### Step 1: Lock
 This skill mutates `tracker.json`, so acquire `docs/migration/{app}/{page}/.lock` (stale only when
-its holder is gone — CLAUDE.md → Lock file) before running the gate. If held and fresh, report who holds it and stop.
+its holder is gone — ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file) before running the gate. If held and fresh, report who holds it and stop.
 
 ### Step 2: Resolve the run directory
 All commands run from `{monorepoRoot}/{appDir}`. If `appDir` is `"."`, run from root.
 
 Before the first tool runs, compute the **pre-run** `tree` hash — same script, same watch-path
 union as Step 6. Step 6 compares its record-time hash against this one: a gate may record a pass
-only if its watch paths did not move while it ran (CLAUDE.md → Gate Result Accounting E).
+only if its watch paths did not move while it ran (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Gate Result Accounting E).
 
 ### Step 3: TypeScript (composite-aware)
 Read `tsconfig.json` in `{appDir}`:
@@ -67,7 +67,7 @@ Read `tsconfig.json` in `{appDir}`:
 - `npx vitest run 2>&1`.
 
 ### Step 4a: i18n key coverage (observed-in-the-run check — the run itself is Step 4)
-The key-coverage spec `foundation-generator` scaffolds (`templates/i18n-copy-parity.md`) runs inside
+The key-coverage spec `foundation-generator` scaffolds (`${CLAUDE_PLUGIN_ROOT}/templates/i18n-copy-parity.md`) runs inside
 Step 4's `npx vitest run`, so a missing/locale-gapped key — or a markup/entity value rendered as
 plain text (K3) — already **fails the gate** there; there is no separate command here. What this
 step adds is that the spec **ran**, so the check cannot be silently removed — by deletion or by
@@ -112,13 +112,13 @@ checks per app, not per page); `fm-gen {page} --force` does it now. Say so in th
 the command.
 
 ### Step 4b: Lint (hard) & format (advisory)
-Follow CLAUDE.md → "Lint & Format Gate" (detection / scaffold-if-flag-on / skip-if-deps-missing).
+Follow ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Lint & Format Gate" (detection / scaffold-if-flag-on / skip-if-deps-missing).
 - **ESLint — hard.** `npx eslint . 2>&1`. Exit ≠ 0 is a gate failure. `skipped` (config absent &
   `eslintTemplate: false`, or deps missing) does not fail the gate.
 - **Prettier — advisory.** `npx prettier --check . 2>&1`. Exit ≠ 0 is recorded as a warning only;
   it never blocks `verified`. Surface the unformatted file list and suggest `npx prettier --write .`.
 
-### Step 4c: Design-token traps (advisory — `templates/visual-parity-checklist.md`)
+### Step 4c: Design-token traps (advisory — `${CLAUDE_PLUGIN_ROOT}/templates/visual-parity-checklist.md`)
 The computed-value parity probe catches a mis-resolved Tailwind token, but it runs later and is
 skipped/blocked exactly where clusters and blocked pages ship — so surface the **known** traps here,
 at the first gate, where they are cheap to fix. Grep this page's generated files (`tracker.json`
@@ -136,14 +136,14 @@ own `docs/migration/**/css-parity-checklist.md`, if present, may list more liter
 reminder to check the computed value against the spec, not a verdict.
 
 ### Step 5: Read and judge (evidence before claims)
-Apply the 5-step gate: RUN → READ the full output (exit codes, error/test counts) → VERIFY →
-CLAIM. Do not report a pass you did not observe. Capture the failing output verbatim if any step
+Run each check and read the full output (exit codes, error/test counts). Do not report a pass you
+did not observe. Capture the failing output verbatim if any step
 fails.
 
 ### Step 6: Record
 
 **Tracker lock.** Take `docs/migration/.tracker.lock` around every `tracker.json` write below —
-after the lock this step already holds, released right after the write (CLAUDE.md → Lock file). Write it per CLAUDE.md → Serialization.
+after the lock this step already holds, released right after the write (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Lock file). Write it per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization.
 
 Update `tracker.json` (Read-Modify-Write). **Under `--regate`, apply Step 0a instead of every status
 write below** — the evidence writes are the same:
@@ -157,7 +157,7 @@ write below** — the evidence writes are the same:
   — a passing gate means the full regeneration it records as owed is discharged, however it was
   met. Also record
   `apps[app].pages[page].gateEvidence.verify = { "at": <ISO-8601>, "commit": <sha>, "tree": <hash> }`
-  exactly as CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
+  exactly as ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" E prescribes — `commit` from
   `git rev-parse --short HEAD` (`<sha>+dirty` when `git status --porcelain` is non-empty), `tree` by
   **running the script** once with `--manifest` and hashing its output — never by re-implementing
   its records with an inline pipeline:
@@ -166,7 +166,7 @@ write below** — the evidence writes are the same:
   REPO=$(git rev-parse --show-toplevel)
   MAN="$REPO/docs/migration/{app}/{page}/gate-tree/verify.tsv"
   mkdir -p "$(dirname "$MAN")"
-  {pluginRoot}/scripts/gate-tree-hash.sh --manifest \
+  ${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh --manifest \
       --exclude docs/migration/{app}/{page}/gate-tree/verify.tsv -- <watch path>... > "$MAN.tmp"
   TREE=$(git hash-object --no-filters -- "$MAN.tmp")
   ```
@@ -177,7 +177,7 @@ write below** — the evidence writes are the same:
   On a non-zero script exit, do not hash: exit 2 put `unverifiable` in the redirect (freshness axis
   `unverifiable`), exit 1 is an error.
 
-  Watch paths are the union of the three axes CLAUDE.md → "Gate Result Accounting" F defines,
+  Watch paths are the union of the three axes ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Gate Result Accounting" F defines,
   **minus every axis-1 entry under `{appDir}/e2e/`**, and minus any untracked axis-1 entry
   `git check-ignore -q` accepts (F) (the e2e carve-out: `fm-e2e` has not realized
   them yet, and a re-run rewrites them);
@@ -224,11 +224,10 @@ write below** — the evidence writes are the same:
 
 Release the lock.
 
-### Step 6b: Codex audit (advisory) — see CLAUDE.md → "Codex Independent Audit"
+### Step 6b: Codex audit (advisory) — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → "Codex Independent Audit"
 If `codexAudit` is enabled and this stage is in `codexAuditStages` (**absent → all seven**; the
 key narrows coverage, it never means "none"), after the lock is released spawn
-`codex-auditor`
-(Agent) for the `verify` stage (params: `app`, `page`, `stage="verify"`, `appDir`, `legacyDir`,
+`codex-auditor` (`subagent_type: "frontend-migration-plugin:codex-auditor"`) for the `verify` stage (params: `app`, `page`, `stage="verify"`, `appDir`, `legacyDir`,
 generated code + test paths + the verify summary, `outPath = docs/migration/{app}/{page}/codex-audit.json`,
 `workingLanguage`) — an independent second opinion to Claude's own reviewers. Advisory — never
 changes the page status. Surface its verdict below.

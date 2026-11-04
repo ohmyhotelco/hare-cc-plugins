@@ -1,5 +1,7 @@
 # Frontend Migration Plugin
 
+This file is not loaded into any agent's context (plugin-root `CLAUDE.md` files are not injected). Skills and agents read it on demand at `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md`.
+
 A Claude Code plugin that drives the migration of the OhMyHotel Angular 15 apps to
 React Router v7, following the revised v2 migration plan. It is **fully standalone** —
 it carries its own agents and pipeline and does not depend on `frontend-react-plugin`
@@ -11,7 +13,7 @@ around code generation: **(1) Angular source analysis**, **(2) framework-agnosti
 shared-package extraction**, **(3) legacy-parity gates**, and **(4) Strangler Fig
 orchestration and tracking**.
 
-> Status: **feature-complete tooling (v1.6.0)** — all `fm-*` skills, agents, and templates are
+> Status: **feature-complete tooling (v1.7.0)** — all `fm-*` skills, agents, and templates are
 > implemented. Runtime execution targets a v2 monorepo (`apps/` + `packages/`) that the migration
 > project scaffolds; the PC end-to-end validation is the open follow-up.
 >
@@ -83,7 +85,6 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
 ```jsonc
 {
   "monorepoRoot": ".",
-  // no "pluginRoot" here — it is per-machine and lives in .claude/frontend-migration-plugin.local.json
   "packagesDir": "packages",
   "contractsDir": "docs/migration/api-contracts",   // optional; recorded only when the dir exists
   "currentApp": "pc",
@@ -129,17 +130,6 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   while its dependent pages span all three.
 - `monorepoRoot` — must be the **git toplevel** (`fm-init` refuses otherwise): the gate evidence is
   addressed from the git root, everything else from here, and the two must coincide.
-- `pluginRoot` — the **absolute** path this plugin is installed at, written and refreshed by the
-  SessionStart hook (`scripts/session-init.sh`), which is the only component that can know it. It is
-  how `fm-verify`/`fm-e2e`/`fm-parity`/`fm-route`/`fm-progress`/`fm-cascade` locate the plugin's
-  `scripts/`. The hook rewrites it **every session**, never capturing it once — the cache path is
-  version-pinned. **It is per-machine, so it lives in `.claude/frontend-migration-plugin.local.json`,
-  never in the shared config above**: a committed value points every other clone at one developer's
-  home directory (a monorepo shipped `/Users/<dev>/…/1.2.0` that way). The hook keeps the local file
-  out of git through `.git/info/exclude`, `fm-init` also lists it in `.gitignore`, and a leftover
-  `pluginRoot` key in the shared config is reported by the hook and removed by `fm-init`. Absent → those
-  skills record no `tree` and report the freshness axis as `unverifiable`; they must not improvise an
-  inline hash pipeline.
 - **Per-machine tool permissions go to `.claude/settings.local.json`, never `.claude/settings.json`.**
   Every fm-* step that must pre-authorize a sub-agent command (the Playwright probe, the cascade differ
   with this machine's absolute path) writes the local file. The shared settings file is committed; a
@@ -229,7 +219,7 @@ dual-run** the healer cannot do. Their value — trace-driven self-correction �
   `alipay` / `onePay` — the v2 gateways, `templates/payment-flow-v2.md`) that `fm-e2e` passes to
   `e2e-test-runner` for transactional scenarios. Transactional E2E runs against these, never production.
   Scaffolded empty (PC-first); filled in when the first transactional page is reached. A config written
-  before 1.4.0 carries `eximbay` / `kakaoPay` instead: Eximbay is dead (OMH-1178) and KakaoPay was never
+  before 1.4.0 carries `eximbay` / `kakaoPay` instead: Eximbay is dead and KakaoPay was never
   a gateway the storefront selects, so replace both keys when filling the block.
 
 PC is fully configured; `mobile`/`hana` entries are scaffolded — recognized now, validated
@@ -337,7 +327,7 @@ Under the big-bang cutover a page can hold `flipPrOpenedAt` for weeks: its flip 
 edge is applied only at cutover. Review findings and QA defects keep arriving in that window, and
 until 1.6 every fm-* skill refused the page, so the fixes shipped by hand with no gate, no records
 sweep and no mover disclosure. Reviewers then did that work in extra rounds and follow-up PRs
-(OMH-1146 #448, OMH-1156 #449, OMH-1127 #414), and most of what they raised after round 1 was
+, and most of what they raised after round 1 was
 records and evidence rather than code. Two lanes cover the window. **Neither writes `status`,
 `routePrepared`, `flagKey`, `flipPrOpenedAt` or `flippedAt`.**
 
@@ -376,7 +366,7 @@ runs the **same gate chain** as a page — analyze → style-spec → plan → g
 (e2e and parity run against the cluster's harness on the v2 side, legacy-side below) — and
 that is the point: the review record shows clusters shipping **off-pipeline**, with no tracker entry,
 no `style-spec.json`, and no parity artifact, which is how a codified style trap (`rounded-lg` = 16px,
-already in the repo's css-parity checklist) re-shipped on `hotel-map-integration` (OMH-936). A cluster
+already in the repo's css-parity checklist) re-shipped on `hotel-map-integration`. A cluster
 is first-class so it cannot skip the gates.
 
 Only **two** things differ from a routed page:
@@ -548,11 +538,10 @@ These apply to every agent and skill in this plugin.
 - **Subagent isolation.** Subagents never inherit session history. A coordinator
   constructs only the parameters each agent needs — no conversation context leaks between
   phases. This prevents context pollution and ensures fresh judgement per task.
-- **Evidence before claims, always.** Never report a result you have not observed. Use the
-  5-step gate: **IDENTIFY** the target → **RUN** the tool → **READ** the full output (exit
-  code, counts) → **VERIFY** the output matches the claim → **CLAIM** citing evidence.
+- **Evidence before claims, always.** Never report a result you have not observed: run the tool, read its
+  full output (exit code, counts), and cite it.
 
-  **The gate is not limited to tool output.** A statement about the *state of the evidence* —
+  **This covers more than tool output.** A statement about the *state of the evidence* —
   "both sides were measured", "only one side was observed", "M of N locales are covered" — is
   itself a claim, so it needs the same treatment: enumerate the artifacts and quote their values.
   Deducing evidence coverage from configuration or deployment topology is **not** observation
@@ -571,20 +560,6 @@ These apply to every agent and skill in this plugin.
   new-captures-only scope are in `templates/capture-provenance.md`; this rule governs captures taken
   from here on — existing artifacts are not retro-filled and already-passed pages are not
   re-adjudicated.
-
-  Verification red flags (these thoughts mean you are rationalizing):
-
-  | Thought | Reality |
-  | --- | --- |
-  | "Should work" / "probably fine" | Run the tool. Evidence or silence. |
-  | "The change is small, no need to verify" | Small changes cause big bugs. |
-  | "I already verified earlier" | That observation is stale — the code changed since. Cite a current run, not a remembered one. |
-  | "tsc passed, so the build will too" | Different tools catch different errors. |
-  | "Tests passed, so it matches legacy" | Parity is a separate gate. Run it. |
-  | "The file is named `legacy-*`, so it is a legacy render" | A file name is a claim. Read the recorded provenance. |
-  | "The file exists and opens, so I observed it" | Existence is not origin. Opening an artifact and confirming where it came from are different acts. |
-  | "Routing sends only /ko to v2, so only /ko could be measured" | Routing decides what a URL serves. It does not decide what a capture against a local build can measure. |
-  | "I know what is in that artifact without opening it" | A coverage statement is a claim. Enumerate the files and quote the values. |
 
   In this plugin a false pass is especially costly: `fm-e2e` and `fm-parity` are the only
   thing standing between a regression and production.
@@ -715,7 +690,7 @@ Never scaffold an ESLint/Prettier config inside a legacy app, and never promote
 
 **Secret-boundary exception.** The `shared-domain` `no-restricted-syntax`/`no-restricted-imports`
 hit is always a hard rejection regardless of flags — the piece is routed to `fm-secret-audit`, not
-shipped (OMH-477).
+shipped.
 
 ## Codex Independent Audit
 
@@ -827,7 +802,7 @@ Four placements:
   surface's text comes from (`localized-key` / `errorCode-map` / `empty-string` / `server-message`)
   plus `renderMode`. A `mustPreserve` copy source must be bound or land in `openApprovals[]` — the
   same reconciliation `behavioralVariants` uses. This is what stops a generator rendering the
-  response `errorMessage`, which the backend resolves in a hardcoded EN locale (OMH-784).
+  response `errorMessage`, which the backend resolves in a hardcoded EN locale.
 - **e2e** — failure branches are required scenarios, marked `assertsCopy`, and the legacy dual-run
   compares the **displayed text** per language, not just navigation.
 - **parity** — the visual gate compares every axis in every planned **state**
@@ -846,7 +821,7 @@ scope note — design in `docs/design/self-confirmation-hardening.md`:
 
 - **A (entity render, machine-checked).** `i18n-copy-parity.md` render-mode covers markup **or HTML
   entity**; the generated key-coverage spec (`foundation-generator` 3b) fails a markup/entity value
-  on the plain-text path. Was prose-only, which is why `&apos;` shipped (OMH-749).
+  on the plain-text path. Was prose-only, which is why `&apos;` shipped.
 - **B (legacy anchors).** A test asserting legacy behavior carries `// legacy: file:line (symbol)` into
   the legacy source, not `analysis`/`plan` — scoped to legacy-behavior tests (`tdd-cycle-runner`,
   `tdd-rules`, `test-reviewer`). The symbol keeps the anchor checkable after the line moves (Records
@@ -909,7 +884,7 @@ catch it because they address command execution: a command's exit code proves it
   `e2e-testing`/`e2e-test-runner` (per dual-run leg), `fm-parity` check 1, `fm-style-spec` tracker
   record. **New captures only** — no retro-fill, no re-adjudication of passed pages.
 - **B (evidence-state statements are claims).** "Both sides measured", "M of N locales" fall under the
-  same 5-step gate: enumerate artifacts, quote values. Deducing evidence scope from routing or
+  same rule: enumerate artifacts, quote values. Deducing evidence scope from routing or
   deployment topology is not observation.
 - **C (answer-key sourcing + amendment).** `gateAcceptance.expectedValueSource` is required when a
   criterion asserts a v2-side expected value (cite the prior decision and the branch it lives on;
@@ -945,7 +920,7 @@ section went from its heading straight into the diff. Three doc-only fixes — d
   through an approved `openApprovals` entry. A precondition, not a plan flag: it runs again on its own
   when the deferral resolves, and a plan carrying the deferral only as a typing note must promote it to
   an approved entry first. Gates the **response-DTO diff only** — the request-body-vs-live-backend
-  check (OMH-748) does not depend on typed response DTOs and keeps running on every write page.
+  check does not depend on typed response DTOs and keeps running on every write page.
 - **B (lock schema).** `.lock` is JSON with `holder` / `pid` / ISO-8601 `acquiredAt` (see "Lock file").
   The ghost-lock sweep computes off `acquiredAt` (it applies only once the holder is gone); a
   date-only or unparseable timestamp is treated as immediately sweepable, so a malformed lock left
@@ -982,7 +957,7 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   - **One executable, never reimplemented inline:**
 
     ```sh
-    {pluginRoot}/scripts/gate-tree-hash.sh [--manifest] [--rev <rev>] \
+    ${CLAUDE_PLUGIN_ROOT}/scripts/gate-tree-hash.sh [--manifest] [--rev <rev>] \
         --exclude docs/migration/{app}/{page}/gate-tree/{gate}.tsv -- <watch path>...
     ```
 
@@ -1121,7 +1096,7 @@ Where a gate's judgement rule needs a recorded basis. Design and history:
   - **An approval covers one tree, not the page forever.** The first exempted pass writes the tree it
     recorded into the entry as `grantedTree`, in the same `.tracker.lock` write as `gateEvidence`.
     `fm-route` Step 1 requires the two to be equal, and blocks an exemption with no recorded `tree`
-    (no `pluginRoot`, or `unverifiable`), because it cannot be bound to code. It is the only field a skill ever writes into the entry,
+    (`unverifiable`), because it cannot be bound to code. It is the only field a skill ever writes into the entry,
     and it grants nothing. A later `fm-e2e`/`fm-parity` Step 0b whose tree differs finds the approval **lapsed**: the code
     changed after the owner decided (after `fm-fix`, `fm-gen` or `fm-delta`, say). It treats the entry
     as a request and runs the gate normally, until the owner re-approves by rewriting `approvedAt` and
@@ -1248,8 +1223,7 @@ to hand edits.
 
 The payment funnel is the one surface where "legacy is the reference" does not hold end to end. v2
 changed the flow: oh-api signs the gateway request (`POST /payment/nicepay/prepare`), recomputes the
-amount, owns the gateway return legs, books, and redirects to `/payment-complete?result=…` (OMH-1089,
-OMH-1130). Legacy signs in the browser and returns through its Express server. Porting the legacy
+amount, owns the gateway return legs, books, and redirects to `/payment-complete?result=…`. Legacy signs in the browser and returns through its Express server. Porting the legacy
 mechanism faithfully is therefore a defect.
 
 `angular-analyzer` records a `payment` entry in `gateTriggers[]` (not a gate) for a page that submits a

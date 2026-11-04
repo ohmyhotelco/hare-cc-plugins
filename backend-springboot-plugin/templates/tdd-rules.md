@@ -2,7 +2,7 @@
 
 Adapted from [obra/superpowers](https://github.com/obra/superpowers) for Spring Boot, Gradle, and JUnit 5.
 
-## Iron Law
+## Test First
 
 No production code without a failing test first.
 

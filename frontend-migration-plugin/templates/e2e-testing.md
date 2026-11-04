@@ -13,7 +13,7 @@ Scenarios come from `migration-plan.json.e2eScenarios[]` (mapped from legacy flo
 | Scenario | Mode | Network |
 | --- | --- | --- |
 | non-transactional | new app | **MSW** intercept (`VITE_ENABLE_MOCKS=true`) — deterministic |
-| transactional (payment funnel) | **staging** | real PG **test** endpoints (OMH-459); never production |
+| transactional (payment funnel) | **staging** | real PG **test** endpoints; never production |
 
 The payment matrix follows the v2 gateways (`templates/payment-flow-v2.md`): NicePay (KRW), OnePay
 (VND), and Alipay+ through NicePay (every other currency). Eximbay has been dead since OMH-1178 and is
@@ -67,7 +67,7 @@ legs here often run from the same harness against hosts that differ only by port
 `assertsCopy: true` (every `copyBindings` failure surface), assert the **message the user actually
 sees** on both sides and diff it. A flow can navigate identically while showing the wrong words:
 an English backend string on a Korean screen, a raw `tl.*` key, or a literal `<br/>`. Those pass a
-navigation-only comparison, which is exactly how they reached production (OMH-748). Run the copy
+navigation-only comparison, which is exactly how they reached production. Run the copy
 assertions in each language the plan lists in `gateAcceptance.e2e.languages` (= config
 `i18n.languages`; `scope` is prose, `languages` is the field you read); a reduction there is an
 `openApprovals` item, not a default.
@@ -174,7 +174,7 @@ the gate `fail`, but it does make the gate **`not-run`**: the top-level `result`
 the page stays at `verified`, and the chain is blocked until the missing prerequisite is supplied.
 Unmeasured is not passed. `fm-route --flag-on` is blocked until
 `e2e-report.json.result === "pass"` — or `"not-applicable"` under a still-approved exemption
-(CLAUDE.md → Gate Result Accounting H) — and `fm-verify` + `fm-parity` pass. On failure, loop back
+(plugin CLAUDE.md → Gate Result Accounting H) — and `fm-verify` + `fm-parity` pass. On failure, loop back
 through `fm-fix` (e2e-fix mode), which returns the page to `generated` — so re-run the chain from
 **`fm-verify`**, not `fm-e2e`, which requires exactly `verified`; on `not-run`, fix the prerequisite (not the
 code) and re-run `fm-e2e`.

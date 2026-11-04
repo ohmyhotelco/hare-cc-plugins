@@ -62,7 +62,7 @@ a committed literal, residual-risk notes, and a hand-written carry-over addendum
 read `outPath` if it exists. Replace only the keys this agent generates: `scannedApps`, `secrets`,
 `publicIds`, `crossEnvReuse`, `v2CarryOver.entries` and `auditedAt`. Keep every other top-level key,
 and every other key inside `v2CarryOver`, verbatim. If an existing `v2CarryOver` is not an object,
-keep it verbatim as `v2CarryOver.prior` and say so. Write per CLAUDE.md → Serialization, and run its
+keep it verbatim as `v2CarryOver.prior` and say so. Write per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md → Serialization, and run its
 before/after check on your own write before returning (this agent takes no lock). A v2 secret with no legacy counterpart gets
 `legacyField: null`. A carried secret still read from a **committed literal** (an env fallback
 included) is recorded with `committedLiteral: true` — that is the residual risk even when the
@@ -76,8 +76,8 @@ boundary is sound.
   server-side OAuth exchange → move server secrets to a runtime secret manager → per-env
   separation → git-history cleanup). Map each client-exposed secret to its target. For the PG keys
   the target already exists: oh-api signs NicePay and Alipay in `POST /payment/nicepay/prepare`
-  (OMH-1089, OMH-1130), so v2 needs no storefront signer (`templates/payment-flow-v2.md`).
-  `eximbay.key` is not relocated: Eximbay is dead (OMH-1178), so its target is delete and rotate.
+ , so v2 needs no storefront signer (`${CLAUDE_PLUGIN_ROOT}/templates/payment-flow-v2.md`).
+  `eximbay.key` is not relocated: Eximbay is dead, so its target is delete and rotate.
 - **Name each hash for what it is.** Read the builder before labeling it: the Eximbay `fgkey` is a plain
   SHA-256 over `key + "?" + query` (`createFgkey`), not an HMAC. A wrong label sends whoever implements
   it server-side to the wrong primitive.
@@ -88,7 +88,7 @@ boundary is sound.
   "secrets": [
     { "field": "nicePay.simple.merchantKey", "reader": "hotel-payment.component.ts:504",
       "clientExposed": true, "impact": "PG signature forgery",
-      "relocateTo": "oh-api POST /payment/nicepay/prepare (OMH-1089)" },
+      "relocateTo": "oh-api POST /payment/nicepay/prepare" },
     { "field": "eximbay.key", "reader": "hotel-payment.component.ts:623",
       "clientExposed": true, "impact": "PG hash forgery", "relocateTo": "delete + rotate (dead, OMH-1178)" }],
   "publicIds": ["gtmContainerId", "..."],

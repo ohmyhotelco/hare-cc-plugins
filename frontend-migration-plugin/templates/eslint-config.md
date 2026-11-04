@@ -79,7 +79,7 @@ Minimum versions:
 ```
 
 Each leaf `eslint.config.js` imports the base, composes the layers it needs, and **ends with
-`eslintConfigPrettier`**. Run ESLint from each `appDir`/package dir (see CLAUDE.md § Build Command
+`eslintConfigPrettier`**. Run ESLint from each `appDir`/package dir (see plugin CLAUDE.md § Build Command
 Working Directory): `npx eslint . 2>&1`.
 
 **Legacy apps are out of scope — by design, not by accident.** The legacy Angular apps
@@ -195,7 +195,7 @@ export default [...core, ...react, prettier];
 `shared-domain` composes the core layer with the **secret-boundary rule block** authored in
 `shared-package-conventions.md` § "Secret boundary (hard gate)". That block uses
 `no-restricted-syntax` / `no-restricted-imports` to reject PG/OAuth secret reads and PG hash
-builders (OMH-477). Keep `eslintConfigPrettier` last so it does not clobber those `error` rules.
+builders. Keep `eslintConfigPrettier` last so it does not clobber those `error` rules.
 
 ```javascript
 import { core, prettier } from '../../eslint.config.base.js';

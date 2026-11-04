@@ -16,7 +16,6 @@ Diagnose and fix runtime errors, test failures, or build issues using a structur
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, warn the user: config provides `buildCommand` and `testCommand` needed for verification. Without config, the debugger can diagnose and propose fixes but cannot run build/test verification (Phases 3-4 will be limited to code analysis only). Suggest running `/backend-webflux-plugin:be-init` first for full debugging capability.
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`, the plugin's own directory, not the project's; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Gather Problem Context
 
@@ -138,7 +137,7 @@ Hypotheses Tested:
 
 Fix Applied:
   validateEmail() now treats null as an invalid format (InvalidEmailFormatException → 400), the shape
-  `templates/entity-conventions.md`'s validator prescribes; a missing field is a validation failure, not
+  `${CLAUDE_PLUGIN_ROOT}/templates/entity-conventions.md`'s validator prescribes; a missing field is a validation failure, not
   an empty body.
 
 Files Modified:
@@ -195,7 +194,7 @@ If config is available and feature context exists (`{workDocDir}/.progress/{feat
    - Resolved → `"resolved"`
    - Escalated → `"escalated"`
 5. Write back (read-modify-write)
-6. Release lock: delete `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety (first removing the directory its `snapshotDir` names, if the debugger recorded one — its revert snapshot outside the repository) — and do the same on every other exit after Step 1.5: the agent erroring or timing out, a `could not reproduce` outcome, a refusal. A lock that outlives the run blocks every other skill for 30 minutes.
+6. Release lock: delete `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety (first removing the directory its `snapshotDir` names, if the debugger recorded one — its revert snapshot outside the repository) — and do the same on every other exit after Step 1.5: the agent erroring or timing out, a `could not reproduce` outcome, a refusal. A lock that outlives the run blocks every other skill for 30 minutes.
 
 Why preserve `previousStatus`: Step 5 has no other record of where the feature was in the pipeline before debugging started. Losing it strands the user — there would be no way to tell whether to resume implementation, re-verify, or re-review, so `/backend-webflux-plugin:be-progress` would be needed just to recover state this step already had in hand.
 

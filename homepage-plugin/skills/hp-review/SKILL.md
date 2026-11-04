@@ -10,6 +10,8 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 
 Runs a 3-stage code review: SEO review first, then quality review (only if SEO passes), then visual fidelity review (optional, only when Figma screenshots exist). Uses specialized reviewer agents.
 
+Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
+
 ## Instructions
 
 ### Step 0: Read Configuration
@@ -46,7 +48,7 @@ Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 
 ### Step 3: Stage 1 — SEO Review
 
-Launch `seo-reviewer` agent with:
+Launch the `seo-reviewer` agent (`subagent_type: "homepage-plugin:seo-reviewer"`) with:
 - `pageName` — page identifier (or `"all"`)
 - `planFile` — path to page-plan.json
 - `projectRoot` — project root
@@ -67,7 +69,7 @@ Display SEO review summary:
 
 Only runs if SEO review passes.
 
-Launch `quality-reviewer` agent with:
+Launch the `quality-reviewer` agent (`subagent_type: "homepage-plugin:quality-reviewer"`) with:
 - `pageName` — page identifier (or `"all"`)
 - `planFile` — path to page-plan.json
 - `projectRoot` — project root
@@ -112,7 +114,7 @@ If the check **passes**, proceed directly to Step 5.5.2.
 
 #### 5.5.2 Launch Reviewer
 
-Launch `visual-fidelity-reviewer` agent with:
+Launch the `visual-fidelity-reviewer` agent (`subagent_type: "homepage-plugin:visual-fidelity-reviewer"`) with:
 - `pageName` — page identifier (or `"all"`)
 - `planFile` — path to page-plan.json
 - `projectRoot` — project root
@@ -159,7 +161,7 @@ Determine overall verdict:
 - All stages pass → `reviewed`
 - Pass with warnings → `reviewed` (warnings noted)
 - Any stage fails (including visual fidelity score < 5) → `review-failed`
-- All stages pass, zero issues → `done` (skip fix step)
+- All stages pass, no `critical` or `warning` issue → `done` (skip fix step; `info` issues stay in the report)
 
 Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 ```json

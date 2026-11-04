@@ -16,13 +16,12 @@ Launch the code-reviewer agent for a comprehensive review (6 core dimensions + o
 
 1. Read `.claude/backend-webflux-plugin.json`
 2. If missing, tell the user to run `/backend-webflux-plugin:be-init` first and stop
-3. `pluginRoot`: the one line of `${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/data/backend-webflux-plugin/pluginRoot` (plugin CLAUDE.md § Configuration) — every `templates/…` path in this document is `{pluginRoot}/templates/…`; missing → stop: start a new session so the hook writes it.
 
 ### Step 1: Determine Target
 
 Strip a trailing `--yes` flag first: it answers the Step 2 re-review confirmation with yes, and the Step 2.5 staleness prompt only while the work document has no `- [ ]` left — for an unattended caller (`be-jira-auto`) that has already decided; without it the prompts are asked. The argument can be:
 
-- **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` (`.` → `/`) plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
+- **Feature name**: the review target is the **whole** `{sourceDir}/{basePackage}/` (`.` → `/`) plus `src/main/resources/migration/` and `src/main/resources/mapper/` — a feature's code is spread across `command/`, `commandmodel/`, `query/`, `querymodel/`, `view/`, `data/` and `{domain}/` (${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § Package Structure), so scoping to the domain package alone would leave executors, repositories, migrations and mapper XML unreviewed. Use the feature's work document to identify related packages
 - **Directory path**: use directly as the review target
 - **No argument**: review all source code in `{sourceDir}/{basePackage}/`. Before launching the agent, count the `.java` files under that path. If the count exceeds ~40 files, a full-repo pass risks a shallow or truncated review — tell the user the file count, list the top-level domain packages under `{basePackage}`, and ask them to either pick one package as the scoped target or confirm they want the full, unscoped review anyway.
 
@@ -50,7 +49,7 @@ If a feature name was provided and `{workDocDir}/.progress/{feature}.json` exist
    - If `"escalated"`: **stop** — the post-fix build failed or an issue needs a hand; nothing has re-verified the code since, and a review PASS here would write `done`. Resolve it, then `/backend-webflux-plugin:be-verify {feature}` re-admits the feature.
    - If `"review-failed"`: proceed — re-reviewing unchanged code is allowed (a code change goes through `be-fix` → `be-verify` first).
    - If `"reviewed"` or `"done"`: warn this will re-run review, ask to confirm
-3. On every proceed path, compare the tree: `{pluginRoot}/scripts/source-tree-hash.sh` (exit 0 and a 40-hex id, else a tooling error — stop) must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
+3. On every proceed path, compare the tree: `${CLAUDE_PLUGIN_ROOT}/scripts/source-tree-hash.sh` (exit 0 and a 40-hex id, else a tooling error — stop) must equal `pipeline.verification.tree`. Different, or the field missing: **stop** — the code (or a build file) changed since `be-verify` ran, and a `verified` status describes a tree that no longer exists; run `/backend-webflux-plugin:be-verify {feature}` first.
 
 ### Step 2.5: Work Document Staleness Check
 
@@ -103,13 +102,12 @@ Launch the `code-reviewer` agent (`subagent_type: "backend-webflux-plugin:code-r
 - `targetPath`: the resolved target path
 - `config`: parsed plugin config
 - `projectRoot`: current project root
-- `pluginRoot`: {pluginRoot}
 - `planFile`: path to plan.json (only when `specAvailable = true`, omit otherwise)
 - `specDir`: path to spec markdown directory (only when `specAvailable = true`, omit otherwise)
 
 The agent will evaluate 6 dimensions (+ optional 7th when spec context exists). This list exists for orchestration purposes only — `agents/code-reviewer.md` Phase 1 is the single source of truth for each dimension's exact checks. Do not restate or expand those checks here; that duplication is what let this list drift out of sync with the agent before:
 1. API Contract (HTTP semantics, URLs, status codes)
-2. Data Layer — R2DBC / MyBatis (blocking-call offload, `TransactionalOperator` double-wrap, missing indexes; this plugin has no JPA layer — see plugin CLAUDE.md)
+2. Data Layer — R2DBC / MyBatis (blocking-call offload, `TransactionalOperator` double-wrap, missing indexes; this plugin has no JPA layer — see ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md)
 3. Clean Code (DRY, KISS, YAGNI, naming)
 4. Logging (SLF4J, MDC, security)
 5. Test Quality (naming, assertions, coverage)
@@ -233,7 +231,7 @@ If feature context exists (`{workDocDir}/.progress/{feature}.json`):
 4. Fix round counter: reset `pipeline.fix.round` to `0` **only on a PASS with zero issues** (`done`); a FAIL *and* a PASS-with-warnings (`reviewed`) keep it — otherwise `be-fix`'s round-3 guard (Step 3) can never trigger inside a review ↔ fix loop, since every review would zero what every fix incremented
 5. Write back (read-modify-write)
 
-If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock` — release per CLAUDE.md § State File Safety.
+If a lock was acquired in Step 2.6: release lock by deleting `{workDocDir}/.progress/.lock` — release per ${CLAUDE_PLUGIN_ROOT}/CLAUDE.md § State File Safety.
 
 ### Step 7: Suggest Next Action
 

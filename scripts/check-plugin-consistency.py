@@ -40,7 +40,7 @@ WIRING = {
     "planFile", "specDir", "uiDslDir", "prototypeDir", "deltaFile", "scopedFiles", "deltaMode",
     "routerMode", "serverState", "formStack", "e2eTool", "mockFirst", "renderingDefault",
     "i18n", "localesDir", "prettierTemplate", "eslintTemplate", "skills", "fixMode",
-    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode", "pluginRoot",
+    "reviewReportFile", "e2eReportFile", "devPort", "standalone", "mode",
 }
 
 # Only tools whose use leaves a *syntactically distinctive* trace. `Write` and `Edit` are ordinary
@@ -162,6 +162,8 @@ def check_call_sites(skills: dict[str, tuple[Path, str]],
                 if re.search(rf"^\s*-\s+`?{re.escape(p)}`?\s*:", block, re.M):   # `- param:` or `- `param`:`
                     continue
                 if re.search(rf"\b{re.escape(p)}\b.*\bomit\b", block):
+                    continue
+                if re.search(rf"`{re.escape(p)}`", block):   # inline form: "with only its params: `app`, `page`"
                     continue
                 out.append(Finding(str(spath), lineno(stext, m.start()), "call-site",
                                    f"`{agent}` uses `{{{p}}}` but this launch does not pass it"))
@@ -343,6 +345,8 @@ def check_tool_permissions(skills: dict[str, tuple[Path, str]]) -> list[Finding]
     out = []
     for name, (path, text) in skills.items():
         fm = frontmatter(text)
+        if fm.get("user-invocable") == "false":
+            continue   # a conventions skill preloaded into agents names commands for them; it runs nothing
         rules = [t.strip() for t in fm.get("allowed-tools", "").split(",") if t.strip()]
         # A scoped rule such as Bash(node:*) declares the tool, but only for the commands it covers.
         allowed = {re.sub(r"\(.*\)$", "", t) for t in rules}
@@ -501,6 +505,41 @@ def check_references(plugin: Path, files: dict[str, tuple[Path, str]]) -> list[F
                 continue
             out.append(Finding(str(path), lineno(text, m.start()), "dangling-section",
                                f'references CLAUDE.md § "{h}", which is not a heading there'))
+    for sdir in sorted((plugin / "skills").glob("*-shared")):
+        shared = (sdir / "SKILL.md").read_text()
+        heads = {m.group(1).strip() for m in re.finditer(r"^#{2,4}\s+(.+?)\s*$", shared, re.M)}
+        heads |= {m.group(1).strip().rstrip(".") for m in re.finditer(r"^\*\*(.+?)\*\*[:.]?", shared, re.M)}
+        ref = re.compile(re.escape(sdir.name) + r"`?\s+§\s+([A-Za-z0-9 &'`+\-]+?)(?=[,.:;)|\n]|\s+—|\s+\(|\s+\|)")
+        for name, (path, text) in files.items():
+            for m in ref.finditer(text):
+                for part in m.group(1).split("+"):
+                    hl = part.strip().lower()
+                    if not any(hl in x.lower() or x.lower() in hl for x in heads):
+                        out.append(Finding(str(path), lineno(text, m.start()), "dangling-section",
+                                           f'references {sdir.name} § "{part.strip()}", which is not a heading there'))
+    return out
+
+
+def check_plugin_paths(name: str, agents: dict[str, tuple[Path, str]],
+                       skills: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """Installed, the working directory is the user's project, so a bare `templates/x.md` finds nothing,
+    and the Agent tool rejects an unqualified plugin agent name, leaving the model to retry from a list."""
+    out = []
+    for path, text in [v for v in agents.values()] + [v for v in skills.values()]:
+        for m in re.finditer(r"(?<![/}\w.-])templates/(?:[a-z0-9-]+\.(?:md|json))?|(?<=[Rr]ead `)agents/[a-z0-9-]+\.md", text):
+            out.append(Finding(str(path), lineno(text, m.start()), "bare-plugin-path",
+                               f"{m.group(0)} resolves against the project; use ${{CLAUDE_PLUGIN_ROOT}}/{m.group(0)}"))
+        for m in re.finditer(r'subagent_type:\s*"?([a-z0-9-]+)"?(?![a-z0-9:-])', text):
+            out.append(Finding(str(path), lineno(text, m.start()), "unqualified-agent",
+                               f'launches "{m.group(1)}" without the `{name}:` qualifier'))
+    # The prose spellings name no subagent_type at all; a skill that qualifies the agent anywhere is fine.
+    prose = re.compile(r"[Ll]aunch(?: the| an?)? (?:`|\*\*)([a-z0-9-]+)(?:`|\*\*)|`([a-z0-9-]+)`(?: agent)?\s+\(Agent(?: tool)?\)")
+    for path, text in skills.values():
+        for m in prose.finditer(text):
+            agent = m.group(1) or m.group(2)
+            if agent in agents and f"{name}:{agent}" not in text:
+                out.append(Finding(str(path), lineno(text, m.start()), "unqualified-agent",
+                                   f'launches `{agent}` in prose without `subagent_type: "{name}:{agent}"`'))
     return out
 
 
@@ -550,6 +589,7 @@ def run(plugin: Path) -> list[Finding]:
             + check_section_refs(every)
             + check_duplicate_json_keys(every)
             + check_references(plugin, every)
+            + check_plugin_paths(plugin_name(plugin), agents, skills)
             + check_version_sync(plugin))
 
 

@@ -10,11 +10,11 @@ You produce the page's cascade-diff artifact — every computed-style divergence
 global stylesheet and the migrated app's, measured on the page's real markup. Write it to
 `outPath` **exactly as given** (the coordinator stages it as `cascade-diff.next.json` and promotes
 it to `cascade-diff.json` only after its tree check — never write the canonical name yourself).
-Read `templates/cascade-diff.md` before you start; it holds the invariant, the property list, the
+Read `${CLAUDE_PLUGIN_ROOT}/templates/cascade-diff.md` before you start; it holds the invariant, the property list, the
 font trap and the two fix shapes.
 
 You receive from the coordinator (no session history): `app`, `page`, `legacyCssPath`,
-`targetCssPath`, `markupSource`, `viewport`, `propsOverride`, `keepFonts`, `pluginRoot`, `outPath`,
+`targetCssPath`, `markupSource`, `viewport`, `propsOverride`, `keepFonts`, `outPath`,
 `appDir`, `workingLanguage`.
 
 You **measure and report**. You do not edit application code — the coordinator decides what to fix.
@@ -54,7 +54,7 @@ variable and you would be measuring two things at once.
 
 ## Step 3 — Run the differ
 
-The measurement is `scripts/cascade-diff.mjs` — you run it, you do not rebuild it. It renders the
+The measurement is `${CLAUDE_PLUGIN_ROOT}/scripts/cascade-diff.mjs` — you run it, you do not rebuild it. It renders the
 same markup twice in one engine with the stylesheet as the only variable, and it already carries the
 harness lessons: fonts neutralised identically on both sides unless `keepFonts` (the font trap), and
 **both** language conventions set on both sides — the `lang` attribute *and* the `lang-xx` class —
@@ -69,7 +69,7 @@ app is all that binds it to the app's Playwright; separate commands keep each ex
 (an `rm` chained after the differ masks a failed run behind a successful cleanup):
 
 ```bash
-cp {pluginRoot}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
+cp ${CLAUDE_PLUGIN_ROOT}/scripts/cascade-diff.mjs {appDir}/.cascade-diff.tmp.mjs
 node {appDir}/.cascade-diff.tmp.mjs \
   --legacy-css <legacyCssPath> --target-css <targetCssPath> \
   --markup "<absolute markup path/glob>" \
@@ -117,7 +117,7 @@ font artifact is a misleading number, and someone acts on it.
 
 ## Step 6 — Suggest, do not apply
 
-For each **real** row, name which fix shape applies (`templates/cascade-diff.md` → *Fixing what it
+For each **real** row, name which fix shape applies (`${CLAUDE_PLUGIN_ROOT}/templates/cascade-diff.md` → *Fixing what it
 finds*) and cite the evidence:
 
 - **port the legacy rule** — legacy declares a global the target's reset does not supply. Give the

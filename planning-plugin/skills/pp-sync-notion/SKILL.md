@@ -3,7 +3,7 @@ name: pp-sync-notion
 description: Use when a specification needs to be published or re-synced to Notion after finalization or manual edits.
 argument-hint: "[feature-name] [--lang=xx]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Task, mcp__claude_ai_Notion__notion-search
+allowed-tools: Read, Write, Edit, Glob, Grep, Agent, mcp__claude_ai_Notion__notion-search
 ---
 
 # Sync to Notion
@@ -59,7 +59,7 @@ Read the `notion` field from the progress file (if it exists) to find existing p
 For each target language (**sequentially**, to avoid progress file write conflicts), launch the **sync-notion** agent:
 
 ```
-Task(subagent_type: "sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
+Agent(subagent_type: "planning-plugin:sync-notion", prompt: "Sync the {langName} specification for feature '{feature}' to Notion.
   feature: {feature}. lang: {lang}. langName: {langName}.
   specDir: docs/specs/{feature}/{lang}/.
   progressFile: docs/specs/{feature}/.progress/{feature}.json.

@@ -3,13 +3,14 @@ name: review-fixer
 description: Fixes review issues using TDD discipline for behavioral changes and direct fixes for mechanical changes
 model: opus
 tools: Read, Write, Edit, Glob, Grep, Bash
+skills: [fe-shared]
 ---
 
 # Review Fixer Agent
 
 Fixes issues found by spec-reviewer and quality-reviewer, applying TDD discipline for behavioral changes and direct fixes for mechanical changes.
 
-**Iron Law: NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST** (for TDD-required fixes).
+For TDD-required fixes, write a failing test before any production code; a test written afterward has not been shown to catch the defect.
 
 ## Input Parameters
 
@@ -25,9 +26,9 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (for reference)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"`
 - `mockFirst` — `true` | `false`
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see CLAUDE.md § Build Command Working Directory and the Router-mode command matrix)
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (CLAUDE.md § Build Command Working Directory).
-- `e2eTool` — `"agent-browser"` (default when absent) | `"playwright"`. In `e2e` fix mode this selects the failure evidence: **playwright** → read each failing scenario's `scenarios[].evidence.trace` and open it with `npx playwright show-trace`, following `templates/e2e-playwright.md`; **agent-browser** → read the screenshots/snapshot excerpts, following `templates/e2e-testing.md`. Do not extract screenshots unconditionally — a Playwright run has none, and diagnosing without the trace is guessing.
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory and the Router-mode command matrix)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
+- `e2eTool` — `"agent-browser"` (default when absent) | `"playwright"`. In `e2e` fix mode this selects the failure evidence: **playwright** → read each failing scenario's `scenarios[].evidence.trace` and open it with `npx playwright show-trace`, following `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`; **agent-browser** → read the screenshots/snapshot excerpts, following `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md`. Do not extract screenshots unconditionally — a Playwright run has none, and diagnosing without the trace is guessing.
 - `sourceBaseDir` — the **source root** from config (e.g. `app/src`). App-wide fix targets resolve against this; `baseDir` here is the feature directory and matches none of them.
 - `componentLibrary` / `apiLayer` / `i18nBinding` / `clientStore` — Phase 2 knobs (defaults `shadcn` / `feature-local` / `react-i18next` / `zustand` when absent) with their companion objects `externalComponents` / `apiPackage` / `i18nHook` when present. Fix targets outside the feature follow delta-modifier's Phase 2 path rules: a file under `{apiPackage.dir}` is package code — its test location is `plan.apiPackagePattern`, and every `vitest`/`tsc` run for it is `cd {projectRoot}/{apiPackage.dir} && …` with the package's own configs; a fix under `{externalComponents.uiKitDir}` (gap components, form adapters) follows tdd-cycle-runner § component-tdd import rules; under `custom-hook` i18n key fixes go to `{i18nHook.resourcesDir}/{resourceFile}` with real values (never `[LANG]`); under `clientStore == none` no `stores/` file may be created.
 
@@ -58,13 +59,13 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 ### Step 0: Load Context
 
 1. **Plan** — read `planFile` → extract file list, types, components, pages, tests
-2. **TDD Rules** — read `templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green (a fix that goes green without one has not been shown to fix anything) and the spec-anchor rule
+2. **TDD Rules** — read `${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` → internalize the full Red-Green-Refactor cycle, including the **mutation check** after green (a fix that goes green without one has not been shown to fix anything) and the spec-anchor rule
 
 > **App lock.** A fix whose target is an app-wide file — the central route file
 > (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
 > `{sourceBaseDir}/mocks/handlers.ts`, a shared layout under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}`,
 > a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}`, or anything under `{externalComponents.uiKitDir}/` — takes
-> `docs/specs/.app.lock` (CLAUDE.md § Lock file) around the read-modify-write and releases it right
+> `docs/specs/.app.lock` (fe-shared § Lock file) around the read-modify-write and releases it right
 > after. This includes **direct** (non-TDD) fixes: a `route_coverage` fix edits the central route
 > table, and the feature lock does not exclude another feature's integration writing the same file.
 > `sourceBaseDir` is the source root passed by the skill — `baseDir` here is the feature directory
@@ -79,7 +80,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 4. **External skills** — read each SKILL.md as needed:
    - `.claude/skills/vitest/SKILL.md` → test patterns (for TDD fixes)
    - If any fix targets files under `components/`: `.claude/skills/vercel-composition-patterns/SKILL.md` → composition rules
-   - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules. **RSC/SSR rules are router-mode conditional** (CLAUDE.md § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA); **apply** them in `framework` mode (per-route SSR/SSG).
+   - If any fix targets files under `pages/`: `.claude/skills/vercel-react-best-practices/SKILL.md` → performance rules. **RSC/SSR rules are router-mode conditional** (fe-shared § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA); **apply** them in `framework` mode (per-route SSR/SSG).
    - If any fix targets route files: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` → router convention rules (`framework` → `react-router-framework-mode`)
 5. **Report loading** — load the appropriate report based on `fixMode`:
 
@@ -102,8 +103,8 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
          and diagnose from the trace. A Playwright run has **no** screenshots or snapshot excerpts,
          so looking for them finds nothing and the fix becomes a guess.
        - `agent-browser` → `evidence` screenshots and snapshot excerpts, as before.
-   - Read the E2E patterns for the runner in use: `templates/e2e-playwright.md` when
-     `e2eTool == "playwright"`, otherwise `templates/e2e-testing.md`. Reading the agent-browser
+   - Read the E2E patterns for the runner in use: `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` when
+     `e2eTool == "playwright"`, otherwise `${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md`. Reading the agent-browser
      template in Playwright mode describes a harness that is not there.
    - Convert E2E failures to fix issues:
      - For each failed scenario step, analyze the evidence to identify the root cause:
@@ -169,7 +170,7 @@ Direct fixes are faster and reduce noise before TDD fixes.
 For each **direct-fix** issue (sorted: critical first, then warnings, then suggestions):
 
 1. **Apply fix** — make the minimal code change
-2. **TypeScript check** — see CLAUDE.md § TypeScript Check — Composite Config Detection (`tsc -b` if composite, `tsc --noEmit` otherwise)
+2. **TypeScript check** — see fe-shared § TypeScript Check — Composite Config Detection (`tsc -b` if composite, `tsc --noEmit` otherwise)
 3. If tsc fails → revert the change, mark issue as `failed` with reason
 4. If tsc passes → mark issue as `fixed`
 
@@ -188,14 +189,14 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
    - **Defensive guard**: If the matching test file is unexpectedly missing at execution time (e.g., deleted between triage and execution), mark the issue as `escalated` with reason `"test file not found"` and move to the next issue.
 2. Add `it()` block to the existing test file:
    - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
-     when the fixed behavior comes from the spec (`templates/tdd-rules.md` § Anchors). Only when the
+     when the fixed behavior comes from the spec (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § Anchors). Only when the
      behavior has no spec line to cite — a rendering detail, a defensive branch — fall back to
      `// fix: {dimension}`. Never use `// fix:` for spec-derived behavior: `test-reviewer` follows
      the anchor to the spec line to check the test's premise, and a dimension name leads nowhere.
    - Test name describes the expected behavior being fixed
 3. Run `npx vitest run {testFile} --reporter=verbose` → confirm:
 
-> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (CLAUDE.md § Build Command Working Directory).
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (fe-shared § Build Command Working Directory).
 > **`{testFile}` under `{apiPackage.dir}`** (workspace-package): every run in 3.1–3.3 is instead `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative path} --reporter=verbose` with the package's own `vitest.config.*`; the app context does not reach it.
    - New test FAILS (correct RED state)
    - Existing tests still PASS (no false regressions)
@@ -218,11 +219,11 @@ If tests fail:
 
 #### 3.3 VERIFY
 
-1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection) → confirm no type errors introduced
+1. TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection) → confirm no type errors introduced
 
-2. **Mutation check (MANDATORY)** — the fix went green; that does not show the test would notice
+2. **Mutation check** — the fix went green; that does not show the test would notice
    the code being wrong again. Break the behavior you just fixed, re-run the test, confirm it goes
-   **red**, restore the code, re-run to confirm green (`templates/tdd-rules.md` § VERIFY THE TEST).
+   **red**, restore the code, re-run to confirm green (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § VERIFY THE TEST).
    Stays green → the test does not cover the fix: strengthen the assertion and repeat. Record the
    result per issue; **an item may not report `fixed` without it.**
 
@@ -234,10 +235,10 @@ If still failing after 3 retries:
 
 Run full verification suite:
 
-1. TypeScript check (see CLAUDE.md § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (CLAUDE.md § Router-mode command matrix, typecheck row).
+1. TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (fe-shared § Router-mode command matrix, typecheck row).
 2. ESLint — same detection logic as fe-verify Step 2.2 (includes template fallback)
 3. `npx vitest run {srcPath}` → all feature tests; when a fix touched `{apiPackage.dir}`: also `cd {projectRoot}/{apiPackage.dir} && npx vitest run` and the package's tsc → package suite passes
-4. Build check — **mode-aware** per CLAUDE.md § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
+4. Build check — **mode-aware** per fe-shared § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.
 
@@ -345,7 +346,7 @@ Status determination:
 
 ## Key Rules
 
-1. **Iron Law for TDD fixes**: No production code change without a failing test first. Direct fixes are exempt (no behavior change).
+1. **Test first for TDD fixes**: No production code change without a failing test first. Direct fixes are exempt (no behavior change).
 2. **Extend, don't create**: Add tests to EXISTING test files. Do not create new test files from scratch.
 3. **Minimal changes**: Apply only the minimum changes needed to fix each issue. No refactoring or improvements beyond the issue scope.
 4. **3-strike per issue**: Maximum 3 retry cycles per TDD fix. Escalate if still failing.
@@ -353,16 +354,11 @@ Status determination:
 6. **Pre-check**: Always verify issues still exist before attempting fixes. Code may have been manually updated.
 7. **Regression safety**: Run existing tests after each fix. Revert if regressions are introduced.
 8. **Evidence before claims**: Run vitest and tsc, check output. No "should pass".
-9. **Traceability**: added tests carry a **spec anchor** (`templates/tdd-rules.md` § Anchors); `// fix: {dimension}` only for behavior with no spec line to cite.
+9. **Traceability**: added tests carry a **spec anchor** (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § Anchors); `// fix: {dimension}` only for behavior with no spec line to cite.
 10. **Mutation check**: no issue reports `fixed` until its behavior was broken, seen red, and restored.
 
-### Fix Classification Red Flags — These Thoughts Mean You're Misclassifying
+### Fix Classification
 
-| Thought | Reality |
-|---------|---------|
-| "This behavioral fix is small enough for a direct fix" | Small behavioral change = still behavioral. TDD required. |
-| "Adding a test for this would be overkill" | The test proves the fix works. Without it, you're guessing. |
-| "The existing tests already cover this case" | If they did, the issue wouldn't have been reported. Add a test. |
-| "I'll fix the code first, then add the test" | That's testing-after. RED before GREEN. Always. |
-| "This i18n key change doesn't need a test" | i18n changes affect rendered output. TDD required per classification table. |
-| "The test file doesn't exist, so I'll just do a direct fix" | Reclassify as regen-required. Do NOT downgrade to direct-fix. |
+- A behavioral change is TDD-classified however small; an i18n key change counts, because it affects rendered output.
+- Add a test even when existing tests look like they cover the case: the issue was reported despite them.
+- When the test file a fix needs does not exist, reclassify the issue as `regen-required` rather than downgrade it to `direct-fix`.
