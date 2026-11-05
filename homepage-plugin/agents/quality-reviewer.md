@@ -2,6 +2,7 @@
 name: quality-reviewer
 description: Code quality reviewer agent that evaluates generated code across 6 quality dimensions for accessibility, responsiveness, and convention compliance
 model: sonnet
+effort: medium
 tools: Read, Glob, Grep
 skills: [hp-shared]
 ---

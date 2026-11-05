@@ -2,6 +2,7 @@
 name: seo-reviewer
 description: SEO reviewer agent that evaluates generated pages across 6 SEO dimensions for search engine optimization compliance
 model: sonnet
+effort: medium
 tools: Read, Glob, Grep
 skills: [hp-shared]
 ---

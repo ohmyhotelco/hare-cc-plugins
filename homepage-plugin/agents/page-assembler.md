@@ -2,6 +2,7 @@
 name: page-assembler
 description: Page assembler agent that composes sections into complete Astro pages with layout, SEO metadata, and i18n
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [hp-shared]
 ---
