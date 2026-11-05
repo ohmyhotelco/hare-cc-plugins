@@ -1,6 +1,6 @@
 ---
 name: be-review
-description: "Run code review (6 dimensions + optional spec compliance) via code-reviewer agent and produce structured report."
+description: "Review a backend feature's code through the code-reviewer agent (6 dimensions + optional spec compliance) and produce a structured report. Use when asked to review a feature or its code."
 argument-hint: "<feature-name or target-path>"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent

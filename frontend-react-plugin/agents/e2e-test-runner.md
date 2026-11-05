@@ -2,6 +2,7 @@
 name: e2e-test-runner
 description: Executes E2E test scenarios via the configured e2eTool (agent-browser or Playwright), driving user flows and verifying UI state against test-scenarios.md criteria
 model: opus
+effort: medium
 tools: Read, Write, Glob, Grep, Bash
 skills: [fe-shared]
 ---

@@ -2,6 +2,7 @@
 name: review-fixer
 description: Fixes review issues using TDD discipline for behavioral changes and direct fixes for mechanical changes
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

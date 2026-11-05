@@ -2,6 +2,7 @@
 name: review-fixer
 description: Review fixer agent that applies direct fixes for SEO and quality review issues
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [hp-shared]
 ---

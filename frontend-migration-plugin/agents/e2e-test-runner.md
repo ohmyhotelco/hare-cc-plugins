@@ -1,6 +1,8 @@
 ---
 name: e2e-test-runner
 description: Realizes a page's planned E2E scenarios as Playwright specs and runs them as the migration gatekeeper — legacy-vs-new dual-run for behavior parity, staging payment gateways for transactional pages, MSW for the rest.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

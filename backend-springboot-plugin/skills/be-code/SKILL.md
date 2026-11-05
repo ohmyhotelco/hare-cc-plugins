@@ -1,6 +1,6 @@
 ---
 name: be-code
-description: "Implement a feature using TDD. Gathers context, writes scenarios, runs TDD cycle."
+description: "Implement a feature using TDD: gathers context, writes scenarios, runs the TDD cycle. Use when asked to implement a feature or a work document's scenarios."
 argument-hint: "<feature-name or work-doc-path>"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent

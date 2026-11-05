@@ -2,6 +2,7 @@
 name: integration-generator
 description: Generates routes, i18n registration, MSW global setup, and barrel exports, then runs full verification (tsc, vitest, build)
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

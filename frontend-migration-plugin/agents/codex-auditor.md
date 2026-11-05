@@ -1,6 +1,8 @@
 ---
 name: codex-auditor
 description: Runs an independent Codex audit of one migration stage's artifact — gathers the stage inputs, delegates to Codex via the codex-cli-runtime contract (headless codex exec), reads the real output, and records the verdict to codex-audit.json. Advisory only; never migrates or mutates pipeline state beyond its own report.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Bash, Write
 ---
 

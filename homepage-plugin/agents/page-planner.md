@@ -2,6 +2,7 @@
 name: page-planner
 description: Page planner agent that synthesizes user page/section descriptions and optional Figma references into structured page plans
 model: opus
+effort: medium
 tools: Read, Write, Glob, Grep
 skills: [hp-shared]
 ---

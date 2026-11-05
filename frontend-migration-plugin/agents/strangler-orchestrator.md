@@ -1,6 +1,8 @@
 ---
 name: strangler-orchestrator
 description: Manages the Strangler Fig route flip for one migrated path at the app's configured edge layer — generates/reverts the nginx routing block + flag entry, the CloudFront behavior-manifest entry, or runs the project's own flip commands over every artifact a multi-tier edge needs — under one interface, enforcing the gate precondition (verify + e2e + parity all pass) before flag-on.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

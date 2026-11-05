@@ -2,6 +2,7 @@
 name: dsl-generator
 description: DSL generator agent that converts screen definitions from functional specifications into structured UI DSL JSON files, inferring data models from component analysis
 model: opus
+effort: medium
 tools: Read, Write, Grep, Glob
 ---
 

@@ -2,6 +2,7 @@
 name: security-auditor
 description: Read-only agent that audits frontend React/TypeScript code for security vulnerabilities across XSS, auth token handling, secrets exposure, and client-side data safety
 model: sonnet
+effort: medium
 tools: Read, Glob, Grep
 skills: [fe-shared]
 ---

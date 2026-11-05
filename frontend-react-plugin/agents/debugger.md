@@ -2,6 +2,7 @@
 name: debugger
 description: Systematic debugging agent that follows a 4-phase methodology with hypothesis testing and escalation after 3 failures
 model: opus
+effort: high
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

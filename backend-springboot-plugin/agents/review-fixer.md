@@ -2,6 +2,7 @@
 name: review-fixer
 description: TDD-disciplined fixer that reads review reports and applies targeted fixes with appropriate methodology
 model: opus
+effort: medium
 tools: Bash, Read, Edit, Write, Grep, Glob
 skills: [be-spring-shared]
 ---

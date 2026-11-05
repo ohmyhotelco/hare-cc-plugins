@@ -1,6 +1,8 @@
 ---
 name: migration-planner
 description: Turns a page's analysis.json, style-spec.json, plus the mapping catalog into a migration-plan.json — the React component tree (with per-component style targets), shared-package deps, rendering mode, required gates, the 2-PR flag plan, and the E2E scenario list mapped from legacy flows.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Bash
 ---
 

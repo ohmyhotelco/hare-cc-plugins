@@ -2,6 +2,7 @@
 name: delta-modifier
 description: Modifies existing implementation files based on delta-plan.json change specifications, using TDD discipline for behavioral changes and direct edit for structural changes
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

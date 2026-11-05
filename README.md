@@ -6,7 +6,7 @@ A collection of Claude Code plugins that cover the full software delivery lifecy
 
 ## Plugins
 
-### [Planning Plugin](./planning-plugin/) `v1.8.0`
+### [Planning Plugin](./planning-plugin/) `v1.8.1`
 
 Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
 
@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.1`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.2`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 
@@ -38,7 +38,7 @@ Generates production-ready React code from functional specifications using stric
 
 ---
 
-### [Homepage Plugin](./homepage-plugin/) `v1.3.0`
+### [Homepage Plugin](./homepage-plugin/) `v1.3.1`
 
 Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
 
@@ -54,7 +54,7 @@ Generates marketing homepage websites from interactive page/section definitions.
 
 ---
 
-### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.0`
+### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.1`
 
 Develops Spring Boot backend applications using CQRS architecture and strict Test-Driven Development. Features a full pipeline with verification gate, review-fix loop, systematic debugging, and pipeline state tracking — modeled after the frontend-react-plugin's mature orchestration patterns.
 
@@ -71,7 +71,7 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 ---
 
-### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.2`
+### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.3`
 
 Develops Spring WebFlux backend applications using CQRS architecture and strict
 Test-Driven Development, with dual R2DBC/MyBatis data-layer support. Deliberately a
@@ -94,7 +94,7 @@ migration, database, driver, and coverage-tool decision record.
 
 ---
 
-### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.7.1`
+### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.7.2`
 
 Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
 

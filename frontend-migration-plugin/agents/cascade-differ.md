@@ -1,6 +1,8 @@
 ---
 name: cascade-differ
 description: Diffs a migrated page's global stylesheet against legacy's, node by node, by rendering the page's own markup twice in one engine with the stylesheet as the only variable — catching reset collisions and dropped global rules that element-indexed style specs and jsdom DOM tests cannot see. Read-only against both apps; writes a report.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Bash, Write
 ---
 

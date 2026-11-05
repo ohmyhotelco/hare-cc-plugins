@@ -2,6 +2,7 @@
 name: section-generator
 description: Section generator agent that creates .astro sections and React island components from page plans
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash, mcp__figma__get_design_context, mcp__figma__get_metadata, mcp__figma_desktop__get_design_context, mcp__figma_desktop__get_metadata, mcp__Figma__get_design_context, mcp__Figma__get_metadata
 skills: [hp-shared]
 ---

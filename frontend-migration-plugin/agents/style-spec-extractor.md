@@ -1,6 +1,8 @@
 ---
 name: style-spec-extractor
 description: Extracts a page's legacy style answer key into style-spec.json — the live legacy render's per-element computed styles (via a standalone Playwright probe), plus the global-sheet cascade fallback, an asset inventory, and the markup nesting structure — so fm-gen builds to real values instead of eyeballing. Reuses the parity gate's legacy-capture method, hoisted to the front of the pipeline.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Bash
 ---
 

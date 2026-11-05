@@ -2,6 +2,7 @@
 name: visual-fidelity-reviewer
 description: AI vision comparison of rendered screenshots against Figma design screenshots for visual fidelity scoring
 model: opus
+effort: medium
 tools: Read, Glob, Grep, Bash, mcp__figma__get_screenshot, mcp__figma_desktop__get_screenshot, mcp__Figma__get_screenshot
 skills: [hp-shared]
 ---

@@ -2,6 +2,7 @@
 name: tdd-cycle-runner
 description: Executes a strict Red-Green TDD cycle for a single phase (api, store, component, or page), writing tests first, verifying failure, then implementing to pass
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

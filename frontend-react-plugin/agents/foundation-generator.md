@@ -2,6 +2,7 @@
 name: foundation-generator
 description: Generates type definitions, mock factories, fixtures, and MSW handlers that form the test infrastructure foundation for TDD cycles
 model: opus
+effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
 skills: [fe-shared]
 ---

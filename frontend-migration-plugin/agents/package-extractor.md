@@ -1,6 +1,8 @@
 ---
 name: package-extractor
 description: Extracts one shared-package candidate from the legacy Angular source into a framework-agnostic packages/shared-* module using strict TDD, reconciling PC/Mobile/Hana divergence and enforcing the shared-domain secret boundary.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

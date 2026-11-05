@@ -1,6 +1,8 @@
 ---
 name: test-reviewer
 description: Audits the generated migration tests (Vitest + Playwright) for test quality — assertion patterns, Testing Library usage, async handling, coverage, timing/flakiness, and anti-patterns. Read-only; writes a report.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Bash, Write
 ---
 

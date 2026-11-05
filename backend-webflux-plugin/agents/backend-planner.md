@@ -2,6 +2,7 @@
 name: backend-planner
 description: Spec analysis agent that reads functional specifications and produces a structured backend implementation plan (plan.json)
 model: opus
+effort: medium
 tools: Read, Write, Glob, Grep
 ---
 

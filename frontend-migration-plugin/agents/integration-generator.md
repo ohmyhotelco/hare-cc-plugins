@@ -1,6 +1,8 @@
 ---
 name: integration-generator
 description: Wires a migrated page into the app — React Router v7 routes, i18n namespace registration, and MSW global handler aggregation — mirroring the auto-integration pattern, with graceful fallback when central files differ.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

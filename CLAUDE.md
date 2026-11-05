@@ -27,7 +27,7 @@ agent input parameters vs. what launchers pass, tool permissions vs. what a skil
 `proceed to Step N` jumps that skip a Lock Acquire, variables derived before they are bound or
 defaulted, command arguments that are repo-relative when the command runs from `appDir`, ordered-list
 numbering, dangling `templates/*.md` / `agents/*.md` / `CLAUDE.md § Heading` references, and what a
-workflow starts.
+workflow starts, and that each agent declares `model` and `effort`.
 
 A skill over 20,000 characters comes back cut after auto-compaction, so the checker limits its size. Move a
 rarely used section to `skills/<skill>/references/`, keep its heading in `SKILL.md` with a pointer, and write
@@ -44,6 +44,16 @@ scripts/check-plugin-consistency.py frontend-react-plugin
 
 It validates wiring, not meaning. A clean run does not mean the instructions are correct — only that
 they refer to things that exist and can be reached.
+
+## Evals
+
+Each plugin's `evals/` checks that a natural request reaches the right skill. A case with a `fixture.sh` needs `--scaffold`, and a case about a request for existing work needs one, because in an empty workspace Claude stops before it would choose a skill.
+
+```bash
+cd backend-webflux-plugin && claude plugin eval . --tag routing --scaffold --ablation none --no-publish --threshold 0
+```
+
+`frontend-react-plugin/evals/quality-recall` seeds defects for `quality-reviewer`, for tuning a reviewer's effort. Agents run at `medium` and debuggers at `high`: on that case `high` found no more seeded defects than `medium` and cost about 22% more (five runs per arm).
 
 ## Version Sync Rule
 

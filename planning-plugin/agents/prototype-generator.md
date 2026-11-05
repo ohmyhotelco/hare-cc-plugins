@@ -2,6 +2,7 @@
 name: prototype-generator
 description: Prototype generator agent that scaffolds a standalone React 19 prototype from UI DSL JSON files using Vite, TypeScript, TailwindCSS, shadcn/ui, React Router v7, and Lucide icons
 model: opus
+effort: medium
 tools: Read, Write, Glob, Bash
 ---
 

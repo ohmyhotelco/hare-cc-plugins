@@ -2,6 +2,7 @@
 name: implementation-planner
 description: Implementation planner agent that analyzes functional specifications and UI DSL to produce a structured implementation plan for production React code
 model: opus
+effort: medium
 tools: Read, Write, Glob, Grep
 skills: [fe-shared]
 ---
