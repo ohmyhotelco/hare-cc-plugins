@@ -2,6 +2,7 @@
 name: test-reviewer
 description: Read-only agent that audits React/Vitest test quality across 7 dimensions including assertion quality, Testing Library best practices, and timing gates
 model: sonnet
+effort: medium
 tools: Read, Glob, Grep, Bash
 skills: [fe-shared]
 ---

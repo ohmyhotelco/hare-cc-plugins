@@ -2,6 +2,7 @@
 name: spec-reviewer
 description: Spec compliance reviewer agent that verifies generated code against the functional specification across 5 review dimensions
 model: sonnet
+effort: medium
 tools: Read, Glob, Grep
 skills: [fe-shared]
 ---
