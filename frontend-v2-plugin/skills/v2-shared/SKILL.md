@@ -1,12 +1,46 @@
 ---
 name: v2-shared
-description: Shared conventions for every frontend-v2-plugin agent and skill — code conventions, state files and locks, accepted deviations, design principles, build working directory, router-mode command matrix, TypeScript check. Preloaded into agents through their `skills:` frontmatter; not meant to be invoked by hand.
+description: Shared conventions for every frontend-v2-plugin agent and skill — monorepo rules, code conventions, state files and locks, accepted deviations, design principles, build working directory, router-mode command matrix, TypeScript check. Preloaded into agents through their `skills:` frontmatter; not meant to be invoked by hand.
 user-invocable: false
 ---
 
 # Shared conventions (frontend-v2-plugin)
 
 Agents receive this skill through `skills: [v2-shared]`. The plugin-root `CLAUDE.md` is maintainer notes and reaches no agent.
+
+## Monorepo Rules
+
+The target is an existing monorepo with several apps and shared workspace packages. These rules
+override anything below that disagrees.
+
+**Excluded paths.** `excludePaths` (config, absent → none) lists paths no skill or agent reads, globs
+into, lints, audits, searches or runs (e.g. a retired app). Never edit, move or delete them and never
+propose a cleanup. A given path inside one is reported as `excluded` and skipped.
+
+**Several apps, one config.** Shared keys sit at the top level; per-app keys (`baseDir`, `appDir`,
+`devPort`, `i18nHook`, any stack key that differs) sit under `apps.{app}`, plus `defaultApp`. Read the
+config first (absent → the skill's own "not initialized" stop), then resolve the app — the `--app
+<app>` argument, else `defaultApp`, else ask — and overlay `apps[{app}]` on the top-level keys (per-app
+values win, objects merge key by key). Read every other key from that merged view. A feature does not
+yet record its app: pass the same `--app` to every command for that feature. No `apps` object → a
+single-app config, read as it is.
+
+**Node version.** When `{appDir}/.nvmrc` exists, from the project root
+`nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` (nvm installs) and every build or test
+command runs as `cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`; a non-zero exit stops the
+run — never fall back to PATH or to a `.nvmrc` above `{appDir}`. No `{appDir}/.nvmrc` → `nodeBin` is
+empty, commands run on the PATH `node`, and the output says so. Skills derive `nodeBin` in Step 0
+after `appDir` is known and pass it to agents; an agent without one derives it the same way.
+
+**Product rules.** Domain knowledge (e.g. checkout flows, platform integrations, package boundaries,
+user-facing copy, PR body format) lives in the product repo, not in this plugin: `rulesDir` (config,
+default `docs/rules`). Before planning, generating or reviewing code in one of those areas, list
+`{rulesDir}/` and read the files whose names match. None → proceed on general rules and say so. Cite a
+rule by file and heading; never copy its text into a report.
+
+**Codex.** The Codex audit writes its prompt to a temp file and runs
+`"${CODEX_BIN:-codex}" exec --sandbox read-only -C <dir> -o <out.md> - < <prompt file>` (stdin, so no
+shell expansion of the prompt). Absent binary → the audit records `skipped` with the reason.
 
 ## Conventions
 - Use only the configured component library (shadcn/ui by default; the external package + `ui-kit` under `componentLibrary: external`) — never install a second one
@@ -203,37 +237,3 @@ Vite projects commonly use composite tsconfig with `references`. Agents must det
 
 > `tsc -b` checks all referenced tsconfig projects (e.g., tsconfig.app.json + tsconfig.node.json).
 > `tsc --noEmit` only checks the root config scope, missing errors in build tool configs.
-
-## Monorepo Rules
-
-The target is an existing monorepo with several apps and shared workspace packages. These rules
-override anything above that disagrees.
-
-**Excluded paths.** `excludePaths` (config, absent → none) lists paths no skill or agent reads, globs
-into, lints, audits, searches or runs (e.g. a retired app). Never edit, move or delete them and never
-propose a cleanup. A given path inside one is reported as `excluded` and skipped.
-
-**Several apps, one config.** Shared keys sit at the top level; per-app keys (`baseDir`, `appDir`,
-`devPort`, `i18nHook`, any stack key that differs) sit under `apps.{app}`, plus `defaultApp`. Read the
-config first (absent → the skill's own "not initialized" stop), then resolve the app — the `--app
-<app>` argument, else `defaultApp`, else ask — and overlay `apps[{app}]` on the top-level keys (per-app
-values win, objects merge key by key). Read every other key from that merged view. A feature does not
-yet record its app: pass the same `--app` to every command for that feature. No `apps` object → a
-single-app config, read as it is.
-
-**Node version.** When `{appDir}/.nvmrc` exists, from the project root
-`nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` (nvm installs) and every build or test
-command runs as `cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`; a non-zero exit stops the
-run — never fall back to PATH or to a `.nvmrc` above `{appDir}`. No `{appDir}/.nvmrc` → `nodeBin` is
-empty, commands run on the PATH `node`, and the output says so. Skills derive `nodeBin` in Step 0
-after `appDir` is known and pass it to agents; an agent without one derives it the same way.
-
-**Product rules.** Domain knowledge (e.g. checkout flows, platform integrations, package boundaries,
-user-facing copy, PR body format) lives in the product repo, not in this plugin: `rulesDir` (config,
-default `docs/rules`). Before planning, generating or reviewing code in one of those areas, list
-`{rulesDir}/` and read the files whose names match. None → proceed on general rules and say so. Cite a
-rule by file and heading; never copy its text into a report.
-
-**Codex.** The Codex audit writes its prompt to a temp file and runs
-`"${CODEX_BIN:-codex}" exec --sandbox read-only -C <dir> -o <out.md> - < <prompt file>` (stdin, so no
-shell expansion of the prompt). Absent binary → the audit records `skipped` with the reason.
