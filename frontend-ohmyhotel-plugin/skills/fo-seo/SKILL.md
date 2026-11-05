@@ -39,7 +39,7 @@ Wait for the task notification.
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate seo --result <pass|fail|not-run> --from <result json> $(for f in <app.dir>/e2e/seo/<screen>.*.spec.ts; do [ -e "$f" ] && printf -- '--spec-path %s ' "$f"; done)
+fo-evidence --app <app> --screen <screen> --gate seo --result <pass|fail|skipped|not-run> --from <result json> $(for f in <app.dir>/e2e/seo/<screen>.*.spec.ts; do [ -e "$f" ] && printf -- '--spec-path %s ' "$f"; done)
 ```
 
 Set the `seo` row in block 5 of `<Screen>.spec.md`. Release the lock.
@@ -50,7 +50,7 @@ Per aspect: result, routes × languages checked, findings (critical first). Find
 conflict already recorded in the plan are shown under that conflict, not as new defects. Suggested
 commit `gate(<screen>): seo <result>`. Next:
 
-- pass → the two manual gates, recorded with the same tool so `fo-progress` and `fo-cutover` see them:
+- pass or skipped → the two manual gates, recorded with the same tool so `fo-progress` and `fo-cutover` see them:
   `echo '{"reviewer":"<name>","note":"<where>"}' | fo-evidence --app <app> --screen <screen> --gate designerReview --result pass`
   and `… --gate planningAcceptance --result pass` (payload: `{"ticket":"OMH-…","comment":"<id>"}`); then `fo-progress`
 - findings → `/frontend-ohmyhotel-plugin:fo-fix … --from seo`, then `fo-verify` and `fo-seo` again
