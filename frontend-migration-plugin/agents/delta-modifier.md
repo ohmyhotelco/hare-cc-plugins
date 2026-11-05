@@ -1,6 +1,8 @@
 ---
 name: delta-modifier
 description: Applies a delta-plan.json to an already-migrated page — targeted create/modify/remove on the existing generated files when the legacy Angular source drifts — preserving accumulated fm-fix changes and using TDD for behavioral changes.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

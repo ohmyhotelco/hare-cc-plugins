@@ -1,6 +1,8 @@
 ---
 name: angular-analyzer
 description: Parses a legacy OhMyHotel Angular 15 target (page / component / service / store) and emits a structured analysis.json that downstream migration skills consume. Read-only against legacy source; writes only the analysis artifact.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Bash
 ---
 

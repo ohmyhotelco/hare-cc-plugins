@@ -1,6 +1,8 @@
 ---
 name: tdd-cycle-runner
 description: Runs one strict Red-Green-Refactor TDD phase (api | store | component | page) for a page migration, translating the legacy Angular behavior into RR v7 code via the mapping catalog, importing the shared-* packages.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

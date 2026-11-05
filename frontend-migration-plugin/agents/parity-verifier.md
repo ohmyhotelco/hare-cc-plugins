@@ -1,6 +1,8 @@
 ---
 name: parity-verifier
 description: Verifies non-behavioral legacy equivalence of a migrated page just before route flip — visual regression vs legacy baseline, API contract freeze, WebView bridge round-trip, and telemetry dual-fire parity. Behavior/flow is the separate fm-e2e gate.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

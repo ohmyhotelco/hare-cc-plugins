@@ -1,6 +1,8 @@
 ---
 name: migration-fixer
 description: Applies targeted repairs that close a failed migration gate (verify / e2e / parity) without full regeneration, using the failure report as input and TDD discipline for behavioral changes.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

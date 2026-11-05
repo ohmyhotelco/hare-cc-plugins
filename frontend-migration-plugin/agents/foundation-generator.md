@@ -1,6 +1,8 @@
 ---
 name: foundation-generator
 description: Generates the non-TDD foundation for a page migration — TypeScript types, MSW mock handlers, and (once per app) the Playwright + Vitest + MSW test harness — so the TDD phases have something to compile and mock against.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Write, Edit, Bash
 ---
 

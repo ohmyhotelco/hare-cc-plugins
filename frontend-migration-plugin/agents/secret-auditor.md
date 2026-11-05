@@ -1,6 +1,8 @@
 ---
 name: secret-auditor
 description: Inventories secrets read from the legacy environment.*.ts files, classifies each by client-bundle vs server-only exposure, flags cross-environment reuse, tracks where each secret lives once carried into a migrated v2 app, and emits relocation guidance. Read-only; writes a report. Posture only — does not modify code.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Bash, Write
 ---
 

@@ -1,6 +1,8 @@
 ---
 name: quality-reviewer
 description: Audits generated React migration code for code quality — composition, naming, types, accessibility, re-render/performance, convention compliance, and simplicity/over-engineering — independent of legacy parity. Read-only; writes a report.
+model: inherit
+effort: medium
 tools: Read, Glob, Grep, Bash, Write
 ---
 
