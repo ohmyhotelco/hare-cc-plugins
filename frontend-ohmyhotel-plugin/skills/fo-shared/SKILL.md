@@ -27,7 +27,7 @@ rule files are owned by the repo and change by PR.
 
 | File | Owner | Purpose |
 |---|---|---|
-| `.claude/frontend-ohmyhotel/<app>/<screen>/generation-state.json` | `fo-gen` workflow | stage checklist: `stage`, `status`, `treeHash`, `startedAt`, `finishedAt`, `evidence[]` |
+| `.claude/frontend-ohmyhotel/<app>/<screen>/generation-state.json` | `fo-gen-run` workflow | stage checklist: `stage`, `status`, `treeHash`, `startedAt`, `finishedAt`, `evidence[]` |
 | `.claude/frontend-ohmyhotel/<app>/<screen>/*.lock` | the skill that starts a run | one writer per screen; contents `{ "command", "startedAt", "runId" }` |
 | `.claude/frontend-ohmyhotel/<app>/app.lock` | `foundation-generator`, `integration-generator`, `fo-extract` | guards app-wide files (harness, i18n resources, route table, MSW aggregate, packages); held only around the write |
 | `<gates.evidenceDir>/<app>/<screen>/<gate>.json` | gates (`verify`, `visual`, `e2e`, `contract`, `seo`, `review`) and the two manual gates (`designerReview`, `planningAcceptance`, recorded by a person with `fo-evidence --gate … --result pass` and a payload naming reviewer/ticket) | committed evidence written by `fo-evidence`: payload + `treeHash` (from `fo-screen-hash`), `recordedAt`, `result` |

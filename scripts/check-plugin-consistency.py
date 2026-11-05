@@ -25,6 +25,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,7 +54,14 @@ TOOL_EVIDENCE = {
              r"\bpnpm (?:add|install|run) ", r"\bcd \{"],
     "Task": [r"\bTask\(subagent_type"],
     "Agent": [r"\bAgent\(subagent_type", r"(?<!Task\()subagent_type:\s*\""],   # call form and the prose form (a Task launch is not Agent evidence)
+    "Workflow": [r'\bname:\s*"[a-z0-9-]+-plugin:[a-z0-9-]+"'],
 }
+
+# After auto-compaction a skill comes back cut at 5,000 "tokens", which the harness measures as characters / 4
+# (a re-attached skill was cut at about 20,000 characters; real tokens run closer to 2.5 characters each). The
+# rest then takes a Read to recover. The docs also ask for SKILL.md under 500 lines.
+SKILL_MAX_TOKENS = 5000
+SKILL_MAX_LINES = 500
 
 
 @dataclass
@@ -543,6 +552,89 @@ def check_plugin_paths(name: str, agents: dict[str, tuple[Path, str]],
     return out
 
 
+def check_workflows(plugin: Path, name: str, agents: dict[str, tuple[Path, str]],
+                    skills: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """What a workflow starts is wiring too. What it passes in a prompt is not checked."""
+    out = []
+    workflows = {p.stem: (p, p.read_text()) for p in sorted((plugin / "workflows").glob("*.js"))}
+    for path, text in skills.values():
+        for m in re.finditer(rf'\bname:\s*"{re.escape(name)}:([a-z0-9-]+)"', text):
+            if m.group(1) not in workflows:
+                out.append(Finding(str(path), lineno(text, m.start()), "missing-workflow",
+                                   f"starts `{m.group(1)}` but workflows/{m.group(1)}.js does not exist"))
+    node = shutil.which("node")
+    # A script has top-level `await` and `return`, and only `export const meta`, so it compiles as a function body.
+    compile_js = ("const s=require('fs').readFileSync(process.argv[1],'utf8').replace(/export const meta\\s*=/,'const meta =');"
+                  "new (Object.getPrototypeOf(async function(){}).constructor)(s)")
+    for wname, (path, text) in workflows.items():
+        # `meta.name` becomes `/plugin:name`, and that command wins over a skill of the same name: the skill's
+        # preconditions and locks are skipped, and the workflow gets the slash command's text as its `args`.
+        m = re.search(r"""\bname:\s*['"]([a-z0-9-]+)['"]""", text)
+        declared = m.group(1) if m else wname
+        if declared != wname:
+            out.append(Finding(str(path), lineno(text, m.start()), "workflow-name",
+                               f"meta.name `{declared}` differs from the file name, and a skill starts it by name"))
+        if declared in skills:
+            out.append(Finding(str(path), lineno(text, m.start()) if m else 1, "workflow-shadows-skill",
+                               f"`{declared}` takes over the slash command of skills/{declared}; name the workflow `{declared}-run`"))
+        if node:
+            r = subprocess.run([node, "-e", compile_js, str(path)], capture_output=True, text=True)
+            if r.returncode:
+                detail = next((ln for ln in r.stderr.split("\n") if "Error" in ln), "does not compile")
+                out.append(Finding(str(path), 1, "workflow-syntax", detail.strip()))
+        for m in re.finditer(r"\bDate\.now\(|\bMath\.random\(|\bnew Date\(\)", text):
+            out.append(Finding(str(path), lineno(text, m.start()), "workflow-resume",
+                               f"`{m.group(0)}` throws in a workflow, because it would break resume; pass the value in `args`"))
+        for m in re.finditer(r"""agentType:\s*['"]([a-z0-9-]+)['"]""", text):
+            out.append(Finding(str(path), lineno(text, m.start()), "unqualified-agent",
+                               f'launches "{m.group(1)}" without the `{name}:` qualifier'))
+        launched = {}
+        for m in re.finditer(r"""['"`]([a-z0-9-]+-plugin):([a-z0-9-]+)['"`]""", text):
+            if m.group(1) != name:
+                out.append(Finding(str(path), lineno(text, m.start()), "foreign-agent",
+                                   f"launches `{m.group(1)}:{m.group(2)}` but this plugin is `{name}`"))
+            else:
+                launched.setdefault(m.group(2), m.start())
+        # a table of bare names used through a template: `plugin:${AGENT[n]}`
+        table = re.search(r"const AGENT = \{(.*?)\}", text, re.S)
+        if table and f"{name}:${{AGENT[" in text:
+            for m in re.finditer(r""":\s*['"]([a-z0-9-]+)['"]""", table.group(1)):
+                launched.setdefault(m.group(1), table.start(1) + m.start())
+        for agent, idx in sorted(launched.items()):
+            if agent not in agents:
+                out.append(Finding(str(path), lineno(text, idx), "missing-agent",
+                                   f"launches `{agent}` but agents/{agent}.md does not exist"))
+    return out
+
+
+def check_skill_layout(plugin: Path, skills: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """A long skill loses its tail after compaction, and a reference file is read as plain text.
+
+    `${CLAUDE_PLUGIN_ROOT}` is substituted in a skill's body but not in a file read with the Read tool,
+    so text moved into `references/` must not carry it. A file nothing names is never read.
+    """
+    out = []
+    for name, (path, text) in skills.items():
+        if frontmatter(text).get("user-invocable") != "false":   # a preloaded skill is injected whole
+            tokens, lines = len(text) // 4, text.count("\n")
+            if tokens > SKILL_MAX_TOKENS or lines > SKILL_MAX_LINES:
+                out.append(Finding(str(path), 1, "skill-size",
+                                   f"about {tokens} tokens, {lines} lines (limits {SKILL_MAX_TOKENS}, {SKILL_MAX_LINES}); move a rarely used part to references/"))
+        sdir = path.parent
+        for m in re.finditer(r"references/([a-z0-9-]+\.md)", text):
+            if not (sdir / "references" / m.group(1)).exists():
+                out.append(Finding(str(path), lineno(text, m.start()), "dangling-file",
+                                   f"references references/{m.group(1)}, which does not exist"))
+        for ref in sorted((sdir / "references").glob("*.md")):
+            rtext = ref.read_text()
+            if f"references/{ref.name}" not in text:
+                out.append(Finding(str(ref), 1, "orphan-reference", f"{name}/SKILL.md never names this file"))
+            for m in re.finditer(r"\$\{CLAUDE_PLUGIN_ROOT\}", rtext):
+                out.append(Finding(str(ref), lineno(rtext, m.start()), "literal-plugin-root",
+                                   "not substituted in a file read with the Read tool; use {pluginRoot}, which the skill binds in its body"))
+    return out
+
+
 # --------------------------------------------------------------------------- driver
 
 def load(d: Path, pattern: str) -> dict[str, tuple[Path, str]]:
@@ -576,11 +668,18 @@ def run(plugin: Path) -> list[Finding]:
         every["CLAUDE.md"] = (plugin / "CLAUDE.md", (plugin / "CLAUDE.md").read_text())
     for p in sorted((plugin / "templates").glob("*.md")):
         every[f"template:{p.stem}"] = (p, p.read_text())
+    for p in sorted((plugin / "skills").glob("*/references/*.md")):
+        every[f"reference:{p.parent.parent.name}/{p.stem}"] = (p, p.read_text())
+
+    # What a skill runs from its reference files still needs its permissions and its launches checked. A finding
+    # there cites SKILL.md with a line number past its end; the message names what to look for.
+    launchers = {k: (p, t + "".join("\n" + r.read_text() for r in sorted((p.parent / "references").glob("*.md"))))
+                 for k, (p, t) in skills.items()}
 
     return (check_agent_params(agents)
-            + check_call_sites(skills, agents, plugin_name(plugin))
-            + check_passed_but_unbound(skills)
-            + check_tool_permissions(skills)
+            + check_call_sites(launchers, agents, plugin_name(plugin))
+            + check_passed_but_unbound(launchers)
+            + check_tool_permissions(launchers)
             + check_lock_reachability(skills)
             + check_bind_before_use(skills)
             + check_command_paths(every)
@@ -589,7 +688,9 @@ def run(plugin: Path) -> list[Finding]:
             + check_section_refs(every)
             + check_duplicate_json_keys(every)
             + check_references(plugin, every)
-            + check_plugin_paths(plugin_name(plugin), agents, skills)
+            + check_plugin_paths(plugin_name(plugin), agents, launchers)
+            + check_workflows(plugin, plugin_name(plugin), agents, skills)
+            + check_skill_layout(plugin, skills)
             + check_version_sync(plugin))
 
 

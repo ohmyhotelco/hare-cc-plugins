@@ -1,8 +1,8 @@
-// fo-contract — one contract-verifier per rule list (and telemetry), in parallel; merged in code.
+// fo-contract-run — one contract-verifier per rule list (and telemetry), in parallel; merged in code.
 // args: { app, screen, config, planFile, specDir, outDir, checks: [ { check, ruleFile } ] }
 
 export const meta = {
-  name: 'fo-contract',
+  name: 'fo-contract-run',
   description: 'Check a screen against the product rule lists (external URLs, WebView contract, sensitive query keys, request conventions) and its telemetry events, in parallel',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-contract; not run by hand',
   phases: [{ title: 'Check', detail: 'one agent per rule list' }],

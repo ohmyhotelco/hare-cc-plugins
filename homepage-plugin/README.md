@@ -201,7 +201,7 @@ Verify the installation:
 **What happens**:
 1. Validates page plans and checks for existing generation state (resume support)
 2. Acquires a lock to prevent concurrent operations
-3. Executes 3 phases sequentially, each in a separate agent session:
+3. Executes 3 phases sequentially, each agent in its own session, with order and stop rules in the `hp-gen-run` workflow:
 
 | Phase | Agent | What it does |
 |-------|-------|-------------|
@@ -209,7 +209,7 @@ Verify the installation:
 | Sections & Pages | section-generator + page-assembler | .astro sections, React islands, page assembly (per page) |
 | Verification | (direct) | TypeScript, ESLint, Astro build |
 
-4. Tracks phase progress in `generation-state.json` for resume support
+4. Tracks phase progress in `docs/pages/_shared/generation-state.json` for resume support
 5. Releases the lock and updates progress
 
 **Resume support**: If generation is interrupted, re-running `hp-gen` detects completed phases and offers to resume from the last incomplete phase/page.
@@ -242,13 +242,14 @@ Verify the installation:
 2. **Stage 1 — SEO Review**: seo-reviewer agent checks metadata completeness, structured data, heading hierarchy, image optimization, sitemap/robots, performance indicators (6 dimensions, scored 0-10)
 3. **Stage 2 — Quality Review** (only when SEO passes): quality-reviewer agent checks accessibility WCAG AA, responsive design, component composition, TypeScript strictness, i18n completeness, Astro conventions (6 dimensions, +1 Design Token Consistency when design system exists, scored 0-10)
 4. **Stage 3 — Visual Fidelity Review** (conditional, conditionally blocking): visual-fidelity-reviewer captures rendered screenshots and compares them against Figma section screenshots using AI vision. Scores layout structure, color accuracy, typography, spacing, and component fidelity. Only runs when SEO + Quality pass and Figma screenshots exist. Score < 5 forces review failure; score 5-6 forces pass with warnings; score >= 7 is advisory only.
-5. Saves merged review report with issue details (severity, file, line, fixHint)
+5. Saves merged review report with issue details (severity, file, line, fixHint). The `hp-review-run` workflow computes every score, verdict and status from what the reviewers report
 6. Releases the lock and updates progress
 
 **Status outcomes**:
-- Both pass clean → `done`
+- Pass with no critical or warning issue → `done`
 - Pass with warnings → `reviewed`
-- Either fails → `review-failed`
+- Any stage fails → `review-failed`
+- A reviewer returns nothing → no status change; run the review again
 
 ---
 
@@ -502,13 +503,13 @@ State files under `docs/pages/{page-name}/`:
 |------|---------|
 | `page-plan.json` | Page plan with sections, SEO metadata, i18n config (input for hp-gen) |
 | `.progress/{page-name}.json` | Pipeline progress tracking |
-| `.implementation/homepage/generation-state.json` | Phase progress with timestamps (enables resume) |
 | `.implementation/homepage/review-report.json` | Merged review results (SEO + quality + visual fidelity when available) |
-| `.implementation/homepage/visual-fidelity-report.json` | Visual fidelity comparison results (optional, created by Stage 3) |
 | `.implementation/homepage/fix-report.json` | Fix results with round tracking |
 | `.implementation/homepage/.lock` | Concurrent execution prevention (auto-expires after 30 min) |
 
 Shared layout plan: `docs/pages/_shared/layout-plan.json`
+
+Shared generation state: `docs/pages/_shared/generation-state.json` (phase progress with timestamps, enables resume)
 
 ### Progress State Machine
 
@@ -534,7 +535,7 @@ Additional transitions:
 
 - **Lock mechanism**: Skills that modify state files acquire `.lock` before starting. Prevents concurrent execution of hp-gen/hp-fix/hp-review on the same page. Stale locks (>30 min) are auto-removed. Lock format: JSON with `lockedBy`, `lockedAt`, `pageName`.
 - **Read-Modify-Write rule**: Always read latest file content before writing. Merge only changed fields — preserve all existing fields.
-- **Resume support**: `generation-state.json` tracks completed phases/pages with timestamps for precise resume detection.
+- **Resume support**: `docs/pages/_shared/generation-state.json` tracks completed phases/pages with timestamps for precise resume detection.
 - **Staleness detection**: validate-pages.sh warns when page plans are edited after code generation.
 
 ## Hooks

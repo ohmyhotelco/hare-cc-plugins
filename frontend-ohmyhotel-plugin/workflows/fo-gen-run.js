@@ -1,4 +1,4 @@
-// fo-gen — generate one screen from its implementation plan, stage by stage.
+// fo-gen-run — generate one screen from its implementation plan, stage by stage.
 //
 // Started by the fo-gen skill, which has already taken the screen lock, checked the plan is approved,
 // initialised generation-state.json and decided which stages run. Stages are strictly sequential:
@@ -14,7 +14,7 @@
 // }
 
 export const meta = {
-  name: 'fo-gen',
+  name: 'fo-gen-run',
   description: 'Generate a screen: foundation → api-tdd → component-tdd → page-tdd → integration, stopping at the first failed stage',
   whenToUse: 'Started by /frontend-ohmyhotel-plugin:fo-gen after the plan is approved; not run by hand',
   phases: [

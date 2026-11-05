@@ -3,12 +3,12 @@ name: hp-review
 description: "Run 3-stage code review (SEO + quality + visual fidelity) on generated homepage code."
 argument-hint: "[page-name]"
 user-invocable: true
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 ---
 
 # Code Review Skill (3-Stage)
 
-Runs a 3-stage code review: SEO review first, then quality review (only if SEO passes), then visual fidelity review (optional, only when Figma screenshots exist). Uses specialized reviewer agents.
+The `homepage-plugin:hp-review-run` workflow runs the reviewers in stages (SEO, then quality when SEO passes, then visual fidelity when both pass) and computes every score, verdict and page status. This skill owns what surrounds it: preconditions, locks, the report file, the progress file and the summary.
 
 Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/hp-shared/SKILL.md`.
 
@@ -35,65 +35,30 @@ Check progress status:
 - Reject: `planned` (no code yet)
 - Warn on demotion from `done` → `reviewed`
 
-If no argument: review all pages with generated code.
+If no argument: review all pages with generated code, each one on its own.
 
 ### Step 2: Acquire Lock
 
-Same lock protocol as hp-gen Step 3 (JSON format with `lockedBy`, `lockedAt`, `pageName`; 30-min stale threshold).
+Same lock protocol as hp-gen Step 3 (JSON format with `lockedBy`, `lockedAt`, `pageName`; 30-min stale threshold). Take it for every page in the run.
 
 Lock file path: `docs/pages/{page-name}/.implementation/homepage/.lock`
 - Write with `lockedBy: "hp-review"`
 - Stale lock (>= 30 min) → auto-remove and proceed
-- Active lock → exit with "Another homepage-plugin operation is in progress"
+- Active lock → release any lock this run took and exit with "Another homepage-plugin operation is in progress"
 
-### Step 3: Stage 1 — SEO Review
+### Step 3: Decide on the Visual Stage
 
-Launch the `seo-reviewer` agent (`subagent_type: "homepage-plugin:seo-reviewer"`) with:
-- `pageName` — page identifier (or `"all"`)
-- `planFile` — path to page-plan.json
-- `projectRoot` — project root
+A workflow cannot ask a question mid-run, so settle this before starting it.
 
-Wait for result. Parse the review report.
+If `hasVisualRefs` is false, the visual stage does not run.
 
-### Step 4: Evaluate SEO Verdict
-
-- **pass** or **pass_with_warnings** → proceed to Stage 2
-- **fail** → skip Stage 2, set status to `review-failed`
-
-Display SEO review summary:
-- Overall score
-- Issues by severity (critical/warning/info)
-- Top issues with fixHint
-
-### Step 5: Stage 2 — Quality Review (Conditional)
-
-Only runs if SEO review passes.
-
-Launch the `quality-reviewer` agent (`subagent_type: "homepage-plugin:quality-reviewer"`) with:
-- `pageName` — page identifier (or `"all"`)
-- `planFile` — path to page-plan.json
-- `projectRoot` — project root
-
-Wait for result. Parse the review report.
-
-### Step 5.5: Stage 3 — Visual Fidelity Review (Conditional)
-
-Only runs if ALL conditions are met:
-1. SEO review verdict is `pass` or `pass_with_warnings`
-2. Quality review verdict is `pass` or `pass_with_warnings`
-3. `hasVisualRefs === true` (Figma screenshots exist in component-map.json)
-
-If any condition is not met, skip this stage entirely.
-
-#### 5.5.1 Check Playwright Installation
-
-Before launching the reviewer agent, verify Playwright is available:
+Otherwise verify Playwright is available:
 
 ```bash
 cd {projectRoot} && node -e "require('playwright')" 2>/dev/null
 ```
 
-If the check **fails** (exit code !== 0), Playwright is not installed. Display a message to the user:
+If the check **fails** (exit code !== 0), Playwright is not installed. Display a message to the user and wait for the answer:
 
 > **Playwright is not installed.**
 > Visual Fidelity Review captures rendered screenshots with Playwright and compares them against Figma designs.
@@ -104,66 +69,29 @@ If the check **fails** (exit code !== 0), Playwright is not installed. Display a
 > npx playwright install chromium
 > ```
 >
-> 1. **Install and continue** — installs Playwright, then proceeds with Visual Fidelity Review
-> 2. **Skip this time** — completes the review without Visual Fidelity Review
+> 1. **Install and continue** — installs Playwright, then runs the review with Visual Fidelity Review
+> 2. **Skip this time** — runs the review without Visual Fidelity Review
 
-- If the user chooses **Install and continue**: run `pnpm add -D playwright && npx playwright install chromium` in `{projectRoot}`. If installation succeeds, proceed to Step 5.5.2. If installation fails, display the error and fall back to skipping Stage 3.
-- If the user chooses **Skip this time**: skip Stage 3 entirely. Omit `visualFidelity` from the merged report.
+- If the user chooses **Install and continue**: run `pnpm add -D playwright && npx playwright install chromium` in `{projectRoot}`. If installation fails, display the error and skip the visual stage.
+- If the user chooses **Skip this time**: skip the visual stage.
 
-If the check **passes**, proceed directly to Step 5.5.2.
+### Step 4: Run the Workflow
 
-#### 5.5.2 Launch Reviewer
+Call the `Workflow` tool with `name: "homepage-plugin:hp-review-run"` and `args`:
 
-Launch the `visual-fidelity-reviewer` agent (`subagent_type: "homepage-plugin:visual-fidelity-reviewer"`) with:
-- `pageName` — page identifier (or `"all"`)
-- `planFile` — path to page-plan.json
 - `projectRoot` — project root
-- `componentMapFile` — path to `docs/design-system/component-map.json`
-- `fileKey` — Figma file key from `.claude/homepage-plugin.json`
-- `mcpToolPrefix` — the MCP tool name prefix identified in Step 0
+- `pages` — `[{ pageName, planFile }]`, one entry per page, where `planFile` is the path to its `page-plan.json`
+- `visual` — `null` when the visual stage does not run, otherwise `{ componentMapFile, fileKey, mcpToolPrefix }`: `componentMapFile` is `docs/design-system/component-map.json`, `fileKey` is the Figma file key from the config, and `mcpToolPrefix` is the prefix found in Step 0
 
-Wait for result. Parse the visual fidelity report.
+Tell the user which pages are being reviewed. The result arrives as a task notification; continue at Step 5 when it does. If the call is refused or fails, release the locks and report it.
 
-**Note**: Visual fidelity review is **conditionally blocking**:
-- If overall visual fidelity score **< 5** (critical mismatch): the overall review verdict is set to `review-failed`. The design diverges too far from Figma to be acceptable.
-- If overall visual fidelity score **>= 5 and < 7** (significant mismatch): the overall verdict is `pass_with_warnings`. Issues are flagged for `hp-fix`.
-- If overall visual fidelity score **>= 7**: does not affect the overall verdict (advisory only).
+### Step 5: Save Results
 
-### Step 6: Merge Reports
+For each entry in the result's `pages`:
 
-Combine all review reports into a single `review-report.json`:
+- `status: "incomplete"` — the reviewer named in `missing` returned nothing. Save no report and leave the progress file unchanged; the review is run again rather than judged on fewer reviewers.
+- Any other status — write `report` with a `timestamp` added to `docs/pages/{page-name}/.implementation/homepage/review-report.json`, then update `docs/pages/{page-name}/.progress/{page-name}.json`:
 
-```json
-{
-  "timestamp": "2026-03-23T...",
-  "seo": { "score": 8.5, "verdict": "pass", "issues": [...] },
-  "quality": { "score": 8.0, "verdict": "pass_with_warnings", "issues": [...] },
-  "visualFidelity": { "score": 7.5, "verdict": "pass_with_warnings", "issues": [...], "coverage": {...} },
-  "overall": {
-    "verdict": "pass_with_warnings",
-    "totalIssues": { "critical": 0, "warning": 5, "info": 2 }
-  }
-}
-```
-
-The `visualFidelity` key is **optional** — omit it when Stage 3 did not run (conditions not met or skipped).
-
-The overall verdict is determined by SEO, quality, and visual fidelity (when it runs):
-- If visual fidelity score **< 5**: forces overall verdict to `review-failed` regardless of SEO/quality scores
-- If visual fidelity score **>= 5 and < 7**: forces overall verdict to at most `pass_with_warnings`
-- If visual fidelity score **>= 7** or Stage 3 did not run: does not affect the overall verdict
-
-Save to `docs/pages/{page-name}/.implementation/homepage/review-report.json`.
-
-### Step 7: Update Progress
-
-Determine overall verdict:
-- All stages pass → `reviewed`
-- Pass with warnings → `reviewed` (warnings noted)
-- Any stage fails (including visual fidelity score < 5) → `review-failed`
-- All stages pass, no `critical` or `warning` issue → `done` (skip fix step; `info` issues stay in the report)
-
-Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 ```json
 {
   "implementation": {
@@ -179,13 +107,13 @@ Update `docs/pages/{page-name}/.progress/{page-name}.json`:
 }
 ```
 
-The `visualFidelityScore` field is optional — omit when Stage 3 did not run.
+`status` is the entry's `status`, the scores are `report.seo.score`, `report.quality.score` and `report.visualFidelity.score`, and `verdict` is `report.overall.verdict`. Omit `visualFidelityScore` when the report has no `visualFidelity`.
 
-Release the lock file.
+Release the lock of every page in the run, whatever the result.
 
-### Step 8: Display Results
+### Step 6: Display Results
 
-Show integrated review summary:
+Show an integrated review summary per page:
 
 ```
 Review Results:
@@ -204,7 +132,7 @@ Review Results:
 Next step: Run /homepage-plugin:hp-fix to address warnings.
 ```
 
-The Visual Fidelity line only appears when Stage 3 ran. Show `[N/M sections compared]` to indicate coverage.
+The Visual Fidelity line only appears when that stage ran. Show `[N/M sections compared]` from `coverage`, and show the entry's `note` when it has one.
 
 Or if failed:
 ```
@@ -215,6 +143,8 @@ Review Results:
 
 Next step: Run /homepage-plugin:hp-fix to fix critical issues.
 ```
+
+The next step depends on the status: `done` says the page is complete, and `incomplete` says to run `/homepage-plugin:hp-review` again.
 
 ## Communication Language
 

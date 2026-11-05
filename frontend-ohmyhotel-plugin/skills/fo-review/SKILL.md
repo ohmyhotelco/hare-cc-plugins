@@ -1,6 +1,6 @@
 ---
 name: fo-review
-description: Review a generated screen with four reviewers in parallel (spec compliance, code quality, test quality, security) through the fo-review workflow, merge their findings into file clusters, write docs/gates/<app>/<screen>/review.json, and ask which clusters to fix. Use after fo-verify (or any failed gate) and before fo-fix.
+description: Review a generated screen with four reviewers in parallel (spec compliance, code quality, test quality, security) through the fo-review-run workflow, merge their findings into file clusters, write docs/gates/<app>/<screen>/review.json, and ask which clusters to fix. Use after fo-verify (or any failed gate) and before fo-fix.
 argument-hint: "--app <name> --screen <id> [--only spec,quality,test,security]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Workflow, AskUserQuestion
@@ -19,14 +19,14 @@ Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
 
 Config, `--app`/`--screen`, plan, `screenDir` exists with generated files (`progress.json` `gen.status`
 `done` or `partial`; nothing generated → stop). A `verify` gate that never ran is allowed (review can
-precede it) but say so. Collect for the reviewers: `packageFiles` (plan `api.additions[].file`),
+precede it) but say so. Collect for the reviewers: `specDir` (`<answerKeys.spec.dir>/<screen>`), `packageFiles` (plan `api.additions[].file`),
 `packageTestFiles` (api-tdd `testFiles`), `routeFiles` (plan `routes[].file`), `e2eDir`,
 `figmaDir` (`<evidenceDir>/<app>/<screen>/figma` if present), `acceptedDeviations` (plan
 `openApprovals[]` with `status: approved` and a named owner). Lock `review.lock`.
 
 ## Step 1 — Run and wait
 
-`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-review"` and the args above plus
+`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-review-run"` and the args above plus
 `reviewers` (all four unless `--only`). Wait for the task notification; do not end the turn after
 announcing the run.
 

@@ -12,7 +12,7 @@ Generates individual section components from `page-plan.json`. Creates `.astro` 
 
 ## Input Parameters
 
-The skill will provide these parameters in the prompt:
+The `hp-gen-run` workflow passes these parameters in the prompt:
 
 - `pageName` — page identifier
 - `planFile` — path to `page-plan.json`
@@ -242,4 +242,4 @@ For each section generated:
 After all sections are generated:
 
 1. **TypeScript check** — `npx tsc --noEmit` (ensure no type errors)
-2. Report any sections that failed generation
+2. Return `status: "done"` with the files you wrote, or `status: "failed"` with the sections that failed and why in `failure`

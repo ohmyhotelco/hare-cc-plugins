@@ -26,7 +26,13 @@ All plugin instruction documents (CLAUDE.md, agents/*.md, skills/*/SKILL.md, tem
 agent input parameters vs. what launchers pass, tool permissions vs. what a skill's body runs,
 `proceed to Step N` jumps that skip a Lock Acquire, variables derived before they are bound or
 defaulted, command arguments that are repo-relative when the command runs from `appDir`, ordered-list
-numbering, and dangling `templates/*.md` / `agents/*.md` / `CLAUDE.md § Heading` references.
+numbering, dangling `templates/*.md` / `agents/*.md` / `CLAUDE.md § Heading` references, and what a
+workflow starts.
+
+A skill over 20,000 characters comes back cut after auto-compaction, so the checker limits its size. Move a
+rarely used section to `skills/<skill>/references/`, keep its heading in `SKILL.md` with a pointer, and write
+the plugin root there as `{pluginRoot}`: `${CLAUDE_PLUGIN_ROOT}` is not substituted in a file read with Read.
+The skill binds `{pluginRoot}` above its first section.
 
 **Run it after editing any plugin's agents, skills, or CLAUDE.md** — a plugin is a corpus of
 instructions nothing compiles, so an edit that reads fine can still be unexecutable:

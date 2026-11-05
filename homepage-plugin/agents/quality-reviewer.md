@@ -12,9 +12,9 @@ Read-only agent — inspects code quality of generated pages and components acro
 
 ## Input Parameters
 
-The skill will provide these parameters in the prompt:
+The `hp-review-run` workflow passes these parameters in the prompt:
 
-- `pageName` — page identifier (or `"all"` for full site review)
+- `pageName` — page identifier
 - `planFile` — path to `page-plan.json`
 - `projectRoot` — project root path
 
@@ -119,25 +119,14 @@ Each dimension scored 0-10:
 - **4-6**: Some Critical issues
 - **0-3**: Multiple Critical issues
 
-Overall score = weighted average of all dimensions.
-
 ### Phase 3: Output
 
-Produce a review report with:
+Return this report. The `hp-review-run` workflow computes the overall score, the verdict and the issue counts from `dimensions` and `issues`, so leave those out. Take each `weight` from the dimension's heading, or from Dimension 7's list when `hasDesignSystem` is true.
 
 ```json
 {
-  "type": "quality",
-  "timestamp": "2026-03-23T...",
-  "overallScore": 8.0,
-  "verdict": "pass",
   "dimensions": [
-    {
-      "name": "accessibility",
-      "score": 8,
-      "weight": 0.25,
-      "issues": []
-    }
+    { "name": "accessibility", "score": 9, "weight": 0.25 }
   ],
   "issues": [
     {
@@ -148,22 +137,9 @@ Produce a review report with:
       "line": 28,
       "fixHint": "Add min-w-11 min-h-11 (44px) classes to the mobile menu button"
     }
-  ],
-  "summary": {
-    "critical": 0,
-    "warning": 3,
-    "info": 1,
-    "total": 4
-  }
+  ]
 }
 ```
-
-### Verdict Logic
-
-Same as seo-reviewer:
-- **pass**: overall score >= 7 AND critical issues == 0 AND warning count <= 3
-- **pass_with_warnings**: overall score >= 7 AND critical issues == 0 AND warning count > 3
-- **fail**: overall score < 7 OR critical issues >= 1
 
 ## Rules
 

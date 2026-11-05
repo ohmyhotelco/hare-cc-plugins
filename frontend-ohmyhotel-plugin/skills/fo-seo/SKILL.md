@@ -32,7 +32,7 @@ wait until `curl -s -o /dev/null -w '%{http_code}' http://localhost:<devPort>/` 
 60 s; otherwise record the gate as `not-run` with that reason). Pass `serverUrl: "http://localhost:<devPort>"`
 in the workflow args; kill the server process in Step 2.
 
-`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-seo"` and
+`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-seo-run"` and
 `args: { app, screen, config, planFile, specDir, serverUrl, outDir: "<evidenceDir>/<app>/<screen>/seo", aspects }`.
 Wait for the task notification.
 

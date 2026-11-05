@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Workflow
 
 The answer key is Figma for the states that have frames and a breakage check for everything else
 (V3 plan decision 10). Design-system components are verified in the DS repo; this gate judges the
-screen's composition. The workflow `frontend-ohmyhotel-plugin:fo-visual` captures once and compares
+screen's composition. The workflow `frontend-ohmyhotel-plugin:fo-visual-run` captures once and compares
 each frame in parallel; this skill prepares the frame list, waits, and writes the evidence.
 
 Conventions: `${CLAUDE_PLUGIN_ROOT}/skills/fo-shared/SKILL.md`.
@@ -30,7 +30,7 @@ image — say so); no frames at all → run `fo-figma` first, or `--no-figma` fo
 
 ## Step 2 — Run and wait
 
-`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-visual"` and
+`Workflow` with `name: "frontend-ohmyhotel-plugin:fo-visual-run"` and
 `args: { app, screen, config, planFile, outDir: "<evidenceDir>/<app>/<screen>/visual", fileKey, lang: <plan spec.primaryLanguage>, figma: frames }`
 (`lang` picks which language's capture is compared with each frame; the frames are language-neutral).
 Wait for the task notification; do not end the turn after announcing the run.

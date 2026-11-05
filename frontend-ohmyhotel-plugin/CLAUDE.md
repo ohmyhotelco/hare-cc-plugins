@@ -8,4 +8,5 @@ preloaded through each agent's `skills:` frontmatter. Do not put agent-facing ru
 - Product rules belong in the product repo (`specs/`, `docs/adr/`, `docs/rules/`), never in this plugin.
 - Every agent declares `model`, `effort`, `tools` and `skills: [fo-shared]`.
 - Multi-agent chains are workflows in `workflows/`; a skill starts at most one agent on its own.
+- A workflow a skill starts is named `<skill>-run`. `meta.name` becomes a slash command, and one named like a skill takes that skill's command, which skips its preconditions, locks and approvals.
 - After editing: `claude plugin validate frontend-ohmyhotel-plugin` and `scripts/check-plugin-consistency.py frontend-ohmyhotel-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.

@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.0`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.1`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 
@@ -38,7 +38,7 @@ Generates production-ready React code from functional specifications using stric
 
 ---
 
-### [Homepage Plugin](./homepage-plugin/) `v1.2.0`
+### [Homepage Plugin](./homepage-plugin/) `v1.3.0`
 
 Generates marketing homepage websites from interactive page/section definitions. Optimized for static-first content sites with Astro's islands architecture — zero JS by default, interactive components hydrated only where needed.
 
@@ -71,7 +71,7 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 ---
 
-### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.0`
+### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.1`
 
 Develops Spring WebFlux backend applications using CQRS architecture and strict
 Test-Driven Development, with dual R2DBC/MyBatis data-layer support. Deliberately a
@@ -94,7 +94,7 @@ migration, database, driver, and coverage-tool decision record.
 
 ---
 
-### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.7.0`
+### [Frontend Migration Plugin](./frontend-migration-plugin/) `v1.7.1`
 
 Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to React Router v7 using the Strangler Fig pattern. Analyzes Angular source, extracts framework-agnostic shared packages, generates RR v7 pages via TDD, and gates each page on legacy parity before flipping traffic page-by-page. Fully standalone — its own agents and pipeline — sharing the frontend-react-plugin stack conventions.
 
@@ -109,7 +109,7 @@ Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to R
 
 ---
 
-### [Frontend Ohmyhotel Plugin](./frontend-ohmyhotel-plugin/) `v0.2.1`
+### [Frontend Ohmyhotel Plugin](./frontend-ohmyhotel-plugin/) `v0.2.2`
 
 Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New B2C `apps/www` and later apps in the same repo). Carries the working method — spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress, big-bang cutover ledger — as workflows plus entry-point skills. Product rules stay in the product repo (`specs/`, `docs/adr/`, `docs/rules/`). Standalone copy of the two frontend plugins above, rewritten for Claude 5-era agents. **v0.1.0 is a skeleton**; see its design document.
 

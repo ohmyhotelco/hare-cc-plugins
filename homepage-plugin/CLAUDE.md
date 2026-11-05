@@ -7,4 +7,5 @@ preloaded through each agent's `skills:` frontmatter. Do not put agent-facing ru
 - Pipeline, agents, state files, state machine and configuration: `README.md`.
 - Plugin-relative paths in agent and skill bodies use `${CLAUDE_PLUGIN_ROOT}`; launches use
   `subagent_type: "homepage-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
+- Multi-agent chains are workflows in `workflows/`, and the review's scores and verdicts are computed there. A workflow is named `<skill>-run`: one named like a skill takes over that skill's slash command. After editing one, run `node homepage-plugin/tests/workflows.test.mjs`.
 - After editing: `claude plugin validate homepage-plugin` and `scripts/check-plugin-consistency.py homepage-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.

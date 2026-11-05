@@ -12,6 +12,8 @@ Implement a feature using strict Test-Driven Development. This skill orchestrate
 
 This skill holds an exclusive cross-skill lock (`{workDocDir}/.progress/.lock`) for the duration of the run and can demote a feature's pipeline status, discarding verification/review progress (see Step 3.5). Ground every claim in the Step 6 report in evidence — build output, `git status`/`git diff` — never narrate completion from memory, and never leave the lock file behind on failure or cancellation (see Error Handling) — and whenever the lock is released, on any path, remove the directory its `snapshotDir` names if the implement agent recorded one (its revert snapshot, outside the repository).
 
+Files under `references/` write the plugin root as `{pluginRoot}`, which is `${CLAUDE_PLUGIN_ROOT}`.
+
 ## Instructions
 
 ### Step 0: Validate Configuration
@@ -316,56 +318,9 @@ Suggest next step:
 
 ### Error Handling
 
-- **3 consecutive test failures**: The implement agent will stop. Present the issue to the user with context and ask for guidance. With `--yes` (an unattended caller) there is nobody to ask: refresh the progress file's `updatedAt` (the agent has ticked `- [x]` items in the work document, and an older `updatedAt` makes every later skill's staleness check warn falsely), release the lock, leave the status `implementing`, and stop with the scenario and the three failures named — `be-jira-auto` turns that into `NEEDS-INPUT`. Otherwise this is a pause within the same run, not an abandoned operation — keep the lock held; it releases normally in Step 7 once the run resumes and completes.
-- **Compilation errors during TDD**: The implement agent will fix stubs, not tests.
-- **User cancellation**: Save progress (completed scenarios remain `- [x]`; refresh the progress file's `updatedAt` so the work document is not newer than it). Release `{workDocDir}/.progress/.lock` before stopping, since Step 7 — which normally releases it — will not run. The user can re-run `be-code` with the same work document to resume.
-- **Implement agent fails unexpectedly, or Step 5's build command errors out entirely** (crashes or times out, as opposed to running and reporting `FAIL`): Release `{workDocDir}/.progress/.lock` immediately. In multi-entity mode, the single batched agent call stops wherever it was — any document later in the `workDocuments` list than the one it was on when it failed is untouched. Leave `pipeline.status` as `"implementing"` for every affected entity with a refreshed `updatedAt`, preserve any `- [x]` scenarios already completed (read from each entity's own work document), and report which entities (if any) finished successfully before the failure. Do not report Step 6 as complete.
-- **`plan.json` or the work document is malformed/unreadable**: Stop before Step 3.6 (before the lock is ever acquired) and report the parse error with the file path and reason. Never guess field values to keep going.
+When a step fails or the user cancels, read `${CLAUDE_PLUGIN_ROOT}/skills/be-code/references/error-handling.md` and follow it.
 
 ## Example: Single-Entity, Non-Plan-Driven Run
 
-Invocation: `/backend-webflux-plugin:be-code employee`
+A worked single-entity run: `${CLAUDE_PLUGIN_ROOT}/skills/be-code/references/example.md`.
 
-1. **Step 0-1**: Config found. Argument `employee` is a feature name, not a path.
-2. **Step 1.5**: No `docs/specs/employee/.implementation/backend/plan.json` exists — `planAvailable = false`.
-3. **Step 2**: No `work/features/employee.md` yet. Scan of `src/main/java/com/example/hr/` finds no existing `Employee` entity.
-4. **Step 3** (manual flow): Draft scenarios and present for approval:
-   ```
-   Here are the test scenarios for employee:
-   - [ ] valid request returns 201 Created
-   - [ ] duplicate email returns 409 Conflict
-   - [ ] ? empty display name returns 400 Bad Request
-
-   Please review. I'll remove scenarios marked with `?` unless you confirm them.
-   ```
-   User confirms all three, including the `?` one. Saved to `work/features/employee.md`.
-5. **Step 3.5**: No existing progress file for `employee` — demotion check does not apply.
-6. **Step 3.6**: No `.lock` present. Lock acquired: `{"lockedAt": "2026-08-20T09:00:00Z", "operation": "be-code", "feature": "employee"}`.
-7. **Step 3.7**: `work/features/.progress/employee.json` created with `pipeline.status = "implementing"`, `scenarios.total = 3`.
-8. **Step 4**: Baseline captured (`git status --porcelain` → clean). `implement` agent launched with the work document. One RED-GREEN iteration, summarized:
-   - RED: `PostTests.duplicate_email_returns_409_Conflict` written, fails — `DuplicateEmailException` does not exist yet.
-   - GREEN: `CreateEmployeeCommandExecutor` checks `EmployeeRepository.existsByEmail`, throws `DuplicateEmailException`; the handler's `onErrorResume` maps it to 409. Test passes.
-   - Scenario marked `- [x]`. The remaining two scenarios follow the same RED-GREEN pattern.
-9. **Step 5**: `./gradlew build` runs, exits 0.
-10. **Step 6**: Report, grounded in evidence (`git status --porcelain` against the Step 4 baseline, `git diff --stat`):
-    ```
-    Feature Implementation Complete: employee
-    =======================================
-
-    Scenarios: 3/3
-      [x] valid request returns 201 Created
-      [x] duplicate email returns 409 Conflict
-      [x] empty display name returns 400 Bad Request
-
-    Files created:
-      src/main/java/com/example/command/CreateEmployee.java
-      src/main/java/com/example/commandmodel/CreateEmployeeCommandExecutor.java
-      src/main/java/com/example/hr/DuplicateEmailException.java
-      src/test/java/com/example/hr/api/employees/PostTests.java
-
-    Files modified:
-      src/main/java/com/example/hr/api/EmployeeHandler.java
-
-    Build: PASS
-    ```
-11. **Step 7**: Progress file updated to `pipeline.status = "implemented"`. Lock released. Next step suggested: `/backend-webflux-plugin:be-verify employee`.
