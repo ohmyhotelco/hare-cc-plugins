@@ -71,7 +71,7 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 ---
 
-### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.1`
+### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.2`
 
 Develops Spring WebFlux backend applications using CQRS architecture and strict
 Test-Driven Development, with dual R2DBC/MyBatis data-layer support. Deliberately a
