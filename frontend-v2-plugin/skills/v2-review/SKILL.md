@@ -18,7 +18,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
 2. If the file does not exist:
@@ -26,6 +26,8 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
    - Stop here.
 
 ### Step 1: Validate Files
+
+**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): pass `changeMode: true` to both reviewers. Spec review checks each `acceptance[]` item against the plan's `files[]`/`tests[]` (`specDir` = the brief's folder). Quality review runs in standalone mode on the plan's `files[]` + `tests[]` with `changedLines` from `${CLAUDE_PLUGIN_ROOT}/scripts/changed-lines.sh {plan.baseCommit} {files…}`, so only what the change introduced is scored. Use each file's owner's merged values; one review report for the ticket.
 
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:

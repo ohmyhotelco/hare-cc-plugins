@@ -37,6 +37,9 @@ The skill will provide these parameters in the prompt:
 - `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 
+- `changeMode` — (optional) `true` for a change-mode delta (Step 0.6)
+- `owner` — (change mode) the `app` key or package dir whose entries this call applies
+
 ## Change Classification
 
 Each file operation from `delta-plan.json` is classified:
@@ -111,6 +114,17 @@ When `phase` is `foundation`, the delta-modifier may also receive `create` opera
    - If the target is an existing aggregator file (e.g., `factories.ts`, `fixtures.ts`, `handlers.ts`): append the new entity's factory/fixture/handler via `Edit` to the existing file
 3. Run TypeScript check after all creates
 4. These are treated as structural changes (no TDD required for foundation infrastructure)
+
+### Step 0.6: Change Mode (`changeMode: true`)
+
+The delta comes from a ticket (`mode: "change"`, contract in
+`${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`). Differences from the steps below:
+- Act only on entries whose owner (`app` or `package`) equals the `owner` parameter. File paths are
+  repo-relative — never prefix `baseDir`.
+- `create` entries are handled in **any** phase, not only foundation. A new test file is written as
+  the failing test of the behaviour it pins (Step 3.3 RED → GREEN). A new source file is created only
+  after its test exists and fails. Fixtures and mock handlers are structural (direct write).
+- Requirements come from `ac` ids in the plan's `acceptance[]`, not spec ids.
 
 ### Step 1: Pre-check — Verify Files Exist
 

@@ -63,6 +63,8 @@ Set `status = "skipped"` with `skipKind: "auto"` for phases with `deltaAction = 
 
 #### 2-D.3: Patch plan.json (before execution)
 
+**Change mode** (`delta-plan.json.mode == "change"`): skip this step — the plan was written whole and `planJsonPatch` is `{}`.
+
 Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **before** executing delta phases. This ensures tdd-cycle-runner and other agents can find plan entries for new files.
 
 0. **Skip if already applied**: if `generation-state.json` has `planPatched: true`, this is a
@@ -77,6 +79,20 @@ Apply the `planJsonPatch` from delta-plan.json to the existing plan.json **befor
 > Note: If delta execution fails later, plan.json still reflects the intended state. This is safe because plan.json describes what *should* exist, not what *does* exist — generation-state.json tracks actual completion.
 
 #### 2-D.4: Execute Delta Phases
+
+**Change mode** (`delta-plan.json.mode == "change"`, contract `{pluginRoot}/templates/change-plan.md`).
+File paths are repo-relative and each entry names its owner (`app` or `package`). For each phase in
+the order below, group the phase's files by owner and launch **one** `delta-modifier` per group with
+every operation of that group (create, modify, remove) — the foundation-style single call, never the
+Part A / Part B split, and no `tdd-cycle-runner`. Per group pass:
+- an `app` owner: that app's merged `baseDir` as `sourceBaseDir`, its `appDir`, `srcPath` and `nodeBin`
+  (v2-shared § Monorepo Rules), and `baseDir: .`;
+- a `package` owner: `appDir` = the package dir, `sourceBaseDir` = `{package}/src`, `srcPath: src`,
+  the package's own `nodeBin` (its `.nvmrc`, else PATH), and `baseDir: .`;
+- `changeMode: true`, `owner: {app or package}`.
+Record each group's result under the phase in `generation-state.json` (`groups.{owner}`); the phase
+completes when every group completes. Package groups run before app groups within a phase, so apps
+build against the changed package.
 
 For each phase in order (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`):
 

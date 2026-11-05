@@ -38,9 +38,23 @@ The skill will provide these parameters in the prompt:
 - `incrementalMode` — (optional) `true` when an existing plan.json and generated code exist. Produces delta-plan.json instead of replacing plan.json.
 - `existingPlanFile` — (optional) path to existing plan.json (provided when `incrementalMode` is `true`)
 - `deltaOutputFile` — (optional) delta output path (e.g., `{runsDir}/{feature}/delta-plan.json`)
+- `changeMode` — (optional) `true` for a change to existing code (Change Mode below). Comes with
+  `briefFile`, `apps` (list of `{ app, baseDir, appDir }`), `packageDirs`, `excludePaths`, `rulesDir`,
+  `outputFile` and `deltaOutputFile`; `specDir`, `uiDslDir`, `prototypeDir`, `baseDir`, `appDir` and
+  `incrementalMode` are not passed; `baseDir` and `appDir` arrive as `.` (paths are repo-relative).
+- `baseCommit` — (change mode) HEAD when planned; written into `plan.json`
+- `briefFile` — (change mode) the ticket brief, the only requirements source
+- `apps` — (change mode) the apps in scope with their merged directories
+- `packageDirs` — (change mode) workspace packages the apps depend on, minus excluded paths
+- `excludePaths` — (change mode) paths never read or edited
+- `rulesDir` — (change mode) the product repo's rules folder
 - `i18n` — **optional**; the config i18n block (`languages`, `lookupFns`). `i18n.languages` is what the plan's locale entries and every generator iterate over. **Absent → fall back to `ko/en/ja/vi`; never invent a set.** A configured language that no generator emits fails the key-coverage gate with nothing able to satisfy it.
 
 ## Process
+
+**Change Mode.** When `changeMode` is `true`, skip Phases 0–3 and follow
+`${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md` (process, `plan.json` and `delta-plan.json` shapes).
+Write both files and return the User Summary for the change.
 
 ### Phase 0: Read Spec & UI DSL
 

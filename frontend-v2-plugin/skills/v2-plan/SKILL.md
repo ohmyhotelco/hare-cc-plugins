@@ -1,7 +1,7 @@
 ---
 name: v2-plan
 description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
-argument-hint: "<feature-name> [--standalone] [--app <app>]"
+argument-hint: "<ticket-key|feature-name> [--change|--new-screen|--standalone] [--app <app>[,<app>...]]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -18,7 +18,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
@@ -63,25 +63,26 @@ user declining at Step 4-I or Step 4.
 
 ### Step 0.5: Detect Mode
 
-1. Check if `--standalone` flag is present in the argument
-   - If `--standalone` is present: `mode = "standalone"`, skip to Step 1-S
-   - If absent: **do not choose a mode here** — continue to item 2, which decides. Setting
-     `mode = "spec"` here would bypass auto-detection entirely, so a first-ever standalone run
-     without the flag would hit "spec not found" instead of being offered standalone mode.
-
-2. **Auto-detection** — the flag is absent, so check if `{runsDir}/{feature}/progress.json` exists:
-   - If not found:
-     > "No planning-plugin specification found for '{feature}'."
-     > "Options:"
-     > "1. Standalone mode (gather requirements interactively)"
-     > "2. Create specification first: `/planning-plugin:pp-spec {feature}`"
-     - If user chooses 1: `mode = "standalone"`, skip to Step 1-S
-     - If user chooses 2: stop here.
-   - If found: `mode = "spec"`, proceed to Step 1
+1. Flags win: `--standalone` → `mode = "standalone"`, skip to Step 1-S. `--change` → `mode = "change"`.
+   `--new-screen` → the spec/standalone flow below (item 2b onward), never change mode.
+2. Otherwise decide in this order:
+   a. `{runsDir}/{feature}/plan.json` exists with `changeKind: "change"` → `mode = "change"` (re-plan).
+   b. A planning-plugin spec exists — `docs/specs/{feature}/.progress/{feature}.json` → `mode = "spec"`,
+      Step 1.
+   c. `{feature}` looks like a ticket key (`^[A-Z][A-Z0-9]+-[0-9]+$`, e.g. `ABC-123`) → `mode = "change"`.
+   d. None of these → ask:
+      > "How should '{feature}' be planned?"
+      > "1. Change to existing code, from a ticket (recommended for fixes and small features)"
+      > "2. New screen, requirements gathered interactively (standalone)"
+      > "3. New screen from a planning-plugin spec: create it first with `/planning-plugin:pp-spec {feature}`"
+      - 1 → `mode = "change"`; 2 → `mode = "standalone"`, Step 1-S; 3 → stop.
+3. `mode = "change"` → read `${CLAUDE_PLUGIN_ROOT}/skills/v2-plan/references/change.md` and follow it
+   instead of Steps 1–5.
 
 ### Step 1: Validate Spec
 
-1. Check if `{runsDir}/{feature}/progress.json` exists
+1. Check if the planning-plugin progress file `docs/specs/{feature}/.progress/{feature}.json` exists
+   (`{specRoot}` is `docs/specs/{feature}` in this mode)
    - If not found:
      > "Functional specification not found: `{specRoot}/`"
      > "Please create the functional specification using planning-plugin first."
@@ -99,7 +100,8 @@ user declining at Step 4-I or Step 4.
      > "Please finish writing the specification, then try again."
      - Stop here.
 
-3. Extract `workingLanguage` from the progress file (default: `"en"`)
+3. Extract `workingLanguage` from the progress file (default: `"en"`), and create or update
+   `{runsDir}/{feature}/progress.json` with `feature`, `status` and `workingLanguage` copied from it
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.

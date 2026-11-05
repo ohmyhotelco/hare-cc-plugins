@@ -22,9 +22,10 @@ propose a cleanup. A given path inside one is reported as `excluded` and skipped
 **Several apps, one config.** Shared keys sit at the top level; per-app keys (`baseDir`, `appDir`,
 `devPort`, `i18nHook`, any stack key that differs) sit under `apps.{app}`, plus `defaultApp`. Read the
 config first (absent → the skill's own "not initialized" stop), then resolve the app — the `--app
-<app>` argument, else `defaultApp`, else ask — and overlay `apps[{app}]` on the top-level keys (per-app
-values win, objects merge key by key). Read every other key from that merged view. A feature does not
-yet record its app: pass the same `--app` to every command for that feature. No `apps` object → a
+<app>` argument, else the apps recorded in the feature's `plan.json` (`apps[]` of a change plan; a skill
+that acts per app runs once per listed app), else `defaultApp`, else ask — and overlay `apps[{app}]` on
+the top-level keys (per-app values win, objects merge key by key). Read every other key from that
+merged view. No `apps` object → a
 single-app config, read as it is.
 
 **Run records.** A feature's pipeline records — plan, progress, generation state, reports, locks —

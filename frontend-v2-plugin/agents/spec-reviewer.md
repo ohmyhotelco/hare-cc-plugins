@@ -20,6 +20,8 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown directory path (e.g., `{specRoot}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 
+- `changeMode` — (optional) `true` for a change plan: review each `acceptance[]` item of `planFile` against its `files[]`/`tests[]` and the brief in `specDir` — is every AC implemented and pinned by a test, and did the change stay inside the brief (nothing added it does not ask for)? Skip the dimensions that need spec ids, screens or UI DSL and say so.
+
 ## Process
 
 ### Phase 0: Load Context
