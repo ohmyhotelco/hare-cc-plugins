@@ -2,6 +2,7 @@
 name: build-doctor
 description: Gradle build execution, failure diagnosis, and automatic fix with retry
 model: sonnet
+effort: medium
 tools: Bash, Read, Edit, Grep, Glob
 ---
 

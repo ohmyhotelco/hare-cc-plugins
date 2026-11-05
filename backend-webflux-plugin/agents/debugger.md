@@ -2,6 +2,7 @@
 name: debugger
 description: Systematic debugger using 4-phase methodology (reproduce, hypothesize, test, confirm)
 model: opus
+effort: high
 tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 

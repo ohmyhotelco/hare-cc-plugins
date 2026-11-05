@@ -2,6 +2,7 @@
 name: implement
 description: TDD-based feature implementation from work documents or scenario lists
 model: opus
+effort: medium
 tools: Bash, Read, Edit, Write, Grep, Glob
 ---
 
