@@ -14,7 +14,30 @@ backend-springboot-plugin/    - Backend Spring Boot development plugin (see back
 backend-webflux-plugin/       - Backend Spring WebFlux development plugin (see backend-webflux-plugin/CLAUDE.md — read on demand; not loaded into agents)
 cc-usage-plugin/              - Hook-only Claude Code usage ledger with batched upload (see cc-usage-plugin/CLAUDE.md — maintainer notes; hooks plus one user-invoked setup command, no agents)
 .claude-plugin/                - Root marketplace manifest
+scripts/                       - Repository checks (consistency, public-repo scan)
+.github/workflows/checks.yml   - Runs those checks and `claude plugin validate` on every pull request and push to main
+MAINTAINING.md                 - How to change a plugin, what to run before a pull request, and how merging works
 ```
+
+## Public Repository
+
+This repository is public on purpose, as a showcase of the company's engineering. Everything that enters it is readable by anyone: instructions, templates, examples, docs, commit messages and pull request text. Nothing in it may be company information or security-relevant:
+
+- no secret, key, token or licence, and no pointer to where one is kept;
+- no internal hostname, URL, IP, bucket, queue, database or environment name, and no production path or deploy layout;
+- no customer, partner or employee data;
+- no business rule or product fact: those live in the product repository, and a plugin says "the product repo's `docs/rules`", not what the rules are;
+- no copied ticket, spec or design text, and no finding about a weakness in a company system.
+
+Keep surveys of a target codebase, fit tables and ticket text outside this repository. Citing a Jira key as a source is fine; quoting the ticket is not. Public service domains and invented example values are fine.
+
+Before every pull request, run `scripts/check-public-repo.sh`, then run this wider scan on the plugin you changed and read every hit. The pattern list is a net, not the rule.
+
+```bash
+git grep -n -I -E 'ohmyhotel\.com|s3://|amazonaws|\.internal\b|[0-9]{1,3}(\.[0-9]{1,3}){3}|api[_-]?key|secret|token|password|licen[cs]e[_-]?key' -- <plugin>/
+```
+
+If a secret is committed, rotate it first and remove it from history second.
 
 ## Documentation Language
 

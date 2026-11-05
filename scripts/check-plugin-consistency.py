@@ -50,7 +50,7 @@ WIRING = {
 # Write/Edit permission surfaces the first time the skill runs, which is cheap. `npx` must be
 # followed by a real package name — `npx …` in prose is documentation, not a command.
 TOOL_EVIDENCE = {
-    "Bash": [r"```(?:bash|sh)\b", r"\bnpx [a-z@]", r"^\s*git \w", r"\bmkdir -p\b",
+    "Bash": [r"(?<!\\)```(?:bash|sh)\b", r"\bnpx [a-z@]", r"^\s*git \w", r"\bmkdir -p\b",
              r"\bpnpm (?:add|install|run) ", r"\bcd \{"],
     "Task": [r"\bTask\(subagent_type"],
     "Agent": [r"\bAgent\(subagent_type", r"(?<!Task\()subagent_type:\s*\""],   # call form and the prose form (a Task launch is not Agent evidence)
@@ -217,13 +217,16 @@ def check_stale_number_refs(files: dict[str, tuple[Path, str]]) -> list[Finding]
     fine and pointed at the wrong instruction.
 
     Resolution is by *existence of the label*, not by list length: these docs use letter-suffixed
-    items (`6b.`) that a length comparison misreads as out of range.
+    items (`6b.`) that a length comparison misreads as out of range. `step N` may also name a heading
+    (`### Step 5:`, `#### 5.2 Manual`), anywhere in the file, so a heading counts as its label.
     """
     out = []
     ref = re.compile(r"(?:proceed to|go to|skip|see)\s+(?:prerequisite\s+)?"
-                     r"(?:step|steps|check|checks|item|items)\s+(\d+)(?:\s*[-–]\s*(\d+))?", re.I)
+                     r"(step|steps|check|checks|item|items)\s+(\d+)(?:\s*[-–]\s*(\d+))?", re.I)
+    heading = re.compile(r"^#{1,6}\s+(?:Step\s+)?(\d+)", re.I)
     for name, (path, text) in files.items():
         lines = text.split("\n")
+        headed = {int(m.group(1)) for m in map(heading.match, lines) if m}
         # section = run of lines between `### ` headings; labels defined in each
         bounds, cur = [], 0
         for i, ln in enumerate(lines):
@@ -241,8 +244,9 @@ def check_stale_number_refs(files: dict[str, tuple[Path, str]]) -> list[Finding]
                 continue
             for i in range(lo, hi):
                 for m in ref.finditer(lines[i]):
-                    for g in (m.group(1), m.group(2)):
-                        if g and int(g) not in labels:
+                    known = labels | headed if m.group(1).lower().startswith("step") else labels
+                    for g in (m.group(2), m.group(3)):
+                        if g and int(g) not in known:
                             out.append(Finding(str(path), i + 1, "stale-number-ref",
                                                f"cites item {g}, which this section does not define "
                                                f"(defines {sorted(labels)}) — renumbering likely "
