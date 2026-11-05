@@ -266,6 +266,8 @@ The E2E line reads `implementation.e2e` from `{runsDir}/{feature}/progress.json`
 
 ### Step 4: Update Progress
 
+**Gate record.** When the result is `verified`, record the code it passed on per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` (gate `verify`): write `verification.tree` and `verification.treeFile` from `gate-record.sh record`, or `tree: "unverifiable"` with `treeMissing` when it names missing watch paths. A failed verification records no tree.
+
 Read `{runsDir}/{feature}/progress.json` and add or update the `verification` field:
 
 ```json

@@ -23,6 +23,8 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### If a feature name is provided:
 
+**Freshness.** For each of `implementation.verification` and `implementation.e2e` that has a `treeFile`, run `gate-record.sh check` per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` and show the pass as `fresh`, **stale** (with the files) or **shared-stale** (with the files). `tree: "unverifiable"` → show it with `treeMissing`. No `treeFile` → "not recorded". Never print a stale pass as a plain pass.
+
 #### Step 1: Read Progress File
 
 1. Read `{runsDir}/{feature}/progress.json`

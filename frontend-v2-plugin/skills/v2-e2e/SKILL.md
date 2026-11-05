@@ -320,6 +320,8 @@ Save the full report to `{runsDir}/{feature}/e2e-report.json`.
 
 ### Step 8: Update Progress
 
+**Gate record.** When the E2E status is `pass`, record the code it passed on per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` (gate `e2e`, e2e spec files included): `e2e.tree`, `e2e.treeFile`, or `tree: "unverifiable"` with `treeMissing`.
+
 Read `{runsDir}/{feature}/progress.json` and update:
 
 **1. E2E field** — add or update the `e2e` field under `implementation`:
