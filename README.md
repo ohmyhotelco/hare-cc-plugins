@@ -6,7 +6,7 @@ A collection of Claude Code plugins that cover the full software delivery lifecy
 
 ## Plugins
 
-### [Planning Plugin](./planning-plugin/) `v1.8.1`
+### [Planning Plugin](./planning-plugin/) `v1.8.2`
 
 Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
 
@@ -21,7 +21,7 @@ Automates functional specification creation through multi-agent collaboration. A
 
 ---
 
-### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.2`
+### [Frontend React Plugin](./frontend-react-plugin/) `v2.4.3`
 
 Generates production-ready React code from functional specifications using strict Test-Driven Development. Each feature goes through a 6-phase TDD pipeline (types → API → stores → components → pages → integration), followed by automated 2-stage code review and E2E browser testing. Serves two app profiles — **admin** (B2B admin SPA, the default) and **ota** (SEO-critical consumer app); the profile sets defaults for the stack knobs below, each independently overridable, with full backward compatibility.
 
@@ -54,7 +54,7 @@ Generates marketing homepage websites from interactive page/section definitions.
 
 ---
 
-### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.2`
+### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.3`
 
 Develops Spring Boot backend applications using CQRS architecture and strict Test-Driven Development. Features a full pipeline with verification gate, review-fix loop, systematic debugging, and pipeline state tracking — modeled after the frontend-react-plugin's mature orchestration patterns.
 
@@ -71,7 +71,7 @@ Develops Spring Boot backend applications using CQRS architecture and strict Tes
 
 ---
 
-### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.3`
+### [Backend WebFlux Plugin](./backend-webflux-plugin/) `v0.2.4`
 
 Develops Spring WebFlux backend applications using CQRS architecture and strict
 Test-Driven Development, with dual R2DBC/MyBatis data-layer support. Deliberately a
@@ -109,7 +109,7 @@ Drives the migration of legacy Angular 15 apps (OhMyHotel PC, Mobile, Hana) to R
 
 ---
 
-### [Frontend Ohmyhotel Plugin](./frontend-ohmyhotel-plugin/) `v0.2.3`
+### [Frontend Ohmyhotel Plugin](./frontend-ohmyhotel-plugin/) `v0.2.4`
 
 Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New B2C `apps/www` and later apps in the same repo). Carries the working method — spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress, big-bang cutover ledger — as workflows plus entry-point skills. Product rules stay in the product repo (`specs/`, `docs/adr/`, `docs/rules/`). Standalone copy of the two frontend plugins above, rewritten for Claude 5-era agents. **v0.1.0 is a skeleton**; see its design document.
 

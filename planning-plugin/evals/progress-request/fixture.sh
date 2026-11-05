@@ -1,0 +1,1 @@
+../_fixture/loyalty-points.sh

@@ -50,10 +50,13 @@ they refer to things that exist and can be reached.
 Each plugin's `evals/` checks that a natural request reaches the right skill. A case with a `fixture.sh` needs `--scaffold`, and a case about a request for existing work needs one, because in an empty workspace Claude stops before it would choose a skill. A case for a skill that runs commands or edits files lists `Bash`, `Write` and `Edit` in `allowed_tools` and runs with `--allow-tools Bash Write Edit`: without them Claude cannot do the work itself, so a pass means little.
 
 ```bash
-cd backend-webflux-plugin && claude plugin eval . --tag routing --scaffold --ablation none --no-publish --threshold 0
+cd backend-webflux-plugin && claude plugin eval . --tag routing-audit --scaffold --ablation none --no-publish --threshold 0
+cd backend-webflux-plugin && claude plugin eval . --tag routing-exec --scaffold --allow-tools Bash Write Edit --ablation none --no-publish --threshold 0
 ```
 
-`backend-springboot-plugin` splits its new cases into `routing-audit` and `routing-exec`, and only the second takes `--allow-tools`. All its cases cost about $6 on Sonnet. Measure before editing a description: 9 of its 15 skills with no when-to-use text fired on every run.
+Both tags together cost about $3 to $6 per plugin on Sonnet, and only `routing-exec` takes `--allow-tools`. Older cases carry only `routing`. Set `max_turns` to 5 for a skill Claude may reach after reading the code: at 3, `be-code` looked like a miss.
+
+Measure a description before and after editing it. When-to-use text neither predicts a miss nor always fixes one: it took four `backend-springboot` skills from 0/3 to 3/3, and changed nothing for `fe-verify`, `fo-verify` and webflux `be-debug`, so those three edits were reverted. A missed route is not proven worse output: on `quality-recall`, Claude alone found as many seeded defects as `fe-clean-code` (0.967 on both, five runs each) for about 57% of the cost.
 
 `frontend-react-plugin/evals/quality-recall` seeds defects for `quality-reviewer`, for tuning a reviewer's effort. Agents run at `medium` and debuggers at `high`: on that case `high` found no more seeded defects than `medium` and cost about 22% more (five runs per arm).
 

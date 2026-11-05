@@ -8,7 +8,7 @@
     {
       "name": "planning-plugin",
       "description": "Multi-agent planning plugin that generates functional specifications with automated review cycles and multilingual output (en/ko/vi)",
-      "version": "1.8.1",
+      "version": "1.8.2",
       "author": {
         "name": "Justin Choi"
       },
@@ -29,7 +29,7 @@
     {
       "name": "frontend-react-plugin",
       "description": "Frontend React development plugin for Claude Code with two app profiles — admin (Vite SPA) and OTA (React Router framework mode, SSR/SSG, TanStack Query, RHF+zod, Playwright) — enforcing React 19, TypeScript, shadcn/ui or an external design system, and i18next conventions; Phase 2 adds workspace API packages, custom i18n bindings and store-less apps",
-      "version": "2.4.2",
+      "version": "2.4.3",
       "author": {
         "name": "Justin Choi"
       },
@@ -110,7 +110,7 @@
     {
       "name": "backend-springboot-plugin",
       "description": "Spring Boot backend development plugin with CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, and security audit for Claude Code",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "author": {
         "name": "Justin Choi"
       },
@@ -139,7 +139,7 @@
     {
       "name": "backend-webflux-plugin",
       "description": "Spring WebFlux backend development plugin with dual R2DBC/MyBatis data profiles, CQRS, strict TDD, Gradle build automation, multi-dimension code review, spec-driven scaffold, JaCoco coverage gate, and security audit for Claude Code",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "author": {
         "name": "Daniel"
       },
@@ -213,7 +213,7 @@
     {
       "name": "frontend-ohmyhotel-plugin",
       "description": "Repo-scoped development plugin for ohmyhotelco/ohmyhotel-frontend (V3 All New B2C and later apps in the same repo): spec-driven planning, TDD generation, per-screen gates (verify, visual vs Figma, E2E, contract, SEO), review/fix, progress and big-bang cutover ledger — orchestrated with workflows; product rules stay in the product repo",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "author": {
         "name": "Justin Choi"
       },
