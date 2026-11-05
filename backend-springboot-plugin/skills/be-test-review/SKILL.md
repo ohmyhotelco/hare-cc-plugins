@@ -1,6 +1,6 @@
 ---
 name: be-test-review
-description: "Audit test quality with timing gates and coverage analysis."
+description: "Audit test quality with timing gates and coverage analysis. Use when asked to judge or review existing tests."
 argument-hint: "[test-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash

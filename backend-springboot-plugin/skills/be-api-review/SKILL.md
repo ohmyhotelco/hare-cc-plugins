@@ -1,6 +1,6 @@
 ---
 name: be-api-review
-description: "Audit REST API contracts for HTTP semantics, versioning, and consistency."
+description: "Audit REST API contracts for HTTP semantics, versioning, and consistency. Use when asked to check a controller, an endpoint or an API's design."
 argument-hint: "[controller-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep

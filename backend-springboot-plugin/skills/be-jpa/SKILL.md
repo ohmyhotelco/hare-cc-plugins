@@ -1,6 +1,6 @@
 ---
 name: be-jpa
-description: "Audit JPA/Hibernate patterns, schema design, migration safety, and data integrity."
+description: "Audit JPA/Hibernate patterns, schema design, migration safety, and data integrity. Use when asked to check entities, repositories, queries or migrations."
 argument-hint: "[file-or-directory-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash

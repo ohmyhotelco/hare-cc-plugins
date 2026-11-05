@@ -47,11 +47,13 @@ they refer to things that exist and can be reached.
 
 ## Evals
 
-Each plugin's `evals/` checks that a natural request reaches the right skill. A case with a `fixture.sh` needs `--scaffold`, and a case about a request for existing work needs one, because in an empty workspace Claude stops before it would choose a skill.
+Each plugin's `evals/` checks that a natural request reaches the right skill. A case with a `fixture.sh` needs `--scaffold`, and a case about a request for existing work needs one, because in an empty workspace Claude stops before it would choose a skill. A case for a skill that runs commands or edits files lists `Bash`, `Write` and `Edit` in `allowed_tools` and runs with `--allow-tools Bash Write Edit`: without them Claude cannot do the work itself, so a pass means little.
 
 ```bash
 cd backend-webflux-plugin && claude plugin eval . --tag routing --scaffold --ablation none --no-publish --threshold 0
 ```
+
+`backend-springboot-plugin` splits its new cases into `routing-audit` and `routing-exec`, and only the second takes `--allow-tools`. All its cases cost about $6 on Sonnet. Measure before editing a description: 9 of its 15 skills with no when-to-use text fired on every run.
 
 `frontend-react-plugin/evals/quality-recall` seeds defects for `quality-reviewer`, for tuning a reviewer's effort. Agents run at `medium` and debuggers at `high`: on that case `high` found no more seeded defects than `medium` and cost about 22% more (five runs per arm).
 
