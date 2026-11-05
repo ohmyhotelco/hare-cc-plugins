@@ -1,7 +1,7 @@
 ---
 name: v2-progress
 description: "Show the current implementation status of all features or a specific feature."
-argument-hint: "[feature-name] [--app <app>]"
+argument-hint: "[feature-name] [--app <app>] [--pr-body]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash
 ---
@@ -127,6 +127,21 @@ Based on `implementation.status`, display the recommended next action:
 | `resolved` | "Run `/frontend-v2-plugin:v2-verify {feature}` or `/frontend-v2-plugin:v2-review {feature}`." |
 | `escalated` | "Manual intervention needed. See fix-report.json or debug-report.json." |
 | `done` | Check `implementation.e2e.status`: if absent -> "Review passed. Run `/frontend-v2-plugin:v2-e2e {feature}` for E2E testing."; if `pass` -> "Pipeline complete."; if `partial` or `fail` -> "Review passed but E2E has failures. Run `/frontend-v2-plugin:v2-fix {feature}` then `/frontend-v2-plugin:v2-e2e {feature}`." |
+
+### PR body draft (`--pr-body`, a feature name given)
+
+Draft the pull-request body for the feature from its records; never create the PR or post anything.
+
+1. Format: list `{rulesDir}/` (config `rulesDir`, default `docs/rules`) and use the file whose name
+   says it is the PR body or PR template. None → say so and use: Summary, Changes, Test evidence,
+   Risk, Ticket.
+2. Fill it only from the records in `{runsDir}/{feature}/`: the brief's goal and acceptance items,
+   `plan.json` files per app and package, each gate's result **with its freshness** (a stale or
+   shared-stale pass is written as such, never as a plain pass), the review status, open
+   `questions[]`, and the ticket key. A section the records cannot fill is left with a `TODO:` line,
+   never invented.
+3. Print the draft in one block. The repo's own review process runs on the PR as usual — this plugin
+   adds no second review flow.
 
 ### If no feature name is provided:
 

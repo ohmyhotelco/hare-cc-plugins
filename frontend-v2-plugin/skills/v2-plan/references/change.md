@@ -96,4 +96,5 @@ Create or update `{runsDir}/{feature}/progress.json`: `feature`, `status: "final
 ### C.7: Next
 
 > "Next: `/frontend-v2-plugin:v2-gen {feature}` (applies the change app by app), then
-> `/frontend-v2-plugin:v2-verify {feature}` and `/frontend-v2-plugin:v2-review {feature}`."
+> `/frontend-v2-plugin:v2-verify {feature}` and `/frontend-v2-plugin:v2-review {feature}`; for the PR,
+> `/frontend-v2-plugin:v2-progress {feature} --pr-body`."
