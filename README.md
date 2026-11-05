@@ -54,7 +54,7 @@ Generates marketing homepage websites from interactive page/section definitions.
 
 ---
 
-### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.2`
+### [Backend Spring Boot Plugin](./backend-springboot-plugin/) `v0.4.3`
 
 Develops Spring Boot backend applications using CQRS architecture and strict Test-Driven Development. Features a full pipeline with verification gate, review-fix loop, systematic debugging, and pipeline state tracking — modeled after the frontend-react-plugin's mature orchestration patterns.
 
