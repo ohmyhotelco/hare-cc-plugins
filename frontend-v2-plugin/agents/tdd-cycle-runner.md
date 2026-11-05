@@ -98,7 +98,7 @@ For each test entry in the plan's `tests[]` matching this phase:
 
    > **`apiLayer == workspace-package` (D15) — different paths, same discipline.** No feature-local
    > `api/` file is stubbed or written. The stub is each `api[].additions[].file` **inside `{apiPackage.dir}`**
-   > (e.g. `packages/shared-data/src/hotel/use-hotel-list-promotion.ts`), and its test sits where the
+   > (e.g. `packages/data/src/catalog/use-item-list.ts`), and its test sits where the
    > package keeps tests — the path the plan's `tests[type:"api"]` already carries, derived from
    > `plan.apiPackagePattern` (co-located `*.test.ts` or the package's `__tests__/`). `api[].reuse[]` entries get **no** stub and **no** test. The `api/queries.ts` stub below
    > applies to `feature-local` only — under `workspace-package` the package's hooks already are the

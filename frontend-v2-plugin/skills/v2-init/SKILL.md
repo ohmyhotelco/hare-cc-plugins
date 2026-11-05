@@ -10,7 +10,7 @@ allowed-tools: Read, Write, Glob, Bash
 
 Set up the Frontend V2 Plugin configuration for this project.
 
-**Two app profiles** (see `docs/design/ota-extension-phase1.md`):
+**Two app profiles** (design: the parent `frontend-react-plugin`'s `docs/design/ota-extension-phase1.md`):
 - **admin** (default) — greenfield B2B admin SPA. The historical behavior: declarative router, Zustand-only
   state, native forms, agent-browser E2E. A config written with no profile is treated as `admin`.
 - **ota** — SEO-critical consumer app (e.g. an OTA/booking site). Defaults to React Router **framework
@@ -195,7 +195,7 @@ Present:
   directory for the primitives the package lacks. No shadcn is installed.
 
 Default: `shadcn` for both profiles. Record as `componentLibrary`. When `external`, also collect
-`externalComponents`: `package` (required, e.g. `@omh/components`), `cssEntry` (optional — the preset
+`externalComponents`: `package` (required, e.g. `@acme/components`), `cssEntry` (optional — the preset
 the app stylesheet imports), `uiKitDir` (required, repo-relative, e.g. `app/app/ui-kit`), `formAdapters`
 (optional — default `{uiKitDir}/form`; used only when `formStack == rhf-zod`), `forbiddenImports`
 (optional — import prefixes the reviewer must flag, e.g. a sibling library whose views must not be used).
@@ -211,9 +211,9 @@ Present:
   the planner reuses its exports first and adds only what is missing **to the package**.
 
 Default: `feature-local` for both profiles. Record as `apiLayer`. When `workspace-package`, also
-collect `apiPackage`: `package` (required, e.g. `@omh/shared-data`), `dir` (required, repo-relative,
-e.g. `packages/shared-data`), `entry` (required — the export surface to scan, e.g.
-`packages/shared-data/src/index.ts`), `clientImport` (optional — the app's loader-safe client provider
+collect `apiPackage`: `package` (required, e.g. `@acme/data`), `dir` (required, repo-relative,
+e.g. `packages/data`), `entry` (required — the export surface to scan, e.g.
+`packages/data/src/index.ts`), `clientImport` (optional — the app's loader-safe client provider
 module that replaces the D13 base/browser split, e.g. `~/lib/api-client`). `workspace-package` requires
 `serverState == tanstack-query`; refuse the combination with `zustand-only` (O7).
 
@@ -224,12 +224,12 @@ Ask how components read translations.
 Present:
 - **react-i18next** — `useTranslation(namespace)`, per-feature locale JSON, central config registration
   (current behavior).
-- **custom-hook** — a project-owned hook (e.g. `useT()`) over one flat resource file per language;
+- **custom-hook** — a project-owned hook (e.g. `useI18n()`) over one flat resource file per language;
   generators append keys to those files and register nothing.
 
 Default: `react-i18next` for both profiles. Record as `i18nBinding`. When `custom-hook`, also collect
-`i18nHook`: `hook` (required, e.g. `useT`), `from` (required, e.g. `~/lib/i18n`), `resourcesDir`
-(required, repo-relative, e.g. `packages/shared-i18n/src/locales`), `resourceFile` (required — path
+`i18nHook`: `hook` (required, e.g. `useI18n`), `from` (required, e.g. `~/lib/i18n`), `resourcesDir`
+(required, repo-relative, e.g. `packages/i18n/src/locales`), `resourceFile` (required — path
 pattern under `resourcesDir`; `{LANG}` = uppercased language code, `{lang}` = as configured, e.g.
 `{LANG}/translation.json`). Step 2d-3's `i18n.lookupFns` must name the function the hook returns
 (`["t"]` for `const t = useT()`).

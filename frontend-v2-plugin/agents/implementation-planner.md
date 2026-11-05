@@ -1012,7 +1012,7 @@ admin/library-mode default so all appear with default values):
   },
   "componentDependencies": {
     "//": "componentLibrary == external only — inventory from the package's type declarations + uiKitDir",
-    "package": "@omh/components",
+    "package": "@acme/components",
     "available": ["ButtonPrimary", "InputField", "CardHotelList"],
     "used": ["ButtonPrimary", "InputField"],
     "gaps": [{ "name": "Modal", "plannedAs": "{externalComponents.uiKitDir}/Modal.tsx", "reason": "no overlay primitive exported" }],

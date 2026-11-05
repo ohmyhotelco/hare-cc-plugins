@@ -129,7 +129,7 @@ export const entityApi = {
 ```
 
 > **`apiLayer == workspace-package` (Phase 2, D15)**: no feature-local service is generated. Feature code
-> imports data hooks from the configured package (`import { useHotelList } from '@omh/shared-data'`); only
+> imports data hooks from the configured package (`import { useHotelList } from '@acme/data'`); only
 > the plan's `api[].additions[]` are written, **inside the package** and in its own module pattern, and
 > exported from `apiPackage.entry`. Loaders use the app's `apiPackage.clientImport` provider when set.
 >

@@ -46,7 +46,7 @@ The plugin serves two greenfield profiles, selected by `appProfile` in `.claude/
 `appProfile=admin`, `serverState=zustand-only`, `formStack=native`, `e2eTool=agent-browser` — every
 existing admin project behaves exactly as before. New behavior is gated behind the new config values; no
 existing branch changes. The full design and per-file spec is in
-`docs/design/ota-extension-phase1.md` (OTA extension, Phase 1).
+`frontend-react-plugin/docs/design/ota-extension-phase1.md` in the parent plugin (OTA extension, Phase 1).
 
 ## Tech Stack
 
@@ -69,7 +69,7 @@ existing branch changes. The full design and per-file spec is in
 - Tailwind CSS
 - Component library: determined by `componentLibrary` (default `shadcn`)
   - `shadcn` — shadcn/ui (Radix-based, code owned by the project) + Lucide icons (`lucide-react`; consider Simple Icons for brand logos)
-  - `external` — a published design-system package (`externalComponents.package`, optional `cssEntry` preset) plus an app-owned `{uiKitDir}/` for the primitives it lacks (planned as **gap** components). No shadcn, no lucide; `forbiddenImports[]` prefixes are convention violations. Design: `docs/design/ota-extension-phase2.md` (D14).
+  - `external` — a published design-system package (`externalComponents.package`, optional `cssEntry` preset) plus an app-owned `{uiKitDir}/` for the primitives it lacks (planned as **gap** components). No shadcn, no lucide; `forbiddenImports[]` prefixes are convention violations. Design: the parent plugin's `docs/design/ota-extension-phase2.md` (D14).
 
 ### State & Data
 - Client State: determined by `clientStore` (default `zustand`)
@@ -360,11 +360,11 @@ An ota app that owns an external design system, a workspace data package and a f
 ```json
 {
   "componentLibrary": "external",
-  "externalComponents": { "package": "@omh/components", "cssEntry": "@omh/tailwind-preset", "uiKitDir": "app/app/ui-kit", "forbiddenImports": ["@omh/shared-ui"] },
+  "externalComponents": { "package": "@acme/components", "cssEntry": "@acme/tailwind-preset", "uiKitDir": "app/app/ui-kit", "forbiddenImports": ["@acme/ui"] },
   "apiLayer": "workspace-package",
-  "apiPackage": { "package": "@omh/shared-data", "dir": "packages/shared-data", "entry": "packages/shared-data/src/index.ts", "clientImport": "~/lib/api-client" },
+  "apiPackage": { "package": "@acme/data", "dir": "packages/data", "entry": "packages/data/src/index.ts", "clientImport": "~/lib/api-client" },
   "i18nBinding": "custom-hook",
-  "i18nHook": { "hook": "useT", "from": "~/lib/i18n", "resourcesDir": "packages/shared-i18n/src/locales", "resourceFile": "{LANG}/translation.json" },
+  "i18nHook": { "hook": "useI18n", "from": "~/lib/i18n", "resourcesDir": "packages/i18n/src/locales", "resourceFile": "{LANG}/translation.json" },
   "clientStore": "none",
   "i18n": { "languages": ["ko", "en", "ja", "zh", "vi"], "lookupFns": ["t"] }
 }
