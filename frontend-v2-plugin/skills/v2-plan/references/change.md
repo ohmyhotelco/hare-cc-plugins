@@ -4,6 +4,14 @@ Part of the `v2-plan` skill. `{pluginRoot}` is the plugin root the skill states.
 taken in § Lock Acquire; release it on every exit (§ Lock Release). Contract:
 `{pluginRoot}/templates/change-plan.md`.
 
+### C.0: Re-plan guard
+
+`{runsDir}/{feature}/plan.json` already exists and `implementation.status` in `progress.json` is past
+`planned` (generated, verified, reviewed, done, …) → warn:
+> "{feature} already has generated code ({status}). Re-planning replaces the plan and resets the status
+> to `planned`; the earlier reports and gate records stay in the folder but no longer describe the plan."
+Ask to continue; declined → stop.
+
 ### C.1: Apps in scope
 
 `--app a,b` → those apps. Otherwise ask which apps the ticket touches (multi-select, `defaultApp`

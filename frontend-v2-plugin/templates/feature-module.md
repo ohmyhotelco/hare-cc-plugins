@@ -256,7 +256,7 @@ export const useEntityStore = create<EntityState>((set) => ({
 >
 > **`componentLibrary == external`** (Phase 2, D14/D18): the same code with three import lines changed —
 > `Form*` primitives from `'{formAdapters}'` (scaffolded once, `form-adapters.md`), `Input`/`Button`
-> from `'{externalComponents.package}'`, and under `i18nBinding == custom-hook` `const t = useT()` from
+> from `'{externalComponents.package}'`, and under `i18nBinding == custom-hook` `const t = useI18n()` from
 > `'{i18nHook.from}'` with flat keys (`t('tl.entity-form.name.label')`) instead of `useTranslation('{feature}')`.
 
 **Native variant** (admin default, `formStack == native`):

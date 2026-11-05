@@ -18,7 +18,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `mockFirst`, `baseDir`, `appDir`
 2. If the file does not exist:
@@ -27,7 +27,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): pass `changeMode: true` to both reviewers. Spec review checks each `acceptance[]` item against the plan's `files[]`/`tests[]` (`specDir` = the brief's folder). Quality review runs in standalone mode on the plan's `files[]` + `tests[]` with `changedLines` from `${CLAUDE_PLUGIN_ROOT}/scripts/changed-lines.sh {plan.baseCommit} {files…}`, so only what the change introduced is scored. Use each file's owner's merged values; one review report for the ticket.
+**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): both reviewers stay in **pipeline mode** (JSON out, as Steps 4–6 and v2-fix need) with `changeMode: true` added. `specDir` is the brief's folder (`{specRoot}/{workingLanguage}/`, which holds `brief.md`). Before Step 3, compute `changedLines` = the output of `${CLAUDE_PLUGIN_ROOT}/scripts/changed-lines.sh {plan.baseCommit} {each file and test in the plan that exists}` and pass it to the quality reviewer. `baseDir` is `.` (plan paths are repo-relative). One review report for the ticket.
 
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
@@ -95,6 +95,7 @@ Agent(subagent_type: "frontend-v2-plugin:spec-reviewer", prompt: "
   - planFile: {runsDir}/{feature}/plan.json
   - specDir: {specRoot}/{workingLanguage}/
   - baseDir: {baseDir}/
+  - changeMode: {true for a change plan, else omit}
 
   Follow the process defined in agents/spec-reviewer.md.
   Return the review result as JSON.
@@ -135,6 +136,8 @@ Agent(subagent_type: "frontend-v2-plugin:quality-reviewer", prompt: "
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - routerMode: {routerMode}
+  - changeMode: {true for a change plan, else omit}
+  - changedLines: {change plan: changed-lines.sh output, verbatim; else omit}
 
   Follow the process defined in agents/quality-reviewer.md.
   Return the review result as JSON.

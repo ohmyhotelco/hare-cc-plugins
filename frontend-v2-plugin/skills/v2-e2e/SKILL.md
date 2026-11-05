@@ -20,7 +20,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`, `devPort` (default `5173` when absent)
 2. If `baseDir` is missing, use default value `"src"`
@@ -37,7 +37,11 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 1: Validate Prerequisites
 
-**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): run Steps 2–8 once per app in `plan.apps` whose `tests[]` include files under that app's e2e folder, with that app's merged values (`appDir`, `devPort`, `nodeBin`). An app with no e2e entries is reported `skipped: no e2e in plan` — never a pass. Record per-app results under `implementation.e2e.apps`.
+**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): a change plan has no `e2eTests` or `routes`, and its e2e specs were written by v2-gen as ordinary files in `tests[]`. So: do items 1, 3 and 4 below and the status check, then **skip** the E2E-scenarios check, the route-to-scenario check, the runner agent (Steps 2–4) and the dev-server steps. For each app in `plan.apps`, take the `tests[]` entries under that app's e2e folder:
+- none → `skipped: no e2e in plan` for that app (never a pass);
+- `{appDir}/playwright.config.ts` absent → `skipped: no Playwright harness in {appDir}` (the app's own harness owns its dev server — the plugin does not scaffold one in change mode);
+- otherwise, under the feature lock, run `cd {appDir} && PATH="{nodeBin}:$PATH" npx playwright test {those files, relative to appDir} --reporter=line` and record pass/fail with the failing test names.
+Write per-app results under `implementation.e2e.apps.{app}`; `implementation.e2e.status` is `pass` only when every app with e2e files passed. Then Step 8's gate record (e2e files included) and Step 9.
 
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:

@@ -18,7 +18,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). In change mode (Step 0.5) the apps are chosen in change.md C.1 — do not ask for an app here; read the shared keys only. Otherwise, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
@@ -67,6 +67,8 @@ user declining at Step 4-I or Step 4.
    `--new-screen` → the spec/standalone flow below (item 2b onward), never change mode.
 2. Otherwise decide in this order:
    a. `{runsDir}/{feature}/plan.json` exists with `changeKind: "change"` → `mode = "change"` (re-plan).
+   a2. `{runsDir}/{feature}/progress.json` has `standalone: true` → `mode = "spec"`: a standalone feature
+      being re-planned. Step 1 reads that file (not a planning-plugin one) and Step 2.5 skips.
    b. A planning-plugin spec exists — `docs/specs/{feature}/.progress/{feature}.json` → `mode = "spec"`,
       Step 1.
    c. `{feature}` looks like a ticket key (`^[A-Z][A-Z0-9]+-[0-9]+$`, e.g. `ABC-123`) → `mode = "change"`.
@@ -81,8 +83,9 @@ user declining at Step 4-I or Step 4.
 
 ### Step 1: Validate Spec
 
-1. Check if the planning-plugin progress file `docs/specs/{feature}/.progress/{feature}.json` exists
-   (`{specRoot}` is `docs/specs/{feature}` in this mode)
+1. Check if the progress file exists: the planning-plugin one, `docs/specs/{feature}/.progress/{feature}.json`
+   (`{specRoot}` is then `docs/specs/{feature}`), or — for a standalone re-plan (Step 0.5 rule a2) —
+   `{runsDir}/{feature}/progress.json` (`{specRoot}` is then `{runsDir}/{feature}/spec`)
    - If not found:
      > "Functional specification not found: `{specRoot}/`"
      > "Please create the functional specification using planning-plugin first."
@@ -127,7 +130,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-plan/references/standalone.md` and follow 
 **Standalone features skip this step entirely** (read the progress file's `standalone` flag): the
 standalone planner rule is "shared layout detection: skip", and item 2 below reads `screens.md`,
 which standalone never creates — without this branch an existing standalone feature (spec mode by
-auto-detection, since its progress file exists) dies here and **never reaches Step 2.7's
+Step 0.5 rule a2) dies here and **never reaches Step 2.7's
 incremental detection**, making standalone replanning unreachable through this skill. Set
 `sharedLayoutIds = "none"` and continue to Step 2.7.
 

@@ -20,7 +20,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `e2eTool`, `mockFirst`, `baseDir`, `appDir`, `prettierTemplate`, `i18n`, `devPort` (default `5173` when absent), and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
@@ -136,6 +136,8 @@ Ask:
 If the user declines, stop here.
 
 ### Step 1.9: Playwright Harness Preflight (every mode)
+
+Change plan (`changeKind: "change"`) → skip this step: the apps already own their e2e harness, and v2-e2e runs it as is.
 
 Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-gen/references/playwright-preflight.md` and follow this section there.
 

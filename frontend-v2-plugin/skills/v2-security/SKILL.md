@@ -16,7 +16,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Validate Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then resolve the app (`--app <app>`, else `defaultApp`, else ask), overlay `apps[{app}]`, and read every key below from that merged view. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then resolve the app (`--app <app>`, else `defaultApp`, else ask), overlay `apps[{app}]`, and read every key below from that merged view. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json`
 2. If missing, tell the user to run `/frontend-v2-plugin:v2-init` first and stop

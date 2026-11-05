@@ -16,7 +16,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
 2. If `sourceBaseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
@@ -27,7 +27,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): the files to check are the plan's `files[]` and `tests[]` (repo-relative), not a feature folder. Run Step 2 **once per owner** — each `plan.apps` entry with that app's merged values (`appDir`, `sourceBaseDir` = its `baseDir`, `srcPath`, `nodeBin`), then each `plan.packages` entry (`appDir` = the package dir, `srcPath: src`, its own `nodeBin`; its build check is the package's own `build` or `typecheck` script when it has one, else `tsc`). Report one block per owner. Verification passes only when every owner passes; record per-owner results under `implementation.verification.owners`.
+**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): the files to check are the plan's `files[]` and `tests[]` (repo-relative), not a feature folder. Run Step 2 **once per owner** — each `plan.apps` entry with that app's merged values (`appDir`, `sourceBaseDir` = its `baseDir`, `srcPath`, `nodeBin`), then each `plan.packages` entry (`appDir` = the package dir, `srcPath: src`, its own `nodeBin`; its build check is the package's own `build` or `typecheck` script when it has one, else `tsc`). Report one block per owner. Verification passes only when every owner passes; record per-owner results under `implementation.verification.owners`. The i18n key-coverage check (Step 2.5) needs a coverage spec that only full generation scaffolds: when the owner has none, record `i18nKeys: { "status": "skipped", "reason": "no key-coverage spec (change mode)" }` and name it as a follow-up — never `fail` with "run v2-gen".
 
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:

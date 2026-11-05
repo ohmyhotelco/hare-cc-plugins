@@ -22,6 +22,7 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied.
+- `changeMode` — (optional, pipeline mode) `true` for a change plan (`${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): the files under review are the plan's `files[]` + `tests[]` (repo-relative) instead of everything under `baseDir`; skip Phase 0-P item 3 (there is no feature module to compare against — compare with each file's neighbours); apply § Change Attribution with `changedLines` and add `"attribution": "introduced" | "touched" | "pre-existing"` to every issue in the JSON. Scores, counts and `status` use introduced issues only.
 
 ### Standalone Mode
 

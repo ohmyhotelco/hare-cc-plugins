@@ -3,7 +3,7 @@
 set -e
 F=src/features/order-management
 D=docs/specs/order-management
-I=$D/.implementation/frontend
+I=docs/plugin-runs/order-management
 mkdir -p .claude "$F/__tests__" "$D/.progress" "$D/en" "$I" node_modules/.bin
 
 cat > .claude/frontend-v2-plugin.json <<'EOF'
@@ -107,3 +107,6 @@ EOF
 printf 'node_modules\n' > .gitignore
 git init -q >/dev/null 2>&1 || true
 git add -A >/dev/null 2>&1 && git -c user.email=t@t -c user.name=t commit -qm init >/dev/null 2>&1 || true
+
+# The plugin keeps its own progress file with the run records.
+cp "$D/.progress/order-management.json" "$I/progress.json"

@@ -156,7 +156,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/deviations-and-principle
 
 ### Design Principles
 
-Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/deviations-and-principles.md` before work this section governs, and follow it there.
+Two that every agent applies: **scope moves in both directions** — neither narrow nor widen what the plan asks for; if the plan looks wrong, say so in a sentence and execute it as written. **Delegation is named** — launch only the agents the skill names, with their declared parameters, and never add a reviewer of your own. The rest: read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/deviations-and-principles.md` before work this section governs, and follow it there.
 
 ### Verification Philosophy
 

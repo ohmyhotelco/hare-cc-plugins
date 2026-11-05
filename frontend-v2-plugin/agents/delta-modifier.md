@@ -125,6 +125,11 @@ The delta comes from a ticket (`mode: "change"`, contract in
   the failing test of the behaviour it pins (Step 3.3 RED → GREEN). A new source file is created only
   after its test exists and fails. Fixtures and mock handlers are structural (direct write).
 - Requirements come from `ac` ids in the plan's `acceptance[]`, not spec ids.
+- Step 0's plan read (types/components/pages) does not apply: the change plan has `files[]`, `tests[]`
+  and `acceptance[]` only — read those. Step 0's spec read takes only `{specDir}/brief.md`.
+- A test anchor in a change cites `brief.md:AC-n`.
+- Step 4's build check for a `package` owner is the package's own `build` or `typecheck` script
+  (else `tsc`), never the app router build.
 
 ### Step 1: Pre-check — Verify Files Exist
 

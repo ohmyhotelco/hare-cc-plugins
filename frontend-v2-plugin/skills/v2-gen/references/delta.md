@@ -90,8 +90,11 @@ Part A / Part B split, and no `tdd-cycle-runner`. Per group pass:
 - a `package` owner: `appDir` = the package dir, `sourceBaseDir` = `{package}/src`, `srcPath: src`,
   the package's own `nodeBin` (its `.nvmrc`, else PATH), and `baseDir: .`;
 - `changeMode: true`, `owner: {app or package}`.
-Record each group's result under the phase in `generation-state.json` (`groups.{owner}`); the phase
-completes when every group completes. Package groups run before app groups within a phase, so apps
+State: when 2-D.2 initializes a `partial` phase, give it `groups: { "{owner}": { "status": "pending" } }`
+for every owner in that phase; on resume, skip groups already `completed`, exactly as completed phases
+are skipped. A group whose agent reports `completed` is recorded as such; `partial` or `failed` marks
+the group and the phase `failed` and goes to **Step 2-D.F**. The phase completes when every group
+completes. Where 2-D.6 (**Update Progress (Delta)**) and 2-D.F (**Failure Path**) write `specChanges`, a change delta writes `ticketItems`. Package groups run before app groups within a phase, so apps
 build against the changed package.
 
 For each phase in order (`foundation`, `api-tdd`, `store-tdd`, `component-tdd`, `page-tdd`, `integration`):

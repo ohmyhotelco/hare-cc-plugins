@@ -135,15 +135,16 @@ else
   fi
 fi
 
-# Scan progress files for implementation issues
-SPECS_DIR="$CWD/docs/specs"
+# Scan run records for implementation issues ({runsDir}/{feature}/progress.json)
+RUNS_REL=$(jq -r '.runsDir // "docs/plugin-runs"' "$CONFIG_FILE" 2>/dev/null || echo "docs/plugin-runs")
+SPECS_DIR="$CWD/${RUNS_REL%/}"
 if [ -d "$SPECS_DIR" ]; then
-  for PROGRESS_FILE in "$SPECS_DIR"/*/.progress/*.json; do
+  for PROGRESS_FILE in "$SPECS_DIR"/*/progress.json; do
     [ -f "$PROGRESS_FILE" ] || continue
-    FEATURE=$(basename "$PROGRESS_FILE" .json)
+    FEATURE=$(basename "$(dirname "$PROGRESS_FILE")")
     IMPL_STATUS=$(jq -r '.implementation.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
     # Check for pending delta-plan.json
-    DELTA_PLAN="$SPECS_DIR/$FEATURE/.implementation/frontend/delta-plan.json"
+    DELTA_PLAN="$SPECS_DIR/$FEATURE/delta-plan.json"
     if [ -f "$DELTA_PLAN" ]; then
       echo "  Info: [$FEATURE] Delta plan pending. Run /frontend-v2-plugin:v2-gen $FEATURE to apply incremental changes."
     fi
@@ -152,7 +153,12 @@ if [ -d "$SPECS_DIR" ]; then
     GENERATED_AT=$(jq -r '.implementation.generatedAt // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
     if [ -n "$GENERATED_AT" ] && [ "$IMPL_STATUS" != "planned" ] && [ "$IMPL_STATUS" != "gen-failed" ]; then
       WORKING_LANG=$(jq -r '.workingLanguage // "en"' "$PROGRESS_FILE" 2>/dev/null || echo "en")
-      SPEC_DIR="$SPECS_DIR/$FEATURE/$WORKING_LANG"
+      # {specRoot}: a planning-plugin spec in docs/specs/{feature}, else the run's own spec/ folder
+      if [ -d "$CWD/docs/specs/$FEATURE/$WORKING_LANG" ]; then
+        SPEC_DIR="$CWD/docs/specs/$FEATURE/$WORKING_LANG"
+      else
+        SPEC_DIR="$SPECS_DIR/$FEATURE/spec/$WORKING_LANG"
+      fi
       if [ -d "$SPEC_DIR" ]; then
         # Convert generatedAt ISO timestamp to epoch for comparison (cross-platform)
         if date -j -f "%Y-%m-%dT%H:%M:%S" "${GENERATED_AT%%.*}" "+%s" >/dev/null 2>&1; then
@@ -218,9 +224,9 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Code review failed. Run /frontend-v2-plugin:v2-fix $FEATURE first, then /frontend-v2-plugin:v2-review $FEATURE."
         ;;
       fixing)
-        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
-        E2E_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/e2e-report.json"
-        REVIEW_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/review-report.json"
+        FIX_REPORT="$SPECS_DIR/$FEATURE/fix-report.json"
+        E2E_REPORT="$SPECS_DIR/$FEATURE/e2e-report.json"
+        REVIEW_REPORT="$SPECS_DIR/$FEATURE/review-report.json"
         if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
           echo "  Warning: [$FEATURE] Regen required. Run /frontend-v2-plugin:v2-gen $FEATURE first, then /frontend-v2-plugin:v2-review $FEATURE."
         elif [ -f "$E2E_REPORT" ] && [ -f "$REVIEW_REPORT" ] && [ "$E2E_REPORT" -nt "$REVIEW_REPORT" ]; then
@@ -233,8 +239,8 @@ if [ -d "$SPECS_DIR" ]; then
         echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-v2-plugin:v2-verify $FEATURE) or re-reviewing (/frontend-v2-plugin:v2-review $FEATURE)."
         ;;
       escalated)
-        FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
-        DEBUG_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/debug-report.json"
+        FIX_REPORT="$SPECS_DIR/$FEATURE/fix-report.json"
+        DEBUG_REPORT="$SPECS_DIR/$FEATURE/debug-report.json"
         if [ -f "$FIX_REPORT" ] && [ -f "$DEBUG_REPORT" ]; then
           if [ "$FIX_REPORT" -nt "$DEBUG_REPORT" ]; then
             echo "  Warning: [$FEATURE] Fix escalated — manual intervention required. See fix-report.json."

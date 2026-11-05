@@ -17,7 +17,8 @@
 #       Every watch path must exist (file or directory). Writes the per-file manifest to <recordFile>
 #       (e.g. {runsDir}/{feature}/gate-tree/verify.tsv) and prints the aggregate hash.
 #   gate-record.sh check <recordFile> [--shared <path>]...
-#       Recomputes the manifest over the paths the record holds and prints one of:
+#       Recomputes the manifest over the paths the record holds (shared paths: those stored in the
+#       record plus any given) and prints one of:
 #         fresh
 #         stale <file>...           a recorded non-shared file changed, appeared or disappeared
 #         shared-stale <file>...    only --shared files changed
@@ -70,6 +71,7 @@ case "$cmd" in
     [ "$rc" -eq 0 ] || { [ "$rc" -eq 2 ] && { echo "unverifiable"; exit 2; }; die "gate-tree-hash failed ($rc)"; }
     {
       printf '# watch\t%s\n' "${paths[@]}"
+      for s in ${shared[@]+"${shared[@]}"}; do printf '# shared\t%s\n' "$s"; done
       cat "$tmp"
     } > "$rec"
     "$hash_sh" --exclude "$rec" -- "${paths[@]}"
@@ -79,10 +81,11 @@ case "$cmd" in
     watch=()
     while IFS=$'\t' read -r tag p; do
       [ "$tag" = "# watch" ] && watch+=("$p")
+      [ "$tag" = "# shared" ] && shared+=("$p")
     done < "$rec"
     [ "${#watch[@]}" -gt 0 ] || die "record has no watch paths: $rec"
     old="$(mktemp)"; new="$(mktemp)"; trap 'rm -f "$old" "$new"' EXIT
-    grep -v '^# watch' "$rec" | sort -k2 > "$old"
+    grep -v '^# ' "$rec" | sort -k2 > "$old"
     existing=()
     for p in "${watch[@]}"; do [ -e "$p" ] && existing+=("$p"); done
     if [ "${#existing[@]}" -gt 0 ]; then

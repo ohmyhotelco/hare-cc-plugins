@@ -14,7 +14,7 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### Step 0: Read Configuration
 
-**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
 1. Read `.claude/frontend-v2-plugin.json`
 2. If the file does not exist:
@@ -22,6 +22,8 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
    - Stop here.
 
 ### If a feature name is provided:
+
+**Change plan** (`changeKind: "change"`): show the ticket's apps and packages, per-owner verification (`verification.owners`), per-app e2e (`e2e.apps`), and `ticketItems` where a spec plan shows spec changes.
 
 **Freshness.** For each of `implementation.verification` and `implementation.e2e` that has a `treeFile`, run `gate-record.sh check` per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` and show the pass as `fresh`, **stale** (with the files) or **shared-stale** (with the files). `tree: "unverifiable"` → show it with `treeMissing`. No `treeFile` → "not recorded". Never print a stale pass as a plain pass.
 
