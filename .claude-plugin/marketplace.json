@@ -2,7 +2,7 @@
   "name": "ohmyhotelco",
   "description": "Claude Code plugin marketplace for the OhMyHotel engineering org: planning, frontend React, Angular-to-React-Router-v7 migration, marketing homepage, and Spring Boot backend plugins.",
   "owner": {
-    "name": "Justin Choi"
+    "name": "Ohmyhotel & Co"
   },
   "plugins": [
     {
