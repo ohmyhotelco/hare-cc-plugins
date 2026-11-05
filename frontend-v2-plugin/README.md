@@ -4,8 +4,7 @@ A Claude Code plugin for maintaining an **existing** React Router (framework mod
 apps, shared workspace packages, and work that mostly arrives as small changes to code that is already
 there. Skills are prefixed `v2-`.
 
-> Status: draft (0.1.0). The skeleton, the monorepo rules and the review tools below are in place. Work
-> still open before the first release is listed under [Not yet](#not-yet).
+> Status: draft (0.1.0). Not yet run end to end on a real ticket.
 
 ## Where it comes from
 
@@ -51,6 +50,26 @@ packages, and shows the file each value came from. You confirm once. The result 
 Every command takes `--app <app>`; without it the app comes from the feature's plan (a change plan lists every app it touches), then `defaultApp`.
 Build and test commands run on the Node version the app's own `.nvmrc` pins (`scripts/node-env.sh`).
 
+## Work from a ticket
+
+Most work is a small change to code that already exists, so that is the main path:
+
+```
+/frontend-v2-plugin:v2-plan ABC-123                 # a ticket key → change mode
+/frontend-v2-plugin:v2-gen ABC-123                  # applies the change app by app, tests first
+/frontend-v2-plugin:v2-verify ABC-123               # each app and package in the plan
+/frontend-v2-plugin:v2-review ABC-123               # acceptance items + what the change introduced
+/frontend-v2-plugin:v2-progress ABC-123 --pr-body   # PR body from the product repo's format
+```
+
+- `v2-plan` reads the ticket through an issue-tracker tool when the session has one, otherwise asks
+  for the text, and writes a short brief in its own words. One plan may touch several apps and shared
+  packages; every file in it names its owner.
+- Records go to `docs/plugin-runs/{ticket}/` (config `runsDir`) and are meant to be committed: brief,
+  plan, progress, reports, and the gate records that show when a pass has gone stale.
+- A new route with a new page is a new screen: `v2-plan {name} --new-screen` runs the inherited
+  spec-driven pipeline, using each app's `layout` from the config.
+
 ## Gates are reliable through slash commands
 
 Skills can be reached from a plain request, but routing is not guaranteed: in this repo's routing
@@ -91,10 +110,5 @@ reviews (attribution, base handling, verbatim reports). See `evals/README.md`.
 
 ## Not yet
 
-- Start from a ticket key and make a small change to existing code the main path, with a plan that
-  may span several apps and shared packages (today the pipeline still assumes one new feature in one
-  app).
-- Per-app file layout read from config, since apps in one repo can name files differently.
-- Pipeline records kept per ticket in a committed folder, and gate fingerprints that watch the files
-  actually written plus the shared packages they use.
-- A PR body drafted from the product repo's own format.
+- A real end-to-end run on tickets (one change across two apps, one new screen).
+- Routing evals for the new entry points (`v2-plan` with a ticket key, `--pr-body`).

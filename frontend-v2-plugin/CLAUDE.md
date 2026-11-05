@@ -27,9 +27,12 @@ overrides them.
   product belong in that product's repo (`docs/rules/`, its committed config). Run the root
   `scripts/check-public-repo.sh` and the wider scan in the root `CLAUDE.md` before every PR, and read
   every hit.
-- Planned, not built: ticket-key entry and a small-change main path, plans spanning several apps and
-  packages, per-app layout keys, a committed per-ticket records folder, gate fingerprints over files
-  actually written, a PR body from the product repo's format.
+- Change mode (ticket → change to existing code): `templates/change-plan.md` is the contract;
+  `skills/v2-plan/references/change.md` drives it; v2-gen runs it through the delta path per owner.
+- Run records: `{runsDir}/{feature}/` (default `docs/plugin-runs`), committed; `{specRoot}` resolves a
+  planning-plugin spec or the run's own `spec/`. Gate records: `templates/gate-record.md`,
+  `scripts/gate-record.sh`.
+- Per-app layout: `apps.{app}.layout` (v2-shared § Monorepo Rules).
 
 ## App Profiles
 
