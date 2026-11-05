@@ -1,17 +1,15 @@
-# Step 0: Existing Monorepo
+# Step 1 item 6: Existing Monorepo
 
 ## Detect
 
 The project is an existing monorepo when the root has a workspace manifest (`pnpm-workspace.yaml`, or
 `workspaces` in `package.json`) **and** at least one workspace app folder holds a
-`react-router.config.ts`. Not detected → skip this step; the single-app flow (Step 1 onward) runs
-unchanged.
+`react-router.config.ts`. Not detected → go to Step 1b; the single-app flow runs unchanged.
 
 Detected → configure **every React Router app in one file**. List the app folders found (the folder
 name is the app key, e.g. `web`, `admin`) and detect the values below **per app** — apps in one repo can
 differ. Values that are the same for every app go at the top level; values that differ go under
-`apps.{app}`. Ask one question: which app is `defaultApp` (used when a command names no `--app` and the
-feature has no plan yet).
+`apps.{app}`. Ask one question: which app is `defaultApp` (used when a command names no `--app`).
 
 **Show each value with the evidence line you read, and let the user confirm or change the whole set
 once.** Never write a value you did not observe; an unobservable value is asked, not guessed. Write no
@@ -33,6 +31,7 @@ product fact into the plugin — everything you detect goes into the project's o
 | `i18nBinding` + `i18nHook` | **ask** — show the translation helper(s) you found and the resource folder layout; `i18nHook` is per app when the apps use different helpers. Never invent a hook name | the helper's import lines, the locale folder listing |
 | `i18n.languages` | the locale folder names, lower-cased | directory listing |
 | `eslintTemplate` / `prettierTemplate` | `false` when the app already has its own config | `eslint.config.*`, `prettier.config.*` |
+| Node version (per app, not a key) | `{appFolder}/.nvmrc` pins it → build/test run on that version via nvm; absent → the PATH `node`. Report which, and if `.nvmrc` exists but no matching nvm install, say `nvm install <version>` | `{appFolder}/.nvmrc`, `scripts/node-env.sh {appFolder}` exit code |
 | `rulesDir` | `docs/rules` (show whether it exists; absent is fine) | directory listing |
 | `excludePaths` | see below | see below |
 
@@ -51,7 +50,16 @@ cleanup** (v2-shared § Monorepo Rules).
 
 ## Write
 
-After confirmation, skip Steps 1b–2l (this step answered them) and go to Step 3. Shape (invented values):
+After confirmation, skip Steps 1b–2l (this step answered them). The SKILL.md Step 3 template and its
+item 2 (`appDir` derived from a single `baseDir`) describe the single-app shape — **do not use them
+here.** Instead:
+
+1. **Structural-change guard (reconfiguration only).** Run Step 1 item 4 against the values detected
+   here: compare each app's merged `baseDir`/`appDir` and the structural knobs with the old config's,
+   and apply the same warning and second confirmation.
+2. Step 3 item 1 (ensure `.claude/` exists), then write `.claude/frontend-v2-plugin.json` in exactly
+   this shape — every confirmed key, including `apps`, `defaultApp`, `excludePaths` and `rulesDir`
+   (invented values):
 
 ```json
 {
@@ -70,6 +78,12 @@ After confirmation, skip Steps 1b–2l (this step answered them) and go to Step 
   }
 }
 ```
+
+3. Steps 4 and 4a once for the repo. Step 4b (app shell check) and the Playwright part of Step 4c **once
+   per app**, each with that app's merged `baseDir`/`appDir`.
+4. Step 5: print the shared keys once, then one block per app (`{app}: baseDir, appDir, devPort`),
+   then `Default app`, `Excluded paths` (count + list) and `Rules dir` (and whether it exists).
+
 
 There is no top-level `baseDir`/`appDir` in this shape — every skill resolves the app first and reads
 them from `apps.{app}` (v2-shared § Monorepo Rules). A per-app object merges into the top-level object of

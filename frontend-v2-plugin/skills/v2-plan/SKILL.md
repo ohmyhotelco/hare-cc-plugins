@@ -1,7 +1,7 @@
 ---
 name: v2-plan
 description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
-argument-hint: "<feature-name> [--standalone]"
+argument-hint: "<feature-name> [--standalone] [--app <app>]"
 user-invocable: true
 allowed-tools: Read, Write, Glob, Grep, Bash, Agent
 ---
@@ -18,7 +18,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
-**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
 
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
@@ -78,7 +78,6 @@ user declining at Step 4-I or Step 4.
      - If user chooses 1: `mode = "standalone"`, skip to Step 1-S
      - If user chooses 2: stop here.
    - If found: `mode = "spec"`, proceed to Step 1
-
 
 ### Step 1: Validate Spec
 
@@ -157,7 +156,6 @@ Check if incremental mode is applicable:
    - If `implementation.status` is `planned`, `gen-failed`, or absent:
      - No generated code to preserve → `planMode = "full"`, proceed to Step 3
 3. If not `existingPlanExists`: `planMode = "full"`, proceed to Step 3
-
 
 ### Step 3-I: Launch Planner Agent (Incremental Mode)
 

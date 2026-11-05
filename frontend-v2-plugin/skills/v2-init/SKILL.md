@@ -25,10 +25,6 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ## Instructions
 
-### Step 0: Existing Monorepo
-
-Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/monorepo.md` and follow it.
-
 ### Step 1: Check Existing Configuration
 
 1. Check if `.claude/frontend-v2-plugin.json` already exists in the current project directory
@@ -65,6 +61,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/monorepo.md` and follow it
      > modes alike — v2-gen Step 1.9); `v2-e2e` will refuse until then."
      No second confirmation required — the consequence is one guided re-run, not split state.
 5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
+6. **Monorepo check:** read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/monorepo.md` and follow it; not a monorepo → Step 1b
 
 ### Step 1b: Ask for App Profile
 

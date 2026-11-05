@@ -34,6 +34,7 @@ The skill will provide these parameters in the prompt:
 - `clientStore` — `"zustand"` (default) | `"none"`. Under `none` no store file may be created or modified (D17).
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory and the Router-mode command matrix)
+- `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 
 ## Change Classification

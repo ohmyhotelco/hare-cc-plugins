@@ -210,31 +210,30 @@ The target is an existing monorepo with several apps and shared workspace packag
 override anything above that disagrees.
 
 **Excluded paths.** `excludePaths` (config, absent → none) lists paths no skill or agent reads, globs
-into, lints, audits, searches or runs — for example retired apps kept for reference. Never edit, move
-or delete them and never propose a cleanup; that decision belongs to the project's owners. A path you
-were given inside one is reported as `excluded` and skipped.
+into, lints, audits, searches or runs (e.g. a retired app). Never edit, move or delete them and never
+propose a cleanup. A given path inside one is reported as `excluded` and skipped.
 
 **Several apps, one config.** Shared keys sit at the top level; per-app keys (`baseDir`, `appDir`,
-`devPort`, `i18nHook`, and any stack key whose value differs) sit under `apps.{app}`, plus
-`defaultApp`. Resolve the app first — the `--app <app>` argument, else the `app` recorded in the
-feature's `plan.json`, else `defaultApp`, else ask — then overlay `apps[{app}]` on the top-level keys
-(per-app values win) and read every other key from that merged view. A config with no `apps` object is
-a single-app config and is read as it is.
+`devPort`, `i18nHook`, any stack key that differs) sit under `apps.{app}`, plus `defaultApp`. Read the
+config first (absent → the skill's own "not initialized" stop), then resolve the app — the `--app
+<app>` argument, else `defaultApp`, else ask — and overlay `apps[{app}]` on the top-level keys (per-app
+values win, objects merge key by key). Read every other key from that merged view. A feature does not
+yet record its app: pass the same `--app` to every command for that feature. No `apps` object → a
+single-app config, read as it is.
 
-**Node version.** Never assume the `node` on PATH. From the project root,
-`nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` returns the bin directory of the Node
-version `{appDir}/.nvmrc` pins; every build or test command runs as
-`cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`. Skills derive `nodeBin` in Step 0 and pass
-it to agents; an agent that must run `npx` without one derives it the same way. A non-zero exit stops
-the run — never fall back to PATH or to a `.nvmrc` above `{appDir}`.
+**Node version.** When `{appDir}/.nvmrc` exists, from the project root
+`nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` (nvm installs) and every build or test
+command runs as `cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`; a non-zero exit stops the
+run — never fall back to PATH or to a `.nvmrc` above `{appDir}`. No `{appDir}/.nvmrc` → `nodeBin` is
+empty, commands run on the PATH `node`, and the output says so. Skills derive `nodeBin` in Step 0
+after `appDir` is known and pass it to agents; an agent without one derives it the same way.
 
-**Product rules.** Domain knowledge (for example checkout flows, platform integrations, package boundaries,
+**Product rules.** Domain knowledge (e.g. checkout flows, platform integrations, package boundaries,
 user-facing copy, PR body format) lives in the product repo, not in this plugin: `rulesDir` (config,
 default `docs/rules`). Before planning, generating or reviewing code in one of those areas, list
-`{rulesDir}/` and read the files whose names match the area. Absent folder or no matching file →
-proceed on general rules and say so in the output. Cite a rule by file and heading; never copy its
-text into a report.
+`{rulesDir}/` and read the files whose names match. None → proceed on general rules and say so. Cite a
+rule by file and heading; never copy its text into a report.
 
-**Codex.** The Codex audit runs the `codex` binary (`codex exec --sandbox read-only -C <dir> -o
-<out.md> "<prompt>"`); `CODEX_BIN` overrides the path when the shell's `codex` is a wrapper. Absent
-binary → the audit records `skipped` with the reason, never a faked verdict.
+**Codex.** The Codex audit writes its prompt to a temp file and runs
+`"${CODEX_BIN:-codex}" exec --sandbox read-only -C <dir> -o <out.md> - < <prompt file>` (stdin, so no
+shell expansion of the prompt). Absent binary → the audit records `skipped` with the reason.

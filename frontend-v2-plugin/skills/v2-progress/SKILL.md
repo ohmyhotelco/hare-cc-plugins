@@ -1,7 +1,7 @@
 ---
 name: v2-progress
 description: "Show the current implementation status of all features or a specific feature."
-argument-hint: "[feature-name]"
+argument-hint: "[feature-name] [--app <app>]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash
 ---
@@ -14,7 +14,7 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### Step 0: Read Configuration
 
-**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
 
 1. Read `.claude/frontend-v2-plugin.json`
 2. If the file does not exist:

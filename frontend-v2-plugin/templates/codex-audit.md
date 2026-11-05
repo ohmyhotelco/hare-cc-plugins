@@ -17,7 +17,7 @@ Independence is the point: Codex gets the artifacts, never Claude's reasoning.
 non-interactive shell):
 
 ```
-"${CODEX_BIN:-codex}" exec --sandbox read-only -C {projectRoot} -o {tmpOut} "{prompt}"
+"${CODEX_BIN:-codex}" exec --sandbox read-only -C {projectRoot} -o {tmpOut} - < {tmpPrompt}
 ```
 
 Binary absent → verdict `skipped`, `reason: "Codex unavailable"`.
@@ -30,7 +30,7 @@ app. You did NOT write this work. Review the artifact below against the plan, th
 stage rubric. Report findings as { severity, area, detail, evidence, suggestedAction } and an overall
 verdict of pass | concerns | fail. Be specific and cite evidence (file:line or report ref).
 Do not rewrite the code; audit it. Flag any result that looks like a false pass.
-Ignore everything under these excluded paths: {excludePaths}.
+{if excludePaths is non-empty}Ignore everything under these excluded paths: {excludePaths}.
 ```
 
 ## Severity
@@ -46,7 +46,7 @@ Ignore everything under these excluded paths: {excludePaths}.
 | Stage | Inputs to give Codex | What Codex checks |
 | --- | --- | --- |
 | `plan` | `plan.json` + the ticket/spec it was built from (`docs/specs/{feature}/`) | requirement coverage (anything in the ticket the plan dropped without an `openApprovals` entry), rendering-mode choice, component tree, reuse of the workspace UI and data packages' exports instead of re-creating them, E2E scenario coverage of the requirements |
-| `gen` | generated diff + `plan.json` | idiomatic RR v7 / hooks / TanStack Query, anti-patterns, **secret-boundary violations**, dead or incomplete code, components duplicated from the shared UI package, whether the code matches the plan |
+| `gen` | the files listed in `generation-state.json` (read in full; no diff — the auditor runs no git) + `plan.json` | idiomatic RR v7 / hooks / TanStack Query, anti-patterns, **secret-boundary violations**, dead or incomplete code, components duplicated from the shared UI package, whether the code matches the plan |
 | `verify` | generated code + test files + the verify result in the progress file | independent second opinion to `quality-reviewer` / `test-reviewer`: weak or missing assertions, untested branches, behavior mocked over, tests that would stay green if the behavior broke |
 | `e2e` | `e2e-report.json` + `plan.json` `e2eTests[]` + the spec files | **false-pass cross-check** — do the scenarios actually exercise the planned flows? Any scenario weakened or skipped to pass? |
 | `review` | `review-report.json` + the diff | findings the review missed, findings closed without a fix, severity understated |

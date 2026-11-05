@@ -48,7 +48,7 @@ packages, and shows the file each value came from. You confirm once. The result 
   edited or deleted;
 - `rulesDir` — where the product's own rules live (default `docs/rules`).
 
-Every command takes `--app <app>`; without it the app comes from the feature's plan, then `defaultApp`.
+Every command takes `--app <app>`; without it the app is `defaultApp`. A feature does not record its app yet, so pass the same `--app` to each command for that feature.
 Build and test commands run on the Node version the app's own `.nvmrc` pins (`scripts/node-env.sh`).
 
 ## Gates are reliable through slash commands

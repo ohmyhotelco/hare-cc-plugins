@@ -15,9 +15,10 @@ Read-only agent — inspects test quality across 7 dimensions and produces a tex
 
 The skill will provide these parameters in the prompt:
 
-- `targetPath` — test file or directory to audit
+- `targetPath` — test one or more files or directories (space-separated); collect each as Phase 0 says and audit the union to audit
 - `baseDir` — project source base directory (for coverage cross-referencing)
 - `appDir` — directory containing `package.json` and `vite.config.*` (for running vitest)
+- `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `projectRoot` — project root path
 - `changedLines` — **optional**; see § Change Attribution
 - `srcPath` — the source root relative to `appDir`; every `npx …` path argument uses it

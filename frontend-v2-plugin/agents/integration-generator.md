@@ -22,6 +22,7 @@ The coordinator skill provides:
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc`, `npx vitest`, `npx vite build` / `npx react-router build`, `npx eslint` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework switches the route-integration target to `{baseDir}/routes.ts` + the `prerender` array.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — gates the `QueryClientProvider` wiring.

@@ -43,9 +43,9 @@ inline only small artifacts). Never include Claude's reasoning.
 
 ### 4. Run Codex
 ```
-"${CODEX_BIN:-codex}" exec --sandbox read-only -C {projectRoot} -o {tmpOut} "{prompt}"
+"${CODEX_BIN:-codex}" exec --sandbox read-only -C {projectRoot} -o {tmpOut} - < {tmpPrompt}
 ```
-`{tmpOut}` is a temp file outside the repo. Capture the full output and the exit code.
+`{tmpPrompt}` (the prompt, written with the Write tool — never inlined in the command, so `$` and backticks in it are not expanded) and `{tmpOut}` are temp files outside the repo. Capture the full output and the exit code.
 
 ### 5. Parse and record
 Parse into the schema. Failed or unparseable → `verdict: "error"`, raw output in `summary`, one-line

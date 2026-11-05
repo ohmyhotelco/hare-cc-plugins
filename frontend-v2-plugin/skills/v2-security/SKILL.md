@@ -3,7 +3,7 @@ name: v2-security
 description: "Audit frontend code for security vulnerabilities: XSS, auth token storage, API key exposure, and client-side data safety."
 argument-hint: "[file-or-directory-path ...] [--app <app>] [--base <sha|origin/branch>]"
 user-invocable: true
-allowed-tools: Read, Glob, Grep, Bash, Agent
+allowed-tools: Read, Glob, Grep, Bash, Agent, SendMessage
 ---
 
 # Security Audit
@@ -16,7 +16,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Validate Configuration
 
-   **Monorepo (v2-shared § Monorepo Rules).** Resolve the app first and read every key below from the merged view. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then resolve the app (`--app <app>`, else `defaultApp`, else ask), overlay `apps[{app}]`, and read every key below from that merged view. Mention the resolved app in the first line of output.
 
 1. Read `.claude/frontend-v2-plugin.json`
 2. If missing, tell the user to run `/frontend-v2-plugin:v2-init` first and stop
@@ -72,7 +72,8 @@ pre-existing finding read as this change's. Check, on the text alone:
    and every finding under `Pre-existing (reference …)` carries `[pre-existing]` or `[touched]`. Other sections
    that cite `file:line` (coverage gaps, pattern sweeps, checked-not-applicable) are not findings.
 
-Any check fails → send the agent its own report back once (resume it, do not start a new one),
+Any check fails → send the agent its own report back once with SendMessage (no SendMessage tool → launch one new
+agent with the same parameters plus the failed report),
 naming the failed check and quoting the agent's § Attribution format checklist. Check the reply the
 same way. Still failing → display it with this first line, and do not paraphrase its counts as the
 change's: `⚠ Attribution format not followed — counts and status may include pre-existing issues.`

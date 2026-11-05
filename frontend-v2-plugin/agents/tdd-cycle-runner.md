@@ -22,6 +22,7 @@ The coordinator skill provides:
 - `phase` — one of: `"api-tdd"`, `"store-tdd"`, `"component-tdd"`, `"page-tdd"`
 - `projectRoot` — project root path
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, `npx tsc`, `npx react-router` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory)
+- `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 - `specDir` — spec markdown path (for reference during implementation)
 - `uiDslDir` — UI DSL path (for component/page phases)

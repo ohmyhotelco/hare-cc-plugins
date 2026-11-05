@@ -25,6 +25,7 @@ The skill provides these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `baseDir` — base source directory (e.g., `"app/src"`)
 - `appDir` — directory containing `playwright.config.ts` / `package.json` (Playwright commands run from here; default `"."`)
+- `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.
 - `port` — Vite dev server port (e.g., `5173`)
 - `e2eTool` — `"agent-browser"` (default) | `"playwright"` — selects the realization path (see **Tool branch** above)
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` — governs the Playwright `webServer` dev command and SSR/loader mocking

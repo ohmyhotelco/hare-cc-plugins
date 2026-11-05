@@ -15,7 +15,7 @@ Read-only agent — scans frontend code for security vulnerabilities and produce
 
 The skill will provide these parameters in the prompt:
 
-- `targetPath` — file or directory to audit
+- `targetPath` — one or more files or directories (space-separated); collect each as Phase 0 says and audit the union to audit
 - `projectRoot` — project root path
 - `changedLines` — **optional**; see § Change Attribution
 

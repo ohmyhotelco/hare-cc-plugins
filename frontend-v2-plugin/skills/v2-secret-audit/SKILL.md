@@ -15,14 +15,19 @@ Korean unless the user writes in another language.
 ## Instructions
 
 ### Step 0: Scope
-Read `.claude/frontend-v2-plugin.json` if present (for `apps` and `excludePaths`). Resolve:
-- `appDirs` — `--app <app>` → that app's `appDir`; otherwise the `appDir` of every entry in `apps`
-  (this skill scans all apps by default; it does not use `defaultApp`). Single-app config → its `appDir`.
+Read `.claude/frontend-v2-plugin.json` if present (for `apps`, `appDir` and `excludePaths`). Resolve:
+- `appDirs` — for each app in scope, its `appDir` after the overlay in v2-shared § Monorepo Rules
+  (`apps[{app}].appDir`, else the top-level `appDir`, else `"."`). In scope: `--app <app>` → that app
+  only; otherwise every entry in `apps` (this skill does not use `defaultApp`). No `apps` object, or no
+  config at all → one app: the top-level `appDir`, else `"."`. `--app` with no `apps` object → stop and
+  say the config has no apps.
 - `packageDirs` — every workspace package directory the apps depend on (from the workspace manifest,
-  e.g. `pnpm-workspace.yaml`), minus `excludePaths`.
+  e.g. `pnpm-workspace.yaml`).
+- Drop from both lists any path inside `excludePaths`, and name what was dropped.
 - `baselinePath` — `--baseline <file>` if given, else `docs/security/secret-audit-report.json` if it
   exists, else null.
 - `outPath` — `docs/security/secret-audit-report.json`.
+- `workingLanguage` — the language the user writes in (default English).
 
 ### Step 1: Audit
 Launch `secret-auditor` (Agent, `subagent_type: "frontend-v2-plugin:secret-auditor"`) with `projectRoot`, `appDirs`, `packageDirs`, `baselinePath`,

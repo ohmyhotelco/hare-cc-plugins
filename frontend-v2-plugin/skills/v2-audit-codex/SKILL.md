@@ -18,7 +18,7 @@ absent → Korean).
 ## Instructions
 
 ### Step 0: Config
-   **Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and read every key below from the merged view. Mention the resolved app in the first line of output.
+**Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then resolve the app (`--app <app>`, else `defaultApp`, else ask), overlay `apps[{app}]`, and read every key below from that merged view. Mention the resolved app in the first line of output.
 
 Read `.claude/frontend-v2-plugin.json` (absent → tell the user to run `/frontend-v2-plugin:v2-init`;
 stop). Resolve `appDir`, `baseDir`. **Do not pre-check Codex.** Launch the auditor regardless; it
