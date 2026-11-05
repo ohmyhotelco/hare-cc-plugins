@@ -1,6 +1,6 @@
 ---
 name: be-build
-description: "Run build, diagnose failures, and auto-fix. Retries up to 3 times."
+description: "Run build, diagnose failures, and auto-fix. Retries up to 3 times. Use when asked to run the build, or when the build or compilation fails."
 argument-hint: ""
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent

@@ -1,6 +1,6 @@
 ---
 name: be-clean-code
-description: "Audit code for DRY, KISS, YAGNI, naming, and refactoring opportunities."
+description: "Audit code for DRY, KISS, YAGNI, naming, and refactoring opportunities. Use when asked to assess code cleanliness or find what to refactor."
 argument-hint: "[file-or-directory-path]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep

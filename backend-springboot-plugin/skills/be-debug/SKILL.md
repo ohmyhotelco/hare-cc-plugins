@@ -1,6 +1,6 @@
 ---
 name: be-debug
-description: "Systematic debugging with 4-phase methodology: reproduce, hypothesize, test, confirm."
+description: "Systematic debugging with 4-phase methodology: reproduce, hypothesize, test, confirm. Use when asked why something misbehaves: a bug, a runtime error or a failing test."
 argument-hint: "<error-description or feature-name>"
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
