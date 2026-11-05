@@ -607,6 +607,12 @@ def check_workflows(plugin: Path, name: str, agents: dict[str, tuple[Path, str]]
     return out
 
 
+def check_agent_frontmatter(agents: dict[str, tuple[Path, str]]) -> list[Finding]:
+    """An agent on another model ignores the session's effort, so each agent states both."""
+    return [Finding(str(path), 1, "agent-frontmatter", f"declares no `{key}`")
+            for path, text in agents.values() for key in ("model", "effort") if not frontmatter(text).get(key)]
+
+
 def check_skill_layout(plugin: Path, skills: dict[str, tuple[Path, str]]) -> list[Finding]:
     """A long skill loses its tail after compaction, and a reference file is read as plain text.
 
@@ -691,6 +697,7 @@ def run(plugin: Path) -> list[Finding]:
             + check_plugin_paths(plugin_name(plugin), agents, launchers)
             + check_workflows(plugin, plugin_name(plugin), agents, skills)
             + check_skill_layout(plugin, skills)
+            + check_agent_frontmatter(agents)
             + check_version_sync(plugin))
 
 
