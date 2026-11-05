@@ -191,6 +191,8 @@ Identify existing project patterns so that generated code integrates naturally.
 
 ### Phase 2: Produce Implementation Plan
 
+**Per-app layout.** When the resolved app's config carries `layout` (v2-shared § Monorepo Rules, Per-app layout), every `file` you write in this plan follows it — routes under `layout.routes` registered in `layout.routeRegistry`, components and logic under `layout.components` / `layout.lib` with `{area}` filled, tests per `layout.tests`, mock handlers per `layout.mocks`, names per `layout.fileCase` — and the feature-module paths below (`{baseDir}/features/{feature}/…`) are not used. Record `"layout": "app"` in the plan so later agents know.
+
 Synthesize spec and project analysis results to generate the implementation plan.
 
 #### 2.0 Shared Layouts

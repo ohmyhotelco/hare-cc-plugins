@@ -33,6 +33,7 @@ product fact into the plugin — everything you detect goes into the project's o
 | `eslintTemplate` / `prettierTemplate` | `false` when the app already has its own config | `eslint.config.*`, `prettier.config.*` |
 | Node version (per app, not a key) | `{appFolder}/.nvmrc` pins it → build/test run on that version via nvm; absent → the PATH `node`. Report which, and if `.nvmrc` exists but no matching nvm install, say `nvm install <version>` | `{appFolder}/.nvmrc`, `scripts/node-env.sh {appFolder}` exit code |
 | `runsDir` | `docs/plugin-runs` (where each ticket's plan, progress and reports are committed) | — |
+| `layout` (per app) | `routes`, `routeRegistry`, `components`, `lib`, `tests`, `mocks`, `fileCase` as observed in that app (v2-shared § Monorepo Rules, Per-app layout). Detect each app separately: e.g. two apps may name their mock handler files in different patterns | the app's `app/routes.ts`, folder listing, where its `*.test.tsx` sit, its mocks folder |
 | `rulesDir` | `docs/rules` (show whether it exists; absent is fine) | directory listing |
 | `excludePaths` | see below | see below |
 
@@ -74,7 +75,8 @@ here.** Instead:
   "excludePaths": ["apps/old-web"],
   "defaultApp": "web",
   "apps": {
-    "web":   { "baseDir": "apps/web/app",   "appDir": "apps/web",   "devPort": 3000, "apiPackage": { "clientImport": "~/lib/api-client" } },
+    "web":   { "baseDir": "apps/web/app",   "appDir": "apps/web",   "devPort": 3000, "apiPackage": { "clientImport": "~/lib/api-client" },
+               "layout": { "routes": "app/routes", "routeRegistry": "app/routes.ts", "components": "app/components/{area}", "lib": "app/lib/{area}", "tests": "colocated", "mocks": "app/mocks/{area}.handlers.ts", "fileCase": "kebab" } },
     "admin": { "baseDir": "apps/admin/app", "appDir": "apps/admin", "devPort": 3001, "apiPackage": { "clientImport": "./lib/api-client" } }
   }
 }

@@ -34,7 +34,7 @@ a new route with a new page is a **new screen**: plan it with `v2-plan {feature}
    Put tests where that app already puts them and name them the way that app does — look at the files
    next to the target (`foo.test.tsx` beside `foo.tsx`, or a `__tests__/` folder). Mocks follow the
    app's existing mock files: find the handler file that already serves the endpoint and extend it, or
-   copy the naming of its neighbours for a new one. Never assume one app's layout holds in another.
+   copy the naming of its neighbours for a new one. Never assume one app's layout holds in another; when the app has `layout` in the config, use it.
 5. **Phase.** Give each file the phase its role belongs to: `foundation` (types, fixtures, mock
    handlers), `api-tdd` (data hooks, API client), `store-tdd`, `component-tdd`, `page-tdd` (route
    modules and page bodies), `integration` (route registration, locale files).
