@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Multi-dimension code review combining API, JPA, clean code, logging, test quality, architecture, and optional spec compliance checks
 model: opus
+effort: medium
 tools: Read, Glob, Grep, Bash
 skills: [be-spring-shared]
 ---
