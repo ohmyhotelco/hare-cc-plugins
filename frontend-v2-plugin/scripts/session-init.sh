@@ -35,8 +35,14 @@ SERVER_STATE=$(jq -r '.serverState // "zustand-only"' "$CONFIG_FILE" 2>/dev/null
 FORM_STACK=$(jq -r '.formStack // "native"' "$CONFIG_FILE" 2>/dev/null || echo "native")
 E2E_TOOL=$(jq -r '.e2eTool // "agent-browser"' "$CONFIG_FILE" 2>/dev/null || echo "agent-browser")
 MOCK_FIRST=$(jq -r '.mockFirst // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
-BASE_DIR=$(jq -r '.baseDir // "src"' "$CONFIG_FILE" 2>/dev/null || echo "src")
-APP_DIR=$(jq -r '.appDir // "."' "$CONFIG_FILE" 2>/dev/null || echo ".")
+# Several apps in one config: show the default app's paths and list the apps.
+DEFAULT_APP=$(jq -r '.defaultApp // empty' "$CONFIG_FILE" 2>/dev/null || true)
+APPS_LIST=$(jq -r '(.apps // {}) | keys | join(", ")' "$CONFIG_FILE" 2>/dev/null || true)
+BASE_DIR=$(jq -r --arg a "$DEFAULT_APP" '(.apps[$a].baseDir // .baseDir) // "src"' "$CONFIG_FILE" 2>/dev/null || echo "src")
+APP_DIR=$(jq -r --arg a "$DEFAULT_APP" '(.apps[$a].appDir // .appDir) // "."' "$CONFIG_FILE" 2>/dev/null || echo ".")
+if [ -n "$APPS_LIST" ]; then
+  echo "[Frontend V2 Plugin] Apps: $APPS_LIST (default: ${DEFAULT_APP:-none}) — pass --app to pick another."
+fi
 
 # Skill installation checks
 SKILLS=(

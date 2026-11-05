@@ -17,14 +17,17 @@ Set up the Frontend V2 Plugin configuration for this project.
   mode** (per-route SSR/SSG/SPA), TanStack Query, RHF + zod, Playwright E2E, dayjs.
 
 The profile only sets **defaults** for the individual knobs below; every knob stays independently
-overridable. Backward compatibility is a hard rule — an existing admin project reconfigured without
-touching the new questions behaves exactly as before.
+overridable; reconfiguring without touching the new questions changes nothing.
 
 Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 Files under `references/` write the plugin root as `{pluginRoot}`, which is `${CLAUDE_PLUGIN_ROOT}`.
 
 ## Instructions
+
+### Step 0: Existing Monorepo
+
+Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/monorepo.md` and follow it.
 
 ### Step 1: Check Existing Configuration
 

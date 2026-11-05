@@ -52,20 +52,20 @@ export function withWidth<T extends string | null | undefined>(url: T): T {
 TS
 
 cat > app/components/card.tsx <<'TSX'
-import { tl } from "../lib/i18n";
+import { t } from "../lib/i18n";
 
-type Hotel = { name: string; imageUrl: string; reviewRating: number | null };
+type Product = { name: string; imageUrl: string; rating: number | null };
 
-export function Card({ hotel, language }: { hotel: Hotel; language: string }) {
-  const hasScore = typeof hotel.reviewRating === "number" && hotel.reviewRating > 0;
+export function Card({ product, language }: { product: Product; language: string }) {
+  const hasScore = typeof product.rating === "number" && product.rating > 0;
   return (
     <article className="card">
-      <img className="card-image" src={hotel.imageUrl} alt={`${hotel.name} - Image 1`} />
+      <img className="card-image" src={product.imageUrl} alt={`${product.name} - Image 1`} />
       <button type="button" aria-label="Previous image" className="prev" />
       <button type="button" aria-label="Next image" className="next" />
-      <h3>{hotel.name}</h3>
-      {hasScore ? <span className="score">{(hotel.reviewRating as number).toFixed(1)}</span> : null}
-      <span>{tl(language, "card.view")}</span>
+      <h3>{product.name}</h3>
+      {hasScore ? <span className="score">{(product.rating as number).toFixed(1)}</span> : null}
+      <span>{t(language, "card.view")}</span>
     </article>
   );
 }
@@ -75,16 +75,16 @@ cat > app/components/card.test.tsx <<'TSX'
 import { render, screen } from "@testing-library/react";
 import { Card } from "./card";
 
-const hotel = { name: "Sea", imageUrl: "/img/a.jpg", reviewRating: 8.4 };
+const product = { name: "Lamp", imageUrl: "/img/a.jpg", rating: 8.4 };
 
 describe("Card", () => {
   it("shows the name", () => {
-    render(<Card hotel={hotel} language="en" />);
-    expect(screen.getByRole("heading", { name: "Sea" })).toBeInTheDocument();
+    render(<Card product={product} language="en" />);
+    expect(screen.getByRole("heading", { name: "Lamp" })).toBeInTheDocument();
   });
 
   it("shows the score", () => {
-    render(<Card hotel={hotel} language="en" />);
+    render(<Card product={product} language="en" />);
     expect(screen.getByText("8.4")).toBeInTheDocument();
   });
 });
@@ -186,8 +186,8 @@ git tag pr-base
 python3 - <<'PY'
 import pathlib
 c = pathlib.Path("app/components/card.tsx"); s = c.read_text()
-s = s.replace('import { tl } from "../lib/i18n";', 'import { tl } from "../lib/i18n";\nimport { withWidth } from "../lib/with-width";')
-s = s.replace('src={hotel.imageUrl}', 'src={withWidth(hotel.imageUrl)}')
+s = s.replace('import { t } from "../lib/i18n";', 'import { t } from "../lib/i18n";\nimport { withWidth } from "../lib/with-width";')
+s = s.replace('src={product.imageUrl}', 'src={withWidth(product.imageUrl)}')
 c.write_text(s)
 
 g = pathlib.Path("app/components/gallery.tsx"); s = g.read_text()

@@ -8,6 +8,29 @@ preloaded through each agent's `skills:` frontmatter. Do not put agent-facing ru
   `subagent_type: "frontend-v2-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
 - After editing: `claude plugin validate frontend-v2-plugin` and `scripts/check-plugin-consistency.py frontend-v2-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.
 
+## Fork notes
+
+Forked from `frontend-react-plugin` 2.4.3 for an **existing** multi-app React Router monorepo. The
+sections below this one describe the inherited greenfield pipeline and still apply where nothing here
+overrides them.
+
+- Agent-facing monorepo rules are in `skills/v2-shared/SKILL.md` § Monorepo Rules (excluded paths,
+  several apps in one config, per-app Node via `scripts/node-env.sh`, product rules in the product
+  repo's `rulesDir`, Codex). `v2-shared` is close to the 20,000-character limit: new agent rules go to
+  `skills/v2-shared/references/` with a pointer.
+- `v2-init` Step 0 (`skills/v2-init/references/monorepo.md`) detects the apps and writes the per-app
+  config. Examples there use invented names (`apps/web`, `@acme/ui`); keep it that way.
+- Standalone reviews take `--base`; `scripts/changed-lines.sh` is the only place a diff is computed.
+  Agents never run `git`.
+- Added agents: `codex-auditor`, `secret-auditor` (adapted from `frontend-migration-plugin`).
+- **No product facts in this plugin.** Paths, package names, ports, flows and rule text of a real
+  product belong in that product's repo (`docs/rules/`, its committed config). Run the root
+  `scripts/check-public-repo.sh` and the wider scan in the root `CLAUDE.md` before every PR, and read
+  every hit.
+- Planned, not built: ticket-key entry and a small-change main path, plans spanning several apps and
+  packages, per-app layout keys, a committed per-ticket records folder, gate fingerprints over files
+  actually written, a PR body from the product repo's format.
+
 ## App Profiles
 
 The plugin serves two greenfield profiles, selected by `appProfile` in `.claude/frontend-v2-plugin.json`
