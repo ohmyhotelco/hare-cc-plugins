@@ -2,6 +2,7 @@
 name: stitch-wireframe
 description: Stitch wireframe agent that generates visual wireframe designs from UI DSL JSON using Google Stitch MCP, with prompt optimization and design token extraction
 model: opus
+effort: medium
 tools: Read, Write, Glob, Bash, mcp__stitch__create_project, mcp__stitch__generate_screen_from_text, mcp__stitch__list_projects, mcp__stitch__list_screens, mcp__stitch__get_project, mcp__stitch__get_screen
 ---
 

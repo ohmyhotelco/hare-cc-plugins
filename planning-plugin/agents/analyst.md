@@ -2,6 +2,7 @@
 name: analyst
 description: Requirements analyst agent that analyzes project context and conducts structured requirements gathering through 8 categories with completeness scoring
 model: opus
+effort: medium
 tools: Read, Grep, Glob
 ---
 

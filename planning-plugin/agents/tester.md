@@ -2,6 +2,7 @@
 name: tester
 description: Tester agent that reviews functional specifications for testability, edge cases, acceptance criteria clarity, and error handling completeness
 model: sonnet
+effort: medium
 tools: Read, Grep, Glob
 ---
 

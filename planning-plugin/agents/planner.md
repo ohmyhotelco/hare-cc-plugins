@@ -2,6 +2,7 @@
 name: planner
 description: Planner agent that reviews functional specifications for completeness of user flows, business logic, UX consistency, and integration concerns
 model: opus
+effort: medium
 tools: Read, Grep, Glob
 ---
 

@@ -2,6 +2,7 @@
 name: translator
 description: Translator agent that translates functional specifications between supported languages (en, ko, vi) while preserving technical terms and markdown structure
 model: sonnet
+effort: medium
 tools: Read, Write, Edit, Glob
 ---
 

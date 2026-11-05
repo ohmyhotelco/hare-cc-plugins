@@ -6,7 +6,7 @@ A collection of Claude Code plugins that cover the full software delivery lifecy
 
 ## Plugins
 
-### [Planning Plugin](./planning-plugin/) `v1.8.0`
+### [Planning Plugin](./planning-plugin/) `v1.8.1`
 
 Automates functional specification creation through multi-agent collaboration. An analyst gathers requirements, a planner reviews UX/business logic, and a tester evaluates edge cases — iterating through review cycles until the spec converges. Supports multilingual output (en/ko/vi), UI DSL generation, Stitch wireframes, and clickable React prototypes.
 
