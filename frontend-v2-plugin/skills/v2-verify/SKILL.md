@@ -16,6 +16,8 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Read Configuration
 
+**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `mockFirst`, `appDir`, `eslintTemplate`, `prettierTemplate`, `i18n`, and `baseDir` as **`sourceBaseDir`** (the source root, e.g. `app/src`)
 2. If `sourceBaseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). `prettierTemplate` defaults to `true`; `i18n` has no default — absent means the i18n axis reports `skipped`.
 3. If the file does not exist:

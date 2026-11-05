@@ -1,0 +1,37 @@
+schema_version: "1.1"
+name: test-review-convention
+description: >-
+  The two new tests in gallery.test.tsx (42-55) use container.querySelector like the six
+  existing tests. Expect the convention note and a lowered severity, and no role-based img query
+  proposed for the alt="" thumbnails.
+plugins: ["../.."]
+runs: 1
+tags: [attribution]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 25
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Agent, SendMessage, Bash]
+  prompt: "/frontend-v2-plugin:v2-test-review --base pr-base app/components/gallery.test.tsx"
+graders:
+  - name: attribution-line
+    type: regex
+    pattern: 'Attribution:[`* ]*base[`* ]*[0-9a-f]{40}[`* ]*→[`* ]*head[`* ]*[0-9a-f]{40}'
+  - name: convention-noted
+    type: regex
+    pattern: 'follows file convention'
+    flags: i
+  - name: no-querySelector-warning
+    type: regex
+    pattern: 'Warnings \([1-9][^)]*\):(?:(?!Suggestions)[\s\S])*querySelector'
+    match: not_contains
+  - name: no-img-role-query-for-thumbnails
+    type: llm
+    criteria: |
+      The thumbnails in the component under test are <img alt="">, so they have role "presentation" and getByRole/getAllByRole("img") cannot find them.
+      PASS if the report does not propose getByRole("img") or getAllByRole("img") as the way to query the thumbnails, or if it does and explicitly marks that suggestion "(unverified query)".
+      FAIL if it proposes a role "img" query for the thumbnails without that mark.
+  - name: report-shown-verbatim
+    type: regex
+    pattern: 'Test Quality Audit\n=+'

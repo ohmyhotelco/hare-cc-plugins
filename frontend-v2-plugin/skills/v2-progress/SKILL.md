@@ -14,6 +14,8 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### Step 0: Read Configuration
 
+**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+
 1. Read `.claude/frontend-v2-plugin.json`
 2. If the file does not exist:
    > "Frontend V2 Plugin has not been initialized. Please run `/frontend-v2-plugin:v2-init` first."

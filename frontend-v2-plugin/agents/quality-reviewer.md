@@ -26,8 +26,56 @@ The skill will provide these parameters in the prompt:
 ### Standalone Mode
 
 - `mode` — `"standalone"` (explicitly provided)
-- `targetPath` — file or directory to audit
+- `targetPath` — one or more files or directories to audit
 - `projectRoot` — project root path
+- `changedLines` — **optional**; see § Change Attribution
+
+## Change Attribution
+
+Standalone mode only — pipeline mode (`v2-review`) already scopes to the feature's plan files.
+
+Optional parameter `changedLines` — the verbatim output of `scripts/changed-lines.sh`, computed by
+the skill: a header (`base`, `merge-base`, `head`, `dirty`) then one entry per changed range
+(`file:start-end`, `file:line (deletion)`, `file:all (untracked)`), or `changed: none`. Under each
+range come `was:` lines — the base-side text that range replaced, or `was: (nothing - new lines)`
+for a pure addition. You cannot run git, so the `was:` lines are your only view of `base`.
+
+- **Present** → tag every issue `[introduced]` or `[pre-existing]`.
+  - `introduced`: the change created the issue or made it worse — the issue exists only because of a
+    changed line (a new call, a new input reaching an old sink, a changed line that removed a guard
+    an unchanged line relies on — then cite the changed line too). A file marked `all (untracked)`
+    is wholly introduced. Being inside a changed range is evidence, not the test: ask "would this
+    issue be there at `base`?" — and answer it from the range's `was:` lines, never from memory or
+    guesswork. A range marked `was: (nothing - new lines)` did not exist at base, so an issue on it
+    is `introduced`, never `touched`.
+  - `touched`: the cited line is inside a changed range, and its `was:` text shows the issue's
+    mechanism was already there at `base` and the change neither created nor widened it (e.g. a changed line wraps a value that
+    was already interpolated unsafely). List it under **Pre-existing (reference)** tagged
+    `[touched]`, with one clause naming what the change did to the line. Not scored.
+  - `pre-existing`: the cited line is outside every changed range and no changed line caused it.
+    They never count in the scores, the issue counts, or the Status. Reading beyond the changed
+    ranges (and what they call) is optional — the review is about the change. Pre-existing issues
+    you did notice go under **Pre-existing (reference)**; if you read only the changed ranges,
+    write `not reviewed (changed ranges only)` there instead of a list. `[touched]` items sit on
+    changed lines, so they are always listed. (To audit a whole file's debt, run without
+    `--base`.)
+  - **Count the file's convention for every introduced issue** (test-reviewer, quality-reviewer).
+    For each `[introduced]` issue, count the sites of the same pattern on UNCHANGED lines of the
+    same file (Grep the file; drop hits inside a changed range — unchanged lines are the `base`
+    lines) and end the finding with `(unchanged sites: {n})`. Write it on every introduced
+    finding, `0` included: the count is what the skill checks, so a missing count is a format
+    failure, not a judgement call.
+    - `n ≥ 1` → the change is following local convention, not inventing a defect. Keep it
+      `[introduced]`, lower its severity one step (critical → warning, warning → suggestion), and
+      write `(follows file convention: {n} unchanged sites)` instead. The fix is file-wide, so say
+      so in the Fix line rather than asking the change to do it alone.
+    - Does not apply to security findings: a convention of unsafe code is still unsafe.
+  - Print the `base` and `head` SHAs from the header in the report, so the result can be matched
+    to other records.
+- **Absent** → print `Attribution: not-checked (no --base)` and never say an issue was or was not
+  introduced by "this change" / "this PR". Do not work out a base yourself: never run `git diff`,
+  `git log` or `git merge-base`, and never diff against a branch name. (A guessed local `master`
+  once attributed an already-merged commit to the PR under review.)
 
 ## Process
 
@@ -286,6 +334,7 @@ Clean Code Audit
 
 Scope: {targetPath}
 Files scanned: {count}
+Attribution: base {base} → head {head} ({n} changed ranges) | not-checked (no --base)
 Overall Score: {overallScore}/10
 Status: PASS / PASS_WITH_WARNINGS / FAIL
 
@@ -299,23 +348,42 @@ Dimension Scores:
   Architecture & Design:          {score}/10
   Simplicity & Over-engineering:  {score}/10
 
-Issues ({total}):
+Issues ({total} — introduced only, when changedLines was given):
   Critical ({count}):
-    {file}:{line} — {message}
+    {file}:{line} [introduced] — {message} (unchanged sites: {n})
     Fix: {fixHint}
 
   Warnings ({count}):
-    {file}:{line} — {message}
+    {file}:{line} [introduced] — {message} (unchanged sites: {n})
     Fix: {fixHint}
 
   Suggestions ({count}):
-    {file}:{line} — {message}
+    {file}:{line} [introduced] — {message} (unchanged sites: {n})
     Fix: {fixHint}
+
+Pre-existing (reference, not scored — only when changedLines was given; or `not reviewed (changed ranges only)`):
+  {file}:{line} [pre-existing|touched] — {message}
 
 Strengths:
   - {strength 1}
   - {strength 2}
 ```
+
+**Attribution format — check before returning (when `changedLines` was given).** The template
+above is the contract; a report that judges attribution correctly in prose but skips these fields
+is read by a person or script as "every issue is this PR's". Before returning, confirm:
+1. The `Attribution: base {base} → head {head}` line is present, with the two full SHAs copied from
+   the `changedLines` header.
+2. Every line under the severity groups carries `[introduced]`. A finding outside every changed
+   range (`[pre-existing]`), or on a changed line whose mechanism was already there at `base`
+   (`[touched]`), does not go there at all — it goes under `Pre-existing (reference …)`. And the
+   reverse: every `[introduced]` finding sits in a severity group, never in a section of your own
+   ("other changed ranges", "notes") — otherwise it drops out of the counts.
+3. The score, the counts and the Status/Risk Level are computed from the `[introduced]` lines only.
+   With zero introduced issues the counts are 0, even when the pre-existing list is long.
+4. (test-reviewer, quality-reviewer) Every `[introduced]` finding ends with
+   `(unchanged sites: {n})` or `(follows file convention: {n} unchanged sites)`.
+Do not add a free-form "changed lines" section in place of these fields.
 
 If no issues found:
 > "Clean code audit passed. Code is clean and well-structured."

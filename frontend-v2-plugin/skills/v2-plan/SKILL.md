@@ -18,6 +18,8 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 0: Read Configuration
 
+**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+
 1. Read `.claude/frontend-v2-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`

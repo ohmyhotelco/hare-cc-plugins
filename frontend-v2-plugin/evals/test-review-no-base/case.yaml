@@ -1,0 +1,36 @@
+schema_version: "1.1"
+name: test-review-no-base
+description: >-
+  No --base. Local branch master is stale (behind the already-merged c1 that edited
+  card.test.tsx). The reviewer must not pick a base itself: attribution not-checked, no
+  [introduced] tags, and nothing attributed to "this change".
+plugins: ["../.."]
+runs: 1
+tags: [attribution]
+context:
+  scaffold_script: scaffold.sh
+execution:
+  max_turns: 25
+  timeout_seconds: 900
+  allowed_tools: [Read, Glob, Grep, Skill, Agent, SendMessage, Bash]
+  prompt: "/frontend-v2-plugin:v2-test-review app/components/card.test.tsx"
+graders:
+  - name: not-checked
+    type: regex
+    pattern: 'Attribution: not-checked \(no --base\)'
+  - name: no-introduced-tag
+    type: regex
+    pattern: '\[introduced\]'
+    match: not_contains
+  - name: no-change-attribution
+    type: regex
+    pattern: 'introduced (by|in) (this|the) (change|PR|diff|commit)'
+    flags: i
+    match: not_contains
+  - name: no-branch-guess
+    type: regex
+    pattern: '\b(origin/)?master\b'
+    match: not_contains
+  - name: report-shown-verbatim
+    type: regex
+    pattern: 'Test Quality Audit\n=+'

@@ -17,6 +17,41 @@ The skill will provide these parameters in the prompt:
 
 - `targetPath` — file or directory to audit
 - `projectRoot` — project root path
+- `changedLines` — **optional**; see § Change Attribution
+
+## Change Attribution
+
+Optional parameter `changedLines` — the verbatim output of `scripts/changed-lines.sh`, computed by
+the skill: a header (`base`, `merge-base`, `head`, `dirty`) then one entry per changed range
+(`file:start-end`, `file:line (deletion)`, `file:all (untracked)`), or `changed: none`. Under each
+range come `was:` lines — the base-side text that range replaced, or `was: (nothing - new lines)`
+for a pure addition. You cannot run git, so the `was:` lines are your only view of `base`.
+
+- **Present** → tag every issue `[introduced]` or `[pre-existing]`.
+  - `introduced`: the change created the issue or made it worse — the issue exists only because of a
+    changed line (a new call, a new input reaching an old sink, a changed line that removed a guard
+    an unchanged line relies on — then cite the changed line too). A file marked `all (untracked)`
+    is wholly introduced. Being inside a changed range is evidence, not the test: ask "would this
+    issue be there at `base`?" — and answer it from the range's `was:` lines, never from memory or
+    guesswork. A range marked `was: (nothing - new lines)` did not exist at base, so an issue on it
+    is `introduced`, never `touched`.
+  - `touched`: the cited line is inside a changed range, and its `was:` text shows the issue's
+    mechanism was already there at `base` and the change neither created nor widened it (e.g. a changed line wraps a value that
+    was already interpolated unsafely). List it under **Pre-existing (reference)** tagged
+    `[touched]`, with one clause naming what the change did to the line. Not scored.
+  - `pre-existing`: the cited line is outside every changed range and no changed line caused it.
+    They never count in the scores, the issue counts, or the Status. Reading beyond the changed
+    ranges (and what they call) is optional — the review is about the change. Pre-existing issues
+    you did notice go under **Pre-existing (reference)**; if you read only the changed ranges,
+    write `not reviewed (changed ranges only)` there instead of a list. `[touched]` items sit on
+    changed lines, so they are always listed. (To audit a whole file's debt, run without
+    `--base`.)
+  - Print the `base` and `head` SHAs from the header in the report, so the result can be matched
+    to other records.
+- **Absent** → print `Attribution: not-checked (no --base)` and never say an issue was or was not
+  introduced by "this change" / "this PR". Do not work out a base yourself: never run `git diff`,
+  `git log` or `git merge-base`, and never diff against a branch name. (A guessed local `master`
+  once attributed an already-merged commit to the PR under review.)
 
 ## Process
 
@@ -92,21 +127,45 @@ Security Audit Report
 
 Scope: {targetPath}
 Files scanned: {count}
+Attribution: base {base} → head {head} ({n} changed ranges) | not-checked (no --base)
 Risk Level: CRITICAL / HIGH / MEDIUM / LOW
 
 Critical ({count}):
-  {file}:{line} — {description}
+  {file}:{line} [introduced] — {description}
   Impact: {exploitation scenario}
   Suggestion: {fix}
 
 Warnings ({count}):
-  {file}:{line} — {description}
+  {file}:{line} [introduced] — {description}
   Suggestion: {fix}
 
 Suggestions ({count}):
-  {file}:{line} — {description}
+  {file}:{line} [introduced] — {description}
   Suggestion: {fix}
+
+Pattern sweeps (one line per flagged pattern):
+  {pattern} — {n} occurrences in scope: {file}:{line} ({verdict}), {file}:{line} ({verdict}), ...
+
+Checked, not applicable:
+  {rule} — {file}:{line} `{quoted code}` — {why it is safe}
+
+Pre-existing (reference, not scored — only when changedLines was given; or `not reviewed (changed ranges only)`):
+  {file}:{line} [pre-existing|touched] — {description}
 ```
+
+**Attribution format — check before returning (when `changedLines` was given).** The template
+above is the contract; a report that judges attribution correctly in prose but skips these fields
+is read by a person or script as "every issue is this PR's". Before returning, confirm:
+1. The `Attribution: base {base} → head {head}` line is present, with the two full SHAs copied from
+   the `changedLines` header.
+2. Every line under the severity groups carries `[introduced]`. A finding outside every changed
+   range (`[pre-existing]`), or on a changed line whose mechanism was already there at `base`
+   (`[touched]`), does not go there at all — it goes under `Pre-existing (reference …)`. And the
+   reverse: every `[introduced]` finding sits in a severity group, never in a section of your own
+   ("other changed ranges", "notes") — otherwise it drops out of the counts.
+3. The score, the counts and the Status/Risk Level are computed from the `[introduced]` lines only.
+   With zero introduced issues the counts are 0, even when the pre-existing list is long.
+Do not add a free-form "changed lines" section in place of these fields.
 
 Risk Level determination:
 - **CRITICAL**: any critical issues found
@@ -135,3 +194,12 @@ Always flag these patterns — no exceptions:
 3. **Skip test files**: Do not scan `__tests__/`, `*.test.*`, `*.spec.*`, or `mocks/` directories — test code often contains mock credentials by design.
 4. **3-tier severity**: `critical` = exploitable vulnerability, `warning` = risky pattern that may lead to exposure, `suggestion` = hardening opportunity.
 5. **Evidence-based**: Every issue must cite file:line evidence. "probably vulnerable" is prohibited.
+6. **Sweep every pattern you flag**: when a pattern is flagged at one site (e.g. a value
+   interpolated into a CSS `url("…")`), Grep the whole scope for every other site of the same
+   pattern before writing the report, and list each site with its own verdict under
+   **Pattern sweeps**. Finding one site and describing the rest from memory is how a second
+   site gets reported as safe while it carries the same problem.
+7. **"Safe / not applicable" is a claim too**: every such sentence — including narrative and
+   summary prose, not just issue entries — goes under **Checked, not applicable** with the
+   file:line you read and the code quoted. Do not describe how a value is used (e.g. "rendered via
+   `<img src>`") without quoting the line that uses it. No quoted line → do not make the claim.

@@ -18,6 +18,8 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 0: Read Configuration
 
+**Monorepo first (v2-shared § Monorepo Rules).** Resolve the app and overlay `apps[{app}]` before reading any key below; where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output.
+
 1. Read `.claude/frontend-v2-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`, `devPort` (default `5173` when absent)
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`

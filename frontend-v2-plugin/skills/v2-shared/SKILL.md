@@ -203,3 +203,38 @@ Vite projects commonly use composite tsconfig with `references`. Agents must det
 
 > `tsc -b` checks all referenced tsconfig projects (e.g., tsconfig.app.json + tsconfig.node.json).
 > `tsc --noEmit` only checks the root config scope, missing errors in build tool configs.
+
+## Monorepo Rules
+
+The target is an existing monorepo with several apps and shared workspace packages. These rules
+override anything above that disagrees.
+
+**Excluded paths.** `excludePaths` (config, absent → none) lists paths no skill or agent reads, globs
+into, lints, audits, searches or runs — for example retired apps kept for reference. Never edit, move
+or delete them and never propose a cleanup; that decision belongs to the project's owners. A path you
+were given inside one is reported as `excluded` and skipped.
+
+**Several apps, one config.** Shared keys sit at the top level; per-app keys (`baseDir`, `appDir`,
+`devPort`, `i18nHook`, and any stack key whose value differs) sit under `apps.{app}`, plus
+`defaultApp`. Resolve the app first — the `--app <app>` argument, else the `app` recorded in the
+feature's `plan.json`, else `defaultApp`, else ask — then overlay `apps[{app}]` on the top-level keys
+(per-app values win) and read every other key from that merged view. A config with no `apps` object is
+a single-app config and is read as it is.
+
+**Node version.** Never assume the `node` on PATH. From the project root,
+`nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` returns the bin directory of the Node
+version `{appDir}/.nvmrc` pins; every build or test command runs as
+`cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`. Skills derive `nodeBin` in Step 0 and pass
+it to agents; an agent that must run `npx` without one derives it the same way. A non-zero exit stops
+the run — never fall back to PATH or to a `.nvmrc` above `{appDir}`.
+
+**Product rules.** Domain knowledge (payment flow, native-app bridge, shared-package boundaries,
+user-facing copy, PR body format) lives in the product repo, not in this plugin: `rulesDir` (config,
+default `docs/rules`). Before planning, generating or reviewing code in one of those areas, list
+`{rulesDir}/` and read the files whose names match the area. Absent folder or no matching file →
+proceed on general rules and say so in the output. Cite a rule by file and heading; never copy its
+text into a report.
+
+**Codex.** The Codex audit runs the `codex` binary (`codex exec --sandbox read-only -C <dir> -o
+<out.md> "<prompt>"`); `CODEX_BIN` overrides the path when the shell's `codex` is a wrapper. Absent
+binary → the audit records `skipped` with the reason, never a faked verdict.
