@@ -4,7 +4,7 @@ description: Generates type definitions, mock factories, fixtures, and MSW handl
 model: opus
 effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Foundation Generator Agent
@@ -22,7 +22,7 @@ The coordinator skill provides:
 - `uiDslDir` — UI DSL path
 - `prototypeDir` — prototype path
 - `mockFirst` — `true` | `false`
-- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework enables per-route SSR/SSG scaffolding. Passed through from config by `fe-gen`.
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — framework enables per-route SSR/SSG scaffolding. Passed through from config by `v2-gen`.
 - `serverState` — `"zustand-only"` | `"tanstack-query"` (default `zustand-only` when absent) — server-state strategy.
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent) — form approach.
 - `e2eTool` — `"agent-browser"` | `"playwright"` (default `agent-browser` when absent) — E2E runner.
@@ -32,13 +32,13 @@ The coordinator skill provides:
 - `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). Read-only here.
 - `baseDir` — base source directory (e.g., `"app/src"`, framework mode `"app/app"`, fallback `"src"`)
 - `projectRoot` — project root path
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx tsc` / `npx react-router` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory). Framework mode: `react-router.config.ts` and the generated `.react-router/` types dir live here (path-base rule).
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 - `feature` — feature name
 - `prettierTemplate` — `true` | `false` (default `true` when absent) — whether to scaffold a Prettier config where none exists (Step 5e).
-- `mode` — `"full"` (default) | `"playwright-harness-only"`. The harness-only mode **runs Step 5c and nothing else** — no layouts, no types, no mocks, no per-feature work — then reports. It exists for fe-gen's Step 1.9 preflight, which must be able to produce the harness in delta/resume runs without executing a foundation phase outside phase-state tracking.
-- `devPort` — dev-server port for the scaffolded `webServer` command (default `5173`). Step 5c writes it into `playwright.config.ts`; fe-e2e passes the same value to the runner, so the two must come from the same place.
-- `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `fe-verify` then reports as `skipped` rather than as a pass.
+- `mode` — `"full"` (default) | `"playwright-harness-only"`. The harness-only mode **runs Step 5c and nothing else** — no layouts, no types, no mocks, no per-feature work — then reports. It exists for v2-gen's Step 1.9 preflight, which must be able to produce the harness in delta/resume runs without executing a foundation phase outside phase-state tracking.
+- `devPort` — dev-server port for the scaffolded `webServer` command (default `5173`). Step 5c writes it into `playwright.config.ts`; v2-e2e passes the same value to the runner, so the two must come from the same place.
+- `i18n` — **optional**; the config's i18n block (`languages`, `lookupFns`). Present → Step 5d generates the app-wide key-coverage spec. **Absent → do not generate it and do not invent a language set**; report `i18nCoverage.status: "skipped"` with the reason, which `v2-verify` then reports as `skipped` rather than as a pass.
 - `localesDir` — i18n resource directory (from `plan.json`), e.g. `{baseDir}/locales`.
 
 > **Backward compatibility.** All the new keys above default to their pre-OTA values when absent
@@ -88,7 +88,7 @@ For each entry in `sharedLayouts[]`:
 3. Generate layout i18n: `{localesDir}/{lang}/layout.json` for **every language in `i18n.languages`** — **`i18nBinding == custom-hook`**: no `layout.json`; append the layout keys (flat, `i18n.keyPrefix`) to each language's `{resourcesDir}/{resourceFile}` under the app lock with D19 values (spec translation where one exists, otherwise agent-translated and listed in `i18n-review.md`), never a `[LANG]` placeholder (falling back to `ko, en, ja, vi` only when the config has no `i18n` block). Never emit a fixed four — the key-coverage spec asserts every key resolves in **all** configured languages, so a configured language with no generated resource fails a gate no generator can satisfy.
    - `react-i18next` only: `workingLanguage` translation is the primary (fully translated); other languages use placeholder format: `"[{LANG}] {workingLanguage text}"`
    - `custom-hook`: no placeholders — D19 values as stated above
-4. **TypeScript** (see fe-shared § TypeScript Check — Composite Config Detection):
+4. **TypeScript** (see v2-shared § TypeScript Check — Composite Config Detection):
    ```bash
    # If root tsconfig.json contains "references": use tsc -b
    # Otherwise: use tsc --noEmit
@@ -191,15 +191,15 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 > read-modify-write as well, on the same acquire → re-read → edit → release cycle.
 >
 > **App lock.** Steps 5b through 5f below all write **app-wide, once-per-app** files. Take
-> `docs/specs/.app.lock` (fe-shared § Lock file) around each: acquire, **re-glob for the file**,
+> `docs/specs/.app.lock` (v2-shared § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
 > `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
-> permanently unfixable — `fe-verify` fails on it and names `fe-gen`, which would skip the file. The feature lock does not protect these — "first feature"
+> permanently unfixable — `v2-verify` fails on it and names `v2-gen`, which would skip the file. The feature lock does not protect these — "first feature"
 > is decided by a glob, so two features scaffolding concurrently both see absent and both write.
 
 ### Step 5b: App Shell Scaffold (framework mode only, first feature)
 
-Only when `routerMode == framework`. Using the path-base rule (fe-shared § Framework-mode path-base rule),
+Only when `routerMode == framework`. Using the path-base rule (v2-shared § Framework-mode path-base rule),
 glob for the shell files and scaffold any that are **absent** from `${CLAUDE_PLUGIN_ROOT}/templates/framework-app-shell.md` —
 **never overwrite** an existing file:
 
@@ -224,14 +224,14 @@ the generated `.react-router/` types dir live in `{appDir}`.
 
 Only when `e2eTool == playwright`. **Check each harness file independently, under the app lock**:
 glob `{appDir}/playwright.config.ts` and `{appDir}/e2e/fixtures.ts` separately, and scaffold
-whichever is absent. The config file is **not** a sentinel for the whole harness — `fe-e2e` refuses
+whichever is absent. The config file is **not** a sentinel for the whole harness — `v2-e2e` refuses
 unless **both** exist, so a scaffold interrupted after the config (or a project bringing its own
-config) would otherwise loop forever: every `fe-gen` skips "because the config exists" while every
-`fe-e2e` stops with "run fe-gen first". Ported from the migration plugin's foundation harness **minus** legacy dual-run and
+config) would otherwise loop forever: every `v2-gen` skips "because the config exists" while every
+`v2-e2e` stops with "run v2-gen first". Ported from the migration plugin's foundation harness **minus** legacy dual-run and
 parity. See `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`.
 
 - `{appDir}/playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'` (**not** `on-first-retry` — no retries are configured, so that mode records nothing on an ordinary failure), and a `webServer` that
-  runs the **mode-aware dev command from the fe-shared Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
+  runs the **mode-aware dev command from the v2-shared Router-mode command matrix** on `--port {devPort}` (the `devPort` input, default `5173`) with
   `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` (framework → `npx react-router dev --port {devPort}`;
   library modes → `npx vite --port {devPort}`).
 - `{appDir}/e2e/fixtures.ts` — auth/state-setup helpers + page-object base (`storageState` reuse per role).
@@ -245,8 +245,8 @@ parallel workers must not share mutated state.
 
 Only when the config carries an `i18n` block (`languages`, `lookupFns`). The locale resources are the
 plan's `localesDir`, as everywhere else in this agent — **`i18nBinding == custom-hook`**: one flat file per language at `{i18nHook.resourcesDir}/{resourceFile}` (`{LANG}` uppercased / `{lang}` as configured); pass that pattern into the spec so it reads those files instead of `{localesDir}/{lang}/*.json`. Absent block → skip
-this step entirely; `fe-verify` then reports the axis as `skipped`, which is honest. Glob
-`{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `fe-verify` fails on the stale spec and names `fe-gen` as the remedy, and `fe-gen` then skips the file, so the gate can never go green again.
+this step entirely; `v2-verify` then reports the axis as `skipped`, which is honest. Glob
+`{baseDir}/__tests__/i18n-key-coverage.test.ts`. **Present → compare its recorded `CONFIG_FINGERPRINT` against the current `i18n` block: identical → skip; different → regenerate it.** Skipping unconditionally on presence is what makes a fingerprint mismatch unfixable — `v2-verify` fails on the stale spec and names `v2-gen` as the remedy, and `v2-gen` then skips the file, so the gate can never go green again.
 
 Generate that spec per `${CLAUDE_PLUGIN_ROOT}/templates/i18n-key-coverage.md`. It lives at the **source root**
 (`{baseDir}/__tests__/i18n-key-coverage.test.ts` — this agent's `baseDir` is the source root), never
@@ -256,7 +256,7 @@ inside a feature directory.
 `i18n.languages` and `lookupFns` it was generated for) and assert at runtime that the fingerprint
 still matches the resources it walks. Without it, "skip if present" means a spec generated before a
 language was added keeps passing while never testing that language — a check that verifies nothing
-and reports success. `fe-verify` compares the same fingerprint against the live config. It is an **app-wide invariant**, not a
+and reports success. `v2-verify` compares the same fingerprint against the live config. It is an **app-wide invariant**, not a
 per-feature test: it walks every `i18n.lookupFns` call site under `{baseDir}` and asserts each
 literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that
 markup- or entity-bearing values are not on the plain-text render path. Dynamic keys are tallied as
@@ -289,8 +289,8 @@ primitives from this path instead of `@/components/ui/form`. Under `componentLib
 
 ### Step 6: Verify
 
-**TypeScript** (see fe-shared § TypeScript Check — Composite Config Detection). Framework mode is
-typecheck-prefixed per the fe-shared Router-mode command matrix:
+**TypeScript** (see v2-shared § TypeScript Check — Composite Config Detection). Framework mode is
+typecheck-prefixed per the v2-shared Router-mode command matrix:
 ```bash
 # framework mode ONLY — generate RR route types first (into .react-router/):
 npx react-router typegen 2>&1
@@ -418,4 +418,4 @@ run produces (Step 6 never runs), and fabricating them would be a false claim:
 - **No prototype copying**: do not copy prototype code as-is. Only reference structural hints.
 - **Complete types**: every field from the spec must be in the TypeScript interface.
 - **Complete mock responses**: MSW handlers must return ALL fields defined in the interface. No partial responses.
-- **Evidence before claims**: run TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection) and verify zero errors. No "should compile".
+- **Evidence before claims**: run TypeScript check (see v2-shared § TypeScript Check — Composite Config Detection) and verify zero errors. No "should compile".

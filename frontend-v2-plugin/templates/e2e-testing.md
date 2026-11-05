@@ -12,7 +12,7 @@ This plugin uses MSW v2 for network-level mocking. In E2E mode, the **browser-si
 
 ### How It Works
 
-1. The `fe-e2e` skill starts the Vite dev server with `VITE_ENABLE_MOCKS=true`
+1. The `v2-e2e` skill starts the Vite dev server with `VITE_ENABLE_MOCKS=true`
 2. The app's `main.tsx` calls `enableMocking()` → registers the MSW Service Worker
 3. `public/mockServiceWorker.js` intercepts all matching HTTP requests in the browser
 4. Feature-level MSW handlers (`{baseDir}/features/{feature}/mocks/handlers.ts`) provide API responses
@@ -53,7 +53,7 @@ Visual inspection alone is insufficient. The agent must verify programmatically:
 
 ### Starting the Dev Server
 
-> Run from `{appDir}` — see fe-shared § Build Command Working Directory.
+> Run from `{appDir}` — see v2-shared § Build Command Working Directory.
 
 ```bash
 cd {appDir} && VITE_ENABLE_MOCKS=true npx vite --port 5173 &

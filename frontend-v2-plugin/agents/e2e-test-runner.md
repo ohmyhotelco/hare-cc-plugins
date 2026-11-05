@@ -4,7 +4,7 @@ description: Executes E2E test scenarios via the configured e2eTool (agent-brows
 model: opus
 effort: medium
 tools: Read, Write, Glob, Grep, Bash
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # E2E Test Runner Agent
@@ -288,7 +288,7 @@ npx playwright test e2e/{feature} 2>&1
 Prefix with `cd {appDir} &&` unless `appDir` is `"."`. If the run reports missing browser binaries, do **not** fail opaquely — report that `npx playwright install` must be run once (per D7/R6, never run it automatically).
 
 ### P3: Report (trace-first)
-`trace: 'retain-on-first-failure'` retains a trace for a scenario that fails on its first run (**not** `on-first-retry` — nothing configures retries, so that mode would record no trace at all; `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`). For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `fe-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
+`trace: 'retain-on-first-failure'` retains a trace for a scenario that fails on its first run (**not** `on-first-retry` — nothing configures retries, so that mode would record no trace at all; `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md`). For each failing scenario, cite its **trace path** in the scenario `evidence` — this is the primary input `v2-fix` (e2e-fix) reads, opened with `npx playwright show-trace <trace.zip>` (CLI-built-in, no skill). Emit the same report shape as **Output Format** below (per-scenario pass/fail + evidence); the `completed`/`partial`/`failed` status mapping is unchanged. In each scenario's `evidence`, replace `screenshots`/`snapshotExcerpt` with the retained `trace` path(s) (agent-browser fields do not apply).
 
 ## Output Format
 

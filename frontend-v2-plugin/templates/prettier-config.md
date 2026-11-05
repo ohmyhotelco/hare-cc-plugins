@@ -5,7 +5,7 @@ not explicitly disabled. **Formatting only** — ESLint owns code quality, and
 `eslint-config-prettier` keeps the two from fighting over the same lines.
 
 **Prettier is advisory.** `npx prettier --check .` is reported, never a gate failure: a misplaced
-comma has no bearing on whether the feature works, and a formatting diff blocking `fe-verify` would
+comma has no bearing on whether the feature works, and a formatting diff blocking `v2-verify` would
 train people to skip the gate. ESLint stays hard.
 
 ## Required Dependencies
@@ -37,7 +37,7 @@ export default {
 };
 ```
 
-`tabWidth: 2` matches the 2-space indentation convention in fe-shared; `printWidth: 100` is wide
+`tabWidth: 2` matches the 2-space indentation convention in v2-shared; `printWidth: 100` is wide
 enough that Tailwind class lists and typed React props stay on one line.
 
 ## Ignore File
@@ -78,7 +78,7 @@ conflict for free otherwise.
 
 ## Detection / Scaffold / Skip
 
-Uniform across `foundation-generator`, `integration-generator`, and `fe-verify`:
+Uniform across `foundation-generator`, `integration-generator`, and `v2-verify`:
 
 1. Glob for an existing config (`prettier.config.*` / `.prettierrc*` / a `prettier` key in
    `package.json`). Present → use it as-is, never overwrite.
@@ -87,7 +87,7 @@ Uniform across `foundation-generator`, `integration-generator`, and `fe-verify`:
 3. Absent and `prettierTemplate` is `false` → skip silently.
 4. Dependencies missing → print the `pnpm add -D` command, skip, record `skipped`.
 
-Command, run from `{appDir}` (fe-shared § Build Command Working Directory):
+Command, run from `{appDir}` (v2-shared § Build Command Working Directory):
 
 ```bash
 npx prettier --check . 2>&1

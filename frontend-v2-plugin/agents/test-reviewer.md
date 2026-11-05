@@ -4,7 +4,7 @@ description: Read-only agent that audits React/Vitest test quality across 7 dime
 model: sonnet
 effort: medium
 tools: Read, Glob, Grep, Bash
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Test Reviewer Agent
@@ -23,7 +23,7 @@ The skill will provide these parameters in the prompt:
 - `apiPackageDir` — **optional**; the workspace API package directory (`apiPackage.dir`, repo-relative) under `apiLayer == workspace-package`. When present and `targetPath` is the default scope, its test files are collected too (Phase 0) and its `src/**` modules join the coverage cross-reference (1.5); any `vitest` run for them is `cd {projectRoot}/{apiPackageDir} && npx vitest run …` with the package's own config, never from `appDir`.
 - `specDir` — **optional**; the feature's working-language spec directory
   (`docs/specs/{feature}/{lang}`). Supplied on pipeline runs, absent on standalone
-  `fe-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
+  `v2-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
   the cited line says what the test assumes; when absent, anchors are checked for form only.
 
 ## Process
@@ -48,7 +48,7 @@ Before scoring, check the collection:
   target, stop. Do not score.
 
 Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
-there is the silent-pass failure this plugin's verification philosophy exists to prevent (fe-shared
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (v2-shared
 § Verification Philosophy: a statement about the state of the evidence is itself a claim).
 `unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 
@@ -113,7 +113,7 @@ Each issue must include:
   - **Follow the anchor when `specDir` is provided**: read the cited line and confirm it says what
     the test assumes. A test whose cited line says something different → severity: **critical** —
     this is the misreading the anchor exists to surface, and no other dimension can see it.
-  - When `specDir` is absent (standalone `fe-test-review` runs) anchors are checked for **form**
+  - When `specDir` is absent (standalone `v2-test-review` runs) anchors are checked for **form**
     only. Report the resolution as `not-checked` with that reason — never as verified.
 
 #### 1.5 Coverage Analysis (weight: 15%)
@@ -137,7 +137,7 @@ Cross-reference source files under `{baseDir}` against test files:
 This dimension requires running `npx vitest` to measure actual execution times. Only execute when the test infrastructure is available.
 
 1. Check vitest: `cd {projectRoot}/{appDir} && npx vitest --version 2>&1` (5-second timeout)
-2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath relative to appDir} 2>&1` (5-minute timeout, 300000ms). `targetPath` is repo-relative; strip the leading `{appDir}/` before passing it, or the command resolves `app/app/src/...` and finds nothing (fe-shared § Build Command Working Directory).
+2. If available, run: `cd {projectRoot}/{appDir} && npx vitest run --reporter=verbose {targetPath relative to appDir} 2>&1` (5-minute timeout, 300000ms). `targetPath` is repo-relative; strip the leading `{appDir}/` before passing it, or the command resolves `app/app/src/...` and finds nothing (v2-shared § Build Command Working Directory).
 3. Parse test timing from output and flag:
    - Component tests (`*.test.tsx` in `components/`) taking > 200ms each → severity: suggestion
    - Unit tests (`*.test.ts` in `api/`, `stores/`) taking > 50ms each → severity: suggestion

@@ -1,5 +1,5 @@
 ---
 type: tool_used
 tool: Skill
-input_match: '"skill"\s*:\s*"(?:[\w-]+:)?fe-gen"'
+input_match: '"skill"\s*:\s*"(?:[\w-]+:)?v2-gen"'
 ---

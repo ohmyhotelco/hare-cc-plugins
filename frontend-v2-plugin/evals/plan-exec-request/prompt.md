@@ -1,5 +1,5 @@
 ---
-description: This request should go through fe-plan.
+description: This request should go through v2-plan.
 max_turns: 3
 allowed_tools: [Read, Glob, Grep, Skill, Bash, Write, Edit]
 tags: [routing, routing-exec]

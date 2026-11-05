@@ -4,7 +4,7 @@ description: Implementation planner agent that analyzes functional specification
 model: opus
 effort: medium
 tools: Read, Write, Glob, Grep
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Implementation Planner Agent
@@ -20,7 +20,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
 - `uiDslDir` — UI DSL path (e.g., `docs/specs/{feature}/ui-dsl/`)
 - `prototypeDir` — prototype path (e.g., `prototypes/{feature}/`)
-- `routerMode` — `"declarative"` | `"data"` | `"framework"` (framework = per-route SSR/SSG/SPA; see the Router-mode command matrix in fe-shared)
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (framework = per-route SSR/SSG/SPA; see the Router-mode command matrix in v2-shared)
 - `appProfile` — `"admin"` (default) | `"ota"` — copied into the plan so downstream agents need not re-read config
 - `serverState` — `"zustand-only"` (default) | `"tanstack-query"`
 - `formStack` — `"native"` (default) | `"rhf-zod"`
@@ -76,7 +76,7 @@ The skill will provide these parameters in the prompt:
    - Generate CRUD-based generic test cases (no TS-nnn references)
    - Derive `e2eTests[]` the same way: one generic flow per screen/entity (list → create → edit →
      delete), `source` citing the FR ids, no TS references. An empty `e2eTests[]` here would make
-     `fe-e2e` demand a `test-scenarios.md` that standalone mode never creates.
+     `v2-e2e` demand a `test-scenarios.md` that standalone mode never creates.
    - Keep the real requirement id in `source` (`"FR-nnn"` — the standalone spec stub does number
      its functional requirements) and set the plan's top-level `"standalone": true` instead.
      Writing the literal `"standalone"` into `source` destroys the old-fingerprint extraction in
@@ -357,10 +357,10 @@ Each TDD phase specifies:
 Non-TDD phases (`tdd: false`) specify only `verify[]`.
 
 **Config-conditional adjustments (OTA Phase 1):**
-- `serverState == tanstack-query`: the `api-tdd` phase covers the axios service **and** `api/queries.ts` (query-key factory + queryOptions + hooks). If a page has no client-only state, the plan emits **no** store for it and the `store-tdd` phase is **skipped** (fe-gen already skips phases with no files — make it explicit: a feature with no `stores[]` entry has no `store-tdd` phase).
+- `serverState == tanstack-query`: the `api-tdd` phase covers the axios service **and** `api/queries.ts` (query-key factory + queryOptions + hooks). If a page has no client-only state, the plan emits **no** store for it and the `store-tdd` phase is **skipped** (v2-gen already skips phases with no files — make it explicit: a feature with no `stores[]` entry has no `store-tdd` phase).
 - `formStack == rhf-zod`: `foundation` additionally emits `schemas/{entity}Schema.ts`; `component-tdd` forms use `zodResolver`.
 - **Phase 2** — `apiLayer == workspace-package`: the `api-tdd` phase carries `cwd: "{apiPackage.dir}"`, its `testFiles[]`/`implFiles[]` are the package paths from §2.2/§2.10, and its `verify[]` runs the **package's** Vitest (`npx vitest run` from `cwd`); a feature whose needs are fully covered by `reuse[]` has an empty `api-tdd` (skipped like `store-tdd`). `clientStore == none`: no `store-tdd` phase ever. `componentLibrary == external`: `foundation` scaffolds `formAdapters` when `rhf-zod`; `component-tdd` includes the `origin: "ui-kit"` gap components **first** in `implFiles[]` (feature components import them). `i18nBinding == custom-hook`: the `integration` phase lists the resource files it merges into (`{resourcesDir}/{resourceFile}` per language) and no `i18n.ts`.
-- `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the fe-shared Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
+- `routerMode == framework`: `page-tdd` targets the extracted page-body component (the route module wrapper is verified by typegen/build/E2E, not unit tests); the `integration` phase `verify` becomes `["typegen", "tsc", "vitest", "build"]` (typegen before tsc) and the build/dev commands follow the v2-shared Router-mode command matrix (`react-router build`, not `vite build`). The example JSON below shows the library-mode default.
 
 ### Phase 3: Incremental Mode (when `incrementalMode` is `true`)
 
@@ -520,12 +520,12 @@ components, **api** — an `api[]` entry is the service object, which has `name`
 `method`+`path` identify records **inside** `api[].methods[]` and match no top-level entry, so a
 patch keyed on them merges into nothing while `planPatched: true` blocks the retry), `file`
 (pages, tests), `id` (e2eTests). Method-level changes ship as a listed `methods` array, which
-replaces wholesale per the array rule. `fe-gen` locates the
+replaces wholesale per the array rule. `v2-gen` locates the
 matching object and overwrites **only the fields the patch lists**; every unlisted field
 (`file`, `fields`, `enums`, `dtos`, …) survives untouched. A listed array field replaces the whole
 array (no element-wise merge). `change` is transient metadata for the executor — it is **not**
 written into the persisted plan object. Wholesale replacement would delete the entry's file path
-and field list, leaving downstream phases unable to locate what they must modify. `fe-gen` applies the patch
+and field list, leaving downstream phases unable to locate what they must modify. `v2-gen` applies the patch
 verbatim, so a patch omitting the new hash leaves the old one in `plan.json`, and the same spec
 change is re-detected as new on every subsequent incremental plan — forever.
 
@@ -668,7 +668,7 @@ When `incrementalMode` is `true`, save to `deltaOutputFile` instead of `outputFi
     }
   },
   "planJsonPatch": {
-    // every modified entry's patch INCLUDES its recalculated sourceHash — fe-gen persists the
+    // every modified entry's patch INCLUDES its recalculated sourceHash — v2-gen persists the
     // patch verbatim, so a modification that keeps the old hash is re-detected as changed on
     // every subsequent incremental plan, generating the same delta forever.
     "additions": {
@@ -1195,7 +1195,7 @@ admin/library-mode default so all appear with default values):
 ```
 
 **`openApprovals[]`** (optional; omit when empty) records deliberate deviations from the spec so a
-reviewer stops re-raising a decision that has already been made — see fe-shared § Deliberate
+reviewer stops re-raising a decision that has already been made — see v2-shared § Deliberate
 Deviations. This agent may write an entry only as **`status: "pending"` with `owner: null`**: a
 proposal, not an approval. Only a human sets `status: "approved"` with a named `owner`, and only an
 approved entry silences a reviewer. Writing `approved` here would let the pipeline authorize its own
@@ -1239,7 +1239,7 @@ Implementation Plan for '{feature}':
     6. Integration    — routes + i18n + MSW setup + barrel
 
   Plan saved to: {outputFile}
-  Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}
+  Review and edit the plan, then run /frontend-v2-plugin:v2-gen {feature}
 ```
 
 ## Key Rules

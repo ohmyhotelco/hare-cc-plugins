@@ -6,4 +6,4 @@ allowed_tools: [Agent, Read, Glob, Grep]
 tags: [quality, recall]
 ---
 
-Start the `frontend-react-plugin:quality-reviewer` agent with the Agent tool and these parameters: mode: standalone, targetPath: src/features/orders, projectRoot: the current directory. Then reply with the agent's full report, unchanged.
+Start the `frontend-v2-plugin:quality-reviewer` agent with the Agent tool and these parameters: mode: standalone, targetPath: src/features/orders, projectRoot: the current directory. Then reply with the agent's full report, unchanged.

@@ -28,7 +28,7 @@ Now the import resolves and the test fails on its assertion — the correct RED 
 
 ### VERIFY RED — Watch It Fail
 
-> Run from `{appDir}` — see fe-shared § Build Command Working Directory.
+> Run from `{appDir}` — see v2-shared § Build Command Working Directory.
 
 ```bash
 npx vitest run {testFile} --reporter=verbose

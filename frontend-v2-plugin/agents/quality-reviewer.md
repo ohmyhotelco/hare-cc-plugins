@@ -4,12 +4,12 @@ description: Code quality reviewer agent that evaluates generated code across 8 
 model: sonnet
 effort: medium
 tools: Read, Glob, Grep
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Quality Reviewer Agent
 
-Read-only agent — inspects code quality across 8 dimensions. Supports two modes: **pipeline** (invoked by fe-review after spec-reviewer passes) and **standalone** (invoked by fe-clean-code for ad-hoc audits).
+Read-only agent — inspects code quality across 8 dimensions. Supports two modes: **pipeline** (invoked by v2-review after spec-reviewer passes) and **standalone** (invoked by v2-clean-code for ad-hoc audits).
 
 ## Input Parameters
 
@@ -37,9 +37,9 @@ The skill will provide these parameters in the prompt:
 
 #### Phase 0-P: Pipeline Mode (default)
 
-1. **Plan** — read `planFile` → extract file list, type definitions, component structure, `routerMode`, and (when present) `serverState`/`formStack` (the plan copies these from config). Also read `.claude/frontend-react-plugin.json` for `appProfile` (not copied into the plan) — needed for the ota date-convention check under dimension 1.6 — and for the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` with their companion objects (`externalComponents`/`apiPackage`/`i18nHook`; the plan copies the knobs, the config is authoritative). When any key is absent, apply its default (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`) — the config-gated checks below then do not fire and behavior is unchanged.
+1. **Plan** — read `planFile` → extract file list, type definitions, component structure, `routerMode`, and (when present) `serverState`/`formStack` (the plan copies these from config). Also read `.claude/frontend-v2-plugin.json` for `appProfile` (not copied into the plan) — needed for the ota date-convention check under dimension 1.6 — and for the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` with their companion objects (`externalComponents`/`apiPackage`/`i18nHook`; the plan copies the knobs, the config is authoritative). When any key is absent, apply its default (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`) — the config-gated checks below then do not fire and behavior is unchanged.
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
-   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). **RSC/SSR rules are router-mode conditional** (fe-shared § Router-mode command matrix, "SSR rules" row): in `declarative`/`data` (Vite SPA) skip them; in `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG) — **apply** the SSR/rendering-strategy rules.
+   - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). **RSC/SSR rules are router-mode conditional** (v2-shared § Router-mode command matrix, "SSR rules" row): in `declarative`/`data` (Vite SPA) skip them; in `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG) — **apply** the SSR/rendering-strategy rules.
    - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition rules when evaluating dimensions 1.1 (Single Responsibility) and 1.7 (Architecture & Design).
    - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
@@ -55,13 +55,13 @@ The skill will provide these parameters in the prompt:
    A `pending` entry, or one whose `owner` is missing, is **not** approval — the plan is written by
    the pipeline, so honoring a self-written `pending` would let the pipeline approve its own
    shortcuts. Report those as normal issues and say an approval is outstanding.
-   See fe-shared § Deliberate Deviations.
+   See v2-shared § Deliberate Deviations.
 
 #### Phase 0-S: Standalone Mode
 
 1. **Skip** plan loading — no `planFile` required
 2. **Skip** external skill loading — no per-feature skill reading
-3. **Config** — read `.claude/frontend-react-plugin.json` to extract `routerMode`, `serverState`, `formStack`, `appProfile`, and the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (+ companion objects) for the config-gated convention checks in dimensions 1.6/1.2. Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`), leaving the gated checks inactive.
+3. **Config** — read `.claude/frontend-v2-plugin.json` to extract `routerMode`, `serverState`, `formStack`, `appProfile`, and the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (+ companion objects) for the config-gated convention checks in dimensions 1.6/1.2. Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`), leaving the gated checks inactive.
 4. **Project patterns** — identify patterns from existing modules:
    - If `targetPath` contains `/features/`: derive project base by removing `/features/...` suffix
    - Otherwise: use `baseDir` from config to derive project base
@@ -81,7 +81,7 @@ so an unconditional `targetPath` check aborts every pipeline review after a pass
   tried and the resolved directory, stop. Do not score.
 
 Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
-there is the silent-pass failure this plugin's verification philosophy exists to prevent (fe-shared
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (v2-shared
 § Verification Philosophy: a statement about the state of the evidence is itself a claim).
 `unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 
@@ -164,7 +164,7 @@ Each issue must include the following fields:
 - **`clientStore == "none"` — no client store (D17)**: any `zustand` import or `stores/` file → issue (severity: warning).
 - **`appProfile == "ota"` — date convention (D12)**: date handling goes through **dayjs** (+ `locale`/`utc`/`timezone` plugins); hand-rolled date math (manual `Date` arithmetic for nights/ranges/hotel-local cutoffs) → issue (severity: warning). Currency stays `Intl.NumberFormat` in both profiles — do NOT flag it. (Admin profile keeps the Intl-only date convention — this check does not run.)
 
-- _Standalone: read `routerMode`, `serverState`, `formStack`, `appProfile` from `.claude/frontend-react-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions plus the config-gated checks above_
+- _Standalone: read `routerMode`, `serverState`, `formStack`, `appProfile` from `.claude/frontend-v2-plugin.json` instead of plan; skip external skill rule loading — check general React Router conventions plus the config-gated checks above_
 
 #### 1.7 Architecture & Design
 

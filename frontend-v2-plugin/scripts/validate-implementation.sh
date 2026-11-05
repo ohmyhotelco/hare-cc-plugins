@@ -59,41 +59,41 @@ fi
 
 if [ "$IS_SPEC" = true ] || [ "$IS_PLAN" = true ]; then
   echo ""
-  echo "[Frontend React Plugin] Warning: Spec or plan file modified while implementation status is '$IMPL_STATUS'."
+  echo "[Frontend V2 Plugin] Warning: Spec or plan file modified while implementation status is '$IMPL_STATUS'."
   echo "  Feature: $FEATURE"
   echo "  File: $FILE_PATH"
   echo "  The generated code may be out of sync with the specification."
 
-  # Name the command this status actually accepts. A single generic "run fe-plan" line sent
+  # Name the command this status actually accepts. A single generic "run v2-plan" line sent
   # fixing/escalated/gen-failed features to a command that refuses or discards their work.
   FIX_REPORT="$CWD/docs/specs/$FEATURE/.implementation/frontend/fix-report.json"
   DELTA_PLAN="$CWD/docs/specs/$FEATURE/.implementation/frontend/delta-plan.json"
 
   if [ -f "$DELTA_PLAN" ]; then
-    echo "  A delta plan is already pending. Run /frontend-react-plugin:fe-gen $FEATURE to apply it,"
-    echo "  or re-run /frontend-react-plugin:fe-plan $FEATURE to fold this edit into the delta first."
+    echo "  A delta plan is already pending. Run /frontend-v2-plugin:v2-gen $FEATURE to apply it,"
+    echo "  or re-run /frontend-v2-plugin:v2-plan $FEATURE to fold this edit into the delta first."
   else
     case "$IMPL_STATUS" in
       fixing)
         if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
           echo "  A fix is in progress and a full regeneration is owed. Run"
-          echo "  /frontend-react-plugin:fe-gen $FEATURE, then /frontend-react-plugin:fe-review $FEATURE."
+          echo "  /frontend-v2-plugin:v2-gen $FEATURE, then /frontend-v2-plugin:v2-review $FEATURE."
         else
-          echo "  A fix is in progress. Finish it through /frontend-react-plugin:fe-review $FEATURE"
-          echo "  before replanning — fe-plan's incremental mode would rebase on top of half-applied fixes."
+          echo "  A fix is in progress. Finish it through /frontend-v2-plugin:v2-review $FEATURE"
+          echo "  before replanning — v2-plan's incremental mode would rebase on top of half-applied fixes."
         fi
         ;;
       escalated)
         echo "  This feature needs manual intervention first (see fix-report.json / debug-report.json),"
-        echo "  then re-enter through /frontend-react-plugin:fe-fix $FEATURE."
+        echo "  then re-enter through /frontend-v2-plugin:v2-fix $FEATURE."
         ;;
       gen-failed)
-        echo "  Generation never completed for this feature. Run /frontend-react-plugin:fe-gen $FEATURE"
-        echo "  (it resumes from the incomplete phase); fe-plan's incremental mode needs a completed"
+        echo "  Generation never completed for this feature. Run /frontend-v2-plugin:v2-gen $FEATURE"
+        echo "  (it resumes from the incomplete phase); v2-plan's incremental mode needs a completed"
         echo "  generation to diff against."
         ;;
       *)
-        echo "  After changes are complete, run /frontend-react-plugin:fe-plan $FEATURE (incremental mode"
+        echo "  After changes are complete, run /frontend-v2-plugin:v2-plan $FEATURE (incremental mode"
         echo "  will auto-detect and preserve existing fixes)."
         ;;
     esac

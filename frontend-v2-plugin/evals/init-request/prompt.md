@@ -1,5 +1,5 @@
 ---
-description: This request should go through fe-init.
+description: This request should go through v2-init.
 max_turns: 5
 allowed_tools: [Read, Glob, Grep, Skill, Bash, Write, Edit]
 tags: [routing, routing-exec]

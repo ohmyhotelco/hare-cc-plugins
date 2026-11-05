@@ -1,4 +1,4 @@
-# Frontend React Plugin
+# Frontend V2 Plugin
 
 > **Ohmyhotel & Co** — Claude Code plugin for frontend React development with TDD
 
@@ -17,7 +17,7 @@ Key capabilities:
 
 ### App Profiles
 
-Selected at `fe-init` via `appProfile` (default `admin`). A config with none of the new keys behaves exactly as before — full backward compatibility.
+Selected at `v2-init` via `appProfile` (default `admin`). A config with none of the new keys behaves exactly as before — full backward compatibility.
 
 | Profile | Target | Router | Server state | Forms | E2E | Dates |
 |---|---|---|---|---|---|---|
@@ -31,10 +31,10 @@ Framework mode builds with `react-router build`/`typegen`, decides SSR/SSG/SPA p
 ## Architecture Overview
 
 ```
-/frontend-react-plugin:fe-init → .claude/frontend-react-plugin.json
+/frontend-v2-plugin:v2-init → .claude/frontend-v2-plugin.json
         │
         ▼
-/frontend-react-plugin:fe-plan "feature" [--standalone]
+/frontend-v2-plugin:v2-plan "feature" [--standalone]
         │
         ├── spec mode: reads planning-plugin output
         │   └── implementation-planner agent → plan.json
@@ -46,7 +46,7 @@ Framework mode builds with `react-router build`/`typegen`, decides SSR/SSG/SPA p
         │   └── implementation-planner agent → delta-plan.json (affected files only)
         │
         ▼
-/frontend-react-plugin:fe-gen "feature"
+/frontend-v2-plugin:v2-gen "feature"
         │
         ├── Phase 1: Foundation     — types + mocks (foundation-generator)
         ├── Phase 2: API TDD        — RED: tests → GREEN: services (tdd-cycle-runner)
@@ -56,34 +56,34 @@ Framework mode builds with `react-router build`/`typegen`, decides SSR/SSG/SPA p
         └── Phase 6: Integration    — routes + i18n + MSW setup (integration-generator)
         │
         ▼
-/frontend-react-plugin:fe-verify "feature" (optional)
+/frontend-v2-plugin:v2-verify "feature" (optional)
         │
         ▼
 Loop 1 — Code Quality:
-/frontend-react-plugin:fe-review "feature"
+/frontend-v2-plugin:v2-review "feature"
         │
         ├── Stage 1: spec-reviewer → spec compliance
         └── Stage 2: quality-reviewer → code quality
         │
         ▼ (if issues found)
-/frontend-react-plugin:fe-fix "feature"
+/frontend-v2-plugin:v2-fix "feature"
         │
         └── review-fixer agent → TDD fixes + direct fixes
         │
         ▼
-/frontend-react-plugin:fe-review "feature" (re-review until pass)
+/frontend-v2-plugin:v2-review "feature" (re-review until pass)
         │
         ▼ (quality pass)
 Loop 2 — E2E:
-/frontend-react-plugin:fe-e2e "feature"
+/frontend-v2-plugin:v2-e2e "feature"
         │
         └── e2e-test-runner agent → agent-browser drives browser scenarios
         │
         ▼ (if failures)
-/frontend-react-plugin:fe-fix "feature" (auto-detects E2E mode)
+/frontend-v2-plugin:v2-fix "feature" (auto-detects E2E mode)
         │
         ▼
-/frontend-react-plugin:fe-e2e "feature" (re-run until pass)
+/frontend-v2-plugin:v2-e2e "feature" (re-run until pass)
 ```
 
 ## Tech Stack
@@ -113,7 +113,7 @@ This plugin is distributed via a GitHub repository.
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)
-/plugin install frontend-react-plugin@ohmyhotelco --scope project
+/plugin install frontend-v2-plugin@ohmyhotelco --scope project
 ```
 
 Verify the installation:
@@ -130,13 +130,13 @@ Verify the installation:
 
 **Disable / Enable** a plugin without uninstalling:
 ```
-/plugin disable frontend-react-plugin@ohmyhotelco
-/plugin enable frontend-react-plugin@ohmyhotelco
+/plugin disable frontend-v2-plugin@ohmyhotelco
+/plugin enable frontend-v2-plugin@ohmyhotelco
 ```
 
 **Uninstall**:
 ```
-/plugin uninstall frontend-react-plugin@ohmyhotelco --scope project
+/plugin uninstall frontend-v2-plugin@ohmyhotelco --scope project
 ```
 
 **Plugin manager UI**: Run `/plugin` to open the tabbed interface (Discover, Installed, Marketplaces, Errors).
@@ -148,11 +148,11 @@ Verify the installation:
 Get from zero to generated code in 5 steps:
 
 ```
-1. /frontend-react-plugin:fe-init                     # configure plugin
+1. /frontend-v2-plugin:v2-init                     # configure plugin
 2. /planning-plugin:pp-init                               # configure planning
 3. /planning-plugin:pp-spec "feature description"         # generate spec
-4. /frontend-react-plugin:fe-plan {feature}            # create implementation plan
-5. /frontend-react-plugin:fe-gen {feature}             # generate code (TDD)
+4. /frontend-v2-plugin:v2-plan {feature}            # create implementation plan
+5. /frontend-v2-plugin:v2-gen {feature}             # generate code (TDD)
 ```
 
 ### Option B — Standalone (without planning-plugin)
@@ -160,18 +160,18 @@ Get from zero to generated code in 5 steps:
 Generate code without a functional spec:
 
 ```
-1. /frontend-react-plugin:fe-init                      # configure plugin
-2. /frontend-react-plugin:fe-plan {feature} --standalone   # interactive requirements → plan
-3. /frontend-react-plugin:fe-gen {feature}             # generate code (TDD)
+1. /frontend-v2-plugin:v2-init                      # configure plugin
+2. /frontend-v2-plugin:v2-plan {feature} --standalone   # interactive requirements → plan
+3. /frontend-v2-plugin:v2-gen {feature}             # generate code (TDD)
 ```
 
 Standalone mode gathers requirements interactively (description, entities, screens) and generates a minimal spec stub + plan.json. Limitations: no error codes, validation rules, test scenario references (TS-nnn), or UI DSL.
 
 ## Skills Reference
 
-### `/frontend-react-plugin:fe-init`
+### `/frontend-v2-plugin:v2-init`
 
-**Syntax**: `/frontend-react-plugin:fe-init`
+**Syntax**: `/frontend-v2-plugin:v2-init`
 
 **When to use**: First-time setup in a project, or reconfiguring settings.
 
@@ -181,15 +181,15 @@ Standalone mode gathers requirements interactively (description, entities, scree
 3. Prompts for base source directory (default: `app/src`)
 4. Prompts for ESLint template usage (auto-generate `eslint.config.js` if none exists, default: enabled)
 5. Prompts for the Phase 2 knobs — component library, API layer, i18n binding, client store (each defaults to current behavior)
-6. Writes `.claude/frontend-react-plugin.json`
+6. Writes `.claude/frontend-v2-plugin.json`
 7. Installs 6 external skills (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
 8. Displays next-step options (with or without planning-plugin)
 
 ---
 
-### `/frontend-react-plugin:fe-plan`
+### `/frontend-v2-plugin:v2-plan`
 
-**Syntax**: `/frontend-react-plugin:fe-plan <feature-name> [--standalone]`
+**Syntax**: `/frontend-v2-plugin:v2-plan <feature-name> [--standalone]`
 
 **When to use**: After creating a functional spec, or standalone when no spec exists.
 
@@ -211,11 +211,11 @@ The planner agent analyzes:
 
 ---
 
-### `/frontend-react-plugin:fe-gen`
+### `/frontend-v2-plugin:v2-gen`
 
-**Syntax**: `/frontend-react-plugin:fe-gen <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-gen <feature-name>`
 
-**When to use**: After `fe-plan` produces a plan.json.
+**When to use**: After `v2-plan` produces a plan.json.
 
 **What happens**:
 1. Validates plan and checks for existing generation state (resume support)
@@ -235,19 +235,19 @@ The planner agent analyzes:
 5. Displays comprehensive results with test pass rates and file lists
 6. Releases the lock and updates progress
 
-**Delta mode**: When a `delta-plan.json` exists (created by `fe-plan` in incremental mode), `fe-gen` offers to execute only the affected phases and files. Unchanged phases are skipped entirely. Modifications use the delta-modifier agent; new files use tdd-cycle-runner with scoped inputs.
+**Delta mode**: When a `delta-plan.json` exists (created by `v2-plan` in incremental mode), `v2-gen` offers to execute only the affected phases and files. Unchanged phases are skipped entirely. Modifications use the delta-modifier agent; new files use tdd-cycle-runner with scoped inputs.
 
-**Resume support**: If generation is interrupted, re-running `fe-gen` detects the existing state and offers to resume from the last incomplete phase. Plan freshness is checked at the phase level — if `plan.json` was modified after a specific phase completed, you can choose to re-run from that phase onward.
+**Resume support**: If generation is interrupted, re-running `v2-gen` detects the existing state and offers to resume from the last incomplete phase. Plan freshness is checked at the phase level — if `plan.json` was modified after a specific phase completed, you can choose to re-run from that phase onward.
 
 **On failure**: Each phase offers retry, skip, or stop options. Skipped or failed phases result in `gen-failed` status (prevents incomplete code from entering the review pipeline).
 
 ---
 
-### `/frontend-react-plugin:fe-verify`
+### `/frontend-v2-plugin:v2-verify`
 
-**Syntax**: `/frontend-react-plugin:fe-verify <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-verify <feature-name>`
 
-**When to use**: After code generation to verify correctness. Optional — you can go directly to `fe-review`.
+**When to use**: After code generation to verify correctness. Optional — you can go directly to `v2-review`.
 
 **What happens**:
 1. Runs TypeScript compiler (`tsc`)
@@ -258,9 +258,9 @@ The planner agent analyzes:
 
 ---
 
-### `/frontend-react-plugin:fe-review`
+### `/frontend-v2-plugin:v2-review`
 
-**Syntax**: `/frontend-react-plugin:fe-review <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-review <feature-name>`
 
 **When to use**: After code generation (or after fixing issues) to review code quality.
 
@@ -279,11 +279,11 @@ The planner agent analyzes:
 
 ---
 
-### `/frontend-react-plugin:fe-fix`
+### `/frontend-v2-plugin:v2-fix`
 
-**Syntax**: `/frontend-react-plugin:fe-fix <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-fix <feature-name>`
 
-**When to use**: After `fe-review` finds issues.
+**When to use**: After `v2-review` finds issues.
 
 **What happens**:
 1. Validates prerequisites (plan, review report, status)
@@ -292,7 +292,7 @@ The planner agent analyzes:
 4. Classifies issues into fix strategies:
    - **TDD-required**: Behavioral changes — writes test first, then fixes
    - **Direct-fix**: Mechanical changes (typos, missing imports) — fixes directly
-   - **Regen-required**: Entire files missing — marks phases for `fe-gen` re-run
+   - **Regen-required**: Entire files missing — marks phases for `v2-gen` re-run
 5. Launches review-fixer agent
 6. Displays fix report with test counts and file changes
 7. Guides re-review and releases lock
@@ -301,11 +301,11 @@ The planner agent analyzes:
 
 ---
 
-### `/frontend-react-plugin:fe-e2e`
+### `/frontend-v2-plugin:v2-e2e`
 
-**Syntax**: `/frontend-react-plugin:fe-e2e <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-e2e <feature-name>`
 
-**When to use**: After `fe-review` passes (Loop 2 entry point). Runs end-to-end browser tests.
+**When to use**: After `v2-review` passes (Loop 2 entry point). Runs end-to-end browser tests.
 
 **What happens**:
 1. Validates prerequisites (plan, generated code, E2E scenarios in plan.json, agent-browser CLI)
@@ -316,13 +316,13 @@ The planner agent analyzes:
 6. Stops the dev server and displays E2E results
 7. Updates progress file with E2E status
 
-**E2E fix loop**: If scenarios fail, run `fe-fix` (auto-detects E2E mode) then re-run `fe-e2e`. Repeat until all scenarios pass.
+**E2E fix loop**: If scenarios fail, run `v2-fix` (auto-detects E2E mode) then re-run `v2-e2e`. Repeat until all scenarios pass.
 
 ---
 
-### `/frontend-react-plugin:fe-debug`
+### `/frontend-v2-plugin:v2-debug`
 
-**Syntax**: `/frontend-react-plugin:fe-debug <feature-name>`
+**Syntax**: `/frontend-v2-plugin:v2-debug <feature-name>`
 
 **When to use**: For runtime bugs or complex issues at any point in the pipeline.
 
@@ -336,9 +336,9 @@ The planner agent analyzes:
 
 ---
 
-### `/frontend-react-plugin:fe-progress`
+### `/frontend-v2-plugin:v2-progress`
 
-**Syntax**: `/frontend-react-plugin:fe-progress [feature-name]`
+**Syntax**: `/frontend-v2-plugin:v2-progress [feature-name]`
 
 **When to use**: At any time to check the current pipeline status.
 
@@ -351,7 +351,7 @@ The planner agent analyzes:
 ### Step 1: Initialize
 
 ```
-/frontend-react-plugin:fe-init
+/frontend-v2-plugin:v2-init
 ```
 
 Sets router mode (declarative/data), mock-first toggle, and base directory. Installs external skills for routing, testing, performance, composition, and accessibility.
@@ -359,7 +359,7 @@ Sets router mode (declarative/data), mock-first toggle, and base directory. Inst
 ### Step 2: Create Implementation Plan
 
 ```
-/frontend-react-plugin:fe-plan {feature}
+/frontend-v2-plugin:v2-plan {feature}
 ```
 
 The implementation-planner agent reads the functional spec (or gathers requirements in standalone mode) and analyzes your existing project to produce `plan.json`. The plan maps every spec element to concrete files:
@@ -374,7 +374,7 @@ The implementation-planner agent reads the functional spec (or gathers requireme
 ### Step 3: Generate Code (TDD)
 
 ```
-/frontend-react-plugin:fe-gen {feature}
+/frontend-v2-plugin:v2-gen {feature}
 ```
 
 Executes 6 phases of strict TDD. Each TDD phase (2-5):
@@ -387,13 +387,13 @@ External skills are loaded per-phase: Vitest for TDD phases, Composition Pattern
 ### Step 4: Verify (optional)
 
 ```
-/frontend-react-plugin:fe-verify {feature}
+/frontend-v2-plugin:v2-verify {feature}
 ```
 
 ### Step 5: Review
 
 ```
-/frontend-react-plugin:fe-review {feature}
+/frontend-v2-plugin:v2-review {feature}
 ```
 
 Two-stage review with enriched issue reports (refs, fix hints, missing artifact classification).
@@ -401,8 +401,8 @@ Two-stage review with enriched issue reports (refs, fix hints, missing artifact 
 ### Step 6: Fix & Re-Review
 
 ```
-/frontend-react-plugin:fe-fix {feature}
-/frontend-react-plugin:fe-review {feature}
+/frontend-v2-plugin:v2-fix {feature}
+/frontend-v2-plugin:v2-review {feature}
 ```
 
 Iterate until review passes. The fix skill applies TDD discipline for behavioral changes and direct fixes for mechanical changes.
@@ -410,7 +410,7 @@ Iterate until review passes. The fix skill applies TDD discipline for behavioral
 ### Step 7: E2E Test
 
 ```
-/frontend-react-plugin:fe-e2e {feature}
+/frontend-v2-plugin:v2-e2e {feature}
 ```
 
 After review passes, run end-to-end browser tests. The e2e-test-runner agent drives agent-browser through multi-page user flows defined in plan.json, verifying against MSW mock data.
@@ -418,11 +418,11 @@ After review passes, run end-to-end browser tests. The e2e-test-runner agent dri
 ### Step 8: E2E Fix & Re-test
 
 ```
-/frontend-react-plugin:fe-fix {feature}
-/frontend-react-plugin:fe-e2e {feature}
+/frontend-v2-plugin:v2-fix {feature}
+/frontend-v2-plugin:v2-e2e {feature}
 ```
 
-If E2E scenarios fail, `fe-fix` auto-detects E2E mode (by comparing report timestamps) and fixes root causes. Iterate until all E2E scenarios pass.
+If E2E scenarios fail, `v2-fix` auto-detects E2E mode (by comparing report timestamps) and fixes root causes. Iterate until all E2E scenarios pass.
 
 ## Agents
 
@@ -460,7 +460,7 @@ Compares generated code against the functional spec. Evaluates requirement cover
 
 **Role**: Code quality review (8 dimensions).
 
-Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, architecture, and simplicity/over-engineering (dead code, hand-rolled stdlib, single-implementation abstractions). Supports pipeline mode (invoked by fe-review after spec review passes) and standalone mode (invoked by fe-clean-code for ad-hoc audits).
+Evaluates single responsibility, consistent patterns, no hardcoded strings, error handling, TypeScript strictness, convention compliance, architecture, and simplicity/over-engineering (dead code, hand-rolled stdlib, single-implementation abstractions). Supports pipeline mode (invoked by v2-review after spec review passes) and standalone mode (invoked by v2-clean-code for ad-hoc audits).
 
 ### Security Auditor
 
@@ -502,15 +502,15 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (3-strike l
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| Init | `/frontend-react-plugin:fe-init` | Plugin setup and batch installation of external skills |
-| Plan | `/frontend-react-plugin:fe-plan` | Analyze functional spec (or gather requirements) and generate implementation plan |
-| Gen | `/frontend-react-plugin:fe-gen` | Generate production code based on implementation plan (TDD) |
-| Verify | `/frontend-react-plugin:fe-verify` | Run TypeScript, build, and test verification on generated code |
-| Review | `/frontend-react-plugin:fe-review` | 2-stage code review (spec compliance + quality) |
-| Fix | `/frontend-react-plugin:fe-fix` | Fix review issues with TDD discipline |
-| E2E | `/frontend-react-plugin:fe-e2e` | Run E2E browser tests via agent-browser |
-| Debug | `/frontend-react-plugin:fe-debug` | Systematic debugging with hypothesis testing and escalation |
-| Progress | `/frontend-react-plugin:fe-progress` | Show implementation pipeline status for all or a specific feature |
+| Init | `/frontend-v2-plugin:v2-init` | Plugin setup and batch installation of external skills |
+| Plan | `/frontend-v2-plugin:v2-plan` | Analyze functional spec (or gather requirements) and generate implementation plan |
+| Gen | `/frontend-v2-plugin:v2-gen` | Generate production code based on implementation plan (TDD) |
+| Verify | `/frontend-v2-plugin:v2-verify` | Run TypeScript, build, and test verification on generated code |
+| Review | `/frontend-v2-plugin:v2-review` | 2-stage code review (spec compliance + quality) |
+| Fix | `/frontend-v2-plugin:v2-fix` | Fix review issues with TDD discipline |
+| E2E | `/frontend-v2-plugin:v2-e2e` | Run E2E browser tests via agent-browser |
+| Debug | `/frontend-v2-plugin:v2-debug` | Systematic debugging with hypothesis testing and escalation |
+| Progress | `/frontend-v2-plugin:v2-progress` | Show implementation pipeline status for all or a specific feature |
 
 ### Standalone Audit Skills
 
@@ -518,11 +518,11 @@ Independent audit skills that run outside the pipeline. No progress tracking, no
 
 | Skill | Command | Description |
 |-------|---------|-------------|
-| Security | `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
-| Clean Code | `/frontend-react-plugin:fe-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
-| Test Review | `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing gates) |
+| Security | `/frontend-v2-plugin:v2-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
+| Clean Code | `/frontend-v2-plugin:v2-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
+| Test Review | `/frontend-v2-plugin:v2-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing gates) |
 
-Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`
+Usage: `v2-security [path]`, `v2-clean-code [path]`, `v2-test-review [test-path]`
 
 These skills can be run at any time on any code, not just pipeline-generated features.
 
@@ -539,7 +539,7 @@ These skills can be run at any time on any code, not just pipeline-generated fea
 
 ## Configuration
 
-The plugin uses `.claude/frontend-react-plugin.json` in the project directory (created by `/frontend-react-plugin:fe-init`):
+The plugin uses `.claude/frontend-v2-plugin.json` in the project directory (created by `/frontend-v2-plugin:v2-init`):
 
 ```json
 {
@@ -590,13 +590,13 @@ State files under `docs/specs/{feature}/.implementation/frontend/`:
 
 | File | Purpose |
 |------|---------|
-| `plan.json` | Implementation plan (input for fe-gen) |
+| `plan.json` | Implementation plan (input for v2-gen) |
 | `generation-state.json` | Phase progress tracking with timestamps (enables resume) |
-| `review-report.json` | Full review results with enriched issue details (input for fe-fix) |
+| `review-report.json` | Full review results with enriched issue details (input for v2-fix) |
 | `fix-report.json` | Fix results with strategy breakdown |
-| `e2e-report.json` | E2E test results with scenario details (input for fe-fix E2E mode) |
+| `e2e-report.json` | E2E test results with scenario details (input for v2-fix E2E mode) |
 | `debug-report.json` | Debug session results with hypothesis log |
-| `delta-plan.json` | Incremental spec change plan (input for delta fe-gen, archived after execution) |
+| `delta-plan.json` | Incremental spec change plan (input for delta v2-gen, archived after execution) |
 | `.lock` | Feature-scoped concurrency guard (`holder` / `pid` / `acquiredAt`) |
 | `docs/specs/.app.lock` | App-wide guard for the central route file, i18n config, and MSW handler aggregate |
 
@@ -608,17 +608,17 @@ planned → generated → verified → reviewed → done
          gen-failed  ↘ verify-failed ↓  review-failed
                       ↘     ↓        ↓      ↓
                        → resolved  fixing → (re-review → reviewed/review-failed)
-                         escalated    ↓  ↘ generated (regen-required → fe-gen)
+                         escalated    ↓  ↘ generated (regen-required → v2-gen)
                             ↓    escalated
                       (manual intervention)
 ```
 
 ### State File Safety
 
-- **Lock mechanism**: Two scopes, taken in order — the feature `.lock` (fe-gen/fe-verify/fe-review/fe-fix/fe-e2e on one feature) then `docs/specs/.app.lock` (any write to the central route file, i18n config, or MSW handler aggregate, which the feature lock does not protect). A lock is broken only once its holder is gone: `pid` is checked first, and the 30-minute rule sweeps ghost locks rather than timing out a live run — fe-gen's six TDD phases legitimately exceed it.
+- **Lock mechanism**: Two scopes, taken in order — the feature `.lock` (v2-gen/v2-verify/v2-review/v2-fix/v2-e2e on one feature) then `docs/specs/.app.lock` (any write to the central route file, i18n config, or MSW handler aggregate, which the feature lock does not protect). A lock is broken only once its holder is gone: `pid` is checked first, and the 30-minute rule sweeps ghost locks rather than timing out a live run — v2-gen's six TDD phases legitimately exceed it.
 - **Read-Modify-Write rule**: Always read latest file content before writing. Merge only changed fields — preserve all existing fields.
 - **Phase timestamps**: Each TDD phase records `completedAt` for precise resume and plan freshness detection.
-- **Staleness detection**: fe-fix warns when source files changed since last review. fe-review warns when spec changed since generation.
+- **Staleness detection**: v2-fix warns when source files changed since last review. v2-review warns when spec changed since generation.
 
 ## Hooks
 
@@ -627,18 +627,18 @@ The plugin registers two lifecycle hooks that run automatically:
 ### SessionStart — `session-init.sh`
 
 Runs when a Claude Code session starts. Checks for:
-- **Configuration**: Loads `.claude/frontend-react-plugin.json` and reports current settings
+- **Configuration**: Loads `.claude/frontend-v2-plugin.json` and reports current settings
 - **Missing skills**: Warns if any external skills are not installed
 - **Pipeline status**: Scans all features and reports their current state with next-step guidance:
-  - `planned` → suggests `fe-gen`
-  - `generated` → suggests `fe-verify` or `fe-review`
-  - `gen-failed` → suggests retry `fe-gen`
-  - `verified` → suggests `fe-review`
-  - `verify-failed` → suggests `fe-debug`
-  - `reviewed` → suggests `fe-fix` (warnings) or `fe-e2e` (with E2E awareness)
-  - `review-failed` → suggests `fe-fix` then `fe-review`
-  - `fixing` → suggests `fe-review` (or `fe-gen` if regen required, or `fe-e2e` if E2E fixes applied)
-  - `resolved` → suggests `fe-verify` or `fe-review`
+  - `planned` → suggests `v2-gen`
+  - `generated` → suggests `v2-verify` or `v2-review`
+  - `gen-failed` → suggests retry `v2-gen`
+  - `verified` → suggests `v2-review`
+  - `verify-failed` → suggests `v2-debug`
+  - `reviewed` → suggests `v2-fix` (warnings) or `v2-e2e` (with E2E awareness)
+  - `review-failed` → suggests `v2-fix` then `v2-review`
+  - `fixing` → suggests `v2-review` (or `v2-gen` if regen required, or `v2-e2e` if E2E fixes applied)
+  - `resolved` → suggests `v2-verify` or `v2-review`
   - `escalated` → warns about manual intervention needed
   - `done` → reports completion (with E2E awareness)
 
@@ -649,27 +649,27 @@ Runs after every `Write` or `Edit` tool call. Only activates on files under `doc
 
 ## Communication Language
 
-Feature-level skills (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) read `workingLanguage` from the progress file. All user-facing output (summaries, questions, feedback, next-step guidance) is in the working language.
+Feature-level skills (v2-plan, v2-gen, v2-verify, v2-review, v2-fix, v2-e2e, v2-debug, v2-progress) read `workingLanguage` from the progress file. All user-facing output (summaries, questions, feedback, next-step guidance) is in the working language.
 
 Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 ## Tips & Best Practices
 
-- **Review the plan before generating** — `plan.json` is editable. Adjust file names, route paths, or test cases before running `fe-gen`.
+- **Review the plan before generating** — `plan.json` is editable. Adjust file names, route paths, or test cases before running `v2-gen`.
 
 - **Use mock-first for rapid iteration** — With `mockFirst: true`, run `VITE_ENABLE_MOCKS=true pnpm dev` to develop against MSW mocks without a backend. When the backend is ready, just remove the environment variable.
 
-- **Don't skip re-review after fixes** — Always run `fe-review` after `fe-fix`. The fix-review cycle ensures no regressions.
+- **Don't skip re-review after fixes** — Always run `v2-review` after `v2-fix`. The fix-review cycle ensures no regressions.
 
-- **Use fe-debug for runtime issues** — If tests pass but the app behaves incorrectly, `fe-debug` provides systematic hypothesis testing rather than ad-hoc debugging.
+- **Use v2-debug for runtime issues** — If tests pass but the app behaves incorrectly, `v2-debug` provides systematic hypothesis testing rather than ad-hoc debugging.
 
 - **Standalone mode is a quick start, not a shortcut** — It generates simpler plans without error codes, validation rules, or test scenario references. For production features, invest in a proper spec with planning-plugin.
 
-- **Use incremental mode when specs change** — After modifying a spec on generated code, run `fe-plan` again. It auto-detects existing implementation and offers incremental mode, which regenerates only affected files while preserving all review/fix work. Large deltas (>60% of files) trigger a warning suggesting full regeneration.
+- **Use incremental mode when specs change** — After modifying a spec on generated code, run `v2-plan` again. It auto-detects existing implementation and offers incremental mode, which regenerates only affected files while preserving all review/fix work. Large deltas (>60% of files) trigger a warning suggesting full regeneration.
 
-- **Resume is safe** — If generation is interrupted, just re-run `fe-gen`. It detects completed phases and resumes. Phase-level timestamps ensure accurate freshness checks.
+- **Resume is safe** — If generation is interrupted, just re-run `v2-gen`. It detects completed phases and resumes. Phase-level timestamps ensure accurate freshness checks.
 
-- **Lock protects your state** — Don't run `fe-gen` and `fe-fix` on the same feature simultaneously. The lock mechanism prevents state file corruption.
+- **Lock protects your state** — Don't run `v2-gen` and `v2-fix` on the same feature simultaneously. The lock mechanism prevents state file corruption.
 
 ## Roadmap
 
@@ -681,7 +681,7 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 - [x] Code review skill (spec compliance + quality)
 - [x] Fix skill (TDD-disciplined)
 - [x] Debug skill (systematic debugging)
-- [x] Standalone mode (fe-plan without planning-plugin)
+- [x] Standalone mode (v2-plan without planning-plugin)
 - [x] State consistency (lock, timestamps, staleness detection)
 - [x] Hook handlers (session-init, implementation validation)
 - [x] E2E testing skill (agent-browser integration)
@@ -696,8 +696,8 @@ Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
                  integration-generator, spec-reviewer, quality-reviewer, security-auditor,
                  test-reviewer, review-fixer, delta-modifier, e2e-test-runner, debugger)
-skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
-                 fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review, fe-shared)
+skills/          Skill entry points (v2-init, v2-plan, v2-gen, v2-verify, v2-review, v2-fix,
+                 v2-e2e, v2-debug, v2-progress, v2-security, v2-clean-code, v2-test-review, v2-shared)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,

@@ -1,6 +1,6 @@
 # E2E Testing (Playwright)
 
-Patterns for `e2e-test-runner` / `fe-e2e` when `e2eTool == playwright` (the ota-profile default).
+Patterns for `e2e-test-runner` / `v2-e2e` when `e2eTool == playwright` (the ota-profile default).
 Ported from the migration plugin's harness **minus** the migration-specific pieces (no legacy dual-run,
 no visual-regression parity, no staging payment gateways — those arrive in later OTA phases). When
 `e2eTool == agent-browser`, use `e2e-testing.md` instead.
@@ -17,7 +17,7 @@ Only the realization differs.
 
 ## Harness (scaffolded once per app by `foundation-generator`)
 - `playwright.config.ts` — `testDir: 'e2e'`, `trace: 'retain-on-first-failure'`, `webServer` runs the mode-aware
-  dev command (from the fe-shared command matrix) on the config `devPort` (default `5173`) with `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` — which trusts whatever already answers on that port, so a port collision means testing the wrong server; set `devPort` when 5173 is taken.
+  dev command (from the v2-shared command matrix) on the config `devPort` (default `5173`) with `VITE_ENABLE_MOCKS=true` and `reuseExistingServer` — which trusts whatever already answers on that port, so a port collision means testing the wrong server; set `devPort` when 5173 is taken.
   Framework mode → `npx react-router dev --port {port}`; library modes → `npx vite --port {port}`.
 - `e2e/fixtures.ts` — auth/state-setup helpers and page-object base.
 
@@ -59,13 +59,13 @@ factories) and reuse across specs (read-modify-write; never clobber another feat
 `trace: 'retain-on-first-failure'` keeps a trace for a scenario that fails on its **first** run.
 **Not `on-first-retry`** — Playwright does not retry by default, and that mode only records during a
 retry, so with `retries: 0` an ordinary failure produces no trace at all while the runner and
-`fe-fix` both require one. (`on-first-retry` is correct only alongside an explicit `retries: 1`;
+`v2-fix` both require one. (`on-first-retry` is correct only alongside an explicit `retries: 1`;
 retries also mask flakiness, so the first-failure mode is the better default here.)
 
 `e2e-report.json` records each failing scenario's trace path under **`scenarios[].evidence.trace`** —
-the one field name the runner, `fe-e2e`, and `fe-fix` all read. Do not write it under `artifacts`;
-a report that puts the path somewhere else is a report `fe-fix` cannot use. This is the primary
-evidence `fe-fix` (e2e-fix) reads — open it with `npx playwright show-trace <trace.zip>`
+the one field name the runner, `v2-e2e`, and `v2-fix` all read. Do not write it under `artifacts`;
+a report that puts the path somewhere else is a report `v2-fix` cannot use. This is the primary
+evidence `v2-fix` (e2e-fix) reads — open it with `npx playwright show-trace <trace.zip>`
 (CLI-built-in, no skill) and diagnose from the trace before editing code.
 
 ## Run
@@ -74,4 +74,4 @@ From `{appDir}` (webServer manages the dev server — no manual start/stop):
 npx playwright test e2e/{feature} 2>&1
 ```
 `e2e-report.json` schema is unchanged from the agent-browser path (per-scenario pass/fail + evidence), so
-`fe-progress` / `fe-fix` consumers are untouched.
+`v2-progress` / `v2-fix` consumers are untouched.

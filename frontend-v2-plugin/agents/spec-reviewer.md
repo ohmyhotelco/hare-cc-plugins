@@ -4,7 +4,7 @@ description: Spec compliance reviewer agent that verifies generated code against
 model: sonnet
 effort: medium
 tools: Read, Glob, Grep
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Spec Reviewer Agent
@@ -41,7 +41,7 @@ The skill will provide these parameters in the prompt:
    A `pending` entry, or one whose `owner` is missing, is **not** approval — the plan is written by
    the pipeline, so honoring a self-written `pending` would let the pipeline approve its own
    shortcuts. Report those as normal issues and say an approval is outstanding.
-   See fe-shared § Deliberate Deviations.
+   See v2-shared § Deliberate Deviations.
 
 ### Phase 1: Review — 5 Dimensions
 
@@ -151,7 +151,7 @@ Return the result in JSON format:
             { "section": "api", "name": "entityApi", "method": "create" }
           ],
           "missingArtifact": "file",
-          "fixHint": "Entire page missing. Re-run fe-gen page-tdd phase."
+          "fixHint": "Entire page missing. Re-run v2-gen page-tdd phase."
         }
       ]
     },

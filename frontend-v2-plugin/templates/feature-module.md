@@ -1,4 +1,4 @@
-> **Path convention**: All `{baseDir}` references resolve to the value in `.claude/frontend-react-plugin.json` (default: `app/src`, fallback: `src` when absent).
+> **Path convention**: All `{baseDir}` references resolve to the value in `.claude/frontend-v2-plugin.json` (default: `app/src`, fallback: `src` when absent).
 
 # Feature Module Structure Reference
 

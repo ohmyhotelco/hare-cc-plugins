@@ -2,7 +2,7 @@
 
 [English version](README.md)
 
-# Frontend React Plugin
+# Frontend V2 Plugin
 
 > **Ohmyhotel & Co** — Plugin Claude Code để phát triển frontend React với TDD
 
@@ -21,7 +21,7 @@ Các khả năng chính:
 
 ### App Profile
 
-Chọn tại `fe-init` qua `appProfile` (mặc định `admin`). Cấu hình không có key mới nào sẽ hoạt động y hệt trước đây — tương thích ngược hoàn toàn.
+Chọn tại `v2-init` qua `appProfile` (mặc định `admin`). Cấu hình không có key mới nào sẽ hoạt động y hệt trước đây — tương thích ngược hoàn toàn.
 
 | Profile | Mục tiêu | Router | Server state | Form | E2E | Ngày tháng |
 |---|---|---|---|---|---|---|
@@ -35,10 +35,10 @@ Chế độ framework build bằng `react-router build`/`typegen`, quyết đị
 ## Tổng quan kiến trúc
 
 ```
-/frontend-react-plugin:fe-init → .claude/frontend-react-plugin.json
+/frontend-v2-plugin:v2-init → .claude/frontend-v2-plugin.json
         │
         ▼
-/frontend-react-plugin:fe-plan "feature" [--standalone]
+/frontend-v2-plugin:v2-plan "feature" [--standalone]
         │
         ├── spec mode: reads planning-plugin output
         │   └── implementation-planner agent → plan.json
@@ -50,7 +50,7 @@ Chế độ framework build bằng `react-router build`/`typegen`, quyết đị
         │   └── implementation-planner agent → delta-plan.json (affected files only)
         │
         ▼
-/frontend-react-plugin:fe-gen "feature"
+/frontend-v2-plugin:v2-gen "feature"
         │
         ├── Phase 1: Foundation     — types + mocks (foundation-generator)
         ├── Phase 2: API TDD        — RED: tests → GREEN: services (tdd-cycle-runner)
@@ -60,34 +60,34 @@ Chế độ framework build bằng `react-router build`/`typegen`, quyết đị
         └── Phase 6: Integration    — routes + i18n + MSW setup (integration-generator)
         │
         ▼
-/frontend-react-plugin:fe-verify "feature" (optional)
+/frontend-v2-plugin:v2-verify "feature" (optional)
         │
         ▼
 Loop 1 — Code Quality:
-/frontend-react-plugin:fe-review "feature"
+/frontend-v2-plugin:v2-review "feature"
         │
         ├── Stage 1: spec-reviewer → spec compliance
         └── Stage 2: quality-reviewer → code quality
         │
         ▼ (if issues found)
-/frontend-react-plugin:fe-fix "feature"
+/frontend-v2-plugin:v2-fix "feature"
         │
         └── review-fixer agent → TDD fixes + direct fixes
         │
         ▼
-/frontend-react-plugin:fe-review "feature" (re-review until pass)
+/frontend-v2-plugin:v2-review "feature" (re-review until pass)
         │
         ▼ (quality pass)
 Loop 2 — E2E:
-/frontend-react-plugin:fe-e2e "feature"
+/frontend-v2-plugin:v2-e2e "feature"
         │
         └── e2e-test-runner agent → agent-browser drives browser scenarios
         │
         ▼ (if failures)
-/frontend-react-plugin:fe-fix "feature" (auto-detects E2E mode)
+/frontend-v2-plugin:v2-fix "feature" (auto-detects E2E mode)
         │
         ▼
-/frontend-react-plugin:fe-e2e "feature" (re-run until pass)
+/frontend-v2-plugin:v2-e2e "feature" (re-run until pass)
 ```
 
 ## Công nghệ sử dụng
@@ -117,7 +117,7 @@ Plugin này được phân phối qua kho GitHub.
 /plugin marketplace add ohmyhotelco/hare-cc-plugins
 
 # 2. Install the plugin (project scope — saved to .claude/settings.json, shared with the team)
-/plugin install frontend-react-plugin@ohmyhotelco --scope project
+/plugin install frontend-v2-plugin@ohmyhotelco --scope project
 ```
 
 Xác minh cài đặt:
@@ -134,13 +134,13 @@ Xác minh cài đặt:
 
 **Vô hiệu hóa / Kích hoạt** plugin mà không cần gỡ cài đặt:
 ```
-/plugin disable frontend-react-plugin@ohmyhotelco
-/plugin enable frontend-react-plugin@ohmyhotelco
+/plugin disable frontend-v2-plugin@ohmyhotelco
+/plugin enable frontend-v2-plugin@ohmyhotelco
 ```
 
 **Gỡ cài đặt**:
 ```
-/plugin uninstall frontend-react-plugin@ohmyhotelco --scope project
+/plugin uninstall frontend-v2-plugin@ohmyhotelco --scope project
 ```
 
 **Giao diện quản lý plugin**: Chạy `/plugin` để mở giao diện tab (Discover, Installed, Marketplaces, Errors).
@@ -152,11 +152,11 @@ Xác minh cài đặt:
 Từ số không đến mã nguồn được sinh chỉ trong 5 bước:
 
 ```
-1. /frontend-react-plugin:fe-init                     # configure plugin
+1. /frontend-v2-plugin:v2-init                     # configure plugin
 2. /planning-plugin:pp-init                               # configure planning
 3. /planning-plugin:pp-spec "feature description"         # generate spec
-4. /frontend-react-plugin:fe-plan {feature}            # create implementation plan
-5. /frontend-react-plugin:fe-gen {feature}             # generate code (TDD)
+4. /frontend-v2-plugin:v2-plan {feature}            # create implementation plan
+5. /frontend-v2-plugin:v2-gen {feature}             # generate code (TDD)
 ```
 
 ### Phương án B — Độc lập (không có planning-plugin)
@@ -164,18 +164,18 @@ Từ số không đến mã nguồn được sinh chỉ trong 5 bước:
 Sinh mã mà không cần đặc tả chức năng:
 
 ```
-1. /frontend-react-plugin:fe-init                      # configure plugin
-2. /frontend-react-plugin:fe-plan {feature} --standalone   # interactive requirements → plan
-3. /frontend-react-plugin:fe-gen {feature}             # generate code (TDD)
+1. /frontend-v2-plugin:v2-init                      # configure plugin
+2. /frontend-v2-plugin:v2-plan {feature} --standalone   # interactive requirements → plan
+3. /frontend-v2-plugin:v2-gen {feature}             # generate code (TDD)
 ```
 
 Chế độ độc lập thu thập yêu cầu tương tác (mô tả, thực thể, màn hình) và tạo spec stub tối thiểu + plan.json. Hạn chế: không có mã lỗi, quy tắc xác thực, tham chiếu kịch bản kiểm thử (TS-nnn), hoặc UI DSL.
 
 ## Tham chiếu Skill
 
-### `/frontend-react-plugin:fe-init`
+### `/frontend-v2-plugin:v2-init`
 
-**Cú pháp**: `/frontend-react-plugin:fe-init`
+**Cú pháp**: `/frontend-v2-plugin:v2-init`
 
 **Khi nào sử dụng**: Thiết lập lần đầu trong dự án, hoặc cấu hình lại cài đặt.
 
@@ -185,15 +185,15 @@ Chế độ độc lập thu thập yêu cầu tương tác (mô tả, thực th
 3. Hỏi thư mục nguồn cơ sở (mặc định: `app/src`)
 4. Hỏi về sử dụng template ESLint (tự động tạo `eslint.config.js` nếu chưa có, mặc định: bật)
 5. Hỏi các tùy chọn Phase 2 — thư viện component, tầng API, i18n binding, client store (mỗi tùy chọn mặc định giữ hành vi hiện tại)
-6. Ghi `.claude/frontend-react-plugin.json`
+6. Ghi `.claude/frontend-v2-plugin.json`
 7. Cài đặt 6 skill bên ngoài (React Router, Vitest, React Best Practices, Composition Patterns, Web Design Guidelines, Agent Browser)
 8. Hiển thị các tùy chọn bước tiếp theo (có hoặc không có planning-plugin)
 
 ---
 
-### `/frontend-react-plugin:fe-plan`
+### `/frontend-v2-plugin:v2-plan`
 
-**Cú pháp**: `/frontend-react-plugin:fe-plan <feature-name> [--standalone]`
+**Cú pháp**: `/frontend-v2-plugin:v2-plan <feature-name> [--standalone]`
 
 **Khi nào sử dụng**: Sau khi tạo đặc tả chức năng, hoặc chế độ độc lập khi chưa có đặc tả.
 
@@ -215,11 +215,11 @@ Tác tử planner phân tích:
 
 ---
 
-### `/frontend-react-plugin:fe-gen`
+### `/frontend-v2-plugin:v2-gen`
 
-**Cú pháp**: `/frontend-react-plugin:fe-gen <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-gen <feature-name>`
 
-**Khi nào sử dụng**: Sau khi `fe-plan` tạo plan.json.
+**Khi nào sử dụng**: Sau khi `v2-plan` tạo plan.json.
 
 **Quy trình thực hiện**:
 1. Xác thực kế hoạch và kiểm tra trạng thái sinh mã hiện có (hỗ trợ tiếp tục)
@@ -239,19 +239,19 @@ Tác tử planner phân tích:
 5. Hiển thị kết quả toàn diện với tỷ lệ kiểm thử đạt và danh sách tệp
 6. Giải phóng khóa và cập nhật tiến độ
 
-**Chế độ delta**: Khi `delta-plan.json` tồn tại (được tạo bởi `fe-plan` trong chế độ gia tăng), `fe-gen` chỉ thực thi các giai đoạn và tệp bị ảnh hưởng. Các giai đoạn không thay đổi được bỏ qua hoàn toàn. Các thay đổi sử dụng tác tử delta-modifier; tệp mới sử dụng tdd-cycle-runner với phạm vi giới hạn.
+**Chế độ delta**: Khi `delta-plan.json` tồn tại (được tạo bởi `v2-plan` trong chế độ gia tăng), `v2-gen` chỉ thực thi các giai đoạn và tệp bị ảnh hưởng. Các giai đoạn không thay đổi được bỏ qua hoàn toàn. Các thay đổi sử dụng tác tử delta-modifier; tệp mới sử dụng tdd-cycle-runner với phạm vi giới hạn.
 
-**Hỗ trợ tiếp tục**: Nếu quá trình sinh mã bị gián đoạn, chạy lại `fe-gen` sẽ phát hiện trạng thái hiện có và đề xuất tiếp tục từ giai đoạn chưa hoàn thành cuối cùng. Độ mới của kế hoạch được kiểm tra ở cấp giai đoạn — nếu `plan.json` được sửa đổi sau khi một giai đoạn cụ thể hoàn thành, bạn có thể chọn chạy lại từ giai đoạn đó trở đi.
+**Hỗ trợ tiếp tục**: Nếu quá trình sinh mã bị gián đoạn, chạy lại `v2-gen` sẽ phát hiện trạng thái hiện có và đề xuất tiếp tục từ giai đoạn chưa hoàn thành cuối cùng. Độ mới của kế hoạch được kiểm tra ở cấp giai đoạn — nếu `plan.json` được sửa đổi sau khi một giai đoạn cụ thể hoàn thành, bạn có thể chọn chạy lại từ giai đoạn đó trở đi.
 
 **Khi thất bại**: Mỗi giai đoạn cung cấp tùy chọn thử lại, bỏ qua hoặc dừng. Các giai đoạn bị bỏ qua hoặc thất bại dẫn đến trạng thái `gen-failed` (ngăn mã không hoàn chỉnh đi vào pipeline đánh giá).
 
 ---
 
-### `/frontend-react-plugin:fe-verify`
+### `/frontend-v2-plugin:v2-verify`
 
-**Cú pháp**: `/frontend-react-plugin:fe-verify <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-verify <feature-name>`
 
-**Khi nào sử dụng**: Sau khi sinh mã để xác minh tính đúng đắn. Tùy chọn — bạn có thể chuyển thẳng đến `fe-review`.
+**Khi nào sử dụng**: Sau khi sinh mã để xác minh tính đúng đắn. Tùy chọn — bạn có thể chuyển thẳng đến `v2-review`.
 
 **Quy trình thực hiện**:
 1. Chạy trình biên dịch TypeScript (`tsc`)
@@ -262,9 +262,9 @@ Tác tử planner phân tích:
 
 ---
 
-### `/frontend-react-plugin:fe-review`
+### `/frontend-v2-plugin:v2-review`
 
-**Cú pháp**: `/frontend-react-plugin:fe-review <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-review <feature-name>`
 
 **Khi nào sử dụng**: Sau khi sinh mã (hoặc sau khi sửa lỗi) để đánh giá chất lượng mã.
 
@@ -283,11 +283,11 @@ Tác tử planner phân tích:
 
 ---
 
-### `/frontend-react-plugin:fe-fix`
+### `/frontend-v2-plugin:v2-fix`
 
-**Cú pháp**: `/frontend-react-plugin:fe-fix <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-fix <feature-name>`
 
-**Khi nào sử dụng**: Sau khi `fe-review` tìm thấy vấn đề.
+**Khi nào sử dụng**: Sau khi `v2-review` tìm thấy vấn đề.
 
 **Quy trình thực hiện**:
 1. Xác thực điều kiện tiên quyết (kế hoạch, báo cáo đánh giá, trạng thái)
@@ -296,7 +296,7 @@ Tác tử planner phân tích:
 4. Phân loại vấn đề theo chiến lược sửa:
    - **TDD-required**: Thay đổi hành vi — viết test trước, sau đó sửa
    - **Direct-fix**: Thay đổi cơ học (lỗi chính tả, thiếu import) — sửa trực tiếp
-   - **Regen-required**: Toàn bộ tệp bị thiếu — đánh dấu giai đoạn cần chạy lại `fe-gen`
+   - **Regen-required**: Toàn bộ tệp bị thiếu — đánh dấu giai đoạn cần chạy lại `v2-gen`
 5. Khởi chạy tác tử Review Fixer
 6. Hiển thị báo cáo sửa lỗi với số lượng test và thay đổi tệp
 7. Hướng dẫn đánh giá lại và giải phóng khóa
@@ -305,11 +305,11 @@ Tác tử planner phân tích:
 
 ---
 
-### `/frontend-react-plugin:fe-e2e`
+### `/frontend-v2-plugin:v2-e2e`
 
-**Cú pháp**: `/frontend-react-plugin:fe-e2e <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-e2e <feature-name>`
 
-**Khi nào sử dụng**: Sau khi `fe-review` đạt (điểm vào Loop 2). Chạy kiểm thử end-to-end trên trình duyệt.
+**Khi nào sử dụng**: Sau khi `v2-review` đạt (điểm vào Loop 2). Chạy kiểm thử end-to-end trên trình duyệt.
 
 **Quy trình thực hiện**:
 1. Xác thực điều kiện tiên quyết (kế hoạch, mã đã sinh, kịch bản E2E trong plan.json, CLI agent-browser)
@@ -320,13 +320,13 @@ Tác tử planner phân tích:
 6. Dừng dev server và hiển thị kết quả E2E
 7. Cập nhật tệp tiến độ với trạng thái E2E
 
-**Vòng sửa E2E**: Nếu kịch bản thất bại, chạy `fe-fix` (tự động phát hiện chế độ E2E) rồi chạy lại `fe-e2e`. Lặp lại cho đến khi tất cả kịch bản đạt.
+**Vòng sửa E2E**: Nếu kịch bản thất bại, chạy `v2-fix` (tự động phát hiện chế độ E2E) rồi chạy lại `v2-e2e`. Lặp lại cho đến khi tất cả kịch bản đạt.
 
 ---
 
-### `/frontend-react-plugin:fe-debug`
+### `/frontend-v2-plugin:v2-debug`
 
-**Cú pháp**: `/frontend-react-plugin:fe-debug <feature-name>`
+**Cú pháp**: `/frontend-v2-plugin:v2-debug <feature-name>`
 
 **Khi nào sử dụng**: Cho lỗi runtime hoặc vấn đề phức tạp tại bất kỳ điểm nào trong pipeline.
 
@@ -340,9 +340,9 @@ Tác tử planner phân tích:
 
 ---
 
-### `/frontend-react-plugin:fe-progress`
+### `/frontend-v2-plugin:v2-progress`
 
-**Cú pháp**: `/frontend-react-plugin:fe-progress [feature-name]`
+**Cú pháp**: `/frontend-v2-plugin:v2-progress [feature-name]`
 
 **Khi nào sử dụng**: Bất cứ lúc nào muốn kiểm tra trạng thái pipeline hiện tại.
 
@@ -355,7 +355,7 @@ Tác tử planner phân tích:
 ### Bước 1: Khởi tạo
 
 ```
-/frontend-react-plugin:fe-init
+/frontend-v2-plugin:v2-init
 ```
 
 Thiết lập chế độ router (declarative/data), bật/tắt mock-first và thư mục cơ sở. Cài đặt skill bên ngoài cho routing, testing, hiệu suất, composition và accessibility.
@@ -363,7 +363,7 @@ Thiết lập chế độ router (declarative/data), bật/tắt mock-first và 
 ### Bước 2: Tạo kế hoạch triển khai
 
 ```
-/frontend-react-plugin:fe-plan {feature}
+/frontend-v2-plugin:v2-plan {feature}
 ```
 
 Tác tử Implementation Planner đọc đặc tả chức năng (hoặc thu thập yêu cầu trong chế độ độc lập) và phân tích dự án hiện có để tạo `plan.json`. Kế hoạch ánh xạ mọi phần tử đặc tả sang các tệp cụ thể:
@@ -378,7 +378,7 @@ Tác tử Implementation Planner đọc đặc tả chức năng (hoặc thu th�
 ### Bước 3: Sinh mã (TDD)
 
 ```
-/frontend-react-plugin:fe-gen {feature}
+/frontend-v2-plugin:v2-gen {feature}
 ```
 
 Thực thi 6 giai đoạn TDD nghiêm ngặt. Mỗi giai đoạn TDD (2-5):
@@ -391,13 +391,13 @@ Các skill bên ngoài được tải theo giai đoạn: Vitest cho các giai đ
 ### Bước 4: Xác minh (tùy chọn)
 
 ```
-/frontend-react-plugin:fe-verify {feature}
+/frontend-v2-plugin:v2-verify {feature}
 ```
 
 ### Bước 5: Đánh giá
 
 ```
-/frontend-react-plugin:fe-review {feature}
+/frontend-v2-plugin:v2-review {feature}
 ```
 
 Đánh giá hai giai đoạn với báo cáo vấn đề được bổ sung (refs, gợi ý sửa, phân loại artifact thiếu).
@@ -405,8 +405,8 @@ Các skill bên ngoài được tải theo giai đoạn: Vitest cho các giai đ
 ### Bước 6: Sửa lỗi và đánh giá lại
 
 ```
-/frontend-react-plugin:fe-fix {feature}
-/frontend-react-plugin:fe-review {feature}
+/frontend-v2-plugin:v2-fix {feature}
+/frontend-v2-plugin:v2-review {feature}
 ```
 
 Lặp lại cho đến khi đánh giá đạt. Skill sửa lỗi áp dụng kỷ luật TDD cho các thay đổi hành vi và sửa trực tiếp cho các thay đổi cơ học.
@@ -414,7 +414,7 @@ Lặp lại cho đến khi đánh giá đạt. Skill sửa lỗi áp dụng kỷ
 ### Bước 7: Kiểm thử E2E
 
 ```
-/frontend-react-plugin:fe-e2e {feature}
+/frontend-v2-plugin:v2-e2e {feature}
 ```
 
 Sau khi đánh giá đạt, chạy kiểm thử end-to-end trên trình duyệt. Tác tử e2e-test-runner điều khiển agent-browser qua các luồng người dùng đa trang được định nghĩa trong plan.json, xác minh với dữ liệu mock MSW.
@@ -422,11 +422,11 @@ Sau khi đánh giá đạt, chạy kiểm thử end-to-end trên trình duyệt.
 ### Bước 8: Sửa E2E và kiểm thử lại
 
 ```
-/frontend-react-plugin:fe-fix {feature}
-/frontend-react-plugin:fe-e2e {feature}
+/frontend-v2-plugin:v2-fix {feature}
+/frontend-v2-plugin:v2-e2e {feature}
 ```
 
-Nếu kịch bản E2E thất bại, `fe-fix` tự động phát hiện chế độ E2E (bằng cách so sánh timestamp báo cáo) và sửa nguyên nhân gốc. Lặp lại cho đến khi tất cả kịch bản E2E đạt.
+Nếu kịch bản E2E thất bại, `v2-fix` tự động phát hiện chế độ E2E (bằng cách so sánh timestamp báo cáo) và sửa nguyên nhân gốc. Lặp lại cho đến khi tất cả kịch bản E2E đạt.
 
 ## Tác tử
 
@@ -464,7 +464,7 @@ So sánh mã sinh ra với đặc tả chức năng. Đánh giá mức độ bao
 
 **Vai trò**: Đánh giá chất lượng mã (8 chiều).
 
-Đánh giá nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước, kiến trúc và tính đơn giản/thiết kế thừa (mã chết, tự viết lại thư viện chuẩn, abstraction chỉ có một triển khai). Hỗ trợ chế độ pipeline (được gọi bởi fe-review sau khi đánh giá đặc tả đạt) và chế độ standalone (được gọi bởi fe-clean-code cho kiểm tra ad-hoc).
+Đánh giá nguyên tắc trách nhiệm đơn lẻ, pattern nhất quán, không chuỗi hardcode, xử lý lỗi, TypeScript strict, tuân thủ quy ước, kiến trúc và tính đơn giản/thiết kế thừa (mã chết, tự viết lại thư viện chuẩn, abstraction chỉ có một triển khai). Hỗ trợ chế độ pipeline (được gọi bởi v2-review sau khi đánh giá đặc tả đạt) và chế độ standalone (được gọi bởi v2-clean-code cho kiểm tra ad-hoc).
 
 ### Security Auditor
 
@@ -506,15 +506,15 @@ Root Cause Investigation → Pattern Analysis → Hypothesis Testing (giới h�
 
 | Skill | Command | Mô tả |
 |-------|---------|-------------|
-| Init | `/frontend-react-plugin:fe-init` | Thiết lập plugin và cài đặt hàng loạt skill bên ngoài |
-| Plan | `/frontend-react-plugin:fe-plan` | Phân tích đặc tả chức năng (hoặc thu thập yêu cầu) và tạo kế hoạch triển khai |
-| Gen | `/frontend-react-plugin:fe-gen` | Sinh mã production dựa trên kế hoạch triển khai (TDD) |
-| Verify | `/frontend-react-plugin:fe-verify` | Chạy xác minh TypeScript, build và test trên mã đã sinh |
-| Review | `/frontend-react-plugin:fe-review` | Đánh giá mã 2 giai đoạn (tuân thủ đặc tả + chất lượng) |
-| Fix | `/frontend-react-plugin:fe-fix` | Sửa vấn đề đánh giá với kỷ luật TDD |
-| E2E | `/frontend-react-plugin:fe-e2e` | Chạy kiểm thử E2E trên trình duyệt qua agent-browser |
-| Debug | `/frontend-react-plugin:fe-debug` | Gỡ lỗi có hệ thống với kiểm thử giả thuyết và leo thang |
-| Progress | `/frontend-react-plugin:fe-progress` | Hiển thị trạng thái pipeline triển khai cho tất cả hoặc một tính năng cụ thể |
+| Init | `/frontend-v2-plugin:v2-init` | Thiết lập plugin và cài đặt hàng loạt skill bên ngoài |
+| Plan | `/frontend-v2-plugin:v2-plan` | Phân tích đặc tả chức năng (hoặc thu thập yêu cầu) và tạo kế hoạch triển khai |
+| Gen | `/frontend-v2-plugin:v2-gen` | Sinh mã production dựa trên kế hoạch triển khai (TDD) |
+| Verify | `/frontend-v2-plugin:v2-verify` | Chạy xác minh TypeScript, build và test trên mã đã sinh |
+| Review | `/frontend-v2-plugin:v2-review` | Đánh giá mã 2 giai đoạn (tuân thủ đặc tả + chất lượng) |
+| Fix | `/frontend-v2-plugin:v2-fix` | Sửa vấn đề đánh giá với kỷ luật TDD |
+| E2E | `/frontend-v2-plugin:v2-e2e` | Chạy kiểm thử E2E trên trình duyệt qua agent-browser |
+| Debug | `/frontend-v2-plugin:v2-debug` | Gỡ lỗi có hệ thống với kiểm thử giả thuyết và leo thang |
+| Progress | `/frontend-v2-plugin:v2-progress` | Hiển thị trạng thái pipeline triển khai cho tất cả hoặc một tính năng cụ thể |
 
 ### Skill kiểm tra Standalone
 
@@ -522,11 +522,11 @@ Các skill kiểm tra độc lập chạy ngoài pipeline. Không cần theo dõ
 
 | Skill | Command | Mô tả |
 |-------|---------|-------------|
-| Security | `/frontend-react-plugin:fe-security` | Kiểm tra lỗ hổng bảo mật (XSS, token xác thực, bí mật, an toàn dữ liệu client-side) |
-| Clean Code | `/frontend-react-plugin:fe-clean-code` | Kiểm tra clean code (8 chiều chất lượng — chế độ standalone của quality-reviewer) |
-| Test Review | `/frontend-react-plugin:fe-test-review` | Kiểm tra chất lượng test (assertion, Testing Library, pattern async, coverage, timing gate) |
+| Security | `/frontend-v2-plugin:v2-security` | Kiểm tra lỗ hổng bảo mật (XSS, token xác thực, bí mật, an toàn dữ liệu client-side) |
+| Clean Code | `/frontend-v2-plugin:v2-clean-code` | Kiểm tra clean code (8 chiều chất lượng — chế độ standalone của quality-reviewer) |
+| Test Review | `/frontend-v2-plugin:v2-test-review` | Kiểm tra chất lượng test (assertion, Testing Library, pattern async, coverage, timing gate) |
 
-Cách dùng: `fe-security [đường dẫn]`, `fe-clean-code [đường dẫn]`, `fe-test-review [đường dẫn test]`
+Cách dùng: `v2-security [đường dẫn]`, `v2-clean-code [đường dẫn]`, `v2-test-review [đường dẫn test]`
 
 Các skill này có thể chạy bất cứ lúc nào trên bất kỳ mã nào, không chỉ các tính năng được sinh bởi pipeline.
 
@@ -543,7 +543,7 @@ Các skill này có thể chạy bất cứ lúc nào trên bất kỳ mã nào,
 
 ## Cấu hình
 
-Plugin sử dụng `.claude/frontend-react-plugin.json` trong thư mục dự án (được tạo bởi `/frontend-react-plugin:fe-init`):
+Plugin sử dụng `.claude/frontend-v2-plugin.json` trong thư mục dự án (được tạo bởi `/frontend-v2-plugin:v2-init`):
 
 ```json
 {
@@ -594,13 +594,13 @@ Tệp trạng thái trong `docs/specs/{feature}/.implementation/frontend/`:
 
 | File | Mục đích |
 |------|---------|
-| `plan.json` | Kế hoạch triển khai (đầu vào cho fe-gen) |
+| `plan.json` | Kế hoạch triển khai (đầu vào cho v2-gen) |
 | `generation-state.json` | Theo dõi tiến độ giai đoạn với timestamp (hỗ trợ tiếp tục) |
-| `review-report.json` | Kết quả đánh giá đầy đủ với chi tiết vấn đề được bổ sung (đầu vào cho fe-fix) |
+| `review-report.json` | Kết quả đánh giá đầy đủ với chi tiết vấn đề được bổ sung (đầu vào cho v2-fix) |
 | `fix-report.json` | Kết quả sửa lỗi với phân tích chiến lược |
-| `e2e-report.json` | Kết quả kiểm thử E2E với chi tiết kịch bản (đầu vào cho chế độ E2E của fe-fix) |
+| `e2e-report.json` | Kết quả kiểm thử E2E với chi tiết kịch bản (đầu vào cho chế độ E2E của v2-fix) |
 | `debug-report.json` | Kết quả phiên gỡ lỗi với nhật ký giả thuyết |
-| `delta-plan.json` | Kế hoạch thay đổi đặc tả gia tăng (đầu vào cho delta fe-gen, lưu trữ sau thực thi) |
+| `delta-plan.json` | Kế hoạch thay đổi đặc tả gia tăng (đầu vào cho delta v2-gen, lưu trữ sau thực thi) |
 | `.lock` | Khóa phạm vi tính năng (`holder` / `pid` / `acquiredAt`) |
 | `docs/specs/.app.lock` | Khóa phạm vi ứng dụng cho tệp route trung tâm, cấu hình i18n và tập hợp handler MSW |
 
@@ -612,17 +612,17 @@ planned → generated → verified → reviewed → done
          gen-failed  ↘ verify-failed ↓  review-failed
                       ↘     ↓        ↓      ↓
                        → resolved  fixing → (re-review → reviewed/review-failed)
-                         escalated    ↓  ↘ generated (regen-required → fe-gen)
+                         escalated    ↓  ↘ generated (regen-required → v2-gen)
                             ↓    escalated
                       (manual intervention)
 ```
 
 ### An toàn tệp trạng thái
 
-- **Cơ chế khóa**: Hai phạm vi, lấy theo thứ tự — khóa tính năng `.lock` (fe-gen/fe-verify/fe-review/fe-fix/fe-e2e trên cùng một tính năng) rồi `docs/specs/.app.lock` (mọi ghi vào tệp route trung tâm, cấu hình i18n hoặc tập hợp handler MSW — khóa tính năng không bảo vệ những tệp này). Chỉ phá khóa khi chủ sở hữu đã biến mất: kiểm tra `pid` trước, và quy tắc 30 phút là dọn khóa ma chứ không phải timeout một tiến trình đang chạy — sáu giai đoạn TDD của fe-gen vượt quá mốc này một cách hợp lệ.
+- **Cơ chế khóa**: Hai phạm vi, lấy theo thứ tự — khóa tính năng `.lock` (v2-gen/v2-verify/v2-review/v2-fix/v2-e2e trên cùng một tính năng) rồi `docs/specs/.app.lock` (mọi ghi vào tệp route trung tâm, cấu hình i18n hoặc tập hợp handler MSW — khóa tính năng không bảo vệ những tệp này). Chỉ phá khóa khi chủ sở hữu đã biến mất: kiểm tra `pid` trước, và quy tắc 30 phút là dọn khóa ma chứ không phải timeout một tiến trình đang chạy — sáu giai đoạn TDD của v2-gen vượt quá mốc này một cách hợp lệ.
 - **Quy tắc Read-Modify-Write**: Luôn đọc nội dung tệp mới nhất trước khi ghi. Chỉ hợp nhất các trường đã thay đổi — bảo toàn tất cả trường hiện có.
 - **Timestamp giai đoạn**: Mỗi giai đoạn TDD ghi lại `completedAt` để hỗ trợ tiếp tục chính xác và phát hiện độ mới của kế hoạch.
-- **Phát hiện lỗi thời**: fe-fix cảnh báo khi tệp nguồn thay đổi kể từ lần đánh giá cuối. fe-review cảnh báo khi đặc tả thay đổi kể từ lần sinh mã.
+- **Phát hiện lỗi thời**: v2-fix cảnh báo khi tệp nguồn thay đổi kể từ lần đánh giá cuối. v2-review cảnh báo khi đặc tả thay đổi kể từ lần sinh mã.
 
 ## Hook
 
@@ -631,20 +631,20 @@ Plugin đăng ký hai hook vòng đời chạy tự động:
 ### SessionStart — `session-init.sh`
 
 Chạy khi phiên Claude Code bắt đầu. Kiểm tra:
-- **Cấu hình**: Tải `.claude/frontend-react-plugin.json` và báo cáo cài đặt hiện tại
+- **Cấu hình**: Tải `.claude/frontend-v2-plugin.json` và báo cáo cài đặt hiện tại
 - **Thiếu skill**: Cảnh báo nếu skill bên ngoài nào chưa được cài đặt
 - **Trạng thái pipeline**: Quét tất cả tính năng và báo cáo trạng thái hiện tại với hướng dẫn bước tiếp theo:
-  - `planned` → đề xuất `fe-gen`
-  - `generated` → đề xuất `fe-verify` hoặc `fe-review`
-  - `gen-failed` → đề xuất thử lại `fe-gen`
-  - `verified` → đề xuất `fe-review`
-  - `verify-failed` → đề xuất `fe-debug`
-  - `reviewed` → đề xuất `fe-fix` (cảnh báo) hoặc `fe-e2e` (nhận biết E2E)
-  - `review-failed` → đề xuất `fe-fix` rồi `fe-review`
-  - `fixing` → đề xuất `fe-review` hoặc `fe-e2e` (tự động phát hiện chế độ sửa E2E, hoặc `fe-gen` nếu cần sinh lại)
-  - `resolved` → đề xuất `fe-verify` hoặc `fe-review`
+  - `planned` → đề xuất `v2-gen`
+  - `generated` → đề xuất `v2-verify` hoặc `v2-review`
+  - `gen-failed` → đề xuất thử lại `v2-gen`
+  - `verified` → đề xuất `v2-review`
+  - `verify-failed` → đề xuất `v2-debug`
+  - `reviewed` → đề xuất `v2-fix` (cảnh báo) hoặc `v2-e2e` (nhận biết E2E)
+  - `review-failed` → đề xuất `v2-fix` rồi `v2-review`
+  - `fixing` → đề xuất `v2-review` hoặc `v2-e2e` (tự động phát hiện chế độ sửa E2E, hoặc `v2-gen` nếu cần sinh lại)
+  - `resolved` → đề xuất `v2-verify` hoặc `v2-review`
   - `escalated` → cảnh báo cần can thiệp thủ công
-  - `done` → đề xuất `fe-e2e` nếu chưa chạy E2E, nếu không thì báo cáo hoàn thành (nhận biết E2E)
+  - `done` → đề xuất `v2-e2e` nếu chưa chạy E2E, nếu không thì báo cáo hoàn thành (nhận biết E2E)
 
 ### PostToolUse — `validate-implementation.sh`
 
@@ -653,27 +653,27 @@ Chạy sau mỗi lệnh gọi công cụ `Write` hoặc `Edit`. Chỉ kích ho�
 
 ## Ngôn ngữ giao tiếp
 
-Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-e2e, fe-debug, fe-progress) đọc `workingLanguage` từ tệp tiến độ. Tất cả đầu ra cho người dùng (tóm tắt, câu hỏi, phản hồi, hướng dẫn bước tiếp theo) được viết bằng ngôn ngữ làm việc.
+Các skill cấp tính năng (v2-plan, v2-gen, v2-verify, v2-review, v2-fix, v2-e2e, v2-debug, v2-progress) đọc `workingLanguage` từ tệp tiến độ. Tất cả đầu ra cho người dùng (tóm tắt, câu hỏi, phản hồi, hướng dẫn bước tiếp theo) được viết bằng ngôn ngữ làm việc.
 
 Ánh xạ tên ngôn ngữ: `en` = English, `ko` = Korean, `vi` = Vietnamese.
 
 ## Mẹo và thực hành tốt nhất
 
-- **Xem lại kế hoạch trước khi sinh mã** — `plan.json` có thể chỉnh sửa được. Điều chỉnh tên tệp, đường dẫn route hoặc test case trước khi chạy `fe-gen`.
+- **Xem lại kế hoạch trước khi sinh mã** — `plan.json` có thể chỉnh sửa được. Điều chỉnh tên tệp, đường dẫn route hoặc test case trước khi chạy `v2-gen`.
 
 - **Sử dụng mock-first để lặp nhanh** — Với `mockFirst: true`, chạy `VITE_ENABLE_MOCKS=true pnpm dev` để phát triển với MSW mocks mà không cần backend. Khi backend sẵn sàng, chỉ cần xóa biến môi trường.
 
-- **Không bỏ qua đánh giá lại sau khi sửa** — Luôn chạy `fe-review` sau `fe-fix`. Chu trình sửa-đánh giá đảm bảo không có hồi quy.
+- **Không bỏ qua đánh giá lại sau khi sửa** — Luôn chạy `v2-review` sau `v2-fix`. Chu trình sửa-đánh giá đảm bảo không có hồi quy.
 
-- **Sử dụng fe-debug cho vấn đề runtime** — Nếu test đạt nhưng ứng dụng hoạt động không đúng, `fe-debug` cung cấp kiểm thử giả thuyết có hệ thống thay vì gỡ lỗi tùy ý.
+- **Sử dụng v2-debug cho vấn đề runtime** — Nếu test đạt nhưng ứng dụng hoạt động không đúng, `v2-debug` cung cấp kiểm thử giả thuyết có hệ thống thay vì gỡ lỗi tùy ý.
 
 - **Chế độ độc lập là khởi đầu nhanh, không phải đường tắt** — Nó tạo kế hoạch đơn giản hơn mà không có mã lỗi, quy tắc xác thực hoặc tham chiếu kịch bản kiểm thử. Đối với tính năng production, hãy đầu tư vào đặc tả đúng đắn với planning-plugin.
 
-- **Sử dụng chế độ gia tăng khi đặc tả thay đổi** — Sau khi sửa đổi đặc tả trên mã đã sinh, chạy lại `fe-plan`. Nó tự động phát hiện triển khai hiện có và đề xuất chế độ gia tăng, chỉ sinh lại các tệp bị ảnh hưởng trong khi bảo toàn tất cả công việc review/fix. Delta lớn (>60% tệp) sẽ hiển thị cảnh báo đề xuất sinh lại toàn bộ.
+- **Sử dụng chế độ gia tăng khi đặc tả thay đổi** — Sau khi sửa đổi đặc tả trên mã đã sinh, chạy lại `v2-plan`. Nó tự động phát hiện triển khai hiện có và đề xuất chế độ gia tăng, chỉ sinh lại các tệp bị ảnh hưởng trong khi bảo toàn tất cả công việc review/fix. Delta lớn (>60% tệp) sẽ hiển thị cảnh báo đề xuất sinh lại toàn bộ.
 
-- **Tiếp tục là an toàn** — Nếu quá trình sinh mã bị gián đoạn, chỉ cần chạy lại `fe-gen`. Nó phát hiện các giai đoạn đã hoàn thành và tiếp tục. Timestamp cấp giai đoạn đảm bảo kiểm tra độ mới chính xác.
+- **Tiếp tục là an toàn** — Nếu quá trình sinh mã bị gián đoạn, chỉ cần chạy lại `v2-gen`. Nó phát hiện các giai đoạn đã hoàn thành và tiếp tục. Timestamp cấp giai đoạn đảm bảo kiểm tra độ mới chính xác.
 
-- **Khóa bảo vệ trạng thái của bạn** — Không chạy `fe-gen` và `fe-fix` trên cùng tính năng đồng thời. Cơ chế khóa ngăn hỏng tệp trạng thái.
+- **Khóa bảo vệ trạng thái của bạn** — Không chạy `v2-gen` và `v2-fix` trên cùng tính năng đồng thời. Cơ chế khóa ngăn hỏng tệp trạng thái.
 
 ## Lộ trình
 
@@ -685,7 +685,7 @@ Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-
 - [x] Skill đánh giá mã (tuân thủ đặc tả + chất lượng)
 - [x] Skill sửa lỗi (kỷ luật TDD)
 - [x] Skill gỡ lỗi (gỡ lỗi có hệ thống)
-- [x] Chế độ độc lập (fe-plan không cần planning-plugin)
+- [x] Chế độ độc lập (v2-plan không cần planning-plugin)
 - [x] Tính nhất quán trạng thái (khóa, timestamp, phát hiện lỗi thời)
 - [x] Bộ xử lý hook (session-init, xác thực triển khai)
 - [x] Skill kiểm thử E2E (tích hợp agent-browser)
@@ -700,8 +700,8 @@ Các skill cấp tính năng (fe-plan, fe-gen, fe-verify, fe-review, fe-fix, fe-
 agents/          Agent definitions (planner, foundation-generator, tdd-cycle-runner,
                  integration-generator, spec-reviewer, quality-reviewer, security-auditor,
                  test-reviewer, review-fixer, delta-modifier, e2e-test-runner, debugger)
-skills/          Skill entry points (fe-init, fe-plan, fe-gen, fe-verify, fe-review, fe-fix,
-                 fe-e2e, fe-debug, fe-progress, fe-security, fe-clean-code, fe-test-review, fe-shared)
+skills/          Skill entry points (v2-init, v2-plan, v2-gen, v2-verify, v2-review, v2-fix,
+                 v2-e2e, v2-debug, v2-progress, v2-security, v2-clean-code, v2-test-review, v2-shared)
 hooks/           Lifecycle hook configuration
 scripts/         Hook handler scripts (session-init.sh, validate-implementation.sh)
 templates/       Template files (feature-module.md, tdd-rules.md, eslint-config.md,

@@ -4,7 +4,7 @@ description: Read-only agent that audits frontend React/TypeScript code for secu
 model: sonnet
 effort: medium
 tools: Read, Glob, Grep
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Security Auditor Agent
@@ -36,7 +36,7 @@ Before scoring, check the collection:
   target, stop. Do not score.
 
 Zero findings over zero files is not a clean audit — it is an audit that never ran. Reporting PASS
-there is the silent-pass failure this plugin's verification philosophy exists to prevent (fe-shared
+there is the silent-pass failure this plugin's verification philosophy exists to prevent (v2-shared
 § Verification Philosophy: a statement about the state of the evidence is itself a claim).
 `unverifiable` is a distinct outcome from both PASS and FAIL and must be printed as such.
 

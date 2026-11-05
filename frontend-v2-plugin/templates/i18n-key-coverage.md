@@ -1,7 +1,7 @@
 # i18n Key Coverage
 
 The copy axis of verification: the words the user actually reads. `foundation-generator` scaffolds
-the spec described here **once per app**; `fe-verify`'s existing `npx vitest run` makes it a hard
+the spec described here **once per app**; `v2-verify`'s existing `npx vitest run` makes it a hard
 gate automatically — there is no separate gate step.
 
 ## Why copy fails silently
@@ -32,7 +32,7 @@ it for partially-translated languages. Catch the gap at generation and verificat
 Requires the `i18n` config block (`languages`, `lookupFns`); the locale resources come from the plan's
 `localesDir` — under `i18nBinding == custom-hook` (Phase 2) from one **flat** file per language at
 `{i18nHook.resourcesDir}/{resourceFile}` (`{LANG}` uppercased / `{lang}` as configured), where a key is
-looked up verbatim (no namespace segment). When that block is absent the spec is not generated and `fe-verify` reports the axis as
+looked up verbatim (no namespace segment). When that block is absent the spec is not generated and `v2-verify` reports the axis as
 `skipped` — never a silent pass.
 
 1. **Every key literal resolves in every language.** Collect string-literal keys at every
@@ -61,7 +61,7 @@ Failure output names, per finding, the **key**, the **languages missing it**, an
 ```
 
 Scope: an **app-wide invariant**, generated once alongside the test harness and re-run by every
-feature's `fe-verify`. Location: `{baseDir}/__tests__/i18n-key-coverage.test.ts`.
+feature's `v2-verify`. Location: `{baseDir}/__tests__/i18n-key-coverage.test.ts`.
 
 ## K2 is a generation rule, not a spec assertion
 

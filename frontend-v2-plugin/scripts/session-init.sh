@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Session initialization hook for frontend-react-plugin
+# Session initialization hook for frontend-v2-plugin
 # Checks for project configuration and reports current settings
 
 set -euo pipefail
@@ -8,7 +8,7 @@ set -euo pipefail
 # first substitution and print nothing at all — including the "no configuration" notice.
 if ! command -v jq >/dev/null 2>&1; then
   echo ""
-  echo "[Frontend React Plugin] jq not found — session checks skipped."
+  echo "[Frontend V2 Plugin] jq not found — session checks skipped."
   exit 0
 fi
 
@@ -18,13 +18,13 @@ INPUT=$(cat)
 # Get the working directory
 CWD=$(echo "$INPUT" | jq -r '.cwd // "."')
 
-CONFIG_FILE="$CWD/.claude/frontend-react-plugin.json"
+CONFIG_FILE="$CWD/.claude/frontend-v2-plugin.json"
 
 # If config file does not exist, suggest init
 if [ ! -f "$CONFIG_FILE" ]; then
   echo ""
-  echo "[Frontend React Plugin] No configuration found."
-  echo "Run /frontend-react-plugin:fe-init to set up the plugin for this project."
+  echo "[Frontend V2 Plugin] No configuration found."
+  echo "Run /frontend-v2-plugin:v2-init to set up the plugin for this project."
   exit 0
 fi
 
@@ -62,7 +62,7 @@ done
 
 # Display current settings
 echo ""
-echo "[Frontend React Plugin] Configuration loaded:"
+echo "[Frontend V2 Plugin] Configuration loaded:"
 # Only surface the new-stack knobs when they diverge from admin defaults (keeps admin session output byte-identical to pre-OTA)
 if [ "$APP_PROFILE" != "admin" ]; then
   echo "  App profile: $APP_PROFILE"
@@ -89,7 +89,7 @@ if [ ${#MISSING_SKILLS[@]} -gt 0 ]; then
   for skill in "${MISSING_SKILLS[@]}"; do
     echo "    - $skill"
   done
-  echo "  Run /frontend-react-plugin:fe-init to install them."
+  echo "  Run /frontend-v2-plugin:v2-init to install them."
 fi
 
 # ESLint template status
@@ -135,7 +135,7 @@ if [ -d "$SPECS_DIR" ]; then
     # Check for pending delta-plan.json
     DELTA_PLAN="$SPECS_DIR/$FEATURE/.implementation/frontend/delta-plan.json"
     if [ -f "$DELTA_PLAN" ]; then
-      echo "  Info: [$FEATURE] Delta plan pending. Run /frontend-react-plugin:fe-gen $FEATURE to apply incremental changes."
+      echo "  Info: [$FEATURE] Delta plan pending. Run /frontend-v2-plugin:v2-gen $FEATURE to apply incremental changes."
     fi
 
     # Check for spec staleness (spec modified after generation)
@@ -162,65 +162,65 @@ if [ -d "$SPECS_DIR" ]; then
           fi
         done
         if [ "$SPEC_STALE" = true ] && [ ! -f "$DELTA_PLAN" ]; then
-          echo "  Warning: [$FEATURE] Spec modified after code generation. Run /frontend-react-plugin:fe-plan $FEATURE to detect changes (incremental mode preserves existing fixes)."
+          echo "  Warning: [$FEATURE] Spec modified after code generation. Run /frontend-v2-plugin:v2-plan $FEATURE to detect changes (incremental mode preserves existing fixes)."
         fi
       fi
     fi
 
     case "$IMPL_STATUS" in
       planned)
-        echo "  Info: [$FEATURE] Plan ready. Run /frontend-react-plugin:fe-gen $FEATURE to generate code."
+        echo "  Info: [$FEATURE] Plan ready. Run /frontend-v2-plugin:v2-gen $FEATURE to generate code."
         ;;
       generated)
-        echo "  Info: [$FEATURE] Code generated. Run /frontend-react-plugin:fe-verify $FEATURE or /frontend-react-plugin:fe-review $FEATURE."
+        echo "  Info: [$FEATURE] Code generated. Run /frontend-v2-plugin:v2-verify $FEATURE or /frontend-v2-plugin:v2-review $FEATURE."
         ;;
       verified)
-        echo "  Info: [$FEATURE] Verification passed. Run /frontend-react-plugin:fe-review $FEATURE."
+        echo "  Info: [$FEATURE] Verification passed. Run /frontend-v2-plugin:v2-review $FEATURE."
         ;;
       done)
         # Check if E2E has been run and its result
         E2E_STATUS=$(jq -r '.implementation.e2e.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
         if [ -z "$E2E_STATUS" ]; then
-          echo "  Info: [$FEATURE] Review passed. Run /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
+          echo "  Info: [$FEATURE] Review passed. Run /frontend-v2-plugin:v2-e2e $FEATURE for E2E testing."
         elif [ "$E2E_STATUS" = "pass" ]; then
           echo "  Info: [$FEATURE] Pipeline complete."
         else
-          echo "  Info: [$FEATURE] Review passed but E2E has failures (status: $E2E_STATUS). Run /frontend-react-plugin:fe-fix $FEATURE then /frontend-react-plugin:fe-e2e $FEATURE."
+          echo "  Info: [$FEATURE] Review passed but E2E has failures (status: $E2E_STATUS). Run /frontend-v2-plugin:v2-fix $FEATURE then /frontend-v2-plugin:v2-e2e $FEATURE."
         fi
         ;;
       reviewed)
         E2E_STATUS=$(jq -r '.implementation.e2e.status // ""' "$PROGRESS_FILE" 2>/dev/null || echo "")
         if [ -z "$E2E_STATUS" ]; then
-          echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings, or /frontend-react-plugin:fe-e2e $FEATURE for E2E testing."
+          echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-v2-plugin:v2-fix $FEATURE to address warnings, or /frontend-v2-plugin:v2-e2e $FEATURE for E2E testing."
         elif [ "$E2E_STATUS" = "pass" ]; then
-          echo "  Info: [$FEATURE] Reviewed with warnings, E2E passed. Run /frontend-react-plugin:fe-fix $FEATURE to address warnings."
+          echo "  Info: [$FEATURE] Reviewed with warnings, E2E passed. Run /frontend-v2-plugin:v2-fix $FEATURE to address warnings."
         else
-          echo "  Info: [$FEATURE] Reviewed with warnings, E2E has failures (status: $E2E_STATUS). Run /frontend-react-plugin:fe-fix $FEATURE then /frontend-react-plugin:fe-e2e $FEATURE."
+          echo "  Info: [$FEATURE] Reviewed with warnings, E2E has failures (status: $E2E_STATUS). Run /frontend-v2-plugin:v2-fix $FEATURE then /frontend-v2-plugin:v2-e2e $FEATURE."
         fi
         ;;
       gen-failed)
-        echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-react-plugin:fe-gen $FEATURE to retry."
+        echo "  Warning: [$FEATURE] Code generation failed. Run /frontend-v2-plugin:v2-gen $FEATURE to retry."
         ;;
       verify-failed)
-        echo "  Warning: [$FEATURE] Verification failed. Run /frontend-react-plugin:fe-debug $FEATURE or review errors."
+        echo "  Warning: [$FEATURE] Verification failed. Run /frontend-v2-plugin:v2-debug $FEATURE or review errors."
         ;;
       review-failed)
-        echo "  Warning: [$FEATURE] Code review failed. Run /frontend-react-plugin:fe-fix $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
+        echo "  Warning: [$FEATURE] Code review failed. Run /frontend-v2-plugin:v2-fix $FEATURE first, then /frontend-v2-plugin:v2-review $FEATURE."
         ;;
       fixing)
         FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
         E2E_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/e2e-report.json"
         REVIEW_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/review-report.json"
         if [ -f "$FIX_REPORT" ] && jq -e '.regenRequired | length > 0' "$FIX_REPORT" >/dev/null 2>&1; then
-          echo "  Warning: [$FEATURE] Regen required. Run /frontend-react-plugin:fe-gen $FEATURE first, then /frontend-react-plugin:fe-review $FEATURE."
+          echo "  Warning: [$FEATURE] Regen required. Run /frontend-v2-plugin:v2-gen $FEATURE first, then /frontend-v2-plugin:v2-review $FEATURE."
         elif [ -f "$E2E_REPORT" ] && [ -f "$REVIEW_REPORT" ] && [ "$E2E_REPORT" -nt "$REVIEW_REPORT" ]; then
-          echo "  Warning: [$FEATURE] E2E fixes applied — re-run E2E. Run /frontend-react-plugin:fe-e2e $FEATURE."
+          echo "  Warning: [$FEATURE] E2E fixes applied — re-run E2E. Run /frontend-v2-plugin:v2-e2e $FEATURE."
         else
-          echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-react-plugin:fe-review $FEATURE."
+          echo "  Warning: [$FEATURE] Fixes applied — re-review needed. Run /frontend-v2-plugin:v2-review $FEATURE."
         fi
         ;;
       resolved)
-        echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-react-plugin:fe-verify $FEATURE) or re-reviewing (/frontend-react-plugin:fe-review $FEATURE)."
+        echo "  Warning: [$FEATURE] Debug issue resolved. Consider re-verifying (/frontend-v2-plugin:v2-verify $FEATURE) or re-reviewing (/frontend-v2-plugin:v2-review $FEATURE)."
         ;;
       escalated)
         FIX_REPORT="$SPECS_DIR/$FEATURE/.implementation/frontend/fix-report.json"
@@ -236,7 +236,7 @@ if [ -d "$SPECS_DIR" ]; then
         else
           echo "  Warning: [$FEATURE] Debugging escalated — manual intervention required. See debug-report.json."
         fi
-        echo "    Re-entry: /frontend-react-plugin:fe-fix $FEATURE, /frontend-react-plugin:fe-review $FEATURE, or /frontend-react-plugin:fe-debug $FEATURE."
+        echo "    Re-entry: /frontend-v2-plugin:v2-fix $FEATURE, /frontend-v2-plugin:v2-review $FEATURE, or /frontend-v2-plugin:v2-debug $FEATURE."
         ;;
     esac
   done

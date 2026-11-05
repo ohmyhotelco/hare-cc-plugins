@@ -1,5 +1,5 @@
 ---
-description: This request should go through fe-gen, which stops without a plugin configuration.
+description: This request should go through v2-gen, which stops without a plugin configuration.
 max_turns: 8
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [routing]

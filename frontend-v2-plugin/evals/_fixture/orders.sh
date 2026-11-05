@@ -6,7 +6,7 @@ D=docs/specs/order-management
 I=$D/.implementation/frontend
 mkdir -p .claude "$F/__tests__" "$D/.progress" "$D/en" "$I" node_modules/.bin
 
-cat > .claude/frontend-react-plugin.json <<'EOF'
+cat > .claude/frontend-v2-plugin.json <<'EOF'
 { "appProfile": "admin", "routerMode": "declarative", "serverState": "zustand-only", "formStack": "native", "e2eTool": "agent-browser", "mockFirst": true, "baseDir": "src", "appDir": ".", "eslintTemplate": true, "prettierTemplate": true }
 EOF
 cat > package.json <<'EOF'

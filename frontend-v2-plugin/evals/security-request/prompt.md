@@ -1,5 +1,5 @@
 ---
-description: This request should go through fe-security.
+description: This request should go through v2-security.
 max_turns: 5
 allowed_tools: [Read, Glob, Grep, Skill]
 tags: [routing, routing-audit]

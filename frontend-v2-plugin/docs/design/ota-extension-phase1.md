@@ -8,7 +8,7 @@
 
 ## 1. Goal
 
-Extend `frontend-react-plugin` from a greenfield **B2B admin SPA** generator into a plugin that can also
+Extend `frontend-v2-plugin` from a greenfield **B2B admin SPA** generator into a plugin that can also
 generate a **brand-new OTA app** (SEO-critical, data-heavy, form/transaction-heavy). Phase 1 delivers the
 core stack shift; everything else builds on it.
 
@@ -26,7 +26,7 @@ migration-specific machinery (no parity gates, no legacy analysis).
 | D4 | New config key `formStack: "native" \| "rhf-zod"`. Defaults: admin → `native` (today's behavior), ota → `rhf-zod`. | Booking/payment/guest forms need schema validation. Aligned with fm (RHF + zod). |
 | D5 | Per-page rendering decision lives in **plan.json** (`pages[].rendering: "ssr" \| "ssg" \| "spa"`), not in config. Config holds only `renderingDefault` (framework mode). SSG is realized via the `prerender` array in `react-router.config.ts`; SPA pages use `clientLoader` only. **Phase 1 constraint: `ssg` is allowed only for parameterless AND loader-less routes** (pure static shells) — `prerender` needs concrete URLs and **executes loaders at build time**, where the D8 MSW hook does not apply (it is dev-server-only); a loader-carrying ssg candidate is demoted to `ssr` by the planner. Dynamic-segment enumeration and build-time data sourcing (`pages[].staticPaths`) are deferred together (O5). | Mirrors fm's per-route SSR/SSG/SPA decision (migration plan §5), but driven by the spec instead of legacy. The static-shell-only constraint keeps mock-first builds green with no backend and caps Phase 1 scope without blocking dynamic SSG later. |
 | D6 | New config key `e2eTool: "agent-browser" \| "playwright"`, defaulted by profile: admin → `agent-browser` (today's behavior), ota → `playwright`. The Playwright realization ports fm's harness patterns (trace-first reports, auth/state setup, page-object reuse, MSW integration) **without** the migration-specific legacy dual-run and parity checks. | Decided (was O4): OTA needs `toHaveScreenshot` visual baselines later (Phase 3) and staging payment E2E (Phase 4) — both Playwright-only. Binding the switch to the profile now avoids generating agent-browser suites that get thrown away in Phase 3. |
-| D7 | Dependencies are **never auto-installed** (existing rule). fe-init and generators print the `pnpm add` command and skip gracefully. | Consistent with the ESLint template behavior. |
+| D7 | Dependencies are **never auto-installed** (existing rule). v2-init and generators print the `pnpm add` command and skip gracefully. | Consistent with the ESLint template behavior. |
 | D8 | MSW in framework mode: browser worker unchanged for client fetches (bootstrapped in `entry.client.tsx` — the framework-mode equivalent of the `main.tsx` wiring); **dev-time server-side loaders** get MSW node via a guarded hook in `entry.server.tsx` only (`mocks/node.ts`, `VITE_ENABLE_MOCKS`). The hook is **module-scope and idempotent** (`globalThis` guard against HMR double-`listen()`), so `server.listen()` completes before any loader can run. **Fallback:** if the §8 interception assertion fails in any mode/build, move the MSW bootstrap to a custom dev-server entry (documented in the app-shell template) instead of weakening the guard. Unit tests keep the existing `mocks/server.ts` (msw/node) — unchanged. | Without this, mock-first development breaks the moment a loader runs on the server (fm hardened the same surface in v0.5.0). The idempotency guard is required because Vite dev re-evaluates the server entry on HMR; the ordering claim is an assumption about RR's server pipeline, hence the explicit fallback. |
 | D9 | TanStack Query ↔ loader layering (v1 convention, template-documented): **SSR/SSG routes** — loader fetches via the **server-safe** API service (D13) and returns data; the component consumes `loaderData`, passing it as `initialData` to `useQuery` only when live refetch is needed. The handoff is only sound with three accompanying rules (all enforced via `templates/server-state.md`): **(a)** loader and hook share the same `queryOptions` factory (one query key, one fetcher **definition** — never hand-written twice; the factory is **fetch-client-agnostic** and receives the D13 client as an argument: loaders inject the base client, hooks the browser wrapper — so rule (a) and D13's import boundary compose rather than conflict); **(b)** loader-fed queries set an explicit `staleTime` > 0 (default 60s) — with the TanStack default `staleTime: 0`, `initialData` is immediately stale and the hook refetches on mount, reintroducing the double-fetch this contract exists to prevent; **(c)** the loader passes `initialDataUpdatedAt` (its fetch timestamp) so a previously-populated cache entry is not overwritten by staler loader data. **SPA routes, mutations, infinite lists** — pure TanStack Query. Full `dehydrate`/`HydrationBoundary` hydration is deliberately deferred (open question O2); escalate to it when nested routes must share one cache entry. | Avoids double-fetch and hydration machinery in v1 while keeping one obvious home per data need — but only with rules (a)-(c); the bare `initialData` pattern without them is a known refetch/staleness trap. |
 | D10 | 4-state page pattern re-mapping in framework mode: `loading` → `HydrateFallback` + `useNavigation` pending UI; `error` → route module `ErrorBoundary`; `empty`/`success` unchanged inside the component. **Test split:** the route module is a **thin wrapper** (loader/meta/ErrorBoundary/HydrateFallback + a default export that delegates to an extracted page-body component taking loader data as props). page-tdd unit-tests the **body component** (plain Testing Library render; `createRoutesStub` only where router hooks are used — RR documents it as unsuitable for route modules with generated `Route.*` types); the route module itself is covered by typegen + `tsc` + build and the Playwright E2E smoke. | The 4 mandatory states survive; only their realization moves to route-module exports. The wrapper/body split keeps strict TDD possible where RR's test harness has a documented gap. |
@@ -34,7 +34,7 @@ migration-specific machinery (no parity gates, no legacy analysis).
 | D12 | **dayjs** (+ `locale` ko/en/ja/vi, `utc`, `timezone` plugins) is the date convention for the ota profile — check-in/out dates, hotel-local timezones, locale-aware ranges. The admin profile keeps the existing Intl-only convention. Currency stays `Intl.NumberFormat` in both profiles. | Decided (was O1): aligned with fm's stack; OTA date math (nights, ranges, hotel-local cutoffs) outgrows bare Intl, and the Phase 2 date-range picker will build on it. |
 | D13 | **Server-safe API client.** The shared Axios setup is split in framework mode: a **base client** (baseURL + typed methods, no browser dependencies) usable from loaders, and a **browser wrapper** that adds the JWT/localStorage interceptors for client code. Loaders/`entry.server` code may import only the base client; `VITE_*` env vars are client-public by definition — server-only config uses non-`VITE_` `process.env` (full secret classification is Phase 4). | The existing admin interceptors touch `localStorage` and `window` — importing them in a loader crashes the server render. This is the minimum split that makes D9's "loader fetches via the API service" true. |
 
-## 3. Configuration schema (`.claude/frontend-react-plugin.json`)
+## 3. Configuration schema (`.claude/frontend-v2-plugin.json`)
 
 ```jsonc
 {
@@ -93,7 +93,7 @@ and the entry files live under `{baseDir}`.
   rules + `errorMapping`).
 - **`stores[]`** (`:685-694`): under `tanstack-query` the planner must **exclude server data** (`list`,
   `selected`, `loading`, `error` of server origin) from store shapes; a page with no client-only state gets
-  no store, and `store-tdd` is skipped for it (fe-gen already skips phases with no files — make this
+  no store, and `store-tdd` is skipped for it (v2-gen already skips phases with no files — make this
   explicit in the phase spec).
 - **`routes{}`** (`:749-772`): framework variant — `mode: "framework"`, `routesFile: "{baseDir}/routes.ts"`,
   `configFile: "react-router.config.ts"`, entries carry `file` (route module path) instead of JSX element
@@ -107,7 +107,7 @@ and the entry files live under `{baseDir}`.
 
 ## 5. Per-file change specification
 
-### 5.1 `skills/fe-init/SKILL.md`
+### 5.1 `skills/v2-init/SKILL.md`
 
 | Step | Change |
 |---|---|
@@ -171,7 +171,7 @@ and the entry files live under `{baseDir}`.
   component: plain Testing Library render; `createRoutesStub` only for components that use router hooks
   (`useNavigation`, `Link` state) — never for the route module itself (RR documents `createRoutesStub` as
   unsuitable for modules typed with generated `Route.*` types). The route module wrapper is verified by
-  typegen + tsc + build (fe-verify) and the E2E smoke, not unit tests. 4-state mapping per D10. Load
+  typegen + tsc + build (v2-verify) and the E2E smoke, not unit tests. 4-state mapping per D10. Load
   `.claude/skills/react-router-framework-mode/SKILL.md`.
 - External skills (L49): change "skip RSC/SSR" to **conditional** — skip only when `routerMode` is a
   library mode; in framework mode apply the SSR rules (same inversion fm documents).
@@ -203,7 +203,7 @@ and the entry files live under `{baseDir}`.
   unchanged (`npx vite build`).
 - Checklist L284-285 ("RSC/SSR Skip — Vite SPA"): make conditional on router mode.
 
-### 5.6 `skills/fe-verify/SKILL.md`
+### 5.6 `skills/v2-verify/SKILL.md`
 
 - Step 2.1 (L83-104): framework mode — run `npx react-router typegen 2>&1` before the composite-aware tsc.
 - Step 2.3 (L136-143): framework mode — `npx react-router build 2>&1` instead of `npx vite build`.
@@ -230,32 +230,32 @@ and the entry files live under `{baseDir}`.
 | `agents/review-fixer.md` (L26, 65-66, 201) | framework skill load; conditional SSR-skip; mode-aware build cmd |
 | `agents/delta-modifier.md` (L25, 81-82, 214) | same |
 | `agents/debugger.md` (L21, 32, 125) | same |
-| `skills/fe-gen/SKILL.md` (L19, 212, 243, 274, 481, 543) | pass `serverState`/`formStack`/`rendering` through to phase agents; empty-store-phase skip rule |
-| `skills/fe-plan/SKILL.md` (L17, 191, 257, 279) | pass new config keys to planner |
+| `skills/v2-gen/SKILL.md` (L19, 212, 243, 274, 481, 543) | pass `serverState`/`formStack`/`rendering` through to phase agents; empty-store-phase skip rule |
+| `skills/v2-plan/SKILL.md` (L17, 191, 257, 279) | pass new config keys to planner |
 | `scripts/session-init.sh` (L24, 31) | verify no enum validation blocks `framework` (interpolation at L31 already generic) |
 
-### 5.9 E2E toolchain (`e2eTool`) — `skills/fe-e2e/SKILL.md`, `agents/e2e-test-runner.md`, `skills/fe-fix/SKILL.md`
+### 5.9 E2E toolchain (`e2eTool`) — `skills/v2-e2e/SKILL.md`, `agents/e2e-test-runner.md`, `skills/v2-fix/SKILL.md`
 
 Ported from fm's Playwright harness (e2e-test-runner + `templates/e2e-testing.md`), **excluding** the
 legacy dual-run, parity hooks, and staging payment gateways (payments arrive in Phase 4).
 
-- **`skills/fe-e2e/SKILL.md`** — branch on `e2eTool`:
+- **`skills/v2-e2e/SKILL.md`** — branch on `e2eTool`:
   - `agent-browser` (admin default): unchanged, except the dev-server launch (L134) becomes mode-aware
     (framework → `VITE_ENABLE_MOCKS=true npx react-router dev --port {port}`).
   - `playwright` (ota default): no manual dev-server management — `playwright.config.ts` `webServer`
     owns it. Run `npx playwright test e2e/{feature} 2>&1` from `{appDir}`; on failure, collect the trace
-    paths from the report for fe-fix. e2e-report.json schema stays the same (per-scenario pass/fail +
-    evidence), so `fe-progress`/`fe-fix` consumers are untouched.
+    paths from the report for v2-fix. e2e-report.json schema stays the same (per-scenario pass/fail +
+    evidence), so `v2-progress`/`v2-fix` consumers are untouched.
 - **`agents/e2e-test-runner.md`** — playwright mode: realize `plan.json e2eTests[]` steps as Playwright
   specs under `{appDir}/e2e/{feature}/{TS-nnn}.spec.ts` (step mapping: `navigate`→`page.goto`,
   `fill`→`getByLabel/getByRole().fill`, `click`→`getByRole().click`, `verify`→`expect(...)`,
   `wait`→web-first assertions, never bare timeouts); reuse `e2e/fixtures.ts` for auth/state setup;
   page-object reuse per fm's pattern; dynamic route params resolved from fixtures (existing rule kept).
   Trace-first evidence: cite the trace file in the report.
-- **`skills/fe-fix/SKILL.md`** (e2e-fix mode, L190 area): when `e2eTool=playwright`, the failure evidence
+- **`skills/v2-fix/SKILL.md`** (e2e-fix mode, L190 area): when `e2eTool=playwright`, the failure evidence
   is the Playwright trace (`npx playwright show-trace` is CLI-built-in — fm's primary self-correction
   input); review-fixer receives trace-derived failure context instead of agent-browser logs.
-- **`fe-init` / CLAUDE.md**: agent-browser external skill installed only when `e2eTool=agent-browser`;
+- **`v2-init` / CLAUDE.md**: agent-browser external skill installed only when `e2eTool=agent-browser`;
   the E2E reference template is `templates/e2e-playwright.md` (§5.10) for the playwright path.
 
 ### 5.10 Templates
@@ -344,25 +344,25 @@ deliberately configures no deployment target (O3).
   toolchain branch (§5.9). Mitigation: the command matrix (§6) is written once in CLAUDE.md and
   referenced, not copied, by agents.
 - **R6 — Playwright browser binaries.** `@playwright/test` needs a one-time `npx playwright install`
-  (large download) that the plugin never runs itself (D7) — fe-init and fe-e2e must detect missing
+  (large download) that the plugin never runs itself (D7) — v2-init and v2-e2e must detect missing
   binaries and print the command instead of failing opaquely mid-suite.
 
 ## 8. Validation plan (for the plugin change itself)
 
-1. **Regression (admin profile)**: run the existing pipeline (fe-init declarative → fe-plan → fe-gen →
-   fe-verify → fe-review) on a sample admin feature with a no-new-keys config — must be byte-for-byte
+1. **Regression (admin profile)**: run the existing pipeline (v2-init declarative → v2-plan → v2-gen →
+   v2-verify → v2-review) on a sample admin feature with a no-new-keys config — must be byte-for-byte
    behavior-identical.
-2. **Dry run (ota profile)**: scaffold an RR framework app, then fe-init (ota) → fe-plan `--standalone`
+2. **Dry run (ota profile)**: scaffold an RR framework app, then v2-init (ota) → v2-plan `--standalone`
    for a `hotel-search` feature (ssr list + detail pages, one parameterless loader-less ssg landing
-   page, spa checkout stub) → fe-gen → fe-verify →
-   fe-e2e (Playwright suite green against the MSW-mocked webServer). Gate: typegen + build green,
+   page, spa checkout stub) → v2-gen → v2-verify →
+   v2-e2e (Playwright suite green against the MSW-mocked webServer). Gate: typegen + build green,
    **first SSR request's loader is actually intercepted by MSW-node** (assert on the mock response, not
    just "no error" — D8; if this fails, apply the D8 fallback), a **local serve smoke** — boot
    `npx react-router-serve ./build/server/index.js`, GET one ssr page, assert HTTP 200 (closes the §6
    runtime promise), i18n renders translated SSR HTML with the request's locale (R2), no
    `localStorage`/`window` access during server render (R1), traces produced on a forced failure
-   (fe-fix input, §5.9).
-3. **Review pass**: fe-review on the dry-run output — SSR rules applied, no `useEffect` fetch, thin stores.
+   (v2-fix input, §5.9).
+3. **Review pass**: v2-review on the dry-run output — SSR rules applied, no `useEffect` fetch, thin stores.
 
 ## 9. Open questions
 

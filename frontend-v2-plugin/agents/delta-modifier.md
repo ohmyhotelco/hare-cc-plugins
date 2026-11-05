@@ -4,7 +4,7 @@ description: Modifies existing implementation files based on delta-plan.json cha
 model: opus
 effort: medium
 tools: Read, Write, Edit, Glob, Grep, Bash
-skills: [fe-shared]
+skills: [v2-shared]
 ---
 
 # Delta Modifier Agent
@@ -33,8 +33,8 @@ The skill will provide these parameters in the prompt:
 - `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"`; with `i18nHook` (optional object). Under `custom-hook` there is no feature `i18n.ts`; key changes go to the flat resource files (D16).
 - `clientStore` — `"zustand"` (default) | `"none"`. Under `none` no store file may be created or modified (D17).
 - `mockFirst` — `true` | `false`
-- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see fe-shared § Build Command Working Directory and the Router-mode command matrix)
-- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (fe-shared § Build Command Working Directory).
+- `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory and the Router-mode command matrix)
+- `srcPath` — the source root **relative to `appDir`** (e.g. `src` when `baseDir` is `app/src` and `appDir` is `app`). Every `npx …` path argument uses this; `baseDir` stays repo-relative and is used only for Read/Write/Edit/Glob (v2-shared § Build Command Working Directory).
 
 ## Change Classification
 
@@ -90,7 +90,7 @@ Each file operation from `delta-plan.json` is classified:
    - `api-tdd`: `.claude/skills/vitest/SKILL.md`
    - `store-tdd`: `.claude/skills/vitest/SKILL.md`
    - `component-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-composition-patterns/SKILL.md`
-   - `page-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-react-best-practices/SKILL.md` — **RSC/SSR rules are router-mode conditional** (fe-shared § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA), **apply** them in `framework` mode (per-route SSR/SSG)
+   - `page-tdd`: `.claude/skills/vitest/SKILL.md`, `.claude/skills/vercel-react-best-practices/SKILL.md` — **RSC/SSR rules are router-mode conditional** (v2-shared § Router-mode command matrix, "SSR rules" row): skip them in `declarative`/`data` (Vite SPA), **apply** them in `framework` mode (per-route SSR/SSG)
    - `integration`: `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (`framework` → `react-router-framework-mode`)
 
 6. **Existing tests** — glob `{baseDir}/__tests__/*.test.{ts,tsx}` → read test file structure
@@ -117,7 +117,7 @@ For each entry in `modifyEntries` and `removeEntries`:
 
 1. Read the target file
 2. If file does not exist:
-   - For `modify`: mark as `escalated` with reason `"target file not found — may need fe-gen instead"`
+   - For `modify`: mark as `escalated` with reason `"target file not found — may need v2-gen instead"`
    - For `remove`: mark as `already-resolved` (nothing to remove)
 3. Report: `{N} files confirmed, {M} escalated, {K} already resolved`
 
@@ -143,7 +143,7 @@ Read the target file and locate the code block associated with the removed spec 
 
 #### 2.3 Verify Removal
 
-1. TypeScript check — see fe-shared § TypeScript Check — Composite Config Detection
+1. TypeScript check — see v2-shared § TypeScript Check — Composite Config Detection
 2. If tsc fails (e.g., other code references the removed code):
    - Identify the dependent code
    - Remove or update the reference
@@ -174,7 +174,7 @@ For each structural change:
 1. Read the target file. **If the target is an app-wide file** — the central route file
    (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
    `{sourceBaseDir}/mocks/handlers.ts`, anything under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}` (workspace package), or a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}` — take
-   `docs/specs/.app.lock` (fe-shared § Lock file) around the read-modify-write and release it right
+   `docs/specs/.app.lock` (v2-shared § Lock file) around the read-modify-write and release it right
    after; the feature lock does not protect those. Compare against `sourceBaseDir`, never `baseDir`.
 2. Apply the minimal edit based on `changeDetail`:
    - `enum-value-added`: Add the new value to the enum
@@ -210,7 +210,7 @@ For each behavioral change:
    - Test name describes the expected behavior after modification
 5. Run `npx vitest run {testFile} --reporter=verbose`:
 
-> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (fe-shared § Build Command Working Directory).
+> **`{testFile}` is repo-relative; commands are not.** These runs happen after `cd {appDir}`, so pass `{appDir}`-relative form — strip the leading `{appDir}/`, or build it from `{srcPath}` in the first place. Passing the repo-relative path resolves `app/app/src/...` and vitest reports no matching test, which reads as a pass with zero tests (v2-shared § Build Command Working Directory).
    - New test FAILS → correct RED state, proceed to GREEN
    - New test PASSES → change may already be implemented, verify manually, mark as `already-resolved`
    - Existing tests BREAK → fix test setup, not production code
@@ -240,9 +240,9 @@ For each behavioral change:
 
 After all operations in this phase complete:
 
-1. TypeScript check (see fe-shared § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (fe-shared § Router-mode command matrix, typecheck row).
+1. TypeScript check (see v2-shared § TypeScript Check — Composite Config Detection). **Framework mode** (`routerMode == "framework"`): run `npx react-router typegen 2>&1` first, then the composite-aware tsc (v2-shared § Router-mode command matrix, typecheck row).
 2. `npx vitest run {srcPath}` → all feature tests pass; additionally, when `apiLayer == workspace-package` and this phase touched `{apiPackage.dir}`: `cd {projectRoot}/{apiPackage.dir} && npx vitest run` → package suite passes
-3. If `phase` is `integration`: also run the build check — **mode-aware** per fe-shared § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
+3. If `phase` is `integration`: also run the build check — **mode-aware** per v2-shared § Router-mode command matrix (build row): `npx vite build` for `declarative`/`data`, `npx react-router build` for `framework`
 
 Record results for each check.
 

@@ -34,7 +34,7 @@ keys is byte-identical in effect (the Phase 1 backward-compatibility rule, uncha
 | D18 | **Form adapters.** When `formStack == rhf-zod` **and** `componentLibrary == external`, `foundation-generator` scaffolds `{formAdapters}/` **once per app** (default `{uiKitDir}/form`): `Form`, `FormField`, `FormItem`, `FormLabel`, `FormControl`, `FormMessage`, `useFormField` — the same surface shadcn's `form.tsx` exposes, wrapping the external library's field primitives. `tdd-cycle-runner` imports the primitives from there instead of `@/components/ui/form`. Contract: `templates/form-adapters.md`. | Phase 1's rhf-zod path is coupled to shadcn Form primitives; without an adapter it cannot run under D14. One scaffold keeps every generated form on the same schema-driven path. |
 | D19 | **Copy values under `custom-hook` (D16) are never placeholders.** For each key: the `workingLanguage` value comes from the spec; every other language that has a spec translation (planning-plugin `ko`/`en`/`vi`) takes it from that spec; remaining languages are **translated by the generating agent** and listed in `docs/specs/{feature}/.implementation/frontend/i18n-review.md` (key, language, value, `machine-translated`). The `[{LANG}] text` placeholder convention stays for `react-i18next` (unchanged). | Under D16 the resource file is production copy with no later translator stage; a shipped `[JA] …` placeholder is a user-visible defect. The review file makes machine-translated cells auditable. |
 
-## 3. Configuration schema (`.claude/frontend-react-plugin.json`)
+## 3. Configuration schema (`.claude/frontend-v2-plugin.json`)
 
 ```jsonc
 {
@@ -80,7 +80,7 @@ keys is byte-identical in effect (the Phase 1 backward-compatibility rule, uncha
 `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`.
 Every new behavior branches off a non-default value; no existing branch changes.
 
-**Structural knobs.** All four are structural for the fe-init reconfiguration guard: they move
+**Structural knobs.** All four are structural for the v2-init reconfiguration guard: they move
 generated files (package dir, ui-kit, resource files) and change every import line.
 
 **Dependency sets (print-only, D7):**
@@ -114,13 +114,13 @@ generated files (package dir, ui-kit, resource files) and change every import li
 
 | File | Change |
 |---|---|
-| `skills/fe-init/SKILL.md` | Steps 2i–2l ask the four knobs (profile default = today's value for both profiles); Step 1 guard list gains the four; Step 3 writes them (+ nested objects) only when non-default; Step 4a prints the external package line and suppresses nothing else; Step 5 confirm block shows them. |
-| `skills/fe-plan/SKILL.md`, `skills/fe-gen/SKILL.md` | Read the four knobs (+ objects) with defaults; pass each agent the knobs it consumes (planner, foundation, tdd-cycle-runner and delta-modifier take all four; integration-generator takes `apiLayer`/`i18nBinding` + objects and `i18n`); the summary's shadcn line becomes library-neutral. |
+| `skills/v2-init/SKILL.md` | Steps 2i–2l ask the four knobs (profile default = today's value for both profiles); Step 1 guard list gains the four; Step 3 writes them (+ nested objects) only when non-default; Step 4a prints the external package line and suppresses nothing else; Step 5 confirm block shows them. |
+| `skills/v2-plan/SKILL.md`, `skills/v2-gen/SKILL.md` | Read the four knobs (+ objects) with defaults; pass each agent the knobs it consumes (planner, foundation, tdd-cycle-runner and delta-modifier take all four; integration-generator takes `apiLayer`/`i18nBinding` + objects and `i18n`); the summary's shadcn line becomes library-neutral. |
 | `agents/implementation-planner.md` | Inputs; Phase 1 scans branch on the knobs (package `.d.ts` inventory, api entry inventory, resource-file prefix scan); §2.2 reuse-first; §2.3 empty under `none`; §2.7 flat keys; §2.8 → `componentDependencies` + gaps; §2.12 phase notes; §3.6 routing for package/ui-kit/resource paths; output schema; summary; Key Rule 5 rewritten. |
 | `agents/foundation-generator.md` | Inputs; Step 2 layouts import per binding/library; Step 3 skips shadcn install under external; **Step 5f form adapters** (D18); Step 5d passes `resourceFile` to the coverage spec; output fields. |
 | `agents/tdd-cycle-runner.md` | Inputs; Step 0 loads `reuse`/`additions`; api-tdd package target + package Vitest; component-tdd library rule + adapter import; page-tdd loader client per `apiPackage.clientImport`; checklist. |
 | `agents/integration-generator.md` | Inputs; Step 4/5 branch: custom-hook merges keys into resource files (app lock) and skips registration; D19 values + review file; output/checklist. |
-| `skills/fe-verify/SKILL.md` | Test check additionally runs the workspace package's own Vitest when the plan has `api[].additions[]` (`packageTests`). |
+| `skills/v2-verify/SKILL.md` | Test check additionally runs the workspace package's own Vitest when the plan has `api[].additions[]` (`packageTests`). |
 | `agents/quality-reviewer.md` | 1.6 library-aware; new gated checks: forbidden/shadcn/lucide imports under external, `axios` import in app code under workspace-package, `react-i18next` under custom-hook, `zustand` under none; 1.8 `native:` wording. |
 | `templates/feature-module.md` | External-library, workspace-API and custom-hook variants beside the existing examples. |
 | `templates/form-adapters.md` (new) | Adapter surface + example wrapping a generic `InputField`. |
@@ -147,12 +147,12 @@ generated files (package dir, ui-kit, resource files) and change every import li
 1. **Regression (admin + ota Phase 1 configs)**: no new keys → `check-plugin-consistency.py` clean and the
    instruction text for the default branches unchanged (diff review).
 2. **Dry run (ota + all four knobs)**: scaffold an RR7 app with a linked component package, a workspace
-   data package, and a flat resource bundle; `fe-init` → `fe-plan` on one finalized spec → `fe-gen` →
-   `fe-verify`. Gates: plan lists `reuse[]` from the package and at least one `gaps[]` ui-kit entry;
+   data package, and a flat resource bundle; `v2-init` → `v2-plan` on one finalized spec → `v2-gen` →
+   `v2-verify`. Gates: plan lists `reuse[]` from the package and at least one `gaps[]` ui-kit entry;
    generated components import only from the package / ui-kit; no `components/ui`, `lucide-react`,
    `axios`, `react-i18next`, `zustand` imports in app code; resource files gained the new keys in every
    configured language with no `[LANG]` placeholder; key-coverage spec green.
-3. **Review pass**: `fe-review` on the dry-run output — the four gated checks fire on planted violations.
+3. **Review pass**: `v2-review` on the dry-run output — the four gated checks fire on planted violations.
 
 ## 8. Open questions
 
@@ -161,4 +161,4 @@ generated files (package dir, ui-kit, resource files) and change every import li
 - **O7** — `apiLayer: workspace-package` with `serverState: zustand-only` is untested; Phase 2 documents it
   as unsupported (the planner refuses the combination).
 - **O8** — `clientStore: none` with `serverState: zustand-only` leaves server state with no planned home;
-  unsupported for the same reason (fe-init and the planner refuse the combination).
+  unsupported for the same reason (v2-init and the planner refuse the combination).

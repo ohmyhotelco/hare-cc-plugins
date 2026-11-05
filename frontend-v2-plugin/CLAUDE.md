@@ -1,16 +1,16 @@
-# frontend-react-plugin — maintainer notes
+# frontend-v2-plugin — maintainer notes
 
 This file is for people editing the plugin. It is **not loaded into any agent's context** (plugin-root
-`CLAUDE.md` files are not injected); shared rules for agents live in `skills/fe-shared/SKILL.md` and are
+`CLAUDE.md` files are not injected); shared rules for agents live in `skills/v2-shared/SKILL.md` and are
 preloaded through each agent's `skills:` frontmatter. Do not put agent-facing rules here.
 
 - Plugin-relative paths in agent and skill bodies use `${CLAUDE_PLUGIN_ROOT}`; launches use
-  `subagent_type: "frontend-react-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
-- After editing: `claude plugin validate frontend-react-plugin` and `scripts/check-plugin-consistency.py frontend-react-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.
+  `subagent_type: "frontend-v2-plugin:<agent>"`, because the Agent tool rejects a bare plugin agent name.
+- After editing: `claude plugin validate frontend-v2-plugin` and `scripts/check-plugin-consistency.py frontend-v2-plugin`; bump `version` in `plugin.json`, the marketplace entry and the root README label together.
 
 ## App Profiles
 
-The plugin serves two greenfield profiles, selected by `appProfile` in `.claude/frontend-react-plugin.json`
+The plugin serves two greenfield profiles, selected by `appProfile` in `.claude/frontend-v2-plugin.json`
 (default `admin`). A profile only sets **defaults** for the individual stack knobs (`routerMode`,
 `serverState`, `formStack`, `e2eTool`, date convention); every knob stays independently overridable.
 
@@ -35,12 +35,12 @@ existing branch changes. The full design and per-file spec is in
 
 ### Core Framework
 - React 19.x
-- Routing: React Router v7 — mode is determined by the `routerMode` setting in `.claude/frontend-react-plugin.json` (default: declarative)
+- Routing: React Router v7 — mode is determined by the `routerMode` setting in `.claude/frontend-v2-plugin.json` (default: declarative)
   - declarative: uses `<BrowserRouter>`, `<Routes>`, `<Route>` (Vite SPA)
   - data: uses `createBrowserRouter`, `RouterProvider`, loader/action (Vite SPA)
-  - framework: file-based `routes.ts` + `react-router.config.ts`, per-route SSR/SSG/SPA (`react-router build`/`dev`, typegen). The ota-profile default. Build commands and test harness differ — see the **Router-mode command matrix** in `skills/fe-shared/SKILL.md`.
+  - framework: file-based `routes.ts` + `react-router.config.ts`, per-route SSR/SSG/SPA (`react-router build`/`dev`, typegen). The ota-profile default. Build commands and test harness differ — see the **Router-mode command matrix** in `skills/v2-shared/SKILL.md`.
   - import: `react-router` (not `react-router-dom`)
-  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-react-plugin:fe-init`; `framework` → `react-router-framework-mode`)
+  - Detailed routing patterns: see `.claude/skills/react-router-{routerMode}-mode` (installed by `/frontend-v2-plugin:v2-init`; `framework` → `react-router-framework-mode`)
 
 ### UI Layer
 - Tailwind CSS
@@ -62,7 +62,7 @@ existing branch changes. The full design and per-file spec is in
   - request interceptor: inject JWT Authorization header
   - response interceptor: 401 → logout/re-authenticate, 403 → sync permissions
   - **framework mode**: the Axios setup splits into a **base client** (baseURL + typed methods, no browser deps — loader/`entry.server`-safe) and a **browser wrapper** (adds the JWT/localStorage interceptors, client-only). Loaders import only the base client. `VITE_*` is client-public; server-only config uses non-`VITE_` `process.env`.
-- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes. Framework mode adds `{baseDir}/mocks/node.ts` for dev-time SSR-loader interception (see Mock-First Development in `skills/fe-shared/SKILL.md`).
+- Mock: MSW v2 (dev & test) — network-level intercept, no production code changes. Framework mode adds `{baseDir}/mocks/node.ts` for dev-time SSR-loader interception (see Mock-First Development in `skills/v2-shared/SKILL.md`).
 - Forms: determined by `formStack` (default `native`)
   - `native` — native form handling / manual validation (admin default, current behavior)
   - `rhf-zod` — react-hook-form + zod (`@hookform/resolvers`); zod schemas derived from spec validation rules, `zodResolver`, shadcn Form primitives, `t()` error messages (ota default)
@@ -87,7 +87,7 @@ existing branch changes. The full design and per-file spec is in
 - Do not implement permission logic on the frontend (UX guard level only)
 
 ### Testing
-- Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-react-plugin:fe-init`)
+- Unit/Component: Vitest — detailed test patterns: see `.claude/skills/vitest` (installed by `/frontend-v2-plugin:v2-init`)
 - API mock with MSW server (Vitest integration) — reuse feature handlers in tests
 - E2E: determined by `e2eTool` (default `agent-browser`)
   - `agent-browser` — AI-agent native browser automation (admin default). External skill `agent-browser`, permission `Bash(agent-browser *)`.
@@ -108,9 +108,9 @@ existing branch changes. The full design and per-file spec is in
   - `delta-modifier` — incremental spec change applier (modifies existing files per delta-plan.json)
   - `e2e-test-runner` — E2E test execution via `e2eTool` (agent-browser or Playwright)
   - `debugger` — systematic debugging
-- **Skills**: `/frontend-react-plugin:fe-init`, `/frontend-react-plugin:fe-plan`, `/frontend-react-plugin:fe-gen` (TDD coordinator), `/frontend-react-plugin:fe-verify`, `/frontend-react-plugin:fe-review` (reviews generated source code — not to be confused with `/planning-plugin:pp-review` which reviews the specification document), `/frontend-react-plugin:fe-fix`, `/frontend-react-plugin:fe-e2e` (E2E testing), `/frontend-react-plugin:fe-debug`, `/frontend-react-plugin:fe-progress` (pipeline status dashboard), `/frontend-react-plugin:fe-security` (security audit), `/frontend-react-plugin:fe-clean-code` (clean code audit), `/frontend-react-plugin:fe-test-review` (test quality audit)
+- **Skills**: `/frontend-v2-plugin:v2-init`, `/frontend-v2-plugin:v2-plan`, `/frontend-v2-plugin:v2-gen` (TDD coordinator), `/frontend-v2-plugin:v2-verify`, `/frontend-v2-plugin:v2-review` (reviews generated source code — not to be confused with `/planning-plugin:pp-review` which reviews the specification document), `/frontend-v2-plugin:v2-fix`, `/frontend-v2-plugin:v2-e2e` (E2E testing), `/frontend-v2-plugin:v2-debug`, `/frontend-v2-plugin:v2-progress` (pipeline status dashboard), `/frontend-v2-plugin:v2-security` (security audit), `/frontend-v2-plugin:v2-clean-code` (clean code audit), `/frontend-v2-plugin:v2-test-review` (test quality audit)
 - **External Skills**: `react-router-*-mode` (from `remix-run/agent-skills`; `framework` → `react-router-framework-mode`), `vitest` (from `antfu/skills`), `vercel-react-best-practices` + `vercel-composition-patterns` + `web-design-guidelines` (from `vercel-labs/agent-skills`), `agent-browser` (from `vercel-labs/agent-browser`, installed only when `e2eTool == agent-browser`) — installed by init. Playwright ships no loadable skill (trace analysis is CLI-built-in).
-- **Configuration**: `.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`)
+- **Configuration**: `.claude/frontend-v2-plugin.json` (created by `/frontend-v2-plugin:v2-init`)
 - **Templates**: `feature-module.md` (feature module structure + framework-mode variants), `tdd-rules.md` (TDD rules adapted from obra/superpowers), `eslint-config.md` (ESLint v9 fallback config), `prettier-config.md` (Prettier 3 fallback config — advisory), `i18n-key-coverage.md` (app-wide key-coverage spec contract), `e2e-testing.md` (agent-browser E2E patterns), `e2e-playwright.md` (Playwright E2E patterns), `framework-app-shell.md` (RR framework app shell: config/root/routes/entries), `server-state.md` (TanStack Query ↔ loader layering contract)
 
 ### Testing (Strict TDD)
@@ -143,41 +143,41 @@ Anti-patterns (from obra/superpowers testing-anti-patterns):
 - MSW Service Worker intercepts API calls in the browser (`VITE_ENABLE_MOCKS=true`)
 - E2E scenarios defined in `plan.json` `e2eTests[]`, mapped to TS-nnn from `test-scenarios.md`
 - E2E results tracked in `progress.json` under `implementation.e2e`
-- Dev server auto-started/stopped by `fe-e2e` skill
+- Dev server auto-started/stopped by `v2-e2e` skill
 - 2-stage pipeline: review loop (code quality) completes first, then E2E loop (user flows)
-- `fe-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
-- After E2E fixes, if code changes were significant, consider re-running `fe-review`
+- `v2-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
+- After E2E fixes, if code changes were significant, consider re-running `v2-review`
 - Dynamic route parameters (`:id`) must be resolved to fixture IDs before navigation — see `agents/e2e-test-runner.md` § Dynamic Route Parameter Resolution
-- E2E scenario updates: when screens/routes change after initial plan, re-run `/frontend-react-plugin:fe-plan {feature}` to regenerate `e2eTests[]` in plan.json, then `/frontend-react-plugin:fe-e2e {feature}`. Manual edits to `e2eTests[]` are allowed but will be overwritten on next fe-plan run.
+- E2E scenario updates: when screens/routes change after initial plan, re-run `/frontend-v2-plugin:v2-plan {feature}` to regenerate `e2eTests[]` in plan.json, then `/frontend-v2-plugin:v2-e2e {feature}`. Manual edits to `e2eTests[]` are allowed but will be overwritten on next v2-plan run.
 - E2E test reference: `templates/e2e-testing.md` (plugin patterns) + `.claude/skills/agent-browser/SKILL.md` (CLI commands)
-- E2E permissions: `fe-init` adds `Bash(agent-browser *)` to `.claude/settings.json` `permissions.allow` — required because the e2e-test-runner runs as a sub-agent and session-level approvals do not transfer to sub-agents
+- E2E permissions: `v2-init` adds `Bash(agent-browser *)` to `.claude/settings.json` `permissions.allow` — required because the e2e-test-runner runs as a sub-agent and session-level approvals do not transfer to sub-agents
 
 Pipeline (2-stage loops):
-- Loop 1 (Quality): `/frontend-react-plugin:fe-gen` → `/frontend-react-plugin:fe-verify` → `/frontend-react-plugin:fe-review` ↔ `/frontend-react-plugin:fe-fix` (until review passes)
-- Loop 2 (E2E): `/frontend-react-plugin:fe-e2e` ↔ `/frontend-react-plugin:fe-fix` (until E2E passes) → done
-- `/frontend-react-plugin:fe-debug` remains for runtime bugs at any point
-- `fe-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
+- Loop 1 (Quality): `/frontend-v2-plugin:v2-gen` → `/frontend-v2-plugin:v2-verify` → `/frontend-v2-plugin:v2-review` ↔ `/frontend-v2-plugin:v2-fix` (until review passes)
+- Loop 2 (E2E): `/frontend-v2-plugin:v2-e2e` ↔ `/frontend-v2-plugin:v2-fix` (until E2E passes) → done
+- `/frontend-v2-plugin:v2-debug` remains for runtime bugs at any point
+- `v2-fix` auto-detects fix mode (review vs E2E) by comparing report timestamps
 
 ### Delta Regeneration (Incremental Spec Changes)
 
 When a spec is modified after code has been generated and reviewed, delta regeneration preserves accumulated fixes while applying only the changes.
 
-- **Trigger**: `fe-plan` auto-detects existing plan.json + generated code → offers incremental mode
+- **Trigger**: `v2-plan` auto-detects existing plan.json + generated code → offers incremental mode
 - **Detection**: implementation-planner compares old plan.json `source` fields against current spec → identifies added/modified/removed spec elements (FR-nnn, screen IDs, TS-nnn, etc.)
 - **Delta file**: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` — describes affected files with `create`/`modify`/`remove` operations per phase
-- **Execution**: `fe-gen` detects delta-plan.json → executes only affected phases, skipping unchanged ones
+- **Execution**: `v2-gen` detects delta-plan.json → executes only affected phases, skipping unchanged ones
   - `create` operations → tdd-cycle-runner (scoped to new files only)
   - `modify`/`remove` operations → delta-modifier agent (targeted Edit on existing files, TDD for behavioral changes)
 - **Cascade**: changes cascade downward (types → api → stores → components → pages → routes/i18n). Implementation-planner computes the full cascade using plan.json cross-references.
 - **Safety**: large deltas (>60% of files affected) trigger a warning suggesting full regeneration. User always chooses between incremental and full.
 - **After delta**: plan.json is patched with `planJsonPatch`, delta-plan.json is archived as `delta-plan.{timestamp}.json`
-- **Pipeline continues**: fe-verify → fe-review → fe-fix → fe-e2e (unchanged)
+- **Pipeline continues**: v2-verify → v2-review → v2-fix → v2-e2e (unchanged)
 
 Delta pipeline:
 ```
-spec change → fe-plan (incremental) → delta-plan.json
-           → fe-gen (delta) → affected files only
-           → fe-verify → fe-review → fe-fix → fe-e2e (normal pipeline)
+spec change → v2-plan (incremental) → delta-plan.json
+           → v2-gen (delta) → affected files only
+           → v2-verify → v2-review → v2-fix → v2-e2e (normal pipeline)
 ```
 
 Key files:
@@ -186,7 +186,7 @@ Key files:
 
 ### Code Generation (TDD Phases)
 - Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
-- **Standalone mode**: `fe-plan {feature} --standalone` for interactive requirements gathering — no planning-plugin required. Generates a minimal spec stub and plan.json. Limitations: no error codes, validation rules, test scenario references (TS-nnn), or UI DSL.
+- **Standalone mode**: `v2-plan {feature} --standalone` for interactive requirements gathering — no planning-plugin required. Generates a minimal spec stub and plan.json. Limitations: no error codes, validation rules, test scenario references (TS-nnn), or UI DSL.
 - Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json` — includes `workingLanguage` and `localesDir` for downstream agents
 - Generation state: `docs/specs/{feature}/.implementation/frontend/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
@@ -200,9 +200,9 @@ Key files:
   5. `page-tdd` — page tests → pages (tdd-cycle-runner agent)
   6. `integration` — routes + i18n + MSW global + barrel (integration-generator agent)
 - Each TDD phase runs in a separate agent session for context isolation
-- Each phase runs isolated — see `skills/fe-shared/SKILL.md` § Design Principles, "Subagent isolation"
+- Each phase runs isolated — see `skills/v2-shared/SKILL.md` § Design Principles, "Subagent isolation"
 - External skills loaded per-phase (not all at once): vitest for TDD phases, composition-patterns for components, react-best-practices for pages, router for integration
-- Resume support: if generation is interrupted, re-running fe-gen resumes from the last incomplete phase
+- Resume support: if generation is interrupted, re-running v2-gen resumes from the last incomplete phase
 
 ### Shared Layouts
 - Shared layout location: `{baseDir}/layouts/{PascalCaseLayoutId}.tsx`
@@ -234,13 +234,13 @@ Independent audit skills that run outside the pipeline. No progress tracking, no
 
 | Skill | Purpose |
 |-------|---------|
-| `/frontend-react-plugin:fe-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
-| `/frontend-react-plugin:fe-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
-| `/frontend-react-plugin:fe-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing) |
+| `/frontend-v2-plugin:v2-security` | Security vulnerability audit (XSS, auth tokens, secrets, client-side data safety) |
+| `/frontend-v2-plugin:v2-clean-code` | Clean code audit (8 quality dimensions — standalone mode of quality-reviewer) |
+| `/frontend-v2-plugin:v2-test-review` | Test quality audit (assertions, Testing Library, async patterns, coverage, timing) |
 
-Usage: `fe-security [path]`, `fe-clean-code [path]`, `fe-test-review [test-path]`
+Usage: `v2-security [path]`, `v2-clean-code [path]`, `v2-test-review [test-path]`
 
-These skills are completely independent of the pipeline (fe-plan → fe-gen → fe-verify → fe-review → fe-fix → fe-e2e). They can be run at any time on any code, not just pipeline-generated features.
+These skills are completely independent of the pipeline (v2-plan → v2-gen → v2-verify → v2-review → v2-fix → v2-e2e). They can be run at any time on any code, not just pipeline-generated features.
 
 ### Progress State Machine
 
@@ -251,22 +251,22 @@ These skills are completely independent of the pipeline (fe-plan → fe-gen → 
            gen-failed  ↘ verify-failed ↓  review-failed
                         ↘     ↓        ↓      ↓
                          → resolved  fixing → (re-review → reviewed/review-failed)
-                           escalated    ↓  ↘ generated (regen-required → fe-gen)
+                           escalated    ↓  ↘ generated (regen-required → v2-gen)
                               ↓    escalated
                         (manual intervention)
   ```
   Additional transitions:
-  - `generated → reviewed | review-failed | done` — fe-verify is optional, can go directly to fe-review
-  - `verify-failed → reviewed | review-failed | done` — fe-review accepts verify-failed, user can review without fixing verification first
-  - `gen-failed → generated | gen-failed` — re-run fe-gen (resume or restart)
-  - `gen-failed → resolved | escalated` — fe-debug on partially generated code
-  - `fixing → reviewed | review-failed` — after fe-fix, fe-review determines next status
-  - `fixing → generated` — when regen-required issues exist, fe-gen re-run resets to generated
+  - `generated → reviewed | review-failed | done` — v2-verify is optional, can go directly to v2-review
+  - `verify-failed → reviewed | review-failed | done` — v2-review accepts verify-failed, user can review without fixing verification first
+  - `gen-failed → generated | gen-failed` — re-run v2-gen (resume or restart)
+  - `gen-failed → resolved | escalated` — v2-debug on partially generated code
+  - `fixing → reviewed | review-failed` — after v2-fix, v2-review determines next status
+  - `fixing → generated` — when regen-required issues exist, v2-gen re-run resets to generated
   - `resolved → verified | verify-failed` — re-verify after debug resolution
   - `resolved → reviewed | review-failed` — re-review after debug resolution
-  - `resolved → fixing | escalated` — fe-fix after debug resolution (when review issues remain)
-  - `resolved → generated | gen-failed` — re-run fe-gen after debug resolution (when previousStatus was gen-failed)
-  - `escalated` — requires manual intervention, then re-enter pipeline via fe-fix, fe-verify, or fe-review
+  - `resolved → fixing | escalated` — v2-fix after debug resolution (when review issues remain)
+  - `resolved → generated | gen-failed` — re-run v2-gen after debug resolution (when previousStatus was gen-failed)
+  - `escalated` — requires manual intervention, then re-enter pipeline via v2-fix, v2-verify, or v2-review
   - Status determination on partial generation: any skipped or failed phase → `gen-failed` (prevents incomplete code from entering review pipeline)
 
 ## File Structure
@@ -299,7 +299,7 @@ docs/            - Documentation
 
 ## Project-Level Configuration
 
-`.claude/frontend-react-plugin.json` (created by `/frontend-react-plugin:fe-init`):
+`.claude/frontend-v2-plugin.json` (created by `/frontend-v2-plugin:v2-init`):
 ```json
 {
   "appProfile": "admin",
@@ -348,7 +348,7 @@ An ota app that owns an external design system, a workspace data package and a f
 ```
 
 - `appProfile`: `"admin"` (default when absent) | `"ota"` — sets defaults for the knobs below; each stays overridable. See "App Profiles".
-- `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix in `skills/fe-shared/SKILL.md`).
+- `routerMode`: `"declarative"` (default) | `"data"` | `"framework"` — determines React Router v7 mode. `framework` enables per-route SSR/SSG/SPA (see the command matrix in `skills/v2-shared/SKILL.md`).
 - `serverState`: `"zustand-only"` (default when absent) | `"tanstack-query"` — server-state strategy.
 - `componentLibrary`: `"shadcn"` (default when absent) | `"external"` — with `externalComponents` (`package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`). Phase 2, D14/D18.
 - `apiLayer`: `"feature-local"` (default when absent) | `"workspace-package"` — with `apiPackage` (`package`, `dir`, `entry`, `clientImport`). Requires `tanstack-query`. Phase 2, D15.
@@ -360,7 +360,7 @@ An ota app that owns an external design system, a workspace data package and a f
 - `mockFirst`: `true` (default) | `false` — whether to enable MSW v2 mock-first development
 - `baseDir`: `"app/src"` (default) | custom path — base directory for generated source code. All `{baseDir}` references in documentation resolve to this value. Framework mode's RR source root is the `app/` dir (e.g. `app/app`). When absent, falls back to `"src"` for backward compatibility.
 - `appDir`: auto-derived from `baseDir` — the directory containing `vite.config.*` / `react-router.config.ts`, `tsconfig.json`, and `package.json`. All build/test commands run from this directory. Derivation: strip a `/src` **or** `/app` suffix from `baseDir` (`app/src` → `app`, `app/app` → `app`, `src` → `"."`, `packages/web/src` → `packages/web`). When absent, falls back to `"."` (project root).
-- `devPort`: optional, default `5173` — the dev-server port `fe-e2e` uses and (in Playwright mode) foundation's Step 5c bakes into `playwright.config.ts` `webServer`. One value, one source: fe-gen and fe-e2e both read it from config with the same default, so the scaffolded config and the runner always agree. Set it when 5173 is taken — with `reuseExistingServer`, an unrelated service already on the port would otherwise be treated as the app under test.
+- `devPort`: optional, default `5173` — the dev-server port `v2-e2e` uses and (in Playwright mode) foundation's Step 5c bakes into `playwright.config.ts` `webServer`. One value, one source: v2-gen and v2-e2e both read it from config with the same default, so the scaffolded config and the runner always agree. Set it when 5173 is taken — with `reuseExistingServer`, an unrelated service already on the port would otherwise be treated as the app under test.
 - `eslintTemplate`: `true` (default) | `false` — whether to auto-generate `eslint.config.js` from the bundled template when no ESLint config exists. Set to `false` to skip ESLint in projects without their own config.
-- `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate" in `skills/fe-shared/SKILL.md`.
-- `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `fe-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage" in `skills/fe-shared/SKILL.md`.
+- `prettierTemplate`: `true` (default) | `false` — whether to auto-generate `prettier.config.js` + `.prettierignore` from `templates/prettier-config.md` when no Prettier config exists. Formatting is **advisory** and never fails a gate. See "Lint & Format Gate" in `skills/v2-shared/SKILL.md`.
+- `i18n`: **optional, no default** — the product's copy surface, which is not `workingLanguage`. `languages` is what "every supported language" resolves to for the key-coverage spec; `lookupFns` (default `["t"]`) are the helpers whose literal keys are checked. Absent → `foundation-generator` generates no key-coverage spec and `v2-verify` reports that axis as `skipped`, never a silent pass. Never inferred from the locale directory. See "i18n Key Coverage" in `skills/v2-shared/SKILL.md`.

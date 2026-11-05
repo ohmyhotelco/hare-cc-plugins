@@ -1,5 +1,5 @@
 ---
-description: This request should go through fe-e2e.
+description: This request should go through v2-e2e.
 max_turns: 3
 allowed_tools: [Read, Glob, Grep, Skill, Bash, Write, Edit]
 tags: [routing, routing-exec]

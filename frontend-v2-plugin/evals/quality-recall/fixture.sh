@@ -7,7 +7,7 @@ EOF
 cat > tsconfig.json <<'EOF'
 { "compilerOptions": { "strict": true, "jsx": "react-jsx", "module": "esnext", "moduleResolution": "bundler" } }
 EOF
-cat > .claude/frontend-react-plugin.json <<'EOF'
+cat > .claude/frontend-v2-plugin.json <<'EOF'
 { "appProfile": "admin", "routerMode": "declarative", "serverState": "zustand-only", "formStack": "native", "baseDir": "src", "appDir": "." }
 EOF
 mkdir -p "$(dirname src/features/orders/api.ts)"

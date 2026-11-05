@@ -8,7 +8,7 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/scripts/session-init.sh",
             "timeout": 10,
-            "statusMessage": "Checking frontend-react-plugin configuration..."
+            "statusMessage": "Checking frontend-v2-plugin configuration..."
           }
         ]
       }
