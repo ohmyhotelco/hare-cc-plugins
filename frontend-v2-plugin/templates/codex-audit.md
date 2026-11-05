@@ -45,8 +45,8 @@ Ignore everything under these excluded paths: {excludePaths}.
 
 | Stage | Inputs to give Codex | What Codex checks |
 | --- | --- | --- |
-| `plan` | `plan.json` + the ticket/spec it was built from (`docs/specs/{feature}/`) | requirement coverage (anything in the ticket the plan dropped without an `openApprovals` entry), rendering-mode choice, component tree, reuse of `@omh/shared-ui` / `@omh/shared-data` exports instead of re-creating them, E2E scenario coverage of the requirements |
-| `gen` | generated diff + `plan.json` | idiomatic RR v7 / hooks / TanStack Query, anti-patterns, **secret-boundary violations**, dead or incomplete code, duplicated shared-ui components, whether the code matches the plan |
+| `plan` | `plan.json` + the ticket/spec it was built from (`docs/specs/{feature}/`) | requirement coverage (anything in the ticket the plan dropped without an `openApprovals` entry), rendering-mode choice, component tree, reuse of the workspace UI and data packages' exports instead of re-creating them, E2E scenario coverage of the requirements |
+| `gen` | generated diff + `plan.json` | idiomatic RR v7 / hooks / TanStack Query, anti-patterns, **secret-boundary violations**, dead or incomplete code, components duplicated from the shared UI package, whether the code matches the plan |
 | `verify` | generated code + test files + the verify result in the progress file | independent second opinion to `quality-reviewer` / `test-reviewer`: weak or missing assertions, untested branches, behavior mocked over, tests that would stay green if the behavior broke |
 | `e2e` | `e2e-report.json` + `plan.json` `e2eTests[]` + the spec files | **false-pass cross-check** — do the scenarios actually exercise the planned flows? Any scenario weakened or skipped to pass? |
 | `review` | `review-report.json` + the diff | findings the review missed, findings closed without a fix, severity understated |

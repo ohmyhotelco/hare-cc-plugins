@@ -1,6 +1,6 @@
 ---
 name: v2-secret-audit
-description: "Use to inventory the secrets the monorepo's apps and shared packages read — client-bundle vs server-only exposure, committed literals, cross-environment reuse — as a read-only posture audit. Run it when a change touches env vars, auth, payment, or .server boundaries."
+description: "Use to inventory the secrets the monorepo's apps and shared packages read — client-bundle vs server-only exposure, committed literals, cross-environment reuse — as a read-only posture audit. Run it when a change touches env vars, auth, or .server boundaries."
 argument-hint: "[--app <app>] [--baseline <file>]"
 user-invocable: true
 allowed-tools: Read, Glob, Grep, Bash, Agent

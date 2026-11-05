@@ -228,7 +228,7 @@ version `{appDir}/.nvmrc` pins; every build or test command runs as
 it to agents; an agent that must run `npx` without one derives it the same way. A non-zero exit stops
 the run — never fall back to PATH or to a `.nvmrc` above `{appDir}`.
 
-**Product rules.** Domain knowledge (payment flow, native-app bridge, shared-package boundaries,
+**Product rules.** Domain knowledge (for example checkout flows, platform integrations, package boundaries,
 user-facing copy, PR body format) lives in the product repo, not in this plugin: `rulesDir` (config,
 default `docs/rules`). Before planning, generating or reviewing code in one of those areas, list
 `{rulesDir}/` and read the files whose names match the area. Absent folder or no matching file →
