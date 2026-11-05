@@ -36,7 +36,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Step 1: Validate Plan
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -44,20 +44,20 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 2. Read `plan.json` → extract `summary`, `buildOrder`, `feature`, `localesDir` (the i18n resource directory the generators write into), `baseDir` (as `planBaseDir` — the feature-level directory, e.g., `app/src/features/{feature}`)
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`)
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
 
 1. Check UI DSL and prototype availability:
-   - `docs/specs/{feature}/ui-dsl/manifest.json` → `uiDslAvailable`
+   - `{specRoot}/ui-dsl/manifest.json` → `uiDslAvailable`
    - `prototypes/{feature}/` → `prototypeAvailable`
 
 2. Check for existing generation state — **but a pending `delta-plan.json` outranks it**: if
    `delta-plan.json` exists, go straight to item 3 (**Delta detection**) regardless of what the
    state file says; handling old state first would route the run into resume/fresh-start and the
    delta would never be seen.
-   - If `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists (and no
+   - If `{runsDir}/{feature}/generation-state.json` exists (and no
      pending delta):
      - Read it and check `currentPhase` and phase statuses
      - If `deltaMode` is `true` in the state file: skip resume offer, proceed to item 3 (**Delta detection**), which handles resume
@@ -66,7 +66,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
        work.
 
 3. **Delta detection** — check if a delta plan exists:
-   - If `docs/specs/{feature}/.implementation/frontend/delta-plan.json` exists:
+   - If `{runsDir}/{feature}/delta-plan.json` exists:
      - Read delta-plan.json → extract `summary`
      > "A delta plan exists ({summary.specChanges.added} added, {summary.specChanges.modified} modified, {summary.specChanges.removed} removed spec changes)."
      > "Options:"
@@ -93,7 +93,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-gen"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `{runsDir}/{feature}/.lock` with `holder: "v2-gen"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
@@ -113,7 +113,7 @@ Display the plan summary with TDD phase breakdown:
 ```
 Code Generation for '{feature}' (TDD mode):
 
-  Plan: docs/specs/{feature}/.implementation/frontend/plan.json
+  Plan: {runsDir}/{feature}/plan.json
   Target: {baseDir}/
 
   TDD Phases:
@@ -145,7 +145,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-gen/references/delta.md` and follow this s
 
 ### Step 3: Initialize Generation State
 
-Create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
+Create `{runsDir}/{feature}/generation-state.json`:
 
 ```json
 {
@@ -178,9 +178,9 @@ Agent(subagent_type: "frontend-v2-plugin:foundation-generator", prompt: "
   Generate test infrastructure for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
-  - specDir: docs/specs/{feature}/{workingLanguage}/
-  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - planFile: {runsDir}/{feature}/plan.json
+  - specDir: {specRoot}/{workingLanguage}/
+  - uiDslDir: {specRoot}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - serverState: {serverState}
@@ -240,12 +240,12 @@ Agent(subagent_type: "frontend-v2-plugin:tdd-cycle-runner", prompt: "
   Execute TDD cycle for '{feature}' phase '{phase}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - phase: {phase}
   - projectRoot: {cwd}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
-  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - specDir: {specRoot}/{workingLanguage}/
+  - uiDslDir: {specRoot}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - serverState: {serverState}
@@ -316,7 +316,7 @@ Agent(subagent_type: "frontend-v2-plugin:integration-generator", prompt: "
   Generate integration layer for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - projectRoot: {cwd}
   - routerMode: {routerMode}
@@ -363,9 +363,9 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-gen/references/completion.md` and follow t
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.
 
 ### Resume Support
 
-When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`, read `${CLAUDE_PLUGIN_ROOT}/skills/v2-gen/references/resume.md` and follow it.
+When Step 1.6 detects an existing `{runsDir}/{feature}/generation-state.json`, read `${CLAUDE_PLUGIN_ROOT}/skills/v2-gen/references/resume.md` and follow it.
 

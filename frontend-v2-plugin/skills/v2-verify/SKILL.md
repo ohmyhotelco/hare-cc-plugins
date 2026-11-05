@@ -27,7 +27,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -37,7 +37,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 > **Never collapse these two into one `baseDir`.** Config `baseDir` is the source root; plan `baseDir` is the feature directory. Reading the second into the same name makes every later `{baseDir}` reference point at the feature directory — which is why the app-wide i18n spec must be looked for under `sourceBaseDir`, not `featureDir`. `v2-gen` keeps them apart as `planBaseDir`; do the same here.
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
@@ -55,7 +55,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 3. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
-   - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt`
+   - Check if any spec file in `{specRoot}/{workingLanguage}/` was modified after `generatedAt`
    - If spec is newer:
      > "Warning: Spec files have been modified since code was generated ({generatedAt})."
      > "Verification results may not reflect the current spec."
@@ -71,7 +71,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-verify"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `{runsDir}/{feature}/.lock` with `holder: "v2-verify"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
@@ -253,7 +253,7 @@ A `skipped` or `not-run` line always prints its reason next to it.
 
 Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`).
 
-The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{feature}.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
+The E2E line reads `implementation.e2e` from `{runsDir}/{feature}/progress.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 
 **If FAIL:**
 - Display up to 10 error messages for each failed item
@@ -264,7 +264,7 @@ The E2E line reads `implementation.e2e` from `docs/specs/{feature}/.progress/{fe
 
 ### Step 4: Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `verification` field:
+Read `{runsDir}/{feature}/progress.json` and add or update the `verification` field:
 
 ```json
 {
@@ -296,4 +296,4 @@ as what it was, never omitted and never rewritten as `pass`.
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.

@@ -18,7 +18,7 @@ The skill will provide these parameters in the prompt:
 ### Pipeline Mode (default)
 
 - `feature` — feature name
-- `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
+- `planFile` — implementation plan file path (e.g., `{runsDir}/{feature}/plan.json`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied.

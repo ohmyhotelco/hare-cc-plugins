@@ -44,12 +44,11 @@ Standalone Plan for '{feature}':
 Create the following directory structure:
 
 ```
-docs/specs/{feature}/
-├── .progress/{feature}.json  ← status: "finalized", standalone: true
-├── {workingLanguage}/
-│   └── {feature}-spec.md     ← auto-generated from user input
-└── .implementation/
-    └── frontend/
+{runsDir}/{feature}/
+├── progress.json  ← status: "finalized", standalone: true
+└── spec/                      ← {specRoot} for this feature (no planning-plugin spec exists)
+    └── {workingLanguage}/
+        └── {feature}-spec.md  ← auto-generated from user input
 ```
 
 **Progress file**: Include `"standalone": true` flag:

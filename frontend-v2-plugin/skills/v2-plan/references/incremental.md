@@ -14,8 +14,8 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
 
   Parameters:
   - feature: {feature}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
-  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - specDir: {specRoot}/{workingLanguage}/
+  - uiDslDir: {specRoot}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - appProfile: {appProfile}
@@ -35,9 +35,9 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
   - appDir: {appDir}
   - srcPath: {srcPath}
   - incrementalMode: true
-  - existingPlanFile: docs/specs/{feature}/.implementation/frontend/plan.json
-  - deltaOutputFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
-  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - existingPlanFile: {runsDir}/{feature}/plan.json
+  - deltaOutputFile: {runsDir}/{feature}/delta-plan.json
+  - outputFile: {runsDir}/{feature}/plan.json
   - i18n: {the config i18n block, or omit when absent}
 
   Follow the process defined in agents/implementation-planner.md.
@@ -50,7 +50,7 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
 
 Only executed when `planMode = "incremental"`.
 
-1. Read the generated `docs/specs/{feature}/.implementation/frontend/delta-plan.json`
+1. Read the generated `{runsDir}/{feature}/delta-plan.json`
 2. Display the delta summary (as defined in the agent's Delta User Summary Template)
 
 3. If `largeDeltaWarning` is `true`:
@@ -85,13 +85,13 @@ Only executed when `planMode = "incremental"`.
 
 Only executed when `planMode = "incremental"`.
 
-1. Read `docs/specs/{feature}/.progress/{feature}.json`
+1. Read `{runsDir}/{feature}/progress.json`
 2. Add or update the `implementation` field — preserve the existing status (do NOT reset to `"planned"`):
 
 ```json
 {
   "implementation": {
-    "deltaFile": "docs/specs/{feature}/.implementation/frontend/delta-plan.json",
+    "deltaFile": "{runsDir}/{feature}/delta-plan.json",
     "deltaDetectedAt": "{ISO timestamp}"
   }
 }

@@ -12,7 +12,7 @@ Runs Codex as an **independent auditor** of a feature's pipeline artifacts — a
 different engine, aimed at false passes. Codex reads and evaluates only. Rubric:
 `${CLAUDE_PLUGIN_ROOT}/templates/codex-audit.md`.
 
-All user-facing output in `workingLanguage` (from `docs/specs/{feature}/.progress/{feature}.json`;
+All user-facing output in `workingLanguage` (from `{runsDir}/{feature}/progress.json`;
 absent → Korean).
 
 ## Instructions
@@ -27,7 +27,7 @@ records `skipped` itself, so "never audited" and "Codex missing" stay distinguis
 ### Step 1: Resolve stages
 - `--stage <s>` → that stage only.
 - `--all` (default) → every stage whose inputs exist under
-  `docs/specs/{feature}/.implementation/frontend/`: `plan` (`plan.json`), `gen`
+  `{runsDir}/{feature}/`: `plan` (`plan.json`), `gen`
   (`generation-state.json`), `verify` (`implementation.verification` in the progress file — verify
   writes no report file), `e2e` (`e2e-report.json`), `review` (`review-report.json`). List the stages
   skipped for missing inputs.
@@ -35,7 +35,7 @@ records `skipped` itself, so "never audited" and "Codex missing" stay distinguis
 ### Step 2: Run
 For each stage, sequentially, launch `codex-auditor` (Agent tool, `subagent_type: "frontend-v2-plugin:codex-auditor"`) with only: `feature`, `stage`,
 `projectRoot`, `appDir`, `baseDir`, the stage's artifact paths, `outPath =
-docs/specs/{feature}/.implementation/frontend/codex-audit.json`, `workingLanguage`.
+{runsDir}/{feature}/codex-audit.json`, `workingLanguage`.
 
 ### Step 3: Report
 Per stage: verdict, high/med counts, one-line summary. State plainly that this is **advisory** and the

@@ -30,9 +30,9 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 - If no argument: audit all test files under `{baseDir}/` — and, when `apiPackageDir` is set, under `{apiPackageDir}/` as well (the generated package additions and their tests live there, outside `baseDir`)
 
 **Spec anchors.** A target belongs to `{feature}` when it is one of the `file` paths in some
-`docs/specs/*/.implementation/frontend/plan.json` (a feature need not have its own folder). If it does **and**
-`docs/specs/{feature}/.progress/{feature}.json` exists, read its `workingLanguage` and pass
-`specDir: docs/specs/{feature}/{workingLanguage}` — the reviewer then follows each test's anchor to
+`{runsDir}/*/plan.json` (a feature need not have its own folder). If it does **and**
+`{runsDir}/{feature}/progress.json` exists, read its `workingLanguage` and pass
+`specDir: {specRoot}/{workingLanguage}` — the reviewer then follows each test's anchor to
 the spec line and checks the test's premise, not just its form. Otherwise omit `specDir`; the report
 records anchor resolution as `not-checked`.
 

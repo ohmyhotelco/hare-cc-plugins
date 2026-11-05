@@ -13,7 +13,7 @@ Display the delta execution plan:
 ```
 Delta Generation for '{feature}':
 
-  Delta: docs/specs/{feature}/.implementation/frontend/delta-plan.json
+  Delta: {runsDir}/{feature}/delta-plan.json
   Target: {planBaseDir}/
 
   Phases:
@@ -39,14 +39,14 @@ entries, the exact defect the flag exists to prevent. Set only the not-yet-compl
 active phases to `"pending"`. Recreating all phases as pending reruns work that already happened —
 re-editing source files that were already delta-modified.
 
-Otherwise (fresh delta), create `docs/specs/{feature}/.implementation/frontend/generation-state.json`:
+Otherwise (fresh delta), create `{runsDir}/{feature}/generation-state.json`:
 
 ```json
 {
   "feature": "{feature}",
   "startedAt": "{ISO timestamp}",
   "deltaMode": true,
-  "deltaFile": "docs/specs/{feature}/.implementation/frontend/delta-plan.json",
+  "deltaFile": "{runsDir}/{feature}/delta-plan.json",
   "currentPhase": "{first non-skipped phase}",
   "phases": {
     "foundation": { "status": "pending | skipped", "skipKind": "auto", "deltaAction": "{action from phaseExecution}", "completedAt": null },
@@ -102,14 +102,14 @@ Agent(subagent_type: "frontend-v2-plugin:delta-modifier", prompt: "
   Apply delta modifications for '{feature}' phase 'foundation'.
 
   Parameters:
-  - deltaFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - deltaFile: {runsDir}/{feature}/delta-plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - phase: foundation
   - baseDir: {planBaseDir}/
   - sourceBaseDir: {baseDir}
   - projectRoot: {cwd}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - specDir: {specRoot}/{workingLanguage}/
   - routerMode: {routerMode}
   - serverState: {serverState}
   - formStack: {formStack}
@@ -144,14 +144,14 @@ Agent(subagent_type: "frontend-v2-plugin:delta-modifier", prompt: "
   Apply delta modifications for '{feature}' phase '{phase}'.
 
   Parameters:
-  - deltaFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - deltaFile: {runsDir}/{feature}/delta-plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - phase: {phase}
   - baseDir: {planBaseDir}/
   - sourceBaseDir: {baseDir}
   - projectRoot: {cwd}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - specDir: {specRoot}/{workingLanguage}/
   - routerMode: {routerMode}
   - serverState: {serverState}
   - formStack: {formStack}
@@ -186,12 +186,12 @@ Agent(subagent_type: "frontend-v2-plugin:tdd-cycle-runner", prompt: "
   Execute TDD cycle for '{feature}' phase '{phase}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - phase: {phase}
   - projectRoot: {cwd}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
-  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - specDir: {specRoot}/{workingLanguage}/
+  - uiDslDir: {specRoot}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
@@ -265,7 +265,7 @@ When a phase fails and the user chooses to stop:
    }
    ```
    **Merge rule**: preserve all existing fields. Only update `status` and add/update `lastDelta`.
-3. Delete lock file (`docs/specs/{feature}/.implementation/frontend/.lock`)
+3. Delete lock file (`{runsDir}/{feature}/.lock`)
 4. Display:
    > "Delta generation failed at {phase}."
    > "Options:"
@@ -299,7 +299,7 @@ Delta Generation Complete for '{feature}':
 
 #### 2-D.6: Update Progress (Delta)
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and update:
+Read `{runsDir}/{feature}/progress.json` and update:
 
 ```json
 {

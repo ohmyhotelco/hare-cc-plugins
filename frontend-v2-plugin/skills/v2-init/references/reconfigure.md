@@ -8,7 +8,7 @@ Part of the `v2-init` skill. `{pluginRoot}` is the plugin root the skill states.
    the old config**; the comparison below runs **after Step 2l (all knobs collected) and before
    Step 3 writes the file** — at Step 1 the new values do not exist yet, so "changes a structural
    knob" cannot be evaluated here, and a guard run here either never fires or warns about a change
-   it cannot name. Before overwriting, glob `docs/specs/*/.progress/*.json` for any
+   it cannot name. Before overwriting, glob `{runsDir}/*/progress.json` for any
    feature whose `implementation.status` is beyond `planned`. If any exist AND the reconfiguration
    changes a **structural** knob (`baseDir`, `appDir`, `routerMode`, `appProfile`, `serverState`,
    `formStack`, `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore`), list the affected features and warn:

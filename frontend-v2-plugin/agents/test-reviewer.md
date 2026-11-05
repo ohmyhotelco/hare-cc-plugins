@@ -24,7 +24,7 @@ The skill will provide these parameters in the prompt:
 - `srcPath` — the source root relative to `appDir`; every `npx …` path argument uses it
 - `apiPackageDir` — **optional**; the workspace API package directory (`apiPackage.dir`, repo-relative) under `apiLayer == workspace-package`. When present and `targetPath` is the default scope, its test files are collected too (Phase 0) and its `src/**` modules join the coverage cross-reference (1.5); any `vitest` run for them is `cd {projectRoot}/{apiPackageDir} && npx vitest run …` with the package's own config, never from `appDir`.
 - `specDir` — **optional**; the feature's working-language spec directory
-  (`docs/specs/{feature}/{lang}`). Supplied on pipeline runs, absent on standalone
+  (`{specRoot}/{lang}`). Supplied on pipeline runs, absent on standalone
   `v2-test-review` runs. When present, dimension 1.4 follows each test's spec anchor and confirms
   the cited line says what the test assumes; when absent, anchors are checked for form only.
 

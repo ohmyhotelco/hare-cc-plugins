@@ -188,11 +188,11 @@ from the Vitest test-infra `{baseDir}/mocks/server.ts`, which stays **unchanged*
 
 > **App lock (also applies to Step 2).** Shared layouts (`{baseDir}/layouts/*.tsx`) and their locale
 > files (`{localesDir}/{lang}/layout.json`) are app-wide too: a second feature adding a nav item
-> edits the same files under its own feature lock. Take `docs/specs/.app.lock` around each Step 2
+> edits the same files under its own feature lock. Take `{runsDir}/.app.lock` around each Step 2
 > read-modify-write as well, on the same acquire → re-read → edit → release cycle.
 >
 > **App lock.** Steps 5b through 5f below all write **app-wide, once-per-app** files. Take
-> `docs/specs/.app.lock` (v2-shared § Lock file) around each: acquire, **re-glob for the file**,
+> `{runsDir}/.app.lock` (v2-shared § Lock file) around each: acquire, **re-glob for the file**,
 > write only if still absent, release. **One exception: Step 5d replaces an existing spec whose
 > `CONFIG_FINGERPRINT` no longer matches the config.** Absent-only would make a stale fingerprint
 > permanently unfixable — `v2-verify` fails on it and names `v2-gen`, which would skip the file. The feature lock does not protect these — "first feature"

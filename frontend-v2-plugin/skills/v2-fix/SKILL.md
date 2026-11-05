@@ -32,7 +32,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Prerequisites
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -40,7 +40,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
@@ -65,8 +65,8 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
      > "If no review-report.json exists, run `/frontend-v2-plugin:v2-review {feature}` first."
 
 2. **Fix mode detection** — determine whether to fix review issues or E2E issues:
-   - Read `docs/specs/{feature}/.implementation/frontend/review-report.json` → extract `timestamp` (if exists)
-   - Read `docs/specs/{feature}/.implementation/frontend/e2e-report.json` → extract `timestamp`, `status`, `summary` (if exists)
+   - Read `{runsDir}/{feature}/review-report.json` → extract `timestamp` (if exists)
+   - Read `{runsDir}/{feature}/e2e-report.json` → extract `timestamp`, `status`, `summary` (if exists)
    - **E2E fix mode** if ALL of the following are true:
      - `e2e-report.json` exists
      - `e2e-report.json` has failures (`status` is `"partial"` or `"failed"`)
@@ -135,7 +135,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-fix"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `{runsDir}/{feature}/.lock` with `holder: "v2-fix"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
@@ -191,15 +191,15 @@ Agent(subagent_type: "frontend-v2-plugin:review-fixer", prompt: "
   Fix {fixMode} issues for '{feature}'.
 
   Parameters:
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - feature: {feature}
   - baseDir: {baseDir}/
   - sourceBaseDir: {sourceBaseDir}
   - projectRoot: {cwd}
   - fixMode: {fixMode}
-  - reviewReportFile: docs/specs/{feature}/.implementation/frontend/review-report.json
-  - e2eReportFile: docs/specs/{feature}/.implementation/frontend/e2e-report.json
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - reviewReportFile: {runsDir}/{feature}/review-report.json
+  - e2eReportFile: {runsDir}/{feature}/e2e-report.json
+  - specDir: {specRoot}/{workingLanguage}/
   - routerMode: {routerMode}
   - mockFirst: {mockFirst}
   - appDir: {appDir}
@@ -217,7 +217,7 @@ Agent(subagent_type: "frontend-v2-plugin:review-fixer", prompt: "
   Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
   {If fixMode is 'e2e' and e2eTool == 'agent-browser': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md for E2E patterns. Failure evidence is the e2e-report.json per-scenario step logs and screenshots.}
   {If fixMode is 'e2e' and e2eTool == 'playwright': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code.}
-  Save the fix report to docs/specs/{feature}/.implementation/frontend/fix-report.json.
+  Save the fix report to {runsDir}/{feature}/fix-report.json.
 ")
 ```
 
@@ -300,11 +300,11 @@ If the fix report contains `regenRequired` entries, append this section after th
 ```
 
 After displaying re-generation guidance, automatically update `generation-state.json`:
-- Check if `docs/specs/{feature}/.implementation/frontend/generation-state.json` exists
+- Check if `{runsDir}/{feature}/generation-state.json` exists
   - If not found: skip the update and inform the user:
     > "generation-state.json not found — it may have been manually deleted. Re-run `/frontend-v2-plugin:v2-gen {feature}` to regenerate from scratch."
   - If found:
-    - Read `docs/specs/{feature}/.implementation/frontend/generation-state.json`
+    - Read `{runsDir}/{feature}/generation-state.json`
     - For each phase in `regenRecommendation.phases`, set `phases.{phase}.status = "pending"`
     - Write the updated file back
     - Inform the user: "generation-state.json updated — {phases} marked as pending."
@@ -338,7 +338,7 @@ If there are regen-required issues:
 
 ### Step 6: Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix` field under `implementation`:
+Read `{runsDir}/{feature}/progress.json` and add or update the `fix` field under `implementation`:
 
 ```json
 {
@@ -352,7 +352,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `fix`
       "fixed": 7,
       "escalated": 2,
       "testsAdded": 5,
-      "reportFile": "docs/specs/{feature}/.implementation/frontend/fix-report.json"
+      "reportFile": "{runsDir}/{feature}/fix-report.json"
     }
   }
 }
@@ -372,4 +372,4 @@ longer exists; `v2-e2e` re-runs cheaply, a false "Pipeline complete" does not.
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.

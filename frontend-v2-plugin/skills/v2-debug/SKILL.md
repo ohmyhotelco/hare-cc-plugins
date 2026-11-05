@@ -29,7 +29,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -37,7 +37,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`) and `implementation.status` (save as `previousStatus` for use in Step 5 guidance)
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`) and `implementation.status` (save as `previousStatus` for use in Step 5 guidance)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
@@ -71,8 +71,8 @@ Agent(subagent_type: "frontend-v2-plugin:debugger", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - planFile: {runsDir}/{feature}/plan.json
+  - specDir: {specRoot}/{workingLanguage}/
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - appDir: {appDir}
@@ -81,7 +81,7 @@ Agent(subagent_type: "frontend-v2-plugin:debugger", prompt: "
   - routerMode: {routerMode}
 
   Follow the 4-phase methodology defined in agents/debugger.md.
-  Write the debug report to docs/specs/{feature}/.implementation/frontend/debug-report.json.
+  Write the debug report to {runsDir}/{feature}/debug-report.json.
 ")
 ```
 
@@ -111,7 +111,7 @@ Debug Report for '{feature}':
     Build: {build result}
     Tests: {test result}
 
-  Report saved to: docs/specs/{feature}/.implementation/frontend/debug-report.json
+  Report saved to: {runsDir}/{feature}/debug-report.json
 ```
 
 **Escalated:**
@@ -132,7 +132,7 @@ Debug Report for '{feature}':
 
   Recommendation: {recommendation}
 
-  Report saved to: docs/specs/{feature}/.implementation/frontend/debug-report.json
+  Report saved to: {runsDir}/{feature}/debug-report.json
 ```
 
 Additional guidance on escalation:
@@ -166,7 +166,7 @@ If escalated:
 
 ### Step 6: Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and update `implementation.status`:
+Read `{runsDir}/{feature}/progress.json` and update `implementation.status`:
 
 - resolved → `"resolved"` (set status to `"resolved"`)
 - escalated → `"escalated"` (set status to `"escalated"`)
@@ -178,7 +178,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update `implementation.
     "debug": {
       "status": "resolved | escalated",
       "timestamp": "{ISO timestamp}",
-      "reportFile": "docs/specs/{feature}/.implementation/frontend/debug-report.json"
+      "reportFile": "{runsDir}/{feature}/debug-report.json"
     }
   }
 }

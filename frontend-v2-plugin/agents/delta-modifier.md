@@ -98,7 +98,7 @@ Each file operation from `delta-plan.json` is classified:
 
 7. **Phase 2 path rules** (apply throughout Steps 2–4 whenever the knob is set):
    - **`apiLayer == workspace-package`** — an affected file under `{apiPackage.dir}` is package code: its test is the package's co-located or `__tests__/` file (`plan.apiPackagePattern`), **not** `{baseDir}/__tests__/`; every `vitest`/`tsc` run for it is `cd {projectRoot}/{apiPackage.dir} && npx vitest run {package-relative path}` / the package's `tsc` (its own configs, R10); `{apiPackage.entry}` is an app-wide file (app lock). Feature-local `api/` files are never created under this layer.
-   - **`i18nBinding == custom-hook`** — `i18n-key-added` / `i18n-key-removed` target each configured language's `{i18nHook.resourcesDir}/{resourceFile}` (app-wide files: take the app lock), append-only with **real values** per D19 (spec translation where one exists, otherwise translate and append a row to `docs/specs/{feature}/.implementation/frontend/i18n-review.md`), never a `[LANG]` placeholder; there is no feature `i18n.ts` to edit.
+   - **`i18nBinding == custom-hook`** — `i18n-key-added` / `i18n-key-removed` target each configured language's `{i18nHook.resourcesDir}/{resourceFile}` (app-wide files: take the app lock), append-only with **real values** per D19 (spec translation where one exists, otherwise translate and append a row to `{runsDir}/{feature}/i18n-review.md`), never a `[LANG]` placeholder; there is no feature `i18n.ts` to edit.
    - **`componentLibrary == external`** — gap components live under `{externalComponents.uiKitDir}`; imports follow tdd-cycle-runner § component-tdd (package + ui-kit only). **`clientStore == none`** — no `stores/` file may be created or modified.
 
 ### Step 0.5: Handle Foundation Create Operations
@@ -175,7 +175,7 @@ For each structural change:
 1. Read the target file. **If the target is an app-wide file** — the central route file
    (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
    `{sourceBaseDir}/mocks/handlers.ts`, anything under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}` (workspace package), or a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}` — take
-   `docs/specs/.app.lock` (v2-shared § Lock file) around the read-modify-write and release it right
+   `{runsDir}/.app.lock` (v2-shared § Lock file) around the read-modify-write and release it right
    after; the feature lock does not protect those. Compare against `sourceBaseDir`, never `baseDir`.
 2. Apply the minimal edit based on `changeDetail`:
    - `enum-value-added`: Add the new value to the enum
@@ -205,7 +205,7 @@ For each behavioral change:
 2. If test file not found: mark as `escalated` with reason `"test file not found"`, skip to next
 3. Read existing test file to understand structure and imports
 4. Add new `it()` block:
-   - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
+   - Comment: **spec anchor** `// {TS/FR-id} — {specRoot}/{lang}/{spec-file}.md:{line}`
      (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § Anchors). `// delta: {specRef}` alone is not an anchor — it names
      the requirement without the file and line `test-reviewer` needs to verify the test's premise.
    - Test name describes the expected behavior after modification

@@ -35,7 +35,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Prerequisites
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -43,7 +43,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 2. Read `plan.json` → extract `feature`, `e2eTests`, `routes`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`, and `standalone` (default `false`) — passed to the runner, which branches its spec reads on it
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`), `implementation.status`, and `standalone` (default `false`) — passed to the runner, which branches its spec reads on it
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill must be in {workingLanguage_name}.
@@ -103,7 +103,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-e2e"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `{runsDir}/{feature}/.lock` with `holder: "v2-e2e"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
@@ -117,7 +117,7 @@ Display the E2E test plan:
 ```
 E2E Testing for '{feature}':
 
-  Plan: docs/specs/{feature}/.implementation/frontend/plan.json
+  Plan: {runsDir}/{feature}/plan.json
   Dev server: http://localhost:5173 (VITE_ENABLE_MOCKS=true)
 
   Scenarios ({scenarioCount}):
@@ -224,8 +224,8 @@ Agent(subagent_type: "frontend-v2-plugin:e2e-test-runner", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - planFile: {runsDir}/{feature}/plan.json
+  - specDir: {specRoot}/{workingLanguage}/
   - baseDir: {baseDir}
   - appDir: {appDir}
   - srcPath: {srcPath}
@@ -304,7 +304,7 @@ E2E Test Report for '{feature}':
 
 ### Step 7: Save E2E Report
 
-Save the full report to `docs/specs/{feature}/.implementation/frontend/e2e-report.json`.
+Save the full report to `{runsDir}/{feature}/e2e-report.json`.
 
 > **Playwright mode:** the e2e-report.json schema is unchanged (per-scenario pass/fail + evidence). Each failing scenario's `evidence` cites its Playwright **trace path** — these are the trace paths `v2-fix` (e2e-fix) opens with `npx playwright show-trace`. The `completed`/`partial`/`failed` status mapping below applies unchanged.
 
@@ -318,7 +318,7 @@ Save the full report to `docs/specs/{feature}/.implementation/frontend/e2e-repor
 
 ### Step 8: Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and update:
+Read `{runsDir}/{feature}/progress.json` and update:
 
 **1. E2E field** — add or update the `e2e` field under `implementation`:
 
@@ -335,7 +335,7 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update:
         { "id": "E2E-001", "name": "Create entity flow", "status": "pass", "source": "TS-050, TS-051" },
         { "id": "E2E-002", "name": "Edit entity flow", "status": "fail", "source": "TS-060" }
       ],
-      "reportFile": "docs/specs/{feature}/.implementation/frontend/e2e-report.json"
+      "reportFile": "{runsDir}/{feature}/e2e-report.json"
     }
   }
 }
@@ -376,4 +376,4 @@ Read `docs/specs/{feature}/.progress/{feature}.json` and update:
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.

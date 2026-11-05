@@ -144,7 +144,7 @@ For each test entry in the plan's `tests[]` matching this phase:
 2. **Write test file** based on plan's test cases:
    - Location: `{baseDir}/features/{feature}/__tests__/{target}.test.{ts,tsx}` — `api-tdd` under `workspace-package`: the plan's `tests[type:"api"].file` (a package path per `apiPackagePattern`), never the app feature's `__tests__/`
    - Each test case from `plan.tests[].cases` → one `it()` block
-   - **Spec anchor** on each test: `// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88`.
+   - **Spec anchor** on each test: `// TS-014 — {specRoot}/{lang}/test-scenarios.md:88`.
      The anchor names the **spec** line the expected behavior comes from (`TS-nnn`, `FR-nnn`, or a
      validation rule) with `file:line` — never `plan.json`, which was written from the same reading
      the test is, so citing it proves nothing. Behavior with no spec line to cite carries no anchor;
@@ -215,7 +215,7 @@ The ladder governs *how* to implement what the plan and tests demand — it neve
 *When `apiLayer == workspace-package`* (Phase 2, D15) — the phase runs **inside the package**: tests and
 implementations for `api[].additions[]` are written under `{apiPackage.dir}` following the module pattern the
 planner recorded (file layout, hook naming, client injection), exported from `{apiPackage.entry}` (the entry
-is app-wide — edit it under `docs/specs/.app.lock`), and verified with the **package's own** Vitest
+is app-wide — edit it under `{runsDir}/.app.lock`), and verified with the **package's own** Vitest
 (`cd {projectRoot}/{apiPackage.dir} && npx vitest run …`, reading its `vitest.config.*` — never the app's,
 R10). Nothing is generated for `api[].reuse[]`; feature code imports those hooks from `{apiPackage.package}`.
 The app never imports `axios` directly under this layer. The MSW handlers stay in the app feature.
@@ -244,7 +244,7 @@ The app never imports `axios` directly under this layer. The MSW handlers stay i
   phase and report `status: "skipped"` — v2-gen already skips phases with no files.
 
 **`component-tdd`** — Shared Components:
-- shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the gap components still in scope after the Step 0 re-glob **first** (feature components import them), each written under `docs/specs/.app.lock` (`{uiKitDir}` is app-wide — v2-shared § Lock file) and released right after the write, so two features planning the same gap never overwrite each other; no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
+- shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the gap components still in scope after the Step 0 re-glob **first** (feature components import them), each written under `{runsDir}/.app.lock` (`{uiKitDir}` is app-wide — v2-shared § Lock file) and released right after the write, so two features planning the same gap never overwrite each other; no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
 - Translation hook: `useTranslation('{feature}')` — **`i18nBinding == custom-hook`** (D16): `import { {hook} } from '{from}'` and `const t = {hook}()`, flat keys per `i18n.keyPrefix`, no namespace argument
 - No boolean props → compound component or discriminated union
 - All labels/placeholders → `t()` function

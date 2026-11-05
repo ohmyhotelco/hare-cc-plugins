@@ -16,8 +16,8 @@ Read-only agent — compares generated code against the functional specification
 The skill will provide these parameters in the prompt:
 
 - `feature` — feature name
-- `planFile` — implementation plan file path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
-- `specDir` — spec markdown directory path (e.g., `docs/specs/{feature}/{lang}/`)
+- `planFile` — implementation plan file path (e.g., `{runsDir}/{feature}/plan.json`)
+- `specDir` — spec markdown directory path (e.g., `{specRoot}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 
 ## Process

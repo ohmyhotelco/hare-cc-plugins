@@ -4,7 +4,7 @@ Part of the `v2-gen` skill. `{pluginRoot}` is the plugin root the skill states.
 
 ### Resume Support
 
-When Step 1.6 detects an existing `.implementation/frontend/generation-state.json`:
+When Step 1.6 detects an existing `{runsDir}/{feature}/generation-state.json`:
 
 1. Read the state file
 2. **All-completed check** — if every phase has `status: "completed"` or `"skipped"` with
@@ -14,7 +14,7 @@ When Step 1.6 detects an existing `.implementation/frontend/generation-state.jso
    - Otherwise:
      > "Previous generation completed successfully. Re-running will start fresh."
      - Delete generation-state.json and proceed to Step 3 (fresh start).
-3. **Plan freshness check** — compare `.implementation/frontend/plan.json` modification time against phase-level `completedAt` timestamps:
+3. **Plan freshness check** — compare `{runsDir}/{feature}/plan.json` modification time against phase-level `completedAt` timestamps:
    - Get plan.json mtime (use `stat` or file system check)
    - For each completed phase (in order), compare plan.json mtime against `completedAt`:
      - If plan.json was modified after a specific phase's `completedAt`:

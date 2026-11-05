@@ -20,9 +20,9 @@ Executes E2E test scenarios by driving agent-browser CLI through multi-page user
 The skill provides these parameters in the prompt:
 
 - `feature` — feature name
-- `planFile` — implementation plan path (e.g., `docs/specs/{feature}/.implementation/frontend/plan.json`)
+- `planFile` — implementation plan path (e.g., `{runsDir}/{feature}/plan.json`)
 - `standalone` — `true` | `false`; selects the spec-context branch in Step 0 item 3
-- `specDir` — spec markdown path (e.g., `docs/specs/{feature}/{lang}/`)
+- `specDir` — spec markdown path (e.g., `{specRoot}/{lang}/`)
 - `baseDir` — base source directory (e.g., `"app/src"`)
 - `appDir` — directory containing `playwright.config.ts` / `package.json` (Playwright commands run from here; default `"."`)
 - `nodeBin` — bin directory of the app's pinned Node, or empty (v2-shared § Monorepo Rules). Prefix every `npx …` with `PATH="{nodeBin}:$PATH"` when it is non-empty; absent → derive it as that section says.

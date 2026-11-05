@@ -19,19 +19,37 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
-# Determine feature name from the file path
-# Match docs/specs/{feature}/ paths (spec or plan edits)
+# Records live in {runsDir}/{feature}/ (config `runsDir`, default docs/plugin-runs); a planning-plugin
+# spec, when one exists, lives in docs/specs/{feature}/.
+RUNS_DIR="docs/plugin-runs"
+CONFIG_FILE="$CWD/.claude/frontend-v2-plugin.json"
+if [ -f "$CONFIG_FILE" ]; then
+  RUNS_DIR=$(jq -r '.runsDir // "docs/plugin-runs"' "$CONFIG_FILE" 2>/dev/null || echo "docs/plugin-runs")
+fi
+RUNS_DIR="${RUNS_DIR%/}"
+
 FEATURE=""
-if [[ "$FILE_PATH" =~ docs/specs/([^/]+)/ ]]; then
+IS_SPEC=false
+IS_PLAN=false
+if [[ "$FILE_PATH" == *"$RUNS_DIR/"*"/plan.json" ]]; then
+  REST="${FILE_PATH##*"$RUNS_DIR"/}"
+  FEATURE="${REST%%/*}"
+  [ "$REST" = "$FEATURE/plan.json" ] && IS_PLAN=true
+elif [[ "$FILE_PATH" == *"$RUNS_DIR/"*"/spec/"* ]]; then
+  REST="${FILE_PATH##*"$RUNS_DIR"/}"
+  FEATURE="${REST%%/*}"
+  [[ "$FILE_PATH" =~ \.(md|json)$ ]] && IS_SPEC=true
+elif [[ "$FILE_PATH" =~ docs/specs/([^/_][^/]*)/[^.][^/]*/.*\.(md|json)$ ]] || [[ "$FILE_PATH" =~ docs/specs/([^/_][^/]*)/[^./][^/]*\.(md|json)$ ]]; then
   FEATURE="${BASH_REMATCH[1]}"
+  IS_SPEC=true
 fi
 
-# Skip if file is not in a spec directory
-if [ -z "$FEATURE" ]; then
+# Skip if the file is neither a spec nor a plan
+if [ -z "$FEATURE" ] || { [ "$IS_SPEC" = false ] && [ "$IS_PLAN" = false ]; }; then
   exit 0
 fi
 
-PROGRESS_FILE="$CWD/docs/specs/$FEATURE/.progress/$FEATURE.json"
+PROGRESS_FILE="$CWD/$RUNS_DIR/$FEATURE/progress.json"
 
 # Skip if progress file doesn't exist
 if [ ! -f "$PROGRESS_FILE" ]; then
@@ -46,17 +64,6 @@ if [ -z "$IMPL_STATUS" ] || [ "$IMPL_STATUS" = "planned" ]; then
   exit 0
 fi
 
-# Check if the edited file is a spec file or plan.json
-IS_SPEC=false
-if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/[^.].*\.(md|json)$ ]] && [[ ! "$FILE_PATH" =~ \.progress/ ]] && [[ ! "$FILE_PATH" =~ \.implementation/[^/]+/debug ]]; then
-  IS_SPEC=true
-fi
-
-IS_PLAN=false
-if [[ "$FILE_PATH" =~ docs/specs/$FEATURE/\.implementation/[^/]+/plan\.json$ ]]; then
-  IS_PLAN=true
-fi
-
 if [ "$IS_SPEC" = true ] || [ "$IS_PLAN" = true ]; then
   echo ""
   echo "[Frontend V2 Plugin] Warning: Spec or plan file modified while implementation status is '$IMPL_STATUS'."
@@ -66,8 +73,8 @@ if [ "$IS_SPEC" = true ] || [ "$IS_PLAN" = true ]; then
 
   # Name the command this status actually accepts. A single generic "run v2-plan" line sent
   # fixing/escalated/gen-failed features to a command that refuses or discards their work.
-  FIX_REPORT="$CWD/docs/specs/$FEATURE/.implementation/frontend/fix-report.json"
-  DELTA_PLAN="$CWD/docs/specs/$FEATURE/.implementation/frontend/delta-plan.json"
+  FIX_REPORT="$CWD/$RUNS_DIR/$FEATURE/fix-report.json"
+  DELTA_PLAN="$CWD/$RUNS_DIR/$FEATURE/delta-plan.json"
 
   if [ -f "$DELTA_PLAN" ]; then
     echo "  A delta plan is already pending. Run /frontend-v2-plugin:v2-gen $FEATURE to apply it,"

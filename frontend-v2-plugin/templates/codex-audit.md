@@ -10,7 +10,7 @@ tests and the API contracts — not an Angular source.
 
 `codex-auditor` builds one English prompt per stage from the rows below, hands Codex the listed inputs
 (and **nothing from the Claude session**), runs `codex exec` headless, reads the real output and exit
-code, and writes the verdict to `docs/specs/{feature}/.implementation/frontend/codex-audit.json`.
+code, and writes the verdict to `{runsDir}/{feature}/codex-audit.json`.
 Independence is the point: Codex gets the artifacts, never Claude's reasoning.
 
 **Calling Codex.** Use the binary, not the interactive shell function (which does not exist in a
@@ -45,7 +45,7 @@ Do not rewrite the code; audit it. Flag any result that looks like a false pass.
 
 | Stage | Inputs to give Codex | What Codex checks |
 | --- | --- | --- |
-| `plan` | `plan.json` + the ticket/spec it was built from (`docs/specs/{feature}/`) | requirement coverage (anything in the ticket the plan dropped without an `openApprovals` entry), rendering-mode choice, component tree, reuse of the workspace UI and data packages' exports instead of re-creating them, E2E scenario coverage of the requirements |
+| `plan` | `plan.json` + the ticket/spec it was built from (`{specRoot}/`) | requirement coverage (anything in the ticket the plan dropped without an `openApprovals` entry), rendering-mode choice, component tree, reuse of the workspace UI and data packages' exports instead of re-creating them, E2E scenario coverage of the requirements |
 | `gen` | the files listed in `generation-state.json` (read in full; no diff — the auditor runs no git) + `plan.json` | idiomatic RR v7 / hooks / TanStack Query, anti-patterns, **secret-boundary violations**, dead or incomplete code, components duplicated from the shared UI package, whether the code matches the plan |
 | `verify` | generated code + test files + the verify result in the progress file | independent second opinion to `quality-reviewer` / `test-reviewer`: weak or missing assertions, untested branches, behavior mocked over, tests that would stay green if the behavior broke |
 | `e2e` | `e2e-report.json` + `plan.json` `e2eTests[]` + the spec files | **false-pass cross-check** — do the scenarios actually exercise the planned flows? Any scenario weakened or skipped to pass? |

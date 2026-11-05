@@ -25,7 +25,7 @@ in the prompt frame so Codex ignores those paths too.
 
 No session history — only these: `feature`, `stage` (`plan|gen|verify|e2e|review`), `projectRoot`,
 `appDir`, `baseDir`, the stage's artifact paths, `outPath` =
-`docs/specs/{feature}/.implementation/frontend/codex-audit.json`, `workingLanguage`.
+`{runsDir}/{feature}/codex-audit.json`, `workingLanguage`.
 
 ## Procedure
 
@@ -51,7 +51,7 @@ inline only small artifacts). Never include Claude's reasoning.
 Parse into the schema. Failed or unparseable → `verdict: "error"`, raw output in `summary`, one-line
 `reason`.
 
-Take the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` (v2-shared § State File
+Take the feature lock `{runsDir}/{feature}/.lock` (v2-shared § State File
 Safety — never break a lock whose holder is alive). Read-Modify-Write `codex-audit.json`: replace only
 the `{stage}` entry, keep sibling stages, and carry prior adjudications across as the template says.
 Release the lock on every exit.

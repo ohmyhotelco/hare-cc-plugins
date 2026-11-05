@@ -25,7 +25,7 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 #### Step 1: Read Progress File
 
-1. Read `docs/specs/{feature}/.progress/{feature}.json`
+1. Read `{runsDir}/{feature}/progress.json`
    - If not found:
      > "No progress file found for '{feature}'."
      > "Run `/frontend-v2-plugin:v2-plan {feature}` to start."
@@ -97,14 +97,14 @@ Implementation Status for '{feature}':
 
 1. Read `implementation.generatedAt` from the progress file
 2. If `generatedAt` exists:
-   - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt` (use `stat` to get mtime)
+   - Check if any spec file in `{specRoot}/{workingLanguage}/` was modified after `generatedAt` (use `stat` to get mtime)
    - If spec is newer:
      > "Warning: Spec modified after code generation ({generatedAt})."
      > "Run `/frontend-v2-plugin:v2-plan {feature}` to detect changes (incremental mode)."
 
 #### Step 4: Pending Delta Check
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/delta-plan.json` exists
+1. Check if `{runsDir}/{feature}/delta-plan.json` exists
    - If found:
      > "Pending delta plan detected. Run `/frontend-v2-plugin:v2-gen {feature}` to apply incremental changes."
 
@@ -130,7 +130,7 @@ Based on `implementation.status`, display the recommended next action:
 
 #### Step 1: Scan All Features
 
-1. Glob `docs/specs/*/.progress/*.json` to find all progress files
+1. Glob `{runsDir}/*/progress.json` to find all progress files
 2. If no files found:
    > "No features found. Run `/frontend-v2-plugin:v2-plan {feature}` to start."
    - Stop here.

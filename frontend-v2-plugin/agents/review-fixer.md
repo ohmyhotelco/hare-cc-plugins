@@ -67,7 +67,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 > (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`,
 > `{sourceBaseDir}/mocks/handlers.ts`, a shared layout under `{sourceBaseDir}/layouts/`, `{apiPackage.entry}`,
 > a custom-hook resource file `{i18nHook.resourcesDir}/{resourceFile}`, or anything under `{externalComponents.uiKitDir}/` — takes
-> `docs/specs/.app.lock` (v2-shared § Lock file) around the read-modify-write and releases it right
+> `{runsDir}/.app.lock` (v2-shared § Lock file) around the read-modify-write and releases it right
 > after. This includes **direct** (non-TDD) fixes: a `route_coverage` fix edits the central route
 > table, and the feature lock does not exclude another feature's integration writing the same file.
 > `sourceBaseDir` is the source root passed by the skill — `baseDir` here is the feature directory
@@ -190,7 +190,7 @@ For each **tdd-required** issue (sorted: critical first, then warnings, then sug
    - Match by target: component issues → component test, page issues → page test, etc.
    - **Defensive guard**: If the matching test file is unexpectedly missing at execution time (e.g., deleted between triage and execution), mark the issue as `escalated` with reason `"test file not found"` and move to the next issue.
 2. Add `it()` block to the existing test file:
-   - Comment: **spec anchor** `// {TS/FR-id} — docs/specs/{feature}/{lang}/{spec-file}.md:{line}`
+   - Comment: **spec anchor** `// {TS/FR-id} — {specRoot}/{lang}/{spec-file}.md:{line}`
      when the fixed behavior comes from the spec (`${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md` § Anchors). Only when the
      behavior has no spec line to cite — a rendering detail, a defensive branch — fall back to
      `// fix: {dimension}`. Never use `// fix:` for spec-derived behavior: `test-reviewer` follows
@@ -246,7 +246,7 @@ Record results for each check.
 
 ### Step 5: Save & Output Report
 
-Save the fix report to `docs/specs/{feature}/.implementation/frontend/fix-report.json`:
+Save the fix report to `{runsDir}/{feature}/fix-report.json`:
 
 ```json
 {

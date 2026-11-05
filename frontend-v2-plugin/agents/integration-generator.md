@@ -44,7 +44,7 @@ The coordinator skill provides:
 Every step below that edits an **app-wide** file — the central route file (Step 3),
 `{appDir}/react-router.config.ts` `prerender` (Step 3, framework mode), the central i18n config
 (Step 5) or — under `i18nBinding == custom-hook` — every flat resource file Step 4 merges into, and `{baseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts` (Step 6) — takes
-`docs/specs/.app.lock` per v2-shared § Lock file: acquire, **re-read the target file**, edit,
+`{runsDir}/.app.lock` per v2-shared § Lock file: acquire, **re-read the target file**, edit,
 release. The feature lock this agent runs under does not protect these files; another feature
 integrating concurrently writes the same ones.
 
@@ -169,9 +169,9 @@ file and no registration. For each language in `i18n.languages`: take the app lo
 plan's keys that are not already present (existing keys are never modified — a key that already exists
 with a different value is reported, not overwritten), keep the file's existing formatting (indentation,
 key order = existing then new), write, release. Values follow D19: `workingLanguage` from the spec; any
-language with a spec translation in `docs/specs/{feature}/{lang}/` takes it from there; every remaining
+language with a spec translation in `{specRoot}/{lang}/` takes it from there; every remaining
 language is translated by you and recorded in
-`docs/specs/{feature}/.implementation/frontend/i18n-review.md` as `| key | lang | value | machine-translated |`.
+`{runsDir}/{feature}/i18n-review.md` as `| key | lang | value | machine-translated |`.
 **Never write a `[LANG] …` placeholder under `custom-hook`** — the resource file is production copy.
 Then skip Step 5 (nothing to register) and continue at Step 6.
 
@@ -346,7 +346,7 @@ All must pass. If any fails, attempt to fix and re-verify (max 3 cycles).
 > **`i18nBinding == custom-hook`** changes the i18n shape below: `filesCreated` lists **no** `i18n.ts` and no
 > `{localesDir}/{lang}/{feature}.json`; instead `filesModified` lists each merged
 > `{i18nHook.resourcesDir}/{resourceFile}` and `filesCreated` includes
-> `docs/specs/{feature}/.implementation/frontend/i18n-review.md`; `i18nIntegration` becomes
+> `{runsDir}/{feature}/i18n-review.md`; `i18nIntegration` becomes
 > `{ "status": "merged", "resourceFiles": [...], "keysAdded": N, "keysAlreadyPresent": [...], "reviewFile": "…/i18n-review.md" }`
 > with no `featureFile` / `centralFile` / `namespace`.
 

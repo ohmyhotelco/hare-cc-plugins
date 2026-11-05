@@ -27,7 +27,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists
+1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."
      > "Please run `/frontend-v2-plugin:v2-plan {feature}` first."
@@ -35,7 +35,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 2. Read `plan.json` → extract `baseDir`, `feature`
 
-3. Read `docs/specs/{feature}/.progress/{feature}.json` → extract `workingLanguage` (default: `"en"`)
+3. Read `{runsDir}/{feature}/progress.json` → extract `workingLanguage` (default: `"en"`)
 4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 
 **Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
@@ -57,7 +57,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 1. **Spec staleness check** — compare spec modification time against `implementation.generatedAt`:
    - Read `implementation.generatedAt` from the progress file
-   - Check if any spec file in `docs/specs/{feature}/{workingLanguage}/` was modified after `generatedAt` (use `stat` or file system check)
+   - Check if any spec file in `{specRoot}/{workingLanguage}/` was modified after `generatedAt` (use `stat` or file system check)
    - If spec is newer:
      > "Warning: Spec files have been modified since code was generated ({generatedAt})."
      > "Review results may flag issues caused by spec-code drift."
@@ -73,7 +73,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Lock Acquire
 
-Acquire the feature lock `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-review"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
+Acquire the feature lock `{runsDir}/{feature}/.lock` with `holder: "v2-review"`, per v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale** — the 30-minute rule sweeps ghost locks, it does not time out a live one. Held by a live holder → report `holder` and `acquiredAt`, then stop.
 
 **Release on every exit below.** Any "stop here" from this point on — a user declining a
 confirmation, a validation refusal, an agent that fails — releases this lock first. The lock is
@@ -90,8 +90,8 @@ Agent(subagent_type: "frontend-v2-plugin:spec-reviewer", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
-  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - planFile: {runsDir}/{feature}/plan.json
+  - specDir: {specRoot}/{workingLanguage}/
   - baseDir: {baseDir}/
 
   Follow the process defined in agents/spec-reviewer.md.
@@ -129,7 +129,7 @@ Agent(subagent_type: "frontend-v2-plugin:quality-reviewer", prompt: "
 
   Parameters:
   - feature: {feature}
-  - planFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - planFile: {runsDir}/{feature}/plan.json
   - baseDir: {baseDir}/
   - projectRoot: {cwd}
   - routerMode: {routerMode}
@@ -204,7 +204,7 @@ If the result is `pass` (clean) or all issues are resolved:
 
 ### Step 6: Save Review Report & Update Progress
 
-Save the full review reports to `docs/specs/{feature}/.implementation/frontend/review-report.json`.
+Save the full review reports to `{runsDir}/{feature}/review-report.json`.
 
 **Critical**: The saved JSON must preserve the **complete** agent output including every `dimensions.{name}.issues[]` array. Do NOT reduce the output to summary counts only — downstream `v2-fix` / `review-fixer` depend on the individual issue objects.
 
@@ -260,7 +260,7 @@ to run `/frontend-v2-plugin:v2-gen {feature}` — there is no code to review. Ne
 
 Note: `qualityReview` is `null` when spec review failed (quality review was skipped). When both reviews ran, `qualityReview` follows the same structure with its own `dimensions.{name}.issues[]` arrays.
 
-Then read `docs/specs/{feature}/.progress/{feature}.json` and add or update the `review` field:
+Then read `{runsDir}/{feature}/progress.json` and add or update the `review` field:
 
 ```json
 {
@@ -296,4 +296,4 @@ Note: Set `implementation.status` as follows:
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.

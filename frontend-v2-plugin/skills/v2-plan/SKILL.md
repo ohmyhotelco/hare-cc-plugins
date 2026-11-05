@@ -36,7 +36,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 skill and takes the feature lock like the others — a plan written while `v2-gen` is generating from
 the previous plan leaves the two disagreeing about what exists.
 
-**Create the lock's parent first.** `docs/specs/{feature}/.implementation/frontend/` does not exist
+**Create the lock's parent first.** `{runsDir}/{feature}/` does not exist
 for a feature being planned standalone for the first time, and lock creation fails there before the
 steps that would create it ever run. Note whether the directory already existed, `mkdir -p` it, then
 acquire.
@@ -54,7 +54,7 @@ acquire a new lock in it, and a recursive delete would destroy that live lock. `
 non-empty directory fails harmlessly, which is exactly the right outcome — someone else is using
 it now. A pre-existing directory is never removed.
 
-Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "v2-plan"`, per
+Acquire `{runsDir}/{feature}/.lock` with `holder: "v2-plan"`, per
 v2-shared § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
 holder → report `holder` and `acquiredAt`, then stop.
 
@@ -69,7 +69,7 @@ user declining at Step 4-I or Step 4.
      `mode = "spec"` here would bypass auto-detection entirely, so a first-ever standalone run
      without the flag would hit "spec not found" instead of being offered standalone mode.
 
-2. **Auto-detection** — the flag is absent, so check if `docs/specs/{feature}/.progress/{feature}.json` exists:
+2. **Auto-detection** — the flag is absent, so check if `{runsDir}/{feature}/progress.json` exists:
    - If not found:
      > "No planning-plugin specification found for '{feature}'."
      > "Options:"
@@ -81,9 +81,9 @@ user declining at Step 4-I or Step 4.
 
 ### Step 1: Validate Spec
 
-1. Check if `docs/specs/{feature}/.progress/{feature}.json` exists
+1. Check if `{runsDir}/{feature}/progress.json` exists
    - If not found:
-     > "Functional specification not found: `docs/specs/{feature}/`"
+     > "Functional specification not found: `{specRoot}/`"
      > "Please create the functional specification using planning-plugin first."
      - Stop here.
 
@@ -110,7 +110,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-plan/references/standalone.md` and follow 
 
 ### Step 2: Check UI DSL
 
-1. Check if `docs/specs/{feature}/ui-dsl/manifest.json` exists
+1. Check if `{specRoot}/ui-dsl/manifest.json` exists
    - exists → `uiDslAvailable = true`
    - not exists → `uiDslAvailable = false`
 
@@ -130,11 +130,11 @@ incremental detection**, making standalone replanning unreachable through this s
 `sharedLayoutIds = "none"` and continue to Step 2.7.
 
 1. If `uiDslAvailable` is true:
-   - Read `docs/specs/{feature}/ui-dsl/manifest.json`
+   - Read `{specRoot}/ui-dsl/manifest.json`
    - Check `layouts` array for entries with `"source": "_shared"`
    - If found: `sharedLayoutIds` = list of layout IDs
 2. If `uiDslAvailable` is false:
-   - Read `docs/specs/{feature}/{workingLanguage}/screens.md`
+   - Read `{specRoot}/{workingLanguage}/screens.md`
    - Check for `<!-- @layout: _shared/` directive
    - If found: extract layout IDs
 3. If no shared layout references found: `sharedLayoutIds` = `"none"`
@@ -143,9 +143,9 @@ incremental detection**, making standalone replanning unreachable through this s
 
 Check if incremental mode is applicable:
 
-1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists → `existingPlanExists`
+1. Check if `{runsDir}/{feature}/plan.json` exists → `existingPlanExists`
 2. If `existingPlanExists`:
-   - Read `docs/specs/{feature}/.progress/{feature}.json` → extract `implementation.status`
+   - Read `{runsDir}/{feature}/progress.json` → extract `implementation.status`
    - If `implementation.status` is one of `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`:
      > "An existing implementation plan and generated code exist (status: {status})."
      > "Options:"
@@ -169,15 +169,10 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-plan/references/incremental.md` and follow
 
 Create the output directory if it doesn't exist:
 
-**Migration check** (backward compatibility):
-1. If `docs/specs/{feature}/.implementation/plan.json` exists (old path) AND `docs/specs/{feature}/.implementation/frontend/` does NOT exist:
-   - Move all files from `.implementation/` to `.implementation/frontend/` (excluding subdirectories that are already namespaces)
-   - Update embedded paths in progress file if present
-   - Display: "Migrated .implementation/ → .implementation/frontend/"
-2. Otherwise: create `docs/specs/{feature}/.implementation/frontend/` if it doesn't exist
+Create `{runsDir}/{feature}/` if it does not exist. If `{runsDir}/README.md` does not exist, create it and `{runsDir}/.gitignore` as v2-shared § Monorepo Rules says.
 
 ```
-docs/specs/{feature}/.implementation/frontend/
+{runsDir}/{feature}/
 ```
 
 Launch the implementation-planner agent:
@@ -188,8 +183,8 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
 
   Parameters:
   - feature: {feature}
-  - specDir: docs/specs/{feature}/{workingLanguage}/
-  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - specDir: {specRoot}/{workingLanguage}/
+  - uiDslDir: {specRoot}/ui-dsl/ (available: {uiDslAvailable})
   - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
   - routerMode: {routerMode}
   - appProfile: {appProfile}
@@ -208,7 +203,7 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
   - baseDir: {baseDir}
   - appDir: {appDir}
   - srcPath: {srcPath}
-  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - outputFile: {runsDir}/{feature}/plan.json
   - i18n: {the config i18n block, or omit when absent}
 
   Follow the process defined in agents/implementation-planner.md.
@@ -218,13 +213,13 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
 
 ### Step 4: Display Summary
 
-1. Read the generated `docs/specs/{feature}/.implementation/frontend/plan.json`
+1. Read the generated `{runsDir}/{feature}/plan.json`
 2. Display the summary:
 
 ```
 Implementation Plan for '{feature}':
 
-  Source: docs/specs/{feature}/ (status: {specStatus}, UI DSL: {available/not available})
+  Source: {specRoot}/ (status: {specStatus}, UI DSL: {available/not available})
   Target: {baseDir}/ ({projectStructure} layout)
   Router: {routerMode} mode
 
@@ -251,20 +246,20 @@ Implementation Plan for '{feature}':
     5. Page TDD       — RED: page tests → GREEN: pages
     6. Integration    — routes + i18n + MSW setup + barrel
 
-  Plan saved to: docs/specs/{feature}/.implementation/frontend/plan.json
+  Plan saved to: {runsDir}/{feature}/plan.json
   Review and edit the plan, then run /frontend-v2-plugin:v2-gen {feature}
 ```
 
 ### Step 5: Update Progress
 
-1. Read `docs/specs/{feature}/.progress/{feature}.json`
+1. Read `{runsDir}/{feature}/progress.json`
 2. Add or update the `implementation` field:
 
 ```json
 {
   "implementation": {
     "status": "planned",
-    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json"
+    "planFile": "{runsDir}/{feature}/plan.json"
   }
 }
 ```
@@ -277,7 +272,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-plan/references/incremental.md` and follow
 
 ### Lock Release
 
-Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+Delete `{runsDir}/{feature}/.lock`.
 
 Both Step 5 and Step 5-I end here — whichever branch ran, this is the last action. Release also on
 every early exit after Lock Acquire (a declined confirmation at Step 4 or 4-I, a planner failure),

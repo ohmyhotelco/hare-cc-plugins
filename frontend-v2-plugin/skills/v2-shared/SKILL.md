@@ -27,6 +27,17 @@ values win, objects merge key by key). Read every other key from that merged vie
 yet record its app: pass the same `--app` to every command for that feature. No `apps` object → a
 single-app config, read as it is.
 
+**Run records.** A feature's pipeline records — plan, progress, generation state, reports, locks —
+live in `{runsDir}/{feature}/` (`runsDir`: config, default `docs/plugin-runs`; the app-wide lock is
+`{runsDir}/.app.lock`). Name the feature after its ticket key when the work comes from a ticket (e.g.
+`ABC-123`); one folder per ticket even when it touches several apps, and a later PR for the same ticket
+updates the same folder. The records are meant to be committed. The first skill that writes under
+`{runsDir}` creates, when absent, `{runsDir}/README.md` ("Records of tickets run through
+frontend-v2-plugin. Only tickets run through the plugin have a folder; a missing folder is not a missing
+record.") and `{runsDir}/.gitignore` with `.lock`, `*.lock`, `*.tmp`, `*.png`, `*.webm`, `*.zip`,
+`trace*/`, `test-results/`. `{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
+a planning-plugin spec exists there, else `{runsDir}/{feature}/spec`.
+
 **Node version.** When `{appDir}/.nvmrc` exists, from the project root
 `nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` (nvm installs) and every build or test
 command runs as `cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`; a non-zero exit stops the
@@ -86,7 +97,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/lint-and-i18n-coverage.m
 
 ## Communication Language
 
-- Feature-level skills (v2-plan, v2-gen, v2-verify, v2-review, v2-fix, v2-e2e, v2-debug, v2-progress) read `workingLanguage` from `docs/specs/{feature}/.progress/{feature}.json`
+- Feature-level skills (v2-plan, v2-gen, v2-verify, v2-review, v2-fix, v2-e2e, v2-debug, v2-progress) read `workingLanguage` from `{runsDir}/{feature}/progress.json`
 - All user-facing output (summaries, questions, feedback, next-step guidance) must be in the working language
 - Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
 - Keep that output to the length the result needs: lead with the outcome (pass/fail, what changed, what is blocked), then the evidence it rests on, then the next step. The JSON report is the complete record — the final message is a readout of it, not a second copy.
@@ -108,8 +119,8 @@ Two scopes, acquired in this order — **feature lock → app lock**, never the 
 
 | Lock | Scope | Held by |
 | --- | --- | --- |
-| `docs/specs/{feature}/.implementation/frontend/.lock` | one feature's state and code | `v2-gen`, `v2-verify`, `v2-review`, `v2-fix`, `v2-e2e` |
-| `docs/specs/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, the shared layouts + their locale files under `{sourceBaseDir}/layouts/`, and the Phase 2 targets: `{apiPackage.entry}`, each `{i18nHook.resourcesDir}/{resourceFile}`, and `{externalComponents.uiKitDir}/**` (gap components, form adapters) | `foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`, `review-fixer` |
+| `{runsDir}/{feature}/.lock` | one feature's state and code | `v2-gen`, `v2-verify`, `v2-review`, `v2-fix`, `v2-e2e` |
+| `{runsDir}/.app.lock` | every Read-Modify-Write of an **app-wide** file — the central route file (`App.tsx` / `router.tsx` / `{sourceBaseDir}/routes.ts`), `{sourceBaseDir}/i18n/config.ts`, `{sourceBaseDir}/mocks/handlers.ts` / `browser.ts` / `node.ts`, the shared layouts + their locale files under `{sourceBaseDir}/layouts/`, and the Phase 2 targets: `{apiPackage.entry}`, each `{i18nHook.resourcesDir}/{resourceFile}`, and `{externalComponents.uiKitDir}/**` (gap components, form adapters) | `foundation-generator`, `tdd-cycle-runner`, `integration-generator`, `delta-modifier`, `review-fixer` |
 
 The feature lock does not protect app-wide files — two features in flight is a supported state, so two concurrent RMWs of one central file is too. Hold the app lock across the read-modify-write itself only: take it, re-read the file, edit, release. Never across an agent launch or a build.
 

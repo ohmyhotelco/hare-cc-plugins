@@ -69,7 +69,7 @@ After GREEN only: remove duplication, improve names, extract helpers. Keep tests
 Every test carries a source comment naming where its expected behavior came from:
 
 ```typescript
-// TS-014 — docs/specs/{feature}/{lang}/test-scenarios.md:88
+// TS-014 — {specRoot}/{lang}/test-scenarios.md:88
 ```
 
 The anchor points at the **spec**: the scenario (`TS-nnn`), requirement (`FR-nnn`), or validation rule, with `file:line`. It must **not** point at `plan.json` or any other generated artifact — those were written from the same reading the test was, so citing one proves nothing and a reviewer following it learns nothing the test did not already assume.

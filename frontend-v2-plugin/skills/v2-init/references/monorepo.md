@@ -32,6 +32,7 @@ product fact into the plugin — everything you detect goes into the project's o
 | `i18n.languages` | the locale folder names, lower-cased | directory listing |
 | `eslintTemplate` / `prettierTemplate` | `false` when the app already has its own config | `eslint.config.*`, `prettier.config.*` |
 | Node version (per app, not a key) | `{appFolder}/.nvmrc` pins it → build/test run on that version via nvm; absent → the PATH `node`. Report which, and if `.nvmrc` exists but no matching nvm install, say `nvm install <version>` | `{appFolder}/.nvmrc`, `scripts/node-env.sh {appFolder}` exit code |
+| `runsDir` | `docs/plugin-runs` (where each ticket's plan, progress and reports are committed) | — |
 | `rulesDir` | `docs/rules` (show whether it exists; absent is fine) | directory listing |
 | `excludePaths` | see below | see below |
 
@@ -69,7 +70,7 @@ here.** Instead:
   "apiLayer": "workspace-package", "apiPackage": { "package": "@acme/data", "dir": "packages/data", "entry": "packages/data/src/index.ts" },
   "eslintTemplate": false, "prettierTemplate": false,
   "i18n": { "languages": ["en", "ko"], "lookupFns": ["t"] },
-  "rulesDir": "docs/rules",
+  "rulesDir": "docs/rules", "runsDir": "docs/plugin-runs",
   "excludePaths": ["apps/old-web"],
   "defaultApp": "web",
   "apps": {

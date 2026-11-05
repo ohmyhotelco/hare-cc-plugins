@@ -49,14 +49,14 @@ Code Generation Complete for '{feature}' (TDD mode):
 
 ### Step 8: Update Progress
 
-Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementation` field:
+Read `{runsDir}/{feature}/progress.json` and update the `implementation` field:
 
 ```json
 {
   "implementation": {
     "status": "generated | gen-failed",
     "mode": "tdd",
-    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json",
+    "planFile": "{runsDir}/{feature}/plan.json",
     "generatedAt": "{ISO timestamp}",
     "filesCount": {totalFiles},
     "tddPhases": {

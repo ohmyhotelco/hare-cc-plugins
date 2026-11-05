@@ -187,7 +187,7 @@ When a spec is modified after code has been generated and reviewed, delta regene
 
 - **Trigger**: `v2-plan` auto-detects existing plan.json + generated code → offers incremental mode
 - **Detection**: implementation-planner compares old plan.json `source` fields against current spec → identifies added/modified/removed spec elements (FR-nnn, screen IDs, TS-nnn, etc.)
-- **Delta file**: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` — describes affected files with `create`/`modify`/`remove` operations per phase
+- **Delta file**: `{runsDir}/{feature}/delta-plan.json` — describes affected files with `create`/`modify`/`remove` operations per phase
 - **Execution**: `v2-gen` detects delta-plan.json → executes only affected phases, skipping unchanged ones
   - `create` operations → tdd-cycle-runner (scoped to new files only)
   - `modify`/`remove` operations → delta-modifier agent (targeted Edit on existing files, TDD for behavioral changes)
@@ -208,10 +208,10 @@ Key files:
 - `agents/implementation-planner.md` § Phase 3 — incremental mode spec diff + cascade computation
 
 ### Code Generation (TDD Phases)
-- Feature spec source: `docs/specs/{feature}/` (planning-plugin output)
+- Feature spec source: `{specRoot}/` (planning-plugin output)
 - **Standalone mode**: `v2-plan {feature} --standalone` for interactive requirements gathering — no planning-plugin required. Generates a minimal spec stub and plan.json. Limitations: no error codes, validation rules, test scenario references (TS-nnn), or UI DSL.
-- Implementation plan: `docs/specs/{feature}/.implementation/frontend/plan.json` — includes `workingLanguage` and `localesDir` for downstream agents
-- Generation state: `docs/specs/{feature}/.implementation/frontend/generation-state.json` (tracks phase progress, enables resume)
+- Implementation plan: `{runsDir}/{feature}/plan.json` — includes `workingLanguage` and `localesDir` for downstream agents
+- Generation state: `{runsDir}/{feature}/generation-state.json` (tracks phase progress, enables resume)
 - UI DSL first: use structured data from `ui-dsl/` if available, otherwise infer from spec markdown
 - Feature-based structure: `{baseDir}/features/{feature}/` (types, api, stores, components, pages, __tests__)
 - Prototypes are for reference only: do not copy code from `prototypes/{feature}/` into production code
@@ -244,12 +244,12 @@ Key files:
 - The implementation-planner detects aggregation patterns, insertion anchors, and existing imports in plan.json
 
 ### Debug & Progress
-- Debug report: `docs/specs/{feature}/.implementation/frontend/debug-report.json`
-- Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `docs/specs/{feature}/.progress/{feature}.json`
-- Review report: `docs/specs/{feature}/.implementation/frontend/review-report.json`
-- Fix report: `docs/specs/{feature}/.implementation/frontend/fix-report.json`
-- E2E report: `docs/specs/{feature}/.implementation/frontend/e2e-report.json`
-- Delta plan: `docs/specs/{feature}/.implementation/frontend/delta-plan.json` (active delta, archived as `delta-plan.{timestamp}.json` after execution)
+- Debug report: `{runsDir}/{feature}/debug-report.json`
+- Verification/review results: recorded in `implementation.verification`, `implementation.review` fields of `{runsDir}/{feature}/progress.json`
+- Review report: `{runsDir}/{feature}/review-report.json`
+- Fix report: `{runsDir}/{feature}/fix-report.json`
+- E2E report: `{runsDir}/{feature}/e2e-report.json`
+- Delta plan: `{runsDir}/{feature}/delta-plan.json` (active delta, archived as `delta-plan.{timestamp}.json` after execution)
 
 ### Standalone Audit Skills
 
