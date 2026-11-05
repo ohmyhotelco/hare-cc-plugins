@@ -46,3 +46,42 @@ Code Generation Complete for '{feature}' (TDD mode):
     Start without mocks: pnpm dev
     Commit: public/mockServiceWorker.js (recommended)
 ```
+
+### Step 8: Update Progress
+
+Read `docs/specs/{feature}/.progress/{feature}.json` and update the `implementation` field:
+
+```json
+{
+  "implementation": {
+    "status": "generated | gen-failed",
+    "mode": "tdd",
+    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json",
+    "generatedAt": "{ISO timestamp}",
+    "filesCount": {totalFiles},
+    "tddPhases": {
+      "foundation": "completed",
+      "api-tdd": "completed",
+      "store-tdd": "completed",
+      "component-tdd": "completed",
+      "page-tdd": "completed",
+      "integration": "completed"
+    }
+  }
+}
+```
+
+**Status determination logic** — set `implementation.status` based on phase outcomes:
+- All phases `"completed"` → `"generated"`
+- Any phase `"failed"` AND user chose **Stop** → `"gen-failed"`
+- Any phase `"skipped"` with **`skipKind: "auto"`** (a planned no-op — no-store-under-tanstack-query, or a delta phase with no changes) → does not block: treat it as completed for status purposes
+- Any phase `"failed"`, or `"skipped"` with **`skipKind: "user"`** → `"gen-failed"` (incomplete generation must not enter review pipeline)
+- `skipKind` is the discriminator, never the presence of free text: a missing `skipKind` on a `skipped` phase is treated as `"user"` (blocking), because a phase whose skip nobody classified is not a phase anyone confirmed was safe to omit
+- Record each phase's actual status (`"completed"`, `"failed"`, `"skipped"`) in `tddPhases`
+
+**Also remove `implementation.e2e`**: regeneration changed the code, so a prior E2E pass is stale
+evidence — see 2-D.6 (**Update Progress (Delta)**) for the same rule on the delta path.
+
+**Merge rule**: Read the existing progress file, merge changes into the existing `implementation` object preserving all other fields (e.g., `verification`, `review`, `fix`, `debug` — but not `e2e`, removed above), then write back the complete file.
+
+Update generation-state.json with final status.

@@ -8,6 +8,8 @@ user-invocable: false
 
 Agents receive this skill through `skills: [v2-shared]`. The plugin-root `CLAUDE.md` is maintainer notes and reaches no agent.
 
+Files under `references/` write the plugin root as `{pluginRoot}`, which is `${CLAUDE_PLUGIN_ROOT}`.
+
 ## Monorepo Rules
 
 The target is an existing monorepo with several apps and shared workspace packages. These rules
@@ -68,23 +70,11 @@ shell expansion of the prompt). Absent binary → the audit records `skipped` wi
 
 ### Lint & Format Gate
 
-Specs live in `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md` and `${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`. This is the shared contract every agent and skill that scaffolds or checks them follows.
-
-**Roles.** ESLint is a **hard** check (code quality) — exit ≠ 0 fails `v2-verify`. Prettier is **advisory** (formatting only) — reported, never blocking. `eslint-config-prettier` keeps the two from conflicting.
-
-- The ESLint template is an ESLint v9 flat config with `strictTypeChecked` + `stylisticTypeChecked`, native flat config for react-hooks and react-refresh, and test-file overrides.
-- **Detection / scaffold / skip** (uniform across `foundation-generator`, `integration-generator`, `v2-verify`):
-  1. Glob for an existing config (`eslint.config.*` / `.eslintrc*`; `prettier.config.*` / `.prettierrc*`). Present → use as-is, never overwrite.
-  2. Absent and the flag (`eslintTemplate` / `prettierTemplate`) is `true` or unset → generate from the template.
-  3. Absent and the flag is `false` → skip silently.
-  4. **Never auto-install deps.** Missing packages → print the `pnpm add -D …` line, skip the run, record `skipped` (not a failure).
-- Commands, run from `{appDir}`: `npx eslint . 2>&1` (hard) and `npx prettier --check . 2>&1` (advisory). Never run `prettier --write` on the user's tree unasked.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/lint-and-i18n-coverage.md` before work this section governs, and follow it there.
 
 ### i18n Key Coverage
 
-i18next resolves `language → fallback → the key itself` and never throws, so a missing or wrong key is invisible to `tsc`, ESLint, and unit tests alike. `foundation-generator` scaffolds an app-wide key-coverage spec (`{baseDir}/__tests__/i18n-key-coverage.test.ts`) that asserts every literal key resolves in **all** `i18n.languages`, that `{{param}}` values receive params, and that markup/entity-bearing values are not on the plain-text render path. Statically unresolvable (dynamic) keys are tallied as `uncheckable` with `file:line` and reported — never failed on, never dropped.
-
-`v2-verify`'s existing `npx vitest run` makes it a hard gate; `v2-verify` asserts the spec's results **appear in that run** — file existence is not the test. No `i18n` config block → no spec, and the axis reports `skipped`. Contract: `${CLAUDE_PLUGIN_ROOT}/templates/i18n-key-coverage.md`.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/lint-and-i18n-coverage.md` before work this section governs, and follow it there.
 
 ### Routing Conventions
 - Routes requiring authentication: wrap with `<ProtectedRoute>` → redirect to /login when unauthenticated (pass return destination via location.state.from)
@@ -142,26 +132,11 @@ Lock contents:
 
 ### Deliberate Deviations (`openApprovals`)
 
-A reviewer that re-raises a known, accepted deviation every round trains people to skim reviews. `plan.json` carries `openApprovals[]` as the one place a deviation is recorded:
-
-```json
-{ "id": "OA-1", "what": "phone validation accepts KR formats only",
-  "why": "international formats are out of scope for v1 (spec §4.2 defers)",
-  "status": "approved", "owner": "jieun.park", "at": "2026-08-11" }
-```
-
-- `spec-reviewer` and `quality-reviewer` **do not re-raise** an issue matching an `approved` entry; they list it once under "accepted deviations" so it stays visible.
-- **`status: "pending"` is not approval, and neither is a free-text note.** Approval requires `status: "approved"` **and** a named `owner` — not `TBD`, not the agent. An agent may *propose* a `pending` entry; it may never approve one, or the pipeline would be approving its own shortcuts.
-- Scope reduction without an approved entry is a review failure, not a smaller review. See § Design Principles, "Scope moves in both directions".
+Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/deviations-and-principles.md` before work this section governs, and follow it there.
 
 ### Design Principles
 
-Applied by every agent and skill in this plugin.
-
-- **Subagent isolation.** Subagents never inherit session history. A coordinator constructs only the parameters each agent needs — no conversation context leaks between phases. Fresh judgement per task, no context pollution.
-- **Delegation is named, not improvised.** Every phase that delegates names its agent explicitly; launch it with the `Agent` tool and only its declared params. Do not spawn an agent the skill did not name — in particular, never add a reviewer to double-check work a gate already covers. Verification belongs to the gate that owns it; `v2-clean-code` and `v2-test-review` are standalone audits a human invokes, not steps a phase adds for itself. When a skill names several independent agents, send them in one message so they run concurrently — but agents sharing a lock or a write target are **not** independent, whatever the fan-out looks like. The skill's own text wins over this paragraph.
-- **Scope moves in both directions.** Silently narrowing what the plan asks for is the familiar failure; unrequested widening is the same failure mirrored. Do not add features, files, gates, or behavior the plan does not call for, and do not substitute your own judgement about what the task should have been. If the plan looks wrong, say so in a sentence and execute it as written — amending it belongs to whoever owns the decision, not the executor.
-- **Evidence before claims, always** — see below.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/references/deviations-and-principles.md` before work this section governs, and follow it there.
 
 ### Verification Philosophy
 
