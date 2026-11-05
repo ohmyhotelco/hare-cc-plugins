@@ -190,6 +190,10 @@ Open `/plugin` for the full management UI (Discover, Installed, Marketplaces tab
 
 > **Note**: planning-plugin bundles Figma and Notion MCP servers. After installation, run `/mcp` and authenticate each server via OAuth. See the [planning-plugin README](./planning-plugin/) for details.
 
+## Maintaining
+
+See [MAINTAINING.md](MAINTAINING.md) for what to run before a pull request and how changes reach installers.
+
 ## License
 
 MIT License
