@@ -12,6 +12,8 @@ Run end-to-end tests on generated code. The runner is selected by `e2eTool` (def
 
 E2E scenarios run in order, because each may depend on prior browser state.
 
+Run it after `v2-review` passes; that is the run that counts. A change plan may also run it right after `v2-verify` as an early check — a later review fix marks that pass stale.
+
 Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 Files under `references/` write the plugin root as `{pluginRoot}`, which is `${CLAUDE_PLUGIN_ROOT}`.

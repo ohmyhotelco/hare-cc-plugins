@@ -58,9 +58,13 @@ Most work is a small change to code that already exists, so that is the main pat
 /frontend-v2-plugin:v2-plan ABC-123                 # a ticket key → change mode
 /frontend-v2-plugin:v2-gen ABC-123                  # applies the change app by app, tests first
 /frontend-v2-plugin:v2-verify ABC-123               # each app and package in the plan
-/frontend-v2-plugin:v2-review ABC-123               # acceptance items + what the change introduced
+/frontend-v2-plugin:v2-review ABC-123               # acceptance items + what the change introduced; v2-fix until it passes
+/frontend-v2-plugin:v2-e2e ABC-123                  # once the review has nothing left; each app's own Playwright specs
 /frontend-v2-plugin:v2-progress ABC-123 --pr-body   # PR body from the product repo's format
 ```
+
+Running `v2-e2e` once right after `v2-verify` is a cheap early check, but any review fix makes that
+pass stale (`v2-progress` shows it); the e2e run that counts is the one after the review.
 
 - `v2-plan` reads the ticket through an issue-tracker tool when the session has one, otherwise asks
   for the text, and writes a short brief in its own words. One plan may touch several apps and shared

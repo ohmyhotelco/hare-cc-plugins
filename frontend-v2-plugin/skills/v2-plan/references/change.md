@@ -104,5 +104,8 @@ Create or update `{runsDir}/{feature}/progress.json`: `feature`, `status: "final
 ### C.7: Next
 
 > "Next: `/frontend-v2-plugin:v2-gen {feature}` (applies the change app by app), then
-> `/frontend-v2-plugin:v2-verify {feature}` and `/frontend-v2-plugin:v2-review {feature}`; for the PR,
-> `/frontend-v2-plugin:v2-progress {feature} --pr-body`."
+> `/frontend-v2-plugin:v2-verify {feature}`, then `/frontend-v2-plugin:v2-review {feature}` (with
+> `v2-fix` until it passes), then `/frontend-v2-plugin:v2-e2e {feature}` once the review has nothing
+> left; for the PR, `/frontend-v2-plugin:v2-progress {feature} --pr-body`.
+> You may also run `v2-e2e` right after `v2-verify` as an early check — it is cheap in change mode —
+> but a review fix makes that pass stale, so the e2e run that counts is the one after the review."
