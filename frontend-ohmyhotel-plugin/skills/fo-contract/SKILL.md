@@ -39,7 +39,7 @@ checks: [ { check: "externalUrls", ruleFile }, { check: "webviewContract", ruleF
 ## Step 2 — Evidence
 
 ```bash
-fo-evidence --app <app> --screen <screen> --gate contract --result <pass|fail|not-run> --from <result json>
+fo-evidence --app <app> --screen <screen> --gate contract --result <pass|fail|skipped|not-run> --from <result json>
 ```
 
 Set the `contract` row in block 5 of `<Screen>.spec.md`. Release the lock.
@@ -49,7 +49,7 @@ Set the `contract` row in block 5 of `<Screen>.spec.md`. Release the lock.
 Per check: result, entries checked, findings (critical first, with evidence and fix hint), rule gaps.
 Suggested commit `gate(<screen>): contract <result>`. Next:
 
-- pass → `/frontend-ohmyhotel-plugin:fo-seo --app <app> --screen <screen>`
+- pass or skipped → `/frontend-ohmyhotel-plugin:fo-seo --app <app> --screen <screen>`
 - findings → `/frontend-ohmyhotel-plugin:fo-fix … --from contract`, then `fo-verify` and `fo-contract` again
 - rule gaps → the owner adds entries under `docs/rules/` with an ADR; `fo-contract` again
 

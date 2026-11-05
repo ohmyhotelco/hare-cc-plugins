@@ -31,6 +31,8 @@ const resultsRaw = (await parallel((args.aspects || []).map(a => () =>
 const results = resultsRaw.map((r, i) => r || { aspect: (args.aspects || [])[i], result: 'not-run', reason: 'agent returned no result', findings: [], evidence: [] })
 const byResult = results.reduce((m, r) => ({ ...m, [r.result]: (m[r.result] || 0) + 1 }), {})
 const critical = results.flatMap(r => r.findings).filter(f => f.severity === 'critical').length
-const overall = !results.length ? 'not-run' : results.some(r => r.result === 'fail') ? 'fail' : results.some(r => r.result === 'not-run') ? 'not-run' : 'pass'
+const overall = !results.length ? 'not-run' : results.some(r => r.result === 'fail') ? 'fail' : results.some(r => r.result === 'not-run') ? 'not-run' : results.every(r => r.result === 'skipped') ? 'skipped' : 'pass'
 log(`${results.length} aspects — ${JSON.stringify(byResult)}, critical findings ${critical}`)
-return { ok: overall === 'pass', result: overall, aspects: results }
+// fo-progress counts a skipped gate only when it carries a reason.
+const reason = overall === 'skipped' ? results.filter(r => r.reason).map(r => `${r.aspect}: ${r.reason}`).join('; ') : undefined
+return { ok: overall === 'pass', result: overall, reason, aspects: results }
