@@ -1,0 +1,37 @@
+name: checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Consistency checker
+        run: python3 scripts/check-plugin-consistency.py
+
+      - name: Public-repo scan
+        run: scripts/check-public-repo.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Validate the marketplace and every plugin
+        run: |
+          claude plugin validate .
+          for plugin in *-plugin; do
+            claude plugin validate "$plugin"
+          done
