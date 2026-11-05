@@ -1,0 +1,370 @@
+---
+name: fe-plan
+description: "Use when a feature needs an implementation plan before code generation, either from an existing spec or through interactive requirements gathering."
+argument-hint: "<feature-name> [--standalone]"
+user-invocable: true
+allowed-tools: Read, Write, Glob, Grep, Bash, Agent
+---
+
+# Implementation Plan Skill
+
+Analyzes a functional specification (planning-plugin output) or gathers requirements interactively (standalone mode) and produces an implementation plan for production React code.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
+
+Files under `references/` write the plugin root as `{pluginRoot}`, which is `${CLAUDE_PLUGIN_ROOT}`.
+
+## Instructions
+
+### Step 0: Read Configuration
+
+1. Read `.claude/frontend-react-plugin.json` → extract `routerMode`, `appProfile`, `serverState`, `formStack`, `renderingDefault`, `mockFirst`, `baseDir`, `appDir`, `i18n`, and the Phase 2 knobs `componentLibrary`, `apiLayer`, `i18nBinding`, `clientStore` with their companion objects `externalComponents`, `apiPackage`, `i18nHook`
+2. If `baseDir` is missing, use default value `"src"`
+3. If `mockFirst` is missing, use default value `true`
+4. If `appDir` is missing, use default value `"."` (project root)
+5. New-stack keys fall back to admin defaults when absent: `appProfile="admin"`, `serverState="zustand-only"`, `formStack="native"`; `renderingDefault` applies only when `routerMode="framework"` (default `"ssr"`). Phase 2 knobs fall back to `componentLibrary="shadcn"`, `apiLayer="feature-local"`, `i18nBinding="react-i18next"`, `clientStore="zustand"`; pass a companion object only when present. Pass all of these through to the planner so it can plan rendering / queries / form schemas / component inventory / API reuse / i18n resources.
+6. If the file does not exist:
+   > "Frontend React Plugin has not been initialized. Please run `/frontend-react-plugin:fe-init` first."
+   - Stop here.
+7. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
+
+### Lock Acquire
+
+`fe-plan` writes `plan.json`, `delta-plan.json`, and the progress file, so it is a state-mutating
+skill and takes the feature lock like the others — a plan written while `fe-gen` is generating from
+the previous plan leaves the two disagreeing about what exists.
+
+**Create the lock's parent first.** `docs/specs/{feature}/.implementation/frontend/` does not exist
+for a feature being planned standalone for the first time, and lock creation fails there before the
+steps that would create it ever run. Note whether the directory already existed, `mkdir -p` it, then
+acquire.
+
+Do **not** try to reject a mistyped feature name here — at this point the mode is unknown (`Step 0.5`
+decides it), and a "spec must exist" check either kills the legitimate first-ever standalone run or,
+if evaluated after the `mkdir -p`, always passes because the mkdir just created the directory being
+checked. The existing nets downstream are the right ones: Step 0.5 auto-detection asks the user when
+no spec exists, and Step 1 stops on a missing spec in spec mode. The one residue a typo can leave is
+the directory this section created — so on any exit before the first artifact write, if this run
+created the directory (it did not exist before the `mkdir -p`): **delete this run's own lock file,
+then remove the now-empty directories with non-recursive `rmdir`, innermost first.** Never
+`rm -rf`: between deleting our lock and removing the directory, another session may legitimately
+acquire a new lock in it, and a recursive delete would destroy that live lock. `rmdir` on a
+non-empty directory fails harmlessly, which is exactly the right outcome — someone else is using
+it now. A pre-existing directory is never removed.
+
+Acquire `docs/specs/{feature}/.implementation/frontend/.lock` with `holder: "fe-plan"`, per
+fe-shared § Lock file. **Check the holder's `pid` before treating any lock as stale.** Held by a live
+holder → report `holder` and `acquiredAt`, then stop.
+
+Everything from here to Step 5 runs under the lock — it is taken before Step 0.5 so that no branch (standalone, incremental, or full) can reach a write by jumping to Step 1, 1-S, 3, or 3-I. Release it on **every** exit below, including a
+user declining at Step 4-I or Step 4.
+
+### Step 0.5: Detect Mode
+
+1. Check if `--standalone` flag is present in the argument
+   - If `--standalone` is present: `mode = "standalone"`, skip to Step 1-S
+   - If absent: **do not choose a mode here** — continue to item 2, which decides. Setting
+     `mode = "spec"` here would bypass auto-detection entirely, so a first-ever standalone run
+     without the flag would hit "spec not found" instead of being offered standalone mode.
+
+2. **Auto-detection** — the flag is absent, so check if `docs/specs/{feature}/.progress/{feature}.json` exists:
+   - If not found:
+     > "No planning-plugin specification found for '{feature}'."
+     > "Options:"
+     > "1. Standalone mode (gather requirements interactively)"
+     > "2. Create specification first: `/planning-plugin:pp-spec {feature}`"
+     - If user chooses 1: `mode = "standalone"`, skip to Step 1-S
+     - If user chooses 2: stop here.
+   - If found: `mode = "spec"`, proceed to Step 1
+
+
+### Step 1: Validate Spec
+
+1. Check if `docs/specs/{feature}/.progress/{feature}.json` exists
+   - If not found:
+     > "Functional specification not found: `docs/specs/{feature}/`"
+     > "Please create the functional specification using planning-plugin first."
+     - Stop here.
+
+2. Read the progress file and check `status`:
+   - `"reviewing"` or `"finalized"` → proceed
+   - If status is `"reviewing"`:
+     > "The specification is in 'reviewing' status — unresolved review issues may exist."
+     > "For the most accurate plan, finalize first: `/planning-plugin:pp-review {feature}`"
+     > "Continue with current spec?"
+     - If the user declines, stop here.
+   - `"drafting"` or `"analyzing"` →
+     > "The functional specification is not yet complete (status: {status})."
+     > "Please finish writing the specification, then try again."
+     - Stop here.
+
+3. Extract `workingLanguage` from the progress file (default: `"en"`)
+4. Language name mapping: `en` = English, `ko` = Korean, `vi` = Vietnamese
+
+**Communication language**: All user-facing output in this skill (summaries, questions, feedback presentations, next-step guidance) must be in {workingLanguage_name}.
+
+### Step 1-S: Standalone Requirements Gathering (standalone mode only)
+
+Read `${CLAUDE_PLUGIN_ROOT}/skills/fe-plan/references/standalone.md` and follow this section there.
+
+### Step 2: Check UI DSL
+
+1. Check if `docs/specs/{feature}/ui-dsl/manifest.json` exists
+   - exists → `uiDslAvailable = true`
+   - not exists → `uiDslAvailable = false`
+
+2. If `uiDslAvailable` is false, display recommendation:
+   > "UI DSL is not available. The plan will be generated by inferring from the spec markdown."
+   > "For a more accurate plan, running `/planning-plugin:pp-design {feature}` is recommended."
+
+3. Check if `prototypes/{feature}/` exists → `prototypeAvailable`
+
+### Step 2.5: Detect Shared Layout
+
+**Standalone features skip this step entirely** (read the progress file's `standalone` flag): the
+standalone planner rule is "shared layout detection: skip", and item 2 below reads `screens.md`,
+which standalone never creates — without this branch an existing standalone feature (spec mode by
+auto-detection, since its progress file exists) dies here and **never reaches Step 2.7's
+incremental detection**, making standalone replanning unreachable through this skill. Set
+`sharedLayoutIds = "none"` and continue to Step 2.7.
+
+1. If `uiDslAvailable` is true:
+   - Read `docs/specs/{feature}/ui-dsl/manifest.json`
+   - Check `layouts` array for entries with `"source": "_shared"`
+   - If found: `sharedLayoutIds` = list of layout IDs
+2. If `uiDslAvailable` is false:
+   - Read `docs/specs/{feature}/{workingLanguage}/screens.md`
+   - Check for `<!-- @layout: _shared/` directive
+   - If found: extract layout IDs
+3. If no shared layout references found: `sharedLayoutIds` = `"none"`
+
+### Step 2.7: Incremental Detection
+
+Check if incremental mode is applicable:
+
+1. Check if `docs/specs/{feature}/.implementation/frontend/plan.json` exists → `existingPlanExists`
+2. If `existingPlanExists`:
+   - Read `docs/specs/{feature}/.progress/{feature}.json` → extract `implementation.status`
+   - If `implementation.status` is one of `generated`, `verified`, `verify-failed`, `reviewed`, `review-failed`, `fixing`, `resolved`, `done`:
+     > "An existing implementation plan and generated code exist (status: {status})."
+     > "Options:"
+     > "1. Incremental update — detect spec changes, regenerate only affected files"
+     > "2. Full regeneration — discard all changes, create new plan from scratch"
+     - If user chooses 1: `planMode = "incremental"`, proceed to Step 3-I
+     - If user chooses 2: `planMode = "full"`, proceed to Step 3
+   - If `implementation.status` is `planned`, `gen-failed`, or absent:
+     - No generated code to preserve → `planMode = "full"`, proceed to Step 3
+3. If not `existingPlanExists`: `planMode = "full"`, proceed to Step 3
+
+
+### Step 3-I: Launch Planner Agent (Incremental Mode)
+
+Only executed when `planMode = "incremental"`.
+
+Launch the implementation-planner agent in incremental mode:
+
+```
+Agent(subagent_type: "frontend-react-plugin:implementation-planner", prompt: "
+  Analyze spec changes for '{feature}' and produce a delta plan.
+
+  Parameters:
+  - feature: {feature}
+  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
+  - routerMode: {routerMode}
+  - appProfile: {appProfile}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
+  - renderingDefault: {renderingDefault}
+  - mockFirst: {mockFirst}
+  - projectRoot: {cwd}
+  - baseDir: {baseDir}
+  - appDir: {appDir}
+  - srcPath: {srcPath}
+  - incrementalMode: true
+  - existingPlanFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - deltaOutputFile: docs/specs/{feature}/.implementation/frontend/delta-plan.json
+  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - i18n: {the config i18n block, or omit when absent}
+
+  Follow the process defined in agents/implementation-planner.md.
+  Execute Phase 3 (Incremental Mode) instead of Phase 2.
+  Write the delta plan to the deltaOutputFile path.
+")
+```
+
+### Step 4-I: Display Delta Summary & Confirm
+
+Only executed when `planMode = "incremental"`.
+
+1. Read the generated `docs/specs/{feature}/.implementation/frontend/delta-plan.json`
+2. Display the delta summary (as defined in the agent's Delta User Summary Template)
+
+3. If `largeDeltaWarning` is `true`:
+   > "Warning: This delta affects more than 60% of implementation files."
+   > "Full regeneration may be more reliable and produce more consistent code."
+   > "Options:"
+   > "1. Proceed with delta (incremental update)"
+   > "2. Switch to full regeneration"
+   - If user chooses 2: discard delta-plan.json, set `planMode = "full"`, go to Step 3
+
+4. If no spec changes detected (`specChanges.added`, `modified`, and `removed` are all empty)
+   **and `contentComparisonUnavailable` is empty**:
+   > "No spec changes detected. The current plan is up to date."
+   When `contentComparisonUnavailable` is **non-empty**, this branch is forbidden — the honest
+   statement is "no *detectable* changes", which is not the same thing. Display the listed objects
+   and their source IDs with:
+   > "Content comparison unavailable for {N} object(s) (plan predates sourceHash). If any of these
+   > requirements changed, run full generation; incremental cannot see their edits."
+   and keep the delta only if other changes exist; otherwise delete it and stop as below.
+   - **Delete the `delta-plan.json` the planner just wrote** and leave the progress file untouched.
+     Left in place, the session hook and `fe-progress` report a pending delta, and following their
+     `fe-gen` advice executes a zero-change delta that resets the status to `generated` and clears
+     valid E2E evidence — a full pipeline demotion with no code change behind it.
+   - Stop here (release the lock).
+
+5. Confirm:
+   > "Proceed with incremental plan? Run `/frontend-react-plugin:fe-gen {feature}` to apply the delta."
+
+6. Skip to Step 5-I.
+
+### Step 3: Launch Planner Agent
+
+Create the output directory if it doesn't exist:
+
+**Migration check** (backward compatibility):
+1. If `docs/specs/{feature}/.implementation/plan.json` exists (old path) AND `docs/specs/{feature}/.implementation/frontend/` does NOT exist:
+   - Move all files from `.implementation/` to `.implementation/frontend/` (excluding subdirectories that are already namespaces)
+   - Update embedded paths in progress file if present
+   - Display: "Migrated .implementation/ → .implementation/frontend/"
+2. Otherwise: create `docs/specs/{feature}/.implementation/frontend/` if it doesn't exist
+
+```
+docs/specs/{feature}/.implementation/frontend/
+```
+
+Launch the implementation-planner agent:
+
+```
+Agent(subagent_type: "frontend-react-plugin:implementation-planner", prompt: "
+  Analyze the functional specification for '{feature}' and produce an implementation plan.
+
+  Parameters:
+  - feature: {feature}
+  - specDir: docs/specs/{feature}/{workingLanguage}/
+  - uiDslDir: docs/specs/{feature}/ui-dsl/ (available: {uiDslAvailable})
+  - prototypeDir: prototypes/{feature}/ (available: {prototypeAvailable})
+  - routerMode: {routerMode}
+  - appProfile: {appProfile}
+  - serverState: {serverState}
+  - formStack: {formStack}
+  - componentLibrary: {componentLibrary}
+  - externalComponents: {the config object, or omit the line when absent}
+  - apiLayer: {apiLayer}
+  - apiPackage: {the config object, or omit the line when absent}
+  - i18nBinding: {i18nBinding}
+  - i18nHook: {the config object, or omit the line when absent}
+  - clientStore: {clientStore}
+  - renderingDefault: {renderingDefault}
+  - mockFirst: {mockFirst}
+  - projectRoot: {cwd}
+  - baseDir: {baseDir}
+  - appDir: {appDir}
+  - srcPath: {srcPath}
+  - outputFile: docs/specs/{feature}/.implementation/frontend/plan.json
+  - i18n: {the config i18n block, or omit when absent}
+
+  Follow the process defined in agents/implementation-planner.md.
+  Write the implementation plan to the outputFile path.
+")
+```
+
+### Step 4: Display Summary
+
+1. Read the generated `docs/specs/{feature}/.implementation/frontend/plan.json`
+2. Display the summary:
+
+```
+Implementation Plan for '{feature}':
+
+  Source: docs/specs/{feature}/ (status: {specStatus}, UI DSL: {available/not available})
+  Target: {baseDir}/ ({projectStructure} layout)
+  Router: {routerMode} mode
+
+  Files to create ({totalFiles}):
+    Shared layouts: {layout names} ({new/existing})
+    Types:       {type names} ({count} files)
+    API:         {api names} — {endpoint count} endpoints ({count} files)
+    Stores:      {store names} ({count} files)
+    Components:  {component names} ({count} files)
+    Pages:       {page descriptions} ({count} files)
+    Routes:      {entry count} entries under {parentRoute}
+    i18n:        {namespace} namespace ({language count} languages)
+    Mocks:       {fixture count} fixtures, {handler count} handler sets (MSW v2)
+    Tests:       {testFiles} test files, {testCases} test cases
+    E2E:         {e2eScenarios} scenarios
+
+  Components: {shadcn: "{missing count} shadcn/ui components need installation ({missing list})" | external: "{used count} from {package}, {gap count} ui-kit gaps ({gap list})"}
+
+  TDD Phases:
+    1. Foundation     — shared-layouts + types + mocks (infra)
+    2. API TDD        — RED: api tests → GREEN: api services
+    3. Store TDD      — RED: store tests → GREEN: stores
+    4. Component TDD  — RED: component tests → GREEN: components
+    5. Page TDD       — RED: page tests → GREEN: pages
+    6. Integration    — routes + i18n + MSW setup + barrel
+
+  Plan saved to: docs/specs/{feature}/.implementation/frontend/plan.json
+  Review and edit the plan, then run /frontend-react-plugin:fe-gen {feature}
+```
+
+### Step 5: Update Progress
+
+1. Read `docs/specs/{feature}/.progress/{feature}.json`
+2. Add or update the `implementation` field:
+
+```json
+{
+  "implementation": {
+    "status": "planned",
+    "planFile": "docs/specs/{feature}/.implementation/frontend/plan.json"
+  }
+}
+```
+
+3. Write the updated progress file back. **Merge rule**: preserve all existing fields in the progress file — only add or update the `implementation` fields shown above.
+
+### Step 5-I: Update Progress (Incremental Mode)
+
+Only executed when `planMode = "incremental"`.
+
+1. Read `docs/specs/{feature}/.progress/{feature}.json`
+2. Add or update the `implementation` field — preserve the existing status (do NOT reset to `"planned"`):
+
+```json
+{
+  "implementation": {
+    "deltaFile": "docs/specs/{feature}/.implementation/frontend/delta-plan.json",
+    "deltaDetectedAt": "{ISO timestamp}"
+  }
+}
+```
+
+3. Write the updated progress file back. **Merge rule**: preserve ALL existing fields in the progress file (including `status`, `planFile`, `tddPhases`, `generatedAt`, `verification`, `review`, `fix`, `debug`) — only add the `deltaFile` and `deltaDetectedAt` fields.
+
+### Lock Release
+
+Delete `docs/specs/{feature}/.implementation/frontend/.lock`.
+
+Both Step 5 and Step 5-I end here — whichever branch ran, this is the last action. Release also on
+every early exit after Lock Acquire (a declined confirmation at Step 4 or 4-I, a planner failure),
+per fe-shared § Lock file: the lock is taken before those prompts, so a refusal that just stops
+leaves the feature locked and `fe-gen` refusing it.

@@ -1,0 +1,61 @@
+---
+name: fe-test-review
+description: "Audit test quality: assertion patterns, Testing Library best practices, async handling, coverage, and anti-patterns."
+argument-hint: "[test-path]"
+user-invocable: true
+allowed-tools: Read, Glob, Grep, Agent
+---
+
+# Test Quality Audit
+
+Audit React/Vitest test files for quality, best practices, coverage completeness, and timing.
+
+Conventions (`fe-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/fe-shared/SKILL.md`.
+
+## Instructions
+
+### Step 0: Validate Configuration
+
+1. Read `.claude/frontend-react-plugin.json`
+2. If missing, tell the user to run `/frontend-react-plugin:fe-init` first and stop
+3. Extract `baseDir` and `appDir` from config. If `baseDir` is missing, use default value `"src"`; if `appDir` is missing, use default value `"."` (project root). Also extract `apiLayer` (default `feature-local`) and `apiPackage`; under `workspace-package` set `apiPackageDir = apiPackage.dir`, otherwise omit it.
+
+4. **Derive `srcPath`** — take the config `baseDir` **after its default is applied** and remove the leading `{appDir}/` (`app/src` + `appDir=app` → `src`; `appDir="."` → unchanged; `appDir == baseDir` → `.`). Every `npx …` path argument uses `srcPath`; the repo-relative source root stays available for file operations. See fe-shared § Build Command Working Directory.
+### Step 1: Determine Scope
+
+- If argument provided: audit the specified test file or directory
+- If no argument: audit all test files under `{baseDir}/` — and, when `apiPackageDir` is set, under `{apiPackageDir}/` as well (the generated package additions and their tests live there, outside `baseDir`)
+
+**Spec anchors.** If `targetPath` resolves inside `{baseDir}/features/{feature}/` **and**
+`docs/specs/{feature}/.progress/{feature}.json` exists, read its `workingLanguage` and pass
+`specDir: docs/specs/{feature}/{workingLanguage}` — the reviewer then follows each test's anchor to
+the spec line and checks the test's premise, not just its form. Otherwise omit `specDir`; the report
+records anchor resolution as `not-checked`.
+
+**A missing or empty target is `unverifiable`, never a pass.** Confirm the resolved target exists
+before launching the agent; if it does not, say so and stop. If the agent reports `unverifiable`,
+surface that verbatim — do not render it as a passing audit.
+
+### Step 2: Launch Test Reviewer
+
+```
+Agent(subagent_type: "frontend-react-plugin:test-reviewer", prompt: "
+  Audit test quality for frontend React/Vitest tests.
+
+  Parameters:
+  - targetPath: {targetPath}
+  - baseDir: {baseDir}
+  - appDir: {appDir}
+  - srcPath: {srcPath}
+  - projectRoot: {cwd}
+  - apiPackageDir: {apiPackageDir or omit}
+  - specDir: {specDir or omit}
+
+  Follow the process defined in agents/test-reviewer.md.
+  Return the audit report as text.
+")
+```
+
+### Step 3: Display Report
+
+Display the agent's text output directly. No further processing needed.
