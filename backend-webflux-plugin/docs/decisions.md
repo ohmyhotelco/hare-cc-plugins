@@ -223,3 +223,151 @@ request implies independent read-side scaling, a separate read datastore, or
 eventual consistency between write and read paths, that is out of this plugin's
 current scope — say so explicitly rather than silently scaffolding the same
 single-datastore package split and calling it done.
+
+## Decision 9: Fit decision for multi-module Gradle targets — extend this plugin (minor version 0.3.0), not configure, not copy
+
+**Date:** 2026-11-06 · **Tickets:** ELS-4416 (decision), ELS-4167 (method)
+
+**Decision:** Option B of the plugin build guide (§3): extend `backend-webflux-plugin` with a module
+setting (Decision 10) and script-written verification evidence (Decision 12), released as `0.3.0`.
+No new plugin, no new prefix.
+
+**Rationale:**
+
+1. The fit test of 2026-10-19 (two headless runs on a scratch clone of a multi-module Gradle target,
+   Spring Boot 3.2, MyBatis starter 3.0.x, mixed web layer) stopped in `be-init` and `be-crud`. Every
+   `be-init` stop is a config gap, not a method gap: the Java and Boot versions live in the root build
+   file, the config has no module field, so `sourceDir`/`testDir` and the Gradle commands point at the
+   repository root.
+2. A real ticket in the same weeks (ELS-3869) ran `be-code` → `be-verify` → `be-review` → `be-fix` on the same
+   target once the config was corrected by hand, and the method held. The remaining gaps are config
+   and how the verification result is recorded.
+3. Option A (configure) is out: no knob says which module the plugin works in. Option C (copy) is only
+   right if the templates are wrong for the target rather than incomplete; nothing measured so far
+   shows that, and a copy would double the maintenance of a plugin the owner keeps simple.
+
+**Consequence:** the extension is three PRs after this one — module scope (Decision 10, 13), evidence
+(Decision 12), version chore — each closed by two runs: `examples/employee-service` with no `module`
+key (current behaviour) and a scratch clone of the new target with `module` set. Decisions 14 and 15
+record what is deliberately not changed.
+
+## Decision 10: Module scope — one `module` and one `taskPrefix` per config
+
+**Decision:** `.claude/backend-webflux-plugin.json` gains two optional keys:
+
+- `module` — the Gradle subproject the plugin works in (for example `"app-api"`). Absent means the
+  single-module behaviour of 0.2.x.
+- `taskPrefix` — derived as `":<module>:"` when `module` is set, `""` otherwise. Every Gradle call
+  made by a be- skill or agent is `./gradlew {taskPrefix}<task>`.
+
+`be-init` gains its first argument, `--module <name>`; without it, it asks only when `settings.gradle`
+includes subprojects. When `module` is set, `be-init` derives `sourceDir` and `testDir` under it, runs
+its Step 2 checks (base package, data profile, database, migration directory, checkstyle, coverage)
+against the module, reads the Java and Spring Boot versions from the module build file **or, if
+absent there, from the root build file** (`buildscript.ext`, `subprojects {}`, `allprojects {}`), writes
+`buildCommand` and `testCommand` with the prefix, and refuses a `module` that `settings.gradle` does
+not include. `be-verify` reads test results only from `<module>/build/test-results/`.
+
+**Rationale:** without a prefix every gate builds and tests every subproject, and a test report from a
+module the change did not touch can fail or pass the gate. One module per config keeps one answer per
+question; a developer who works in two modules runs `be-init` per module. No knob branches a dependency
+set, so the guide's per-branch sample rule (§3) does not apply and `examples/employee-service` stays
+the only sample.
+
+**Consequence:** `be-init`, `be-verify`, `be-build`, `be-code` and the `implement`, `build-doctor`,
+`review-fixer`, `debugger` agents read `taskPrefix` for every task-level Gradle call (`classes`,
+`checkstyleMain`, `test`, `jacocoTestReport`, `build`); the repository's
+`scripts/check-plugin-consistency.py` gets both keys in its wiring table. A config written by 0.2.x
+keeps working unchanged.
+
+## Decision 11: Web layer in a module that already mixes styles
+
+**Decision:** when `be-init` finds both `RouterFunction` and `@RestController` classes in meaningful
+numbers (Step 2 item 6), it no longer stops to ask: it writes `webLayer: "functional"` and says why in
+Step 7. `webLayer` keeps its two values. It governs **new domains**; a new file in an **existing
+domain** follows the style that domain already uses, whatever `webLayer` says.
+
+**Rationale:** Decision 2 already sets the two rules this needs — functional for a new domain, never
+two styles in one domain. The question in Step 2 item 6 asks the user to pick one style for a module
+that, by Decision 2's own rule, legitimately holds both; and it blocks a headless run. Rewriting an
+existing domain to the other style is a refactor, not a feature.
+
+**Consequence:** `be-init` Step 2 item 6 and Step 3 lose the mixed-case question; `be-code` and the
+code-reviewer agent check the style per domain. No new config value.
+
+## Decision 12: What "verified" means — one script writes the record, a subset run is `partial`
+
+**Decision:** `scripts/verify-record.sh` becomes the only writer of `pipeline.verification` in
+`{workDocDir}/.progress/{feature}.json`. Skills and agents never edit that block. The layout stays
+`.progress/` (guide §7: the older layout of the be- plugins stays as it is); the record gains fields,
+it is not moved.
+
+| Field | Values | Rule |
+|---|---|---|
+| `status` | `pass` · `fail` · `partial` · `not-run` | `pass` needs `tree` (exit 4 otherwise, file unchanged); `partial` when `testsRun` is `subset`; `not-run` when the toolchain is missing |
+| `tree` | `scripts/source-tree-hash.sh` value | as today |
+| `testsRun` | `full` · `subset` | `be-verify` always runs the full test task of the module and records `full`; any run narrowed by a Gradle `--tests` filter is `subset` |
+| `module` | the configured module, or absent | copied from config |
+| `coverage.status` | `pass` · `fail` · `not-run` | `not-run` when no JaCoCo report exists (guide §7.5: could not check is not nothing to check); `skip` in 0.2.x records is read as `not-run`. Still report-only (Decision 6): `fail` and `not-run` do not fail `status` |
+| `coverage.linePercent` | number, or absent | present whenever a JaCoCo report was read |
+| `writer` | `verify-record` | absent ⇒ the record was not written by the script |
+
+Reading side (`be-progress`, `be-review`, `be-commit`, `be-jira-auto`): a record is **current** when
+`writer` is `verify-record`, `status` is `pass`, `testsRun` is `full` and `tree` equals the recomputed
+hash; **stale** when the hash differs; **partial** when `status` is `partial`; **unverifiable** when
+`writer` or `tree` is missing. Only current lets `be-review` and `be-commit` proceed. There is no
+override field; `gateOverride` and similar hand-added keys are ignored.
+
+The script needs `jq` (exit 6 if missing), takes a `mkdir` lock released by `trap` (Git Bash and macOS
+bash 3.2 have no `flock`), and replaces the file atomically (write a temporary file, then `mv`).
+`frontend-ohmyhotel-plugin/bin/fo-evidence` is the reference.
+
+**Rationale:** records written in prose drift: a subset run recorded as `pass`, a red suite recorded as
+`pass` with an override, a coverage row of `skip` that cannot be told apart from "not configured". The
+CI gate will count verified records; it can only count what a script
+wrote. Keeping `status` (not renaming it) keeps 0.2.x readers and existing records parseable.
+
+**Consequence:** every record written before 0.3.0 is `unverifiable` until `be-verify` runs again;
+`be-progress` says so and names the command. A target whose full module suite cannot pass on a
+developer machine cannot reach current — that is a target-side fix (test isolation in the product
+repository), not a gate setting in this plugin.
+
+## Decision 13: Tree hash scope with a module
+
+**Decision:** with `module` set, `scripts/source-tree-hash.sh --module <m>` hashes the module, every
+subproject it depends on through `project(':x')` (transitively), the root build files
+(`settings.gradle`, `build.gradle`, `gradle.properties`), `gradle/`, `config/` and `libs/` if present.
+The dependency list is derived from the build files at run time, never written into the plugin.
+
+**Rationale:** a change in a shared module changes what the verified module runs; a change in an
+unrelated module does not. Hashing all subprojects (0.2.x) makes every unrelated commit stale the
+record; hashing only the module misses shared code.
+
+**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` references; a dependency it
+cannot resolve stops the hash with a non-zero exit instead of being skipped.
+
+## Decision 14: `be-crud` on Spring Boot 3 — deferred, with a clear stop
+
+**Decision:** 0.3.0 adds no Boot 3 branch to `be-crud`. `be-crud` reads `sourceDir` from config and,
+on a Boot 3 project, stops before writing anything with "Spring Boot 3 is not supported by be-crud
+(Decision 14); use be-code from a work document", releasing its lock.
+
+**Rationale:** two of the artifacts `be-crud` Step 3 requires have no Boot 3 release, so a Boot 3 path
+is a dependency branch, and the guide (§3) then requires the sample to run per branch value or a second
+sample. No real ticket on the Boot 3 target has entered through `be-crud`; work enters through a work
+document and `be-code` (Decision 15). The fit test named a Boot 3 branch as the next experiment; it
+stays the next experiment for when a team needs scaffolding.
+
+**Consequence:** reopen when a Boot 3 team asks for scaffolding; the reopening PR adds the `bootLine`
+knob and a Boot 3 sample together.
+
+## Decision 15: How work enters the pipeline on an existing module
+
+**Decision:** on an existing module the supported entry is a work document with test scenarios →
+`be-code`. `be-plan` keeps reading a planning-plugin spec only; `be-jira-auto` keeps its current input.
+
+**Rationale:** the fit test showed `be-plan` refuses ticket text by design, and the real tickets that
+used the plugin on the target all started from a work document. Teaching `be-plan` to read ticket text
+is a separate feature with its own evidence rules.
+
+**Consequence:** the README and the target's golden path document this entry; no skill changes for it.
