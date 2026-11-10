@@ -23,7 +23,7 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### If a feature name is provided:
 
-**Change plan** (`changeKind: "change"`): show the ticket's apps and packages, per-owner verification (`verification.owners`), per-app e2e (`e2e.apps`), and `ticketItems` where a spec plan shows spec changes.
+**Change plan** (`changeKind: "change"`): show the ticket's apps and packages, per-owner verification (`verification.owners`), per-app e2e (`e2e.apps`), and `ticketItems` where a spec plan shows spec changes. An app in the plan's `appsReadOnly[]` is shown as **not changed** with its `reason`, never with a pass; when its `decision` question has no answer yet, show **decision pending ({id})** and do not show the feature as done.
 
 **Freshness.** For each of `implementation.verification` and `implementation.e2e` that has a `treeFile`, run `gate-record.sh check` per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` and show the pass as `fresh`, **stale** (with the files) or **shared-stale** (with the files). `tree: "unverifiable"` → show it with `treeMissing`. No `treeFile` → "not recorded". Never print a stale pass as a plain pass.
 
@@ -140,7 +140,8 @@ Draft the pull-request body for the feature from its records; never create the P
 2. Fill it only from the records in `{runsDir}/{feature}/`: the brief's goal and acceptance items,
    `plan.json` files per app and package, each gate's result **with its freshness** (a stale or
    shared-stale pass is written as such, never as a plain pass), the review status, open
-   `questions[]`, and the ticket key. A section the records cannot fill is left with a `TODO:` line,
+   `questions[]`, each `appsReadOnly[]` app as "not changed" with its reason (and "decision pending"
+   when its `decision` question is unanswered), and the ticket key. A section the records cannot fill is left with a `TODO:` line,
    never invented. Under `commitRuns: false` the reviewer cannot open the records, so write each
    result into the body itself and do not link a path under `{runsDir}`.
 3. Print the draft in one block. The repo's own review process runs on the PR as usual — this plugin

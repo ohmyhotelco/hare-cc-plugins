@@ -56,6 +56,9 @@ All `file` values are **repo-relative**.
     { "app": "web", "baseDir": "apps/web/app", "appDir": "apps/web" },
     { "app": "admin", "baseDir": "apps/admin/app", "appDir": "apps/admin" }
   ],
+  "appsReadOnly": [
+    { "app": "admin", "reason": "Ticket part 2 depends on Q1; read only as precedent", "decision": "Q1" }
+  ],
   "packages": ["packages/data"],
   "rules": ["docs/rules/checkout.md#Totals"],
   "acceptance": [
@@ -76,6 +79,11 @@ All `file` values are **repo-relative**.
 
 `baseDir: "."` marks the file paths as repo-relative; `apps[]` carries each app's own directories.
 Every `files[]` / `tests[]` entry names exactly one owner: `app` (a key of `apps[]`) or `package`.
+
+An app in `apps[]` that owns no `files[]` / `tests[]` entry is listed in `appsReadOnly[]` with a
+`reason` (why it is in scope but not changed) and, when that depends on an open question, `decision`
+(the `questions[]` id). An app in neither place is a planning gap: stop and say so. Do not write other
+per-app lists (such as an "apps with changes" list); they are derived from `files[]`.
 
 ## delta-plan.json (change shape)
 
