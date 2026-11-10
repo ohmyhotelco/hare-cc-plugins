@@ -216,7 +216,7 @@ Agent(subagent_type: "frontend-v2-plugin:review-fixer", prompt: "
   Follow the process defined in agents/review-fixer.md.
   Read ${CLAUDE_PLUGIN_ROOT}/templates/tdd-rules.md for TDD rules.
   {If fixMode is 'e2e' and e2eTool == 'agent-browser': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-testing.md for E2E patterns. Failure evidence is the e2e-report.json per-scenario step logs and screenshots.}
-  {If fixMode is 'e2e' and e2eTool == 'playwright': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code.}
+  {If fixMode is 'e2e' and e2eTool == 'playwright': Read ${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md for E2E patterns. Failure evidence is the Playwright trace, not agent-browser logs — for each failing scenario, open its trace path (from the e2e-report.json evidence) with `npx playwright show-trace <trace.zip>` (CLI-built-in) and diagnose from the trace before editing code; a scenario with no trace (a change-mode run on a harness that keeps none) is diagnosed from `evidence.output`, re-running the named failing test.}
   Save the fix report to {runsDir}/{feature}/fix-report.json.
 ")
 ```

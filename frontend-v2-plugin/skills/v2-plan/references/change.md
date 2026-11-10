@@ -10,8 +10,11 @@ taken in § Lock Acquire; release it on every exit (§ Lock Release). Contract:
 `planned` (generated, verified, reviewed, done, …) → warn:
 > "{feature} already has generated code ({status}). Re-planning replaces the plan and resets the status
 > to `planned`; the earlier reports and gate records stay in the folder but no longer describe the plan."
-Ask to continue; declined → stop. Then ask which re-plan this is: the same unmerged change (keep the
-plan's `baseCommit`) or a later PR for the ticket after an earlier one merged (new `baseCommit`).
+Ask to continue; declined → stop.
+
+Whenever `plan.json` already exists, whatever the status, ask which re-plan this is: the same unmerged
+change (keep the plan's `baseCommit`) or a later PR for the ticket after an earlier one merged (new
+`baseCommit`).
 
 ### C.1: Apps in scope
 
