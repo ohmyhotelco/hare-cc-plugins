@@ -245,7 +245,7 @@ The app never imports `axios` directly under this layer. The MSW handlers stay i
 
 **`component-tdd`** — Shared Components:
 - shadcn/ui components only, `cn()` for conditional classes — **`componentLibrary == external`** (D14): only `{externalComponents.package}` exports and `{uiKitDir}` primitives; build the gap components still in scope after the Step 0 re-glob **first** (feature components import them), each written under `{runsDir}/.app.lock` (`{uiKitDir}` is app-wide — v2-shared § Lock file) and released right after the write, so two features planning the same gap never overwrite each other; no `@/components/ui/*`, no `lucide-react`, no import matching `externalComponents.forbiddenImports[]`; conditional classes via the library's className prop or the once-created `{uiKitDir}/cn.ts`
-- Translation hook: `useTranslation('{feature}')` — **`i18nBinding == custom-hook`** (D16): `import { {hook} } from '{from}'` and `const t = {hook}()`, flat keys per `i18n.keyPrefix`, no namespace argument
+- Translation hook: `useTranslation('{feature}')` — **`i18nBinding == custom-hook`** (D16): `import { {hook} } from '{from}'` and `const t = {hook}()` — under `i18nHook.call == language-first` call `{hook}(language, key)` instead, `language` obtained as v2-shared § Monorepo Rules, Translation call shape says — flat keys per `i18n.keyPrefix`, no namespace argument
 - No boolean props → compound component or discriminated union
 - All labels/placeholders → `t()` function
 - Validation rules from plan's `components[].validation`

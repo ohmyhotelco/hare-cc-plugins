@@ -57,6 +57,8 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gate-record.sh check {runsDir}/{feature}/gate-tree
 - A watch path that git ignores now (a record written while run records were committed, read after
   `commitRuns` turned off) is not compared: `check` names it on stderr as "ignored now, not
   compared" and judges the other paths. Show that note with the verdict.
+- `unverifiable every watch path is ignored now` → nothing is left to compare: show the pass as
+  **unverifiable** and re-run the gate. It is never shown as fresh.
 
 **Change plan:** also run `changed-lines.sh {plan.baseCommit}` over the owners and report any changed
 file that the record does not hold as `stale (new files)` — a file written after the pass is not in

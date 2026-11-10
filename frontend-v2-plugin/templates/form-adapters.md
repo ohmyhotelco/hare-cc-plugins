@@ -94,7 +94,7 @@ export function FormControl({ children }: { children: React.ReactElement }) {
 
 export function FormMessage(props: React.HTMLAttributes<HTMLParagraphElement>) {
   const { error, formMessageId } = useFormField();
-  const t = {i18nHook.hook}(); // custom-hook binding; under i18nHook.call == language-first: `const t = (key: string) => {hook}(language, key);` with `language` taken as v2-shared § Import values says; — under react-i18next: `const { t } = useTranslation();` (zod messages are full keys, no namespace)
+  const t = {i18nHook.hook}(); // custom-hook binding; under i18nHook.call == language-first: `const t = (key: string) => {hook}(language, key);` with `language` read inside the component the way the app's components read it (a hook or context) — never a new prop, since the adapter surface stays shadcn's; when the app has no such hook or context, stop and ask; — under react-i18next: `const { t } = useTranslation();` (zod messages are full keys, no namespace)
   const key = error?.message ? String(error.message) : null;
   if (!key) return null;
   return (

@@ -22,6 +22,8 @@
 #         fresh
 #         stale <file>...           a recorded non-shared file changed, appeared or disappeared
 #         shared-stale <file>...    only --shared files changed
+#         unverifiable ...          every watch path is gitignored now (a path ignored since the
+#                                   record is named on stderr and left out of the comparison)
 #
 # The record lives with the feature's other run records (committed only when config commitRuns is true).
 #
@@ -85,7 +87,14 @@ case "$cmd" in
     done < "$rec"
     [ "${#watch[@]}" -gt 0 ] || die "record has no watch paths: $rec"
     old="$(mktemp)"; new="$(mktemp)"; trap 'rm -f "$old" "$new"' EXIT
-    grep -v '^# ' "$rec" | sort -k2 > "$old"
+    # Manifest rows are "<hash> <path>" or "GITLINK <sha> <path>", and a path may contain spaces.
+    # Normalise both sides to "<path><TAB><digest>" so the path is one field.
+    norm() {
+      awk '{ if ($1 == "GITLINK") { d = $1 " " $2; f = $0; sub(/^[^ ]+ [^ ]+ /, "", f) }
+             else { d = $1; f = $0; sub(/^[^ ]+ /, "", f) }
+             printf "%s\t%s\n", f, d }'
+    }
+    grep -v '^# ' "$rec" | norm > "$old"
     existing=(); ignored=()
     for p in "${watch[@]}"; do
       # A path ignored since the record was written (e.g. run records turned local) cannot be
@@ -95,22 +104,27 @@ case "$cmd" in
     done
     if [ "${#ignored[@]}" -gt 0 ]; then
       echo "gate-record: ignored now, not compared: ${ignored[*]}" >&2
+      if [ "${#ignored[@]}" -eq "${#watch[@]}" ]; then
+        echo "unverifiable every watch path is ignored now"; exit 0
+      fi
       keep="$(mktemp)"
-      awk -v list="$(printf '%s\n' "${ignored[@]}")" '
+      awk -F'\t' -v list="$(printf '%s\n' "${ignored[@]}")" '
         BEGIN { n = split(list, ig, "\n") }
-        { f = $0; sub(/^[^ ]+ /, "", f)   # manifest rows are "<hash> <path>"
-          for (i = 1; i <= n; i++) if (ig[i] != "" && (f == ig[i] || index(f, ig[i] "/") == 1)) next; print }
+        { for (i = 1; i <= n; i++) if (ig[i] != "" && ($1 == ig[i] || index($1, ig[i] "/") == 1)) next; print }
       ' "$old" > "$keep" && mv "$keep" "$old"
     fi
     if [ "${#existing[@]}" -gt 0 ]; then
       set +e
-      "$hash_sh" --manifest --exclude "$rec" -- "${existing[@]}" | sort -k2 > "$new"; rc=${PIPESTATUS[0]}
+      "$hash_sh" --manifest --exclude "$rec" -- "${existing[@]}" | norm > "$new"; rc=${PIPESTATUS[0]}
       set -e
       [ "$rc" -eq 0 ] || [ "$rc" -eq 2 ] || die "gate-tree-hash failed ($rc)"
     else
       : > "$new"
     fi
-    changed=$(join -1 2 -2 2 -a 1 -a 2 -e NONE -o 0,1.1,2.1 "$old" "$new" | awk '$2 != $3 { print $1 }')
+    # A path whose digest differs, or that is on one side only.
+    changed=$(awk -F'\t' 'NR == FNR { o[$1] = $2; next }
+                          { if (!($1 in o) || o[$1] != $2) print $1; seen[$1] = 1 }
+                          END { for (f in o) if (!(f in seen)) print f }' "$old" "$new" | sort)
     if [ -z "$changed" ]; then echo "fresh"; exit 0; fi
     own=(); sh=()
     while IFS= read -r f; do

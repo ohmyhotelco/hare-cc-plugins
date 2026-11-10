@@ -34,7 +34,8 @@ exists from the repo root:
 - an import specifier (`~/lib/i18n`, `@acme/i18n`) — written as it is;
 - a repo-relative file path (`apps/web/app/lib/i18n.ts`) — written as a relative specifier from the
   file being edited: drop the `.ts`/`.tsx` extension and a trailing `/index`, start with `./` or `../`.
-Never invent an alias the app does not have; when unsure, copy the import line of an existing file next
+A value ending in `.ts`, `.tsx`, `.js` or `.jsx` that names no existing file is a mistyped path, not a
+specifier: stop and name it. Never invent an alias the app does not have; when unsure, copy the import line of an existing file next
 to the one being edited.
 
 **Translation call shape.** `i18nHook.call` (absent → `"hook"`):
@@ -58,7 +59,10 @@ The first skill that writes under `{runsDir}` creates, when absent:
   `{runsDir}/.gitignore` with `.lock`, `*.lock`, `*.tmp`, `*.png`, `*.webm`, `*.zip`, `trace*/`,
   `test-results/`, `generation-state.json`, `delta-plan*.json` (state needed only between steps; it
   stays on disk for the run).
-An existing `{runsDir}/.gitignore` is never rewritten; when it disagrees with `commitRuns`, say so once.
+An existing `{runsDir}/.gitignore` is never rewritten; when it disagrees with `commitRuns` (the setting changed after the
+first run), say so once with the fix for the user to apply: replace the file with the contents above, and,
+when turning records local, `git rm -r --cached {runsDir}` for records already committed. Never change
+the git index yourself.
 `{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
 a planning-plugin spec exists there, else `{runsDir}/{feature}/spec`.
 

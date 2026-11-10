@@ -72,7 +72,7 @@ here.** Instead:
   "apiLayer": "workspace-package", "apiPackage": { "package": "@acme/data", "dir": "packages/data", "entry": "packages/data/src/index.ts" },
   "eslintTemplate": false, "prettierTemplate": false,
   "i18n": { "languages": ["en", "ko"], "lookupFns": ["t"] },
-  "rulesDir": "docs/rules", "runsDir": "docs/plugin-runs",
+  "rulesDir": "docs/rules", "runsDir": "docs/plugin-runs", "commitRuns": false,
   "excludePaths": ["apps/old-web"],
   "defaultApp": "web",
   "apps": {
