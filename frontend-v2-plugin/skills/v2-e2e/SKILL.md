@@ -45,6 +45,8 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 - otherwise, under the feature lock, run `cd {appDir} && PATH="{nodeBin}:$PATH" npx playwright test {those files, relative to appDir} --reporter=line` and record pass/fail with the failing test names.
 Write per-app results under `implementation.e2e.apps.{app}`; `implementation.e2e.status` is `pass` only when every app with e2e files passed. Then Step 8's gate record (e2e files included) and Step 9.
 
+**Optional: existing e2e, base vs HEAD** — for an app that got `skipped: no e2e in plan` but has a Playwright harness, offer (never run unasked) a run of its existing e2e on `plan.baseCommit` and on HEAD: read `${CLAUDE_PLUGIN_ROOT}/skills/v2-e2e/references/base-comparison.md`. A comparison is PR evidence, never a pass.
+
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:
      > "Implementation plan not found."

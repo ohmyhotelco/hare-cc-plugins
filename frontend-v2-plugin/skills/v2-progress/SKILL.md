@@ -141,7 +141,7 @@ Draft the pull-request body for the feature from its records; never create the P
    `plan.json` files per app and package, each gate's result **with its freshness** (a stale or
    shared-stale pass is written as such, never as a plain pass), the review status, open
    `questions[]`, each `appsReadOnly[]` app as "not changed" with its reason (and "decision pending"
-   when its `decision` question is unanswered), and the ticket key. A section the records cannot fill is left with a `TODO:` line,
+   when its `decision` question is unanswered), any e2e `baseComparison` as "existing e2e on base vs HEAD: same failures, no regressions" (or the regressions) with both totals, and the ticket key. A section the records cannot fill is left with a `TODO:` line,
    never invented. Under `commitRuns: false` the reviewer cannot open the records, so write each
    result into the body itself and do not link a path under `{runsDir}`.
 3. Print the draft in one block. The repo's own review process runs on the PR as usual — this plugin
