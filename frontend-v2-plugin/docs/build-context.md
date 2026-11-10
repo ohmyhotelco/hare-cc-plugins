@@ -90,5 +90,9 @@ This fork:
   still starts Vite for framework apps; the Codex auditor cannot see `excludePaths` and has no base for a
   review-stage diff; the clean-code attribution retry has no message recipient; a test listed in two plans
   has an ambiguous spec; a synthesized runner-error report cannot enter fix mode.
+- External component library: `uiKitDir` is required. A product that keeps no app-owned UI kit and names
+  in its rules where a missing component goes cannot express that yet; planning, generation, locking,
+  review and fixing would all need to use the plan's own gap paths instead of `uiKitDir` (tried in
+  `e387d68`, reverted).
 - Scripts: a submodule path that itself starts with `dirty:` is misread by `gate-record.sh check`.
 
