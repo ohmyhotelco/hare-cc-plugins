@@ -50,6 +50,7 @@ Plugin names, skill names and the keys of each plugin's `.claude/<plugin>.json` 
 | `backend-webflux-plugin` | `CLAUDE.md`, `docs/decisions.md` |
 | `frontend-migration-plugin` | `CLAUDE.md`, `docs/build-context.md`, `docs/design/` |
 | `frontend-ohmyhotel-plugin` | `CLAUDE.md`, `docs/build-context.md`, `docs/design/plugin-design.md` |
+| `frontend-v2-plugin` | `CLAUDE.md`, `docs/build-context.md` |
 | `cc-usage-plugin` | `CLAUDE.md`, `docs/decisions.md`, `docs/design/plugin-design.md`, `docs/build-context.md` |
 
 A plugin-root `CLAUDE.md` holds notes for maintainers and is not loaded into agents. A rule an agent must follow belongs in a preloaded skill or a file the agent is told to read.

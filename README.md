@@ -117,6 +117,14 @@ Repo-scoped development plugin for `ohmyhotelco/ohmyhotel-frontend` (V3 All New 
 
 ---
 
+### [Frontend V2 Plugin](./frontend-v2-plugin/) `v0.1.0`
+
+Development plugin for an existing multi-app React Router (framework mode) monorepo with shared workspace packages, where most work is a small change to existing code. Plans a ticket as a change across several apps and packages, reads the product repo's own rules (`docs/rules/`), attributes review findings to the change under review, records gate evidence that goes stale when the code moves, and drafts the PR body in the product repo's format. Run records stay local unless configured otherwise. Forked from frontend-react-plugin 2.4.3. **v0.1.0 is early**: run once on a real ticket so far; see its build context.
+
+**Pipeline**: `v2-init` → `v2-plan <ticket>` → `v2-gen` → `v2-verify` → `v2-review` ↔ `v2-fix` → `v2-e2e` → `v2-progress --pr-body`
+
+---
+
 ### [CC Usage Plugin](./cc-usage-plugin/) `v0.1.9`
 
 Hook-only usage ledger for Claude Code: records which repository, commands, skills, model and effort each session used and how many tokens, plus commit, PR and edit counts — never prompt text, tool arguments or file contents. Writes a local ledger and, when a receiver URL is configured, uploads it in batches from the async Stop hook (one developer and ISO week per batch, `X-Webhook-Token`, only `202` counts as delivered). `/cc-usage-plugin:cc-init` sets it up, with the receiver URL and token entered in a terminal, never in the chat. Zero dependencies, Windows/macOS/Linux, Node 22.23.4+ / 24.22.1+ / 26.12.1+.

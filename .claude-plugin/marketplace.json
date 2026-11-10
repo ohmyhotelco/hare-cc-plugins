@@ -251,6 +251,41 @@
       "repository": "https://github.com/ohmyhotelco/hare-cc-plugins"
     },
     {
+      "name": "frontend-v2-plugin",
+      "description": "React development plugin for an existing multi-app React Router (framework mode) monorepo with shared workspace packages — plans and checks changes that span several apps and packages, reads the product repo's own rules, attributes review findings to the change under review, and records gate evidence that goes stale when the code moves. Forked from frontend-react-plugin 2.4.3.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Dean"
+      },
+      "source": "./frontend-v2-plugin/",
+      "category": "development",
+      "keywords": [
+        "frontend",
+        "react",
+        "typescript",
+        "react-router",
+        "framework-mode",
+        "ssr",
+        "monorepo",
+        "workspace",
+        "shared-packages",
+        "tanstack-query",
+        "tailwind",
+        "vitest",
+        "playwright",
+        "msw",
+        "tdd",
+        "code-review",
+        "security",
+        "clean-code",
+        "test-review",
+        "codex"
+      ],
+      "license": "MIT",
+      "homepage": "https://github.com/ohmyhotelco/hare-cc-plugins/tree/main/frontend-v2-plugin",
+      "repository": "https://github.com/ohmyhotelco/hare-cc-plugins"
+    },
+    {
       "name": "cc-usage-plugin",
       "description": "Claude Code usage ledger from hooks: per-session repository, model, skill, command and token metadata plus commit, PR and edit counts, never prompt content; optional batched upload to an HTTPS receiver. Windows/macOS/Linux, Node 22.23.4+ / 24.22.1+ / 26.12.1+, zero dependencies",
       "version": "0.1.9",

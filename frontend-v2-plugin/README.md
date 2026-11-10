@@ -4,7 +4,8 @@ A Claude Code plugin for maintaining an **existing** React Router (framework mod
 apps, shared workspace packages, and work that mostly arrives as small changes to code that is already
 there. Skills are prefixed `v2-`.
 
-> Status: draft (0.1.0). Not yet run end to end on a real ticket.
+> Status: early (0.1.0). Run once on a real ticket, with an earlier revision; what has and has not been
+> exercised is in `docs/build-context.md`.
 
 ## Where it comes from
 
