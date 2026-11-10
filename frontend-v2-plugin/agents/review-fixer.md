@@ -63,14 +63,16 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 - Step 0 item 1: read `files[]`, `tests[]`, `acceptance[]`, `apps[]` (each with `config`) and `packages`;
   Step 0's spec read takes only `{specDir}/brief.md`.
 - Step 1.5: a missing file is plan-covered when it is in `files[]` / `tests[]`; its regen phase is that
-  entry's `phase`.
+  entry's `phase` (a `tests[]` entry has none: take the phase of the `files[]` entries its `for` names).
 - Step 3.1: the test is the `tests[]` entry whose `for` lists the target source file, at its exact path
-  (none → escalate); the anchor is `// AC-n — {specDir}/brief.md:{line}`.
+  (none → escalate); the anchor is `// AC-n — {specDir}/brief.md:{line}` when that AC states the
+  behaviour, else the usual `// fix: {dimension}`.
 - Owner of a file: under an app's `appDir` → that app's `config`, `appDir` and `nodeBin` (v2-shared §
   Monorepo Rules, resolved per app — the `appDir`/`nodeBin`/`srcPath`/`routerMode` parameters are the
   default app's); under a package dir → the package dir, its own `.nvmrc` (else PATH) and its own
   test / `typecheck` / `build` scripts, never app router commands.
-- Steps 3.3 and 4: run once per owner the fixes touched, with that owner's commands.
+- Steps 2, 3.3 and 4: each fix's own check runs with its owner's commands, and the regression and
+  final checks run once per owner the fixes touched.
 
 ### Step 0: Load Context
 

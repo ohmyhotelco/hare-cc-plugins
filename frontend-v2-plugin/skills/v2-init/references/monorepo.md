@@ -74,7 +74,7 @@ here.** Instead:
 {
   "appProfile": "ota", "routerMode": "framework", "serverState": "tanstack-query", "formStack": "native",
   "e2eTool": "playwright", "mockFirst": true, "clientStore": "none",
-  "componentLibrary": "external", "externalComponents": { "package": "@acme/ui", "cssEntry": "@acme/ui/styles.css", "uiKitDir": "apps/web/app/ui-kit" },
+  "componentLibrary": "external", "externalComponents": { "package": "@acme/ui", "cssEntry": "@acme/ui/styles.css" },
   "apiLayer": "workspace-package", "apiPackage": { "package": "@acme/data", "dir": "packages/data", "entry": "packages/data/src/index.ts" },
   "eslintTemplate": false, "prettierTemplate": false,
   "i18n": { "languages": ["en", "ko"], "lookupFns": ["t"] },
@@ -82,9 +82,9 @@ here.** Instead:
   "excludePaths": ["apps/old-web"],
   "defaultApp": "web",
   "apps": {
-    "web":   { "baseDir": "apps/web/app",   "appDir": "apps/web",   "devPort": 3000, "apiPackage": { "clientImport": "~/lib/api-client" },
+    "web":   { "baseDir": "apps/web/app",   "appDir": "apps/web",   "devPort": 3000, "apiPackage": { "clientImport": "~/lib/api-client" }, "externalComponents": { "uiKitDir": "apps/web/app/ui-kit" },
                "layout": { "routes": "app/routes", "routeRegistry": "app/routes.ts", "components": "app/components/{area}", "lib": "app/lib/{area}", "tests": "colocated", "mocks": "app/mocks/{area}.ts", "fileCase": "kebab" } },
-    "admin": { "baseDir": "apps/admin/app", "appDir": "apps/admin", "devPort": 3001, "apiPackage": { "clientImport": "apps/admin/app/lib/api-client.ts" } }
+    "admin": { "baseDir": "apps/admin/app", "appDir": "apps/admin", "devPort": 3001, "apiPackage": { "clientImport": "apps/admin/app/lib/api-client.ts" }, "externalComponents": { "uiKitDir": "apps/admin/app/ui-kit" } }
   }
 }
 ```

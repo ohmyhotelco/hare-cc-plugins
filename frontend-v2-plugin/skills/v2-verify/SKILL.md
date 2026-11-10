@@ -123,9 +123,11 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.2 ESLint Check
 
-1. Find the config the app's ESLint actually uses. Read the major version (`cd {appDir} && npx eslint
-   --version`): 9 or later reads only `eslint.config.*` (look in `{appDir}`, then each parent up to the
-   repo root, nearest wins); 8 reads `.eslintrc*` the same way. A file of the other kind is ignored.
+1. Glob for ESLint config (`eslint.config.*`, `.eslintrc*`) in `{appDir}`, then each parent up to the
+   repo root; the nearest found is used as is, never overwritten (v2-shared lint rules). Before running,
+   check that `eslint` is installed — `node_modules/.bin/eslint` in `{appDir}` or an ancestor; never probe
+   with an installing `npx`. Not installed → the missing-dependency message in item 3. ESLint rejecting
+   the config (e.g. `.eslintrc*` under ESLint 9+) → `not-run` with its message, never a pass or skip.
    The template fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
 2. **Config found** → detect config type and run:
    ```bash
@@ -259,7 +261,7 @@ Verification Report for '{feature}':
 
 A `skipped` or `not-run` line always prints its reason next to it.
 
-Overall FAIL is set by TypeScript, ESLint, Build, Tests, or i18n keys. **Format never affects it** — it is advisory (`${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`).
+Overall FAIL is set by TypeScript, ESLint, Build, Tests, i18n keys, or (change plan) an owner's non-empty `missingPlanned`, listed in the report. **Format never affects it** — it is advisory (`${CLAUDE_PLUGIN_ROOT}/templates/prettier-config.md`).
 
 The E2E line reads `implementation.e2e` from `{runsDir}/{feature}/progress.json`. If the `e2e` field is absent, display `not-run`. E2E results are informational in this report — they do not affect the Overall PASS/FAIL determination (E2E has its own loop).
 
