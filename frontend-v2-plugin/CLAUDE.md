@@ -29,7 +29,7 @@ overrides them.
   every hit.
 - Change mode (ticket → change to existing code): `templates/change-plan.md` is the contract;
   `skills/v2-plan/references/change.md` drives it; v2-gen runs it through the delta path per owner.
-- Run records: `{runsDir}/{feature}/` (default `docs/plugin-runs`), committed; `{specRoot}` resolves a
+- Run records: `{runsDir}/{feature}/` (default `docs/plugin-runs`), local unless `commitRuns: true`; `{specRoot}` resolves a
   planning-plugin spec or the run's own `spec/`. Gate records: `templates/gate-record.md`,
   `scripts/gate-record.sh`.
 - Per-app layout: `apps.{app}.layout` (v2-shared § Monorepo Rules).

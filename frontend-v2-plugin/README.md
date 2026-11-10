@@ -69,8 +69,9 @@ pass stale (`v2-progress` shows it); the e2e run that counts is the one after th
 - `v2-plan` reads the ticket through an issue-tracker tool when the session has one, otherwise asks
   for the text, and writes a short brief in its own words. One plan may touch several apps and shared
   packages; every file in it names its owner.
-- Records go to `docs/plugin-runs/{ticket}/` (config `runsDir`) and are meant to be committed: brief,
-  plan, progress, reports, and the gate records that show when a pass has gone stale.
+- Records go to `docs/plugin-runs/{ticket}/` (config `runsDir`): brief, plan, progress, reports, and
+  the gate records that show when a pass has gone stale. By default they stay on your machine (the
+  folder gets a `.gitignore` of `*`); set `commitRuns: true` to commit them with the code.
 - A new route with a new page is a new screen: `v2-plan {name} --new-screen` runs the inherited
   spec-driven pipeline, using each app's `layout` from the config.
 

@@ -32,11 +32,18 @@ single-app config, read as it is.
 live in `{runsDir}/{feature}/` (`runsDir`: config, default `docs/plugin-runs`; the app-wide lock is
 `{runsDir}/.app.lock`). Name the feature after its ticket key when the work comes from a ticket (e.g.
 `ABC-123`); one folder per ticket even when it touches several apps, and a later PR for the same ticket
-updates the same folder. The records are meant to be committed. The first skill that writes under
-`{runsDir}` creates, when absent, `{runsDir}/README.md` ("Records of tickets run through
-frontend-v2-plugin. Only tickets run through the plugin have a folder; a missing folder is not a missing
-record.") and `{runsDir}/.gitignore` with `.lock`, `*.lock`, `*.tmp`, `*.png`, `*.webm`, `*.zip`,
-`trace*/`, `test-results/`, `generation-state.json`, `delta-plan*.json` (state needed only between steps; it stays on disk for the run). `{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
+updates the same folder. Whether the records are committed is config `commitRuns` (default `false`).
+The first skill that writes under `{runsDir}` creates, when absent:
+- `commitRuns: false` → `{runsDir}/.gitignore` containing the single line `*`. It ignores the whole
+  folder, itself included, so the records stay on this machine and never show in `git status`. Nothing
+  else is written there for git.
+- `commitRuns: true` → `{runsDir}/README.md` ("Records of tickets run through frontend-v2-plugin. Only
+  tickets run through the plugin have a folder; a missing folder is not a missing record.") and
+  `{runsDir}/.gitignore` with `.lock`, `*.lock`, `*.tmp`, `*.png`, `*.webm`, `*.zip`, `trace*/`,
+  `test-results/`, `generation-state.json`, `delta-plan*.json` (state needed only between steps; it
+  stays on disk for the run).
+An existing `{runsDir}/.gitignore` is never rewritten; when it disagrees with `commitRuns`, say so once.
+`{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
 a planning-plugin spec exists there, else `{runsDir}/{feature}/spec`.
 
 **Per-app layout.** An app may carry `layout` (config `apps.{app}.layout`, paths relative to its

@@ -141,7 +141,8 @@ Draft the pull-request body for the feature from its records; never create the P
    `plan.json` files per app and package, each gate's result **with its freshness** (a stale or
    shared-stale pass is written as such, never as a plain pass), the review status, open
    `questions[]`, and the ticket key. A section the records cannot fill is left with a `TODO:` line,
-   never invented.
+   never invented. Under `commitRuns: false` the reviewer cannot open the records, so write each
+   result into the body itself and do not link a path under `{runsDir}`.
 3. Print the draft in one block. The repo's own review process runs on the PR as usual — this plugin
    adds no second review flow.
 

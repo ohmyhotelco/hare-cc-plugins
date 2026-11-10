@@ -23,7 +23,7 @@
 #         stale <file>...           a recorded non-shared file changed, appeared or disappeared
 #         shared-stale <file>...    only --shared files changed
 #
-# The record is committed with the feature's other run records.
+# The record lives with the feature's other run records (committed only when config commitRuns is true).
 #
 # EXIT
 #   0 ok (record written / check printed)   2 missing watch path or unverifiable   1 error

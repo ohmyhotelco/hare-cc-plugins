@@ -10,12 +10,15 @@ The files the gate actually covered — never fewer:
 
 - **Change plan** (`changeKind: "change"`): every file `changed-lines.sh {plan.baseCommit} {owner dirs}`
   lists (each app's `appDir` and each `plan.packages` entry; untracked files included; drop `(deletion)` entries and any path that no longer exists), plus every
-  `files[]` / `tests[]` entry that exists, plus each `plan.packages` directory, plus `plan.json`.
+  `files[]` / `tests[]` entry that exists, plus each `plan.packages` directory, plus `plan.json` when `commitRuns` is `true`.
   Files whose plan `op` is `remove` and that no longer exist are left out and named in the report.
 - **New-screen plan**: every `file` value in `plan.json` (items, `tests[]`, `e2eTests`), the
   feature-module folder `{baseDir}/features/{feature}` when the app has no `layout`, `apiPackage.dir`
-  under `workspace-package`, plus `plan.json`.
+  under `workspace-package`, plus `plan.json` when `commitRuns` is `true`.
 - `verify` leaves out e2e spec files; `e2e` includes them.
+- With `commitRuns: false` the run folder is gitignored, and the hash script refuses an ignored watch
+  path, so nothing under `{runsDir}` is a watch path. A plan edit then shows as a changed code file
+  only once the code follows it.
 
 **Shared paths** (`--shared`, repo-relative): files many features edit — the app's route registry
 (`{appDir}/{layout.routeRegistry}`, else `{baseDir}/routes.ts` / the central route file), the i18n resource files
@@ -38,7 +41,7 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gate-record.sh record {runsDir}/{feature}/gate-tre
 
 The `.tsv` stores the watch paths and the shared paths it was recorded with (`# watch` / `# shared`
 lines); `check` uses the stored shared paths, so a later config change does not change the verdict.
-It is committed with the rest of `{runsDir}/{feature}/`.
+It sits with the rest of `{runsDir}/{feature}/` and is committed only when `commitRuns` is `true`.
 
 ## Check (v2-progress)
 
