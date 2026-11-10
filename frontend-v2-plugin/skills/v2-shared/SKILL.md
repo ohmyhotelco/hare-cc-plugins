@@ -79,7 +79,7 @@ files next to the target and copy their placement and naming.
 `nodeBin = $(${CLAUDE_PLUGIN_ROOT}/scripts/node-env.sh {appDir})` (nvm installs) and every build or test
 command runs as `cd {projectRoot}/{appDir} && PATH="{nodeBin}:$PATH" npx …`; a non-zero exit stops the
 run — never fall back to PATH or to a `.nvmrc` above `{appDir}`. No `{appDir}/.nvmrc` → `nodeBin` is
-empty, commands run on the PATH `node`, and the output says so. Skills derive `nodeBin` in Step 0
+empty, the `PATH=` prefix is dropped, commands run on the PATH `node`, and the output says so. Skills derive `nodeBin` in Step 0
 after `appDir` is known and pass it to agents; an agent without one derives it the same way.
 
 **Product rules.** Domain knowledge (e.g. checkout flows, platform integrations, package boundaries,

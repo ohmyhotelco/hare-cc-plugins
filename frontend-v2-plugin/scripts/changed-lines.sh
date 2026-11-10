@@ -70,21 +70,27 @@ echo "head $head_sha"
 echo "dirty $dirty"
 
 out=$(
+  # File-level status first: a deletion or rename of an empty or binary file has no text hunk.
+  git -c core.quotePath=false diff --name-status -M -z "$mb" -- "$@" |
+    while IFS= read -r -d '' st; do
+      case "$st" in
+        (D*) IFS= read -r -d '' p; printf '%s:all (deleted)\n' "$p" ;;
+        (R*) IFS= read -r -d '' o; IFS= read -r -d '' n; printf '%s:all (renamed from %s)\n' "$n" "$o" ;;
+        (C*) IFS= read -r -d '' o; IFS= read -r -d '' n ;;
+        (*)  IFS= read -r -d '' p ;;
+      esac
+    done
   git -c core.quotePath=false diff -U0 -M --no-color --no-ext-diff "$mb" -- "$@" | awk '
     # Git appends a TAB to a ---/+++ path that contains a space; strip it.
     function path(s, pre) { s = substr(s, 5); sub(/\t$/, "", s); sub("^" pre "/", "", s); return s }
-    function flush() { if (rto != "") printf "%s:all (renamed from %s)\n", rto, rfrom; rto = ""; rfrom = "" }
-    /^diff --git / { flush(); hunk = 0; gone = 0; old = ""; f = ""; next }
-    !hunk && /^rename from / { rfrom = substr($0, 13); next }
-    !hunk && /^rename to /   { rto = substr($0, 11); next }
+    /^diff --git / { hunk = 0; gone = 0; old = ""; f = ""; next }
     !hunk && /^--- / { old = path($0, "a"); next }
     !hunk && /^\+\+\+ / {
       f = path($0, "b")
-      if (f == "/dev/null") { printf "%s:all (deleted)\n", old; gone = 1 }
+      if (f == "/dev/null") gone = 1
       next
     }
     /^@@ / {
-      flush()
       hunk = !gone
       if (!hunk) next
       split($2, o, ","); ocount = (o[2] == "" ? 1 : o[2] + 0)
@@ -96,7 +102,7 @@ out=$(
       next
     }
     hunk && /^-/ { t = substr($0, 2); if (length(t) > 200) t = substr(t, 1, 200) "..."; print "  was: " t }
-    END { flush() }'
+'
   git ls-files --others --exclude-standard -- "$@" | sed 's/$/:all (untracked)/'
 )
 

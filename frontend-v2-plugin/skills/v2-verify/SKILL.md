@@ -123,9 +123,10 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.2 ESLint Check
 
-1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*` — in `{appDir}` first, then each parent up to the
-   repo root (ESLint resolves the nearest one). Found in `{appDir}` or a parent → use it; the template
-   fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
+1. Find the config the app's ESLint actually uses. Read the major version (`cd {appDir} && npx eslint
+   --version`): 9 or later reads only `eslint.config.*` (look in `{appDir}`, then each parent up to the
+   repo root, nearest wins); 8 reads `.eslintrc*` the same way. A file of the other kind is ignored.
+   The template fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
 2. **Config found** → detect config type and run:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
@@ -140,11 +141,11 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
    c. If `eslintTemplate === true` or field absent (default: enabled):
       - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
       - Generate `eslint.config.js` in `{appDir}` from the Canonical Config section
-      - Check `{appDir}/package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - Check that each required package resolves from `{appDir}` (declared in `{appDir}/package.json` or a workspace ancestor's, e.g. the repo root): `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency is missing → skip with message:
         > "ESLint skipped (dependencies missing). Install with:"
         > ```
-        > pnpm --filter <the app's package name> add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
+        > cd {appDir} && pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
         > ```
       - If all dependencies are installed → run:
         ```bash
@@ -294,7 +295,7 @@ Read `{runsDir}/{feature}/progress.json` and add or update the `verification` fi
 
 Note: Set `implementation.status` to `"verified"` or `"verify-failed"`. `verified` requires tsc,
 eslint, build, tests, and i18nKeys to each be `pass` or `skipped`; any `fail` or `not-run` sets
-`verify-failed`. `packageTsc` / `packageTests` exist only under `apiLayer == workspace-package` (omit them otherwise);
+`verify-failed`; so does a change-plan owner with a non-empty `missingPlanned` (Step 1 item 4). `packageTsc` / `packageTests` exist only under `apiLayer == workspace-package` (omit them otherwise);
 a `fail` there sets its axis (`tsc` / `tests`) to `fail`. `format` never participates — it is advisory.
 
 Every `skipped` and `not-run` entry carries a `reason` string. A check that did not run is recorded

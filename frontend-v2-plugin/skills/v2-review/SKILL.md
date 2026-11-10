@@ -27,7 +27,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 ### Step 1: Validate Files
 
-**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): both reviewers stay in **pipeline mode** (JSON out, as Steps 4–6 and v2-fix need) with `changeMode: true` added. `specDir` is the brief's folder (`{specRoot}/{workingLanguage}/`, which holds `brief.md`). Before Step 3, compute `changedLines` = the output of `${CLAUDE_PLUGIN_ROOT}/scripts/changed-lines.sh {plan.baseCommit} {each file and test in the plan that exists}` and pass it to the quality reviewer. `baseDir` is `.` (plan paths are repo-relative). One review report for the ticket; each file is judged by its owner app's `plan.apps[].config`, not by the single app Step 0 resolved.
+**Change plan** (`plan.json.changeKind == "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): both reviewers stay in **pipeline mode** (JSON out, as Steps 4–6 and v2-fix need) with `changeMode: true` added. `specDir` is the brief's folder (`{specRoot}/{workingLanguage}/`, which holds `brief.md`). Before Step 3, compute `changedLines` = the output of `${CLAUDE_PLUGIN_ROOT}/scripts/changed-lines.sh {plan.baseCommit} {every file and test path in the plan, including absent `remove` entries and both sides of a rename}` and pass it to the quality reviewer. `baseDir` is `.` (plan paths are repo-relative). One review report for the ticket; each file is judged by its owner app's `plan.apps[].config`, not by the single app Step 0 resolved.
 
 1. Check if `{runsDir}/{feature}/plan.json` exists
    - If not found:

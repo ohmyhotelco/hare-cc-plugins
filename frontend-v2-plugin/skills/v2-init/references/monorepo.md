@@ -64,14 +64,17 @@ here.** Instead:
    and apply the same warning and second confirmation.
 2. Step 3 item 1 (ensure `.claude/` exists), then write `.claude/frontend-v2-plugin.json` in exactly
    this shape — every confirmed key, including `apps`, `defaultApp`, `excludePaths` and `rulesDir`, plus
-   every key already in the old file that this step does not detect (`renderingDefault`, `prettierTemplate`,
-   a per-app override, …), unchanged (invented values):
+   every key already in the old file that this step does not detect (`renderingDefault`, a per-app
+   override, …), unchanged — a freshly detected value always replaces the old one. When the app set
+   changed (an app added, or a single-app config becoming this shape), an undetected old top-level value
+   is not silently shared: ask whether it applies to every app or only to the old one (then move it under
+   that app) (invented values):
 
 ```json
 {
   "appProfile": "ota", "routerMode": "framework", "serverState": "tanstack-query", "formStack": "native",
   "e2eTool": "playwright", "mockFirst": true, "clientStore": "none",
-  "componentLibrary": "external", "externalComponents": { "package": "@acme/ui", "cssEntry": "@acme/ui/styles.css" },
+  "componentLibrary": "external", "externalComponents": { "package": "@acme/ui", "cssEntry": "@acme/ui/styles.css", "uiKitDir": "apps/web/app/ui-kit" },
   "apiLayer": "workspace-package", "apiPackage": { "package": "@acme/data", "dir": "packages/data", "entry": "packages/data/src/index.ts" },
   "eslintTemplate": false, "prettierTemplate": false,
   "i18n": { "languages": ["en", "ko"], "lookupFns": ["t"] },
