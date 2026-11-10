@@ -53,6 +53,7 @@ exists. Product knowledge stays in the product repo: its `docs/rules/` and its c
 | 2026-11-10 | Third Codex review, only the second fix commit, asked whether it introduced problems | 8 findings, 7 fixed in `efc50fe` (re-plan base for a later PR, change-mode e2e report shape, lookup function for a language-first helper, question shape, consumer check display, import value rule, exit code text). Kept as a documented limit: a submodule path that starts with `dirty:` is misread |
 | 2026-11-10 | Fourth Codex review, only the third fix commit | 3 findings, fixed in `ecf2555`: the re-plan base question was asked only past `planned`, a skipped rerun left an old failure report, and the v2-fix prompt still required a trace |
 | 2026-11-10 | Fifth Codex review, only the fourth fix commit | No findings; its scratch-repo gate checks (spaces, deleted file, submodule clean, moved, dirty, restored) gave the expected verdicts |
+| 2026-11-10 | Full Codex review of everything changed since `694e5c3`, four areas in parallel | 27 high (20 after merging duplicates): 15 caused by this fork, fixed in `063b2e7`, `b1a0130`, `3027e0e`; 5 already in the parent plugin (listed below). Each fix commit was reviewed alone, and its findings fixed in `c71e5b1`, `c4c2235`, `f16bab1`, `8675064`, `3e14ada`, `62216f2`. The ESLint fallback (no app `lint` script) kept trading one ESLint version case for another, so `eb7ae94` restores the parent's steps with two monorepo changes; its version cases are listed below. Medium and low findings are listed below, not fixed |
 | 2026-11-10 | Read of everything changed since `694e5c3` and all commit messages, for product content | Four example names made neutral (`34fa06a`) |
 
 ## Not yet exercised
@@ -60,3 +61,35 @@ exists. Product knowledge stays in the product repo: its `docs/rules/` and its c
 On a real ticket: an app that imports by relative path and a language-first helper, `appsReadOnly`
 with a pending decision, the e2e base vs HEAD step, a change across two apps, a new screen through
 route registration, and the routing evals for the renamed skills.
+
+## Known gaps (from the 2026-11-10 reviews, not fixed)
+
+In the parent plugin as well (report upstream):
+- A failed e2e runtime health check saves no `e2e-report.json`, so v2-fix cannot take it.
+- An e2e fix before any review can move a feature to `done`.
+- The fixer is told to read Playwright traces with `show-trace`, a UI it cannot see.
+- v2-fix calls the re-review both required and optional.
+- Playwright scenarios that depend on each other are not forced to run in order.
+
+ESLint fallback (only for an app without its own `lint` script; same as the parent): ESLint 8 with a flat
+config, ESLint 9+ with a legacy config, a config with ESLint not installed (the `npx` call), and declared
+but uninstalled template packages are not told apart.
+
+This fork:
+- Planning and generation: the planner's "only plan.json" key rule reads against the change-mode two-file
+  output; a new e2e spec in a change plan has no generation phase.
+- Verification and progress: v2-verify takes its lock after the confirmation prompts; a mixed own and
+  shared staleness lists only the own files; `unverifiable` and "not recorded" can both apply; the
+  all-features view does not check gate freshness; a package is assumed to keep code in `src`; the change
+  progress view reads `specChanges` where a change delta writes `ticketItems`.
+- Init and session start: the session hook reads stack keys without the default app's overlay; multi-app
+  post-setup uses one stack and root installs; framework is read as the `ota` date stack, React Hook Form
+  alone as RHF + zod, and `mockFirst` is not asked; whether languages come from locale folders is stated
+  two ways; `excludePaths` is not applied to whole-app lint and format runs.
+- Review, fix and audits: two quality-reviewer lines disagree on attributing old debt in change mode;
+  skipped spec-review dimensions have no scoring rule; the agent-browser template still starts Vite for
+  framework apps; the Codex auditor cannot see `excludePaths` and has no base for a review-stage diff; the
+  clean-code attribution retry has no message recipient; a test listed in two plans has an ambiguous spec;
+  change-mode fix staleness scans the whole repo; a synthesized runner-error report cannot enter fix mode.
+- Scripts: a submodule path that itself starts with `dirty:` is misread by `gate-record.sh check`.
+
