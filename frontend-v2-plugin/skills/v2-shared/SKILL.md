@@ -64,7 +64,7 @@ a planning-plugin spec exists there, else `{runsDir}/{feature}/spec`.
 
 **Per-app layout.** An app may carry `layout` (config `apps.{app}.layout`, paths relative to its
 `appDir`): `routes`, `routeRegistry`, `components` and `lib` (each may contain `{area}`), `tests`
-(`colocated` | `__tests__`), `mocks` (a pattern such as `app/mocks/handlers.{area}.ts`), `fileCase`
+(`colocated` | `__tests__`), `mocks` (a pattern such as `app/mocks/{area}.ts`), `fileCase`
 (`kebab` | `pascal`). When present it replaces the feature-module layout (`{baseDir}/features/{feature}/…`)
 for that app: the planner writes exact paths from it into `plan.json`, and every other agent follows
 the plan. Apps in one repo can differ — never carry one app's layout into another. Absent → look at the

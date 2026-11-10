@@ -21,7 +21,7 @@ Never scan anything under `excludePaths` (v2-shared § Monorepo Rules) and never
 ## Input Parameters
 
 No session history — only: `projectRoot`, `appDirs` (e.g. `["apps/web", "apps/admin"]`),
-`packageDirs` (`packages/shared-*` that exist), `baselinePath` (an earlier report to compare against,
+`packageDirs` (the workspace package dirs that exist), `baselinePath` (an earlier report to compare against,
 or null), `outPath`, `workingLanguage`.
 
 ## What to scan

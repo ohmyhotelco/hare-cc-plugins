@@ -5,8 +5,8 @@
 #
 # <base> is a commit SHA or a remote-tracking ref (origin/master). A LOCAL branch name
 # (master, main, develop) is refused: a local branch can sit far behind the remote, and a diff
-# against it counts other people's merged commits as this change's (observed: a stale local
-# master attributed an already-merged commit to the PR under review).
+# against it counts other people's merged commits as this change's (a stale local master
+# can attribute an already-merged commit to the PR under review).
 #
 # The diff runs from merge-base(<base>, HEAD) to the WORKING TREE, so uncommitted edits count as
 # part of the change; untracked files under <path> are listed as wholly new.
