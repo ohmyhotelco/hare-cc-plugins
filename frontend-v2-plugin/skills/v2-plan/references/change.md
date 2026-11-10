@@ -57,8 +57,9 @@ edit it. Declined → delete what this run wrote and stop.
 
 ### C.4: Launch the planner
 
-When `plan.json` or `delta-plan.json` already exists, copy each to `plan.prev.json` / `delta-plan.prev.json`
-first (C.5 restores them on a decline). Record `baseCommit` = `git rev-parse HEAD` now — or the kept one when C.0 found a re-plan of the same unmerged change, so its earlier commits still count; pass it to the planner, which writes it into `plan.json`. Reviews and gate records use it to tell what this change wrote.
+When `plan.json` or `delta-plan.json` already exists and no `plan.prev.json` / `delta-plan.prev.json` is
+there yet, copy each to that name first — once per re-plan, so a C.5 question re-run does not overwrite
+the accepted copy. Any exit before acceptance (decline, planner failure, stop) restores them. Record `baseCommit` = `git rev-parse HEAD` now — or the kept one when C.0 found a re-plan of the same unmerged change, so its earlier commits still count; pass it to the planner, which writes it into `plan.json`. Reviews and gate records use it to tell what this change wrote.
 
 ```
 Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "

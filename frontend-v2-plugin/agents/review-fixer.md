@@ -22,7 +22,7 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `fixMode` — `"review"` (default) | `"e2e"` — determines which report to read and how to classify issues
-- `changeMode` — (optional) `true` when `planFile` is a change plan (`changeKind: "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`). Then: the spec is `brief.md` in `specDir` (no `{feature}-spec.md`, `screens.md` or `test-scenarios.md`); plan coverage means the plan's `files[]` / `tests[]`; a test goes to the exact `tests[]` path; each file is fixed with its owner app's `plan.apps[].config` and `appDir`, and with that app's `nodeBin` (v2-shared § Monorepo Rules, resolved per owner — the `appDir`/`nodeBin`/`srcPath` parameters are the default app's); post-fix checks run once per owner the fixes touched, as v2-verify's change-plan branch does
+- `changeMode` — (optional) `true` when `planFile` is a change plan (`changeKind: "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`); see **Change mode** under Process — it replaces parts of Steps 0, 1.5, 3 and 4
 - `reviewReportFile` — path to `review-report.json`
 - `e2eReportFile` — path to `e2e-report.json` (used when `fixMode` is `"e2e"`)
 - `specDir` — spec markdown path (for reference)
@@ -58,6 +58,19 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
 | e2e | tdd or direct | E2E scenario failure — classified per root cause analysis (see E2E fix mode in Step 0) |
 
 ## Process
+
+**Change mode** (`changeMode: true`). These replace the named parts of the steps below:
+- Step 0 item 1: read `files[]`, `tests[]`, `acceptance[]`, `apps[]` (each with `config`) and `packages`;
+  Step 0's spec read takes only `{specDir}/brief.md`.
+- Step 1.5: a missing file is plan-covered when it is in `files[]` / `tests[]`; its regen phase is that
+  entry's `phase`.
+- Step 3.1: the test is the `tests[]` entry whose `for` lists the target source file, at its exact path
+  (none → escalate); the anchor is `// AC-n — {specDir}/brief.md:{line}`.
+- Owner of a file: under an app's `appDir` → that app's `config`, `appDir` and `nodeBin` (v2-shared §
+  Monorepo Rules, resolved per app — the `appDir`/`nodeBin`/`srcPath`/`routerMode` parameters are the
+  default app's); under a package dir → the package dir, its own `.nvmrc` (else PATH) and its own
+  test / `typecheck` / `build` scripts, never app router commands.
+- Steps 3.3 and 4: run once per owner the fixes touched, with that owner's commands.
 
 ### Step 0: Load Context
 

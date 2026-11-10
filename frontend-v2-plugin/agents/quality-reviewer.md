@@ -21,7 +21,7 @@ The skill will provide these parameters in the prompt:
 - `planFile` — implementation plan file path (e.g., `{runsDir}/{feature}/plan.json`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
-- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied.
+- `routerMode` — `"declarative"` | `"data"` | `"framework"` (default `declarative` when absent) — selects the router conventions checked in dimension 1.6. Also present in `plan.json`; the parameter wins when both are supplied — except for a change plan, where each file's router mode (and every other stack knob) comes from its owner app's `plan.apps[].config` and the parameter is ignored.
 - `changeMode` — (optional, pipeline mode) `true` for a change plan (`${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`): the files under review are the plan's `files[]` + `tests[]` (repo-relative) instead of everything under `baseDir`; skip Phase 0-P item 3 (there is no feature module to compare against — compare with each file's neighbours); apply § Change Attribution with `changedLines` and add `"attribution": "introduced" | "touched" | "pre-existing"` to every issue in the JSON. Scores, counts and `status` use introduced issues only.
 
 ### Standalone Mode
@@ -91,7 +91,7 @@ for a pure addition. You cannot run git, so the `was:` lines are your only view 
 2. **External skills** — Read each SKILL.md and apply its rules during the specified review dimensions:
    - Read `.claude/skills/vercel-react-best-practices/SKILL.md` → apply performance and architecture rules when evaluating dimensions 1.2 (Consistent Patterns) and 1.7 (Architecture & Design). **RSC/SSR rules are router-mode conditional** (v2-shared § Router-mode command matrix, "SSR rules" row): in `declarative`/`data` (Vite SPA) skip them; in `framework` mode the app is **not** a Vite SPA (per-route SSR/SSG) — **apply** the SSR/rendering-strategy rules.
    - Read `.claude/skills/vercel-composition-patterns/SKILL.md` → apply composition rules when evaluating dimensions 1.1 (Single Responsibility) and 1.7 (Architecture & Design).
-   - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
+   - Read `.claude/skills/react-router-{routerMode}-mode/SKILL.md` (use `routerMode` from plan; a change plan: once per distinct `apps[].config.routerMode`, each applied to that app's files) → apply router convention rules when evaluating dimension 1.6 (Convention Compliance).
    - If plan has `tests[]`: Read `.claude/skills/vitest/SKILL.md` → apply test quality rules when evaluating test files within dimensions 1.1 (Single Responsibility) and 1.2 (Consistent Patterns).
 3. **Project patterns** — identify patterns from existing feature modules:
    - Derive project base: remove the trailing `features/{feature}` segment from `baseDir` (e.g., `app/src/features/order-management` → `app/src`)
@@ -111,7 +111,7 @@ for a pure addition. You cannot run git, so the `was:` lines are your only view 
 
 1. **Skip** plan loading — no `planFile` required
 2. **Skip** external skill loading — no per-feature skill reading
-3. **Config** — read `.claude/frontend-v2-plugin.json` and overlay `apps[{app}]` for the app whose `appDir` contains the reviewed paths (v2-shared § Monorepo Rules) to extract `routerMode`, `serverState`, `formStack`, `appProfile`, and the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (+ companion objects) for the config-gated convention checks in dimensions 1.6/1.2. Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`), leaving the gated checks inactive.
+3. **Config** — read `.claude/frontend-v2-plugin.json` and overlay `apps[{app}]` for the app whose `appDir` contains each reviewed path (v2-shared § Monorepo Rules; paths in several apps are judged per app, a path outside every `appDir` — a shared package — by the top-level values and the package's own setup) to extract `routerMode`, `serverState`, `formStack`, `appProfile`, and the Phase 2 knobs `componentLibrary`/`apiLayer`/`i18nBinding`/`clientStore` (+ companion objects) for the config-gated convention checks in dimensions 1.6/1.2. Absent keys take their defaults (`serverState=zustand-only`, `formStack=native`, `appProfile=admin`, `componentLibrary=shadcn`, `apiLayer=feature-local`, `i18nBinding=react-i18next`, `clientStore=zustand`), leaving the gated checks inactive.
 4. **Project patterns** — identify patterns from existing modules:
    - If `targetPath` contains `/features/`: derive project base by removing `/features/...` suffix
    - Otherwise: use `baseDir` from config to derive project base

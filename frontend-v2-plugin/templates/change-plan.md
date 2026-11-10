@@ -15,9 +15,11 @@ a new route with a new page is a **new screen**: plan it with `v2-plan {feature}
 - `briefFile` — `{runsDir}/{feature}/spec/{lang}/brief.md`: goal, acceptance criteria `AC-1…n`, out of
   scope, apps and packages named. The only requirements source. Never add a requirement it does not
   state; anything unclear goes to `questions[]` in the plan.
-- `apps` — the apps in scope, each `{ app, baseDir, appDir }` already merged from the config.
+- `apps` — the apps in scope, each `{ app, baseDir, appDir, config }` already merged from the config;
+  `config` holds that app's stack keys and companion objects. Copy each entry into `plan.json` unchanged.
 - `packageDirs` — workspace packages the apps depend on, minus `excludePaths`.
-- `excludePaths`, `rulesDir`, plus the shared stack keys (`routerMode`, `serverState`, …).
+- `excludePaths`, `rulesDir`, plus the default app's stack keys (`routerMode`, `serverState`, …) — plan
+  each app's files with its own `apps[].config`, never these.
 - `outputFile` (`plan.json`), `deltaOutputFile` (`delta-plan.json`).
 
 ## Process
@@ -31,7 +33,8 @@ a new route with a new page is a **new screen**: plan it with `v2-plan {feature}
 3. **Decide the edits.** For each AC: which files change (`modify`), which are new (`create`), which
    go (`remove`). Prefer the smallest edit that satisfies the AC. A change in a shared package is
    planned once, under that package, and every app in scope that imports it is listed in `consumers`.
-4. **Tests.** Every behavioural AC gets a test that fails before the change and passes after it.
+4. **Tests.** Every behavioural AC gets a test that fails before the change and passes after it. Each
+   `tests[]` entry names in `for` the `files[]` source paths it is the failing test of.
    Put tests where that app already puts them and name them the way that app does — look at the files
    next to the target (`foo.test.tsx` beside `foo.tsx`, or a `__tests__/` folder). Mocks follow the
    app's existing mock files: find the handler file that already serves the endpoint and extend it, or
@@ -70,7 +73,7 @@ All `file` values are **repo-relative**.
     { "file": "apps/web/app/components/cart/total.tsx", "app": "web", "op": "modify", "phase": "component-tdd", "ac": ["AC-1"] }
   ],
   "tests": [
-    { "file": "packages/data/src/price/total.test.ts", "package": "packages/data", "op": "modify", "ac": ["AC-1"] }
+    { "file": "packages/data/src/price/total.test.ts", "package": "packages/data", "op": "modify", "ac": ["AC-1"], "for": ["packages/data/src/price/total.ts"] }
   ],
   "questions": [
     { "id": "Q1", "topic": "…", "detail": "…", "planDefault": "…", "blocking": false, "status": "open | answered | deferred", "answer": null, "heldBy": null }

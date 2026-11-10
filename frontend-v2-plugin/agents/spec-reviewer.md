@@ -20,7 +20,7 @@ The skill will provide these parameters in the prompt:
 - `specDir` — spec markdown directory path (e.g., `{specRoot}/{lang}/`)
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 
-- `changeMode` — (optional) `true` for a change plan: review each `acceptance[]` item of `planFile` against its `files[]`/`tests[]` and the brief in `specDir` — is every AC implemented and pinned by a test, and did the change stay inside the brief (nothing added it does not ask for)? Read only `{specDir}/brief.md` (its `AC-n` items are the requirements) and the plan's `files[]`/`tests[]`; do not look for `{feature}-spec.md`, `screens.md`, `test-scenarios.md` or UI DSL, and skip the dimensions that need them, saying so. Anchors in a change cite `brief.md:AC-n`.
+- `changeMode` — (optional) `true` for a change plan: review each `acceptance[]` item of `planFile` against its `files[]`/`tests[]` and the brief in `specDir` — is every AC implemented and pinned by a test, and did the change stay inside the brief (nothing added it does not ask for)? Read only `{specDir}/brief.md` (its `AC-n` items are the requirements) and the plan's `files[]`/`tests[]`; do not look for `{feature}-spec.md`, `screens.md`, `test-scenarios.md` or UI DSL, and skip the dimensions that need them, saying so. Anchors in a change cite the AC id and its brief line: `// AC-n — {specDir}/brief.md:{line}`.
 
 ## Process
 

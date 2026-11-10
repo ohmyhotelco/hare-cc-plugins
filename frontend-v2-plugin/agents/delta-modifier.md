@@ -129,8 +129,8 @@ The delta comes from a ticket (`mode: "change"`, contract in
   and `acceptance[]` only — read those. Step 0's spec read takes only `{specDir}/brief.md`.
 - A test anchor in a change cites the AC id and the brief line that states it:
   `// AC-1 — {specDir}/brief.md:{line}` (tdd-rules.md wants a line to read).
-- The test to extend or create is the exact `tests[]` path the plan gives for that file's `ac` (the
-  app's own placement: colocated or `__tests__/`), not a path derived from `{baseDir}`; a `tests[]`
+- The test to extend or create is the `tests[]` entry whose `for` lists that source file (the
+  app's own placement: colocated or `__tests__/`); no such entry → escalate, never guess by `ac`, not a path derived from `{baseDir}`; a `tests[]`
   entry is the RED step of its source entry, not a separate operation.
 - Step 4 for a `package` owner runs only the package's own test, `typecheck`/`build` scripts (else
   `tsc`) from the package dir — no `react-router typegen` and no app router build, which are app-owner
