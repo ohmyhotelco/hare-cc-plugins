@@ -229,7 +229,7 @@ single-datastore package split and calling it done.
 **Date:** 2026-11-06 · **Tickets:** ELS-4416 (decision), ELS-4167 (method)
 
 **Decision:** Option B of the plugin build guide (§3): extend `backend-webflux-plugin` with a module
-setting (Decision 10) and script-written verification evidence (Decision 12), released as `0.3.0`.
+setting (Decision 10) and script-produced verification evidence (Decision 12), released as `0.3.0`.
 No new plugin, no new prefix.
 
 **Rationale:**
@@ -246,105 +246,187 @@ No new plugin, no new prefix.
    right if the templates are wrong for the target rather than incomplete; nothing measured so far
    shows that, and a copy would double the maintenance of a plugin the owner keeps simple.
 
-**Consequence:** the extension is three PRs after this one — module scope (Decision 10, 13), evidence
-(Decision 12), version chore — each closed by two runs: `examples/employee-service` with no `module`
-key (current behaviour) and a scratch clone of the new target with `module` set. Decisions 14 and 15
-record what is deliberately not changed.
+**Consequence:** the extension is three PRs after this one — module scope (Decisions 10, 11, 13, 14),
+evidence (Decision 12), version chore — each closed by two runs: `examples/employee-service` with no
+`module` key (current behaviour) and a scratch clone of a multi-module target with `module` set.
+Decisions 14 and 15 record what is deliberately not changed.
 
-## Decision 10: Module scope — one `module` and one `taskPrefix` per config
+## Decision 10: Module scope — one `module` per config, its directory and task prefix derived
 
-**Decision:** `.claude/backend-webflux-plugin.json` gains two optional keys:
+**Decision:** `.claude/backend-webflux-plugin.json` gains one optional key and two keys derived from it:
 
-- `module` — the Gradle subproject the plugin works in (for example `"app-api"`). Absent means the
-  single-module behaviour of 0.2.x.
-- `taskPrefix` — derived as `":<module>:"` when `module` is set, `""` otherwise. Every Gradle call
-  made by a be- skill or agent is `./gradlew {taskPrefix}<task>`.
+| Key | Value | Written by |
+|---|---|---|
+| `module` | the **Gradle project path** as `settings.gradle` includes it, with the leading colon (`":orders-api"`, `":services:orders"`). Absent ⇒ the single-module behaviour of 0.2.x | `be-init --module` |
+| `moduleDir` | the project's directory relative to the Gradle root: `:a:b` → `a/b`, or the relocated `projectDir` when settings sets one. `""` when `module` is absent | `be-init`, derived |
+| `taskPrefix` | `module` + `":"` (`":services:orders:"`); `""` when `module` is absent | `be-init`, derived |
 
-`be-init` gains its first argument, `--module <name>`; without it, it asks only when `settings.gradle`
-includes subprojects. When `module` is set, `be-init` derives `sourceDir` and `testDir` under it, runs
-its Step 2 checks (base package, data profile, database, migration directory, checkstyle, coverage)
+`module` names the project, not a directory, because the two differ for a nested path (`:a:b`) and
+for a relocated `projectDir`; Gradle task paths use the project path, file paths use `moduleDir`.
+
+`be-init` gains its first argument, `--module <path>`; without it, it asks only when `settings.gradle`
+includes subprojects. It refuses a `module` that settings does not include or whose directory it
+cannot resolve. With `module` set it derives `sourceDir` and `testDir` under `moduleDir`, runs its
+Step 2 checks (base package, data profile, database, migration directory, checkstyle, coverage)
 against the module, reads the Java and Spring Boot versions from the module build file **or, if
-absent there, from the root build file** (`buildscript.ext`, `subprojects {}`, `allprojects {}`), writes
-`buildCommand` and `testCommand` with the prefix, and refuses a `module` that `settings.gradle` does
-not include. `be-verify` reads test results only from `<module>/build/test-results/`.
+absent there, from the root build file** (`buildscript.ext`, `subprojects {}`, `allprojects {}`), and
+writes `buildCommand` and `testCommand` with the prefix. Every task-level Gradle call is
+`{gradleCommand} {taskPrefix}<task>`.
+
+**Paths with no config key.** Paths the skills write as repository-root literals move under
+`moduleDir`:
+
+| Path today | 0.3.0 | Read or written by |
+|---|---|---|
+| `src/main/resources/migration/` | `{moduleDir}/src/main/resources/migration/` | `be-init` item 8, `be-crud` (SKILL, `references/generate.md`, `references/examples.md`), `be-jira-auto` (SKILL, `references/implement.md`), `be-review`, `be-data`, `backend-planner` |
+| `src/main/resources/mapper/` | `{moduleDir}/src/main/resources/mapper/` | `be-review`, `be-data`, `be-security` |
+| `build/test-results/test/`, `build/reports/jacoco/test/` | under `{moduleDir}/build/` only | `be-verify` (Decision 12) |
+| `config/checkstyle/checkstyle.xml` | stays at the Gradle root, Gradle's default for every subproject; another file only when the build sets `configDirectory`, `config` or `configFile` for the module | `be-init` item 9, `code-reviewer` |
+| `./gradlew :{module}:test` in `templates/tdd-rules.md` | `{gradleCommand} {taskPrefix}test` | `implement`, `review-fixer`, `be-test-review` |
+
+**One config per repository.** The config file is per repository, so `be-init` for a second module
+replaces the first. `be-init` Step 1 already asks before it overwrites a config; when the `module`
+changes, the same question also lists the progress records whose `module` differs from the new one
+and says they stop counting as current until the config names their module again. The reading side compares a record's `module` with the configured
+one (Decision 12, class `other-module`). A developer who works in two modules runs `be-init` when
+switching.
 
 **Rationale:** without a prefix every gate builds and tests every subproject, and a test report from a
 module the change did not touch can fail or pass the gate. One module per config keeps one answer per
-question; a developer who works in two modules runs `be-init` per module. No knob branches a dependency
-set, so the guide's per-branch sample rule (§3) does not apply and `examples/employee-service` stays
-the only sample.
+question. No knob branches a dependency set, so the guide's per-branch sample rule (§3) does not apply
+and `examples/employee-service` stays the only sample.
 
-**Consequence:** `be-init`, `be-verify`, `be-build`, `be-code` and the `implement`, `build-doctor`,
-`review-fixer`, `debugger` agents read `taskPrefix` for every task-level Gradle call (`classes`,
-`checkstyleMain`, `test`, `jacocoTestReport`, `build`); the repository's
-`scripts/check-plugin-consistency.py` gets both keys in its wiring table. A config written by 0.2.x
-keeps working unchanged.
+**Consequence:** `be-init`, `be-verify`, `be-build`, `be-code`, `be-crud`, `be-review`, `be-data`,
+`be-security`, `be-jira-auto`, the `implement`, `build-doctor`, `review-fixer`, `debugger`,
+`code-reviewer`, `backend-planner` agents and `templates/tdd-rules.md` read the new keys; the
+repository's `scripts/check-plugin-consistency.py` gets all three in its wiring table. A config
+written by 0.2.x has no `module` and keeps working unchanged.
 
 ## Decision 11: Web layer in a module that already mixes styles
 
 **Decision:** when `be-init` finds both `RouterFunction` and `@RestController` classes in meaningful
-numbers (Step 2 item 6), it no longer stops to ask: it writes `webLayer: "functional"` and says why in
-Step 7. `webLayer` keeps its two values. It governs **new domains**; a new file in an **existing
-domain** follows the style that domain already uses, whatever `webLayer` says.
+numbers (Step 2 item 6), it no longer raises a separate warning that asks for one style: it proposes
+`webLayer: "functional"` with the other detected values and says why. `webLayer` keeps its two values.
+It governs **new domains**; a new file in an **existing domain** follows the style that domain already
+uses, whatever `webLayer` says.
 
 **Rationale:** Decision 2 already sets the two rules this needs — functional for a new domain, never
-two styles in one domain. The question in Step 2 item 6 asks the user to pick one style for a module
-that, by Decision 2's own rule, legitimately holds both; and it blocks a headless run. Rewriting an
-existing domain to the other style is a refactor, not a feature.
+two styles in one domain. The warning asks the user to pick one style for a module that, by Decision
+2's own rule, legitimately holds both. Rewriting an existing domain to the other style is a refactor,
+not a feature. The Step 1 (existing config) and Step 3 (confirm detected values) questions stay as
+they are; this decision removes one question, it does not make `be-init` non-interactive.
 
-**Consequence:** `be-init` Step 2 item 6 and Step 3 lose the mixed-case question; `be-code` and the
-code-reviewer agent check the style per domain. No new config value.
+**Consequence:** `be-init` Step 2 item 6 and the matching Step 3 warning lose the mixed-case question;
+`be-code` and the `code-reviewer` agent check the style per domain. No new config value.
 
-## Decision 12: What "verified" means — one script writes the record, a subset run is `partial`
+## Decision 12: What "verified" means — a script runs the gate and writes the record
 
-**Decision:** `scripts/verify-record.sh` becomes the only writer of `pipeline.verification` in
-`{workDocDir}/.progress/{feature}.json`. Skills and agents never edit that block. The layout stays
-`.progress/` (guide §7: the older layout of the be- plugins stays as it is); the record gains fields,
-it is not moved.
+**Decision:** `scripts/verify-run.sh` runs the verification rows itself and is the only writer of
+`pipeline.verification` in `{workDocDir}/.progress/{feature}.json`. The caller never passes a result:
+the script works out every value from what it ran. `be-verify` calls it inside its own lock and
+reports the JSON it prints; skills and agents never edit the block. The layout stays `.progress/`
+(guide §7: the older layout of the be- plugins stays as it is); the record gains fields, it is not
+moved. `frontend-ohmyhotel-plugin/bin/fo-verify-run` is the precedent for a gate that runs its own
+checks.
+
+**What the script derives.**
+
+1. It records `tree` (`scripts/source-tree-hash.sh`, Decision 13) **before** the first task, as
+   `be-verify` does today.
+2. It runs the five rows of `be-verify` Step 1 with `{gradleCommand}` and `{taskPrefix}` on every
+   task: `classes testClasses`, `checkstyleMain checkstyleTest` (when `checkstyle` is true), `test`,
+   `build`, `jacocoTestReport` (when `coverage` is true; `-x test` after a red `test`). Each row's
+   status comes from that run's exit code.
+3. It reads test counts from `{moduleDir}/build/test-results/test/TEST-*.xml` only, summing the
+   `<testsuite>` attributes, and checks that the XML files were written by this run (newer than its
+   start). `tests.status` is `pass` only when the task exited 0, at least one suite was read, and
+   `failures + errors` is 0.
+4. `testsRun` is `full` when the script ran the `test` task with no filter, which is what `be-verify`
+   always asks for. A run with `--tests <filter>` (diagnosis only) is `subset`; see below.
+5. `status` is `pass` only when every row passed and `testsRun` is `full`; `fail` when any row failed;
+   `not-run` when the toolchain is missing (no `gradlew` or `gradle`, no `java`), with a `reason`.
 
 | Field | Values | Rule |
 |---|---|---|
-| `status` | `pass` · `fail` · `partial` · `not-run` | `pass` needs `tree` (exit 4 otherwise, file unchanged); `partial` when `testsRun` is `subset`; `not-run` when the toolchain is missing |
-| `tree` | `scripts/source-tree-hash.sh` value | as today |
-| `testsRun` | `full` · `subset` | `be-verify` always runs the full test task of the module and records `full`; any run narrowed by a Gradle `--tests` filter is `subset` |
-| `module` | the configured module, or absent | copied from config |
-| `coverage.status` | `pass` · `fail` · `not-run` | `not-run` when no JaCoCo report exists (guide §7.5: could not check is not nothing to check); `skip` in 0.2.x records is read as `not-run`. Still report-only (Decision 6): `fail` and `not-run` do not fail `status` |
-| `coverage.linePercent` | number, or absent | present whenever a JaCoCo report was read |
-| `writer` | `verify-record` | absent ⇒ the record was not written by the script |
+| `status` | `pass` · `fail` · `not-run` | derived as above, never passed in |
+| `compilation`, `checkstyle`, `tests`, `build` | as in 0.2.4 | from the task exit codes and the module's JUnit XML |
+| `coverage` | as in 0.2.4: `status` `pass` · `fail` · `skip`, `linePercent`, `thresholdEnforced: false` | **unchanged** (Decision 6): `coverage: true` with a missing or unparseable report is `fail` and fails `status`; `skip` means exactly `coverage: false`. The percentage stays report-only |
+| `tree`, `treeScope` | hash, `module` · `full` | Decision 13 |
+| `testsRun` | `full` | always `full` in this block |
+| `module` | the configured `module`, or absent | copied from config |
+| `writer` | `verify-run` | absent ⇒ the record was not written by the script |
+| `committed`, `committedAt` | `true`, timestamp | set only by `verify-run.sh mark-committed` (below) |
 
-Reading side (`be-progress`, `be-review`, `be-commit`, `be-jira-auto`): a record is **current** when
-`writer` is `verify-record`, `status` is `pass`, `testsRun` is `full` and `tree` equals the recomputed
-hash; **stale** when the hash differs; **partial** when `status` is `partial`; **unverifiable** when
-`writer` or `tree` is missing. Only current lets `be-review` and `be-commit` proceed. There is no
-override field; `gateOverride` and similar hand-added keys are ignored.
+`pipeline.status` follows `status` as in 0.2.4: `pass` → `verified`; `fail` and `not-run` →
+`verify-failed`. `not-run` adds no pipeline status; `be-progress` shows its `reason` and the command
+to fix the toolchain.
 
-The script needs `jq` (exit 6 if missing), takes a `mkdir` lock released by `trap` (Git Bash and macOS
-bash 3.2 have no `flock`), and replaces the file atomically (write a temporary file, then `mv`).
-`frontend-ohmyhotel-plugin/bin/fo-evidence` is the reference.
+**`partial` — who writes it.** Only `verify-run.sh --tests <filter>` produces `partial`, and it writes
+it to a separate block, `pipeline.verificationPartial` (`status: partial`, `testsRun: subset`, the
+filter, counts, `tree`, `writer`), never to `pipeline.verification`, and it exits 1. It does not change
+`pipeline.status`: a subset run can never stand in for the gate, and it cannot replace a full record.
+No skill calls it in 0.3.0; it exists so a developer's narrowed run leaves a record that is visibly
+not a pass.
 
-**Rationale:** records written in prose drift: a subset run recorded as `pass`, a red suite recorded as
-`pass` with an override, a coverage row of `skip` that cannot be told apart from "not configured". The
-CI gate will count verified records; it can only count what a script
-wrote. Keeping `status` (not renaming it) keeps 0.2.x readers and existing records parseable.
+**`committed` — who writes it.** `be-commit` Step 6.5 keeps its job but calls
+`verify-run.sh mark-committed --feature <f>`: the script recomputes the staged tree hash itself, sets
+`committed: true` and `committedAt` only when it equals `pipeline.verification.tree` and the record is
+`pass` with `writer: verify-run`, and leaves the record unchanged otherwise. `be-verify` still
+**replaces** the block, so a new verification drops an old `committed` mark (0.2.4 Step 3).
 
-**Consequence:** every record written before 0.3.0 is `unverifiable` until `be-verify` runs again;
-`be-progress` says so and names the command. A target whose full module suite cannot pass on a
-developer machine cannot reach current — that is a target-side fix (test isolation in the product
-repository), not a gate setting in this plugin.
+**Reading side** (`be-progress`, `be-review`, `be-commit`, `be-build`, `be-jira-auto`), first match wins:
+
+| Class | When | Effect |
+|---|---|---|
+| `committed` | `committed` is `true` | history: not compared with later trees or the configured module, blocks nothing; `be-build` keeps its committed-record rule; a pre-0.3.0 record with `committed: true` is read the same way |
+| `unverifiable` | `writer` or `tree` missing | blocks `be-review` and `be-commit`; `be-progress` names `be-verify` |
+| `other-module` | `module` differs from the configured `module` | blocks; `be-progress` names both modules (Decision 10) |
+| `stale` | `tree` differs from the hash recomputed with the record's `treeScope` | blocks; re-run `be-verify` |
+| `current` | `writer` is `verify-run`, `status` is `pass`, `testsRun` is `full`, tree equal | lets `be-review` and `be-commit` proceed |
+| `failed` | otherwise (`fail`, `not-run`) | blocks, as `verify-failed` does today |
+
+There is no override field; `gateOverride` and similar hand-added keys are ignored.
+
+The script needs `jq` (exit 6 if missing). It takes no lock of its own: when it writes, it requires
+the caller's lock (`operation` `be-verify` or `be-commit`, `--run-id` equal to the lock's `runId`,
+exit 5 otherwise) and replaces the file atomically (write a temporary file, then `mv`). `be-verify`
+with no feature argument takes no lock today; it calls the script with `--no-write`, which runs the
+same rows, prints the same JSON and writes nothing.
+
+**Rationale:** a record whose values the caller supplies is only as good as the caller; a CI gate that
+counts verified records can only count what a script derived from what it ran. Coverage keeps the
+0.2.4 rule because loosening it is a separate decision with its own case, and `skip` keeps its single
+meaning. Keeping `status` (not renaming it) keeps 0.2.x readers and existing records parseable.
+
+**Consequence:** a record written before 0.3.0 and not yet committed is `unverifiable` until
+`be-verify` runs again; `be-progress` says so and names the command. A committed one stays history.
+A module whose full test suite does not pass where the gate runs cannot reach `current`; the fix is in
+that repository's tests, not a gate setting in this plugin.
 
 ## Decision 13: Tree hash scope with a module
 
-**Decision:** with `module` set, `scripts/source-tree-hash.sh --module <m>` hashes the module, every
-subproject it depends on through `project(':x')` (transitively), the root build files
-(`settings.gradle`, `build.gradle`, `gradle.properties`), `gradle/`, `config/` and `libs/` if present.
-The dependency list is derived from the build files at run time, never written into the plugin.
+**Decision:** with `module` set, `scripts/source-tree-hash.sh --module <path>` hashes:
+
+- the module (`src/`, its build file, `gradle.properties`, `config/`);
+- every subproject it depends on through `project(':x')` in its build file, transitively, each with
+  the same paths;
+- the root set, always: `settings.gradle(.kts)`, the root build file and `gradle.properties`,
+  `gradlew`, `gradlew.bat`, `gradle/`, `buildSrc/` (as today), `config/` and `libs/` if present.
+
+The narrow hash is taken only when the closure can be established. The script falls back to the
+0.2.x full hash (every subproject) when any of these holds: a `project(...)` argument that is not a
+string literal; a `projects.x` type-safe accessor; a root `subprojects {}` or `allprojects {}` block
+that declares dependencies; a `project(` reference under `buildSrc/` or an included build
+(`includeBuild`, such as `build-logic/`); a referenced project the settings do not include. The record
+carries `treeScope: module` or `full`, and the reading side recomputes with the same scope.
 
 **Rationale:** a change in a shared module changes what the verified module runs; a change in an
 unrelated module does not. Hashing all subprojects (0.2.x) makes every unrelated commit stale the
-record; hashing only the module misses shared code.
+record; hashing only what a parser happened to find misses dependencies it could not see. When in
+doubt the hash covers too much, never too little.
 
-**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` references; a dependency it
-cannot resolve stops the hash with a non-zero exit instead of being skipped.
+**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` references; anything it
+cannot read moves the hash to `full` and says so on stderr instead of being skipped.
 
 ## Decision 14: `be-crud` on Spring Boot 3 — deferred, with a clear stop
 
