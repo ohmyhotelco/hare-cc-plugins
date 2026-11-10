@@ -127,27 +127,35 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
    repo's CI does (`cd {appDir} && pnpm run lint`, with the `PATH=` prefix when `nodeBin` is set) and
    judge by its exit code and output. No config guessing: the script already names its config and files.
    Otherwise, items 1–3.
-1. Find the installed ESLint: the nearest `node_modules/.bin/eslint` from `{appDir}` up to the repo root,
-   as an absolute path `{eslint}` (never an installing `npx` probe). Not found → item 3's missing-package
-   message and `skipped` (v2-shared lint rules: packages are never auto-installed), writing nothing.
-2. Found → let ESLint find its own config: `cd {appDir} && PATH="{nodeBin}:$PATH" {eslint} {srcPath} 2>&1`
-   (the `PATH=` prefix only when `nodeBin` is non-empty). Judge by ESLint's documented exit code:
-   - `0` → pass; `1` → fail (record error/warning counts);
-   - `2` with "couldn't find a configuration file" (or its equivalent) → item 3;
-   - `2` otherwise (a configuration or internal error) → `not-run` with ESLint's message.
-   An ESLint 8 legacy `.eslintrc*` lints only `.js` unless its config says otherwise; such an app should
-   be linted through its own `lint` script (item 0).
-3. **No config** → template fallback:
+1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*` — in `{appDir}`, then each parent up to the
+   repo root (a workspace may keep its config there).
+2. **Config found** → detect config type and run from `{appDir}`:
+   ```bash
+   # If eslint.config.* exists (flat config, ESLint v9+):
+   npx eslint {srcPath} 2>&1
+
+   # If .eslintrc* exists (legacy config, ESLint v8):
+   npx eslint {srcPath} --ext .ts,.tsx 2>&1
+   ```
+3. **Config not found** → template fallback:
    a. Read `.claude/frontend-v2-plugin.json` → check `eslintTemplate`
    b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
    c. If `eslintTemplate === true` or field absent (default: enabled):
-      - Check that each required package is installed (its folder under `node_modules/` in `{appDir}` or an ancestor; a declaration without an install does not count): `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
-      - Any missing → `skipped`, writing nothing, with:
+      - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
+      - Generate `eslint.config.js` in `{appDir}` (the project root only when `appDir` is `.`) from the Canonical Config section
+      - Check `{appDir}/package.json` devDependencies (or the repo root's, where a workspace keeps shared tooling) for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - If any dependency is missing → skip with message:
         > "ESLint skipped (dependencies missing). Install with:"
         > ```
         > cd {appDir} && pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
         > ```
-      - All installed → read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`, generate `eslint.config.js` in `{appDir}` (never the repo root when `appDir` is not `.`) from the Canonical Config section, and run item 2's command once more with the same exit-code rules.
+      - If all dependencies are installed → run:
+        ```bash
+        npx eslint {srcPath} 2>&1
+        ```
+
+- exit code 0 → pass
+- exit code != 0 → fail (record error/warning counts)
 
 #### 2.3 Build Check
 
