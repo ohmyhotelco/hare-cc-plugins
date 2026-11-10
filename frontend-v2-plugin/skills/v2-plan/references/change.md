@@ -57,7 +57,8 @@ edit it. Declined → delete what this run wrote and stop.
 
 ### C.4: Launch the planner
 
-Record `baseCommit` = `git rev-parse HEAD` now — or the kept one when C.0 found a re-plan of the same unmerged change, so its earlier commits still count; pass it to the planner, which writes it into `plan.json`. Reviews and gate records use it to tell what this change wrote.
+When `plan.json` or `delta-plan.json` already exists, copy each to `plan.prev.json` / `delta-plan.prev.json`
+first (C.5 restores them on a decline). Record `baseCommit` = `git rev-parse HEAD` now — or the kept one when C.0 found a re-plan of the same unmerged change, so its earlier commits still count; pass it to the planner, which writes it into `plan.json`. Reviews and gate records use it to tell what this change wrote.
 
 ```
 Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
@@ -68,11 +69,11 @@ Agent(subagent_type: "frontend-v2-plugin:implementation-planner", prompt: "
   - feature: {feature}
   - baseCommit: {baseCommit}
   - briefFile: {runsDir}/{feature}/spec/{workingLanguage}/brief.md
-  - apps: {the C.1 list as JSON: [{ app, baseDir, appDir }]}
+  - apps: {the C.1 list as JSON: [{ app, baseDir, appDir, config }], config = that app's merged values of routerMode, serverState, formStack, componentLibrary, apiLayer, i18nBinding, clientStore, mockFirst, appProfile and their companion objects (externalComponents, apiPackage, i18nHook, i18n, layout)}
   - packageDirs: {list}
   - excludePaths: {list or []}
   - rulesDir: {rulesDir}
-  - routerMode: {routerMode}
+  - routerMode: {routerMode}  (this and the stack keys below are the default app's; each app's own are in apps[].config)
   - serverState: {serverState}
   - formStack: {formStack}
   - componentLibrary: {componentLibrary}
@@ -97,7 +98,8 @@ the rules read, `questions[]`, and `largeDeltaWarning` with its reason. Ask:
 > "Proceed with this change plan?"
 
 Open questions → ask them first and re-run C.4 with the answers added to the brief. A question the user says cannot be answered in this ticket (a decision held elsewhere) is marked `"status": "deferred"` with `heldBy` (who decides; `answer` stays null), and the plan may proceed; an `appsReadOnly[]` entry naming it shows as "decision pending". Declined → delete
-`plan.json` and `delta-plan.json` written in this run, keep the brief, stop.
+`plan.json` and `delta-plan.json` written in this run, restore the `.prev.json` copies when C.4 made
+them, keep the brief, stop. Accepted → delete the `.prev.json` copies.
 
 ### C.6: Progress
 

@@ -197,6 +197,8 @@ Agent(subagent_type: "frontend-v2-plugin:review-fixer", prompt: "
   - sourceBaseDir: {sourceBaseDir}
   - projectRoot: {cwd}
   - fixMode: {fixMode}
+  - changeMode: {true for a change plan, else omit}
+  - nodeBin: {nodeBin}
   - reviewReportFile: {runsDir}/{feature}/review-report.json
   - e2eReportFile: {runsDir}/{feature}/e2e-report.json
   - specDir: {specRoot}/{workingLanguage}/

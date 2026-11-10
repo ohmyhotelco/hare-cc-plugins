@@ -31,8 +31,11 @@ If the user declines, stop here.
 
 #### 2-D.2: Initialize Delta Generation State
 
-**Resume, don't reset.** If `generation-state.json` already exists with `deltaMode: true`, this is
-the resume of an interrupted delta — item 3 of Step 1 routes here for exactly that case. Preserve
+**Resume, don't reset.** Each delta run records `deltaSource` = `shasum` of the `delta-plan.json` it
+executes. If `generation-state.json` already exists with `deltaMode: true` **and the same
+`deltaSource`** as the current `delta-plan.json`, this is the resume of an interrupted delta; a
+different or missing `deltaSource` (a later delta for the same ticket) starts fresh: archive the old
+state as `generation-state.{timestamp}.json` and initialize new. For the resume case — item 3 of Step 1 routes here for exactly that case. Preserve
 every phase whose `status` is `"completed"` (and its `completedAt`), **and the top-level
 `planPatched` flag** — dropping it makes 2-D.3 reapply the plan patch, which duplicates plan
 entries, the exact defect the flag exists to prevent. Set only the not-yet-completed
@@ -46,6 +49,7 @@ Otherwise (fresh delta), create `{runsDir}/{feature}/generation-state.json`:
   "feature": "{feature}",
   "startedAt": "{ISO timestamp}",
   "deltaMode": true,
+  "deltaSource": "{shasum of delta-plan.json}",
   "deltaFile": "{runsDir}/{feature}/delta-plan.json",
   "currentPhase": "{first non-skipped phase}",
   "phases": {

@@ -54,8 +54,8 @@ All `file` values are **repo-relative**.
   "baseCommit": "{full SHA of HEAD when planned}",
   "workingLanguage": "en",
   "apps": [
-    { "app": "web", "baseDir": "apps/web/app", "appDir": "apps/web" },
-    { "app": "admin", "baseDir": "apps/admin/app", "appDir": "apps/admin" }
+    { "app": "web", "baseDir": "apps/web/app", "appDir": "apps/web", "config": { "routerMode": "framework", "formStack": "rhf-zod", "i18nBinding": "custom-hook", "i18nHook": { "hook": "useI18n", "from": "~/lib/i18n" } } },
+    { "app": "admin", "baseDir": "apps/admin/app", "appDir": "apps/admin", "config": { "routerMode": "data", "formStack": "native", "i18nBinding": "react-i18next" } }
   ],
   "appsReadOnly": [
     { "app": "admin", "reason": "Ticket part 2 depends on Q1; no admin code changes here (still verified as a consumer of packages/data)", "decision": "Q1" }

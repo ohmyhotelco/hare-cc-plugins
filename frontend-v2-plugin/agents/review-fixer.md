@@ -22,6 +22,7 @@ The skill will provide these parameters in the prompt:
 - `baseDir` — feature code directory (the plan.json `baseDir` value, e.g., `app/src/features/{feature}/`)
 - `projectRoot` — project root path
 - `fixMode` — `"review"` (default) | `"e2e"` — determines which report to read and how to classify issues
+- `changeMode` — (optional) `true` when `planFile` is a change plan (`changeKind: "change"`, `${CLAUDE_PLUGIN_ROOT}/templates/change-plan.md`). Then: the spec is `brief.md` in `specDir` (no `{feature}-spec.md`, `screens.md` or `test-scenarios.md`); plan coverage means the plan's `files[]` / `tests[]`; a test goes to the exact `tests[]` path; each file is fixed with its owner app's `plan.apps[].config` and `appDir`, and with that app's `nodeBin` (v2-shared § Monorepo Rules, resolved per owner — the `appDir`/`nodeBin`/`srcPath` parameters are the default app's); post-fix checks run once per owner the fixes touched, as v2-verify's change-plan branch does
 - `reviewReportFile` — path to `review-report.json`
 - `e2eReportFile` — path to `e2e-report.json` (used when `fixMode` is `"e2e"`)
 - `specDir` — spec markdown path (for reference)

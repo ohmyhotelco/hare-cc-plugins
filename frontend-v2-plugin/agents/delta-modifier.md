@@ -127,9 +127,14 @@ The delta comes from a ticket (`mode: "change"`, contract in
 - Requirements come from `ac` ids in the plan's `acceptance[]`, not spec ids.
 - Step 0's plan read (types/components/pages) does not apply: the change plan has `files[]`, `tests[]`
   and `acceptance[]` only — read those. Step 0's spec read takes only `{specDir}/brief.md`.
-- A test anchor in a change cites `brief.md:AC-n`.
-- Step 4's build check for a `package` owner is the package's own `build` or `typecheck` script
-  (else `tsc`), never the app router build.
+- A test anchor in a change cites the AC id and the brief line that states it:
+  `// AC-1 — {specDir}/brief.md:{line}` (tdd-rules.md wants a line to read).
+- The test to extend or create is the exact `tests[]` path the plan gives for that file's `ac` (the
+  app's own placement: colocated or `__tests__/`), not a path derived from `{baseDir}`; a `tests[]`
+  entry is the RED step of its source entry, not a separate operation.
+- Step 4 for a `package` owner runs only the package's own test, `typecheck`/`build` scripts (else
+  `tsc`) from the package dir — no `react-router typegen` and no app router build, which are app-owner
+  steps.
 
 ### Step 1: Pre-check — Verify Files Exist
 
@@ -220,7 +225,7 @@ For each behavioral change:
 
 1. Identify the EXISTING test file to extend:
    - Match by target: component → component test, page → page test, api → api test, store → store test
-   - Derive path: `{baseDir}/__tests__/{target}.test.{ts,tsx}` — targets under `{apiPackage.dir}` use the package's test location (Step 0 item 7)
+   - Derive path: `{baseDir}/__tests__/{target}.test.{ts,tsx}` — targets under `{apiPackage.dir}` use the package's test location (Step 0 item 7). Change mode: use the plan's `tests[]` path instead (see Change mode above)
 2. If test file not found: mark as `escalated` with reason `"test file not found"`, skip to next
 3. Read existing test file to understand structure and imports
 4. Add new `it()` block:

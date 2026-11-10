@@ -76,7 +76,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
      - If user chooses 1: `genMode = "delta"`, proceed to Lock Acquire — which runs Step 1.9 — then Step 2-D
      - If user chooses 2: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
      - If user chooses 3: display full delta summary, then re-ask 1 or 2
-   - If delta-plan.json does not exist: `genMode = "full"`, proceed to item 4 (**Demotion warning**)
+   - If delta-plan.json does not exist: a change plan → "No pending change for {feature}; run `/frontend-v2-plugin:v2-plan {feature}` to plan the next change." and stop (never full mode); otherwise `genMode = "full"`, proceed to item 4 (**Demotion warning**)
 
 4. **Demotion warning** (full mode only) — check `implementation.status` (already read in Step 1.3):
    - Skip this step if `genMode = "delta"` (delta does not reset the full pipeline)

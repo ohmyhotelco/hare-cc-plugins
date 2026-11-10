@@ -39,12 +39,12 @@ The skill will provide these parameters in the prompt:
 - `existingPlanFile` — (optional) path to existing plan.json (provided when `incrementalMode` is `true`)
 - `deltaOutputFile` — (optional) delta output path (e.g., `{runsDir}/{feature}/delta-plan.json`)
 - `changeMode` — (optional) `true` for a change to existing code (Change Mode below). Comes with
-  `briefFile`, `apps` (list of `{ app, baseDir, appDir }`), `packageDirs`, `excludePaths`, `rulesDir`,
+  `briefFile`, `apps` (list of `{ app, baseDir, appDir, config }`), `packageDirs`, `excludePaths`, `rulesDir`,
   `outputFile` and `deltaOutputFile`; `specDir`, `uiDslDir`, `prototypeDir`, `baseDir`, `appDir` and
   `incrementalMode` are not passed; `baseDir` and `appDir` arrive as `.` (paths are repo-relative).
 - `baseCommit` — (change mode) HEAD when planned, or the earlier plan's base on a re-plan of the same unmerged change; written into `plan.json`
 - `briefFile` — (change mode) the ticket brief, the only requirements source
-- `apps` — (change mode) the apps in scope with their merged directories
+- `apps` — (change mode) the apps in scope with their merged directories and `config` (that app's merged stack keys and companion objects). Plan each app's files with its own `config`, never another app's or the top-level values, and copy each entry into `plan.json` `apps[]` unchanged
 - `packageDirs` — (change mode) workspace packages the apps depend on, minus excluded paths
 - `excludePaths` — (change mode) paths never read or edited
 - `rulesDir` — (change mode) the product repo's rules folder
