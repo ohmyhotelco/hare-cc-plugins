@@ -73,7 +73,7 @@ module's build sets another).
 | Command / file | Change | Step |
 |---|---|---|
 | `be-init` | first argument `--module <path>`; derives `moduleDir`, `taskPrefix`; Step 2 checks on the module; root-file fallback for versions; refuses an unknown or unresolvable module; lists records of another module and confirms before replacing the config; mixed web layer no longer asks | 1 |
-| `be-verify` | calls `verify-run.sh` and reports its JSON; no longer composes the record or counts XML itself | 2 |
+| `be-verify` | calls `verify-run.sh` (with `--no-write` when no feature is given) and reports its JSON; no longer composes the record or counts XML itself | 2 |
 | `be-build`, `be-code` | `taskPrefix`; `{sourceDir}` instead of a literal path; `be-build` reads the `committed` class | 1, 2 |
 | `be-crud` | `sourceDir`; migration path under `moduleDir` (SKILL, `references/generate.md`, `references/examples.md`); stops on Boot 3 (Decision 14) | 1 |
 | `be-review` | review target's `migration/` and `mapper/` under `moduleDir`; accepts only a `current` record | 1, 2 |
