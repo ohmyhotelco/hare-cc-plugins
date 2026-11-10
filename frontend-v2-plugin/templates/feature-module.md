@@ -51,7 +51,7 @@ Canonical structure for a feature module. The `implementation-planner`, `foundat
 > package (`import { Button, Input, Table } from '{externalComponents.package}'`), `lucide-react` icons
 > become the package's icon exports, `cn()` becomes the library's className prop or `{uiKitDir}/cn.ts`, and
 > the rhf-zod `Form*` primitives come from `{formAdapters}`. Under `i18nBinding == custom-hook`,
-> `useTranslation('{feature}')` becomes `const t = {i18nHook.hook}()` from `{i18nHook.from}` with flat keys
+> `useTranslation('{feature}')` becomes `const t = {i18nHook.hook}()` (or `{hook}(language, key)` under `call: language-first`) from `{i18nHook.from}` with flat keys
 > (`t('tl.entity-list.title')`) and the i18n JSON / `i18n.ts` sections do not apply. Under
 > `apiLayer == workspace-package`, the API Service and Server-State Queries sections apply only to
 > `api[].additions[]` written inside the package; reused hooks are imported from `{apiPackage.package}`.
@@ -577,7 +577,7 @@ The `rendering` per page (`ssr`/`ssg`/`spa`) comes from `plan.json pages[].rende
 > **`i18nBinding == custom-hook`** (Phase 2, D16): this file does not exist. Keys are flat, follow the
 > resource bundle's prefix convention, and are appended to `{resourcesDir}/{resourceFile}` per language by
 > the integration phase (existing keys untouched, real values per D19 — no placeholders). Components read
-> them through `const t = {i18nHook.hook}()`.
+> them through `const t = {i18nHook.hook}()`, or `{hook}(language, key)` under `call: language-first`.
 
 Each feature exports its i18n namespace configuration. The central i18n config imports and registers them.
 

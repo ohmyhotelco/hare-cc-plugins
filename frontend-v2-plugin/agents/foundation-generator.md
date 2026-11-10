@@ -82,7 +82,7 @@ For each entry in `sharedLayouts[]`:
 2. Generate `{baseDir}/layouts/{Name}.tsx`:
    - Import `<Outlet />` from `react-router`
    - Import `NavLink`, `useLocation` from `react-router`
-   - Import `useTranslation` from `react-i18next` — **`i18nBinding == custom-hook`**: import `{i18nHook.hook}` from `{i18nHook.from}` instead and call it as `const t = {hook}()`
+   - Import `useTranslation` from `react-i18next` — **`i18nBinding == custom-hook`**: import `{i18nHook.hook}` from `{i18nHook.from}` instead and call it as `const t = {hook}()`, or as `{hook}(language, key)` under `i18nHook.call: language-first` (`from` and the call shape: v2-shared § Monorepo Rules, Import values)
    - Build sidebar with `navigationItems` from plan
    - Place `<Outlet />` in content area
    - Use shadcn/ui components, cn(), aria-labels — **`componentLibrary == external`**: use only `{externalComponents.package}` exports and existing `{uiKitDir}` primitives (no `@/components/ui/*`, no `lucide-react`); a class-merge helper, if needed, is `{uiKitDir}/cn.ts` (clsx + tailwind-merge) created once

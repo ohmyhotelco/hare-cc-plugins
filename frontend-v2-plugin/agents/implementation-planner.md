@@ -26,7 +26,7 @@ The skill will provide these parameters in the prompt:
 - `formStack` — `"native"` (default) | `"rhf-zod"`
 - `componentLibrary` — `"shadcn"` (default) | `"external"` — Phase 2 (D14). With `externalComponents` (optional object: `package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`) when `external`.
 - `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15). With `apiPackage` (optional object: `package`, `dir`, `entry`, `clientImport`) when `workspace-package`. Requires `serverState == tanstack-query`; refuse `zustand-only` + `workspace-package` with an explanation (O7).
-- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16). With `i18nHook` (optional object: `hook`, `from`, `resourcesDir`, `resourceFile`) when `custom-hook`.
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16). With `i18nHook` (optional object: `hook`, `from`, `call`, `resourcesDir`, `resourceFile`) when `custom-hook` (`from` and the call shape: v2-shared § Monorepo Rules, Import values).
 - `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). `none` requires `serverState == tanstack-query` (under `zustand-only` server data has no home without a store); refuse `zustand-only` + `none` with an explanation (O8).
 - `renderingDefault` — framework mode only: `"ssr"` (default) | `"ssg"` | `"spa"` — fallback rendering when a page's rendering cannot be inferred
 - `mockFirst` — `true` | `false` (whether MSW v2 mock-first development is enabled)

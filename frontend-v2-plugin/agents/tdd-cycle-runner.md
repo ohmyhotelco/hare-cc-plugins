@@ -32,7 +32,7 @@ The coordinator skill provides:
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent) — component-tdd form behavior.
 - `componentLibrary` — `"shadcn"` (default) | `"external"` — Phase 2 (D14/D18); with `externalComponents` (optional object). component-tdd/page-tdd import rules and the rhf-zod adapter path.
 - `apiLayer` — `"feature-local"` (default) | `"workspace-package"` — Phase 2 (D15); with `apiPackage` (optional object). api-tdd target directory, test runner and reuse rules; page-tdd loader client.
-- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16); with `i18nHook` (optional object). Which translation hook every component imports.
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"` — Phase 2 (D16); with `i18nHook` (optional object). Which translation hook every component imports (`from` and the call shape: v2-shared § Monorepo Rules, Import values).
 - `clientStore` — `"zustand"` (default) | `"none"` — Phase 2 (D17). Under `none` store-tdd never runs and no `zustand` import is allowed.
 - `mockFirst` — `true` | `false`
 - `baseDir` — base source directory (e.g., `"app/src"`, fallback `"src"`)
@@ -271,7 +271,7 @@ The app never imports `axios` directly under this layer. The MSW handlers stay i
 *When `routerMode == framework`* (D10) — the page splits into two files:
 - A **thin route module** written at the plan's `pages[].routeModuleFile` (physical path
   `{baseDir}/features/{feature}/routes/{name}.tsx`): `loader`/`clientLoader` (SSR/SSG fetch via the D13
-  **base** client — or, when `apiPackage.clientImport` is set, the app's provider from that module — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description
+  **base** client — or, when `apiPackage.clientImport` is set, the app's provider from that module (resolved per v2-shared § Monorepo Rules, Import values) — never `localStorage`/`window`; returns `{ data, fetchedAt }`), `meta` (title/description
   keys translated server-side), `ErrorBoundary`, `HydrateFallback`, and a default export that renders the
   page-body with `loaderData`. **Not unit-tested here** — verified by typegen + tsc + build + E2E smoke.
 - An extracted **page-body component** (`pages/{Entity}...Page.tsx`) that receives loader data as props —

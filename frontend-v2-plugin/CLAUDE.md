@@ -97,7 +97,7 @@ existing branch changes. The full design and per-file spec is in
 ### Internationalization (i18n)
 - Binding: determined by `i18nBinding` (default `react-i18next`)
   - `react-i18next` — `useTranslation(namespace)`, per-feature locale JSON, central config registration
-  - `custom-hook` — a project-owned hook (`i18nHook.hook` from `i18nHook.from`) over one flat resource file per language (`i18nHook.resourcesDir` + `resourceFile`); the integration phase **appends** new keys to those files under the app lock and registers nothing. Values are real copy, never `[LANG]` placeholders — languages without a spec translation are agent-translated and listed in `i18n-review.md` (D16/D19).
+  - `custom-hook` — a project-owned hook or language-first function (`i18nHook.hook` from `i18nHook.from`, shape `i18nHook.call`) over one flat resource file per language (`i18nHook.resourcesDir` + `resourceFile`); the integration phase **appends** new keys to those files under the app lock and registers nothing. Values are real copy, never `[LANG]` placeholders — languages without a spec translation are agent-translated and listed in `i18n-review.md` (D16/D19).
 - i18next + react-i18next (default binding)
 - Languages: ko / en / ja / vi (default; `i18n.languages` may add e.g. `zh`)
   > Note: planning-plugin supports 3 spec languages (en/ko/vi). The additional `ja` in the frontend i18n is for application UI only — Japanese specs are not supported by planning-plugin.
@@ -378,7 +378,7 @@ An ota app that owns an external design system, a workspace data package and a f
 - `serverState`: `"zustand-only"` (default when absent) | `"tanstack-query"` — server-state strategy.
 - `componentLibrary`: `"shadcn"` (default when absent) | `"external"` — with `externalComponents` (`package`, `cssEntry`, `uiKitDir`, `formAdapters`, `forbiddenImports[]`). Phase 2, D14/D18.
 - `apiLayer`: `"feature-local"` (default when absent) | `"workspace-package"` — with `apiPackage` (`package`, `dir`, `entry`, `clientImport`). Requires `tanstack-query`. Phase 2, D15.
-- `i18nBinding`: `"react-i18next"` (default when absent) | `"custom-hook"` — with `i18nHook` (`hook`, `from`, `resourcesDir`, `resourceFile`). Phase 2, D16/D19.
+- `i18nBinding`: `"react-i18next"` (default when absent) | `"custom-hook"` — with `i18nHook` (`hook`, `from`, `call`, `resourcesDir`, `resourceFile`). `from` and `apiPackage.clientImport` may be an import specifier or a repo-relative file path; `call` is `hook` (default) or `language-first` — see `skills/v2-shared/SKILL.md` § Monorepo Rules, Import values. Phase 2, D16/D19.
 - `clientStore`: `"zustand"` (default when absent) | `"none"`. Requires `tanstack-query`. Phase 2, D17.
 - `formStack`: `"native"` (default when absent) | `"rhf-zod"` — form approach.
 - `e2eTool`: `"agent-browser"` (default when absent) | `"playwright"` — E2E runner.

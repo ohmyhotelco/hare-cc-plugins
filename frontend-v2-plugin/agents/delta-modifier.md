@@ -30,7 +30,7 @@ The skill will provide these parameters in the prompt:
 - `formStack` — `"native"` | `"rhf-zod"` (default `native` when absent).
 - `componentLibrary` — `"shadcn"` (default) | `"external"`; with `externalComponents` (optional object). Same generation rules as tdd-cycle-runner § component-tdd (Phase 2, D14/D18).
 - `apiLayer` — `"feature-local"` (default) | `"workspace-package"`; with `apiPackage` (optional object). Modified API files live in the package under `workspace-package` (D15).
-- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"`; with `i18nHook` (optional object). Under `custom-hook` there is no feature `i18n.ts`; key changes go to the flat resource files (D16).
+- `i18nBinding` — `"react-i18next"` (default) | `"custom-hook"`; with `i18nHook` (optional object). Under `custom-hook` there is no feature `i18n.ts`; key changes go to the flat resource files (D16). Imports and calls of `i18nHook.hook` follow v2-shared § Monorepo Rules, Import values — copy the shape the edited file already uses.
 - `clientStore` — `"zustand"` (default) | `"none"`. Under `none` no store file may be created or modified (D17).
 - `mockFirst` — `true` | `false`
 - `appDir` — app directory for build/test commands (e.g., `"app"` or `"."`) — all `npx vitest`, the mode-aware build (`npx vite build` | `npx react-router build`), and `npx tsc` commands must run from `{projectRoot}/{appDir}` (see v2-shared § Build Command Working Directory and the Router-mode command matrix)

@@ -28,6 +28,22 @@ the top-level keys (per-app values win, objects merge key by key). Read every ot
 merged view. No `apps` object → a
 single-app config, read as it is.
 
+**Import values.** `apiPackage.clientImport` and `i18nHook.from` end up in import lines, and an app
+may have no path alias. Each value is one of two kinds; tell them apart by whether it names a file that
+exists from the repo root:
+- an import specifier (`~/lib/i18n`, `@acme/i18n`) — written as it is;
+- a repo-relative file path (`apps/web/app/lib/i18n.ts`) — written as a relative specifier from the
+  file being edited: drop the `.ts`/`.tsx` extension and a trailing `/index`, start with `./` or `../`.
+Never invent an alias the app does not have; when unsure, copy the import line of an existing file next
+to the one being edited.
+
+**Translation call shape.** `i18nHook.call` (absent → `"hook"`):
+- `"hook"` — `const t = {hook}()`, then `t(key, params?)`.
+- `"language-first"` — `{hook}` is a plain function, not a hook: `{hook}(language, key, params?)`, with
+  no hook call. The code gets `language` the way the nearest existing caller in that app does (a prop,
+  a loader value, a route-param helper): read one and copy it, never invent a source.
+Keys, placeholders and resource files follow the same rules under both shapes.
+
 **Run records.** A feature's pipeline records — plan, progress, generation state, reports, locks —
 live in `{runsDir}/{feature}/` (`runsDir`: config, default `docs/plugin-runs`; the app-wide lock is
 `{runsDir}/.app.lock`). Name the feature after its ticket key when the work comes from a ticket (e.g.
