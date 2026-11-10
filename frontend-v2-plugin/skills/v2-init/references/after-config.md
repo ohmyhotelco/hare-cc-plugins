@@ -6,7 +6,7 @@ Part of the `v2-init` skill. `{pluginRoot}` is the plugin root the skill states.
 
 Install the following external skills. For each skill, check if it already exists; install only if missing.
 
-**React Router special handling**: If this is a reconfiguration and the mode changed (previousMode exists and differs from selected mode), remove the previous mode's skill first:
+**React Router special handling**: the modes to install are the set of merged `routerMode` values across all apps (one app → one mode). If this is a reconfiguration and a previous mode is no longer in that set, remove its skill first; keep it while any app still uses it:
 ```bash
 rm -rf .claude/skills/react-router-{previousMode}-mode
 ```

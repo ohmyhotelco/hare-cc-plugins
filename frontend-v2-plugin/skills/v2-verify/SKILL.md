@@ -123,11 +123,14 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.2 ESLint Check
 
-1. Glob for ESLint config (`eslint.config.*`, `.eslintrc*`) in `{appDir}`, then each parent up to the
-   repo root; the nearest found is used as is, never overwritten (v2-shared lint rules). Before running,
-   check that `eslint` is installed — `node_modules/.bin/eslint` in `{appDir}` or an ancestor; never probe
-   with an installing `npx`. Not installed → the missing-dependency message in item 3. ESLint rejecting
-   the config (e.g. `.eslintrc*` under ESLint 9+) → `not-run` with its message, never a pass or skip.
+1. Find the installed ESLint: the nearest `node_modules/.bin/eslint` from `{appDir}` up to the repo root
+   (never an installing `npx` probe). Found → run it with `--version`. Then look for the config family
+   that major reads, in `{appDir}` and each parent up to the repo root, nearest wins: 9 or later →
+   `eslint.config.*`; 8 → `.eslintrc*`. That config is used as is, never overwritten (v2-shared lint
+   rules). Only a config of the other family exists (e.g. `.eslintrc*` under 9+) → `not-run` with
+   "config not readable by ESLint {major}", never the template. Not installed but a config exists →
+   `not-run` "eslint is not installed" with the install command in item 3 — never `skipped`. No config of
+   either family (installed or not) → item 3, the template fallback.
    The template fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
 2. **Config found** → detect config type and run:
    ```bash
