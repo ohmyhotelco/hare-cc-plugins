@@ -78,7 +78,7 @@ here.** Instead:
   "apps": {
     "web":   { "baseDir": "apps/web/app",   "appDir": "apps/web",   "devPort": 3000, "apiPackage": { "clientImport": "~/lib/api-client" },
                "layout": { "routes": "app/routes", "routeRegistry": "app/routes.ts", "components": "app/components/{area}", "lib": "app/lib/{area}", "tests": "colocated", "mocks": "app/mocks/{area}.ts", "fileCase": "kebab" } },
-    "admin": { "baseDir": "apps/admin/app", "appDir": "apps/admin", "devPort": 3001, "apiPackage": { "clientImport": "./lib/api-client" } }
+    "admin": { "baseDir": "apps/admin/app", "appDir": "apps/admin", "devPort": 3001, "apiPackage": { "clientImport": "apps/admin/app/lib/api-client.ts" } }
   }
 }
 ```

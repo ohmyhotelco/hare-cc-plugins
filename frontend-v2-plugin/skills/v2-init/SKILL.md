@@ -224,7 +224,7 @@ Ask how components read translations.
 Present:
 - **react-i18next** — `useTranslation(namespace)`, per-feature locale JSON, central config registration
   (current behavior).
-- **custom-hook** — a project-owned hook (e.g. `useI18n()`) over one flat resource file per language;
+- **custom-hook** — a project-owned hook (e.g. `useI18n()`) or a function taking the language first (`call: "language-first"`, ask which) over one flat resource file per language;
   generators append keys to those files and register nothing.
 
 Default: `react-i18next` for both profiles. Record as `i18nBinding`. When `custom-hook`, also collect
@@ -260,7 +260,8 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
      `web/app` → `web`, bare `app` → `"."`)
    - If `baseDir` is `src` → `"."`
    - Otherwise → same as `baseDir`
-3. Write the configuration file to `.claude/frontend-v2-plugin.json`. Include the new keys **only when
+3. Write the configuration file to `.claude/frontend-v2-plugin.json`, keeping every key already in the file that this flow does not
+   ask about (`runsDir`, `commitRuns`, `rulesDir`, `excludePaths`, `apps`, …). Include the new keys **only when
    they differ from the admin defaults**, so an admin project's config stays byte-identical to before
    (backward-compat rule); an ota project writes all keys explicitly:
 
@@ -276,7 +277,7 @@ guard** and the **e2eTool warning** from Step 1 item 4. Declined → keep the ol
   "apiLayer": "{feature-local | workspace-package}",
   "apiPackage": { "package": "…", "dir": "…", "entry": "…", "clientImport": "…" },
   "i18nBinding": "{react-i18next | custom-hook}",
-  "i18nHook": { "hook": "…", "from": "…", "resourcesDir": "…", "resourceFile": "{LANG}/translation.json" },
+  "i18nHook": { "hook": "…", "from": "…", "call": "{hook | language-first}", "resourcesDir": "…", "resourceFile": "{LANG}/translation.json" },
   "clientStore": "{zustand | none}",
   "renderingDefault": "{ssr | ssg | spa — framework mode only}",
   "devPort": 5173,

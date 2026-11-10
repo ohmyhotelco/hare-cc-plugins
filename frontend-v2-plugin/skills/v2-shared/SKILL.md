@@ -34,8 +34,9 @@ exists from the repo root:
 - an import specifier (`~/lib/i18n`, `@acme/i18n`) — written as it is;
 - a repo-relative file path (`apps/web/app/lib/i18n.ts`) — written as a relative specifier from the
   file being edited: drop the `.ts`/`.tsx` extension and a trailing `/index`, start with `./` or `../`.
-A value ending in `.ts`, `.tsx`, `.js` or `.jsx` that names no existing file is a mistyped path, not a
-specifier: stop and name it. Never invent an alias the app does not have; when unsure, copy the import line of an existing file next
+A value that is path-shaped (starts with `./` or `../`, or its first segment is a directory at the repo
+root) is a repo path: resolve it with `.ts`/`.tsx`/`.js`/`/index` as needed, and stop and name it when
+nothing matches. Never invent an alias the app does not have; when unsure, copy the import line of an existing file next
 to the one being edited.
 
 **Translation call shape.** `i18nHook.call` (absent → `"hook"`):

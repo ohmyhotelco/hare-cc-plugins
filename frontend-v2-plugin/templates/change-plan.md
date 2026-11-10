@@ -57,7 +57,7 @@ All `file` values are **repo-relative**.
     { "app": "admin", "baseDir": "apps/admin/app", "appDir": "apps/admin" }
   ],
   "appsReadOnly": [
-    { "app": "admin", "reason": "Ticket part 2 depends on Q1; read only as precedent", "decision": "Q1" }
+    { "app": "admin", "reason": "Ticket part 2 depends on Q1; no admin code changes here (still verified as a consumer of packages/data)", "decision": "Q1" }
   ],
   "packages": ["packages/data"],
   "rules": ["docs/rules/checkout.md#Totals"],

@@ -28,7 +28,8 @@
 # The record lives with the feature's other run records (committed only when config commitRuns is true).
 #
 # EXIT
-#   0 ok (record written / check printed)   2 missing watch path or unverifiable   1 error
+#   record: 0 written   2 missing or ignored watch path (prints unverifiable)   1 error
+#   check:  0 for every verdict, including unverifiable (read the first word)   1 error
 set -euo pipefail
 export LC_ALL=C
 
@@ -87,10 +88,11 @@ case "$cmd" in
     done < "$rec"
     [ "${#watch[@]}" -gt 0 ] || die "record has no watch paths: $rec"
     old="$(mktemp)"; new="$(mktemp)"; trap 'rm -f "$old" "$new"' EXIT
-    # Manifest rows are "<hash> <path>" or "GITLINK <sha> <path>", and a path may contain spaces.
-    # Normalise both sides to "<path><TAB><digest>" so the path is one field.
+    # Manifest rows are "<hash> <path>", "GITLINK <sha> <path>" or "GITLINK <sha> dirty:<digest> <path>",
+    # and a path may contain spaces. Normalise both sides to "<path><TAB><digest>" so the path is one field.
     norm() {
-      awk '{ if ($1 == "GITLINK") { d = $1 " " $2; f = $0; sub(/^[^ ]+ [^ ]+ /, "", f) }
+      awk '{ if ($1 == "GITLINK" && $3 ~ /^dirty:/) { d = $1 " " $2 " " $3; f = $0; sub(/^[^ ]+ [^ ]+ [^ ]+ /, "", f) }
+             else if ($1 == "GITLINK") { d = $1 " " $2; f = $0; sub(/^[^ ]+ [^ ]+ /, "", f) }
              else { d = $1; f = $0; sub(/^[^ ]+ /, "", f) }
              printf "%s\t%s\n", f, d }'
     }

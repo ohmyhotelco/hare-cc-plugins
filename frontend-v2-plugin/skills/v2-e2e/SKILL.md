@@ -24,7 +24,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 
 **Monorepo (v2-shared § Monorepo Rules).** Read the config file first (missing → the stop below). Then, before extracting any key, resolve the app (`--app <app>`, else the plan's `apps`, else `defaultApp`, else ask) and overlay `apps[{app}]`; every key below comes from that merged view. Once `appDir` is known, where this skill runs `npx`, derive `nodeBin` and pass it to every agent that receives `appDir`. Mention the resolved app in the first line of output. `runsDir` (default `docs/plugin-runs`), `rulesDir` (default `docs/rules`) and `{specRoot}` resolve as v2-shared § Monorepo Rules says.
 
-1. Read `.claude/frontend-v2-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`, `devPort` (default `5173` when absent)
+1. Read `.claude/frontend-v2-plugin.json` → extract `mockFirst`, `baseDir`, `appDir`, `e2eTool`, `routerMode`, `devPort` (default `5173` when absent), `runsDir` / `commitRuns` (defaults `docs/plugin-runs` / `false`)
 2. If `baseDir` is missing, use default value `"src"`
 3. If `mockFirst` is missing, use default value `true`
 4. If `appDir` is missing, use default value `"."` (project root)
@@ -43,7 +43,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
 - none → `skipped: no e2e in plan` for that app (never a pass);
 - `{appDir}/playwright.config.ts` absent → `skipped: no Playwright harness in {appDir}` (the app's own harness owns its dev server — the plugin does not scaffold one in change mode);
 - otherwise, under the feature lock, run `cd {appDir} && PATH="{nodeBin}:$PATH" npx playwright test {those files, relative to appDir} --reporter=line` and record pass/fail with the failing test names.
-Write per-app results under `implementation.e2e.apps.{app}` (`status` + `reason` for a skip). `implementation.e2e.status`: `skipped` when no app ran e2e; `pass` when every app that ran passed (skipped apps stay listed with their reasons, never counted as passes); `partial` when some ran apps failed and some passed; `fail` when every ran app failed. An app in `appsReadOnly[]` is `skipped: not changed`. Then Step 8's gate record (e2e files included) and Step 9.
+Write per-app results under `implementation.e2e.apps.{app}` (`status` + `reason` for a skip). `implementation.e2e.status`: `skipped` when no app ran e2e; `pass` when every app that ran passed (skipped apps stay listed with their reasons, never counted as passes); `partial` when some ran apps failed and some passed; `fail` when every ran app failed. An app in `appsReadOnly[]` is `skipped: not changed`. Also write `e2e-report.json` as Step 7 does, so v2-fix can enter E2E fix mode: `status` `completed` for pass, `partial`, `failed`, or `skipped`; one `scenarios[]` entry per failing test (`id` = spec file, `name` = test title, `status: "fail"`, `evidence` = the failure line and trace path). Then Step 8's gate record (e2e files included) and Step 9.
 
 **Optional: existing e2e, base vs HEAD** — for an app that got `skipped: no e2e in plan` but has a Playwright harness, offer (never run unasked) a run of its existing e2e on `plan.baseCommit` and on HEAD: read `${CLAUDE_PLUGIN_ROOT}/skills/v2-e2e/references/base-comparison.md`. A comparison is PR evidence, never a pass.
 
