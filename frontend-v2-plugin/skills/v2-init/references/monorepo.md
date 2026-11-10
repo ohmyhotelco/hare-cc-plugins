@@ -22,14 +22,16 @@ product fact into the plugin — everything you detect goes into the project's o
 | `baseDir` / `appDir` (per app) | `{appFolder}/app` / `{appFolder}` | `{appFolder}/react-router.config.ts`, `{appFolder}/app/root.tsx` |
 | `appProfile` / `routerMode` | `ota` / `framework` | `react-router.config.ts` present |
 | `serverState` | `tanstack-query` if `@tanstack/react-query` is a dependency, else `zustand-only` | `{appFolder}/package.json` |
+| (combination check) | `clientStore: none` and `apiLayer: workspace-package` both need `serverState: tanstack-query`. A detected set that breaks this is shown with the conflict and **asked**, never written as is | the rows above |
 | `formStack` | `rhf-zod` only if `react-hook-form` is a dependency, else `native` | `{appFolder}/package.json` |
 | `clientStore` | `zustand` if it is a dependency, else `none` | `{appFolder}/package.json` |
 | `e2eTool` | `playwright` | `@playwright/test` + `{appFolder}/playwright.config.ts` |
 | `devPort` (per app) | the port the app's dev server uses | the `port`/`PORT` line in `playwright.config.ts` or `vite.config.ts` |
-| `componentLibrary` + `externalComponents` | `external` with the workspace UI package and its CSS entry, when the app imports one; no `forbiddenImports` unless the user names some | the UI package's `package.json` `name` + `exports`; the `@import` line in the app's root CSS |
+| `componentLibrary` + `externalComponents` | `external` with the workspace UI package and its CSS entry, when the app imports one; no `forbiddenImports` unless the user names some ; `uiKitDir` (where the app keeps primitives the package lacks — **ask**, proposing an existing folder such as `{appFolder}/app/ui-kit`) | the UI package's `package.json` `name` + `exports`; the `@import` line in the app's root CSS |
 | `apiLayer` + `apiPackage` | `workspace-package` with the workspace data package (`package`, `dir`, `entry`), when the app depends on one; `clientImport` per app, **asked** | the package's `package.json` and entry file |
 | `i18nBinding` + `i18nHook` | **ask** — show the translation helper(s) you found and the resource folder layout; `i18nHook` is per app when the apps use different helpers. Set `call: "language-first"` when the helper is a plain function taking the language first. Write `from` / `apiPackage.clientImport` as the specifier the app's own import lines use; when they import by relative path (no alias), write the repo-relative file path instead (v2-shared § Monorepo Rules, Import values). Never invent a hook name | the helper's import lines, the locale folder listing |
 | `i18n.languages` | the locale folder names, lower-cased | directory listing |
+| `i18n.lookupFns` | the function that takes the key: what the hook returns (`t`), or under `language-first` the helper itself (e.g. `translate`) — **ask** to confirm | the helper's call sites |
 | `eslintTemplate` / `prettierTemplate` | `false` when the app already has its own config | `eslint.config.*`, `prettier.config.*` |
 | Node version (per app, not a key) | `{appFolder}/.nvmrc` pins it → build/test run on that version via nvm; absent → the PATH `node`. Report which, and if `.nvmrc` exists but no matching nvm install, say `nvm install <version>` | `{appFolder}/.nvmrc`, `scripts/node-env.sh {appFolder}` exit code |
 | `runsDir` | `docs/plugin-runs` (where each ticket's plan, progress and reports are kept) | — |
@@ -61,8 +63,9 @@ here.** Instead:
    here: compare each app's merged `baseDir`/`appDir` and the structural knobs with the old config's,
    and apply the same warning and second confirmation.
 2. Step 3 item 1 (ensure `.claude/` exists), then write `.claude/frontend-v2-plugin.json` in exactly
-   this shape — every confirmed key, including `apps`, `defaultApp`, `excludePaths` and `rulesDir`
-   (invented values):
+   this shape — every confirmed key, including `apps`, `defaultApp`, `excludePaths` and `rulesDir`, plus
+   every key already in the old file that this step does not detect (`renderingDefault`, `prettierTemplate`,
+   a per-app override, …), unchanged (invented values):
 
 ```json
 {
