@@ -23,7 +23,7 @@ Gradle repository**, without hand edits to the config and without override field
 | Test results counted | every `TEST-*.xml` in the project | the module's | `{moduleDir}/build/test-results/test/` only, from this run |
 | Tree hash | all subprojects | module + project dependencies | module closure when it can be established, else all (Decision 13) |
 | Verification record | values written by the skill's prose | — | `scripts/verify-run.sh` runs the rows and derives every value; `writer`, `testsRun`, `treeScope`, `module` |
-| Committed mark | `be-commit` Step 6.5 writes `committed` | — | `verify-run.sh mark-committed`, which recomputes the staged hash |
+| Committed mark | `be-commit` Step 6.5 sets `committed`; `be-build` and the `be-commit` undo remove it | — | `verify-run.sh mark-committed` (recomputes the staged hash) and `unmark-committed` |
 | Coverage | `coverage: true` + no report ⇒ `fail`; `skip` = not configured | — | unchanged |
 | Web layer | `be-init` warns and asks when both styles are present | module already mixes styles | `functional` for new domains, existing domain keeps its style, no extra question (Decision 11) |
 
@@ -74,15 +74,15 @@ module's build sets another).
 |---|---|---|
 | `be-init` | first argument `--module <path>`; derives `moduleDir`, `taskPrefix`; Step 2 checks on the module; root-file fallback for versions; refuses an unknown or unresolvable module; lists records of another module and confirms before replacing the config; mixed web layer no longer asks | 1 |
 | `be-verify` | calls `verify-run.sh` (with `--no-write` when no feature is given) and reports its JSON; no longer composes the record or counts XML itself | 2 |
-| `be-build`, `be-code` | `taskPrefix`; `{sourceDir}` instead of a literal path; `be-build` reads the `committed` class | 1, 2 |
+| `be-build`, `be-code` | `taskPrefix`; `{sourceDir}` instead of a literal path; `be-build` reads the `committed` class and removes a mark only through `verify-run.sh unmark-committed` | 1, 2 |
 | `be-crud` | `sourceDir`; migration path under `moduleDir` (SKILL, `references/generate.md`, `references/examples.md`); stops on Boot 3 (Decision 14) | 1 |
 | `be-review` | review target's `migration/` and `mapper/` under `moduleDir`; accepts only a `current` record | 1, 2 |
-| `be-commit` | Step 1.5 uses the reading-side classes; Step 6.5 calls `verify-run.sh mark-committed` | 2 |
+| `be-commit` | Step 1.5 uses the reading-side classes; Step 6.5 calls `verify-run.sh mark-committed`; the undo after a failed commit calls `unmark-committed` | 2 |
 | `be-jira-auto` | migration path under `moduleDir` (SKILL, `references/implement.md`); `references/gate-and-commit.md` uses the reading-side classes | 1, 2 |
 | `be-data`, `be-security` | `migration/` and `mapper/` under `moduleDir` | 1 |
 | `be-progress` | shows the class (current / committed / stale / other-module / unverifiable / failed), a `not-run` reason, and any `verificationPartial` | 2 |
 | `scripts/source-tree-hash.sh` | `--module`, derived dependency closure, full-hash fallback, prints the scope | 1 |
-| `scripts/verify-run.sh` | new: runs the rows, derives the record, `--tests` → `verificationPartial`, `mark-committed` | 2 |
+| `scripts/verify-run.sh` | new: runs the rows, derives the record, `--tests` → `verificationPartial`, `--no-write`, `mark-committed`, `unmark-committed` | 2 |
 | `scripts/check-plugin-consistency.py` (repository root) | `module`, `moduleDir`, `taskPrefix` in the wiring table | 1 |
 | agents `implement`, `build-doctor`, `review-fixer`, `debugger` | `taskPrefix` on every Gradle call | 1 |
 | agents `code-reviewer`, `backend-planner` | `moduleDir` paths; checkstyle file rule (Decision 10) | 1 |

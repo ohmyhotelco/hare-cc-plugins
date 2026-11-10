@@ -371,8 +371,12 @@ not a pass.
 **`committed` — who writes it.** `be-commit` Step 6.5 keeps its job but calls
 `verify-run.sh mark-committed --feature <f>`: the script recomputes the staged tree hash itself, sets
 `committed: true` and `committedAt` only when it equals `pipeline.verification.tree` and the record is
-`pass` with `writer: verify-run`, and leaves the record unchanged otherwise. `be-verify` still
-**replaces** the block, so a new verification drops an old `committed` mark (0.2.4 Step 3).
+`pass` with `writer: verify-run`, and leaves the record unchanged otherwise. The two places that
+remove the mark today call `verify-run.sh unmark-committed --feature <f>` instead of editing the
+block: `be-build` when it demotes committed records because nothing else is in flight, and
+`be-commit` when the commit command fails and it undoes Step 6.5 (only where Step 6.5 set the mark;
+a mark an earlier commit set stays). `be-verify` still **replaces** the block, so a new verification
+drops an old `committed` mark (0.2.4 Step 3).
 
 **Reading side** (`be-progress`, `be-review`, `be-commit`, `be-build`, `be-jira-auto`), first match wins:
 
@@ -385,7 +389,7 @@ not a pass.
 | `current` | `writer` is `verify-run`, `status` is `pass`, `testsRun` is `full`, tree equal | lets `be-review` and `be-commit` proceed |
 | `failed` | otherwise (`fail`, `not-run`) | blocks, as `verify-failed` does today |
 
-There is no override field; `gateOverride` and similar hand-added keys are ignored.
+There is no override field: the reading side ignores any key this schema does not define.
 
 The script needs `jq` (exit 6 if missing). It takes no lock of its own: when it writes, it requires
 the caller's lock (`operation` `be-verify` or `be-commit`, `--run-id` equal to the lock's `runId`,
@@ -400,8 +404,7 @@ meaning. Keeping `status` (not renaming it) keeps 0.2.x readers and existing rec
 
 **Consequence:** a record written before 0.3.0 and not yet committed is `unverifiable` until
 `be-verify` runs again; `be-progress` says so and names the command. A committed one stays history.
-A module whose full test suite does not pass where the gate runs cannot reach `current`; the fix is in
-that repository's tests, not a gate setting in this plugin.
+`current` needs a full run of the module's test task; no setting accepts less.
 
 ## Decision 13: Tree hash scope with a module
 
