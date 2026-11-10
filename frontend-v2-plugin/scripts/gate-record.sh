@@ -86,8 +86,22 @@ case "$cmd" in
     [ "${#watch[@]}" -gt 0 ] || die "record has no watch paths: $rec"
     old="$(mktemp)"; new="$(mktemp)"; trap 'rm -f "$old" "$new"' EXIT
     grep -v '^# ' "$rec" | sort -k2 > "$old"
-    existing=()
-    for p in "${watch[@]}"; do [ -e "$p" ] && existing+=("$p"); done
+    existing=(); ignored=()
+    for p in "${watch[@]}"; do
+      # A path ignored since the record was written (e.g. run records turned local) cannot be
+      # hashed. Compare the rest, and drop its rows from the old manifest instead of failing.
+      if git check-ignore -q -- "$p" 2>/dev/null; then ignored+=("$p"); continue; fi
+      [ -e "$p" ] && existing+=("$p")
+    done
+    if [ "${#ignored[@]}" -gt 0 ]; then
+      echo "gate-record: ignored now, not compared: ${ignored[*]}" >&2
+      keep="$(mktemp)"
+      awk -v list="$(printf '%s\n' "${ignored[@]}")" '
+        BEGIN { n = split(list, ig, "\n") }
+        { f = $0; sub(/^[^ ]+ /, "", f)   # manifest rows are "<hash> <path>"
+          for (i = 1; i <= n; i++) if (ig[i] != "" && (f == ig[i] || index(f, ig[i] "/") == 1)) next; print }
+      ' "$old" > "$keep" && mv "$keep" "$old"
+    fi
     if [ "${#existing[@]}" -gt 0 ]; then
       set +e
       "$hash_sh" --manifest --exclude "$rec" -- "${existing[@]}" | sort -k2 > "$new"; rc=${PIPESTATUS[0]}

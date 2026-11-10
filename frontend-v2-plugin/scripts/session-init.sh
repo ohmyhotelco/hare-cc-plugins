@@ -200,6 +200,8 @@ if [ -d "$SPECS_DIR" ]; then
           echo "  Info: [$FEATURE] Review passed. Run /frontend-v2-plugin:v2-e2e $FEATURE for E2E testing."
         elif [ "$E2E_STATUS" = "pass" ]; then
           echo "  Info: [$FEATURE] Pipeline complete."
+        elif [ "$E2E_STATUS" = "skipped" ]; then
+          echo "  Info: [$FEATURE] Review passed; E2E skipped (no e2e in the plan). Run /frontend-v2-plugin:v2-progress $FEATURE for the per-app reasons."
         else
           echo "  Info: [$FEATURE] Review passed but E2E has failures (status: $E2E_STATUS). Run /frontend-v2-plugin:v2-fix $FEATURE then /frontend-v2-plugin:v2-e2e $FEATURE."
         fi
@@ -210,6 +212,8 @@ if [ -d "$SPECS_DIR" ]; then
           echo "  Info: [$FEATURE] Reviewed with warnings. Run /frontend-v2-plugin:v2-fix $FEATURE to address warnings, or /frontend-v2-plugin:v2-e2e $FEATURE for E2E testing."
         elif [ "$E2E_STATUS" = "pass" ]; then
           echo "  Info: [$FEATURE] Reviewed with warnings, E2E passed. Run /frontend-v2-plugin:v2-fix $FEATURE to address warnings."
+        elif [ "$E2E_STATUS" = "skipped" ]; then
+          echo "  Info: [$FEATURE] Reviewed with warnings, E2E skipped (no e2e in the plan). Run /frontend-v2-plugin:v2-fix $FEATURE to address warnings."
         else
           echo "  Info: [$FEATURE] Reviewed with warnings, E2E has failures (status: $E2E_STATUS). Run /frontend-v2-plugin:v2-fix $FEATURE then /frontend-v2-plugin:v2-e2e $FEATURE."
         fi

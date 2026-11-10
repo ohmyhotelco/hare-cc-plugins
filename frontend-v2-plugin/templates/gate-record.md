@@ -54,6 +54,9 @@ ${CLAUDE_PLUGIN_ROOT}/scripts/gate-record.sh check {runsDir}/{feature}/gate-tree
   gate before trusting it.
 - `shared-stale <files>` → only shared files moved (often another feature's edit): show
   **shared-stale** with the files; a re-run is advised, not required.
+- A watch path that git ignores now (a record written while run records were committed, read after
+  `commitRuns` turned off) is not compared: `check` names it on stderr as "ignored now, not
+  compared" and judges the other paths. Show that note with the verdict.
 
 **Change plan:** also run `changed-lines.sh {plan.baseCommit}` over the owners and report any changed
 file that the record does not hold as `stale (new files)` — a file written after the pass is not in

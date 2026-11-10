@@ -123,12 +123,12 @@ Based on `implementation.status`, display the recommended next action:
 | `gen-failed` | "Run `/frontend-v2-plugin:v2-gen {feature}` to retry generation." |
 | `verified` | "Run `/frontend-v2-plugin:v2-review {feature}`." |
 | `verify-failed` | "Run `/frontend-v2-plugin:v2-debug {feature}` or review errors." |
-| `reviewed` | Check `implementation.e2e.status`: if absent -> "Run `/frontend-v2-plugin:v2-fix {feature}` to address warnings, or `/frontend-v2-plugin:v2-e2e {feature}` for E2E."; if `pass` -> "Reviewed with warnings, E2E passed. Run `/frontend-v2-plugin:v2-fix {feature}` to address warnings."; if `partial` or `fail` -> "Run `/frontend-v2-plugin:v2-fix {feature}` then `/frontend-v2-plugin:v2-e2e {feature}`." |
+| `reviewed` | Check `implementation.e2e.status`: if absent -> "Run `/frontend-v2-plugin:v2-fix {feature}` to address warnings, or `/frontend-v2-plugin:v2-e2e {feature}` for E2E."; if `pass` -> "Reviewed with warnings, E2E passed. Run `/frontend-v2-plugin:v2-fix {feature}` to address warnings."; if `skipped` -> "Reviewed with warnings, E2E skipped. Run `/frontend-v2-plugin:v2-fix {feature}` to address warnings."; if `partial` or `fail` -> "Run `/frontend-v2-plugin:v2-fix {feature}` then `/frontend-v2-plugin:v2-e2e {feature}`." |
 | `review-failed` | "Run `/frontend-v2-plugin:v2-fix {feature}`, then `/frontend-v2-plugin:v2-review {feature}`." |
 | `fixing` | Check report file timestamps: if `e2e-report.json` exists and is newer than `review-report.json` -> "Run `/frontend-v2-plugin:v2-e2e {feature}` to re-run E2E after fixes."; if fix-report.json has regen-required entries -> "Run `/frontend-v2-plugin:v2-gen {feature}` then `/frontend-v2-plugin:v2-review {feature}`."; otherwise -> "Run `/frontend-v2-plugin:v2-review {feature}` to re-review after fixes." |
 | `resolved` | "Run `/frontend-v2-plugin:v2-verify {feature}` or `/frontend-v2-plugin:v2-review {feature}`." |
 | `escalated` | "Manual intervention needed. See fix-report.json or debug-report.json." |
-| `done` | Check `implementation.e2e.status`: if absent -> "Review passed. Run `/frontend-v2-plugin:v2-e2e {feature}` for E2E testing."; if `pass` -> "Pipeline complete."; if `partial` or `fail` -> "Review passed but E2E has failures. Run `/frontend-v2-plugin:v2-fix {feature}` then `/frontend-v2-plugin:v2-e2e {feature}`." |
+| `done` | Check `implementation.e2e.status`: if absent -> "Review passed. Run `/frontend-v2-plugin:v2-e2e {feature}` for E2E testing."; if `pass` -> "Pipeline complete."; if `skipped` -> "Review passed; E2E skipped" with each app's reason, and no v2-e2e or v2-fix suggestion; if `partial` or `fail` -> "Review passed but E2E has failures. Run `/frontend-v2-plugin:v2-fix {feature}` then `/frontend-v2-plugin:v2-e2e {feature}`." |
 
 ### PR body draft (`--pr-body`, a feature name given)
 
