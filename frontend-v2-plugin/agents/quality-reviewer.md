@@ -33,7 +33,9 @@ The skill will provide these parameters in the prompt:
 
 ## Change Attribution
 
-Standalone mode only — pipeline mode (`v2-review`) already scopes to the feature's plan files.
+Standalone mode, and pipeline mode with `changeMode: true` (a change plan's files already exist and carry
+old debt, so only introduced issues count — see the `changeMode` parameter). Other pipeline runs already
+scope to the feature's own new files and skip this section.
 
 Optional parameter `changedLines` — the verbatim output of `scripts/changed-lines.sh`, computed by
 the skill: a header (`base`, `merge-base`, `head`, `dirty`) then one entry per changed range

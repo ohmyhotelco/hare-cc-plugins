@@ -96,7 +96,7 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 1. **Code change detection** — compare source file timestamps against the active report:
    - Determine which report to check: if `fixMode` is `"e2e"` → use `e2e-report.json` `timestamp`; otherwise → use `review-report.json` `timestamp`
-   - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/` and get its mtime
+   - Use Bash to find the most recently modified `.ts`/`.tsx` file under `{baseDir}/` and get its mtime — for a change plan (`baseDir` is `.`), only among the plan's `files[]` and `tests[]` that exist, never the whole repo
    - If any source file is newer than the active report's `timestamp`:
      > "Warning: Source files have been modified since the last {fixMode === 'e2e' ? 'E2E run' : 'review'} ({timestamp})."
      > "Already-resolved issues may exist. The fixer will pre-verify each issue before applying fixes."

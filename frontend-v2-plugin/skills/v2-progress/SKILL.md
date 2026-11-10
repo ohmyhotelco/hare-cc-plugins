@@ -81,7 +81,7 @@ Implementation Status for '{feature}':
     {If e2e.scenarios exists, list each: {id}: {name} — {status}}
 
   Delta: {implementation.lastDelta or "—"}
-    {If lastDelta exists: {lastDelta.timestamp} — {lastDelta.specChanges.added} added, {lastDelta.specChanges.modified} modified, {lastDelta.specChanges.removed} removed}
+    {If lastDelta exists: {lastDelta.timestamp} — {lastDelta.specChanges.added} added, {lastDelta.specChanges.modified} modified, {lastDelta.specChanges.removed} removed; a change delta has `ticketItems` instead of `specChanges`: {lastDelta.timestamp} — {lastDelta.ticketItems} ticket items — {lastDelta.filesChanged.created} created, {lastDelta.filesChanged.modified} modified, {lastDelta.filesChanged.removed} removed}
 ```
 
 **Status emoji mapping:**
