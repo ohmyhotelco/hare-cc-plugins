@@ -285,7 +285,7 @@ User-facing text per screen → namespace + key list:
 #### 2.8 Component Dependencies
 
 - `shadcn` (default): required but not yet installed components → `shadcnDependencies` (`required`/`missing`) → `npx shadcn@latest add` commands (unchanged).
-- `external` (Phase 2, D14): map every planned UI need to `componentDependencies.available`; record `used[]`. A need no export covers becomes a **gap** — `componentDependencies.gaps[]` (`name`, `plannedAs: "{externalComponents.uiKitDir}/{Name}.tsx"` — or, when `uiKitDir` is not set (the product keeps no app-owned UI kit), the full path the product repo's rules (`rulesDir`) give for a component the packages lack, citing that rule; no such rule → a `questions[]` entry, never a guessed folder — `reason`) **and** a `components[]` entry with `origin: "ui-kit"` so `component-tdd` builds it. Never plan a third library or a shadcn install. Under `formStack == rhf-zod`, record `componentDependencies.formAdapters` = `externalComponents.formAdapters` (default `{uiKitDir}/form`; with neither set → a `questions[]` entry); foundation-generator scaffolds it once (D18).
+- `external` (Phase 2, D14): map every planned UI need to `componentDependencies.available`; record `used[]`. A need no export covers becomes a **gap** — `componentDependencies.gaps[]` (`name`, `plannedAs: "{externalComponents.uiKitDir}/{Name}.tsx"`, `reason`) **and** a `components[]` entry with `origin: "ui-kit"` so `component-tdd` builds it. Never plan a third library or a shadcn install. Under `formStack == rhf-zod`, record `componentDependencies.formAdapters` = `externalComponents.formAdapters` (default `{uiKitDir}/form`); foundation-generator scaffolds it once (D18).
 
 #### 2.9 Mocks
 

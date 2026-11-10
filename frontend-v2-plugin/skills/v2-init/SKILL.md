@@ -196,7 +196,7 @@ Present:
 
 Default: `shadcn` for both profiles. Record as `componentLibrary`. When `external`, also collect
 `externalComponents`: `package` (required, e.g. `@acme/components`), `cssEntry` (optional — the preset
-the app stylesheet imports), `uiKitDir` (repo-relative, e.g. `app/app/ui-kit`; left out when the product keeps no app-owned UI kit and its rules say where a missing component goes), `formAdapters`
+the app stylesheet imports), `uiKitDir` (required, repo-relative, e.g. `app/app/ui-kit`), `formAdapters`
 (optional — default `{uiKitDir}/form`; used only when `formStack == rhf-zod`), `forbiddenImports`
 (optional — import prefixes the reviewer must flag, e.g. a sibling library whose views must not be used).
 
