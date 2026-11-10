@@ -67,7 +67,10 @@ Conventions (`v2-shared`): `${CLAUDE_PLUGIN_ROOT}/skills/v2-shared/SKILL.md`.
 
 4. **File existence check** — Verify that all files specified in the plan actually exist:
    - Use Glob to check existence of each file path
-   - If missing files are found, display a warning:
+   - **Change plan:** a `files[]` / `tests[]` entry with `op` `create` or `modify` that does not exist is a
+     **failure** of that owner (`missingPlanned: [paths]`), not a warning — the old code can still build and
+     pass without it. Only an `op: "remove"` entry is expected to be absent.
+   - Otherwise, if missing files are found, display a warning:
      > "Warning: {count} planned files not found:"
      > {list of missing files}
 
@@ -120,7 +123,9 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.2 ESLint Check
 
-1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*`
+1. Glob for ESLint config: `.eslintrc*`, `eslint.config.*` — in `{appDir}` first, then each parent up to the
+   repo root (ESLint resolves the nearest one). Found in `{appDir}` or a parent → use it; the template
+   fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
 2. **Config found** → detect config type and run:
    ```bash
    # If eslint.config.* exists (flat config, ESLint v9+):
@@ -134,12 +139,12 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
    b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
    c. If `eslintTemplate === true` or field absent (default: enabled):
       - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
-      - Generate `eslint.config.js` at the project root from the Canonical Config section
-      - Check `package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - Generate `eslint.config.js` in `{appDir}` from the Canonical Config section
+      - Check `{appDir}/package.json` devDependencies for required packages: `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
       - If any dependency is missing → skip with message:
         > "ESLint skipped (dependencies missing). Install with:"
         > ```
-        > pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
+        > pnpm --filter <the app's package name> add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
         > ```
       - If all dependencies are installed → run:
         ```bash

@@ -23,7 +23,7 @@ The skill will provide these parameters in the prompt:
 
 Optional parameter `changedLines` — the verbatim output of `scripts/changed-lines.sh`, computed by
 the skill: a header (`base`, `merge-base`, `head`, `dirty`) then one entry per changed range
-(`file:start-end`, `file:line (deletion)`, `file:all (untracked)`), or `changed: none`. Under each
+(`file:start-end`, `file:line (deletion)`, `file:all (untracked)`, `file:all (deleted)`, `new:all (renamed from old)`), or `changed: none`. Under each
 range come `was:` lines — the base-side text that range replaced, or `was: (nothing - new lines)`
 for a pure addition. You cannot run git, so the `was:` lines are your only view of `base`.
 
@@ -31,7 +31,8 @@ for a pure addition. You cannot run git, so the `was:` lines are your only view 
   - `introduced`: the change created the issue or made it worse — the issue exists only because of a
     changed line (a new call, a new input reaching an old sink, a changed line that removed a guard
     an unchanged line relies on — then cite the changed line too). A file marked `all (untracked)`
-    is wholly introduced. Being inside a changed range is evidence, not the test: ask "would this
+    is wholly introduced; `all (deleted)` was removed by this change (review what relied on it); a rename
+    alone introduces nothing, its ranges do. Being inside a changed range is evidence, not the test: ask "would this
     issue be there at `base`?" — and answer it from the range's `was:` lines, never from memory or
     guesswork. A range marked `was: (nothing - new lines)` did not exist at base, so an issue on it
     is `introduced`, never `touched`.

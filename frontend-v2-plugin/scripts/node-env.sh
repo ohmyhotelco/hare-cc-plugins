@@ -37,7 +37,7 @@ root="${NVM_DIR:-$HOME/.nvm}/versions/node"
 # Match "22" -> v22.x.y, "22.13" -> v22.13.y, "22.13.1" -> exactly v22.13.1. Pick the highest match.
 best=""
 for d in "$root"/v*; do
-  [ -d "$d/bin" ] || continue
+  [ -x "$d/bin/node" ] || continue
   v="${d##*/v}"
   case "$v" in
     "$want"|"$want".*) ;;
