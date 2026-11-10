@@ -36,7 +36,7 @@ updates the same folder. The records are meant to be committed. The first skill 
 `{runsDir}` creates, when absent, `{runsDir}/README.md` ("Records of tickets run through
 frontend-v2-plugin. Only tickets run through the plugin have a folder; a missing folder is not a missing
 record.") and `{runsDir}/.gitignore` with `.lock`, `*.lock`, `*.tmp`, `*.png`, `*.webm`, `*.zip`,
-`trace*/`, `test-results/`. `{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
+`trace*/`, `test-results/`, `generation-state.json`, `delta-plan*.json` (state needed only between steps; it stays on disk for the run). `{specRoot}` is where a feature's spec is read: `docs/specs/{feature}` when
 a planning-plugin spec exists there, else `{runsDir}/{feature}/spec`.
 
 **Per-app layout.** An app may carry `layout` (config `apps.{app}.layout`, paths relative to its
