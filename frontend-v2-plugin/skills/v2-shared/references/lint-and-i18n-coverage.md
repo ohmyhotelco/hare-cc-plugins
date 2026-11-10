@@ -11,9 +11,9 @@ Specs live in `{pluginRoot}/templates/eslint-config.md` and `{pluginRoot}/templa
 - The ESLint template is an ESLint v9 flat config with `strictTypeChecked` + `stylisticTypeChecked`, native flat config for react-hooks and react-refresh, and test-file overrides.
 - **Detection / scaffold / skip** (uniform across `foundation-generator`, `integration-generator`, `v2-verify`):
   1. Glob for an existing config (`eslint.config.*` / `.eslintrc*`; `prettier.config.*` / `.prettierrc*`). Present → use as-is, never overwrite.
-  2. Absent and the flag (`eslintTemplate` / `prettierTemplate`) is `true` or unset → generate from the template.
+  2. Absent and the flag (`eslintTemplate` / `prettierTemplate`) is `true` or unset → generate from the template, but only once the template's packages are installed (else item 4, writing nothing, so a re-run gives the same result).
   3. Absent and the flag is `false` → skip silently.
-  4. **Never auto-install deps.** Missing packages → print the `pnpm add -D …` line, skip the run, record `skipped` (not a failure).
+  4. **Never auto-install deps.** Missing packages → print the `pnpm add -D …` line, skip the run, record `skipped` (not a failure). Exception: an **existing** ESLint config with ESLint itself not installed is `not-run` in v2-verify — a configured gate that could not run. An app with its own `lint` script is linted by that script (v2-verify Step 2.2).
 - Commands, run from `{appDir}`: `npx eslint . 2>&1` (hard) and `npx prettier --check . 2>&1` (advisory). Never run `prettier --write` on the user's tree unasked.
 
 ### i18n Key Coverage

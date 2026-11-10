@@ -123,38 +123,34 @@ are the two commands **exempt** from the `cd {appDir} &&` prefix above: `apiPack
 
 #### 2.2 ESLint Check
 
+0. **The app's own lint script first.** `{appDir}/package.json` has a `lint` script → run it the way the
+   repo's CI does (`cd {appDir} && pnpm run lint`, with the `PATH=` prefix when `nodeBin` is set) and
+   judge by its exit code and output. No config guessing: the script already names its config and files.
+   Otherwise, items 1–3.
 1. Find the installed ESLint: the nearest `node_modules/.bin/eslint` from `{appDir}` up to the repo root
-   (never an installing `npx` probe). Found → run it with `--version`. Then look for the config family
-   that major reads, in `{appDir}` and each parent up to the repo root, nearest wins: 9 or later →
-   `eslint.config.*`; 8 → `.eslintrc*`. That config is used as is, never overwritten (v2-shared lint
-   rules). Only a config of the other family exists (e.g. `.eslintrc*` under 9+) → `not-run` with
-   "config not readable by ESLint {major}", never the template. Not installed but a config exists →
-   `not-run` "eslint is not installed" with the install command in item 3 — never `skipped`. No config of
-   either family (installed or not) → item 3, the template fallback.
-   The template fallback below writes to `{appDir}`, never to the repo root when `appDir` is not `.`.
-2. **Config found** → detect config type and run:
+   (never an installing `npx` probe). Find a config in `{appDir}` and each parent up to the repo root
+   (`eslint.config.*` or `.eslintrc*`, nearest wins); it is used as is, never overwritten (v2-shared lint
+   rules). ESLint itself decides whether it can read it: a configuration error from ESLint → `not-run`
+   with its message. A config but no ESLint installed → `not-run` "eslint is not installed" with the
+   install command in item 3 — never `skipped`. No config → item 3.
+2. **Config found and ESLint installed** → run that binary from `{appDir}`:
    ```bash
-   # If eslint.config.* exists (flat config, ESLint v9+):
-   npx eslint {srcPath} 2>&1
-
-   # If .eslintrc* exists (legacy config, ESLint v8):
-   npx eslint {srcPath} --ext .ts,.tsx 2>&1
+   {eslint} {srcPath} 2>&1                    # eslint.config.* (flat config)
+   {eslint} {srcPath} --ext .ts,.tsx 2>&1     # .eslintrc* (legacy config)
    ```
 3. **Config not found** → template fallback:
    a. Read `.claude/frontend-v2-plugin.json` → check `eslintTemplate`
    b. If `eslintTemplate === false` → skip ("ESLint skipped — template disabled")
    c. If `eslintTemplate === true` or field absent (default: enabled):
-      - Read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`
-      - Generate `eslint.config.js` in `{appDir}` from the Canonical Config section
-      - Check that each required package resolves from `{appDir}` (declared in `{appDir}/package.json` or a workspace ancestor's, e.g. the repo root): `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
-      - If any dependency is missing → skip with message:
+      - Check first that each required package resolves from `{appDir}` (declared in `{appDir}/package.json` or a workspace ancestor's, e.g. the repo root): `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`
+      - If any is missing → skip **without writing a config** (so the next run gives the same result), with:
         > "ESLint skipped (dependencies missing). Install with:"
         > ```
         > cd {appDir} && pnpm add -D eslint @eslint/js typescript-eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals
         > ```
-      - If all dependencies are installed → run:
+      - All installed → read `${CLAUDE_PLUGIN_ROOT}/templates/eslint-config.md`, generate `eslint.config.js` in `{appDir}` (never the repo root when `appDir` is not `.`) from the Canonical Config section, and run:
         ```bash
-        npx eslint {srcPath} 2>&1
+        {eslint} {srcPath} 2>&1
         ```
 
 - exit code 0 → pass

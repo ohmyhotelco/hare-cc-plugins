@@ -36,7 +36,7 @@ Files under `references/` write the plugin root as `{pluginRoot}`, which is `${C
    > "Do you want to reconfigure? This will overwrite the existing settings."
 3. If the user declines, stop here
 4. **Structural-change guard** (reconfiguration only; evaluated after all answers exist, before Step 3 writes): read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/reconfigure.md` and apply it at that point. Here, only snapshot the old config.
-5. If reconfiguring, remember the current `routerMode` as `previousMode` for Step 4
+5. If reconfiguring, remember the set of current merged `routerMode` values across all apps (one app → one) as `previousModes` for Step 4
 6. **Monorepo check:** read `${CLAUDE_PLUGIN_ROOT}/skills/v2-init/references/monorepo.md` and follow it; not a monorepo → Step 1b
 
 ### Step 1b: Ask for App Profile
