@@ -23,7 +23,7 @@ Show implementation pipeline status for features managed by the frontend-v2-plug
 
 ### If a feature name is provided:
 
-**Change plan** (`changeKind: "change"`): show the ticket's apps and packages, per-owner verification (`verification.owners`), per-app e2e (`e2e.apps`), and `ticketItems` where a spec plan shows spec changes. An app in the plan's `appsReadOnly[]` is shown as **not changed** with its `reason`, never with a pass; when its `decision` question has no answer yet, show **decision pending ({id})** and do not show the feature as done.
+**Change plan** (`changeKind: "change"`): show the ticket's apps and packages, per-owner verification (`verification.owners`), per-app e2e (`e2e.apps`), and `ticketItems` where a spec plan shows spec changes. An app in the plan's `appsReadOnly[]` is shown as **not changed** with its `reason`, never with a pass; when `verification.owners.{app}.role` is `consumer`, add "consumer check {status}". When its `decision` question is `open` or `deferred`, show **decision pending ({id}{, held by heldBy})** and do not show the feature as done.
 
 **Freshness.** For each of `implementation.verification` and `implementation.e2e` that has a `treeFile`, run `gate-record.sh check` per `${CLAUDE_PLUGIN_ROOT}/templates/gate-record.md` and show the pass as `fresh`, **stale** (with the files) or **shared-stale** (with the files). `tree: "unverifiable"` → show it with `treeMissing`. No `treeFile` → "not recorded". Never print a stale pass as a plain pass.
 

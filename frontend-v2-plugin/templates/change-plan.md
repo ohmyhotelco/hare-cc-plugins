@@ -9,7 +9,8 @@ a new route with a new page is a **new screen**: plan it with `v2-plan {feature}
 
 ## Inputs (from the skill)
 
-- `baseCommit` — HEAD when the change was planned; copy it into `plan.json`.
+- `baseCommit` — HEAD when the change was planned (kept from the earlier plan when re-planning the same
+  unmerged change); copy it into `plan.json`.
 - `feature` — the ticket key (e.g. `ABC-123`); also the records folder name.
 - `briefFile` — `{runsDir}/{feature}/spec/{lang}/brief.md`: goal, acceptance criteria `AC-1…n`, out of
   scope, apps and packages named. The only requirements source. Never add a requirement it does not
@@ -71,7 +72,9 @@ All `file` values are **repo-relative**.
   "tests": [
     { "file": "packages/data/src/price/total.test.ts", "package": "packages/data", "op": "modify", "ac": ["AC-1"] }
   ],
-  "questions": [],
+  "questions": [
+    { "id": "Q1", "topic": "…", "detail": "…", "planDefault": "…", "blocking": false, "status": "open | answered | deferred", "answer": null, "heldBy": null }
+  ],
   "routerMode": "framework",
   "baseDir": "."
 }

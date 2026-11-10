@@ -231,8 +231,9 @@ Default: `react-i18next` for both profiles. Record as `i18nBinding`. When `custo
 `i18nHook`: `hook` (required, e.g. `useI18n`), `from` (required, e.g. `~/lib/i18n`), `resourcesDir`
 (required, repo-relative, e.g. `packages/i18n/src/locales`), `resourceFile` (required — path
 pattern under `resourcesDir`; `{LANG}` = uppercased language code, `{lang}` = as configured, e.g.
-`{LANG}/translation.json`). Step 2d-3's `i18n.lookupFns` must name the function the hook returns
-(`["t"]` for `const t = useI18n()`).
+`{LANG}/translation.json`). Also collect `call` (`hook` default, or `language-first`). Step 2d-3's `i18n.lookupFns` must name the
+function that takes the key: what the hook returns (`["t"]` for `const t = useI18n()`), or under
+`language-first` the function itself (`["translate"]` for `translate(language, key)`).
 
 ### Step 2l: Ask for the Client Store
 

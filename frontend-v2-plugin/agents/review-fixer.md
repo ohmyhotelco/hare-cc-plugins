@@ -102,7 +102,7 @@ Each issue is classified as **tdd-required** or **direct-fix** based on its dime
      - For each failed scenario: extract `steps[]` with failure details, plus the evidence **its
        runner actually produced** — branch on `e2eTool`:
        - `playwright` → `scenarios[].evidence.trace`. Open it: `npx playwright show-trace <trace.zip>`
-         and diagnose from the trace. A Playwright run has **no** screenshots or snapshot excerpts,
+         and diagnose from the trace; with no `trace` (a change-mode run on a harness that keeps none), diagnose from `evidence.output` and re-run the failing test. A Playwright run has **no** screenshots or snapshot excerpts,
          so looking for them finds nothing and the fix becomes a guess.
        - `agent-browser` → `evidence` screenshots and snapshot excerpts, as before.
    - Read the E2E patterns for the runner in use: `${CLAUDE_PLUGIN_ROOT}/templates/e2e-playwright.md` when

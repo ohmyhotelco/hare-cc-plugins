@@ -42,7 +42,7 @@ The skill will provide these parameters in the prompt:
   `briefFile`, `apps` (list of `{ app, baseDir, appDir }`), `packageDirs`, `excludePaths`, `rulesDir`,
   `outputFile` and `deltaOutputFile`; `specDir`, `uiDslDir`, `prototypeDir`, `baseDir`, `appDir` and
   `incrementalMode` are not passed; `baseDir` and `appDir` arrive as `.` (paths are repo-relative).
-- `baseCommit` — (change mode) HEAD when planned; written into `plan.json`
+- `baseCommit` — (change mode) HEAD when planned, or the earlier plan's base on a re-plan of the same unmerged change; written into `plan.json`
 - `briefFile` — (change mode) the ticket brief, the only requirements source
 - `apps` — (change mode) the apps in scope with their merged directories
 - `packageDirs` — (change mode) workspace packages the apps depend on, minus excluded paths
