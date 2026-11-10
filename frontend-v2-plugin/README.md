@@ -32,6 +32,13 @@ It can sit next to `frontend-react-plugin` and `frontend-migration-plugin`. Ever
 this plugin (`frontend-v2-plugin:<agent>`), so same-named agents in those plugins are never started by
 mistake. In a repo where more than one of them is installed, call this one by its slash command.
 
+Install only one copy under this name. If another `frontend-v2-plugin` is already installed from a
+different marketplace (an older local build, say), disable it first:
+`claude plugin disable frontend-v2-plugin@<that-marketplace>` (`claude plugin list` shows which are
+installed). The same applies when trying a checkout with `claude --plugin-dir`. With two copies, both
+register the same `frontend-v2-plugin:*` names and a session may load a skill from either one; in one
+test run, a skill came from the older copy after the conversation was compacted.
+
 ## Setup
 
 ```
