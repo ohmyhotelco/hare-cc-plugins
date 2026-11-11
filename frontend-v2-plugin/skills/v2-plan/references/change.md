@@ -52,8 +52,10 @@ Source: {feature}
 - {app or package}: {why}
 ```
 
-Summarize in your own words; do not paste the ticket. Show the brief and ask the user to confirm or
-edit it. Declined → delete what this run wrote and stop.
+Summarize in your own words; do not paste the ticket. When the ticket names an app (by name, path or
+platform) that C.1 did not select, say so with the ticket's words and offer to add it — the C.1
+pre-selection is only `defaultApp`. Show the brief and ask the user to confirm or edit it. Declined →
+delete what this run wrote and stop.
 
 ### C.4: Launch the planner
 
@@ -106,7 +108,7 @@ them, keep the brief, stop. Accepted → delete the `.prev.json` copies.
 
 Create or update `{runsDir}/{feature}/progress.json`: `feature`, `status: "finalized"`,
 `workingLanguage`, `changeKind: "change"`, `ticket`, `apps` (keys), and `implementation`:
-`{ "status": "planned", "planFile": "…/plan.json", "deltaPlanFile": "…/delta-plan.json", "plannedAt": "{ISO}" }`.
+`{ "status": "planned", "planFile": "…/plan.json", "deltaFile": "…/delta-plan.json", "plannedAt": "{ISO}" }`.
 
 ### C.7: Next
 

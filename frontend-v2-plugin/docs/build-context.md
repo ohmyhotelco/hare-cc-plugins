@@ -56,12 +56,12 @@ exists. Product knowledge stays in the product repo: its `docs/rules/` and its c
 | 2026-11-10 | Full Codex review of everything changed since `694e5c3`, four areas in parallel | 27 high (20 after merging duplicates): 15 caused by this fork, fixed in `063b2e7`, `b1a0130`, `3027e0e`; 5 already in the parent plugin (listed below). Each fix commit was reviewed alone, and its findings fixed in `c71e5b1`, `c4c2235`, `f16bab1`, `8675064`, `3e14ada`, `62216f2`. The ESLint fallback (no app `lint` script) kept trading one ESLint version case for another, so `eb7ae94` restores the parent's steps with two monorepo changes; its version cases are listed below. Medium and low findings are listed below, not fixed |
 | 2026-11-10 | `claude -p --plugin-dir` with `v2-progress` on the same ticket's records, after the review fixes, read-only | Records unchanged; session hook, read-only app shown as not changed, gate check (stale, with the ignored plan left out), skipped e2e and the change delta all read correctly |
 | 2026-11-10 | Read of everything changed since `694e5c3` and all commit messages, for product content | Four example names made neutral (`34fa06a`) |
+| 2026-11-11 | The whole change pipeline again (`v2-plan` → `v2-gen` → `v2-verify` → `v2-review` → `v2-e2e`, then the e2e base vs HEAD comparison) at `58d8a6b`, headless `claude -p --plugin-dir`, on the same real ticket from its base commit in a throwaway worktree; questions took the recommended option, an owner decision was left deferred | Every stage completed and the code matched the human fix's shape (one helper, three call sites, four test files). An in-scope app held by a pending decision stayed read-only through verify, review and e2e. The comparison ran about 1,900 existing e2e tests on both trees and named the tests that failed on base, with no regressions. Four gaps, fixed in the next commit: the HEAD run of the comparison left 254 tracked capture files rewritten and the dirtied base worktree could not be removed; `v2-plan` wrote `deltaPlanFile` where every reader uses `deltaFile`; app selection pre-selects only `defaultApp`, so a ticket naming a second app could lose it; the planner wrote a `verification` list of commands that no step runs |
 
 ## Not yet exercised
 
-On a real ticket: an app that imports by relative path and a language-first helper, `appsReadOnly`
-with a pending decision, the e2e base vs HEAD step, a change across two apps, a new screen through
-route registration, and the routing evals for the renamed skills.
+On a real ticket: an app that imports by relative path and a language-first helper, a change across
+two apps, a new screen through route registration, and the routing evals for the renamed skills.
 
 ## Known gaps (from the 2026-11-10 reviews, not fixed)
 

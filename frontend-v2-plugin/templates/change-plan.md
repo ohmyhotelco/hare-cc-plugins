@@ -91,6 +91,12 @@ An app in `apps[]` that owns no `files[]` / `tests[]` entry is listed in `appsRe
 (the `questions[]` id). An app in neither place is a planning gap: stop and say so. Do not write other
 per-app lists (such as an "apps with changes" list); they are derived from `files[]`.
 
+Write only the fields shown above. In particular, no list of check commands (such as `verification`):
+no step reads one, so a check written there never runs. v2-verify runs each owner's whole test suite,
+so an existing test of a changed app needs no entry. A read-only app is not built or tested unless it
+consumes a changed package; when the ticket still needs its tests run, name them in that app's
+`reason`, and v2-verify reports them as a follow-up.
+
 ## delta-plan.json (change shape)
 
 The `Delta Output Format` in `agents/implementation-planner.md`, with these differences:
