@@ -54,7 +54,9 @@ Source: {feature}
 
 Summarize in your own words; do not paste the ticket. When the ticket names an app (by name, path or
 platform) that C.1 did not select, say so with the ticket's words and offer to add it — the C.1
-pre-selection is only `defaultApp`. Show the brief and ask the user to confirm or edit it. Declined →
+pre-selection is only `defaultApp`. Accepted → resolve the added app as C.1 does (merged `baseDir`/`appDir`
+and config), add it to the C.1 list, recompute `packageDirs`, and rewrite the brief's "Apps and
+packages" before showing it again. Show the brief and ask the user to confirm or edit it. Declined →
 delete what this run wrote and stop.
 
 ### C.4: Launch the planner
