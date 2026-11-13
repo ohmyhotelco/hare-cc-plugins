@@ -223,3 +223,300 @@ request implies independent read-side scaling, a separate read datastore, or
 eventual consistency between write and read paths, that is out of this plugin's
 current scope — say so explicitly rather than silently scaffolding the same
 single-datastore package split and calling it done.
+
+## Decision 9: Fit decision for multi-module Gradle targets — extend this plugin (minor version 0.3.0), not configure, not copy
+
+**Date:** 2026-11-06 · **Tickets:** ELS-4416 (decision), ELS-4167 (method)
+
+**Decision:** Option B of the plugin build guide (§3): extend `backend-webflux-plugin` with a module
+setting (Decision 10) and script-produced verification evidence (Decision 12), released as `0.3.0`.
+No new plugin, no new prefix.
+
+**Rationale:**
+
+1. The fit test of 2026-10-19 (two headless runs on a scratch clone of a multi-module Gradle target,
+   Spring Boot 3.2, MyBatis starter 3.0.x, mixed web layer) stopped in `be-init` and `be-crud`. Every
+   `be-init` stop is a config gap, not a method gap: the Java and Boot versions live in the root build
+   file, the config has no module field, so `sourceDir`/`testDir` and the Gradle commands point at the
+   repository root.
+2. A real ticket in the same weeks (ELS-3869) ran `be-code` → `be-verify` → `be-review` → `be-fix` on the same
+   target once the config was corrected by hand, and the method held. The remaining gaps are config
+   and how the verification result is recorded.
+3. Option A (configure) is out: no knob says which module the plugin works in. Option C (copy) is only
+   right if the templates are wrong for the target rather than incomplete; nothing measured so far
+   shows that, and a copy would double the maintenance of a plugin the owner keeps simple.
+
+**Consequence:** the extension is three PRs after this one — module scope (Decisions 10, 11, 13, 14),
+evidence (Decision 12), version chore. The first two are each closed by two runs:
+`examples/employee-service` with no `module` key (current behaviour) and a scratch clone of a
+multi-module target with `module` set. The version chore is closed by the repository checks (design
+§5). Decisions 14 and 15 record what is deliberately not changed.
+
+## Decision 10: Module scope — one `module` per config, its directory and task prefix derived
+
+**Decision:** `.claude/backend-webflux-plugin.json` gains one optional key and two keys derived from it:
+
+| Key | Value | Written by |
+|---|---|---|
+| `module` | the **Gradle project path** as `settings.gradle` includes it, with the leading colon (`":orders-api"`, `":services:orders"`). Absent ⇒ the single-module behaviour of 0.2.x | `be-init --module` |
+| `moduleDir` | the project's directory relative to the Gradle root: `:a:b` → `a/b`, or the relocated `projectDir` when settings sets one. `""` when `module` is absent | `be-init`, derived |
+| `taskPrefix` | `module` + `":"` (`":services:orders:"`); `""` when `module` is absent | `be-init`, derived |
+
+`module` names the project, not a directory, because the two differ for a nested path (`:a:b`) and
+for a relocated `projectDir`; Gradle task paths use the project path, file paths use `moduleDir`.
+
+`be-init` gains its first argument, `--module <path>`; without it, it asks only when `settings.gradle`
+includes subprojects. It refuses a `module` that settings does not include or whose directory it
+cannot resolve. With `module` set it derives `sourceDir` and `testDir` under `moduleDir`, runs its
+Step 2 checks (base package, data profile, database, migration directory, checkstyle, coverage)
+against the module, reads the Java and Spring Boot versions from the module build file **or, if
+absent there, from the root build file** (`buildscript.ext`, `subprojects {}`, `allprojects {}`), and
+writes `buildCommand` and `testCommand` with the prefix. Every task-level Gradle call is
+`{gradleCommand} {taskPrefix}<task>`.
+
+**Paths with no config key.** Paths the skills write as repository-root literals move under
+`moduleDir`:
+
+| Path today | 0.3.0 | Read or written by |
+|---|---|---|
+| `src/main/resources/migration/` | `{moduleDir}/src/main/resources/migration/` | `be-init` item 8, `be-crud` (SKILL, `references/generate.md`, `references/examples.md`), `be-jira-auto` (SKILL, `references/implement.md`), `be-review`, `be-data`, `backend-planner`; the `implement` agent through `templates/cqrs-module.md` |
+| `src/main/resources/mapper/` | `{moduleDir}/src/main/resources/mapper/` | `be-review`, `be-data`, `be-security`; the `implement` agent through `templates/entity-conventions-mybatis.md` |
+| `build/test-results/test/`, `build/reports/jacoco/test/` | under `{moduleDir}/build/` only | `be-verify` (Decision 12), `be-test-review` (coverage and timing); the report path in `templates/coverage-gate.md` |
+| `config/checkstyle/checkstyle.xml` | stays at the Gradle root, Gradle's default for every subproject; another file only when the build sets `configDirectory`, `config` or `configFile` for the module | `be-init` item 9, `code-reviewer` |
+| `./gradlew test --tests …`, `./gradlew :{module}:test --tests …` and `./gradlew build` in `templates/tdd-rules.md` | `{gradleCommand} {taskPrefix}test --tests …` and `{gradleCommand} {taskPrefix}build`; the separate multi-module line goes, the prefix covers it | `implement`, `review-fixer`, `be-test-review` |
+
+The plugin's `CLAUDE.md` (maintainer notes, not loaded into agents) gives the two resource paths at
+the root too; it moves to the same form.
+
+**One config per repository.** The config file is per repository, so `be-init` for a second module
+replaces the first. `be-init` Step 1 already asks before it overwrites a config; when the `module`
+changes, the same question also lists the progress records whose `module` differs from the new one
+and says they stop counting as current until the config names their module again. The reading side compares a record's `module` with the configured
+one (Decision 12, class `other-module`). A developer who works in two modules runs `be-init` when
+switching.
+
+**Rationale:** without a prefix every gate builds and tests every subproject, and a test report from a
+module the change did not touch can fail or pass the gate. One module per config keeps one answer per
+question. No knob branches a dependency set, so the guide's per-branch sample rule (§3) does not apply
+and `examples/employee-service` stays the only sample.
+
+**Consequence:** `be-init`, `be-verify`, `be-build`, `be-code`, `be-crud`, `be-review`, `be-data`,
+`be-security`, `be-jira-auto`, `be-test-review`, the `implement`, `build-doctor`, `review-fixer`,
+`debugger`, `code-reviewer`, `backend-planner` agents and the templates `tdd-rules.md`,
+`cqrs-module.md`, `entity-conventions-mybatis.md` and `coverage-gate.md` read the new keys; the
+repository's `scripts/check-plugin-consistency.py` gets all three in its wiring table. A config
+written by 0.2.x has no `module` and keeps working unchanged.
+
+## Decision 11: Web layer in a module that already mixes styles
+
+**Decision:** when `be-init` finds both `RouterFunction` and `@RestController` classes in meaningful
+numbers (Step 2 item 6), it no longer raises a separate warning that asks for one style: it proposes
+`webLayer: "functional"` with the other detected values and says why. `webLayer` keeps its two values.
+It governs **new domains**; a new file in an **existing domain** follows the style that domain already
+uses, whatever `webLayer` says.
+
+**Rationale:** Decision 2 already sets the two rules this needs — functional for a new domain, never
+two styles in one domain. The warning asks the user to pick one style for a module that, by Decision
+2's own rule, legitimately holds both. Rewriting an existing domain to the other style is a refactor,
+not a feature. The Step 1 (existing config) and Step 3 (confirm detected values) questions stay as
+they are; this decision removes one question, it does not make `be-init` non-interactive.
+
+**Consequence:** `be-init` Step 2 item 6 and the matching Step 3 warning lose the mixed-case question;
+`be-code` and the `code-reviewer` agent check the style per domain. No new config value.
+
+## Decision 12: What "verified" means — a script runs the gate and writes the record
+
+**Decision:** `scripts/verify-run.sh` runs the verification rows itself and is the only writer of
+`pipeline.verification` in `{workDocDir}/.progress/{feature}.json`. The caller never passes a result:
+the script works out every value from what it ran. `be-verify` calls it inside its own lock and
+reports the JSON it prints; skills and agents never edit the block. The layout stays `.progress/`
+(guide §7: the older layout of the be- plugins stays as it is); the record gains fields, it is not
+moved. `frontend-ohmyhotel-plugin/bin/fo-verify-run` is the precedent for a gate that runs its own
+checks.
+
+**What the script derives.**
+
+1. It records `tree` (`scripts/source-tree-hash.sh`, Decision 13) **before** the first task, as
+   `be-verify` does today.
+2. It runs the five rows of `be-verify` Step 1 with its own commands, `{gradleCommand}` and
+   `{taskPrefix}` on every task: `classes testClasses`, `checkstyleMain checkstyleTest` (when
+   `checkstyle` is true), `test`, `build`, `jacocoTestReport` (when `coverage` is true; `-x test` after
+   a red test row). As in 0.2.4 Step 1.4, after a red test row the `build` row is not run and is `fail`
+   with the reason `tests failed; build not re-run`. Every other row's status comes from that run's
+   exit code. The script does not run `testCommand` or `buildCommand`; those keys stay for the skills
+   and agents that build and test during work. A gate whose test call a config value can change (a
+   filter, `-x test`, a dry run) has an override by another name; a setting the tests need belongs in
+   the build files, which the tree hash covers.
+3. The test row makes Gradle execute the test task in this invocation:
+   `{gradleCommand} {taskPrefix}cleanTest {taskPrefix}test --no-build-cache`. A test task that Gradle
+   reports as UP-TO-DATE (nothing changed since the last run, such as right after a green `be-build`)
+   writes no new XML, so step 4 would read no suite and fail a tree that did not change; one restored
+   FROM-CACHE did not run in this invocation.
+4. It reads test counts from `{moduleDir}/build/test-results/test/TEST-*.xml` only, summing the
+   `<testsuite>` attributes, and checks that the XML files were written by this run (newer than its
+   start). `tests.status` is `pass` only when the task exited 0, at least one suite was read,
+   `failures + errors` is 0, and at least one test executed (`tests − skipped` above 0: a test dry
+   run, set on the command line or in a build file, reports every test as skipped).
+5. `testsRun` is `full` when the script ran the module's test task with no filter, which is what the
+   test row always does. Only the script's own `--tests <filter>` (diagnosis only) runs a filter, and
+   that run is `subset`; see below.
+6. After the last row it recomputes the hash with the same scope. If it differs from `tree`, or cannot
+   be computed, `status` is `fail` with the reason `source changed during verification`, as in 0.2.4
+   Step 2: the rows describe a tree that no longer exists.
+7. `status` is `pass` only when every row that ran passed (a row the config turns off,
+   `checkstyle: false` or `coverage: false`, is `skip` and neutral, as in 0.2.4), `testsRun` is `full`
+   and the tree did not change (step 6); `fail` when any row failed or the tree changed; `not-run` when the toolchain is missing
+   (no `gradlew` or `gradle`, no `java`), with a `reason`.
+
+| Field | Values | Rule |
+|---|---|---|
+| `status` | `pass` · `fail` · `not-run` | derived as above, never passed in |
+| `compilation`, `checkstyle`, `tests`, `build` | as in 0.2.4 | from the task exit codes and the module's JUnit XML |
+| `coverage` | as in 0.2.4: `status` `pass` · `fail` · `skip`, `linePercent`, `thresholdEnforced: false` | **unchanged** (Decision 6): `coverage: true` with a missing or unparseable report is `fail` and fails `status`; `skip` means exactly `coverage: false`. The percentage stays report-only |
+| `tree`, `treeScope` | hash, `module` · `full` | Decision 13 |
+| `testsRun` | `full` · absent | `full` when the test row ran the module's test task unfiltered (step 5); absent on `not-run`, where no row ran |
+| `module` | the configured `module`, or absent | copied from config |
+| `writer` | `verify-run` | absent ⇒ the record was not written by the script |
+| `committed`, `committedAt` | `true`, timestamp | set only by `verify-run.sh mark-committed` (below) |
+
+`pipeline.status` follows `status` as in 0.2.4: `pass` → `verified`; `fail` and `not-run` →
+`verify-failed`. `not-run` adds no pipeline status; `be-progress` shows its `reason` and the command
+to fix the toolchain.
+
+**`partial` — who writes it.** Only `verify-run.sh --tests <filter>` produces `partial`, and it writes
+it to a separate block, `pipeline.verificationPartial` (`status: partial`, `testsRun: subset`, the
+filter, counts, `tree`, `writer`), never to `pipeline.verification`, and it exits 1. It does not change
+`pipeline.status`: a subset run can never stand in for the gate, and it cannot replace a full record.
+No skill calls it in 0.3.0; it exists so a developer's narrowed run leaves a record that is visibly
+not a pass.
+
+**`committed` — who writes it.** `be-commit` Step 6.5 keeps its job but calls
+`verify-run.sh mark-committed --feature <f>`: the script recomputes the staged tree hash itself
+(`source-tree-hash.sh --staged`, with the record's `treeScope` and `module`) and sets
+`committed: true` and `committedAt` only when the record is `current` against the index: `writer` is
+`verify-run`, `status` is `pass`, `testsRun` is `full`, `module` equals the configured one, and
+`tree` equals the staged hash. It leaves the record unchanged otherwise. The two places that
+remove the mark today call `verify-run.sh unmark-committed --feature <f>` instead of editing the
+block: `be-build` when it demotes committed records because nothing else is in flight, and
+`be-commit` when the commit command fails and it undoes Step 6.5 (only where Step 6.5 set the mark;
+a mark an earlier commit set stays). `be-verify` still **replaces** the block, so a new verification
+drops an old `committed` mark (0.2.4 Step 3).
+
+**Reading side** (`be-progress`, `be-review`, `be-commit`, `be-build`, `be-jira-auto`), first match wins;
+`be-review` skips the first row (below):
+
+| Class | When | Effect |
+|---|---|---|
+| `committed` | `committed` is `true` | history for `be-progress`, `be-commit` and `be-build`: not compared with later trees or the configured module, blocks nothing; `be-build` keeps its committed-record rule; a pre-0.3.0 record with `committed: true` is read the same way |
+| `unverifiable` | `writer` or `tree` missing | not verified: `be-review` refuses, `be-commit` warns (below); `be-progress` names `be-verify` |
+| `other-module` | `module` differs from the configured `module` | not verified, as above; `be-progress` names both modules (Decision 10) |
+| `stale` | `tree` differs from the hash recomputed with the record's `treeScope` | not verified, as above; re-run `be-verify` |
+| `current` | `writer` is `verify-run`, `status` is `pass`, `testsRun` is `full`, tree equal | `be-review` proceeds; `be-commit` proceeds without a warning |
+| `failed` | otherwise (`fail`, `not-run`) | not verified, as above, as `verify-failed` is today |
+
+There is no override field: the reading side ignores any key this schema does not define.
+
+When `be-review` has pipeline context (a feature whose progress record exists), a `committed` mark
+does not let it through: it classifies the record by the rows after the first and proceeds only on
+`current`, as 0.2.4 Step 2 item 3 compares the tree on every proceed path there, committed or not. A
+review of no feature, of a directory, or of a feature with no record stays a standalone review
+without pipeline context, as today (Steps 1 and 1.5).
+
+**`be-commit` warns, it does not refuse.** `be-commit` takes no feature argument, so it cannot tell
+which record a commit belongs to. Step 1.5 keeps its 0.2.4 shape: for each `reviewed`/`done` record
+not yet `committed` it works out the class against the staged tree (`source-tree-hash.sh --staged`,
+with the record's `treeScope`), and for any class other than `current` it names the feature and the
+class and asks whether to continue. A record of another feature, such as a pre-0.3.0 record or one
+from the module configured before the last `be-init`, must not stop unrelated work. Continuing
+changes nothing in the record: `mark-committed` sets `committed` only on a `current` record, so a
+record that was not `current` still reads as not verified. `be-jira-auto` never answers the
+prompt: as today (`references/gate-and-commit.md`, Step 9 item 2a) it checks the records before it
+calls `be-commit` and stops with `NEEDS-INPUT` where `be-commit` would ask.
+
+The script needs `jq` (exit 6 if missing). It takes no lock of its own: when it writes, it requires
+the caller's lock and exits 5 otherwise: `operation` `be-verify` for a run, `be-commit` for
+`mark-committed` and `unmark-committed`, `be-build` for `unmark-committed`, each with `--run-id` equal
+to the lock's `runId`. It replaces the file atomically (write a temporary file, then `mv`). `be-verify`
+with no feature argument takes no lock today; it calls the script with `--no-write`, which runs the
+same rows, prints the same JSON and writes nothing.
+
+**Rationale:** a record whose values the caller supplies is only as good as the caller; a CI gate that
+counts verified records can only count what a script derived from what it ran. Coverage keeps the
+0.2.4 rule because loosening it is a separate decision with its own case, and `skip` keeps its single
+meaning. Keeping `status` (not renaming it) keeps 0.2.x readers and existing records parseable.
+`be-commit` asks rather than refuses because what a gate counts is the record, not whether a commit
+was made.
+
+**Consequence:** a record written before 0.3.0 and not yet committed is `unverifiable` until
+`be-verify` runs again; `be-progress` says so and names the command. A committed one stays history.
+`current` needs a full run of the module's test task; no setting accepts less. A CI gate reads a
+record with the `current` rule against the tree it checks; `committed` is history for the be- skills,
+not evidence on its own.
+
+## Decision 13: Tree hash scope with a module
+
+**Decision:** with `module` set, `scripts/source-tree-hash.sh --module <path>` hashes:
+
+- the module (`src/`, its build file, `gradle.properties`, `config/`);
+- every subproject it depends on through `project(':x')` in its build file, transitively, each with
+  the same paths;
+- the root set, always: `settings.gradle(.kts)`, the root build file and `gradle.properties`,
+  `gradlew`, `gradlew.bat`, `gradle/`, `buildSrc/` (as today), `config/` and `libs/` if present;
+- every included build inside the repository (`includeBuild(...)` in settings, inside or outside
+  `pluginManagement {}`, such as `build-logic/`), **whole**: every file under its directory except
+  `build/` and `.gradle/` output. An included build is a separate build with its own settings,
+  subprojects and version catalog, so picking paths inside it would miss some.
+
+The narrow hash is taken only when the closure can be established. The script falls back to the
+0.2.x full hash (every subproject) when any of these holds: a `project(...)` or `includeBuild(...)`
+argument that is not a string literal; a `projects.x` type-safe accessor; a root `subprojects {}` or
+`allprojects {}` block that declares dependencies; a `project(` reference under `buildSrc/` or an
+included build; a referenced project the settings do not include. The record carries
+`treeScope: module` or `full`, and the reading side recomputes with the same scope. The full hash is
+the root set and the included builds above plus the paths of every subproject (the 0.2.x
+discovery), so it never covers less than the module hash.
+
+An included build outside the repository is refused, as a project directory outside it is today. The
+gate accepts no omission: `verify-run.sh` and the reading side hash without `BEWF_IGNORE_EXTERNAL`,
+so a build with an input outside the repository gets `status: fail` with the hash error and no `tree`,
+as 0.2.4 does when the hash fails, and its record reads `unverifiable`. This also applies to a project
+directory outside the repository, which 0.2.4 lets the variable accept.
+
+**Rationale:** a change in a shared module changes what the verified module runs; a change in an
+unrelated module does not. Hashing all subprojects (0.2.x) makes every unrelated commit stale the
+record; hashing only what a parser happened to find misses dependencies it could not see. When in
+doubt the hash covers too much, never too little. An included build can change what the module
+compiles and tests (a convention plugin, or a library that replaces a dependency), as `buildSrc/`
+can, so it is always in the hash. 0.2.x hashes only the `src/`, build file, `gradle.properties` and
+`config/` of each directory in it that has a build file, not its settings file or `gradle/`; 0.3.0
+hashes it whole.
+
+**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` and `includeBuild(...)`
+references; anything it cannot read moves the hash to `full` and says so on stderr instead of being
+skipped.
+
+## Decision 14: `be-crud` on Spring Boot 3 — deferred, with a clear stop
+
+**Decision:** 0.3.0 adds no Boot 3 branch to `be-crud`. `be-crud` reads `sourceDir` from config and,
+on a Boot 3 project, stops before writing anything with "Spring Boot 3 is not supported by be-crud
+(Decision 14); use be-code from a work document", releasing its lock.
+
+**Rationale:** two of the artifacts `be-crud` Step 3 requires have no Boot 3 release, so a Boot 3 path
+is a dependency branch, and the guide (§3) then requires the sample to run per branch value or a second
+sample. No real ticket on the Boot 3 target has entered through `be-crud`; work enters through a work
+document and `be-code` (Decision 15). The fit test named a Boot 3 branch as the next experiment; it
+stays the next experiment for when a team needs scaffolding.
+
+**Consequence:** reopen when a Boot 3 team asks for scaffolding; the reopening PR adds the `bootLine`
+knob and a Boot 3 sample together.
+
+## Decision 15: How work enters the pipeline on an existing module
+
+**Decision:** on an existing module the supported entry is a work document with test scenarios →
+`be-code`. `be-plan` keeps reading a planning-plugin spec only; `be-jira-auto` keeps its current input.
+
+**Rationale:** the fit test showed `be-plan` refuses ticket text by design, and the real tickets that
+used the plugin on the target all started from a work document. Teaching `be-plan` to read ticket text
+is a separate feature with its own evidence rules.
+
+**Consequence:** the README and the target's golden path document this entry; no skill changes for it.
