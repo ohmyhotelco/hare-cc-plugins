@@ -247,9 +247,10 @@ No new plugin, no new prefix.
    shows that, and a copy would double the maintenance of a plugin the owner keeps simple.
 
 **Consequence:** the extension is three PRs after this one — module scope (Decisions 10, 11, 13, 14),
-evidence (Decision 12), version chore — each closed by two runs: `examples/employee-service` with no
-`module` key (current behaviour) and a scratch clone of a multi-module target with `module` set.
-Decisions 14 and 15 record what is deliberately not changed.
+evidence (Decision 12), version chore. The first two are each closed by two runs:
+`examples/employee-service` with no `module` key (current behaviour) and a scratch clone of a
+multi-module target with `module` set. The version chore is closed by the repository checks (design
+§5). Decisions 14 and 15 record what is deliberately not changed.
 
 ## Decision 10: Module scope — one `module` per config, its directory and task prefix derived
 
@@ -278,11 +279,14 @@ writes `buildCommand` and `testCommand` with the prefix. Every task-level Gradle
 
 | Path today | 0.3.0 | Read or written by |
 |---|---|---|
-| `src/main/resources/migration/` | `{moduleDir}/src/main/resources/migration/` | `be-init` item 8, `be-crud` (SKILL, `references/generate.md`, `references/examples.md`), `be-jira-auto` (SKILL, `references/implement.md`), `be-review`, `be-data`, `backend-planner` |
-| `src/main/resources/mapper/` | `{moduleDir}/src/main/resources/mapper/` | `be-review`, `be-data`, `be-security` |
-| `build/test-results/test/`, `build/reports/jacoco/test/` | under `{moduleDir}/build/` only | `be-verify` (Decision 12) |
+| `src/main/resources/migration/` | `{moduleDir}/src/main/resources/migration/` | `be-init` item 8, `be-crud` (SKILL, `references/generate.md`, `references/examples.md`), `be-jira-auto` (SKILL, `references/implement.md`), `be-review`, `be-data`, `backend-planner`; the `implement` agent through `templates/cqrs-module.md` |
+| `src/main/resources/mapper/` | `{moduleDir}/src/main/resources/mapper/` | `be-review`, `be-data`, `be-security`; the `implement` agent through `templates/entity-conventions-mybatis.md` |
+| `build/test-results/test/`, `build/reports/jacoco/test/` | under `{moduleDir}/build/` only | `be-verify` (Decision 12), `be-test-review` (coverage and timing); the report path in `templates/coverage-gate.md` |
 | `config/checkstyle/checkstyle.xml` | stays at the Gradle root, Gradle's default for every subproject; another file only when the build sets `configDirectory`, `config` or `configFile` for the module | `be-init` item 9, `code-reviewer` |
-| `./gradlew :{module}:test` in `templates/tdd-rules.md` | `{gradleCommand} {taskPrefix}test` | `implement`, `review-fixer`, `be-test-review` |
+| `./gradlew test --tests …`, `./gradlew :{module}:test --tests …` and `./gradlew build` in `templates/tdd-rules.md` | `{gradleCommand} {taskPrefix}test --tests …` and `{gradleCommand} {taskPrefix}build`; the separate multi-module line goes, the prefix covers it | `implement`, `review-fixer`, `be-test-review` |
+
+The plugin's `CLAUDE.md` (maintainer notes, not loaded into agents) gives the two resource paths at
+the root too; it moves to the same form.
 
 **One config per repository.** The config file is per repository, so `be-init` for a second module
 replaces the first. `be-init` Step 1 already asks before it overwrites a config; when the `module`
@@ -297,8 +301,9 @@ question. No knob branches a dependency set, so the guide's per-branch sample ru
 and `examples/employee-service` stays the only sample.
 
 **Consequence:** `be-init`, `be-verify`, `be-build`, `be-code`, `be-crud`, `be-review`, `be-data`,
-`be-security`, `be-jira-auto`, the `implement`, `build-doctor`, `review-fixer`, `debugger`,
-`code-reviewer`, `backend-planner` agents and `templates/tdd-rules.md` read the new keys; the
+`be-security`, `be-jira-auto`, `be-test-review`, the `implement`, `build-doctor`, `review-fixer`,
+`debugger`, `code-reviewer`, `backend-planner` agents and the templates `tdd-rules.md`,
+`cqrs-module.md`, `entity-conventions-mybatis.md` and `coverage-gate.md` read the new keys; the
 repository's `scripts/check-plugin-consistency.py` gets all three in its wiring table. A config
 written by 0.2.x has no `module` and keeps working unchanged.
 
@@ -333,17 +338,23 @@ checks.
 
 1. It records `tree` (`scripts/source-tree-hash.sh`, Decision 13) **before** the first task, as
    `be-verify` does today.
-2. It runs the five rows of `be-verify` Step 1 with `{gradleCommand}` and `{taskPrefix}` on every
-   task: `classes testClasses`, `checkstyleMain checkstyleTest` (when `checkstyle` is true), `test`,
-   `build`, `jacocoTestReport` (when `coverage` is true; `-x test` after a red `test`). Each row's
-   status comes from that run's exit code.
-3. It reads test counts from `{moduleDir}/build/test-results/test/TEST-*.xml` only, summing the
+2. It runs the five rows of `be-verify` Step 1 with the commands 0.2.4 uses, each task with
+   `{taskPrefix}`: `{gradleCommand} classes testClasses`, `{gradleCommand} checkstyleMain
+   checkstyleTest` (when `checkstyle` is true), `{testCommand}`, `{buildCommand}`, `{gradleCommand}
+   jacocoTestReport` (when `coverage` is true; `-x test` after a red test row). `testCommand` and
+   `buildCommand` already carry the prefix (Decision 10), so flags a project keeps in them stay. Each
+   row's status comes from that run's exit code.
+3. The test row makes Gradle execute the test task in this run: `{gradleCommand} {taskPrefix}cleanTest`
+   first, then `{testCommand} --no-build-cache`. A test task that Gradle reports as UP-TO-DATE
+   (nothing changed since the last run, such as right after a green `be-build`) or restores FROM-CACHE
+   writes no new XML; step 4 would then read no suite and fail a tree that did not change.
+4. It reads test counts from `{moduleDir}/build/test-results/test/TEST-*.xml` only, summing the
    `<testsuite>` attributes, and checks that the XML files were written by this run (newer than its
    start). `tests.status` is `pass` only when the task exited 0, at least one suite was read, and
    `failures + errors` is 0.
-4. `testsRun` is `full` when the script ran the `test` task with no filter, which is what `be-verify`
+5. `testsRun` is `full` when the script ran the test task with no filter, which is what `be-verify`
    always asks for. A run with `--tests <filter>` (diagnosis only) is `subset`; see below.
-5. `status` is `pass` only when every row passed and `testsRun` is `full`; `fail` when any row failed;
+6. `status` is `pass` only when every row passed and `testsRun` is `full`; `fail` when any row failed;
    `not-run` when the toolchain is missing (no `gradlew` or `gradle`, no `java`), with a `reason`.
 
 | Field | Values | Rule |
@@ -352,7 +363,7 @@ checks.
 | `compilation`, `checkstyle`, `tests`, `build` | as in 0.2.4 | from the task exit codes and the module's JUnit XML |
 | `coverage` | as in 0.2.4: `status` `pass` · `fail` · `skip`, `linePercent`, `thresholdEnforced: false` | **unchanged** (Decision 6): `coverage: true` with a missing or unparseable report is `fail` and fails `status`; `skip` means exactly `coverage: false`. The percentage stays report-only |
 | `tree`, `treeScope` | hash, `module` · `full` | Decision 13 |
-| `testsRun` | `full` | always `full` in this block |
+| `testsRun` | `full` · absent | `full` whenever the test row ran (step 5); absent on `not-run`, where no row ran |
 | `module` | the configured `module`, or absent | copied from config |
 | `writer` | `verify-run` | absent ⇒ the record was not written by the script |
 | `committed`, `committedAt` | `true`, timestamp | set only by `verify-run.sh mark-committed` (below) |
@@ -369,7 +380,8 @@ No skill calls it in 0.3.0; it exists so a developer's narrowed run leaves a rec
 not a pass.
 
 **`committed` — who writes it.** `be-commit` Step 6.5 keeps its job but calls
-`verify-run.sh mark-committed --feature <f>`: the script recomputes the staged tree hash itself, sets
+`verify-run.sh mark-committed --feature <f>`: the script recomputes the staged tree hash itself
+(`source-tree-hash.sh --staged`, with the record's `treeScope` and `module`), sets
 `committed: true` and `committedAt` only when it equals `pipeline.verification.tree` and the record is
 `pass` with `writer: verify-run`, and leaves the record unchanged otherwise. The two places that
 remove the mark today call `verify-run.sh unmark-committed --feature <f>` instead of editing the
@@ -383,17 +395,29 @@ drops an old `committed` mark (0.2.4 Step 3).
 | Class | When | Effect |
 |---|---|---|
 | `committed` | `committed` is `true` | history: not compared with later trees or the configured module, blocks nothing; `be-build` keeps its committed-record rule; a pre-0.3.0 record with `committed: true` is read the same way |
-| `unverifiable` | `writer` or `tree` missing | blocks `be-review` and `be-commit`; `be-progress` names `be-verify` |
-| `other-module` | `module` differs from the configured `module` | blocks; `be-progress` names both modules (Decision 10) |
-| `stale` | `tree` differs from the hash recomputed with the record's `treeScope` | blocks; re-run `be-verify` |
-| `current` | `writer` is `verify-run`, `status` is `pass`, `testsRun` is `full`, tree equal | lets `be-review` and `be-commit` proceed |
-| `failed` | otherwise (`fail`, `not-run`) | blocks, as `verify-failed` does today |
+| `unverifiable` | `writer` or `tree` missing | not verified: `be-review` refuses, `be-commit` warns (below); `be-progress` names `be-verify` |
+| `other-module` | `module` differs from the configured `module` | not verified, as above; `be-progress` names both modules (Decision 10) |
+| `stale` | `tree` differs from the hash recomputed with the record's `treeScope` | not verified, as above; re-run `be-verify` |
+| `current` | `writer` is `verify-run`, `status` is `pass`, `testsRun` is `full`, tree equal | `be-review` proceeds; `be-commit` proceeds without a warning |
+| `failed` | otherwise (`fail`, `not-run`) | not verified, as above, as `verify-failed` is today |
 
 There is no override field: the reading side ignores any key this schema does not define.
 
+**`be-commit` warns, it does not refuse.** `be-commit` takes no feature argument, so it cannot tell
+which record a commit belongs to. Step 1.5 keeps its 0.2.4 shape: for each `reviewed`/`done` record
+not yet `committed` it works out the class against the staged tree (`source-tree-hash.sh --staged`,
+with the record's `treeScope`), and for any class other than `current` it names the feature and the
+class and asks whether to continue. A record of another feature, such as a pre-0.3.0 record or one
+from the module configured before the last `be-init`, must not stop unrelated work. Continuing
+changes nothing in the record: `mark-committed` sets `committed` only on a matching `pass` record, so
+a record that was not `current` still reads as not verified. `be-jira-auto` never answers the
+prompt: as today (`references/gate-and-commit.md`, Step 9 item 2a) it checks the records before it
+calls `be-commit` and stops with `NEEDS-INPUT` where `be-commit` would ask.
+
 The script needs `jq` (exit 6 if missing). It takes no lock of its own: when it writes, it requires
-the caller's lock (`operation` `be-verify` or `be-commit`, `--run-id` equal to the lock's `runId`,
-exit 5 otherwise) and replaces the file atomically (write a temporary file, then `mv`). `be-verify`
+the caller's lock and exits 5 otherwise: `operation` `be-verify` for a run, `be-commit` for
+`mark-committed` and `unmark-committed`, `be-build` for `unmark-committed`, each with `--run-id` equal
+to the lock's `runId`. It replaces the file atomically (write a temporary file, then `mv`). `be-verify`
 with no feature argument takes no lock today; it calls the script with `--no-write`, which runs the
 same rows, prints the same JSON and writes nothing.
 
@@ -401,6 +425,8 @@ same rows, prints the same JSON and writes nothing.
 counts verified records can only count what a script derived from what it ran. Coverage keeps the
 0.2.4 rule because loosening it is a separate decision with its own case, and `skip` keeps its single
 meaning. Keeping `status` (not renaming it) keeps 0.2.x readers and existing records parseable.
+`be-commit` asks rather than refuses because what a gate counts is the record, not whether a commit
+was made.
 
 **Consequence:** a record written before 0.3.0 and not yet committed is `unverifiable` until
 `be-verify` runs again; `be-progress` says so and names the command. A committed one stays history.
@@ -414,22 +440,27 @@ meaning. Keeping `status` (not renaming it) keeps 0.2.x readers and existing rec
 - every subproject it depends on through `project(':x')` in its build file, transitively, each with
   the same paths;
 - the root set, always: `settings.gradle(.kts)`, the root build file and `gradle.properties`,
-  `gradlew`, `gradlew.bat`, `gradle/`, `buildSrc/` (as today), `config/` and `libs/` if present.
+  `gradlew`, `gradlew.bat`, `gradle/`, `buildSrc/` (as today), every included build inside the
+  repository (`includeBuild(...)` in settings, `pluginManagement {}` included, such as `build-logic/`:
+  its `src/`, build, settings and properties files), `config/` and `libs/` if present.
 
 The narrow hash is taken only when the closure can be established. The script falls back to the
-0.2.x full hash (every subproject) when any of these holds: a `project(...)` argument that is not a
-string literal; a `projects.x` type-safe accessor; a root `subprojects {}` or `allprojects {}` block
-that declares dependencies; a `project(` reference under `buildSrc/` or an included build
-(`includeBuild`, such as `build-logic/`); a referenced project the settings do not include. The record
-carries `treeScope: module` or `full`, and the reading side recomputes with the same scope.
+0.2.x full hash (every subproject) when any of these holds: a `project(...)` or `includeBuild(...)`
+argument that is not a string literal; a `projects.x` type-safe accessor; a root `subprojects {}` or
+`allprojects {}` block that declares dependencies; a `project(` reference under `buildSrc/` or an
+included build; a referenced project the settings do not include. The record carries
+`treeScope: module` or `full`, and the reading side recomputes with the same scope.
 
 **Rationale:** a change in a shared module changes what the verified module runs; a change in an
 unrelated module does not. Hashing all subprojects (0.2.x) makes every unrelated commit stale the
 record; hashing only what a parser happened to find misses dependencies it could not see. When in
-doubt the hash covers too much, never too little.
+doubt the hash covers too much, never too little. An included build holds build logic for every
+module, as `buildSrc/` does (convention plugins), so it belongs to the root set; 0.2.x already hashes
+it as a directory with its own build file.
 
-**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` references; anything it
-cannot read moves the hash to `full` and says so on stderr instead of being skipped.
+**Consequence:** the script parses Groovy and Kotlin DSL `project(':x')` and `includeBuild(...)`
+references; anything it cannot read moves the hash to `full` and says so on stderr instead of being
+skipped.
 
 ## Decision 14: `be-crud` on Spring Boot 3 — deferred, with a clear stop
 
