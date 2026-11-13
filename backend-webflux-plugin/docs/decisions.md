@@ -354,16 +354,18 @@ checks.
    FROM-CACHE did not run in this invocation.
 4. It reads test counts from `{moduleDir}/build/test-results/test/TEST-*.xml` only, summing the
    `<testsuite>` attributes, and checks that the XML files were written by this run (newer than its
-   start). `tests.status` is `pass` only when the task exited 0, at least one suite was read, and
-   `failures + errors` is 0.
+   start). `tests.status` is `pass` only when the task exited 0, at least one suite was read,
+   `failures + errors` is 0, and at least one test executed (`tests − skipped` above 0: a test dry
+   run, set on the command line or in a build file, reports every test as skipped).
 5. `testsRun` is `full` when the script ran the module's test task with no filter, which is what the
    test row always does. Only the script's own `--tests <filter>` (diagnosis only) runs a filter, and
    that run is `subset`; see below.
 6. After the last row it recomputes the hash with the same scope. If it differs from `tree`, or cannot
    be computed, `status` is `fail` with the reason `source changed during verification`, as in 0.2.4
    Step 2: the rows describe a tree that no longer exists.
-7. `status` is `pass` only when every row passed, `testsRun` is `full` and the tree did not change
-   (step 6); `fail` when any row failed or the tree changed; `not-run` when the toolchain is missing
+7. `status` is `pass` only when every row that ran passed (a row the config turns off,
+   `checkstyle: false` or `coverage: false`, is `skip` and neutral, as in 0.2.4), `testsRun` is `full`
+   and the tree did not change (step 6); `fail` when any row failed or the tree changed; `not-run` when the toolchain is missing
    (no `gradlew` or `gradle`, no `java`), with a `reason`.
 
 | Field | Values | Rule |
@@ -414,9 +416,11 @@ drops an old `committed` mark (0.2.4 Step 3).
 
 There is no override field: the reading side ignores any key this schema does not define.
 
-`be-review` reviews code, so a `committed` mark does not let it through: it classifies the record by
-the rows after the first and proceeds only on `current`. 0.2.4 `be-review` already compares the tree
-on every proceed path (Step 2 item 3), committed or not.
+When `be-review` has pipeline context (a feature whose progress record exists), a `committed` mark
+does not let it through: it classifies the record by the rows after the first and proceeds only on
+`current`, as 0.2.4 Step 2 item 3 compares the tree on every proceed path there, committed or not. A
+review of no feature, of a directory, or of a feature with no record stays a standalone review
+without pipeline context, as today (Steps 1 and 1.5).
 
 **`be-commit` warns, it does not refuse.** `be-commit` takes no feature argument, so it cannot tell
 which record a commit belongs to. Step 1.5 keeps its 0.2.4 shape: for each `reviewed`/`done` record
@@ -468,10 +472,15 @@ The narrow hash is taken only when the closure can be established. The script fa
 argument that is not a string literal; a `projects.x` type-safe accessor; a root `subprojects {}` or
 `allprojects {}` block that declares dependencies; a `project(` reference under `buildSrc/` or an
 included build; a referenced project the settings do not include. The record carries
-`treeScope: module` or `full`, and the reading side recomputes with the same scope. In both scopes
-the included builds inside the repository are hashed whole; the full hash is otherwise the 0.2.x
-hash. An included build outside the repository is refused as a project directory outside it is
-today: no hash, unless `BEWF_IGNORE_EXTERNAL=1` accepts the omission.
+`treeScope: module` or `full`, and the reading side recomputes with the same scope. The full hash is
+the root set and the included builds above plus the paths of every subproject (the 0.2.x
+discovery), so it never covers less than the module hash.
+
+An included build outside the repository is refused, as a project directory outside it is today. The
+gate accepts no omission: `verify-run.sh` and the reading side hash without `BEWF_IGNORE_EXTERNAL`,
+so a build with an input outside the repository gets `status: fail` with the hash error and no `tree`,
+as 0.2.4 does when the hash fails, and its record reads `unverifiable`. This also applies to a project
+directory outside the repository, which 0.2.4 lets the variable accept.
 
 **Rationale:** a change in a shared module changes what the verified module runs; a change in an
 unrelated module does not. Hashing all subprojects (0.2.x) makes every unrelated commit stale the
