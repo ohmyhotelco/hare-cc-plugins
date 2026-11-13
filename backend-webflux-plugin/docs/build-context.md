@@ -15,4 +15,4 @@ ELS-4416, not in this repository.
 A real ticket in the same weeks ran `be-code` → `be-verify` → `be-review` → `be-fix` on that stack with the config
 corrected by hand (ELS-3869). Decisions 9–15 follow from these two runs.
 
-Each step in `docs/design/multi-module-extension.md` §5 appends its two runs here.
+Steps 1 and 2 in `docs/design/multi-module-extension.md` §5 append their two runs here.
